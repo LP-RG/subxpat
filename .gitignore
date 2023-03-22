@@ -1,0 +1,10 @@
+venv/
+test/
+output/
+
+*.txt
+
+
+
+# Exclusions!
+!requirements.txt
