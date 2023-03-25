@@ -109,12 +109,16 @@ class Template_SOP1(TemplateCreator):
         exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()
         approximate_circuit_constraints = self.z3_generate_approximate_circuit_constraints()
         for_all_solver = self.z3_generate_forall_solver()
-        verification_solver = ''
+        verification_solver = self.z3_generate_verification_solver()
+        parameter_constraint_list = self.z3_generate_parameter_constraint_list()
+        find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
+
+
 
         self.z3pyscript = imports + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
                           + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
                           + exact_circuit_outputs_declaration + exact_circuit_constraints + approximate_circuit_constraints \
-                          + for_all_solver
+                          + for_all_solver + verification_solver
         self.export_z3pyscript()
 
     def z3_generate_imports(self):
@@ -390,7 +394,11 @@ class Template_SOP1(TemplateCreator):
         remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation()
         set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order()
 
-        redundancy = double_no_care + remove_constant_zero_permutation + set_ppo_order
+        double_no_care += '\n'
+        remove_constant_zero_permutation += '\n'
+        set_ppo_order += '\n'
+        end = f"{TAB})\n))\n"
+        redundancy = double_no_care + remove_constant_zero_permutation + set_ppo_order + end
         return redundancy
 
     def z3_generate_forall_solver_redundancy_constraints_double_no_care(self):
@@ -414,7 +422,7 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation(self):
         const_zero_perm = ''
         for output_idx in range(self.graph.num_outputs):
-            const_zero_perm += f"{TAB}{TAB}{IMPLIES}({NOT}({Z3_OR}("
+            const_zero_perm += f"{TAB}{TAB}{IMPLIES}({Z3_NOT}({PRODUCT_PREFIX}{output_idx}), {Z3_NOT}({Z3_OR}("
             for ppo_idx in range(self.ppo):
                 for input_idx in range(self.graph.num_inputs):
                     loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
@@ -424,14 +432,81 @@ class Template_SOP1(TemplateCreator):
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     const_zero_perm += f'{p_s}, {p_l}'
                     if loop_2_last_iter_flg and loop_3_last_iter_flg:
-                        const_zero_perm = f'))),\n'
+                        const_zero_perm += f'))),\n'
                     else:
-                        const_zero_perm = f', '
+                        const_zero_perm += f', '
         return const_zero_perm
 
     def z3_generate_forall_solver_redundancy_constraints_set_ppo_order(self):
         ppo_order = ''
+        for output_idx in range(self.graph.num_outputs):
+            ppo_order += f"{TAB}{TAB}("
+            for ppo_idx in range(self.ppo):
+                for input_idx in range(self.graph.num_inputs):
+                    loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
+                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1
+                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
+                    p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+                    p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                    ppo_order += f'{INTVAL}({input_idx ** 2}) * {p_s} + {INTVAL}({(input_idx+1) ** 2}) * {p_l}'
+
+
+                    if loop_2_last_iter_flg and loop_3_last_iter_flg:
+                        ppo_order += '),\n'
+                    else:
+                        ppo_order += ' + '
+
         return ppo_order
+
+    def z3_generate_verification_solver(self):
+        verficiation_solver = ''
+        verficiation_solver += f'{VERIFICATION_SOLVER} = {SOLVER}\n' \
+                               f'{VERIFICATION_SOLVER}.{ADD}(\n' \
+                               f'{TAB}{ERROR} = {DIFFERENCE}\n' \
+                               f'{TAB}{EXACT_CIRCUIT},\n' \
+                               f'{TAB}{APPROXIMATE_CIRCUIT},\n' \
+                               f')\n'
+        return verficiation_solver
+
+    def z3_generate_parameter_constraint_list(self):
+        parameter_list = ''
+        parameter_list += f'List[Tuple[BoolRef, bool]] = []\n'
+        return parameter_list
+
+    def z3_generate_find_wanted_number_of_models(self):
+        prep_loop1 = self.z3_generate_find_wanted_number_of_models_prep_loop1()
+        prep_loop2 = self.z3_generate_find_wanted_number_of_models_prep_loop2()
+        prep_loop3 = self.z3_generate_find_wanted_number_of_models_prep_loop3()
+        find_wanted_number_of_models = prep_loop1 + prep_loop2 + prep_loop3
+        return find_wanted_number_of_models
+
+    def z3_generate_find_wanted_number_of_models_prep_loop1(self):
+        prep_loop1 = ''
+        prep_loop1 = f'found_data = []\n' \
+                    f'while(len(found_data) < wanted_models) and timeout > 0):\n' \
+                    f'{TAB}time_total_start = time()\n' \
+                    f'{TAB}\n' \
+                    f'{TAB}attempts = 1\n' \
+                    f'{TAB}result: CheckSatResult = None\n' \
+                    f'{TAB}attempts_times: List[Tuple[float, float, float]] = []\n'
+
+        return  prep_loop1
+
+    def z3_generate_find_wanted_number_of_models_prep_loop2(self):
+        find_valid_model = ''
+        find_valid_model += f'{TAB}while result != sat:\n' \
+                           f'{TAB}{TAB}time_attempt_start = time()\n' \
+                           f'{TAB}{TAB}time_parameters_start = time_attempt_start\n'
+
+        find_valid_model += f'{TAB}{TAB}# add constrain to prevent the same parameters to happen\n' \
+                            f'{TAB}{TAB}if parameters_constraints:\n' \
+                            f'{TAB}{TAB}{TAB}forall_solver.add(Or(*map(lambda x: x[0] != x[1], parameters_constraints)))\n'
+
+        find_valid_model += f'{TAB}{TAB}parameters_constraints = []\n'
+        return find_valid_model
+
+    def z3_generate_find_wanted_number_of_models_prep_loop3(self):
+        pass
 
 
 # TODO: Later (Cata)
