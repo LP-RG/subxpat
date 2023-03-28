@@ -97,8 +97,8 @@ class Template_SOP1(TemplateCreator):
             z.writelines(self.z3pyscript)
 
     def z3_generate_z3pyscript(self):
-        imports = self.z3_generate_imports()
-        z3_abs_function = self.z3_generate_z3_abs_function()
+        imports = self.z3_generate_imports() # parent
+        z3_abs_function = self.z3_generate_z3_abs_function() # parent
         input_variables_declaration = self.z3_generate_declare_input_variables()
         exact_integer_function_declaration = self.z3_generate_declare_integer_function(F_EXACT)
         approximate_integer_function_declaration = self.z3_generate_declare_integer_function(F_APPROXIMATE)
@@ -513,3 +513,8 @@ class Template_SOP1(TemplateCreator):
 class Template_SOP1ShareLogic(TemplateCreator):
     def __init__(self, template_specs: TemplateSpecs):
         super().__init__(template_specs)
+
+class Template_MUX(TemplateCreator):
+    pass
+
+
