@@ -1,10 +1,12 @@
 venv/
 test/
 output/
+Laura/
 
 *.txt
-
+*.py
 
 
 # Exclusions!
 !requirements.txt
+!main.py
