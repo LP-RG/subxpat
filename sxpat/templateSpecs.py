@@ -8,6 +8,7 @@ class TemplateSpecs:
         self.__literals_per_product: int = int(kwargs[LITERALS_PER_PRODUCT])
         self.__products_per_output: int = int(kwargs[PRODUCTS_PER_OUTPUT])
 
+        self.__num_of_models = kwargs[NUM_OF_MODELS]
 
     @property
     def template_name(self):
@@ -33,9 +34,15 @@ class TemplateSpecs:
     def ppo(self):
         return self.__products_per_output
 
+    @property
+    def num_of_models(self):
+        return self.__num_of_models
+
+
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \
                f'{self.template_name = }\n' \
                f'{self.benchmark_name = }\n' \
                f'{self.lpp = }\n' \
-               f'{self.ppo = }'
+               f'{self.ppo = }\n' \
+               f'{self.num_of_models = }\n'

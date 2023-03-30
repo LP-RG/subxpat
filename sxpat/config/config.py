@@ -4,7 +4,7 @@ NAME = 'name'
 LITERALS_PER_PRODUCT = 'literals_per_product'
 PRODUCTS_PER_OUTPUT = 'products_per_output'
 BENCHMARK = 'benchmark_name'
-
+NUM_OF_MODELS = 'num_of_models'
 
 #   NetworkX
 NOT = 'not'
@@ -53,3 +53,8 @@ DIFFERENCE = 'difference'
 ET = 'ET'
 VERIFICATION_SOLVER = 'verification_solver'
 ERROR = 'error'
+
+# random constants
+JSON = 'json'
+LPP = 'lpp'
+PPO = 'ppo'
