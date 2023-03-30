@@ -9,6 +9,7 @@ from Z3Log.utils import *
 
 from .config.config import *
 from .templateSpecs import TemplateSpecs
+from .config import paths as sxpatpaths
 
 
 class TemplateCreator:
@@ -58,6 +59,7 @@ class Template_SOP1(TemplateCreator):
         self.__product_per_output = template_specs.products_per_output
         self.__z3pyscript = None
         self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
+        self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH['json'])
 
     @property
     def literals_per_product(self):
@@ -87,9 +89,13 @@ class Template_SOP1(TemplateCreator):
     def z3_out_path(self):
         return self.__z3_out_path
 
+    @property
+    def json_out_path(self):
+        return self.__json_out_path
+
     def set_path(self, this_path: Tuple[str, str]):
         folder, extenstion = this_path
-        return f'{folder}/{self.benchmark_name}_{self.template_name}.{extenstion}'
+        return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}.{extenstion}'
 
     def export_z3pyscript(self):
         print(f'Storing in {self.z3_out_path}')
@@ -97,8 +103,9 @@ class Template_SOP1(TemplateCreator):
             z.writelines(self.z3pyscript)
 
     def z3_generate_z3pyscript(self):
-        imports = self.z3_generate_imports() # parent
-        z3_abs_function = self.z3_generate_z3_abs_function() # parent
+        imports = self.z3_generate_imports()  # parent
+        config = self.z3_generate_config()
+        z3_abs_function = self.z3_generate_z3_abs_function()  # parent
         input_variables_declaration = self.z3_generate_declare_input_variables()
         exact_integer_function_declaration = self.z3_generate_declare_integer_function(F_EXACT)
         approximate_integer_function_declaration = self.z3_generate_declare_integer_function(F_APPROXIMATE)
@@ -112,13 +119,14 @@ class Template_SOP1(TemplateCreator):
         verification_solver = self.z3_generate_verification_solver()
         parameter_constraint_list = self.z3_generate_parameter_constraint_list()
         find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
+        store_data = self.z3_generate_store_data()
 
 
-
-        self.z3pyscript = imports + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
+        self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
                           + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
                           + exact_circuit_outputs_declaration + exact_circuit_constraints + approximate_circuit_constraints \
-                          + for_all_solver + verification_solver
+                          + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
+                          + store_data
         self.export_z3pyscript()
 
     def z3_generate_imports(self):
@@ -199,7 +207,7 @@ class Template_SOP1(TemplateCreator):
             exact_wires_declaration += f"{EXACT_WIRES_PREFIX}{self.graph.num_inputs + g_idx} = " \
                                        f"{FUNCTION}('{EXACT_WIRES_PREFIX}{self.graph.num_inputs + g_idx}', " \
                                        f"{', '.join(repeat(BOOLSORT, self.graph.num_inputs))}" \
-                                       f", {INTSORT}" \
+                                       f", {BOOLSORT}" \
                                        f")\n"
         exact_wires_declaration += '\n'
         return exact_wires_declaration
@@ -221,7 +229,7 @@ class Template_SOP1(TemplateCreator):
 
     def z3_express_node_as_wire_constraints(self, node: str):
         assert node in list(self.graph.input_dict.values()) or node in list(self.graph.gate_dict.values()) \
-            or node in list(self.graph.output_dict.values())
+               or node in list(self.graph.output_dict.values())
         if node in list(self.graph.input_dict.values()):
             return node
         elif node in list(self.graph.gate_dict.values()):
@@ -229,7 +237,7 @@ class Template_SOP1(TemplateCreator):
             for key in self.graph.gate_dict.keys():
                 if self.graph.gate_dict[key] == node:
                     node_id = key
-            return f"{EXACT_WIRES_PREFIX}{self.graph.num_inputs+node_id}({','.join(list(self.graph.input_dict.values()))})"
+            return f"{EXACT_WIRES_PREFIX}{self.graph.num_inputs + node_id}({','.join(list(self.graph.input_dict.values()))})"
         elif node in list(self.graph.output_dict.values()):
             for key in self.graph.output_dict.keys():
                 if self.graph.output_dict[key] == node:
@@ -288,7 +296,7 @@ class Template_SOP1(TemplateCreator):
 
         for idx in range(self.graph.num_outputs):
             output_label = self.graph.output_dict[idx]
-            if idx == self.graph.num_outputs -1:
+            if idx == self.graph.num_outputs - 1:
                 exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints(output_label)},\n"
             else:
                 exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints(output_label)} +\n"
@@ -312,7 +320,7 @@ class Template_SOP1(TemplateCreator):
         approximate_circuit_constraints += f"{TAB}{SUM}("
         for o_idx in range(self.graph.num_outputs):
             if o_idx > 0:
-                approximate_circuit_constraints += f"{TAB}{TAB}" # fixing the indentations
+                approximate_circuit_constraints += f"{TAB}{TAB}"  # fixing the indentations
             approximate_circuit_constraints += f"{INTVAL}({2 ** o_idx}) * {Z3_AND} ( {PRODUCT_PREFIX}{o_idx}, {Z3_OR}({Z3_AND}("
             for ppo_idx in range(self.ppo):
                 for input_idx in range(self.graph.num_inputs):
@@ -320,10 +328,10 @@ class Template_SOP1(TemplateCreator):
                     p_l = f'{PRODUCT_PREFIX}{o_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
 
                     loop_1_last_iter_flg = o_idx == self.graph.num_outputs - 1
-                    loop_2_last_iter_flg = ppo_idx == self.ppo -1
-                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs -1
+                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1
+                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
 
-                    approximate_circuit_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {INPUT_LITERAL_PREFIX}{input_idx})'
+                    approximate_circuit_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {self.graph.input_dict[input_idx]})'
 
                     if loop_1_last_iter_flg and loop_2_last_iter_flg and loop_3_last_iter_flg:
                         approximate_circuit_constraints += '))))\n)\n'
@@ -352,9 +360,9 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_forall_solver_preperation(self):
         prep = ''
         prep += f'{FORALL_SOLVER} = {SOLVER}\n' \
-               f'{FORALL_SOLVER}.{ADD}({FORALL}(\n' \
-               f"{TAB}[{','.join(list(self.graph.input_dict.values()))}]\n" \
-               f"{TAB}{Z3_AND}(\n"
+                f'{FORALL_SOLVER}.{ADD}({FORALL}(\n' \
+                f"{TAB}[{','.join(list(self.graph.input_dict.values()))}],\n" \
+                f"{TAB}{Z3_AND}(\n"
         return prep
 
     def z3_generate_forall_solver_error_constraint(self):
@@ -440,19 +448,21 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_forall_solver_redundancy_constraints_set_ppo_order(self):
         ppo_order = ''
         for output_idx in range(self.graph.num_outputs):
-            ppo_order += f"{TAB}{TAB}("
+            ppo_order += f"{TAB}{TAB}"
             for ppo_idx in range(self.ppo):
+                ppo_order += '('
                 for input_idx in range(self.graph.num_inputs):
                     loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
                     loop_2_last_iter_flg = ppo_idx == self.ppo - 1
                     loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
                     p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                    ppo_order += f'{INTVAL}({input_idx ** 2}) * {p_s} + {INTVAL}({(input_idx+1) ** 2}) * {p_l}'
-
+                    ppo_order += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s} + {INTVAL}({2 ** (2*input_idx + 1)}) * {p_l}'
 
                     if loop_2_last_iter_flg and loop_3_last_iter_flg:
                         ppo_order += '),\n'
+                    elif loop_3_last_iter_flg:
+                        ppo_order += ') >= '
                     else:
                         ppo_order += ' + '
 
@@ -462,7 +472,7 @@ class Template_SOP1(TemplateCreator):
         verficiation_solver = ''
         verficiation_solver += f'{VERIFICATION_SOLVER} = {SOLVER}\n' \
                                f'{VERIFICATION_SOLVER}.{ADD}(\n' \
-                               f'{TAB}{ERROR} = {DIFFERENCE}\n' \
+                               f'{TAB}{ERROR} == {DIFFERENCE},\n' \
                                f'{TAB}{EXACT_CIRCUIT},\n' \
                                f'{TAB}{APPROXIMATE_CIRCUIT},\n' \
                                f')\n'
@@ -470,51 +480,207 @@ class Template_SOP1(TemplateCreator):
 
     def z3_generate_parameter_constraint_list(self):
         parameter_list = ''
-        parameter_list += f'List[Tuple[BoolRef, bool]] = []\n'
+        parameter_list += f'parameters_constraints: List[Tuple[BoolRef, bool]] = []\n'
         return parameter_list
 
     def z3_generate_find_wanted_number_of_models(self):
         prep_loop1 = self.z3_generate_find_wanted_number_of_models_prep_loop1()
         prep_loop2 = self.z3_generate_find_wanted_number_of_models_prep_loop2()
         prep_loop3 = self.z3_generate_find_wanted_number_of_models_prep_loop3()
-        find_wanted_number_of_models = prep_loop1 + prep_loop2 + prep_loop3
+        final_prep = self.z3_generate_find_wanted_number_of_models_final_prep()
+        prep_loop1 += '\n'
+        prep_loop2 += '\n'
+        prep_loop3 += '\n'
+        final_prep += '\n'
+        find_wanted_number_of_models = prep_loop1 + prep_loop2 + prep_loop3 + final_prep
         return find_wanted_number_of_models
 
     def z3_generate_find_wanted_number_of_models_prep_loop1(self):
         prep_loop1 = ''
-        prep_loop1 = f'found_data = []\n' \
-                    f'while(len(found_data) < wanted_models) and timeout > 0):\n' \
-                    f'{TAB}time_total_start = time()\n' \
-                    f'{TAB}\n' \
-                    f'{TAB}attempts = 1\n' \
-                    f'{TAB}result: CheckSatResult = None\n' \
-                    f'{TAB}attempts_times: List[Tuple[float, float, float]] = []\n'
+        prep_loop1+= f'found_data = []\n' \
+                     f'while(len(found_data) < wanted_models and timeout > 0):\n' \
+                     f'{TAB}time_total_start = time()\n' \
+                     f'{TAB}\n' \
+                     f'{TAB}attempts = 1\n' \
+                     f'{TAB}result: CheckSatResult = None\n' \
+                     f'{TAB}attempts_times: List[Tuple[float, float, float]] = []\n'
 
-        return  prep_loop1
+        return prep_loop1
 
     def z3_generate_find_wanted_number_of_models_prep_loop2(self):
         find_valid_model = ''
         find_valid_model += f'{TAB}while result != sat:\n' \
-                           f'{TAB}{TAB}time_attempt_start = time()\n' \
-                           f'{TAB}{TAB}time_parameters_start = time_attempt_start\n'
+                            f'{TAB}{TAB}time_attempt_start = time()\n' \
+                            f'{TAB}{TAB}time_parameters_start = time_attempt_start\n'
 
         find_valid_model += f'{TAB}{TAB}# add constrain to prevent the same parameters to happen\n' \
                             f'{TAB}{TAB}if parameters_constraints:\n' \
                             f'{TAB}{TAB}{TAB}forall_solver.add(Or(*map(lambda x: x[0] != x[1], parameters_constraints)))\n'
 
         find_valid_model += f'{TAB}{TAB}parameters_constraints = []\n'
+        find_valid_model += f"{TAB}{TAB}forall_solver.set(\"timeout\", int(timeout * 1000))\n" \
+                            f"{TAB}{TAB}result = forall_solver.check()\n" \
+                            f"{TAB}{TAB}time_parameters = time() - time_attempt_start\n" \
+                            f"{TAB}{TAB}time_attempt = time() - time_attempt_start\n" \
+                            f"{TAB}{TAB}timeout -= time_parameters # removed the time used from the timeout\n"
+        find_valid_model += f'{TAB}{TAB}if result != sat:\n' \
+                            f'{TAB}{TAB}{TAB}attempts_times.append((time_attempt, time_parameters, None))\n' \
+                            f'{TAB}{TAB}{TAB}break\n'
+        find_valid_model += f'{TAB}{TAB}m = forall_solver.model()\n' \
+                            f'{TAB}{TAB}parameters_constraints = []\n' \
+                            f'{TAB}{TAB}for k, v in map(lambda k: (k, m[k]), m):\n' \
+                            f'{TAB}{TAB}{TAB}if str(k)[0] == "p":\n' \
+                            f'{TAB}{TAB}{TAB}{TAB}parameters_constraints.append((Bool(str(k)), v))\n'
+
+        find_valid_model += f'{TAB}{TAB}# verify parameters\n' \
+                            f'{TAB}{TAB}WCE: int = None\n' \
+                            f'{TAB}{TAB}verification_ET: int = 0\n' \
+                            f'{TAB}{TAB}time_verification_start = time()\n' \
+                            f'{TAB}{TAB}# save state\n' \
+                            f'{TAB}{TAB}verification_solver.push()\n' \
+                            f'{TAB}{TAB}# parameters constraints\n' \
+                            f'{TAB}{TAB}verification_solver.add(\n' \
+                            f'{TAB}{TAB}{TAB}*map(lambda x: x[0] == x[1], parameters_constraints),\n' \
+                            f'{TAB}{TAB})\n'
+
         return find_valid_model
 
     def z3_generate_find_wanted_number_of_models_prep_loop3(self):
-        pass
+        prep_loop3 = f'{TAB}{TAB}while verification_ET < max_possible_ET:\n' \
+                     f'{TAB}{TAB}{TAB}# add constraint\n' \
+                     f'{TAB}{TAB}{TAB}verification_solver.add(difference > verification_ET)\n' \
+                     f'{TAB}{TAB}{TAB}# run solver\n' \
+                     f'{TAB}{TAB}{TAB}verification_solver.set("timeout", int(timeout * 1000))\n' \
+                     f'{TAB}{TAB}{TAB}v_result = verification_solver.check()\n'
 
+        prep_loop3 += f'{TAB}{TAB}{TAB}if v_result == unsat:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}# unsat, WCE found\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}WCE = verification_ET\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}break\n'
+
+        prep_loop3 += f'{TAB}{TAB}{TAB}elif v_result == sat:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}# sat, need to search again\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}m = verification_solver.model()\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}verification_ET = m[error].as_long()\n' \
+                      f'{TAB}{TAB}{TAB}else:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB} # unknown (probably a timeout)\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}WCE = -1\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}break\n'
+
+        return prep_loop3
+
+    def z3_generate_find_wanted_number_of_models_final_prep(self):
+        final_prep = ''
+        final_prep += f'{TAB}{TAB}if WCE is None:\n' \
+                      f'{TAB}{TAB}{TAB}WCE = max_possible_ET\n'
+
+        final_prep += f'{TAB}{TAB}# revert state\n' \
+                      f'{TAB}{TAB}verification_solver.pop()\n' \
+                      f'{TAB}{TAB}time_verification = time() - time_verification_start\n' \
+                      f'{TAB}{TAB}time_attempt = time() - time_attempt_start\n' \
+                      f'{TAB}{TAB}timeout -= time_verification  # remove the time used from the timeout\n' \
+                      f'{TAB}{TAB}attempts_times.append((time_attempt, time_parameters, time_verification))\n' \
+                      f'{TAB}{TAB}\n'
+
+        final_prep += f'{TAB}{TAB}# ==== continue or exit\n' \
+                      f'{TAB}{TAB}if WCE > ET:\n' \
+                      f"{TAB}{TAB}{TAB}# Z3 hates us and decided it doesn't like being appreciated\n" \
+                      f'{TAB}{TAB}{TAB}result = None\n' \
+                      f'{TAB}{TAB}{TAB}attempts += 1\n' \
+                      f'{TAB}{TAB}{TAB}invalid_parameters = parameters_constraints\n' \
+                      f'{TAB}{TAB}elif WCE < 0:  # caused by unknown\n' \
+                      f'{TAB}{TAB}{TAB}break\n'
+
+        return final_prep
+
+    def z3_generate_store_data(self):
+        store_data = ''
+        store_data += f'{TAB}# store data\n'
+        extract_info = self.z3_generate_sotre_data_define_extract_info_function()
+        key_function = self.z3_generate_sotre_data_define_extract_key_function()
+        stats = self.z3_generate_stats()
+        results = self.z3_dump_results_onto_json()
+        extract_info += '\n'
+        key_function += '\n'
+        stats += '\n'
+        results += '\n'
+        store_data += extract_info + key_function + stats + results
+        return store_data
+
+    def z3_generate_sotre_data_define_extract_info_function(self):
+        extract_info = ''
+        extract_info += f'{TAB}def extract_info(pattern: Union[Pattern, str], string: str,\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}parser: Callable[[Any], Any] = lambda x: x,\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}default: Union[Callable[[], None], Any] = None) -> Any:\n' \
+                        f'{TAB}{TAB}import re\n' \
+                        f'{TAB}{TAB}return (parser(match[1]) if (match := re.search(pattern, string))\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}else (default() if callable(default) else default))\n'
+
+        return extract_info
+
+    def z3_generate_sotre_data_define_extract_key_function(self):
+
+        key_function = ''
+        key_function += f"{TAB}def key_function(parameter_constraint):\n" \
+                        f'{TAB}{TAB}p = str(parameter_constraint[0])\n' \
+                        f"{TAB}{TAB}o_id = extract_info(r'_o(\d+)', p, int, -1)\n" \
+                        f"{TAB}{TAB}t_id = extract_info(r'_t(\d+)', p, int, 0)\n" \
+                        f"{TAB}{TAB}i_id = extract_info(r'_i(\d+)', p, int, 0)\n" \
+                        f"{TAB}{TAB}typ = extract_info(r'_(l|s)', p, {{'s': 1, 'l': 2}}.get, 0)\n" \
+                        f'{TAB}{TAB}if o_id < 0:\n' \
+                        f'{TAB}{TAB}{TAB}return 0\n' \
+                        f'{TAB}{TAB}return (o_id * 100000\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}+ t_id * 1000\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}+ i_id * 10\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}+ typ)\n'
+
+        return key_function
+
+    def z3_generate_stats(self):
+        stats = ''
+        stats += f'{TAB}time_total = time() - time_total_start\n'
+        stats += f'{TAB}data_object = {{\n' \
+                 f"{TAB}{TAB}'result': str(result),\n" \
+                 f"{TAB}{TAB}'total_time': time_total,\n" \
+                 f"{TAB}{TAB}'attempts': attempts,\n" \
+                 f"{TAB}{TAB}'attempts_times': [list(map(lambda tup: [*tup], attempts_times))]\n" \
+                 f"{TAB}}}\n"
+
+        stats += f'{TAB}if result == sat:\n' \
+                 f"{TAB}{TAB}data_object['model'] = dict(map(lambda item: (str(item[0]), is_true(item[1])),\n" \
+                 f"{TAB}{TAB}{TAB}sorted(parameters_constraints,\n" \
+                 f"{TAB}{TAB}{TAB}key=key_function)))\n"
+
+        stats += f'{TAB}found_data.append(data_object)\n' \
+                 f'{TAB}if result != sat:\n' \
+                 f'{TAB}{TAB}break\n'
+
+        stats += f'print(json.dumps(found_data, separators=(",", ":"),))\n'
+
+        return stats
+
+    def z3_generate_config(self):
+        config = ''
+        config += f'ET = int(sys.argv[1])\n' \
+                  f'wanted_models: int = 1 if len(sys.argv) < 3 else int(sys.argv[2])\n' \
+                  f'timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])\n' \
+                  f'max_possible_ET: int = 2 ** 3 - 1\n' \
+                  f'\n'
+
+        return config
+
+    def z3_dump_results_onto_json(self):
+        results = ''
+
+        results += f"with open('{self.json_out_path}', 'w') as ofile:\n" \
+                   f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
+        return results
 
 # TODO: Later (Cata)
 class Template_SOP1ShareLogic(TemplateCreator):
     def __init__(self, template_specs: TemplateSpecs):
         super().__init__(template_specs)
 
+
 class Template_MUX(TemplateCreator):
     pass
-
-
