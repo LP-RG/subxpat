@@ -62,8 +62,16 @@ PPO = 'ppo'
 # Graph related
 LABEL = 'label'
 SHAPE = 'shape'
-COLOR = 'fillcolor'
+
 SUBGRAPH = 'subgraph'
 RED = 'red'
 BLUE = 'blue'
 WHITE = 'white'
+
+DIGRAPH = 'digraph'
+STRICT = 'strict'
+COLOR = 'fillcolor'
+FILLCOLOR = 'fillcolor'
+NODE = 'node'
+STYLE = 'style'
+FILLED = 'filled'
