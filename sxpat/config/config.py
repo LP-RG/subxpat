@@ -58,3 +58,12 @@ ERROR = 'error'
 JSON = 'json'
 LPP = 'lpp'
 PPO = 'ppo'
+
+# Graph related
+LABEL = 'label'
+SHAPE = 'shape'
+COLOR = 'fillcolor'
+SUBGRAPH = 'subgraph'
+RED = 'red'
+BLUE = 'blue'
+WHITE = 'white'
