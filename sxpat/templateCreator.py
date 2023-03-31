@@ -12,6 +12,7 @@ from .templateSpecs import TemplateSpecs
 from .config import paths as sxpatpaths
 from .annotatedGraph import AnnotatedGraph
 
+
 class TemplateCreator:
     def __init__(self, template_specs: TemplateSpecs):
         self.__template_name = template_specs.template_name
@@ -44,17 +45,11 @@ class TemplateCreator:
         temp_graph_obj.export_graph()
         return temp_graph_obj
 
-
-
-
-
     def __repr__(self):
         return f'An object of Class TemplateCreator:\n' \
                f'{self.__template_name = }\n' \
                f'{self.__benchmark_name}\n' \
                f'{self.graph = }'
-
-
 
 
 class Template_SOP1(TemplateCreator):
@@ -107,6 +102,9 @@ class Template_SOP1(TemplateCreator):
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
 
+
+    # From this point on... all the functions are responsible for generating a runner script:
+    # A runner script, applies XPAT to a circuit
     def z3_generate_z3pyscript(self):
         imports = self.z3_generate_imports()  # parent
         config = self.z3_generate_config()
@@ -125,7 +123,6 @@ class Template_SOP1(TemplateCreator):
         parameter_constraint_list = self.z3_generate_parameter_constraint_list()
         find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
         store_data = self.z3_generate_store_data()
-
 
         self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
                           + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
@@ -462,7 +459,7 @@ class Template_SOP1(TemplateCreator):
                     loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
                     p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                    ppo_order += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s} + {INTVAL}({2 ** (2*input_idx + 1)}) * {p_l}'
+                    ppo_order += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s} + {INTVAL}({2 ** (2 * input_idx + 1)}) * {p_l}'
 
                     if loop_2_last_iter_flg and loop_3_last_iter_flg:
                         ppo_order += '),\n'
@@ -502,13 +499,13 @@ class Template_SOP1(TemplateCreator):
 
     def z3_generate_find_wanted_number_of_models_prep_loop1(self):
         prep_loop1 = ''
-        prep_loop1+= f'found_data = []\n' \
-                     f'while(len(found_data) < wanted_models and timeout > 0):\n' \
-                     f'{TAB}time_total_start = time()\n' \
-                     f'{TAB}\n' \
-                     f'{TAB}attempts = 1\n' \
-                     f'{TAB}result: CheckSatResult = None\n' \
-                     f'{TAB}attempts_times: List[Tuple[float, float, float]] = []\n'
+        prep_loop1 += f'found_data = []\n' \
+                      f'while(len(found_data) < wanted_models and timeout > 0):\n' \
+                      f'{TAB}time_total_start = time()\n' \
+                      f'{TAB}\n' \
+                      f'{TAB}attempts = 1\n' \
+                      f'{TAB}result: CheckSatResult = None\n' \
+                      f'{TAB}attempts_times: List[Tuple[float, float, float]] = []\n'
 
         return prep_loop1
 
@@ -624,7 +621,10 @@ class Template_SOP1(TemplateCreator):
         return extract_info
 
     def z3_generate_sotre_data_define_extract_key_function(self):
-
+        """
+        Blah Blah Blah
+        :return:
+        """
         key_function = ''
         key_function += f"{TAB}def key_function(parameter_constraint):\n" \
                         f'{TAB}{TAB}p = str(parameter_constraint[0])\n' \
@@ -681,10 +681,60 @@ class Template_SOP1(TemplateCreator):
                    f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
         return results
 
+
 # TODO: Later (Cata)
 class Template_SOP1ShareLogic(TemplateCreator):
     def __init__(self, template_specs: TemplateSpecs):
         super().__init__(template_specs)
+        self.__literal_per_product = template_specs.literals_per_product
+        self.__product_per_output = template_specs.products_per_output
+        self.__z3pyscript = None
+        self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
+        self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH['json'])
+
+    @property
+    def literals_per_product(self):
+        return self.__literal_per_product
+
+    @property
+    def lpp(self):
+        return self.__literal_per_product
+
+    @property
+    def products_per_output(self):
+        return self.__product_per_output
+
+    @property
+    def ppo(self):
+        return self.__product_per_output
+
+    @property
+    def z3pyscript(self):
+        return self.__z3pyscript
+
+    @z3pyscript.setter
+    def z3pyscript(self, input_z3pyscript):
+        self.__z3pyscript = input_z3pyscript
+
+    @property
+    def z3_out_path(self):
+        return self.__z3_out_path
+
+    @property
+    def json_out_path(self):
+        return self.__json_out_path
+
+    def set_path(self, this_path: Tuple[str, str]):
+        folder, extenstion = this_path
+        return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}.{extenstion}'
+
+    def export_z3pyscript(self):
+        print(f'Storing in {self.z3_out_path}')
+        with open(self.z3_out_path, 'w') as z:
+            z.writelines(self.z3pyscript)
+
+
+
 
 
 class Template_MUX(TemplateCreator):
