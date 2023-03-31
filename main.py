@@ -7,6 +7,8 @@ from sxpat.templateCreator import TemplateCreator
 from sxpat.templateCreator import Template_SOP1
 from sxpat.templateSpecs import TemplateSpecs
 from sxpat.config.paths import *
+from sxpat.synthesis import Synthesis
+from sxpat.annotatedGraph import AnnotatedGraph
 
 def main():
     setup_folder_structure()
@@ -17,12 +19,15 @@ def main():
     args = Arguments.parse()
     print(f'{args = }')
 
-    specs_obj = TemplateSpecs(name='Sop1', literals_per_product=3, products_per_output=2, benchmark_name=args.benchmark_name)
+    specs_obj = TemplateSpecs(name='Sop1', literals_per_product=3, products_per_output=2,
+                              benchmark_name=args.benchmark_name, num_of_models=1)
     print(f'{specs_obj = }')
 
     template_obj = Template_SOP1(specs_obj)
     print(f'{template_obj = }')
     template_obj.z3_generate_z3pyscript()
+
+    # subgraph_obj = AnnotatedGraph(args.benchmark_name)
 
 if __name__ == "__main__":
     main()

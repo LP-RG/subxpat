@@ -10,14 +10,13 @@ from Z3Log.utils import *
 from .config.config import *
 from .templateSpecs import TemplateSpecs
 from .config import paths as sxpatpaths
-
+from .annotatedGraph import AnnotatedGraph
 
 class TemplateCreator:
     def __init__(self, template_specs: TemplateSpecs):
         self.__template_name = template_specs.template_name
         self.__benchmark_name = template_specs.benchmark_name
         self.__graph = self.import_graph()
-
         self.__z3pyscript_out_path = None
 
     @property
@@ -41,15 +40,21 @@ class TemplateCreator:
         """
         temp_verilog_obj = Verilog(self.benchmark_name)
         convert_verilog_to_gv(self.benchmark_name)
-        temp_graph_obj = Graph(self.benchmark_name, is_clean=False)
+        temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False)
         temp_graph_obj.export_graph()
         return temp_graph_obj
+
+
+
+
 
     def __repr__(self):
         return f'An object of Class TemplateCreator:\n' \
                f'{self.__template_name = }\n' \
                f'{self.__benchmark_name}\n' \
                f'{self.graph = }'
+
+
 
 
 class Template_SOP1(TemplateCreator):
