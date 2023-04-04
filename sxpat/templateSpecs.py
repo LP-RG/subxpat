@@ -7,7 +7,7 @@ class TemplateSpecs:
         self.__benchamrk_name: str = kwargs[BENCHMARK]
         self.__literals_per_product: int = int(kwargs[LITERALS_PER_PRODUCT])
         self.__products_per_output: int = int(kwargs[PRODUCTS_PER_OUTPUT])
-
+        self.__subxpat: bool = kwargs[SUBXPAT]
         self.__num_of_models = kwargs[NUM_OF_MODELS]
 
     @property
@@ -35,6 +35,10 @@ class TemplateSpecs:
         return self.__products_per_output
 
     @property
+    def subxpat(self):
+        return self.__subxpat
+
+    @property
     def num_of_models(self):
         return self.__num_of_models
 
@@ -45,4 +49,5 @@ class TemplateSpecs:
                f'{self.benchmark_name = }\n' \
                f'{self.lpp = }\n' \
                f'{self.ppo = }\n' \
+               f'{self.subxpat = }\n' \
                f'{self.num_of_models = }\n'

@@ -20,7 +20,7 @@ def main():
     print(f'{args = }')
 
     specs_obj = TemplateSpecs(name='Sop1', literals_per_product=3, products_per_output=2,
-                              benchmark_name=args.benchmark_name, num_of_models=1)
+                              benchmark_name=args.benchmark_name, num_of_models=1, subxpat=True)
     print(f'{specs_obj = }')
 
     template_obj = Template_SOP1(specs_obj)
