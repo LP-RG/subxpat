@@ -3,8 +3,7 @@ test/
 output/
 Laura/
 
-*.txt
-*.py
+
 
 
 # Exclusions!
