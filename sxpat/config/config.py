@@ -58,6 +58,7 @@ VERIFICATION_SOLVER = 'verification_solver'
 ERROR = 'error'
 
 # random constants
+GV = 'gv'
 JSON = 'json'
 LPP = 'lpp'
 PPO = 'ppo'
@@ -85,3 +86,22 @@ FILLCOLOR = 'fillcolor'
 NODE = 'node'
 STYLE = 'style'
 FILLED = 'filled'
+
+
+# json fields
+RESULT = 'result'
+TOTAL_TIME = 'total_time'
+MODEL = 'model'
+
+JSON_TRUE = 'true'
+JSON_FALSE = 'false'
+
+SAT = 'sat'
+UNSAT = 'unsat'
+
+
+# Verilog
+VER_NOT = '~'
+VER_AND = '&'
+VER_OR = '|'
+VER_ASSIGN = 'assign'

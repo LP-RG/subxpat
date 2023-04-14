@@ -18,16 +18,19 @@ class AnnotatedGraph(Graph):
         # self.export_annotated_graph()
 
         self.__subgraph_input_dict = self.input_dict
-        self.__subgraph_output_dict = self.output_dict
+        self.__subgraph_output_dict = self.extract_subgraph_outputs()
         self.__subgraph_gate_dict = self.extract_subgraph_gates()
         self.__subgraph_fanin_dict = self.extract_subgraph_fanin()
         self.__subgraph_fanout_dict = self.extract_subgraph_fanout()
+        self.__graph_intact_gate_dict = self.extract_graph_intact_gates()
 
         self.__subgraph_num_inputs = len(self.subgraph_input_dict)
         self.__subgraph_num_outputs = len(self.subgraph_output_dict)
         self.__subgraph_num_gates = len(self.subgraph_gate_dict)
         self.__subgraph_num_fanin = len(self.subgraph_fanin_dict)
         self.__subgraph_num_fanout = len(self.subgraph_fanout_dict)
+        self.__graph_num_intact_gates = len(self.__graph_intact_gate_dict)
+
 
     @property
     def subgraph(self):
@@ -44,6 +47,10 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_gate_dict(self):
         return self.__subgraph_gate_dict
+
+    @property
+    def graph_intact_gate_dict(self):
+        return self.__graph_intact_gate_dict
 
     @property
     def subgraph_fanin_dict(self):
@@ -74,17 +81,20 @@ class AnnotatedGraph(Graph):
         return self.__subgraph_num_fanout
 
     def __repr__(self):
-        return f'An object of class SubgraphExtractor:\n'
-
+        return f'An object of class SubgraphExtractor:\n' \
+               f'{self.name = }\n' \
+               f'{self.subgraph_num_inputs = }\n' \
+               f'{self.subgraph_num_outputs = }\n' \
+               f'{self.subgraph_num_gates = }'
 
     def extract_subgraph(self):
-        #Todo:
+        # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # 2) We might need to consider the labels
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         tmp_graph = self.graph.copy(as_view=False)
         for gate_idx in self.gate_dict:
-            if gate_idx <= 45:
+            if gate_idx <= 14:
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
             else:
@@ -143,7 +153,7 @@ class AnnotatedGraph(Graph):
     def color_subgraph_node(self, n, this_color):
         self.subgraph.nodes[n][COLOR] = this_color
 
-    def is_subgraph_instance(self, n):
+    def is_subgraph_member(self, n):
         """
         checks whether node n belongs to the subgraph
         :param n: a node
@@ -163,10 +173,10 @@ class AnnotatedGraph(Graph):
         :param n: a node
         :return: True if node n is in the fanin logic, otherwise returns False
         """
-        if not self.is_subgraph_instance(n):
+        if not self.is_subgraph_member(n):
             successors = list(self.subgraph.successors(n))
             for sn in successors:
-                if self.is_subgraph_instance(sn):
+                if self.is_subgraph_member(sn):
                     return True
         else:
             return False
@@ -177,13 +187,36 @@ class AnnotatedGraph(Graph):
         :param n: a node
         :return: True if node n is in the fanout logic, otherwise returns False
         """
-        if not self.is_subgraph_instance(n):
+        if not self.is_subgraph_member(n):
             predecessors = list(self.subgraph.predecessors(n))
-            for sn in predecessors:
-                if self.is_subgraph_instance(sn):
+            for pn in predecessors:
+                if self.is_subgraph_member(pn):
                     return True
         else:
             return False
+
+    def is_subgraph_output(self, n):
+        """
+        checks whether node n is an output node of the subgraph; an output node is node that has an outgoing edge
+        from the subgraph.
+        :param n: a node
+        :return: True if node n is in the fanout logic, otherwise returns False
+        """
+        if self.is_subgraph_member(n):
+            successors = list(self.subgraph.successors(n))
+            for sn in successors:
+                if not self.is_subgraph_member(sn):
+                    return True
+        return False
+
+    def is_subgraph_input(self, n):
+        """
+        checks whether node n is an input node of the subgraph; an output node is node that has an ingoing edge
+        to the subgraph.
+        :param n: a node
+        :return: True if node n is in the fanout logic, otherwise returns False
+        """
+        return False
 
     def extract_subgraph_gates(self) -> Dict[int, str]:
         """
@@ -199,11 +232,34 @@ class AnnotatedGraph(Graph):
 
         return s_gates_dict
 
+    def extract_graph_intact_gates(self):
+        """
+                extracts non-subgraph gates and stores them in a dictionary where keys are indices and values are gate labels
+                :return: a dictionary; ex: gate_dict = {gate_idx0: gate_label0, ..., gate_idxn: gate_labeln}
+                """
+        s_gates_dict: Dict[int, str] = {}
+        graph_gate_list: List[str] = list(self.gate_dict.values())
+
+        for n in graph_gate_list:
+            if not self.is_subgraph_member(n):
+                s_gates_dict[graph_gate_list.index(n)] = n
+
+        return s_gates_dict
+
     def extract_subgraph_inputs(self):
         return None
 
     def extract_subgraph_outputs(self):
-        return None
+        tmp_output_dict: Dict[int, str] = {}
+        graph_gate_list: List[str] = list(self.gate_dict.values())
+        idx = 0
+        for n in self.subgraph.nodes:
+            if self.is_subgraph_output(n):
+                tmp_output_dict[idx] = n
+                idx += 1
+                self.color_subgraph_node(n, BLUE)
+        # print(f'{tmp_output_dict = }')
+        return tmp_output_dict
 
     def extract_subgraph_fanin(self):
         tmp_fanin_dict: Dict[int, str] = {}
@@ -224,7 +280,7 @@ class AnnotatedGraph(Graph):
             if self.is_subgraph_fanout(n):
                 tmp_fanout_dict[idx] = n
                 idx += 1
-                self.color_subgraph_node(n, BLUE)
+                self.color_subgraph_node(n, WHITE)
         return tmp_fanout_dict
 
 
