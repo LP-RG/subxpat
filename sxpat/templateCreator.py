@@ -1,6 +1,10 @@
 from itertools import repeat, islice
 from typing import Tuple, List, Callable, Any, Union
 import networkx as nx
+import json
+import subprocess
+from subprocess import PIPE
+# from Z3Log.z3solver import Z3solver
 from Z3Log.config.config import *
 from Z3Log.config.path import *
 from Z3Log.graph import Graph
@@ -60,8 +64,9 @@ class Template_SOP1(TemplateCreator):
         self.__subxpat: bool = template_specs.subxpat
         self.__z3pyscript = None
         self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
-        self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH['json'])
-
+        self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
+        self.__json_in_path = None
+        self.__json_model = None
     @property
     def literals_per_product(self):
         return self.__literal_per_product
@@ -91,12 +96,28 @@ class Template_SOP1(TemplateCreator):
         self.__z3pyscript = input_z3pyscript
 
     @property
+    def json_model(self):
+        return self.__json_model
+
+    @json_model.setter
+    def json_model(self, this_json_model):
+        self.__json_model = this_json_model
+
+    @property
     def z3_out_path(self):
         return self.__z3_out_path
 
     @property
     def json_out_path(self):
         return self.__json_out_path
+
+    @property
+    def json_in_path(self):
+        return self.__json_in_path
+
+    @json_in_path.setter
+    def json_in_path(self, this_json_path):
+        self.__json_in_path = this_json_path
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extenstion = this_path
@@ -106,6 +127,30 @@ class Template_SOP1(TemplateCreator):
         print(f'Storing in {self.z3_out_path}')
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
+
+
+    def import_json_model(self, this_path=None):
+        if this_path:
+            self.json_in_path(this_path)
+        else:
+            self.json_in_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
+
+        with open(self.json_in_path, 'r') as f:
+            data = json.load(f)
+
+        for d in data:
+            for key in d.keys():
+                if key == RESULT:
+                    if d[key] == SAT:
+                        self.json_model =  d[MODEL]
+                    else:
+                        #TODO:
+                        #FIX LATER
+                        self.json_model = UNSAT
+
+    def run_z3pyscript(self, ET = 2):
+        print(f'{self.z3_out_path = }')
+        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}'], stderr=PIPE)
 
 
     # From this point on... all the functions are responsible for generating a runner script:
@@ -126,7 +171,6 @@ class Template_SOP1(TemplateCreator):
             approximate_circuit_outputs_declaration = self.z3_generate_approximate_circuit_outputs_declaration()
             exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()
             approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_subxpat()
-
             for_all_solver = self.z3_generate_forall_solver_subxpat()
             verification_solver = self.z3_generate_verification_solver()
             parameter_constraint_list = self.z3_generate_parameter_constraint_list()
@@ -246,16 +290,16 @@ class Template_SOP1(TemplateCreator):
 
     def z3_generate_o_subxpat(self):
         temp_o = ''
-        for idx in range(self.graph.subgraph_num_fanout):
+        for idx in range(self.graph.subgraph_num_outputs):
             temp_name = f'{PRODUCT_PREFIX}{idx}'
             temp_o += self.declare_gate(temp_name)
         return temp_o
 
     def z3_generate_oti_subxpat(self):
         temp_oti = ''
-        for o_idx in range(self.graph.subgraph_num_fanout):
+        for o_idx in range(self.graph.subgraph_num_outputs):
             for ppo_idx in range(self.ppo):
-                for input_idx in range(self.graph.num_inputs):
+                for input_idx in range(self.graph.subgraph_num_inputs):
                     p_s = f'{PRODUCT_PREFIX}{o_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     p_l = f'{PRODUCT_PREFIX}{o_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
                     temp_oti += self.declare_gate(p_s)
@@ -431,63 +475,63 @@ class Template_SOP1(TemplateCreator):
 
         for g_idx in range(self.graph.num_gates):
             g_label = self.graph.gate_dict[g_idx]
-            if not self.graph.is_subgraph_instance(g_label):
-                if not self.graph.is_subgraph_fanout(g_label):
-                    g_predecessors = self.get_predecessors_xpat(g_label)
-                    g_function = self.get_logical_function_xpat(g_label)
-                    assert len(g_predecessors) == 1 or len(g_predecessors) == 2
-                    assert g_function == NOT or g_function == AND or g_function == OR
-                    if len(g_predecessors) == 1:
-                        if g_predecessors[0] in list(self.graph.input_dict.values()):
-                            pred_1 = g_predecessors[0]
-                        else:
-                            pred_1 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[0])
-
-                        exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}(" \
-                                                  f"{','.join(list(self.graph.input_dict.values()))}) == "
-
-                        exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
-
+            if not self.graph.is_subgraph_member(g_label):
+                g_predecessors = self.get_predecessors_xpat(g_label)
+                g_function = self.get_logical_function_xpat(g_label)
+                assert len(g_predecessors) == 1 or len(g_predecessors) == 2
+                assert g_function == NOT or g_function == AND or g_function == OR
+                if len(g_predecessors) == 1:
+                    if g_predecessors[0] in list(self.graph.input_dict.values()):
+                        pred_1 = g_predecessors[0]
                     else:
-                        exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}(" \
-                                                  f"{','.join(list(self.graph.input_dict.values()))}) == "
+                        pred_1 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[0])
 
-                        if g_predecessors[0] in list(self.graph.input_dict.values()):
-                            pred_1 = g_predecessors[0]
-                        else:
-                            pred_1 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[0])
-                        if g_predecessors[1] in list(self.graph.input_dict.values()):
-                            pred_2 = g_predecessors[1]
-                        else:
-                            pred_2 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[1])
-
-                        exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
-                else: # if the gate is a fanout of the annotated graph (subgraph)
-                    fanout_list = list(self.graph.subgraph_fanout_dict.values())
-                    fanout_idx = fanout_list.index(g_label)
                     exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}(" \
-                                                  f"{','.join(list(self.graph.input_dict.values()))}) == "
+                                              f"{','.join(list(self.graph.input_dict.values()))}) == "
 
-                    exact_wire_constraints += f"{Z3_AND}({PRODUCT_PREFIX}{fanout_idx}, {Z3_OR}({Z3_AND}("
+                    exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
 
-                    for ppo_idx in range(self.ppo):
-                        for input_idx in range(self.graph.num_inputs):
-                            p_s = f'{PRODUCT_PREFIX}{fanout_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                            p_l = f'{PRODUCT_PREFIX}{fanout_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
-                            loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                            loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
+                else:
+                    exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}(" \
+                                              f"{','.join(list(self.graph.input_dict.values()))}) == "
 
-                            exact_wire_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {self.graph.input_dict[input_idx]})'
+                    if g_predecessors[0] in list(self.graph.input_dict.values()):
+                        pred_1 = g_predecessors[0]
+                    else:
+                        pred_1 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[0])
+                    if g_predecessors[1] in list(self.graph.input_dict.values()):
+                        pred_2 = g_predecessors[1]
+                    else:
+                        pred_2 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[1])
 
-                            if loop_2_last_iter_flg and loop_3_last_iter_flg:
-                                exact_wire_constraints += f')),\n'
-                            elif loop_3_last_iter_flg:
-                                exact_wire_constraints += f'), '
-                            else:
-                                exact_wire_constraints += ', '
+                    exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
+            # if the gate is an output node of the annotated graph (subgraph)
+            elif self.graph.is_subgraph_member(g_label) and self.graph.is_subgraph_output(g_label):
+                output_list = list(self.graph.subgraph_output_dict.values())
+                output_idx = output_list.index(g_label)
+                exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}(" \
+                                              f"{','.join(list(self.graph.input_dict.values()))}) == "
+
+                exact_wire_constraints += f"{Z3_AND}({PRODUCT_PREFIX}{output_idx}, {Z3_OR}({Z3_AND}("
+
+                for ppo_idx in range(self.ppo):
+                    for input_idx in range(self.graph.num_inputs):
+                        p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                        p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+                        loop_2_last_iter_flg = ppo_idx == self.ppo - 1
+                        loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
+
+                        exact_wire_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {self.graph.input_dict[input_idx]})'
+
+                        if loop_2_last_iter_flg and loop_3_last_iter_flg:
+                            exact_wire_constraints += f')),\n'
+                        elif loop_3_last_iter_flg:
+                            exact_wire_constraints += f'), '
+                        else:
+                            exact_wire_constraints += ', '
         return exact_wire_constraints
 
-    def z3_generate_exact_circuit_output_constraints_subxpat(self):
+    def z3_generate_approximate_circuit_output_constraints_subxpat(self):
         exact_output_constraints = ''
         exact_output_constraints += f'{TAB}# boolean outputs (from the least significant)\n'
 
@@ -557,7 +601,7 @@ class Template_SOP1(TemplateCreator):
 
     def z3_generate_approximate_circuit_constraints_subxpat(self):
         wires = self.z3_generate_approximate_circuit_wire_constraints_subxpat()
-        outputs = self.z3_generate_exact_circuit_output_constraints_subxpat()
+        outputs = self.z3_generate_approximate_circuit_output_constraints_subxpat()
         integer_outputs = self.z3_generate_exact_circuit_integer_output_constraints_subxpat()
         wires += '\n'
         outputs += '\n'
@@ -1024,6 +1068,7 @@ class Template_SOP1(TemplateCreator):
         results += f"with open('{self.json_out_path}', 'w') as ofile:\n" \
                    f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
         return results
+
 
 
 # TODO: Later (Cata)

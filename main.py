@@ -9,6 +9,7 @@ from sxpat.templateSpecs import TemplateSpecs
 from sxpat.config.paths import *
 from sxpat.synthesis import Synthesis
 from sxpat.annotatedGraph import AnnotatedGraph
+from sxpat.synthesis import Synthesis
 
 def main():
     setup_folder_structure()
@@ -27,7 +28,14 @@ def main():
     print(f'{template_obj = }')
     template_obj.z3_generate_z3pyscript()
 
-    # subgraph_obj = AnnotatedGraph(args.benchmark_name)
+    template_obj.run_z3pyscript(2)
+    template_obj.import_json_model()
+    # print(f'{template_obj.json_model = }')
 
+
+
+
+    synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model )
+    synth_obj.export_verilog()
 if __name__ == "__main__":
     main()
