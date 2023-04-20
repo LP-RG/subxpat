@@ -15,9 +15,8 @@ class AnnotatedGraph(Graph):
         super().__init__(benchmark_name, is_clean)
 
         self.__subgraph = self.extract_subgraph()
-        # self.export_annotated_graph()
 
-        self.__subgraph_input_dict = self.input_dict
+        self.__subgraph_input_dict = self.extract_subgraph_inputs()
         self.__subgraph_output_dict = self.extract_subgraph_outputs()
         self.__subgraph_gate_dict = self.extract_subgraph_gates()
         self.__subgraph_fanin_dict = self.extract_subgraph_fanin()
@@ -30,6 +29,8 @@ class AnnotatedGraph(Graph):
         self.__subgraph_num_fanin = len(self.subgraph_fanin_dict)
         self.__subgraph_num_fanout = len(self.subgraph_fanout_dict)
         self.__graph_num_intact_gates = len(self.__graph_intact_gate_dict)
+
+
 
 
     @property
@@ -88,12 +89,17 @@ class AnnotatedGraph(Graph):
                f'{self.subgraph_num_gates = }'
 
     def extract_subgraph(self):
+        """
+        extracts a colored subgraph from the original non-partitioned graph object
+        :return: an annotated graph in which the extracted subgraph is colored
+        """
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # 2) We might need to consider the labels
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         tmp_graph = self.graph.copy(as_view=False)
         for gate_idx in self.gate_dict:
+            # if self.num_inputs <= gate_idx <= 14:
             if gate_idx <= 14:
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
@@ -119,6 +125,12 @@ class AnnotatedGraph(Graph):
     # TODO: fix checks!
     # The checks are done on the original graph instead of the annotated graph!
     def export_node(self, n, file_handler: 'class _io.TextIOWrapper'):
+        """
+        exports node n as a line of file that is identified by file_hanlder
+        :param n: the label of node n
+        :param file_handler: the file object
+        :return: nothing
+        """
         if self.is_cleaned_pi(n) or self.is_cleaned_po(n):
             label = f"{LABEL}=\"{self.subgraph.nodes[n][LABEL]}\""
             if SUBGRAPH in self.subgraph.nodes[n]:
@@ -151,6 +163,12 @@ class AnnotatedGraph(Graph):
         file_handler.write(line)
 
     def color_subgraph_node(self, n, this_color):
+        """
+        changes the color of node n to this_color.
+        :param n: the label of node n
+        :param this_color: the desired color
+        :return: nothing
+        """
         self.subgraph.nodes[n][COLOR] = this_color
 
     def is_subgraph_member(self, n):
@@ -209,13 +227,23 @@ class AnnotatedGraph(Graph):
                     return True
         return False
 
+
+    # TODO:
+    # This part should generate a comment in verilog expressing:
+    # Annotated subgraph inputs
     def is_subgraph_input(self, n):
         """
-        checks whether node n is an input node of the subgraph; an output node is node that has an ingoing edge
+        checks whether node n is an input node of the subgraph; an input node is a (non-member) node that has an ingoing edge
         to the subgraph.
         :param n: a node
         :return: True if node n is in the fanout logic, otherwise returns False
         """
+        if not self.is_subgraph_member(n):
+            successors = list(self.subgraph.successors(n))
+            for sn in successors:
+                if self.is_subgraph_member(sn):
+                    return True
+
         return False
 
     def extract_subgraph_gates(self) -> Dict[int, str]:
@@ -234,9 +262,9 @@ class AnnotatedGraph(Graph):
 
     def extract_graph_intact_gates(self):
         """
-                extracts non-subgraph gates and stores them in a dictionary where keys are indices and values are gate labels
-                :return: a dictionary; ex: gate_dict = {gate_idx0: gate_label0, ..., gate_idxn: gate_labeln}
-                """
+        extracts non-subgraph gates and stores them in a dictionary where keys are indices and values are gate labels
+        :return: a dictionary; ex: gate_dict = {gate_idx0: gate_label0, ..., gate_idxn: gate_labeln}
+        """
         s_gates_dict: Dict[int, str] = {}
         graph_gate_list: List[str] = list(self.gate_dict.values())
 
@@ -247,9 +275,23 @@ class AnnotatedGraph(Graph):
         return s_gates_dict
 
     def extract_subgraph_inputs(self):
-        return None
+        """
+        extracts subgraph inputs (non-member nodes) and stores them in a dictionary where keys are indices and values are gate labels
+        :return: a dictionary; ex: subgraph_input_dict = {gate_idx0: gate_label0, ..., gate_idxn: gate_labeln}
+        """
+        s_input_dict: Dict[int, str] = {}
+        idx = 0
+        for n in self.graph.nodes:
+            if self.is_subgraph_input(n):
+                s_input_dict[idx] = n
+                idx += 1
+        return s_input_dict
 
     def extract_subgraph_outputs(self):
+        """
+        extracts subgraph outputs and stores them in a dictionary where keys are indices and values are gate labels
+        :return: a dictionary; ex: subgraph_output_dict = {gate_idx0: gate_label0, ..., gate_idxn: gate_labeln}
+        """
         tmp_output_dict: Dict[int, str] = {}
         graph_gate_list: List[str] = list(self.gate_dict.values())
         idx = 0
@@ -261,6 +303,8 @@ class AnnotatedGraph(Graph):
         # print(f'{tmp_output_dict = }')
         return tmp_output_dict
 
+    #TODO
+    # Deprecated
     def extract_subgraph_fanin(self):
         tmp_fanin_dict: Dict[int, str] = {}
         graph_gate_list: List[str] = list(self.gate_dict.values())

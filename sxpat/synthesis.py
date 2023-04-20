@@ -14,6 +14,9 @@ from .templateSpecs import TemplateSpecs
 
 
 class Synthesis:
+    # TODO:
+    # we assign wires to both inputs and outputs of an annotated subgraph
+    # follow, inputs, red, white, outputs notation in the Verilog generation
     def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj=None):
         self.__benchmark_name = template_specs.benchmark_name
         self.__template_name = template_specs.template_name
@@ -112,7 +115,8 @@ class Synthesis:
         return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{self.et}_{self.template_name}.{extenstion}'
 
     def __json_model_wire_declarations(self):
-        wire_list = f'wire '
+        wire_list = f'//json model\n'
+        wire_list += f'wire '
         for o_idx in range(self.graph.subgraph_num_outputs):
             for ppo_idx in range(self.ppo):
                 wire_list += f'{sxpatconfig.PRODUCT_PREFIX}{o_idx}_{sxpatconfig.TREE_PREFIX}{ppo_idx}'
@@ -122,13 +126,24 @@ class Synthesis:
                 else:
                     wire_list += ', '
         return wire_list
+    def __subgraph_inputs_assigns(self):
+        s_inputs_assigns = f'//subgraph inputs assigns\n'
+
+        return s_inputs_assigns
 
     def __json_model_lpp_and_subgraph_output_assigns(self):
+        lpp_assigns = f'//json model assigns (approximated/XPATed part)\n'
         annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
-        lpp_assigns = f''
+        lpp_assigns += f''
         for o_idx in range(self.graph.subgraph_num_outputs):
             p_o = f'{sxpatconfig.PRODUCT_PREFIX}{o_idx}'
+
             if self.json_model[p_o]:
+                # p_o0_t0, p_o0_t1
+                included_products = []
+                for ppo_idx in range(self.ppo):
+                    included_products.append(f'{sxpatconfig.PRODUCT_PREFIX}{o_idx}_{sxpatconfig.TREE_PREFIX}{ppo_idx}')
+
                 for ppo_idx in range(self.ppo):
                     included_literals = []
                     for input_idx in range(self.graph.subgraph_num_inputs):
@@ -143,13 +158,15 @@ class Synthesis:
                                     f'{sxpatconfig.VER_NOT}{sxpatconfig.INPUT_LITERAL_PREFIX}{input_idx}')
                     if included_literals:
                         lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.PRODUCT_PREFIX}{o_idx}_{sxpatconfig.TREE_PREFIX}{ppo_idx} = ' \
-                                      f"{' & '.join(included_literals)};\n"
+                                       f"{' & '.join(included_literals)};\n"
                     else:
                         lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.PRODUCT_PREFIX}{o_idx}_{sxpatconfig.TREE_PREFIX}{ppo_idx} = 1;\n'
-            else:
-                lpp_assigns += f'{self.graph.subgraph_output_dict[o_idx]} = 0;\n'
 
-        print(f'{lpp_assigns = }')
+                lpp_assigns += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{self.graph.subgraph_output_dict[o_idx]} = {' | '.join(included_products)};\n"
+            else:
+                lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{self.graph.subgraph_output_dict[o_idx]} = 0;\n'
+
+
         return lpp_assigns
 
     def __json_model_ppo_subgraph_output_assigns(self):
@@ -162,36 +179,48 @@ class Synthesis:
 
         # TODO:
         # FIX ORDER NO MATTER WHAT MAYBE YOU CAN USE ORDERED DICT
-        # module signature
+        # 1. module signature
         input_list = list(self.graph.subgraph_input_dict.values())
         input_list.reverse()
         output_list = list(self.graph.output_dict.values())
-        module_signature = f"module {self.benchmark_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
-
+        module_signature = f"{sxpatconfig.VER_MODULE} {self.benchmark_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
+        # 2. declarations
         # input/output declarations
-        input_declarations = f"input {', '.join(input_list)};\n"
-        output_declarations = f"input {', '.join(output_list)};\n"
+        input_declarations = f"{sxpatconfig.VER_INPUT} {', '.join(input_list)};\n"
+        output_declarations = f"{sxpatconfig.VER_INPUT} {', '.join(output_list)};\n"
 
         # wire declarations
         intact_gate_list = list(self.graph.graph_intact_gate_dict.values())
+        intact_gate_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in intact_gate_list]
         intact_wires = f"//intact gates\n"
-        intact_wires += f"wire {', '.join(intact_gate_list)};\n"
+        intact_wires += f"{sxpatconfig.VER_WIRE} {', '.join(intact_gate_list)};\n"
 
+        # subgrpah input wires
+        annotated_graph_input_list = list(self.graph.subgraph_input_dict.values())
+        annotated_graph_input_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in annotated_graph_input_list]
+        annotated_graph_input_wires = f"//annotated subgraph inputs\n"
+        annotated_graph_input_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_input_list)}\n"
+
+        # subgraph output wires
         annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
+        annotated_graph_output_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in annotated_graph_output_list]
         annotated_graph_output_wires = f"//annotated subgraph outputs\n"
-        annotated_graph_output_wires += f"wire {', '.join(annotated_graph_output_list)}\n"
+        annotated_graph_output_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_output_list)}\n"
 
+        # json model wires
         json_model_wires = self.__json_model_wire_declarations()
 
-        # assigns
+        # 3. assigns
+        # subgraph_inputs_assigns
+        subgraph_inputs_assigns = self.__subgraph_inputs_assigns()
         # json_model_and_subgraph_outputs_assigns
         json_model_and_subgraph_outputs_assigns = self.__json_model_lpp_and_subgraph_output_assigns()
-
-
+        # the intact assings
+        # intact_assigns = self.__intact_part_assigns()
         assigns = json_model_and_subgraph_outputs_assigns
 
-
-        wire_declarations = intact_wires + annotated_graph_output_wires + json_model_wires + assigns
+        wire_declarations = intact_wires + annotated_graph_input_wires + annotated_graph_output_wires + json_model_wires \
+                            + assigns
 
         # assignments
 
