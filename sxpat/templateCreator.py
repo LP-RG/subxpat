@@ -62,11 +62,14 @@ class Template_SOP1(TemplateCreator):
         self.__literal_per_product = template_specs.literals_per_product
         self.__product_per_output = template_specs.products_per_output
         self.__subxpat: bool = template_specs.subxpat
+        self.__error_threshold = template_specs.et
         self.__z3pyscript = None
         self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
         self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
         self.__json_in_path = None
         self.__json_model = None
+
+
     @property
     def literals_per_product(self):
         return self.__literal_per_product
@@ -104,6 +107,10 @@ class Template_SOP1(TemplateCreator):
         self.__json_model = this_json_model
 
     @property
+    def et(self):
+        return self.__error_threshold
+
+    @property
     def z3_out_path(self):
         return self.__z3_out_path
 
@@ -121,7 +128,7 @@ class Template_SOP1(TemplateCreator):
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extenstion = this_path
-        return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}.{extenstion}'
+        return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}_{TEMPLATE_SPEC_ET}{self.et}.{extenstion}'
 
     def export_z3pyscript(self):
         print(f'Storing in {self.z3_out_path}')
@@ -150,6 +157,7 @@ class Template_SOP1(TemplateCreator):
 
     def run_z3pyscript(self, ET = 2):
         print(f'{self.z3_out_path = }')
+        print(f'{ET = }')
         process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}'], stderr=PIPE)
 
 
@@ -329,12 +337,19 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_approximate_circuit_wires_declaration(self):
         exact_wires_declaration = ''
         exact_wires_declaration += f'# wires functions declaration for approximate circuit\n'
+        #TODO:
+        # Fix when PIs are not the subgrpah's inputs
         for g_idx in range(self.graph.num_gates):
             exact_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.graph.subgraph_num_inputs + g_idx} = " \
                                        f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.graph.subgraph_num_inputs + g_idx}', " \
                                        f"{', '.join(repeat(BOOLSORT, self.graph.subgraph_num_inputs))}" \
                                        f", {BOOLSORT}" \
                                        f")\n"
+            # exact_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx} = " \
+            #                            f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}', " \
+            #                            f"{', '.join(repeat(BOOLSORT, self.graph.num_inputs))}" \
+            #                            f", {BOOLSORT}" \
+            #                            f")\n"
         exact_wires_declaration += '\n'
         return exact_wires_declaration
 
@@ -351,10 +366,14 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_approximate_circuit_outputs_declaration(self):
         approximate_circuit_output_declaration = ''
         approximate_circuit_output_declaration = f'# outputs functions declaration for approximate circuit\n'
-        for output_idx in range(self.graph.subgraph_num_outputs):
+        # for output_idx in range(self.graph.subgraph_num_outputs):
+        for output_idx in range(self.graph.num_outputs):
             approximate_circuit_output_declaration += f"{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx}', " \
                                                 f"{', '.join(repeat(BOOLSORT, self.graph.subgraph_num_inputs + 1))}" \
                                                 f")\n"
+            # approximate_circuit_output_declaration += f"{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx}', " \
+            #                                           f"{', '.join(repeat(BOOLSORT, self.graph.num_inputs + 1))}" \
+            #                                           f")\n"
         approximate_circuit_output_declaration += '\n'
         return approximate_circuit_output_declaration
 
@@ -512,9 +531,10 @@ class Template_SOP1(TemplateCreator):
                 exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}(" \
                                               f"{','.join(list(self.graph.input_dict.values()))}) == "
 
-                exact_wire_constraints += f"{Z3_AND}({PRODUCT_PREFIX}{output_idx}, {Z3_OR}({Z3_AND}("
+                exact_wire_constraints += f"{Z3_AND}({PRODUCT_PREFIX}{output_idx}, {Z3_OR}("
 
                 for ppo_idx in range(self.ppo):
+                    exact_wire_constraints +=f"{Z3_AND}("
                     for input_idx in range(self.graph.num_inputs):
                         p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                         p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
@@ -524,7 +544,7 @@ class Template_SOP1(TemplateCreator):
                         exact_wire_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {self.graph.input_dict[input_idx]})'
 
                         if loop_2_last_iter_flg and loop_3_last_iter_flg:
-                            exact_wire_constraints += f')),\n'
+                            exact_wire_constraints += f'))),\n'
                         elif loop_3_last_iter_flg:
                             exact_wire_constraints += f'), '
                         else:
@@ -676,8 +696,10 @@ class Template_SOP1(TemplateCreator):
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     atmost += f"{IF}({p_s}, 1, 0)"
 
+                    print(f'{atmost = }')
+
                     if loop_3_last_iter_flg:
-                        atmost += f') <= {self.ppo},\n'
+                        atmost += f') <= {self.lpp},\n'
                     else:
                         atmost += f' + '
         atmost += '\n'
@@ -699,7 +721,7 @@ class Template_SOP1(TemplateCreator):
                     atmost += f"{IF}({p_s}, 1, 0)"
 
                     if loop_3_last_iter_flg:
-                        atmost += f') <= {self.ppo},\n'
+                        atmost += f') <= {self.lpp},\n'
                     else:
                         atmost += f' + '
         atmost += '\n'
@@ -837,24 +859,43 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_forall_solver_redundancy_constraints_set_ppo_order(self):
         ppo_order = ''
         ppo_order += f'{TAB}{TAB}# set order of trees\n'
-        for output_idx in range(self.graph.num_outputs):
-            ppo_order += f"{TAB}{TAB}"
-            for ppo_idx in range(self.ppo):
-                ppo_order += '('
-                for input_idx in range(self.graph.num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
-                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
-                    p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
-                    p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                    ppo_order += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s} + {INTVAL}({2 ** (2 * input_idx + 1)}) * {p_l}'
 
-                    if loop_2_last_iter_flg and loop_3_last_iter_flg:
-                        ppo_order += '),\n'
-                    elif loop_3_last_iter_flg:
-                        ppo_order += ') >= '
-                    else:
-                        ppo_order += ' + '
+        if self.ppo == 1:
+            ppo_order += f'{TAB}{TAB}True, \n'
+        else:
+            for output_idx in range(self.graph.num_outputs):
+                for ppo_idx in range(self.ppo - 1):
+
+                    current_product = f'{TAB}{TAB}('
+                    next_product = f'('
+                    for input_idx in range(self.graph.num_inputs):
+                        loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
+                        loop_2_last_iter_flg = ppo_idx == self.ppo - 2
+                        loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
+                        p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+                        p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+
+                        p_l_next = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx+1}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+                        p_s_next = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx+1}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+
+                        current_product += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s} + {INTVAL}({2 ** (2 * input_idx + 1)}) * {p_l}'
+                        next_product +=  f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s_next} + {INTVAL}({2 ** (2 * input_idx + 1)}) * {p_l_next}'
+
+                        if loop_3_last_iter_flg:
+                            current_product += ')'
+                            next_product += '),\n'
+                            ppo_order += f'{current_product} >= {next_product}'
+                        else:
+                            current_product += f' + '
+                            next_product += f' + '
+                        #
+                        # if loop_2_last_iter_flg and loop_3_last_iter_flg:
+                        #     ppo_order += '),\n'
+                        # elif loop_3_last_iter_flg:
+                        #     current_product += ') >= '
+                        #     next_product += '),\n'
+                        # else:
+                        #     ppo_order += ' + '
 
         return ppo_order
 
@@ -1064,8 +1105,9 @@ class Template_SOP1(TemplateCreator):
 
     def z3_dump_results_onto_json(self):
         results = ''
-
-        results += f"with open('{self.json_out_path}', 'w') as ofile:\n" \
+        folder, extension = sxpatpaths.OUTPUT_PATH[JSON]
+        out_json_path = f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}_et{{ET}}.{extension}'
+        results += f"with open(f'{out_json_path}', 'w') as ofile:\n" \
                    f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
         return results
 
@@ -1126,5 +1168,3 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
 
 
-class Template_MUX(TemplateCreator):
-    pass
