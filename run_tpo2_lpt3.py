@@ -35,14 +35,18 @@ error = Int("error")
 p_o0 = Bool('p_o0')
 p_o1 = Bool('p_o1')
 p_o2 = Bool('p_o2')
-p_o0_t0_i0_s = Bool('p_o0_t0_i0_s')
-p_o0_t0_i0_l = Bool('p_o0_t0_i0_l')
+
+
+
+p_o0_t0_i0_s = Bool('p_o0_t0_i0_s') # whether you include i0 or not; True means inclusion
+p_o0_t0_i0_l = Bool('p_o0_t0_i0_l') # if you include it, do you negate it or not; False means negation
 p_o0_t0_i1_s = Bool('p_o0_t0_i1_s')
 p_o0_t0_i1_l = Bool('p_o0_t0_i1_l')
 p_o0_t0_i2_s = Bool('p_o0_t0_i2_s')
 p_o0_t0_i2_l = Bool('p_o0_t0_i2_l')
 p_o0_t0_i3_s = Bool('p_o0_t0_i3_s')
 p_o0_t0_i3_l = Bool('p_o0_t0_i3_l')
+
 p_o0_t1_i0_s = Bool('p_o0_t1_i0_s')
 p_o0_t1_i0_l = Bool('p_o0_t1_i0_l')
 p_o0_t1_i1_s = Bool('p_o0_t1_i1_s')
@@ -51,6 +55,7 @@ p_o0_t1_i2_s = Bool('p_o0_t1_i2_s')
 p_o0_t1_i2_l = Bool('p_o0_t1_i2_l')
 p_o0_t1_i3_s = Bool('p_o0_t1_i3_s')
 p_o0_t1_i3_l = Bool('p_o0_t1_i3_l')
+
 p_o1_t0_i0_s = Bool('p_o1_t0_i0_s')
 p_o1_t0_i0_l = Bool('p_o1_t0_i0_l')
 p_o1_t0_i1_s = Bool('p_o1_t0_i1_s')
@@ -83,6 +88,18 @@ p_o2_t1_i2_s = Bool('p_o2_t1_i2_s')
 p_o2_t1_i2_l = Bool('p_o2_t1_i2_l')
 p_o2_t1_i3_s = Bool('p_o2_t1_i3_s')
 p_o2_t1_i3_l = Bool('p_o2_t1_i3_l')
+
+# declaring the logic sharing products
+# the number of outputs in here is 3
+# the number of ppo = 2
+# tp = 3
+p_p0_o0_i = Bool('p_o0_p0_i')
+p_p0_o1_i = Bool('p_o0_p1_i')
+p_p0_o2_i = Bool('p_o0_p2_i')
+
+p_p1_o0_i = Bool('p_o0_p0_i')
+p_p1_o1_i = Bool('p_o0_p1_i')
+p_p1_o2_i = Bool('p_o0_p2_i')
 
 
 # Exact circuit

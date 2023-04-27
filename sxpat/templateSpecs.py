@@ -9,6 +9,7 @@ class TemplateSpecs:
         self.__products_per_output: int = int(kwargs[PRODUCTS_PER_OUTPUT])
         self.__subxpat: bool = kwargs[SUBXPAT]
         self.__num_of_models = kwargs[NUM_OF_MODELS]
+        self.__error_threshold = kwargs[TEMPLATE_SPEC_ET]
 
     @property
     def template_name(self):
@@ -43,6 +44,10 @@ class TemplateSpecs:
         return self.__num_of_models
 
 
+    @property
+    def et(self):
+        return self.__error_threshold
+
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \
                f'{self.template_name = }\n' \
@@ -50,4 +55,5 @@ class TemplateSpecs:
                f'{self.lpp = }\n' \
                f'{self.ppo = }\n' \
                f'{self.subxpat = }\n' \
-               f'{self.num_of_models = }\n'
+               f'{self.num_of_models = }\n' \
+               f'{self.et = }\n'

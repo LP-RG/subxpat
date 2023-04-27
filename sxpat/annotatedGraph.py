@@ -22,7 +22,7 @@ class AnnotatedGraph(Graph):
         self.__subgraph_fanin_dict = self.extract_subgraph_fanin()
         self.__subgraph_fanout_dict = self.extract_subgraph_fanout()
         self.__graph_intact_gate_dict = self.extract_graph_intact_gates()
-
+        print(f'{self.subgraph_output_dict = }')
         self.__subgraph_num_inputs = len(self.subgraph_input_dict)
         self.__subgraph_num_outputs = len(self.subgraph_output_dict)
         self.__subgraph_num_gates = len(self.subgraph_gate_dict)
