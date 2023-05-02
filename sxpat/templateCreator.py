@@ -174,7 +174,7 @@ class Template_SOP1(TemplateCreator):
             utility_variables = self.z3_generate_utility_variables()
             implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters_subxpat()
             exact_circuit_wires_declaration = self.z3_generate_exact_circuit_wires_declaration()
-            approximate_circuit_wires_declaration = self.z3_generate_approximate_circuit_wires_declaration()
+            approximate_circuit_wires_declaration = self.z3_generate_approximate_circuit_wires_declaration_subxpat()
             exact_circuit_outputs_declaration = self.z3_generate_exact_circuit_outputs_declaration()
             approximate_circuit_outputs_declaration = self.z3_generate_approximate_circuit_outputs_declaration()
             exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()
@@ -325,12 +325,40 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_exact_circuit_wires_declaration(self):
         exact_wires_declaration = ''
         exact_wires_declaration += f'# wires functions declaration for exact circuit\n'
+
+
+
         for g_idx in range(self.graph.num_gates):
+
             exact_wires_declaration += f"{EXACT_WIRES_PREFIX}{self.graph.num_inputs + g_idx} = " \
                                        f"{FUNCTION}('{EXACT_WIRES_PREFIX}{self.graph.num_inputs + g_idx}', " \
                                        f"{', '.join(repeat(BOOLSORT, self.graph.num_inputs))}" \
                                        f", {BOOLSORT}" \
                                        f")\n"
+
+        exact_wires_declaration += '\n'
+        return exact_wires_declaration
+
+    def z3_generate_approximate_circuit_wires_declaration_subxpat(self):
+        exact_wires_declaration = ''
+        exact_wires_declaration += f'# wires functions declaration for approximate circuit\n'
+        #TODO:
+        # Fix when PIs are not the subgrpah's inputs
+        for g_idx in range(self.graph.num_gates):
+            g_label = self.graph.gate_dict[g_idx]
+            if self.graph.is_subgraph_member(g_label):
+                exact_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx} = " \
+                                           f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}', " \
+                                           f"{', '.join(repeat(BOOLSORT, self.graph.subgraph_num_inputs))}" \
+                                           f", {BOOLSORT}" \
+                                           f")\n"
+            else:
+                exact_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx} = " \
+                                           f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}', " \
+                                           f"{', '.join(repeat(BOOLSORT, self.graph.num_inputs))}" \
+                                           f", {BOOLSORT}" \
+                                           f")\n"
+
         exact_wires_declaration += '\n'
         return exact_wires_declaration
 
@@ -340,16 +368,11 @@ class Template_SOP1(TemplateCreator):
         #TODO:
         # Fix when PIs are not the subgrpah's inputs
         for g_idx in range(self.graph.num_gates):
-            exact_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.graph.subgraph_num_inputs + g_idx} = " \
+            exact_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx} = " \
                                        f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.graph.subgraph_num_inputs + g_idx}', " \
                                        f"{', '.join(repeat(BOOLSORT, self.graph.subgraph_num_inputs))}" \
                                        f", {BOOLSORT}" \
                                        f")\n"
-            # exact_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx} = " \
-            #                            f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}', " \
-            #                            f"{', '.join(repeat(BOOLSORT, self.graph.num_inputs))}" \
-            #                            f", {BOOLSORT}" \
-            #                            f")\n"
         exact_wires_declaration += '\n'
         return exact_wires_declaration
 
@@ -369,7 +392,7 @@ class Template_SOP1(TemplateCreator):
         # for output_idx in range(self.graph.subgraph_num_outputs):
         for output_idx in range(self.graph.num_outputs):
             approximate_circuit_output_declaration += f"{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx}', " \
-                                                f"{', '.join(repeat(BOOLSORT, self.graph.subgraph_num_inputs + 1))}" \
+                                                f"{', '.join(repeat(BOOLSORT, self.graph.num_inputs + 1))}" \
                                                 f")\n"
             # approximate_circuit_output_declaration += f"{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx}', " \
             #                                           f"{', '.join(repeat(BOOLSORT, self.graph.num_inputs + 1))}" \
@@ -406,17 +429,44 @@ class Template_SOP1(TemplateCreator):
                     node_id = key
             return f"{EXACT_WIRES_PREFIX}{OUT}{node_id}({','.join(list(self.graph.input_dict.values()))})"
 
+    def __z3_get_approximate_label(self, node: str):
+        graph_gates = list(self.graph.gate_dict.values())
+        if node in graph_gates:
+            gate_idx = graph_gates.index(node)
+            return f'{APPROXIMATE_WIRE_PREFIX}{gate_idx + self.graph.num_inputs}'
+        else:
+            return node
+
+    def __z3_get_subgraph_input_list(self):
+        input_list = list(self.graph.subgraph_input_dict.values())
+        input_list_tmp = list(self.graph.subgraph_input_dict.values())
+        for idx, inp in enumerate(input_list):
+            if inp in self.graph.gate_dict.values():
+                input_list_tmp[idx] = f"{self.__z3_get_approximate_label(inp)}({', '.join(list(self.graph.input_dict.values()))})"
+        return input_list_tmp
+
     def z3_express_node_as_wire_constraints_subxpat(self, node: str):
         assert node in list(self.graph.input_dict.values()) or node in list(self.graph.gate_dict.values()) \
-               or node in list(self.graph.output_dict.values())
+               or node in list(self.graph.output_dict.values()) or node.startswith(APPROXIMATE_WIRE_PREFIX)
+
         if node in list(self.graph.input_dict.values()):
             return node
         elif node in list(self.graph.gate_dict.values()):
-            node_id = -1
-            for key in self.graph.gate_dict.keys():
-                if self.graph.gate_dict[key] == node:
-                    node_id = key
-            return f"{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + node_id}({','.join(list(self.graph.input_dict.values()))})"
+            if self.graph.is_subgraph_member(node):
+                node_id = -1
+                for key in self.graph.gate_dict.keys():
+                    if self.graph.gate_dict[key] == node:
+                        node_id = key
+
+                input_list = self.__z3_get_subgraph_input_list()
+
+                return f"{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + node_id}({','.join(input_list)})"
+            else:
+                node_id = -1
+                for key in self.graph.gate_dict.keys():
+                    if self.graph.gate_dict[key] == node:
+                        node_id = key
+                return f"{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + node_id}({','.join(list(self.graph.input_dict.values()))})"
         elif node in list(self.graph.output_dict.values()):
             for key in self.graph.output_dict.keys():
                 if self.graph.output_dict[key] == node:
@@ -491,7 +541,7 @@ class Template_SOP1(TemplateCreator):
         exact_wire_constraints += f'# approximate circuit constraints\n'
         exact_wire_constraints += f'{APPROXIMATE_CIRCUIT} = And(\n'
         exact_wire_constraints += f'{TAB}# wires\n'
-
+        subgraph_input_list = self.__z3_get_subgraph_input_list()
         for g_idx in range(self.graph.num_gates):
             g_label = self.graph.gate_dict[g_idx]
             if not self.graph.is_subgraph_member(g_label):
@@ -507,13 +557,10 @@ class Template_SOP1(TemplateCreator):
 
                     exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}(" \
                                               f"{','.join(list(self.graph.input_dict.values()))}) == "
-
                     exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
-
                 else:
                     exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}(" \
                                               f"{','.join(list(self.graph.input_dict.values()))}) == "
-
                     if g_predecessors[0] in list(self.graph.input_dict.values()):
                         pred_1 = g_predecessors[0]
                     else:
@@ -522,27 +569,22 @@ class Template_SOP1(TemplateCreator):
                         pred_2 = g_predecessors[1]
                     else:
                         pred_2 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[1])
-
                     exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
             # if the gate is an output node of the annotated graph (subgraph)
             elif self.graph.is_subgraph_member(g_label) and self.graph.is_subgraph_output(g_label):
                 output_list = list(self.graph.subgraph_output_dict.values())
                 output_idx = output_list.index(g_label)
                 exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}(" \
-                                              f"{','.join(list(self.graph.input_dict.values()))}) == "
-
+                                              f"{','.join(subgraph_input_list)}) == "
                 exact_wire_constraints += f"{Z3_AND}({PRODUCT_PREFIX}{output_idx}, {Z3_OR}("
-
                 for ppo_idx in range(self.ppo):
                     exact_wire_constraints +=f"{Z3_AND}("
-                    for input_idx in range(self.graph.num_inputs):
+                    for input_idx, input_label in enumerate(self.graph.subgraph_input_dict.values()):
                         p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                         p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
-                        loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                        loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
-
-                        exact_wire_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {self.graph.input_dict[input_idx]})'
-
+                        loop_2_last_iter_flg = (ppo_idx == self.ppo - 1)
+                        loop_3_last_iter_flg = (input_idx == self.graph.subgraph_num_inputs - 1)
+                        exact_wire_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {subgraph_input_list[input_idx]})'
                         if loop_2_last_iter_flg and loop_3_last_iter_flg:
                             exact_wire_constraints += f'))),\n'
                         elif loop_3_last_iter_flg:
@@ -710,13 +752,13 @@ class Template_SOP1(TemplateCreator):
         atmost = ''
         atmost += f'{TAB}{TAB}# AtMost constraints\n'
 
-        for output_idx in range(self.graph.subgraph_num_fanout):
+        for output_idx in range(self.graph.subgraph_num_outputs):
             for ppo_idx in range(self.ppo):
                 atmost += f"{TAB}{TAB}("
-                for input_idx in range(self.graph.num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
+                for input_idx in range(self.graph.subgraph_num_inputs):
+                    loop_1_last_iter_flg = output_idx == self.graph.subgraph_num_outputs - 1
                     loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
+                    loop_3_last_iter_flg = input_idx == self.graph.subgraph_num_inputs - 1
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     atmost += f"{IF}({p_s}, 1, 0)"
 
@@ -759,13 +801,13 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_forall_solver_redundancy_constraints_double_no_care_subxpat(self):
         double = ''
         double += f'{TAB}{TAB}# remove double no-care\n'
-        for output_idx in range(self.graph.subgraph_num_fanout):
+        for output_idx in range(self.graph.subgraph_num_outputs):
             double += f"{TAB}{TAB}"
             for ppo_idx in range(self.ppo):
-                for input_idx in range(self.graph.num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
+                for input_idx in range(self.graph.subgraph_num_inputs):
+                    loop_1_last_iter_flg = output_idx == self.graph.subgraph_num_outputs - 1
                     loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
+                    loop_3_last_iter_flg = input_idx == self.graph.subgraph_num_inputs - 1
                     p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     double += f'{IMPLIES}({p_l}, {p_s}), '
@@ -797,13 +839,13 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_subxpat(self):
         const_zero_perm = ''
         const_zero_perm += f'{TAB}{TAB}# remove constant 0 parameters permutations\n'
-        for output_idx in range(self.graph.subgraph_num_fanout):
+        for output_idx in range(self.graph.subgraph_num_outputs):
             const_zero_perm += f"{TAB}{TAB}{IMPLIES}({Z3_NOT}({PRODUCT_PREFIX}{output_idx}), {Z3_NOT}({Z3_OR}("
             for ppo_idx in range(self.ppo):
-                for input_idx in range(self.graph.num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
+                for input_idx in range(self.graph.subgraph_num_inputs):
+                    loop_1_last_iter_flg = output_idx == self.graph.subgraph_num_outputs - 1
                     loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
+                    loop_3_last_iter_flg = input_idx == self.graph.subgraph_num_inputs - 1
                     p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     const_zero_perm += f'{p_s}, {p_l}'
@@ -835,14 +877,14 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat(self):
         ppo_order = ''
         ppo_order += f'{TAB}{TAB}# set order of trees\n'
-        for output_idx in range(self.graph.subgraph_num_fanout):
+        for output_idx in range(self.graph.subgraph_num_outputs):
             ppo_order += f"{TAB}{TAB}"
             for ppo_idx in range(self.ppo):
                 ppo_order += '('
-                for input_idx in range(self.graph.num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
+                for input_idx in range(self.graph.subgraph_num_inputs):
+                    loop_1_last_iter_flg = output_idx == self.graph.subgraph_num_outputs - 1
                     loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
+                    loop_3_last_iter_flg = input_idx == self.graph.subgraph_num_inputs - 1
                     p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     ppo_order += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s} + {INTVAL}({2 ** (2 * input_idx + 1)}) * {p_l}'

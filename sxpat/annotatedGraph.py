@@ -100,7 +100,7 @@ class AnnotatedGraph(Graph):
         tmp_graph = self.graph.copy(as_view=False)
         for gate_idx in self.gate_dict:
             # if self.num_inputs <= gate_idx <= 14:
-            if gate_idx <= 14:
+            if 1 < gate_idx <= 8:
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
             else:
