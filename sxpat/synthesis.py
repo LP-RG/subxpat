@@ -40,7 +40,9 @@ class Synthesis:
         folder, extension = OUTPUT_PATH[sxpatconfig.GV]
         self.__graph_in_path: str = None
 
+        self.__ver_out_name: str = None
         self.__ver_out_path: str = self.set_path(OUTPUT_PATH['ver'])
+
         self.__verilog_string: str = self.convert_to_verilog()
 
     @property
@@ -100,6 +102,14 @@ class Synthesis:
         self.__use_graph = use_graph
 
     @property
+    def ver_out_name(self):
+        return self.__ver_out_name
+
+    @ver_out_name.setter
+    def ver_out_name(self, this_name):
+        self.__ver_out_name = this_name
+
+    @property
     def ver_out_path(self):
         return self.__ver_out_path
 
@@ -113,7 +123,8 @@ class Synthesis:
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extenstion = this_path
-        return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{self.et}_{self.template_name}.{extenstion}'
+        self.ver_out_name = f'{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}.{extenstion}'
+        return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}.{extenstion}'
 
     def convert_to_verilog(self, use_graph: bool = use_graph, use_json_model: bool = use_json_model):
         """
@@ -266,7 +277,10 @@ class Synthesis:
         input_list = list(self.graph.subgraph_input_dict.values())
         input_list.reverse()
         output_list = list(self.graph.output_dict.values())
-        module_signature = f"{sxpatconfig.VER_MODULE} {self.benchmark_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
+
+
+        module_name = self.ver_out_name[:-2]
+        module_signature = f"{sxpatconfig.VER_MODULE} {module_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
         # 2. declarations
         # input/output declarations
         input_declarations = f"{sxpatconfig.VER_INPUT} {', '.join(input_list)};\n"
