@@ -1205,6 +1205,59 @@ class Template_SOP1ShareLogic(TemplateCreator):
         print(f'Storing in {self.z3_out_path}')
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
+            
+    # From this point on, all functions needed to create SharedXPAT
+    z3_generate_imports(self)
+    z3_generate_z3_abs_function(self) 
+    declare_gate(self, this_key: str, this_dict: dict = None):
+    z3_generate_declare_input_variables(self)
+    z3_generate_declare_integer_function(self, function_name) ##not sure what it does
+    z3_generate_utility_variables(self)
+    z3_generate_o(self)
+
+    # 1 new function generate input to product:
+    # z3_generate_itp(self)   
+    # 2 new function, equivalent to z3_generate_declare_implicit_parameters(self) but adding the itp logic:
+    # z3_generate_declare_implicit_parameters_shared_logic(self):
+
+    z3_generate_exact_circuit_wires_declaration(self)
+    z3_generate_approximate_circuit_wires_declaration(self)
+    z3_generate_exact_circuit_outputs_declaration(self)
+    get_predecessors(self, node: str) -> List[str]    #check if it’s the same for logic sharing
+    get_logical_function(self, node: str) -> str    #check if it’s the same for logic sharing
+    z3_generate_exact_circuit_wire_constraints(self)
+    z3_generate_exact_circuit_output_constraints(self)
+    z3_generate_exact_circuit_integer_output_constraints(self)
+    z3_generate_exact_circuit_constraints(self)
+
+    # 3 new function, equivalent to z3_generate_approximate_circuit_constraints(self) but adding the sharing logic
+    # 4 new function, equivalent to z3_generate_forall_solver(self) but changing the functions inside
+
+    z3_generate_forall_solver_preperation(self)
+    z3_generate_forall_solver_error_constraint(self)
+    z3_generate_forall_solver_circuits(self)
+
+    # 5 new function, equivalent to z3_generate_forall_solver_atmost_constraints(self) but changing the parameter construction
+
+    # Not sure if it should be added any redundancy logic here such as:
+    #z3_generate_forall_solver_redundancy_constraints(self)
+    #z3_generate_forall_solver_redundancy_constraints_double_no_care(self)
+    #z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation(self)
+    #z3_generate_forall_solver_redundancy_constraints_set_ppo_order(self)
+
+    z3_generate_verification_solver(self)
+    z3_generate_parameter_constraint_list(self)
+    z3_generate_find_wanted_number_of_models_prep_loop1(self)
+    z3_generate_find_wanted_number_of_models_prep_loop2(self):
+    z3_generate_find_wanted_number_of_models_prep_loop3(self)
+    z3_generate_find_wanted_number_of_models_final_prep(self)
+    z3_generate_store_data(self)
+    z3_generate_sotre_data_define_extract_info_function(self)
+    z3_generate_sotre_data_define_extract_key_function(self)
+    z3_generate_stats(self)
+    z3_generate_config(self)
+    z3_dump_results_onto_json(self)
+
 
 
 
