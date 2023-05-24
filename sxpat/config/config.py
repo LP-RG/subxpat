@@ -6,8 +6,6 @@ PRODUCTS_PER_OUTPUT = 'products_per_output'
 BENCHMARK = 'benchmark_name'
 NUM_OF_MODELS = 'num_of_models'
 SUBXPAT = 'subxpat'
-TEMPLATE_SPEC_ET = 'et'
-
 
 #   NetworkX
 NOT = 'not'
@@ -44,6 +42,7 @@ APPROXIMATE_WIRE_PREFIX = 'a'
 APPROXIMATE_OUTPUT_PREFIX = 'a'
 OUT = 'out'
 PRODUCT_PREFIX = 'p_o'
+SHARED_PRODUCT_PREFIX = 'p'
 
 TO_Z3_GATE_DICT = {
     NOT: Z3_NOT,
@@ -60,7 +59,6 @@ VERIFICATION_SOLVER = 'verification_solver'
 ERROR = 'error'
 
 # random constants
-GV = 'gv'
 JSON = 'json'
 LPP = 'lpp'
 PPO = 'ppo'
@@ -88,28 +86,3 @@ FILLCOLOR = 'fillcolor'
 NODE = 'node'
 STYLE = 'style'
 FILLED = 'filled'
-
-
-# json fields
-RESULT = 'result'
-TOTAL_TIME = 'total_time'
-MODEL = 'model'
-
-JSON_TRUE = 'true'
-JSON_FALSE = 'false'
-
-SAT = 'sat'
-UNSAT = 'unsat'
-
-
-# Verilog
-VER_NOT = '~'
-VER_AND = '&'
-VER_OR = '|'
-VER_ASSIGN = 'assign'
-VER_WIRE = 'wire'
-VER_INPUT = 'input'
-VER_OUTPUT = 'output'
-VER_MODULE = 'module'
-VER_ENDMODULE = 'endmodule'
-VER_WIRE_PREFIX = 'w_'
