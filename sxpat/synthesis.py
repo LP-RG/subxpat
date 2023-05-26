@@ -3,6 +3,7 @@ from typing import List, Dict, Callable, Iterable, Tuple
 import json
 import re
 import networkx as nx
+from itertools import repeat
 
 from Z3Log.graph import Graph
 from Z3Log.config.config import *
@@ -144,6 +145,18 @@ class Synthesis:
             exit()
         return verilog_str
 
+    def __json_input_wire_declarations(self):
+        input_wire_list = f'//json input wires\n'
+        input_wire_list += f'{sxpatconfig.VER_WIRE} '
+        for idx in range(self.graph.subgraph_num_inputs):
+            if idx == self.graph.subgraph_num_inputs -1:
+                input_wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx};\n'
+            else:
+                input_wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx}, '
+        return input_wire_list
+
+
+
     def __json_model_wire_declarations(self):
         wire_list = f'//json model\n'
         wire_list += f'wire '
@@ -157,12 +170,55 @@ class Synthesis:
                     wire_list += ', '
         return wire_list
 
+    def __get_fanin_cone(self, n: str, visited: List[str] = []):
+        visited.append(n)
+        assignment = f''
+        succ_n_list = list(self.graph.graph.predecessors(n))
+        for s_n in succ_n_list:
+            if s_n in self.graph.input_dict.values():
+                pass
+            else:
+                if s_n not in visited:
+                    assignment += self.__get_fanin_cone(s_n, visited)
+
+        if len(succ_n_list) == 2:
+            gate_1 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}' if succ_n_list[0] not in self.graph.input_dict.values() else succ_n_list[0]
+            gate_2 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[1]}' if succ_n_list[1] not in self.graph.input_dict.values() else succ_n_list[1]
+            if self.graph.graph.nodes[n][LABEL] == sxpatconfig.AND:
+                operator = sxpatconfig.VER_AND
+            elif self.graph.graph.nodes[n][LABEL] == sxpatconfig.OR:
+                operator = sxpatconfig.VER_OR
+
+            assignment += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = " \
+                          f"{gate_1} {operator} {gate_2};\n"
+        else:
+            gate_1 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}' if succ_n_list[0] not in self.graph.input_dict.values() else succ_n_list[0]
+            assignment += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = ~{gate_1};\n"
+        return assignment
+
     def __subgraph_inputs_assigns(self):
         s_inputs_assigns = f'//subgraph inputs assigns\n'
+
         for n in self.graph.subgraph_input_dict.values():
-            s_inputs_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = {n};\n'
+            if n in self.graph.input_dict.values():
+                s_inputs_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = {n};\n'
+            else:
+                s_inputs_assigns += self.__get_fanin_cone(n)
+
+
 
         return s_inputs_assigns
+
+    def __subgraph_to_json_input_mapping(self):
+        sub_to_json = f'//mapping subgraph inputs to json inputs\n'
+
+        subgraph_input_list = list(self.graph.subgraph_input_dict.values())
+
+        for idx in range(self.graph.num_inputs, self.graph.subgraph_num_inputs):
+            sub_to_json += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx} = ' \
+                           f'{sxpatconfig.VER_WIRE_PREFIX}{subgraph_input_list[idx]};\n'
+
+        return sub_to_json
 
     def __json_model_lpp_and_subgraph_output_assigns(self):
         lpp_assigns = f'//json model assigns (approximated/XPATed part)\n'
@@ -274,7 +330,8 @@ class Synthesis:
         # TODO:
         # FIX ORDER NO MATTER WHAT MAYBE YOU CAN USE ORDERED DICT
         # 1. module signature
-        input_list = list(self.graph.subgraph_input_dict.values())
+        input_list = list(self.graph.input_dict.values())
+
         input_list.reverse()
         output_list = list(self.graph.output_dict.values())
 
@@ -283,14 +340,11 @@ class Synthesis:
         module_signature = f"{sxpatconfig.VER_MODULE} {module_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
         # 2. declarations
         # input/output declarations
-        input_declarations = f"{sxpatconfig.VER_INPUT} {', '.join(input_list)};\n"
-        for o in self.graph.subgraph_output_dict:
-            print(f'{self.graph.subgraph_output_dict[o] = }')
-        print(f'{output_list = }')
+        input_declarations = f"//input/output declarations\n"
+        input_declarations += f"{sxpatconfig.VER_INPUT} {', '.join(input_list)};\n"
         output_declarations = f"{sxpatconfig.VER_OUTPUT} {', '.join(output_list)};\n"
 
         # wire declarations
-
         intact_wires = self.__intact_gate_wires()
 
         # subgrpah input wires
@@ -299,19 +353,27 @@ class Synthesis:
         annotated_graph_input_wires = f"//annotated subgraph inputs\n"
         annotated_graph_input_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_input_list)};\n"
 
+
+
+
         # subgraph output wires
         annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
         annotated_graph_output_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in annotated_graph_output_list]
         annotated_graph_output_wires = f"//annotated subgraph outputs\n"
         annotated_graph_output_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_output_list)};\n"
         # json model wires
+        json_input_wires = self.__json_input_wire_declarations()
         json_model_wires = self.__json_model_wire_declarations()
 
-        wire_declarations = intact_wires + annotated_graph_input_wires + annotated_graph_output_wires + json_model_wires
+        wire_declarations = intact_wires + annotated_graph_input_wires + annotated_graph_output_wires + json_input_wires + json_model_wires
 
         # 3. assigns
         # subgraph_inputs_assigns
         subgraph_inputs_assigns = self.__subgraph_inputs_assigns()
+
+        # map subgraph inputs to json inputs
+        subgraph_to_json_input_mapping = self.__subgraph_to_json_input_mapping()
+
         # json_model_and_subgraph_outputs_assigns
         json_model_and_subgraph_outputs_assigns = self.__json_model_lpp_and_subgraph_output_assigns()
         # the intact assings
@@ -319,7 +381,7 @@ class Synthesis:
         # output assings
         output_assings = self.__output_assigns()
 
-        assigns = subgraph_inputs_assigns + json_model_and_subgraph_outputs_assigns + intact_assigns + output_assings
+        assigns = subgraph_inputs_assigns + subgraph_to_json_input_mapping + json_model_and_subgraph_outputs_assigns + intact_assigns + output_assings
 
         # assignments
 

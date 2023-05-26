@@ -131,7 +131,7 @@ class Template_SOP1(TemplateCreator):
         return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}_{TEMPLATE_SPEC_ET}{self.et}.{extenstion}'
 
     def export_z3pyscript(self):
-        print(f'Storing in {self.z3_out_path}')
+        # print(f'Storing in {self.z3_out_path}')
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
 
@@ -156,8 +156,8 @@ class Template_SOP1(TemplateCreator):
                         self.json_model = UNSAT
 
     def run_z3pyscript(self, ET = 2):
-        print(f'{self.z3_out_path = }')
-        print(f'{ET = }')
+        # print(f'{self.z3_out_path = }')
+        # print(f'{ET = }')
         process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}'], stderr=PIPE)
 
 
@@ -580,10 +580,13 @@ class Template_SOP1(TemplateCreator):
                 for ppo_idx in range(self.ppo):
                     exact_wire_constraints +=f"{Z3_AND}("
                     for input_idx, input_label in enumerate(self.graph.subgraph_input_dict.values()):
-                        p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                        p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+                        max_input_id = self.graph.subgraph_num_inputs - 1
+                        p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{max_input_id - input_idx}_{SELECT_PREFIX}'
+                        p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{max_input_id - input_idx}_{LITERAL_PREFIX}'
                         loop_2_last_iter_flg = (ppo_idx == self.ppo - 1)
                         loop_3_last_iter_flg = (input_idx == self.graph.subgraph_num_inputs - 1)
+                        print(f'{input_idx = }, {subgraph_input_list[input_idx] = }, {self.graph.subgraph_num_inputs = }, {input_label = }')
+
                         exact_wire_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {subgraph_input_list[input_idx]})'
                         if loop_2_last_iter_flg and loop_3_last_iter_flg:
                             exact_wire_constraints += f'))),\n'
@@ -1205,6 +1208,12 @@ class Template_SOP1ShareLogic(TemplateCreator):
         print(f'Storing in {self.z3_out_path}')
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
+
+    # run_z3pyscript
+    # eerag
+    # asdfsd
+
+    ##### here, I have to insert something
 
 
 

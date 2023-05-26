@@ -16,8 +16,19 @@ from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.synthesis import Synthesis
 from sxpat.arguments import Arguments
 
+def clean_all():
+    directories = [z3logpath.OUTPUT_PATH['ver'][0], z3logpath.OUTPUT_PATH['aig'][0], z3logpath.OUTPUT_PATH['gv'][0], z3logpath.OUTPUT_PATH['z3'][0],
+                   z3logpath.OUTPUT_PATH['report'][0], z3logpath.OUTPUT_PATH['figure'][0], z3logpath.TEST_PATH['tb'][0], z3logpath.TEST_PATH['z3'][0],
+                   z3logpath.LOG_PATH['yosys'][0],
+                   OUTPUT_PATH['json'][0]]
+
+    for directory in directories:
+        shutil.rmtree(directory)
+        os.makedirs(directory, exist_ok=True)
+
 
 def main():
+    clean_all()
     setup_folder_structure()
     for key in OUTPUT_PATH.keys():
         directory = OUTPUT_PATH[key][0]
@@ -30,33 +41,17 @@ def main():
                               benchmark_name=args.benchmark_name, num_of_models=1, subxpat=args.subxpat, et=args.et)
     print(f'{specs_obj = }')
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     template_obj = Template_SOP1(specs_obj)
     print(f'{template_obj = }')
     template_obj.z3_generate_z3pyscript()
 
     template_obj.run_z3pyscript(args.et)
     template_obj.import_json_model()
-    # print(f'{template_obj.json_model = }')
+
 
     synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model)
     synth_obj.export_verilog()
-
+    # exit()
     # Verify the output verilog
     # 0) copy the output approximate Verilgo file into the input/ver folder
     src_ver = synth_obj.ver_out_path
@@ -97,20 +92,20 @@ def main():
     for csvfile in os.listdir(folder):
         if csvfile.endswith(extension) and re.search(approximate_benchmark, csvfile):
             report_file = f'{folder}/{csvfile}'
-    with open(report_file, 'r') as rf:
-        csvreader = csv.reader(rf)
-        for row in csvreader:
-            if row[0] == WCE:
-                obtained_wce = int(row[1])
+            with open(report_file, 'r') as rf:
+                csvreader = csv.reader(rf)
+                for row in csvreader:
+                    if row[0] == WCE:
+                        obtained_wce = int(row[1])
 
-                if obtained_wce <= args.et:
-                    print(f'{obtained_wce = } <= ET = {args.et}')
-                    print(f'TEST -> PASS')
-                    break
-                else:
-                    print(f'ERROR!!! The obtained WCE does not match the given error threshold!')
-                    print(f'{obtained_wce = } > ET = {args.et}')
-                    exit()
+                        if obtained_wce <= args.et:
+                            print(f'{obtained_wce = } <= ET = {args.et}')
+                            print(f'TEST -> PASS')
+                            break
+                        else:
+                            print(f'ERROR!!! The obtained WCE does not match the given error threshold!')
+                            print(f'{obtained_wce = } > ET = {args.et}')
+                            exit()
 
 
 if __name__ == "__main__":
