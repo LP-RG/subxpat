@@ -4,6 +4,7 @@ from Z3Log.graph import Graph
 from Z3Log.verilog import Verilog
 from Z3Log.utils import *
 from .config.config import *
+from .config import paths as sxpatpaths
 
 
 class AnnotatedGraph(Graph):
@@ -22,7 +23,7 @@ class AnnotatedGraph(Graph):
         self.__subgraph_fanin_dict = self.extract_subgraph_fanin()
         self.__subgraph_fanout_dict = self.extract_subgraph_fanout()
         self.__graph_intact_gate_dict = self.extract_graph_intact_gates()
-        print(f'{self.subgraph_output_dict = }')
+
         self.__subgraph_num_inputs = len(self.subgraph_input_dict)
         self.__subgraph_num_outputs = len(self.subgraph_output_dict)
         self.__subgraph_num_gates = len(self.subgraph_gate_dict)
@@ -30,12 +31,17 @@ class AnnotatedGraph(Graph):
         self.__subgraph_num_fanout = len(self.subgraph_fanout_dict)
         self.__graph_num_intact_gates = len(self.__graph_intact_gate_dict)
 
-
+        folder, extension = OUTPUT_PATH[GV]
+        self.__out_annotated_graph_path = f'{folder}/{self.name}_subgraph.{extension}'
 
 
     @property
     def subgraph(self):
         return self.__subgraph
+
+    @property
+    def subgraph_out_path(self):
+        return self.__out_annotated_graph_path
 
     @property
     def subgraph_input_dict(self):
@@ -99,8 +105,10 @@ class AnnotatedGraph(Graph):
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         tmp_graph = self.graph.copy(as_view=False)
         for gate_idx in self.gate_dict:
-            # if self.num_inputs <= gate_idx <= 14:
-            if 1 < gate_idx <= 8:
+
+            # if gate_idx <= 24:
+            if gate_idx <= 15:
+
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
             else:
@@ -113,7 +121,7 @@ class AnnotatedGraph(Graph):
         exports the subgraph (annotated graph) to a GV (GraphViz) file
         :return:
         """
-        with open(self.out_path, 'w') as f:
+        with open(self.subgraph_out_path, 'w') as f:
             f.write(f"{STRICT} {DIGRAPH} \"{self.name}\" {{\n")
             f.write(f"{NODE} [{STYLE} = {FILLED}, {FILLCOLOR} = {WHITE}]\n")
             for n in self.subgraph.nodes:
