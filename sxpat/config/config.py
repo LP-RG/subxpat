@@ -6,6 +6,7 @@ PRODUCTS_PER_OUTPUT = 'products_per_output'
 BENCHMARK = 'benchmark_name'
 NUM_OF_MODELS = 'num_of_models'
 SUBXPAT = 'subxpat'
+TEMPLATE_SPEC_ET = 'et'
 
 #   NetworkX
 NOT = 'not'
@@ -50,6 +51,9 @@ SHARED_OUTPUT_PREFIX = 'o'
 SHARED_SELECT_PREFIX = 's'
 SHARED_LITERAL_PREFIX = 'l'
 SHARED_INPUT_LITERAL_PREFIX = 'i'
+
+# Shared Template Specs additional properties
+PRODUCTS_IN_TOTAL = 'products_in_total'
 
 
 TO_Z3_GATE_DICT = {

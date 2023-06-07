@@ -8,7 +8,7 @@ from Z3Log.z3solver import Z3solver
 from Z3Log.config import path as z3logpath
 # from Z3Log.argument import Arguments
 from sxpat.templateCreator import TemplateCreator
-from sxpat.templateCreator import Template_SOP1
+from sxpat.templateCreator import Template_SOP1ShareLogic
 from sxpat.templateSpecs import TemplateSpecs
 from sxpat.config.paths import *
 from sxpat.synthesis import Synthesis
@@ -27,26 +27,11 @@ def main():
     print(f'{args = }')
 
     specs_obj = TemplateSpecs(name='Sop1', literals_per_product=args.lpp, products_per_output=args.ppo,
-                              benchmark_name=args.benchmark_name, num_of_models=1, subxpat=args.subxpat, et=args.et)
+                              benchmark_name=args.benchmark_name, num_of_models=1, subxpat=False, et=args.et, products_in_total=args.pit)
     print(f'{specs_obj = }')
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    template_obj = Template_SOP1(specs_obj)
+    template_obj = Template_SOP1ShareLogic(specs_obj)
     print(f'{template_obj = }')
     template_obj.z3_generate_z3pyscript()
 

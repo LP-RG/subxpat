@@ -1035,6 +1035,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
         self.__z3pyscript = None
         self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
         self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH['json'])
+        self.__product_in_total = template_specs.products_in_total
+        self.__subxpat: bool = template_specs.subxpat
 
 ## TO DO: add new property itp (input to product)?
 
@@ -1064,6 +1066,10 @@ class Template_SOP1ShareLogic(TemplateCreator):
     @property
     def pit(self):
         return self.__product_in_total
+
+    @property
+    def subxpat(self):
+        return self.__subxpat
 
     @property
     def z3pyscript(self):
@@ -1121,11 +1127,12 @@ class Template_SOP1ShareLogic(TemplateCreator):
                               + approximate_circuit_wires_declaration \
                               + exact_circuit_outputs_declaration \
                               + approximate_circuit_outputs_declaration \
-                              + exact_circuit_constraints + approximate_circuit_constraints \
+                              + exact_circuit_constraints + approximate_circuit_constraints_subxpat \
                               + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
                               + store_data
 
         else:
+            print("=================WE ARE RUNNING THIS PART!: Good job! :D ====================")
             imports = self.z3_generate_imports()  # parent
             config = self.z3_generate_config()
             z3_abs_function = self.z3_generate_z3_abs_function()  # parent

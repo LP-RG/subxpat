@@ -10,6 +10,7 @@ class TemplateSpecs:
         self.__subxpat: bool = kwargs[SUBXPAT]
         self.__num_of_models = kwargs[NUM_OF_MODELS]
         self.__error_threshold = kwargs[TEMPLATE_SPEC_ET]
+        self.__products_in_total = kwargs[PRODUCTS_IN_TOTAL]
 
     @property
     def template_name(self):
@@ -34,6 +35,14 @@ class TemplateSpecs:
     @property
     def ppo(self):
         return self.__products_per_output
+
+    @property
+    def products_in_total(self):
+        return self.__products_in_total
+
+    @property
+    def pit(self):
+        return self.__products_in_total
 
     @property
     def subxpat(self):
