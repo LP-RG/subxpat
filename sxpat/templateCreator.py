@@ -1038,6 +1038,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
 ## TO DO: add new property itp (input to product)?
 
+
     @property
     def literals_per_product(self):
         return self.__literal_per_product
@@ -1053,6 +1054,16 @@ class Template_SOP1ShareLogic(TemplateCreator):
     @property
     def ppo(self):
         return self.__product_per_output
+
+    # New
+    @property
+    def products_in_total(self):
+        return self.__product_in_total
+
+    # New
+    @property
+    def pit(self):
+        return self.__product_in_total
 
     @property
     def z3pyscript(self):
@@ -1092,15 +1103,15 @@ class Template_SOP1ShareLogic(TemplateCreator):
             exact_integer_function_declaration = self.z3_generate_declare_integer_function(F_EXACT)
             approximate_integer_function_declaration = self.z3_generate_declare_integer_function(F_APPROXIMATE)
             utility_variables = self.z3_generate_utility_variables()
-            implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters_subxpat()
+            implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters()
             exact_circuit_wires_declaration = self.z3_generate_exact_circuit_wires_declaration()
             approximate_circuit_wires_declaration = self.z3_generate_approximate_circuit_wires_declaration()
             exact_circuit_outputs_declaration = self.z3_generate_exact_circuit_outputs_declaration()
             approximate_circuit_outputs_declaration = self.z3_generate_approximate_circuit_outputs_declaration()
             exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()
-            approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_subxpat()
+            approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_shared()
 
-            for_all_solver = self.z3_generate_forall_solver_subxpat()
+            for_all_solver = self.z3_generate_forall_solver()
             verification_solver = self.z3_generate_verification_solver()
             parameter_constraint_list = self.z3_generate_parameter_constraint_list()
             find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
@@ -1110,7 +1121,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
                               + approximate_circuit_wires_declaration \
                               + exact_circuit_outputs_declaration \
                               + approximate_circuit_outputs_declaration \
-                              + exact_circuit_constraints + approximate_circuit_constraints_subxpat \
+                              + exact_circuit_constraints + approximate_circuit_constraints \
                               + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
                               + store_data
 
@@ -1126,7 +1137,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
             exact_circuit_wires_declaration = self.z3_generate_exact_circuit_wires_declaration()
             exact_circuit_outputs_declaration = self.z3_generate_exact_circuit_outputs_declaration()
             exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()
-            approximate_circuit_constraints = self.z3_generate_approximate_circuit_constraints()
+            approximate_circuit_constraints = self.z3_generate_approximate_circuit_constraints_shared()
             for_all_solver = self.z3_generate_forall_solver()
             verification_solver = self.z3_generate_verification_solver()
             parameter_constraint_list = self.z3_generate_parameter_constraint_list()
@@ -1206,24 +1217,24 @@ class Template_SOP1ShareLogic(TemplateCreator):
         return temp_o
 
     ## New --> generate input to product
-    ## TO DO --> check logic
-    def z3_generate_itp(self):
-        temp_itp = ''
-        possible_products = 2** self.graph.num_inputs
-        for product in possible_products:
-            for input_idx in range(self.graph.num_inputs):
-                p_in_s = f'{SHARED_PRODUCT_PREFIX}{product}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                p_in_l = f'{SHARED_PRODUCT_PREFIX}{product}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
-                temp_itp += self.declare_gate(p_in_s)
-                temp_itp += self.declare_gate(p_in_l)
-        return temp_itp
+    ## TO DO --> Change names of both oti and ti
 
-    ## New --> itp added   
+    def z3_generate_ti(self):
+        temp_ti = ''
+        for pit_idx in range(self.pit):
+            for input_idx in range(self.graph.num_inputs):
+                    p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                    p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+                    temp_ti += self.declare_gate(p_s)
+                    temp_ti += self.declare_gate(p_l)
+        return temp_ti
+
+    ## New --> ti added   
     def z3_generate_declare_implicit_parameters(self):
         implicit_parameters = ''
         implicit_parameters += f'# Parameters variables declaration\n'
         implicit_parameters += self.z3_generate_o()
-        implicit_parameters += self.z3_generate_itp()
+        implicit_parameters += self.z3_generate_ti()
         implicit_parameters += '\n'
         return implicit_parameters
 
@@ -1379,10 +1390,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
         return exact_circuit_constraints
 
-    # New --> equivalent to z3_generate_approximate_circuit_constraints(self) but adding the sharing logic
-    # TO DO --> understand constrains
-    def z3_generate_approximate_circuit_constraints(self):
-        possible_products = 2** self.graph.num_inputs
+    # TO DO --> check
+    def z3_generate_approximate_circuit_constraints_shared(self):
         approximate_circuit_constraints = ''
         approximate_circuit_constraints += f'# Approximate circuit\n'
         approximate_circuit_constraints += f'# constraints\n'
@@ -1391,16 +1400,18 @@ class Template_SOP1ShareLogic(TemplateCreator):
         approximate_circuit_constraints += f"{TAB}{SUM}("
         for o_idx in range(self.graph.num_outputs):
             if o_idx > 0:
-                approximate_circuit_constraints += f"{TAB}{TAB}"  # fixing the indentations
-            approximate_circuit_constraints += f"{INTVAL}({2 ** o_idx}) * {Z3_AND} ( {SHARED_PRODUCT_PREFIX}{o_idx}, {Z3_OR}({Z3_AND}("
-            for ppo_idx in range(self.ppo):
+                approximate_circuit_constraints += f"{TAB}{TAB}" 
+                approximate_circuit_constraints += f"{INTVAL}({2 ** o_idx}) * {Z3_AND} ( {SHARED_PARAM_PREFIX}_{SHARED_OUTPUT_PREFIX}{o_idx}, {Z3_OR}("
+            for pit_idx in range(self.pit): 
+                approximate_circuit_constraints += f"{Z3_AND}({SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_OUTPUT_PREFIX}{o_idx},"
+
                 for input_idx in range(self.graph.num_inputs):
-                    p_s = f'{SHARED_PRODUCT_PREFIX}{o_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                    p_l = f'{SHARED_PRODUCT_PREFIX}{o_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+                    p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                    p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
 
                     loop_1_last_iter_flg = o_idx == self.graph.num_outputs - 1
-                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
+                    loop_2_last_iter_flg = pit_idx == self.pit - 1 #is it graph.pit ???
+                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1 
 
                     approximate_circuit_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {self.graph.input_dict[input_idx]})'
 
@@ -1410,6 +1421,14 @@ class Template_SOP1ShareLogic(TemplateCreator):
                         approximate_circuit_constraints += '))),\n'
                     else:
                         approximate_circuit_constraints += ','
+
+                    # if loop_3_last_iter_flg
+                    #    approximate_circuit_constraints += '),'
+                    # elif loop_2_last_iter_flg
+                    #    approximate_circuit_constraints += '),\n'
+                    # else loop_1_last_iter_flg
+                    #    approximate_circuit_constraints += ')\n)'
+                    
         return approximate_circuit_constraints    
 
     #NM
