@@ -1,0 +1,190 @@
+[33mcommit ee0727ac860a13cfb6f5d533bf0c299f9502eeca[m[33m ([m[1;36mHEAD -> [m[1;32mSharedXPAT[m[33m, [m[1;31morigin/SharedXPAT[m[33m)[m
+Author: catalistt <caliste@fen.uchile.cl>
+Date:   Wed Jun 7 14:26:46 2023 +0200
+
+    constraints in process
+
+[1mdiff --git a/sxpat/__pycache__/templateCreator.cpython-38.pyc b/sxpat/__pycache__/templateCreator.cpython-38.pyc[m
+[1mindex 5a4e270..794407a 100644[m
+Binary files a/sxpat/__pycache__/templateCreator.cpython-38.pyc and b/sxpat/__pycache__/templateCreator.cpython-38.pyc differ
+[1mdiff --git a/sxpat/config/__pycache__/config.cpython-38.pyc b/sxpat/config/__pycache__/config.cpython-38.pyc[m
+[1mindex 5a0c320..794baf8 100644[m
+Binary files a/sxpat/config/__pycache__/config.cpython-38.pyc and b/sxpat/config/__pycache__/config.cpython-38.pyc differ
+[1mdiff --git a/sxpat/config/config.py b/sxpat/config/config.py[m
+[1mindex a0e8aa2..d533bb3 100644[m
+[1m--- a/sxpat/config/config.py[m
+[1m+++ b/sxpat/config/config.py[m
+[36m@@ -42,7 +42,15 @@[m [mAPPROXIMATE_WIRE_PREFIX = 'a'[m
+ APPROXIMATE_OUTPUT_PREFIX = 'a'[m
+ OUT = 'out'[m
+ PRODUCT_PREFIX = 'p_o'[m
+[31m-SHARED_PRODUCT_PREFIX = 'p'[m
+[32m+[m
+[32m+[m[32m# Shared[m
+[32m+[m[32mSHARED_PARAM_PREFIX = 'p'[m
+[32m+[m[32mSHARED_PRODUCT_PREFIX = 'pr'[m
+[32m+[m[32mSHARED_OUTPUT_PREFIX = 'o'[m[41m [m
+[32m+[m[32mSHARED_SELECT_PREFIX = 's'[m
+[32m+[m[32mSHARED_LITERAL_PREFIX = 'l'[m
+[32m+[m[32mSHARED_INPUT_LITERAL_PREFIX = 'i'[m
+[32m+[m
+ [m
+ TO_Z3_GATE_DICT = {[m
+     NOT: Z3_NOT,[m
+[1mdiff --git a/sxpat/templateCreator.py b/sxpat/templateCreator.py[m
+[1mindex 7b17aef..fbd9efa 100644[m
+[1m--- a/sxpat/templateCreator.py[m
+[1m+++ b/sxpat/templateCreator.py[m
+[36m@@ -1038,6 +1038,7 @@[m [mclass Template_SOP1ShareLogic(TemplateCreator):[m
+ [m
+ ## TO DO: add new property itp (input to product)?[m
+ [m
+[32m+[m
+     @property[m
+     def literals_per_product(self):[m
+         return self.__literal_per_product[m
+[36m@@ -1054,6 +1055,16 @@[m [mclass Template_SOP1ShareLogic(TemplateCreator):[m
+     def ppo(self):[m
+         return self.__product_per_output[m
+ [m
+[32m+[m[32m    # New[m
+[32m+[m[32m    @property[m
+[32m+[m[32m    def products_in_total(self):[m
+[32m+[m[32m        return self.__product_in_total[m
+[32m+[m
+[32m+[m[32m    # New[m
+[32m+[m[32m    @property[m
+[32m+[m[32m    def pit(self):[m
+[32m+[m[32m        return self.__product_in_total[m
+[32m+[m
+     @property[m
+     def z3pyscript(self):[m
+         return self.__z3pyscript[m
+[36m@@ -1092,15 +1103,15 @@[m [mclass Template_SOP1ShareLogic(TemplateCreator):[m
+             exact_integer_function_declaration = self.z3_generate_declare_integer_function(F_EXACT)[m
+             approximate_integer_function_declaration = self.z3_generate_declare_integer_function(F_APPROXIMATE)[m
+             utility_variables = self.z3_generate_utility_variables()[m
+[31m-            implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters_subxpat()[m
+[32m+[m[32m            implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters()[m
+             exact_circuit_wires_declaration = self.z3_generate_exact_circuit_wires_declaration()[m
+             approximate_circuit_wires_declaration = self.z3_generate_approximate_circuit_wires_declaration()[m
+             exact_circuit_outputs_declaration = self.z3_generate_exact_circuit_outputs_declaration()[m
+             approximate_circuit_outputs_declaration = self.z3_generate_approximate_circuit_outputs_declaration()[m
+             exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()[m
+[31m-            approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_subxpat()[m
+[32m+[m[32m            approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_shared()[m
+ [m
+[31m-            for_all_solver = self.z3_generate_forall_solver_subxpat()[m
+[32m+[m[32m            for_all_solver = self.z3_generate_forall_solver()[m
+             verification_solver = self.z3_generate_verification_solver()[m
+             parameter_constraint_list = self.z3_generate_parameter_constraint_list()[m
+             find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()[m
+[36m@@ -1110,7 +1121,7 @@[m [mclass Template_SOP1ShareLogic(TemplateCreator):[m
+                               + approximate_circuit_wires_declaration \[m
+                               + exact_circuit_outputs_declaration \[m
+                               + approximate_circuit_outputs_declaration \[m
+[31m-                              + exact_circuit_constraints + approximate_circuit_constraints_subxpat \[m
+[32m+[m[32m                              + exact_circuit_constraints + approximate_circuit_constraints \[m
+                               + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \[m
+                               + store_data[m
+ [m
+[36m@@ -1126,7 +1137,7 @@[m [mclass Template_SOP1ShareLogic(TemplateCreator):[m
+             exact_circuit_wires_declaration = self.z3_generate_exact_circuit_wires_declaration()[m
+             exact_circuit_outputs_declaration = self.z3_generate_exact_circuit_outputs_declaration()[m
+             exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()[m
+[31m-            approximate_circuit_constraints = self.z3_generate_approximate_circuit_constraints()[m
+[32m+[m[32m            approximate_circuit_constraints = self.z3_generate_approximate_circuit_constraints_shared()[m
+             for_all_solver = self.z3_generate_forall_solver()[m
+             verification_solver = self.z3_generate_verification_solver()[m
+             parameter_constraint_list = self.z3_generate_parameter_constraint_list()[m
+[36m@@ -1206,24 +1217,24 @@[m [mclass Template_SOP1ShareLogic(TemplateCreator):[m
+         return temp_o[m
+ [m
+     ## New --> generate input to product[m
+[31m-    ## TO DO --> check logic[m
+[31m-    def z3_generate_itp(self):[m
+[31m-        temp_itp = ''[m
+[31m-        possible_products = 2** self.graph.num_inputs[m
+[31m-        for product in possible_products:[m
+[32m+[m[32m    ## TO DO --> Change names of both oti and ti[m
+[32m+[m
+[32m+[m[32m    def z3_generate_ti(self):[m
+[32m+[m[32m        temp_ti = ''[m
+[32m+[m[32m        for pit_idx in range(self.pit):[m
+             for input_idx in range(self.graph.num_inputs):[m
+[31m-                p_in_s = f'{SHARED_PRODUCT_PREFIX}{product}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'[m
+[31m-                p_in_l = f'{SHARED_PRODUCT_PREFIX}{product}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'[m
+[31m-                temp_itp += self.declare_gate(p_in_s)[m
+[31m-                temp_itp += self.declare_gate(p_in_l)[m
+[31m-        return temp_itp[m
+[32m+[m[32m                    p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'[m
+[32m+[m[32m                    p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'[m
+[32m+[m[32m                    temp_ti += self.declare_gate(p_s)[m
+[32m+[m[32m                    temp_ti += self.declare_gate(p_l)[m
+[32m+[m[32m        return temp_ti[m
+ [m
+[31m-    ## New --> itp added   [m
+[32m+[m[32m    ## New --> ti added[m[41m   [m
+     def z3_generate_declare_implicit_parameters(self):[m
+         implicit_parameters = ''[m
+         implicit_parameters += f'# Parameters variables declaration\n'[m
+         implicit_parameters += self.z3_generate_o()[m
+[31m-        implicit_parameters += self.z3_generate_itp()[m
+[32m+[m[32m        implicit_parameters += self.z3_generate_ti()[m
+         implicit_parameters += '\n'[m
+         return implicit_parameters[m
+ [m
+[36m@@ -1379,10 +1390,8 @@[m [mclass Template_SOP1ShareLogic(TemplateCreator):[m
+ [m
+         return exact_circuit_constraints[m
+ [m
+[31m-    # New --> equivalent to z3_generate_approximate_circuit_constraints(self) but adding the sharing logic[m
+[31m-    # TO DO --> understand constrains[m
+[31m-    def z3_generate_approximate_circuit_constraints(self):[m
+[31m-        possible_products = 2** self.graph.num_inputs[m
+[32m+[m[32m    # TO DO --> check[m
+[32m+[m[32m    def z3_generate_approximate_circuit_constraints_shared(self):[m
+         approximate_circuit_constraints = ''[m
+         approximate_circuit_constraints += f'# Approximate circuit\n'[m
+         approximate_circuit_constraints += f'# constraints\n'[m
+[36m@@ -1391,16 +1400,18 @@[m [mclass Template_SOP1ShareLogic(TemplateCreator):[m
+         approximate_circuit_constraints += f"{TAB}{SUM}("[m
+         for o_idx in range(self.graph.num_outputs):[m
+             if o_idx > 0:[m
+[31m-                approximate_circuit_constraints += f"{TAB}{TAB}"  # fixing the indentations[m
+[31m-            approximate_circuit_constraints += f"{INTVAL}({2 ** o_idx}) * {Z3_AND} ( {SHARED_PRODUCT_PREFIX}{o_idx}, {Z3_OR}({Z3_AND}("[m
+[31m-            for ppo_idx in range(self.ppo):[m
+[32m+[m[32m                approximate_circuit_constraints += f"{TAB}{TAB}"[m[41m [m
+[32m+[m[32m                approximate_circuit_constraints += f"{INTVAL}({2 ** o_idx}) * {Z3_AND} ( {SHARED_PARAM_PREFIX}_{SHARED_OUTPUT_PREFIX}{o_idx}, {Z3_OR}("[m
+[32m+[m[32m            for pit_idx in range(self.pit):[m[41m [m
+[32m+[m[32m                approximate_circuit_constraints += f"{Z3_AND}({SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_OUTPUT_PREFIX}{o_idx},"[m
+[32m+[m
+                 for input_idx in range(self.graph.num_inputs):[m
+[31m-                    p_s = f'{SHARED_PRODUCT_PREFIX}{o_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'[m
+[31m-                    p_l = f'{SHARED_PRODUCT_PREFIX}{o_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'[m
+[32m+[m[32m                    p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'[m
+[32m+[m[32m                    p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'[m
+ [m
+                     loop_1_last_iter_flg = o_idx == self.graph.num_outputs - 1[m
+[31m-                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1[m
+[31m-                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1[m
+[32m+[m[32m                    loop_2_last_iter_flg = pit_idx == self.pit - 1 #is it graph.pit ???[m
+[32m+[m[32m                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1[m[41m [m
+ [m
+                     approximate_circuit_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {self.graph.input_dict[input_idx]})'[m
+ [m
+[36m@@ -1410,6 +1421,14 @@[m [mclass Template_SOP1ShareLogic(TemplateCreator):[m
+                         approximate_circuit_constraints += '))),\n'[m
+                     else:[m
+                         approximate_circuit_constraints += ','[m
+[32m+[m
+[32m+[m[32m                    # if loop_3_last_iter_flg[m
+[32m+[m[32m                    #    approximate_circuit_constraints += '),'[m
+[32m+[m[32m                    # elif loop_2_last_iter_flg[m
+[32m+[m[32m                    #    approximate_circuit_constraints += '),\n'[m
+[32m+[m[32m                    # else loop_1_last_iter_flg[m
+[32m+[m[32m                    #    approximate_circuit_constraints += ')\n)'[m
+[32m+[m[41m                    [m
+         return approximate_circuit_constraints    [m
+ [m
+     #NM[m

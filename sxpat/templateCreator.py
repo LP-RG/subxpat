@@ -1408,7 +1408,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         for o_idx in range(self.graph.num_outputs):
             if o_idx > 0:
                 approximate_circuit_constraints += f"{TAB}{TAB}" 
-                approximate_circuit_constraints += f"{INTVAL}({2 ** o_idx}) * {Z3_AND} ( {SHARED_PARAM_PREFIX}_{SHARED_OUTPUT_PREFIX}{o_idx}, {Z3_OR}("
+            approximate_circuit_constraints += f"{INTVAL}({2 ** o_idx}) * {Z3_AND} ({SHARED_PARAM_PREFIX}_{SHARED_OUTPUT_PREFIX}{o_idx}, {Z3_OR}("
             for pit_idx in range(self.pit): 
                 approximate_circuit_constraints += f"{Z3_AND}({SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_OUTPUT_PREFIX}{o_idx},"
 
@@ -1426,16 +1426,13 @@ class Template_SOP1ShareLogic(TemplateCreator):
                         approximate_circuit_constraints += '))))\n)\n'
                     elif loop_3_last_iter_flg and loop_2_last_iter_flg:
                         approximate_circuit_constraints += '))),\n'
+                    elif loop_3_last_iter_flg:
+                        approximate_circuit_constraints += '),'
                     else:
                         approximate_circuit_constraints += ','
 
-                    # if loop_3_last_iter_flg
-                    #    approximate_circuit_constraints += '),'
-                    # elif loop_2_last_iter_flg
-                    #    approximate_circuit_constraints += '),\n'
-                    # else loop_1_last_iter_flg
-                    #    approximate_circuit_constraints += ')\n)'
-                    
+        print("Constraints:")            
+        print(approximate_circuit_constraints)            
         return approximate_circuit_constraints    
 
     #NM
