@@ -1,4 +1,5 @@
 from itertools import repeat, islice
+from subprocess import PIPE
 from typing import Tuple, List, Callable, Any, Union
 import networkx as nx
 from Z3Log.config.config import *
@@ -107,6 +108,10 @@ class Template_SOP1(TemplateCreator):
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
 
+    def run_z3pyscript(self, ET = 2):
+        # print(f'{self.z3_out_path = }')
+        # print(f'{ET = }')
+        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}'], stderr=PIPE)
 
     # From this point on... all the functions are responsible for generating a runner script:
     # A runner script, applies XPAT to a circuit
@@ -1093,7 +1098,10 @@ class Template_SOP1ShareLogic(TemplateCreator):
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
 
-    
+    def run_z3pyscript(self, ET = 2):
+        # print(f'{self.z3_out_path = }')
+        # print(f'{ET = }')
+        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}'], stderr=PIPE)
     # From this point on, all functions needed to create SharedXPAT
 
 
@@ -1232,12 +1240,26 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     temp_ti += self.declare_gate(p_l)
         return temp_ti
 
+    def z3_generate_pto(self):
+        temp_pto = f''
+
+        for output_idx in range(self.graph.num_outputs):
+            for pit_idx in range(self.pit):
+                # sth like this: p_pr0_o0
+                name = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_OUTPUT_PREFIX}{output_idx}'
+                print(f'{self.declare_gate(name) = }')
+                temp_pto += self.declare_gate(name)
+
+        return temp_pto
+
+
     ## New --> ti added   
     def z3_generate_declare_implicit_parameters(self):
         implicit_parameters = ''
         implicit_parameters += f'# Parameters variables declaration\n'
         implicit_parameters += self.z3_generate_o()
         implicit_parameters += self.z3_generate_ti()
+        implicit_parameters += self.z3_generate_pto()
         implicit_parameters += '\n'
         return implicit_parameters
 
