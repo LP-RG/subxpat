@@ -1135,7 +1135,10 @@ class Template_SOP1ShareLogic(TemplateCreator):
                               + exact_circuit_constraints + approximate_circuit_constraints_subxpat \
                               + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
                               + store_data
-
+        # ===========================CATA's Logic Sharing ===========================================
+        # ===========================================================================================
+        # ===========================================================================================
+        # ===========================================================================================
         else:
             imports = self.z3_generate_imports()  # parent
             config = self.z3_generate_config()
@@ -1485,20 +1488,22 @@ class Template_SOP1ShareLogic(TemplateCreator):
         atmost = ''
         atmost += f'{TAB}{TAB}# AtMost constraints\n'
 
-        for output_idx in range(self.graph.num_outputs):
-            for pit_idx in range(self.pit):
-                atmost += f"{TAB}{TAB}("
-                for input_idx in range(self.graph.num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
-                    loop_2_last_iter_flg = pit_idx == self.pit - 1
-                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
-                    p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_OUTPUT_PREFIX}{output_idx}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                    atmost += f"{IF}({p_s}, 1, 0)"
 
-                    if loop_3_last_iter_flg:
-                        atmost += f') <= {self.pit},\n'
-                    else:
-                        atmost += f' + '
+        for pit_idx in range(self.pit):
+            atmost += f"{TAB}{TAB}("
+            for input_idx in range(self.graph.num_inputs):
+                loop_2_last_iter_flg = pit_idx == self.pit - 1
+                loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
+                # sth like this: p_pr0_i0_s
+                p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                atmost += f"{IF}({p_s}, 1, 0)"
+
+                print(f'{p_s = }')
+
+                if loop_3_last_iter_flg:
+                    atmost += f') <= {self.pit},\n'
+                else:
+                    atmost += f' + '
         atmost += '\n'
 
         return atmost
@@ -1508,14 +1513,16 @@ class Template_SOP1ShareLogic(TemplateCreator):
         redundancy = ''
         redundancy += f'{TAB}{TAB}# Redundancy constraints\n'
         double_no_care = self.z3_generate_forall_solver_redundancy_constraints_double_no_care()
-        remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation()
-        set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_pit_order()
+        remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_shared()
+        remove_unused_products = self.z3_generate_forall_solver_redundancy_constraints_remove_unused_products_shared()
+        # set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_pit_order()
 
+        set_order = f''
         double_no_care += '\n'
         remove_constant_zero_permutation += '\n'
-        set_ppo_order += '\n'
+        set_order += '\n'
         end = f"{TAB})\n))\n"
-        redundancy += double_no_care + remove_constant_zero_permutation + set_ppo_order + end
+        redundancy += double_no_care + remove_constant_zero_permutation + remove_unused_products + set_order + end
         return redundancy
     
     def z3_generate_forall_solver_redundancy_constraints_set_pit_order(self):
@@ -1543,43 +1550,92 @@ class Template_SOP1ShareLogic(TemplateCreator):
         return pit_order    
 
     def z3_generate_forall_solver_redundancy_constraints_double_no_care(self):
+        """
+        sth like this (imagine pit equals k+1)
+        Implies(p_pr0_i0_l, p_pr0_i0_s), Implies(p_pr0_i1_l, p_pr0_i1_s), ... Implies(p_pr0_in_l, p_pr0_in_s),
+        Implies(p_pr1_i0_l, p_pr1_i0_s), Implies(p_pr1_i1_l, p_pr1_i1_s), ... Implies(p_pr1_in_l, p_pr1_in_s),
+        ...
+        Implies(p_prk_i0_l, p_prk_i0_s), Implies(p_prk_i1_l, p_prk_i1_s), ... Implies(p_prk_in_l, p_prk_in_s),
+        """
         double = ''
         double += f'{TAB}{TAB}# remove double no-care\n'
-        for output_idx in range(self.graph.num_outputs):
-            double += f"{TAB}{TAB}"
-            for pit_idx in range(self.pit):
-                for input_idx in range(self.graph.num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
-                    loop_2_last_iter_flg = pit_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
-                    p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_OUTPUT_PREFIX}{output_idx}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
-                    p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{output_idx}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                    double += f'{IMPLIES}({p_l}, {p_s}), '
 
-                    if loop_2_last_iter_flg and loop_3_last_iter_flg:
-                        double += f'\n'
+
+        for pit_idx in range(self.pit): # the number of lines
+            double += f"{TAB}{TAB}"
+            for input_idx in range(self.graph.num_inputs):
+                loop_2_last_iter_flg = pit_idx == self.pit - 1
+                loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
+                p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+                p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                double += f'{IMPLIES}({p_l}, {p_s}), '
+
+
+                if loop_3_last_iter_flg:
+                    double += f'\n'
 
         return double
 
 
-    def z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation(self):
+    def z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_shared(self):
+        """
+        We have to generate something like this:
+        # 		Implies(Not(p_o0), Not(Or(p_pr0_o0, p_pr1_o0, ..., p_prk_o0))),
+		# 		Implies(Not(p_o1), Not(Or(p_pr0_o1, p_pr1_o1, ..., p_prk_o1)))
+		# 			...
+		# 		Implies(Not(p_om), Not(Or(p_pr0_om, p_pr1_om, ..., p_prk_om)))
+        """
         const_zero_perm = ''
         const_zero_perm += f'{TAB}{TAB}# remove constant 0 parameters permutations\n'
         for output_idx in range(self.graph.num_outputs):
             const_zero_perm += f"{TAB}{TAB}{IMPLIES}({Z3_NOT}({SHARED_PARAM_PREFIX}_{SHARED_OUTPUT_PREFIX}{output_idx}), {Z3_NOT}({Z3_OR}("
             for pit_idx in range(self.pit):
-                for input_idx in range(self.graph.num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
-                    loop_2_last_iter_flg = pit_idx == self.pit - 1
-                    loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
-                    p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_OUTPUT_PREFIX}{output_idx}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
-                    p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_OUTPUT_PREFIX}{output_idx}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                    const_zero_perm += f'{p_s}, {p_l}'
-                    if loop_2_last_iter_flg and loop_3_last_iter_flg:
-                        const_zero_perm += f'))),\n'
-                    else:
-                        const_zero_perm += f', '
+                loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
+                loop_2_last_iter_flg = pit_idx == self.pit - 1
+                pto = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_OUTPUT_PREFIX}{output_idx}'
+                const_zero_perm += f'{pto}'
+
+                if loop_2_last_iter_flg:
+                    const_zero_perm += f'))), \n'
+                else:
+                    const_zero_perm += f', '
+
+
         return const_zero_perm
+
+
+    def z3_generate_forall_solver_redundancy_constraints_remove_unused_products_shared(self):
+        """
+        sth like this (if pit equals k+1):
+        Implies(Not(Or(p_pr0_o0, p_pr0_o1, ..., p_pr0_om)), Not(Or(p_pr0_i0_l, p_pr0_i0_s, ..., p_pr0_in_l, p_pr0_in_s))),
+		Implies(Not(Or(p_pr1_o0, p_pr1_o1, ..., p_pr1_om)), Not(Or(p_pr1_i0_l, p_pr1_i0_s, ..., p_pr1_in_l, p_pr1_in_s))),
+		...
+		Implies(Not(Or(p_prk_o0, p_prk_o1, ..., p_prk_om)), Not(Or(p_prk_i0_l, p_prk_i0_s, ..., p_prk_in_l, p_prk_in_s))),
+        """
+        unused_products = f'{TAB}{TAB}# remove unused products\n'
+        for pit_idx in range(self.pit):
+            loop1_last_iter_flg = pit_idx == self.pit - 1
+            unused_products += f'{TAB}{TAB}{IMPLIES}({Z3_NOT}({Z3_OR}('
+            for output_idx in range(self.graph.num_outputs):
+                unused_products += f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_OUTPUT_PREFIX}{output_idx}'
+                if output_idx == self.graph.num_outputs - 1:
+                    unused_products += f')), '
+                else:
+                    unused_products += f', '
+
+
+
+            unused_products += f'{Z3_NOT}({Z3_OR}('
+            for input_idx in range(self.graph.num_inputs):
+                p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_s'
+                p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_l'
+                unused_products += f'{p_l}, {p_s}'
+                if input_idx == self.graph.num_inputs - 1:
+                    unused_products += f'))), \n'
+                else:
+                    unused_products += f', '
+
+        return unused_products
 
 
     # New --> equivalent to z3_generate_forall_solver(self) but changing the functions inside
