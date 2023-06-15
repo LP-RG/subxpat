@@ -39,63 +39,63 @@ def main():
     template_obj.import_json_model()
     # print(f'{template_obj.json_model = }')
 
-    synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model)
-    synth_obj.export_verilog()
+    # synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model)
+    # synth_obj.export_verilog()
 
-    # Verify the output verilog
-    # 0) copy the output approximate Verilgo file into the input/ver folder
-    src_ver = synth_obj.ver_out_path
+    # # Verify the output verilog
+    # # 0) copy the output approximate Verilgo file into the input/ver folder
+    # src_ver = synth_obj.ver_out_path
 
-    approximate_benchmark = f'{synth_obj.ver_out_name[:-2]}'
-    des_ver = f"{z3logpath.INPUT_PATH['ver'][0]}/{synth_obj.ver_out_name}"
-    shutil.copyfile(src_ver, des_ver)
-    # exit()
-    # 1) create a clean verilog out of exact and approximate circuits
+    # approximate_benchmark = f'{synth_obj.ver_out_name[:-2]}'
+    # des_ver = f"{z3logpath.INPUT_PATH['ver'][0]}/{synth_obj.ver_out_name}"
+    # shutil.copyfile(src_ver, des_ver)
+    # # exit()
+    # # 1) create a clean verilog out of exact and approximate circuits
 
-    #
-    verilog_obj_exact = Verilog(args.benchmark_name)
-    verilog_obj_exact.export_circuit()
-    #
+    # #
+    # verilog_obj_exact = Verilog(args.benchmark_name)
+    # verilog_obj_exact.export_circuit()
+    # #
 
-    verilog_obj_approx = Verilog(approximate_benchmark)
-    verilog_obj_approx.export_circuit()
-    #
-    convert_verilog_to_gv(args.benchmark_name)
-    convert_verilog_to_gv(approximate_benchmark)
-    #
-    graph_obj_exact = Graph(args.benchmark_name)
-    graph_obj_approx = Graph(approximate_benchmark)
-    #
-    graph_obj_exact.export_graph()
-    graph_obj_approx.export_graph()
+    # verilog_obj_approx = Verilog(approximate_benchmark)
+    # verilog_obj_approx.export_circuit()
+    # #
+    # convert_verilog_to_gv(args.benchmark_name)
+    # convert_verilog_to_gv(approximate_benchmark)
+    # #
+    # graph_obj_exact = Graph(args.benchmark_name)
+    # graph_obj_approx = Graph(approximate_benchmark)
+    # #
+    # graph_obj_exact.export_graph()
+    # graph_obj_approx.export_graph()
 
-    z3py_obj_qor = Z3solver(args.benchmark_name, approximate_benchmark)
-    z3py_obj_qor.convert_gv_to_z3pyscript_maxerror_qor()
+    # z3py_obj_qor = Z3solver(args.benchmark_name, approximate_benchmark)
+    # z3py_obj_qor.convert_gv_to_z3pyscript_maxerror_qor()
 
-    print(f'evaluating the metric with {args.strategy}...')
-    z3py_obj_qor.export_z3pyscript()
-    z3py_obj_qor.run_z3pyscript_qor()
-    print(f'metric is evaluated!')
+    # print(f'evaluating the metric with {args.strategy}...')
+    # z3py_obj_qor.export_z3pyscript()
+    # z3py_obj_qor.run_z3pyscript_qor()
+    # print(f'metric is evaluated!')
 
-    # Compare the obtained WCE
-    folder, extension = z3logpath.OUTPUT_PATH['report']
-    for csvfile in os.listdir(folder):
-        if csvfile.endswith(extension) and re.search(approximate_benchmark, csvfile):
-            report_file = f'{folder}/{csvfile}'
-    with open(report_file, 'r') as rf:
-        csvreader = csv.reader(rf)
-        for row in csvreader:
-            if row[0] == WCE:
-                obtained_wce = int(row[1])
+    # # Compare the obtained WCE
+    # folder, extension = z3logpath.OUTPUT_PATH['report']
+    # for csvfile in os.listdir(folder):
+    #     if csvfile.endswith(extension) and re.search(approximate_benchmark, csvfile):
+    #         report_file = f'{folder}/{csvfile}'
+    # with open(report_file, 'r') as rf:
+    #     csvreader = csv.reader(rf)
+    #     for row in csvreader:
+    #         if row[0] == WCE:
+    #             obtained_wce = int(row[1])
 
-                if obtained_wce <= args.et:
-                    print(f'{obtained_wce = } <= ET = {args.et}')
-                    print(f'TEST -> PASS')
-                    break
-                else:
-                    print(f'ERROR!!! The obtained WCE does not match the given error threshold!')
-                    print(f'{obtained_wce = } > ET = {args.et}')
-                    exit()
+    #             if obtained_wce <= args.et:
+    #                 print(f'{obtained_wce = } <= ET = {args.et}')
+    #                 print(f'TEST -> PASS')
+    #                 break
+    #             else:
+    #                 print(f'ERROR!!! The obtained WCE does not match the given error threshold!')
+    #                 print(f'{obtained_wce = } > ET = {args.et}')
+    #                 exit()
 
 
 if __name__ == "__main__":
