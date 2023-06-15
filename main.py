@@ -26,9 +26,12 @@ def main():
     args = Arguments.parse()
     print(f'{args = }')
 
-    specs_obj = TemplateSpecs(name='Sop1', literals_per_product=args.lpp, products_per_output=args.ppo,
-                              benchmark_name=args.benchmark_name, num_of_models=1, subxpat=False, et=args.et, products_in_total=args.pit)
+
+    specs_obj = TemplateSpecs(name='SOP1ShareLogic', literals_per_product=args.lpp, products_per_output=args.ppo,
+                              benchmark_name=args.benchmark_name, num_of_models=1, subxpat=args.subxpat, et=args.et,
+                              products_in_total=args.pit, shared=args.shared)
     print(f'{specs_obj = }')
+
 
 
     template_obj = Template_SOP1ShareLogic(specs_obj)
@@ -39,7 +42,8 @@ def main():
     template_obj.import_json_model()
     # print(f'{template_obj.json_model = }')
 
-    # synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model)
+    synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model)
+
     # synth_obj.export_verilog()
 
     # # Verify the output verilog

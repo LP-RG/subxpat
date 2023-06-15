@@ -6,6 +6,7 @@ PRODUCTS_PER_OUTPUT = 'products_per_output'
 BENCHMARK = 'benchmark_name'
 NUM_OF_MODELS = 'num_of_models'
 SUBXPAT = 'subxpat'
+SHARED = 'shared'
 TEMPLATE_SPEC_ET = 'et'
 
 #   NetworkX
