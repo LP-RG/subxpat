@@ -3,6 +3,7 @@ from typing import List, Dict, Callable, Iterable, Tuple
 import json
 import re
 import networkx as nx
+from colorama import Fore, Back, Style
 
 from Z3Log.graph import Graph
 from Z3Log.config.config import *
@@ -19,6 +20,7 @@ class Synthesis:
     # we assign wires to both inputs and outputs of an annotated subgraph
     # follow, inputs, red, white, outputs notation in the Verilog generation
     def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj=None):
+        print(f'{Fore.RED}{template_specs = }{Style.RESET_ALL}')
         self.__benchmark_name = template_specs.benchmark_name
         self.__template_name = template_specs.template_name
         self.__template_name = template_specs.template_name
@@ -42,6 +44,8 @@ class Synthesis:
 
         self.__ver_out_name: str = None
         self.__ver_out_path: str = self.set_path(OUTPUT_PATH['ver'])
+
+        exit()
 
         self.__verilog_string: str = self.convert_to_verilog()
 
