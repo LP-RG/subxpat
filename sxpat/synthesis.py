@@ -19,8 +19,13 @@ class Synthesis:
     # TODO:
     # we assign wires to both inputs and outputs of an annotated subgraph
     # follow, inputs, red, white, outputs notation in the Verilog generation
-    def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj=None):
+    def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj=None, subxpat: bool = False,
+                 shared: bool = True):
         print(f'{Fore.RED}{template_specs = }{Style.RESET_ALL}')
+
+        self.__subxpat: bool = subxpat
+        self.__shared: bool = shared
+
         self.__benchmark_name = template_specs.benchmark_name
         self.__template_name = template_specs.template_name
         self.__template_name = template_specs.template_name
@@ -45,13 +50,22 @@ class Synthesis:
         self.__ver_out_name: str = None
         self.__ver_out_path: str = self.set_path(OUTPUT_PATH['ver'])
 
-        exit()
+
 
         self.__verilog_string: str = self.convert_to_verilog()
 
     @property
     def benchmark_name(self):
         return self.__benchmark_name
+
+
+    @property
+    def subxpat(self):
+        return self.__subxpat
+
+    @property
+    def shared(self):
+        return self.__shared
 
     @property
     def graph(self):
@@ -137,15 +151,19 @@ class Synthesis:
         :param use_json_model: if set to true, the json model is used
         :return: a Verilog description in the form of a String object
         """
-        if use_graph and use_json_model:  # for SubXPAT
-            verilog_str = self.__annotated_graph_to_verilog()
-        elif use_graph and not use_json_model:  # for general use
-            verilog_str = self.__graph_to_verilog()
-        elif not use_graph and use_json_model:  # for XPAT
+
+        if not self.subxpat and not self.shared:
             verilog_str = self.__json_model_to_verilog()
+        elif not self.subxpat and self.shared:
+            print(f'this part is for Cata')
+            verilog_str = self.__json_model_to_verilog_shared()
+        elif self.subxpat and not self.shared:
+            verilog_str = self.__annotated_graph_to_verilog()
+        elif self.subxpat and self.shared:
+            verilog_str = self.__annotated_graph_to_verilog_shared()
         else:
-            print(f'ERROR!!! the graph or json model cannot be converted into a Verilog script!')
-            exit()
+            raise Exception("The experiment is not recongnized!")
+
         return verilog_str
 
     def __json_model_wire_declarations(self):
@@ -270,6 +288,11 @@ class Synthesis:
             intact_wires += f'{TAB}//no intact gates detected!\n'
         return intact_wires
 
+    def __annotated_graph_to_verilog_shared(self):
+        verilog_str = f''
+        print(f'HERE WE ARE GONNA CONVERT THE RESULT OF SUBXPAT AND SHARED INTO A VERILOG')
+        return verilog_str
+
     def __annotated_graph_to_verilog(self):
         ver_str = f''
         # module signature
@@ -333,7 +356,13 @@ class Synthesis:
         return ver_str
 
     def __json_model_to_verilog(self):
-        pass
+        verilog_str = f''
+        return verilog_str
+
+    def __json_model_to_verilog_shared(self):
+        verilog_str = f''
+        print(f"Cata's thesis! next step!")
+        return verilog_str
 
     def __graph_to_verilog(self):
         pass
