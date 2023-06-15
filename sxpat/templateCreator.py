@@ -2,6 +2,8 @@ from itertools import repeat, islice
 from subprocess import PIPE
 from typing import Tuple, List, Callable, Any, Union
 import networkx as nx
+import json 
+
 from Z3Log.config.config import *
 from Z3Log.config.path import *
 from Z3Log.graph import Graph
@@ -107,6 +109,24 @@ class Template_SOP1(TemplateCreator):
         print(f'Storing in {self.z3_out_path}')
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
+
+    def import_json_model(self, this_path=None):
+        if this_path:
+            self.json_in_path(this_path)
+        else:
+            self.json_in_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
+        with open(self.json_in_path, 'r') as f:
+            data = json.load(f)
+        for d in data:
+            for key in d.keys():
+                if key == RESULT:
+                    if d[key] == SAT:
+                        self.json_model =  d[MODEL]
+                    else:
+                        #TODO:
+                        #FIX LATER
+                        self.json_model = UNSAT
+
 
     def run_z3pyscript(self, ET = 2):
         # print(f'{self.z3_out_path = }')
@@ -1174,6 +1194,23 @@ class Template_SOP1ShareLogic(TemplateCreator):
                   f'import json\n' \
                   f'\n'
         return imports
+
+    def import_json_model(self, this_path=None):
+        if this_path:
+            self.json_in_path(this_path)
+        else:
+            self.json_in_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
+        with open(self.json_in_path, 'r') as f:
+            data = json.load(f)
+        for d in data:
+            for key in d.keys():
+                if key == RESULT:
+                    if d[key] == SAT:
+                        self.json_model =  d[MODEL]
+                    else:
+                        #TODO:
+                        #FIX LATER
+                        self.json_model = UNSAT
 
     ## NM
     def z3_generate_z3_abs_function(self):
