@@ -207,7 +207,8 @@ forall_solver.add(ForAll(
         (IntVal(1) * p_o0_t0_i0_s + IntVal(2) * p_o0_t0_i0_l + IntVal(4) * p_o0_t0_i1_s + IntVal(8) * p_o0_t0_i1_l + IntVal(16) * p_o0_t0_i2_s + IntVal(32) * p_o0_t0_i2_l + IntVal(64) * p_o0_t0_i3_s + IntVal(128) * p_o0_t0_i3_l) >= (IntVal(1) * p_o0_t1_i0_s + IntVal(2) * p_o0_t1_i0_l + IntVal(4) * p_o0_t1_i1_s + IntVal(8) * p_o0_t1_i1_l + IntVal(16) * p_o0_t1_i2_s + IntVal(32) * p_o0_t1_i2_l + IntVal(64) * p_o0_t1_i3_s + IntVal(128) * p_o0_t1_i3_l),
         (IntVal(1) * p_o1_t0_i0_s + IntVal(2) * p_o1_t0_i0_l + IntVal(4) * p_o1_t0_i1_s + IntVal(8) * p_o1_t0_i1_l + IntVal(16) * p_o1_t0_i2_s + IntVal(32) * p_o1_t0_i2_l + IntVal(64) * p_o1_t0_i3_s + IntVal(128) * p_o1_t0_i3_l) >= (IntVal(1) * p_o1_t1_i0_s + IntVal(2) * p_o1_t1_i0_l + IntVal(4) * p_o1_t1_i1_s + IntVal(8) * p_o1_t1_i1_l + IntVal(16) * p_o1_t1_i2_s + IntVal(32) * p_o1_t1_i2_l + IntVal(64) * p_o1_t1_i3_s + IntVal(128) * p_o1_t1_i3_l),
         (IntVal(1) * p_o2_t0_i0_s + IntVal(2) * p_o2_t0_i0_l + IntVal(4) * p_o2_t0_i1_s + IntVal(8) * p_o2_t0_i1_l + IntVal(16) * p_o2_t0_i2_s + IntVal(32) * p_o2_t0_i2_l + IntVal(64) * p_o2_t0_i3_s + IntVal(128) * p_o2_t0_i3_l) >= (IntVal(1) * p_o2_t1_i0_s + IntVal(2) * p_o2_t1_i0_l + IntVal(4) * p_o2_t1_i1_s + IntVal(8) * p_o2_t1_i1_l + IntVal(16) * p_o2_t1_i2_s + IntVal(32) * p_o2_t1_i2_l + IntVal(64) * p_o2_t1_i3_s + IntVal(128) * p_o2_t1_i3_l),
-    )
+    )   
+    
 ))
 
 # verification solver
