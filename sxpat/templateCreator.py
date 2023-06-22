@@ -585,7 +585,7 @@ class Template_SOP1(TemplateCreator):
                         p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{max_input_id - input_idx}_{LITERAL_PREFIX}'
                         loop_2_last_iter_flg = (ppo_idx == self.ppo - 1)
                         loop_3_last_iter_flg = (input_idx == self.graph.subgraph_num_inputs - 1)
-                        print(f'{input_idx = }, {subgraph_input_list[input_idx] = }, {self.graph.subgraph_num_inputs = }, {input_label = }')
+                        # print(f'{input_idx = }, {subgraph_input_list[input_idx] = }, {self.graph.subgraph_num_inputs = }, {input_label = }')
 
                         exact_wire_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {subgraph_input_list[input_idx]})'
                         if loop_2_last_iter_flg and loop_3_last_iter_flg:

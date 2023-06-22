@@ -9,7 +9,7 @@ wire w_in3, w_in2, w_in1, w_in0, w_g0, w_g1;
 //annotated subgraph outputs
 wire w_g6, w_g8, w_g11, w_g14, w_g15;
 //json input wires
-wire w_in0, w_in1, w_in2, w_in3, w_in4, w_in5;
+wire w_in4, w_in5;
 //json model
 wire p_o0_t0, p_o0_t1, p_o1_t0, p_o1_t1, p_o2_t0, p_o2_t1, p_o3_t0, p_o3_t1, p_o4_t0, p_o4_t1;
 //subgraph inputs assigns
@@ -23,19 +23,19 @@ assign w_g1 = ~in2;
 assign w_in4 = w_g0;
 assign w_in5 = w_g1;
 //json model assigns (approximated/XPATed part)
-assign p_o0_t0 = ~w_in3;
-assign p_o0_t1 = w_in0 & ~w_in2;
+assign p_o0_t0 = ~w_in1;
+assign p_o0_t1 = w_in5 & ~w_in0;
 assign w_g6 = p_o0_t0 | p_o0_t1;
-assign p_o1_t0 = w_in3 & ~w_in5;
-assign p_o1_t1 = ~w_in4 & ~w_in5;
+assign p_o1_t0 = w_in1 & ~w_in3;
+assign p_o1_t1 = ~w_in4 & ~w_in3;
 assign w_g8 = p_o1_t0 | p_o1_t1;
-assign p_o2_t0 = w_in2 & w_in3;
-assign p_o2_t1 = w_in0 & w_in1;
+assign p_o2_t0 = w_in1 & w_in0;
+assign p_o2_t1 = w_in5 & w_in4;
 assign w_g11 = p_o2_t0 | p_o2_t1;
-assign p_o3_t0 = ~w_in2 & ~w_in4;
-assign p_o3_t1 = ~w_in3 & w_in5;
+assign p_o3_t0 = ~w_in0 & ~w_in2;
+assign p_o3_t1 = ~w_in1 & w_in3;
 assign w_g14 = p_o3_t0 | p_o3_t1;
-assign p_o4_t0 = w_in2 & ~w_in4;
+assign p_o4_t0 = w_in0 & ~w_in2;
 assign p_o4_t1 = 1;
 assign w_g15 = p_o4_t0 | p_o4_t1;
 // intact gates assigns
