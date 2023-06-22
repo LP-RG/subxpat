@@ -149,7 +149,7 @@ class Synthesis:
         input_wire_list = f'//json input wires\n'
         input_wire_list += f'{sxpatconfig.VER_WIRE} '
         for idx in range(self.graph.subgraph_num_inputs):
-            if idx == self.graph.subgraph_num_inputs -1:
+            if idx == self.graph.subgraph_num_inputs - 1:
                 input_wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx};\n'
             else:
                 input_wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx}, '
@@ -313,11 +313,17 @@ class Synthesis:
 
     def __intact_gate_wires(self):
         intact_gate_list = list(self.graph.graph_intact_gate_dict.values())
-        intact_gate_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in intact_gate_list]
+        intact_gate_variable_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in intact_gate_list]
 
         intact_wires = f'//intact gates wires \n'
         if len(intact_gate_list) > 0:
-            intact_wires += f"{sxpatconfig.VER_WIRE} {', '.join(intact_gate_list)};\n"
+            intact_wires += f"wire "
+            for gate_idx, gate in enumerate(intact_gate_list):
+                if not self.graph.is_subgraph_input(gate):
+                    if gate_idx < len(intact_gate_list) - 1:
+                        intact_wires += f"{intact_gate_variable_list[gate_idx]}, "
+                    else:
+                        intact_wires += f"{intact_gate_variable_list[gate_idx]};\n"
         else:
             intact_wires += f'{TAB}//no intact gates detected!\n'
         return intact_wires
@@ -331,13 +337,18 @@ class Synthesis:
         # FIX ORDER NO MATTER WHAT MAYBE YOU CAN USE ORDERED DICT
         # 1. module signature
         input_list = list(self.graph.input_dict.values())
-
         input_list.reverse()
+        print(f'{self.graph.input_dict = }')
+        print(f'{input_list = }')
+        print(f'{self.graph.output_dict = }')
         output_list = list(self.graph.output_dict.values())
+        # Sort Dictionary
+        print(f'{output_list = }')
 
 
         module_name = self.ver_out_name[:-2]
         module_signature = f"{sxpatconfig.VER_MODULE} {module_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
+        print(f'{module_signature = }')
         # 2. declarations
         # input/output declarations
         input_declarations = f"//input/output declarations\n"
@@ -352,7 +363,7 @@ class Synthesis:
         annotated_graph_input_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in annotated_graph_input_list]
         annotated_graph_input_wires = f"//annotated subgraph inputs\n"
         annotated_graph_input_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_input_list)};\n"
-
+        print(f'{self.graph.subgraph_input_dict = }')
 
 
 

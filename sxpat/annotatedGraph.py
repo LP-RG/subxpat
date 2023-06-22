@@ -15,6 +15,12 @@ class AnnotatedGraph(Graph):
         convert_verilog_to_gv(benchmark_name)
         super().__init__(benchmark_name, is_clean)
 
+        print(f'{self.output_dict = }')
+        self.set_output_dict(self.sort_dict(self.output_dict))
+        print(f'{self.output_dict = }')
+
+
+
         self.__subgraph = self.extract_subgraph()
 
         self.__subgraph_input_dict = self.extract_subgraph_inputs()
@@ -87,6 +93,19 @@ class AnnotatedGraph(Graph):
     def subgraph_num_fanout(self):
         return self.__subgraph_num_fanout
 
+    def sort_dict(self, this_dict: Dict) -> Dict:
+        sorted_dict: type(this_dict) = {}
+
+        for i in range(len(this_dict)):
+            sorted_dict[i] = this_dict[i]
+
+        return sorted_dict
+
+
+
+
+
+
     def __repr__(self):
         return f'An object of class SubgraphExtractor:\n' \
                f'{self.name = }\n' \
@@ -107,7 +126,7 @@ class AnnotatedGraph(Graph):
         for gate_idx in self.gate_dict:
 
             # if gate_idx <= 24:
-            if gate_idx <= 15:
+            if 1 < gate_idx <= 15:
 
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
