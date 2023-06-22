@@ -146,13 +146,16 @@ class Synthesis:
         return verilog_str
 
     def __json_input_wire_declarations(self):
+        graph_input_list = list(self.graph.subgraph_input_dict.values())
+        print(f'{graph_input_list = }')
         input_wire_list = f'//json input wires\n'
         input_wire_list += f'{sxpatconfig.VER_WIRE} '
         for idx in range(self.graph.subgraph_num_inputs):
-            if idx == self.graph.subgraph_num_inputs - 1:
-                input_wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx};\n'
-            else:
-                input_wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx}, '
+            if f'{sxpatconfig.VER_INPUT_PREFIX}{idx}' not in graph_input_list:
+                if idx == self.graph.subgraph_num_inputs - 1:
+                    input_wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx};\n'
+                else:
+                    input_wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx}, '
         return input_wire_list
 
 
@@ -372,8 +375,11 @@ class Synthesis:
         annotated_graph_output_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in annotated_graph_output_list]
         annotated_graph_output_wires = f"//annotated subgraph outputs\n"
         annotated_graph_output_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_output_list)};\n"
+
+
         # json model wires
         json_input_wires = self.__json_input_wire_declarations()
+
         json_model_wires = self.__json_model_wire_declarations()
 
         wire_declarations = intact_wires + annotated_graph_input_wires + annotated_graph_output_wires + json_input_wires + json_model_wires

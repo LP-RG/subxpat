@@ -148,6 +148,10 @@ class AnnotatedGraph(Graph):
             for e in self.subgraph.edges:
                 self.export_edge(e, f)
             f.write(f"}}\n")
+        print(f'{self.subgraph_out_path = }')
+        folder, extension = OUTPUT_PATH[GV]
+        subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
+
 
     # TODO: fix checks!
     # The checks are done on the original graph instead of the annotated graph!
