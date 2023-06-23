@@ -20,10 +20,14 @@ class TemplateCreator:
     def __init__(self, template_specs: TemplateSpecs):
         self.__template_name = template_specs.template_name
         self.__benchmark_name = template_specs.benchmark_name
+        print(f'{template_specs.subxpat = }')
+        self.__subxpat: bool = template_specs.subxpat
         self.__graph = self.import_graph()
 
         self.__z3pyscript_out_path = None
         self.graph.export_annotated_graph()
+
+
 
     @property
     def template_name(self):
@@ -37,6 +41,10 @@ class TemplateCreator:
     def graph(self):
         return self.__graph
 
+    @property
+    def subxpat(self):
+        return self.__subxpat
+
     def import_graph(self):
         """
         Reads the input Verilog benchmark located at "input/ver" and cleans it.
@@ -46,7 +54,8 @@ class TemplateCreator:
         """
         temp_verilog_obj = Verilog(self.benchmark_name)
         convert_verilog_to_gv(self.benchmark_name)
-        temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False)
+        print(f'{self.subxpat = }')
+        temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False, subxpat=self.subxpat)
         return temp_graph_obj
 
     def __repr__(self):
@@ -1060,7 +1069,10 @@ class Template_SOP1ShareLogic(TemplateCreator):
         self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
         self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH['json'])
         self.__product_in_total = template_specs.products_in_total
-        self.__subxpat: bool = template_specs.subxpat
+        print(f'{template_specs.subxpat = }')
+
+        #TODO
+        # Create a __json_model propery
 
     @property
     def literals_per_product(self):
@@ -1088,9 +1100,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def pit(self):
         return self.__product_in_total
 
-    @property
-    def subxpat(self):
-        return self.__subxpat
 
     @property
     def z3pyscript(self):
