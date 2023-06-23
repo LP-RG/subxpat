@@ -308,6 +308,7 @@ class Synthesis:
 
         module_name = self.ver_out_name[:-2]
         module_signature = f"{sxpatconfig.VER_MODULE} {module_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
+
         # 2. declarations
         # input/output declarations
         input_declarations = f"{sxpatconfig.VER_INPUT} {', '.join(input_list)};\n"
@@ -362,6 +363,17 @@ class Synthesis:
     def __json_model_to_verilog_shared(self):
         verilog_str = f''
         print(f"Cata's thesis! next step!")
+
+        input_list = list(self.graph.subgraph_input_dict.values())
+        input_list.reverse()
+        output_list = list(self.graph.output_dict.values())
+
+        module_name = self.ver_out_name[:-2]
+        module_signature = f"{sxpatconfig.VER_MODULE} {module_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
+        print(f'{module_signature = }')
+
+        # ...
+
         return verilog_str
 
     def __graph_to_verilog(self):

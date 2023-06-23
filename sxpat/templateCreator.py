@@ -1558,12 +1558,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
         redundancy += double_no_care + remove_constant_zero_permutation + remove_unused_products + set_pit_order + end
         return redundancy
 
-    def z3_generate_forall_solver_redundancy_constraints_remove_duplicate_products(self):
-        dup_products = f'{TAB}{TAB}# remove duplicate products\n'
-        print(f'Next task! removing duplicate products and push this as a constraint to the solver!')
-
-        return dup_products
-
     def z3_generate_forall_solver_redundancy_constraints_set_pit_order(self):
         """
         this will also remove duplicates
