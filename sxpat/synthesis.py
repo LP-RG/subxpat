@@ -191,6 +191,19 @@ class Synthesis:
                     wire_list += ', '
         return wire_list
 
+    def __json_model_wire_declarations_shared(self):
+        wire_list = f'//json model\n'
+        wire_list += f'wire '
+        for o_idx in range(self.graph.subgraph_num_outputs):
+            for pit_idx in range(self.pit):
+                wire_list += f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx}'
+
+                if pit_idx == self.pit - 1 and o_idx == self.graph.subgraph_num_outputs - 1:
+                    wire_list += ';\n'
+                else:
+                    wire_list += ', '
+        return wire_list
+
     def __subgraph_inputs_assigns(self):
         s_inputs_assigns = f'//subgraph inputs assigns\n'
         for n in self.graph.subgraph_input_dict.values():
@@ -235,6 +248,45 @@ class Synthesis:
                 lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{self.graph.subgraph_output_dict[o_idx]} = 0;\n'
 
         return lpp_assigns
+
+    def __json_model_lpp_and_subgraph_output_assigns_shared(self):
+        lpp_assigns = f'//json model assigns (approximated Shared/XPAT part)\n'
+        annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
+        lpp_assigns += f''
+        for o_idx in range(self.graph.subgraph_num_outputs):
+            p_o = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx}'
+
+            if self.json_model[p_o]:
+                #p_pr0_o0
+                included_products = []
+                for pit_idx in range(self.pit):
+                    included_products.append(f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx}')
+
+                for pit_idx in range(self.pit):
+                    included_literals = []
+                    for input_idx in range(self.graph.subgraph_num_inputs):
+                        p_s = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{sxpatconfig.SELECT_PREFIX}'
+                        p_l = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{sxpatconfig.LITERAL_PREFIX}'
+
+                        if self.json_model[p_s]:
+                            if self.json_model[p_l]:
+                                included_literals.append(
+                                    f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.SHARED_INPUT_LITERAL_PREFIX}{input_idx}')
+                            else:
+                                included_literals.append(
+                                    f'{sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.SHARED_INPUT_LITERAL_PREFIX}{input_idx}')
+                    if included_literals:
+                        lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx} = ' \
+                                       f"{' & '.join(included_literals)};\n"    
+                    else:
+                        lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx} = 1;\n'
+
+                lpp_assigns += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{self.graph.subgraph_output_dict[o_idx]} = {' | '.join(included_products)};\n"
+            else:
+                lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{self.graph.subgraph_output_dict[o_idx]} = 0;\n'
+
+        return lpp_assigns
+
 
     def __intact_part_assigns(self):
         intact_part = f'// intact gates assigns\n'
@@ -345,7 +397,7 @@ class Synthesis:
         annotated_graph_output_wires = f"//annotated subgraph outputs\n"
         annotated_graph_output_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_output_list)};\n"
         # json model wires
-        json_model_wires = self.__json_model_wire_declarations()
+        json_model_wires = self.__json_model_wire_declarations_shared()
 
         wire_declarations = intact_wires + annotated_graph_input_wires + annotated_graph_output_wires + json_model_wires
 
@@ -373,8 +425,7 @@ class Synthesis:
         return verilog_str
 
     def __json_model_to_verilog_shared(self):
-        verilog_str = f''
-        print(f"Cata's next task!")
+        ver_str = f''
 
         # 1) extract inputs and outputs
         input_list = list(self.graph.subgraph_input_dict.values())
@@ -389,29 +440,83 @@ class Synthesis:
 
 
         # 2) declare inputs
-        decl_inp = f'// declaring inputs\n'
-        decl_inp += f'{sxpatconfig.VER_INPUT}'
+        input_declarations = f'// declaring inputs\n'
+        input_declarations += f'{sxpatconfig.VER_INPUT}'
 
         for inp_idx, inp in enumerate(input_list):
             if inp_idx == len(input_list) - 1:
-                decl_inp += f' {inp};\n'
+                input_declarations += f' {inp};\n'
             else:
-                decl_inp += f' {inp}, '
+                input_declarations += f' {inp}, '
 
         # 3) declare outputs
-        decl_out = f'// declaring outputs\n'
-        decl_out += f'{sxpatconfig.VER_OUTPUT}'
+        output_declarations = f'// declaring outputs\n'
+        output_declarations += f'{sxpatconfig.VER_OUTPUT}'
         for out_idx, out in enumerate(output_list):
             if out_idx == len(output_list) - 1:
-                decl_out += f' {out};\n'
+                output_declarations += f' {out};\n'
             else:
-                decl_out += f' {out}, '
+                output_declarations += f' {out}, '
 
-        # 4) assigning wires
+        # 4) declaring wires
+        annotated_graph_input_wires = self.__json_model_input_declaration_shared()
+        annotated_graph_output_wires =  self.__json_model_output_declaration_shared()
 
-        verilog_str = module_signature + decl_inp + decl_out
-        return verilog_str
+        #json model wires
+        json_model_wires = self.__json_model_wire_declarations_shared()
+        wire_declarations = annotated_graph_input_wires + annotated_graph_output_wires + json_model_wires
 
+        # 5) assigns
+        json_input_assign = self.__json_input_assigns()
+
+        
+        # json_model_and_subgraph_outputs_assigns
+        json_model_and_subgraph_outputs_assigns = self.__json_model_lpp_and_subgraph_output_assigns_shared()
+
+        # output assings
+        output_assings = self.__output_assigns()
+
+        assigns = json_input_assign + json_model_and_subgraph_outputs_assigns + output_assings
+
+        print(f"Cata's next task is to add the shared logic!")
+
+        # assignments
+
+        # endmodule
+        ver_str = module_signature + input_declarations + output_declarations + wire_declarations + assigns
+
+        print(f'{ver_str}')
+        return ver_str
+
+    def __json_model_input_declaration_shared(self):
+
+        annotated_graph_input_list = list(self.graph.subgraph_input_dict.values())
+
+        annotated_graph_input_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in annotated_graph_input_list]
+
+        json_model_inputs = f"// JSON model input\n"
+        json_model_inputs += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_input_list)};\n"
+        
+        return json_model_inputs
+
+    def __json_model_output_declaration_shared(self):
+
+        annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
+        annotated_graph_output_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in annotated_graph_output_list]
+
+        json_model_outputs = f"// JSON model output\n"
+        json_model_outputs += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_output_list)};\n"
+
+        return json_model_outputs
+
+    def __json_input_assigns(self):
+        annotated_graph_input_list = list(self.graph.subgraph_input_dict.values())
+
+        json_model_inputs = f"// JSON model input assign\n"
+        for item in annotated_graph_input_list:
+            json_model_inputs += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE}_{item} = {item};\n"
+
+        return json_model_inputs
 
     def sort_list(self, this_list: List[str]) -> List[str]:
         sorted_list: List[str] = ['-1'] * len(this_list)
@@ -437,3 +542,4 @@ class Synthesis:
                f'{self.benchmark_name = }\n' \
                f'{self.graph = }\n' \
                f'{self.json_model = }\n'
+
