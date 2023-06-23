@@ -32,9 +32,8 @@ def main():
                               products_in_total=args.pit, shared=args.shared)
     print(f'{specs_obj = }')
 
-
-
     template_obj = Template_SOP1ShareLogic(specs_obj)
+
     print(f'{template_obj = }')
     template_obj.z3_generate_z3pyscript()
 
@@ -42,9 +41,9 @@ def main():
     template_obj.import_json_model()
     # print(f'{template_obj.json_model = }')
 
-    synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model)
+    synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model, shared=args.shared, subxpat=args.subxpat)
 
-    # synth_obj.export_verilog()
+    synth_obj.export_verilog()
 
     # # Verify the output verilog
     # # 0) copy the output approximate Verilgo file into the input/ver folder

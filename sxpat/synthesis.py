@@ -25,9 +25,13 @@ class Synthesis:
 
         self.__subxpat: bool = subxpat
         self.__shared: bool = shared
+        if self.shared:
+            self.__products_in_total : int = template_specs.products_in_total
+        else:
+            self.__products_in_total: float = float('inf')
+
 
         self.__benchmark_name = template_specs.benchmark_name
-        self.__template_name = template_specs.template_name
         self.__template_name = template_specs.template_name
         self.__graph: AnnotatedGraph = graph_obj
         if json_obj == sxpatconfig.UNSAT:
@@ -66,6 +70,14 @@ class Synthesis:
     @property
     def shared(self):
         return self.__shared
+
+    @property
+    def products_in_total(self):
+        return self.__products_in_total
+
+    @property
+    def pit(self):
+        return self.__products_in_total
 
     @property
     def graph(self):
@@ -141,8 +153,8 @@ class Synthesis:
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extenstion = this_path
-        self.ver_out_name = f'{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}.{extenstion}'
-        return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}.{extenstion}'
+        self.ver_out_name = f'{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.PIT}{self.pit}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}.{extenstion}'
+        return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.PIT}{self.pit}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}.{extenstion}'
 
     def convert_to_verilog(self, use_graph: bool = use_graph, use_json_model: bool = use_json_model):
         """
@@ -362,19 +374,56 @@ class Synthesis:
 
     def __json_model_to_verilog_shared(self):
         verilog_str = f''
-        print(f"Cata's thesis! next step!")
+        print(f"Cata's next task!")
 
+        # 1) extract inputs and outputs
         input_list = list(self.graph.subgraph_input_dict.values())
-        input_list.reverse()
-        output_list = list(self.graph.output_dict.values())
+        input_list = self.sort_list(input_list)
 
+        output_list = list(self.graph.output_dict.values())
+        output_list = self.sort_list(output_list)
+
+        # define module signature
         module_name = self.ver_out_name[:-2]
         module_signature = f"{sxpatconfig.VER_MODULE} {module_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
-        print(f'{module_signature = }')
 
-        # ...
 
+        # 2) declare inputs
+        decl_inp = f'// declaring inputs\n'
+        decl_inp += f'{sxpatconfig.VER_INPUT}'
+
+        for inp_idx, inp in enumerate(input_list):
+            if inp_idx == len(input_list) - 1:
+                decl_inp += f' {inp};\n'
+            else:
+                decl_inp += f' {inp}, '
+
+        # 3) declare outputs
+        decl_out = f'// declaring outputs\n'
+        decl_out += f'{sxpatconfig.VER_OUTPUT}'
+        for out_idx, out in enumerate(output_list):
+            if out_idx == len(output_list) - 1:
+                decl_out += f' {out};\n'
+            else:
+                decl_out += f' {out}, '
+
+        # 4) assigning wires
+
+        verilog_str = module_signature + decl_inp + decl_out
         return verilog_str
+
+
+    def sort_list(self, this_list: List[str]) -> List[str]:
+        sorted_list: List[str] = ['-1'] * len(this_list)
+        for idx, el in enumerate(this_list):
+            if re.search("(in|out)(\d+)", el):
+                match = re.search("(in|out)(\d+)", el)
+                signal_idx = int(match.group(2))
+                sorted_list[signal_idx] = el
+            else:
+                raise Exception(f'The names are not correct in this array {this_list}')
+        return sorted_list
+
 
     def __graph_to_verilog(self):
         pass

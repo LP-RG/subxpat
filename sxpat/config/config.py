@@ -75,6 +75,7 @@ ERROR = 'error'
 JSON = 'json'
 LPP = 'lpp'
 PPO = 'ppo'
+PIT = 'pit'
 
 # Graph related
 LABEL = 'label'

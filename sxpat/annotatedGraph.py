@@ -7,12 +7,14 @@ from .config.config import *
 
 
 class AnnotatedGraph(Graph):
-    def __init__(self, benchmark_name: str, is_clean: bool = False) -> Graph:
+    def __init__(self, benchmark_name: str, is_clean: bool = False, subxpat: bool = False) -> Graph:
         # Prepare a clean Verilog
         Verilog(benchmark_name)
         # Convert the clean Verilog into a Yosys GV
         convert_verilog_to_gv(benchmark_name)
         super().__init__(benchmark_name, is_clean)
+
+        self.__subxpat: bool = subxpat
 
         self.__subgraph = self.extract_subgraph()
 
@@ -22,7 +24,7 @@ class AnnotatedGraph(Graph):
         self.__subgraph_fanin_dict = self.extract_subgraph_fanin()
         self.__subgraph_fanout_dict = self.extract_subgraph_fanout()
         self.__graph_intact_gate_dict = self.extract_graph_intact_gates()
-        print(f'{self.subgraph_output_dict = }')
+
         self.__subgraph_num_inputs = len(self.subgraph_input_dict)
         self.__subgraph_num_outputs = len(self.subgraph_output_dict)
         self.__subgraph_num_gates = len(self.subgraph_gate_dict)
@@ -36,6 +38,10 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph(self):
         return self.__subgraph
+
+    @property
+    def subxpat(self):
+        return self.__subxpat
 
     @property
     def subgraph_input_dict(self):
@@ -91,6 +97,7 @@ class AnnotatedGraph(Graph):
     def extract_subgraph(self):
         """
         extracts a colored subgraph from the original non-partitioned graph object
+        if subxpat is False, it will consider all the nodes as a subgraph
         :return: an annotated graph in which the extracted subgraph is colored
         """
         # Todo:
@@ -98,14 +105,20 @@ class AnnotatedGraph(Graph):
         # 2) We might need to consider the labels
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         tmp_graph = self.graph.copy(as_view=False)
-        for gate_idx in self.gate_dict:
-            # if self.num_inputs <= gate_idx <= 14:
-            if 1 < gate_idx <= 8:
+
+        if self.subxpat:
+            for gate_idx in self.gate_dict:
+                # if self.num_inputs <= gate_idx <= 14:
+                if 1 < gate_idx <= 8:
+                    tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
+                    tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
+                else:
+                    tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
+                    tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
+        else: # we go with regular XPAT
+            for gate_idx in self.gate_dict:
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
     def export_annotated_graph(self):
