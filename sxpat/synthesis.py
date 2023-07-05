@@ -150,13 +150,18 @@ class Synthesis:
         print(f'{graph_input_list = }')
         input_wire_list = f'//json input wires\n'
         input_wire_list += f'{sxpatconfig.VER_WIRE} '
+        wires = f''
         for idx in range(self.graph.subgraph_num_inputs):
             if f'{sxpatconfig.VER_INPUT_PREFIX}{idx}' not in graph_input_list:
                 if idx == self.graph.subgraph_num_inputs - 1:
-                    input_wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx};\n'
+                    wires += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx};\n'
                 else:
-                    input_wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx}, '
-        return input_wire_list
+                    wires += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx}, '
+        if wires:
+            return input_wire_list + wires
+        else:
+            return '// no json wires!\n'
+
 
 
 
