@@ -438,12 +438,35 @@ class Template_SOP1(TemplateCreator):
             return node
 
     def __z3_get_subgraph_input_list(self):
+        print(f'==============================')
+        print(f'__z3_get_subgraph_input_list')
         input_list = list(self.graph.subgraph_input_dict.values())
         input_list_tmp = list(self.graph.subgraph_input_dict.values())
+
+        print(f'{input_list_tmp = }')
+        input_list_tmp = self.__fix_order()
         for idx, inp in enumerate(input_list):
             if inp in self.graph.gate_dict.values():
                 input_list_tmp[idx] = f"{self.__z3_get_approximate_label(inp)}({', '.join(list(self.graph.input_dict.values()))})"
+        print(f'{input_list_tmp = }')
+
+
+        print(f'{input_list_tmp = }')
+        print(f'==============================')
         return input_list_tmp
+
+    def __fix_order(self):
+        subpgraph_input_list = list(self.graph.subgraph_input_dict.values())
+        subpgraph_input_list_ordered = list(self.graph.subgraph_input_dict.values())
+        pi_list = []
+        for node in subpgraph_input_list:
+            if re.search('in(\d+)', node):
+                idx = int(re.search('in(\d+)', node).group(1))
+                subpgraph_input_list_ordered[idx] = node
+
+
+
+        return subpgraph_input_list_ordered
 
     def z3_express_node_as_wire_constraints_subxpat(self, node: str):
         assert node in list(self.graph.input_dict.values()) or node in list(self.graph.gate_dict.values()) \
@@ -542,6 +565,7 @@ class Template_SOP1(TemplateCreator):
         exact_wire_constraints += f'{APPROXIMATE_CIRCUIT} = And(\n'
         exact_wire_constraints += f'{TAB}# wires\n'
         subgraph_input_list = self.__z3_get_subgraph_input_list()
+        print(f'{subgraph_input_list = }')
         for g_idx in range(self.graph.num_gates):
             g_label = self.graph.gate_dict[g_idx]
             if not self.graph.is_subgraph_member(g_label):
@@ -574,6 +598,7 @@ class Template_SOP1(TemplateCreator):
             elif self.graph.is_subgraph_member(g_label) and self.graph.is_subgraph_output(g_label):
                 output_list = list(self.graph.subgraph_output_dict.values())
                 output_idx = output_list.index(g_label)
+                print(f'{subgraph_input_list= }')
                 exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}(" \
                                               f"{','.join(subgraph_input_list)}) == "
                 exact_wire_constraints += f"{Z3_AND}({PRODUCT_PREFIX}{output_idx}, {Z3_OR}("
@@ -581,19 +606,23 @@ class Template_SOP1(TemplateCreator):
                     exact_wire_constraints +=f"{Z3_AND}("
                     for input_idx, input_label in enumerate(self.graph.subgraph_input_dict.values()):
                         max_input_id = self.graph.subgraph_num_inputs - 1
-                        p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{max_input_id - input_idx}_{SELECT_PREFIX}'
-                        p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{max_input_id - input_idx}_{LITERAL_PREFIX}'
+                        p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                        p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+
+
                         loop_2_last_iter_flg = (ppo_idx == self.ppo - 1)
                         loop_3_last_iter_flg = (input_idx == self.graph.subgraph_num_inputs - 1)
                         # print(f'{input_idx = }, {subgraph_input_list[input_idx] = }, {self.graph.subgraph_num_inputs = }, {input_label = }')
 
                         exact_wire_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {subgraph_input_list[input_idx]})'
+
                         if loop_2_last_iter_flg and loop_3_last_iter_flg:
                             exact_wire_constraints += f'))),\n'
                         elif loop_3_last_iter_flg:
                             exact_wire_constraints += f'), '
                         else:
                             exact_wire_constraints += ', '
+
         return exact_wire_constraints
 
     def z3_generate_approximate_circuit_output_constraints_subxpat(self):

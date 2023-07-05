@@ -18,7 +18,7 @@ from sxpat.arguments import Arguments
 
 def clean_all():
     directories = [z3logpath.OUTPUT_PATH['ver'][0], z3logpath.OUTPUT_PATH['aig'][0], z3logpath.OUTPUT_PATH['gv'][0], z3logpath.OUTPUT_PATH['z3'][0],
-                   z3logpath.OUTPUT_PATH['report'][0], z3logpath.OUTPUT_PATH['figure'][0], z3logpath.TEST_PATH['tb'][0], z3logpath.TEST_PATH['z3'][0],
+                   z3logpath.OUTPUT_PATH['figure'][0], z3logpath.TEST_PATH['tb'][0], z3logpath.TEST_PATH['z3'][0],
                    z3logpath.LOG_PATH['yosys'][0],
                    OUTPUT_PATH['json'][0]]
 
@@ -101,10 +101,14 @@ def main():
                         if obtained_wce <= args.et:
                             print(f'{obtained_wce = } <= ET = {args.et}')
                             print(f'TEST -> PASS')
+                            with open(f'output/report/PASS_{args.benchmark_name}_lpp{args.lpp}_ppo{args.ppo}_et{args.et}_wce{obtained_wce}_{specs_obj.template_name}.txt', 'w') as f:
+                                pass
                             break
                         else:
                             print(f'ERROR!!! The obtained WCE does not match the given error threshold!')
                             print(f'{obtained_wce = } > ET = {args.et}')
+                            with open(f'output/report/FAILED_{args.benchmark_name}_lpp{args.lpp}_ppo{args.ppo}_et{args.et}_wce{obtained_wce}_{specs_obj.template_name}.txt', 'w') as f:
+                                pass
                             exit()
 
 
