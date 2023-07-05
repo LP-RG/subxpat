@@ -18,7 +18,7 @@ from sxpat.arguments import Arguments
 
 def clean_all():
     directories = [z3logpath.OUTPUT_PATH['ver'][0], z3logpath.OUTPUT_PATH['aig'][0], z3logpath.OUTPUT_PATH['gv'][0], z3logpath.OUTPUT_PATH['z3'][0],
-                   z3logpath.OUTPUT_PATH['figure'][0], z3logpath.TEST_PATH['tb'][0], z3logpath.TEST_PATH['z3'][0],
+                   z3logpath.OUTPUT_PATH['report'][0], z3logpath.OUTPUT_PATH['figure'][0], z3logpath.TEST_PATH['tb'][0], z3logpath.TEST_PATH['z3'][0],
                    z3logpath.LOG_PATH['yosys'][0],
                    OUTPUT_PATH['json'][0]]
 
@@ -28,14 +28,20 @@ def clean_all():
 
 
 def main():
-    clean_all()
+
+    args = Arguments.parse()
+    print(f'{args = }')
+
+    print(f'{args.clean = }')
+
+    if args.clean:
+        clean_all()
+
     setup_folder_structure()
     for key in OUTPUT_PATH.keys():
         directory = OUTPUT_PATH[key][0]
         if ~os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-    args = Arguments.parse()
-    print(f'{args = }')
 
     specs_obj = TemplateSpecs(name='Sop1', literals_per_product=args.lpp, products_per_output=args.ppo,
                               benchmark_name=args.benchmark_name, num_of_models=1, subxpat=args.subxpat, et=args.et)
