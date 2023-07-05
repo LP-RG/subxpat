@@ -16,7 +16,7 @@ do
   done
 done
 
-#for ET in {0..5}
-#do
-#  $PYTHON $SCRIPT $BENCH -et=$ET -lpp=0 -ppo=1
-#done
+for ET in {0..8}
+do
+  $PYTHON $SCRIPT $BENCH -et=$ET -lpp=0 -ppo=1
+done
