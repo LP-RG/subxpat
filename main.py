@@ -49,6 +49,9 @@ def main():
 
     template_obj = Template_SOP1(specs_obj)
     print(f'{template_obj = }')
+    print(f'{template_obj.graph.subgraph_gate_dict = }')
+    print(f'{template_obj.graph.subgraph_input_dict = }')
+    print(f'{template_obj.graph.subgraph_output_dict = }')
     template_obj.z3_generate_z3pyscript()
 
     template_obj.run_z3pyscript(args.et)
@@ -57,7 +60,8 @@ def main():
 
     synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model)
     synth_obj.export_verilog()
-    # exit()
+
+
     # Verify the output verilog
     # 0) copy the output approximate Verilgo file into the input/ver folder
     src_ver = synth_obj.ver_out_path

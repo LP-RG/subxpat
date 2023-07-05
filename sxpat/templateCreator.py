@@ -158,7 +158,10 @@ class Template_SOP1(TemplateCreator):
     def run_z3pyscript(self, ET = 2):
         # print(f'{self.z3_out_path = }')
         # print(f'{ET = }')
-        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}'], stderr=PIPE)
+        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}'], stderr=PIPE, stdout=PIPE)
+        if process.stderr:
+            print(f"{process.stderr.decode()}")
+            raise Exception(f'ERROR!!! Cannot run file {self.z3_out_path}')
 
 
     # From this point on... all the functions are responsible for generating a runner script:
@@ -438,31 +441,37 @@ class Template_SOP1(TemplateCreator):
             return node
 
     def __z3_get_subgraph_input_list(self):
-        print(f'==============================')
-        print(f'__z3_get_subgraph_input_list')
         input_list = list(self.graph.subgraph_input_dict.values())
         input_list_tmp = list(self.graph.subgraph_input_dict.values())
 
-        print(f'{input_list_tmp = }')
+
         input_list_tmp = self.__fix_order()
         for idx, inp in enumerate(input_list):
             if inp in self.graph.gate_dict.values():
                 input_list_tmp[idx] = f"{self.__z3_get_approximate_label(inp)}({', '.join(list(self.graph.input_dict.values()))})"
-        print(f'{input_list_tmp = }')
-
-
-        print(f'{input_list_tmp = }')
-        print(f'==============================')
         return input_list_tmp
 
     def __fix_order(self):
         subpgraph_input_list = list(self.graph.subgraph_input_dict.values())
-        subpgraph_input_list_ordered = list(self.graph.subgraph_input_dict.values())
+        subpgraph_input_list_ordered = []
         pi_list = []
+        g_list = []
+
         for node in subpgraph_input_list:
             if re.search('in(\d+)', node):
                 idx = int(re.search('in(\d+)', node).group(1))
-                subpgraph_input_list_ordered[idx] = node
+                pi_list.append(node)
+            else:
+                g_list.append(node)
+
+
+        pi_list.sort(key=lambda x: re.search('\d+', x).group())
+
+
+        for el in pi_list:
+            subpgraph_input_list_ordered.append(el)
+        for el in g_list:
+            subpgraph_input_list_ordered.append(el)
 
 
 
@@ -565,7 +574,7 @@ class Template_SOP1(TemplateCreator):
         exact_wire_constraints += f'{APPROXIMATE_CIRCUIT} = And(\n'
         exact_wire_constraints += f'{TAB}# wires\n'
         subgraph_input_list = self.__z3_get_subgraph_input_list()
-        print(f'{subgraph_input_list = }')
+
         for g_idx in range(self.graph.num_gates):
             g_label = self.graph.gate_dict[g_idx]
             if not self.graph.is_subgraph_member(g_label):
@@ -598,7 +607,7 @@ class Template_SOP1(TemplateCreator):
             elif self.graph.is_subgraph_member(g_label) and self.graph.is_subgraph_output(g_label):
                 output_list = list(self.graph.subgraph_output_dict.values())
                 output_idx = output_list.index(g_label)
-                print(f'{subgraph_input_list= }')
+
                 exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.graph.num_inputs + g_idx}(" \
                                               f"{','.join(subgraph_input_list)}) == "
                 exact_wire_constraints += f"{Z3_AND}({PRODUCT_PREFIX}{output_idx}, {Z3_OR}("

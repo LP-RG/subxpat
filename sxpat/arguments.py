@@ -12,6 +12,7 @@ class Arguments(Arguments):
         self.__product_per_output: int = tmp_args.ppo
         self.__subxpat: bool = tmp_args.subxpat
         self.__error_threshold: int = tmp_args.et
+        self.__clean: bool = tmp_args.clean
 
     @property
     def literals_per_product(self):
@@ -123,4 +124,4 @@ class Arguments(Arguments):
                f'{self.products_per_output = }\n' \
                f'{self.subxpat = }\n' \
                f'{self.et = }\n' \
-               f''
+               f'{self.__clean = }\n'
