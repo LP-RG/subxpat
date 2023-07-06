@@ -24,6 +24,7 @@ class Synthesis:
         self.__template_name = template_specs.template_name
         self.__template_name = template_specs.template_name
         self.__graph: AnnotatedGraph = graph_obj
+        self.__partitioning_percentage = template_specs.partitioning_percentage
         if json_obj == sxpatconfig.UNSAT:
             print('ERROR!!! the json does not contain any models!')
             exit()
@@ -45,6 +46,14 @@ class Synthesis:
         self.__ver_out_path: str = self.set_path(OUTPUT_PATH['ver'])
 
         self.__verilog_string: str = self.convert_to_verilog()
+
+    @property
+    def partitioning_percentage(self):
+        return self.__partitioning_percentage
+
+    @property
+    def pp(self):
+        return self.__partitioning_percentage
 
     @property
     def benchmark_name(self):
@@ -124,8 +133,8 @@ class Synthesis:
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extenstion = this_path
-        self.ver_out_name = f'{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}.{extenstion}'
-        return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}.{extenstion}'
+        self.ver_out_name = f'{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}.{extenstion}'
+        return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}.{extenstion}'
 
     def convert_to_verilog(self, use_graph: bool = use_graph, use_json_model: bool = use_json_model):
         """

@@ -65,6 +65,7 @@ GV = 'gv'
 JSON = 'json'
 LPP = 'lpp'
 PPO = 'ppo'
+PAP = 'pap'
 
 # Graph related
 LABEL = 'label'
