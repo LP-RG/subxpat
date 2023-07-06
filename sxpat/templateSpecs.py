@@ -10,6 +10,15 @@ class TemplateSpecs:
         self.__subxpat: bool = kwargs[SUBXPAT]
         self.__num_of_models = kwargs[NUM_OF_MODELS]
         self.__error_threshold = kwargs[TEMPLATE_SPEC_ET]
+        self.__partitioning_percentage = kwargs[PARTITIONING_PERCENTAGE]
+
+    @property
+    def partitioning_percentage(self):
+        return self.__partitioning_percentage
+
+    @property
+    def pp(self):
+        return self.__partitioning_percentage
 
     @property
     def template_name(self):
@@ -56,4 +65,5 @@ class TemplateSpecs:
                f'{self.ppo = }\n' \
                f'{self.subxpat = }\n' \
                f'{self.num_of_models = }\n' \
-               f'{self.et = }\n'
+               f'{self.et = }\n' \
+               f'{self.partitioning_percentage = }\n'

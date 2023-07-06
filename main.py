@@ -44,14 +44,15 @@ def main():
             os.makedirs(directory, exist_ok=True)
 
     specs_obj = TemplateSpecs(name='Sop1', literals_per_product=args.lpp, products_per_output=args.ppo,
-                              benchmark_name=args.benchmark_name, num_of_models=1, subxpat=args.subxpat, et=args.et)
+                              benchmark_name=args.benchmark_name, num_of_models=1, subxpat=args.subxpat, et=args.et,
+                              partitioning_percentage=args.partitioning_percentage)
     print(f'{specs_obj = }')
+
 
     template_obj = Template_SOP1(specs_obj)
     print(f'{template_obj = }')
-    print(f'{template_obj.graph.subgraph_gate_dict = }')
-    print(f'{template_obj.graph.subgraph_input_dict = }')
-    print(f'{template_obj.graph.subgraph_output_dict = }')
+    exit()
+
     template_obj.z3_generate_z3pyscript()
 
     template_obj.run_z3pyscript(args.et)
