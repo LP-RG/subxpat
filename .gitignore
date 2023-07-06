@@ -2,7 +2,7 @@ venv/
 test/
 output/
 Laura/
-
+input/ver/*.v
 
 
 

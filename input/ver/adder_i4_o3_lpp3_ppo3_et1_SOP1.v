@@ -3,11 +3,11 @@ module adder_i4_o3_lpp3_ppo3_et1_SOP1 (in0, in1, in2, in3, out0, out1, out2);
 input in0, in1, in2, in3;
 output out0, out1, out2;
 //intact gates wires 
-wire w_g12, w_g14, w_g16, w_g17, w_g18, w_g19, w_g20, w_g21, w_g22, w_g23, w_g24, w_g25, w_g26, w_g27;
+wire w_g16, w_g17, w_g18, w_g19, w_g20, w_g21, w_g22, w_g23, w_g24, w_g25, w_g26, w_g27;
 //annotated subgraph inputs
 wire w_in3, w_in2, w_in1, w_in0, w_g0, w_g1;
 //annotated subgraph outputs
-wire w_g6, w_g8, w_g9, w_g11, w_g15;
+wire w_g6, w_g8, w_g11, w_g14, w_g15;
 //json input wires
 wire j_in0, j_in1, j_in2, j_in3, j_in4, j_in5;
 //json model
@@ -27,31 +27,29 @@ assign j_in3 = w_in3;
 assign j_in4 = w_g0;
 assign j_in5 = w_g1;
 //json model assigns (approximated/XPATed part)
-assign p_o0_t0 = ~j_in3;
-assign p_o0_t1 = j_in0 & ~j_in1 & j_in2;
-assign p_o0_t2 = ~j_in1;
+assign p_o0_t0 = ~j_in1 & ~j_in2 & j_in3;
+assign p_o0_t1 = j_in0 & ~j_in2 & ~j_in4;
+assign p_o0_t2 = 1;
 assign w_g6 = p_o0_t0 | p_o0_t1 | p_o0_t2;
-assign p_o1_t0 = j_in3;
-assign p_o1_t1 = ~j_in1 & j_in2;
-assign p_o1_t2 = ~j_in0 & ~j_in2;
+assign p_o1_t0 = j_in1 & j_in2 & j_in3;
+assign p_o1_t1 = j_in2 & ~j_in3 & j_in5;
+assign p_o1_t2 = ~j_in0 & ~j_in1 & ~j_in3;
 assign w_g8 = p_o1_t0 | p_o1_t1 | p_o1_t2;
-assign p_o2_t0 = j_in0 & ~j_in1 & j_in3;
-assign p_o2_t1 = j_in1 & j_in2 & ~j_in3;
-assign p_o2_t2 = ~j_in0 & ~j_in5;
-assign w_g9 = p_o2_t0 | p_o2_t1 | p_o2_t2;
-assign p_o3_t0 = j_in1;
-assign p_o3_t1 = j_in3 & j_in5;
-assign p_o3_t2 = j_in3;
-assign w_g11 = p_o3_t0 | p_o3_t1 | p_o3_t2;
-assign p_o4_t0 = ~j_in0 & ~j_in1 & ~j_in2;
-assign p_o4_t1 = ~j_in0 & ~j_in3;
-assign p_o4_t2 = ~j_in2 & ~j_in3 & j_in4;
+assign p_o2_t0 = j_in1 & j_in3 & ~j_in4;
+assign p_o2_t1 = j_in0 & j_in1;
+assign p_o2_t2 = j_in0 & j_in1 & ~j_in5;
+assign w_g11 = p_o2_t0 | p_o2_t1 | p_o2_t2;
+assign p_o3_t0 = ~j_in0 & j_in2 & j_in3;
+assign p_o3_t1 = j_in2;
+assign p_o3_t2 = ~j_in0 & j_in5;
+assign w_g14 = p_o3_t0 | p_o3_t1 | p_o3_t2;
+assign p_o4_t0 = j_in0 & j_in4 & ~j_in5;
+assign p_o4_t1 = j_in1 & ~j_in3 & j_in4;
+assign p_o4_t2 = ~j_in1;
 assign w_g15 = p_o4_t0 | p_o4_t1 | p_o4_t2;
 // intact gates assigns
 assign w_g0 = ~w_in3;
 assign w_g1 = ~w_in2;
-assign w_g12 = ~w_g9;
-assign w_g14 = w_g12 & w_g8;
 assign w_g16 = ~w_g14;
 assign w_g17 = w_g15 & w_g8;
 assign w_g18 = ~w_g15;
