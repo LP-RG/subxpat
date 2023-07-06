@@ -126,8 +126,8 @@ class AnnotatedGraph(Graph):
         for gate_idx in self.gate_dict:
 
             # if gate_idx <= 24:
-            # if gate_idx <= 15:
-            if 1 < gate_idx <= 15 and gate_idx != 12 and gate_idx != 14: #multiplier
+            if 1 < gate_idx <= 15:
+            # if gate_idx <= 15 and gate_idx != 12 and gate_idx != 14: #multiplier
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
             else:
