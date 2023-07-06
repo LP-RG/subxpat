@@ -13,7 +13,6 @@ do
     do
       for PAP in {10..90..10}
       do
-
         $PYTHON $SCRIPT $BENCH -et=$ET -lpp=$LPP -ppo=$PPO -pap=$PAP
       done
     done
