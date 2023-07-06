@@ -21,10 +21,20 @@ class TemplateCreator:
     def __init__(self, template_specs: TemplateSpecs):
         self.__template_name = template_specs.template_name
         self.__benchmark_name = template_specs.benchmark_name
+        self.__partitioning_percentage = template_specs.pp
         self.__graph = self.import_graph()
 
         self.__z3pyscript_out_path = None
         self.graph.export_annotated_graph()
+
+    @property
+    def partitioning_percentage(self):
+        return self.__partitioning_percentage
+
+    @property
+    def pp(self):
+        return self.__partitioning_percentage
+
     @property
     def template_name(self):
         return self.__template_name
@@ -46,14 +56,15 @@ class TemplateCreator:
         """
         temp_verilog_obj = Verilog(self.benchmark_name)
         convert_verilog_to_gv(self.benchmark_name)
-        temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False)
+        temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False, partitioning_percentage=self.pp)
         return temp_graph_obj
 
     def __repr__(self):
         return f'An object of Class TemplateCreator:\n' \
                f'{self.__template_name = }\n' \
                f'{self.__benchmark_name}\n' \
-               f'{self.graph = }'
+               f'{self.graph = }\n' \
+               f'{self.partitioning_percentage = }\n'
 
 
 class Template_SOP1(TemplateCreator):

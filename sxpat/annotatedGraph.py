@@ -8,17 +8,18 @@ from .config import paths as sxpatpaths
 
 
 class AnnotatedGraph(Graph):
-    def __init__(self, benchmark_name: str, is_clean: bool = False) -> Graph:
+    def __init__(self, benchmark_name: str, is_clean: bool = False, partitioning_percentage: int = 50) -> None:
         # Prepare a clean Verilog
         Verilog(benchmark_name)
         # Convert the clean Verilog into a Yosys GV
         convert_verilog_to_gv(benchmark_name)
         super().__init__(benchmark_name, is_clean)
 
-        print(f'{self.output_dict = }')
-        self.set_output_dict(self.sort_dict(self.output_dict))
-        print(f'{self.output_dict = }')
 
+        self.set_output_dict(self.sort_dict(self.output_dict))
+
+
+        self.__partitioning_percentage = partitioning_percentage
 
 
         self.__subgraph = self.extract_subgraph()
@@ -40,6 +41,13 @@ class AnnotatedGraph(Graph):
         folder, extension = OUTPUT_PATH[GV]
         self.__out_annotated_graph_path = f'{folder}/{self.name}_subgraph.{extension}'
 
+    @property
+    def partitioning_percentage(self):
+        return self.__partitioning_percentage
+
+    @property
+    def pp(self):
+        return self.__partitioning_percentage
 
     @property
     def subgraph(self):
@@ -107,11 +115,12 @@ class AnnotatedGraph(Graph):
 
 
     def __repr__(self):
-        return f'An object of class SubgraphExtractor:\n' \
+        return f'An object of class AnnotatedGraph:\n' \
                f'{self.name = }\n' \
                f'{self.subgraph_num_inputs = }\n' \
                f'{self.subgraph_num_outputs = }\n' \
-               f'{self.subgraph_num_gates = }'
+               f'{self.subgraph_num_gates = }\n' \
+               f'{self.partitioning_percentage = }\n'
 
     def extract_subgraph(self):
         """
@@ -125,9 +134,10 @@ class AnnotatedGraph(Graph):
         tmp_graph = self.graph.copy(as_view=False)
         for gate_idx in self.gate_dict:
 
-            # if gate_idx <= 24:
-            if 1 < gate_idx <= 15:
-            # if gate_idx <= 15 and gate_idx != 12 and gate_idx != 14: #multiplier
+            partition_limit_idx = int(self.num_gates * (self.pp/100))
+            print(f'{self.pp}% is {partition_limit_idx = } out of {self.num_gates}')
+
+            if gate_idx <= partition_limit_idx:
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
             else:
@@ -148,7 +158,6 @@ class AnnotatedGraph(Graph):
             for e in self.subgraph.edges:
                 self.export_edge(e, f)
             f.write(f"}}\n")
-        print(f'{self.subgraph_out_path = }')
         folder, extension = OUTPUT_PATH[GV]
         subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
 

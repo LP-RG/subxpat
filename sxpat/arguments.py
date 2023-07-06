@@ -13,6 +13,11 @@ class Arguments(Arguments):
         self.__subxpat: bool = tmp_args.subxpat
         self.__error_threshold: int = tmp_args.et
         self.__clean: bool = tmp_args.clean
+        self.__partitioning_percentage = tmp_args.partitioning_percentage
+
+    @property
+    def partitioning_percentage(self):
+        return self.__partitioning_percentage
 
     @property
     def literals_per_product(self):
@@ -110,6 +115,11 @@ class Arguments(Arguments):
                                default=10,
                                help='gate-percentage-carved-out')
 
+        my_parser.add_argument('--partitioning_percentage', '-pap',
+                               type=int,
+                               default=10,
+                               help='partitioning_percentage')
+
         my_parser.add_argument('--clean',
                                type=bool,
                                default=False)
@@ -124,4 +134,5 @@ class Arguments(Arguments):
                f'{self.products_per_output = }\n' \
                f'{self.subxpat = }\n' \
                f'{self.et = }\n' \
-               f'{self.__clean = }\n'
+               f'{self.__clean = }\n' \
+               f'{self.partitioning_percentage = }\n'

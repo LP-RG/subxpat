@@ -7,6 +7,7 @@ BENCHMARK = 'benchmark_name'
 NUM_OF_MODELS = 'num_of_models'
 SUBXPAT = 'subxpat'
 TEMPLATE_SPEC_ET = 'et'
+PARTITIONING_PERCENTAGE = 'partitioning_percentage'
 
 
 #   NetworkX
