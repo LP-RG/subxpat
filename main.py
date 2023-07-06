@@ -51,7 +51,7 @@ def main():
 
     template_obj = Template_SOP1(specs_obj)
     print(f'{template_obj = }')
-    exit()
+
 
     template_obj.z3_generate_z3pyscript()
 
