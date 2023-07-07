@@ -67,7 +67,6 @@ class TemplateSpecs:
                f'{self.template_name = }\n' \
                f'{self.benchmark_name = }\n' \
                f'{self.lpp = }\n' \
-               f'{self.ppo = }\n' \
                f'{self.pit = }\n' \
                f'{self.subxpat = }\n' \
                f'{self.shared = }\n' \

@@ -1059,7 +1059,6 @@ class Template_SOP1(TemplateCreator):
         return results
 
 
-# TODO: Later (Cata)
 class Template_SOP1ShareLogic(TemplateCreator):
     def __init__(self, template_specs: TemplateSpecs):
         super().__init__(template_specs)
@@ -1275,9 +1274,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
             temp_o += self.declare_gate(temp_name)
         return temp_o
 
-    ## New --> generate input to product
-    ## TO DO --> Change names of both oti and ti
-
     def z3_generate_ti(self):
         temp_ti = ''
         for pit_idx in range(self.pit):
@@ -1295,7 +1291,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
             for pit_idx in range(self.pit):
                 # sth like this: p_pr0_o0
                 name = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_OUTPUT_PREFIX}{output_idx}'
-                print(f'{self.declare_gate(name) = }')
                 temp_pto += self.declare_gate(name)
 
         return temp_pto
@@ -1462,7 +1457,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
         return exact_circuit_constraints
 
-    # TO DO --> check
     def z3_generate_approximate_circuit_constraints_shared(self):
         approximate_circuit_constraints = ''
         approximate_circuit_constraints += f'# Approximate circuit\n'
@@ -1478,11 +1472,11 @@ class Template_SOP1ShareLogic(TemplateCreator):
                 approximate_circuit_constraints += f"{Z3_AND}({SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_OUTPUT_PREFIX}{o_idx},"
 
                 for input_idx in range(self.graph.num_inputs):
-                    p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                    p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+                    p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                    p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
 
                     loop_1_last_iter_flg = o_idx == self.graph.num_outputs - 1
-                    loop_2_last_iter_flg = pit_idx == self.pit - 1  # is it graph.pit ???
+                    loop_2_last_iter_flg = pit_idx == self.pit - 1
                     loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
 
                     approximate_circuit_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {self.graph.input_dict[input_idx]})'
@@ -1496,8 +1490,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     else:
                         approximate_circuit_constraints += ','
 
-        print("Constraints:")
-        print(approximate_circuit_constraints)
         return approximate_circuit_constraints
 
         # NM
@@ -1541,10 +1533,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
                 p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                 atmost += f"{IF}({p_s}, 1, 0)"
 
-                print(f'{p_s = }')
-
                 if loop_3_last_iter_flg:
-                    atmost += f') <= {self.pit},\n'
+                    atmost += f') <= {self.lpp},\n'
                 else:
                     atmost += f' + '
         atmost += '\n'
@@ -1558,7 +1548,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
         remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_shared()
         remove_unused_products = self.z3_generate_forall_solver_redundancy_constraints_remove_unused_products_shared()
         set_pit_order = self.z3_generate_forall_solver_redundancy_constraints_set_pit_order()
-        print(f'{set_pit_order = }')
         set_order = f''
         double_no_care += '\n'
         remove_constant_zero_permutation += '\n'
