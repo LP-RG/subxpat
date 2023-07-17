@@ -827,7 +827,7 @@ class Template_SOP1(TemplateCreator):
         redundancy += f'{TAB}{TAB}# Redundancy constraints\n'
         double_no_care = self.z3_generate_forall_solver_redundancy_constraints_double_no_care_subxpat()
         remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_subxpat()
-        set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order()
+        set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat()
 
         double_no_care += '\n'
         remove_constant_zero_permutation += '\n'
@@ -929,24 +929,28 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat(self):
         ppo_order = ''
         ppo_order += f'{TAB}{TAB}# set order of trees\n'
-        for output_idx in range(self.graph.subgraph_num_outputs):
-            ppo_order += f"{TAB}{TAB}"
-            for ppo_idx in range(self.ppo):
-                ppo_order += '('
-                for input_idx in range(self.graph.subgraph_num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.graph.subgraph_num_outputs - 1
-                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.graph.subgraph_num_inputs - 1
-                    p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
-                    p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                    ppo_order += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s} + {INTVAL}({2 ** (2 * input_idx + 1)}) * {p_l}'
+        if self.ppo == 1:
+            print(f'No need for ordering the PPOs!')
+            ppo_order += f'{TAB}{TAB}True, \n'
+        else:
+            for output_idx in range(self.graph.subgraph_num_outputs):
+                ppo_order += f"{TAB}{TAB}"
+                for ppo_idx in range(self.ppo):
+                    ppo_order += '('
+                    for input_idx in range(self.graph.subgraph_num_inputs):
+                        loop_1_last_iter_flg = output_idx == self.graph.subgraph_num_outputs - 1
+                        loop_2_last_iter_flg = ppo_idx == self.ppo - 1
+                        loop_3_last_iter_flg = input_idx == self.graph.subgraph_num_inputs - 1
+                        p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+                        p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                        ppo_order += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s} + {INTVAL}({2 ** (2 * input_idx + 1)}) * {p_l}'
 
-                    if loop_2_last_iter_flg and loop_3_last_iter_flg:
-                        ppo_order += '),\n'
-                    elif loop_3_last_iter_flg:
-                        ppo_order += ') >= '
-                    else:
-                        ppo_order += ' + '
+                        if loop_2_last_iter_flg and loop_3_last_iter_flg:
+                            ppo_order += '),\n'
+                        elif loop_3_last_iter_flg:
+                            ppo_order += ') >= '
+                        else:
+                            ppo_order += ' + '
 
         return ppo_order
 
@@ -955,6 +959,7 @@ class Template_SOP1(TemplateCreator):
         ppo_order += f'{TAB}{TAB}# set order of trees\n'
 
         if self.ppo == 1:
+            print(f'No need for ordering the PPOs!')
             ppo_order += f'{TAB}{TAB}True, \n'
         else:
             for output_idx in range(self.graph.num_outputs):
@@ -963,6 +968,8 @@ class Template_SOP1(TemplateCreator):
                     current_product = f'{TAB}{TAB}('
                     next_product = f'('
                     for input_idx in range(self.graph.num_inputs):
+
+
                         loop_1_last_iter_flg = output_idx == self.graph.num_outputs - 1
                         loop_2_last_iter_flg = ppo_idx == self.ppo - 2
                         loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
@@ -982,15 +989,9 @@ class Template_SOP1(TemplateCreator):
                         else:
                             current_product += f' + '
                             next_product += f' + '
-                        #
-                        # if loop_2_last_iter_flg and loop_3_last_iter_flg:
-                        #     ppo_order += '),\n'
-                        # elif loop_3_last_iter_flg:
-                        #     current_product += ') >= '
-                        #     next_product += '),\n'
-                        # else:
-                        #     ppo_order += ' + '
 
+
+        # exit()
         return ppo_order
 
     def z3_generate_verification_solver(self):
