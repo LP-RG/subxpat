@@ -135,7 +135,7 @@ class AnnotatedGraph(Graph):
         for gate_idx in self.gate_dict:
 
             partition_limit_idx = int(self.num_gates * (self.pp/100))
-            print(f'{self.pp}% is {partition_limit_idx = } out of {self.num_gates}')
+            # print(f'{self.pp}% is {partition_limit_idx = } out of {self.num_gates}')
 
             if 1 < gate_idx <= partition_limit_idx:
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
