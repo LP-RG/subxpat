@@ -271,10 +271,10 @@ class Synthesis:
                         if self.json_model[p_s]:
                             if self.json_model[p_l]:
                                 included_literals.append(
-                                    f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.SHARED_INPUT_LITERAL_PREFIX}{input_idx}')
+                                    f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{input_idx}')
                             else:
                                 included_literals.append(
-                                    f'{sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.SHARED_INPUT_LITERAL_PREFIX}{input_idx}')
+                                    f'{sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{input_idx}')
                     if included_literals:
                         lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx} = ' \
                                        f"{' & '.join(included_literals)};\n"    
@@ -473,12 +473,13 @@ class Synthesis:
         # json_model_and_subgraph_outputs_assigns
         json_model_and_subgraph_outputs_assigns = self.__json_model_lpp_and_subgraph_output_assigns_shared()
 
+        # shared logic assigns
+        shared_assigns = self.__shared_logic_assigns()
+
         # output assings
         output_assings = self.__output_assigns()
 
-        assigns = json_input_assign + json_model_and_subgraph_outputs_assigns + output_assings
-
-        print(f"Cata's next task is to add the shared logic!")
+        assigns = json_input_assign + json_model_and_subgraph_outputs_assigns + shared_assigns + output_assings
 
         # assignments
 
@@ -487,6 +488,23 @@ class Synthesis:
 
         print(f'{ver_str}')
         return ver_str
+
+    def __shared_logic_assigns(self):
+
+        shared_assigns = f'//JSON model shared assign'
+        shared_assigns += f'\n'
+        for o_idx in range(self.graph.subgraph_num_outputs):
+            p_o = f'{sxpatconfig.PRODUCT_PREFIX}{o_idx}'
+            for pit_idx in range(self.pit):
+                shared_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx} = '
+                if self.json_model[p_o]:
+                    shared_assigns += f'1 '
+                else:
+                    shared_assigns += f'0 '
+                shared_assigns += f'{sxpatconfig.VER_AND} {sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}'
+                shared_assigns += ';\n'
+
+        return shared_assigns
 
     def __json_model_input_declaration_shared(self):
 
