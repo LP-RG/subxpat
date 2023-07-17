@@ -5,7 +5,6 @@ SCRIPT='main.py'
 
 BENCH=$1
 
-done
 
 for ET in {2..2}
 do
