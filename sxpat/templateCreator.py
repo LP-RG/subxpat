@@ -1518,7 +1518,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     f'{TAB}{TAB}{APPROXIMATE_CIRCUIT},\n'
         return circuits
 
-    # New --> equivalent to z3_generate_forall_solver_atmost_constraints
     # Adding pit instead of trees
     def z3_generate_forall_solver_atmost_constraints(self):
         atmost = ''
@@ -1527,7 +1526,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         for pit_idx in range(self.pit):
             atmost += f"{TAB}{TAB}("
             for input_idx in range(self.graph.num_inputs):
-                loop_2_last_iter_flg = pit_idx == self.pit - 1
+                # loop_2_last_iter_flg = pit_idx == self.pit - 1
                 loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
                 # sth like this: p_pr0_i0_s
                 p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
@@ -1683,8 +1682,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
         return unused_products
 
-    # New --> equivalent to z3_generate_forall_solver(self) but changing the functions inside
-    # TO DO --> update, if needed, the functions inside with the new redundancy and at most constraints
+
     def z3_generate_forall_solver(self):
         prep = self.z3_generate_forall_solver_preperation()
         error = self.z3_generate_forall_solver_error_constraint()
@@ -1862,7 +1860,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
     # NM
     def z3_generate_sotre_data_define_extract_key_function(self):
         """
-        Blah Blah Blah
         :return:
         """
         key_function = ''
