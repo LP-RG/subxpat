@@ -8,7 +8,7 @@ from Z3Log.z3solver import Z3solver
 from Z3Log.config import path as z3logpath
 # from Z3Log.argument import Arguments
 from sxpat.templateCreator import TemplateCreator
-from sxpat.templateCreator import Template_SOP1ShareLogic
+from sxpat.templateCreator import Template_SOP1ShareLogic, Template_SOP1
 from sxpat.templateSpecs import TemplateSpecs
 from sxpat.config.paths import *
 from sxpat.synthesis import Synthesis
@@ -31,8 +31,12 @@ def main():
                               benchmark_name=args.benchmark_name, num_of_models=1, subxpat=args.subxpat, et=args.et,
                               products_in_total=args.pit, shared=args.shared)
     print(f'{specs_obj = }')
-
-    template_obj = Template_SOP1ShareLogic(specs_obj)
+    if not args.subxpat and args.shared:
+        template_obj = Template_SOP1ShareLogic(specs_obj)
+    elif args.subxpat and not args.shared:
+        template_obj = Template_SOP1(specs_obj)
+    else:
+        raise Exception('The template is not correct!')
 
     print(f'{template_obj = }')
     template_obj.z3_generate_z3pyscript()
