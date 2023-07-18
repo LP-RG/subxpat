@@ -1062,9 +1062,9 @@ class Template_SOP1ShareLogic(TemplateCreator):
         self.__literal_per_product = template_specs.literals_per_product
         self.__product_per_output = template_specs.products_per_output
         self.__z3pyscript = None
+        self.__product_in_total = template_specs.products_in_total
         self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
         self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH['json'])
-        self.__product_in_total = template_specs.products_in_total
         print(f'{template_specs.subxpat = }')
 
         #TODO
