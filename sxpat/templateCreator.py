@@ -1116,9 +1116,10 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def json_out_path(self):
         return self.__json_out_path
 
+    #fix this to add the pit, not ppo
     def set_path(self, this_path: Tuple[str, str]):
         folder, extenstion = this_path
-        return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}.{extenstion}'
+        return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PIT}{self.pit}_{self.template_name}.{extenstion}'
 
     def export_z3pyscript(self):
         print(f'Storing in {self.z3_out_path}')
@@ -1821,7 +1822,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
         final_prep += f'{TAB}{TAB}# ==== continue or exit\n' \
                       f'{TAB}{TAB}if WCE > ET:\n' \
-                      f"{TAB}{TAB}{TAB}# Z3 hates us and decided it doesn't like being appreciated\n" \
                       f'{TAB}{TAB}{TAB}result = None\n' \
                       f'{TAB}{TAB}{TAB}attempts += 1\n' \
                       f'{TAB}{TAB}{TAB}invalid_parameters = parameters_constraints\n' \

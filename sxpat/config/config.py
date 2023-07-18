@@ -135,3 +135,5 @@ JSON = 'json'
 LPP = 'lpp'
 
 PPO = 'ppo'
+
+PIT = 'pit'
