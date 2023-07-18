@@ -11,7 +11,7 @@ class TemplateSpecs:
         self.__shared: bool = kwargs[SHARED]
         self.__num_of_models = kwargs[NUM_OF_MODELS]
         self.__error_threshold = kwargs[TEMPLATE_SPEC_ET]
-        self.__products_in_total = kwargs[PRODUCTS_IN_TOTAL]
+        self.__products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
 
     @property
     def template_name(self):
@@ -67,7 +67,6 @@ class TemplateSpecs:
                f'{self.template_name = }\n' \
                f'{self.benchmark_name = }\n' \
                f'{self.lpp = }\n' \
-               f'{self.ppo = }\n' \
                f'{self.pit = }\n' \
                f'{self.subxpat = }\n' \
                f'{self.shared = }\n' \

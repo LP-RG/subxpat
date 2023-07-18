@@ -124,6 +124,7 @@ VER_MODULE = 'module'
 VER_ENDMODULE = 'endmodule'
 VER_WIRE_PREFIX = 'w_'
 VER_INPUT_PREFIX = 'in'
+VER_INPUT_PREFIX_SHARED = 'i'
 
 # random constants
 
@@ -134,3 +135,5 @@ JSON = 'json'
 LPP = 'lpp'
 
 PPO = 'ppo'
+
+PIT = 'pit'
