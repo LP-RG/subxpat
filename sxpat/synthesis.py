@@ -167,7 +167,6 @@ class Synthesis:
         if not self.subxpat and not self.shared:
             verilog_str = self.__json_model_to_verilog()
         elif not self.subxpat and self.shared:
-            print(f'this part is for Cata')
             verilog_str = self.__json_model_to_verilog_shared()
         elif self.subxpat and not self.shared:
             verilog_str = self.__annotated_graph_to_verilog()
@@ -250,6 +249,8 @@ class Synthesis:
         return lpp_assigns
 
     def __json_model_lpp_and_subgraph_output_assigns_shared(self):
+
+        #find error (duplicated info in ver)
         lpp_assigns = f'//json model assigns (approximated Shared/XPAT part)\n'
         annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
         lpp_assigns += f''
@@ -286,7 +287,6 @@ class Synthesis:
                 lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{self.graph.subgraph_output_dict[o_idx]} = 0;\n'
 
         return lpp_assigns
-
 
     def __intact_part_assigns(self):
         intact_part = f'// intact gates assigns\n'
