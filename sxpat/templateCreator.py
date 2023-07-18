@@ -70,7 +70,7 @@ class Template_SOP1(TemplateCreator):
         super().__init__(template_specs)
         self.__literal_per_product = template_specs.literals_per_product
         self.__product_per_output = template_specs.products_per_output
-        self.__subxpat: bool = template_specs.subxpat
+
         self.__z3pyscript = None
         self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
         self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH['json'])
@@ -91,9 +91,6 @@ class Template_SOP1(TemplateCreator):
     def ppo(self):
         return self.__product_per_output
 
-    @property
-    def subxpat(self):
-        return self.__subxpat
 
     @property
     def z3pyscript(self):
