@@ -20,18 +20,48 @@ ET=$4
 PAP=$5
 T=$6
 
-for (( LPP=1; LPP<=$MAX_LPP; LPP++ ))
+echo $PYTHON $SCRIPT $BENCH -et=$ET -lpp=0 -ppo=1 -pap=$PAP
+timeout $T $PYTHON $SCRIPT $BENCH -et=$ET -lpp=0 -ppo=1 -pap=$PAP
+if (($? == 0));
+  then
+    FOUND='SAT'
+    SAT_LPP=$LPP
+    SAT_PPO=$PPO
+    echo "$FOUND at (0, 1)"
+    exit
+fi
+
+for (( PPO=1; PPO<=$MAX_PPO; PPO++ ))
 do
-  for (( PPO=1; PPO<=$MAX_PPO; PPO++ ))
+  for (( LPP=1; LPP<=$MAX_LPP; LPP++ ))
   do
-  echo $PYTHON $SCRIPT $BENCH -et=$ET -lpp=$LPP -ppo=$PPO -pap=$PAP
+  echo $PYTHON $SCRIPT $BENCH -et=$ET -lpp=$LPP -ppo0=$PPO -pap=$PAP
   timeout $T $PYTHON $SCRIPT $BENCH -et=$ET -lpp=$LPP -ppo=$PPO -pap=$PAP
 
-  if (($? == 124)); then
-    echo "timed out after $T seconds"
-    exit 124
+  if (($? == 0));
+  then
+    FOUND='SAT'
+    SAT_LPP=$LPP
+    SAT_PPO=$PPO
+    echo "$FOUND at ($LPP, $PPO)"
+
+    break 2
   fi
+
+
+
 
   done
 done
+
+echo "exploring the non-dominating cells..."
+for (( LPP=$SAT_LPP-1; LPP>0; LPP-- ))
+do
+  for (( PPO=$SAT_PPO; PPO<=$MAX_PPO; PPO++ ))
+  do
+  echo $PYTHON $SCRIPT $BENCH -et=$ET -lpp=$LPP -ppo=$PPO -pap=$PAP
+  timeout $T $PYTHON $SCRIPT $BENCH -et=$ET -lpp=$LPP -ppo=$PPO -pap=$PAP
+  done
+done
+
 
