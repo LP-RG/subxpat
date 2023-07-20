@@ -27,7 +27,7 @@ class Synthesis:
         self.__partitioning_percentage = template_specs.partitioning_percentage
         if json_obj == sxpatconfig.UNSAT:
             print('ERROR!!! the json does not contain any models!')
-            exit()
+            exit(1)
         self.__json_model: json = json_obj
 
         self.__literal_per_product = template_specs.literals_per_product
@@ -156,7 +156,7 @@ class Synthesis:
 
     def __json_input_wire_declarations(self):
         graph_input_list = list(self.graph.subgraph_input_dict.values())
-        print(f'{graph_input_list = }')
+        # print(f'{graph_input_list = }')
 
         input_wire_list = f'//json input wires\n'
         input_wire_list += f'{sxpatconfig.VER_WIRE} '
@@ -243,7 +243,7 @@ class Synthesis:
 
         subgraph_input_list = list(self.graph.subgraph_input_dict.values())
         subgraph_input_list = self.__fix_order()
-        print(f'{subgraph_input_list = }')
+        # print(f'{subgraph_input_list = }')
 
         for idx in range(self.graph.subgraph_num_inputs):
             sub_to_json += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx} = ' \
@@ -253,14 +253,14 @@ class Synthesis:
         #     sub_to_json += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx} = ' \
         #                    f'{sxpatconfig.VER_WIRE_PREFIX}{subgraph_input_list[idx]};\n'
 
-        print(f'{sub_to_json = }')
+        # print(f'{sub_to_json = }')
 
         return sub_to_json
 
     def __json_model_lpp_and_subgraph_output_assigns(self):
         lpp_assigns = f'//json model assigns (approximated/XPATed part)\n'
         annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
-        print(f'{annotated_graph_output_list = }')
+        # print(f'{annotated_graph_output_list = }')
         lpp_assigns += f''
         for o_idx in range(self.graph.subgraph_num_outputs):
             p_o = f'{sxpatconfig.PRODUCT_PREFIX}{o_idx}'
@@ -294,20 +294,20 @@ class Synthesis:
             else:
                 lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{self.graph.subgraph_output_dict[o_idx]} = 0;\n'
 
-        print(f'{lpp_assigns = }')
+        # print(f'{lpp_assigns = }')
 
         return lpp_assigns
 
     def __intact_part_assigns(self):
         intact_part = f'// intact gates assigns\n'
-        print(f'{self.graph.graph_intact_gate_dict = }')
+        # print(f'{self.graph.graph_intact_gate_dict = }')
 
         for n_idx in self.graph.graph_intact_gate_dict.keys():
 
             n = self.graph.graph_intact_gate_dict[n_idx]
             pn = list(self.graph.graph.predecessors(n))
             gate = self.graph.graph.nodes[n][LABEL]
-            print(f'{pn = }')
+            # print(f'{pn = }')
             for idx, el in enumerate(pn):
                 if (el in list(self.graph.input_dict.values()) and el not in list(self.graph.subgraph_input_dict.values())) \
                     or el in list(self.graph.output_dict.values()):
@@ -315,7 +315,7 @@ class Synthesis:
                 else:
                     pn[idx] = f'{sxpatconfig.VER_WIRE_PREFIX}{el}'
 
-            print(f'{pn = }')
+            # print(f'{pn = }')
 
             if len(pn) == 1:
                 intact_part += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = {sxpatconfig.VER_NOT}{pn[0]};\n'
