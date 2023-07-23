@@ -54,18 +54,31 @@ def main():
     # find all the available ets
     for json_file in relevant_json:
         if re.search('et\d+', json_file):
-            et_array.append(re.search('et(\d+)', json_file).group(1))
+            et_array.append(int(re.search('et(\d+)', json_file).group(1)))
     et_array = sorted(set(et_array))
+
 
 
     for et in et_array:
         cur_runtime = 0
         cur_status = 'unsat'
+
+        json_file_path = f'{folder}/{specs_obj.benchmark_name}_lpp0_ppo1_{specs_obj.template_name}_et{et}.json'
+        print(f'{json_file_path = }')
+        if json_file_path in relevant_json:
+            cur_runtime += get_json_runtime(json_file_path)
+            cur_status = get_json_status(json_file_path)
+            print(f'{cur_status = }')
+            if not re.search('unsat', cur_status):
+                print(f'{et = }')
+                subxpat_runtime_dict[et] = (cur_runtime, 0, 1)
+                continue
         for ppo in range(1, specs_obj.ppo + 1):
             if cur_status == 'unsat':
                 for lpp in range(1, specs_obj.lpp + 1):
                     if cur_status == 'unsat':
                         json_file_path = f'{folder}/{specs_obj.benchmark_name}_lpp{lpp}_ppo{ppo}_{specs_obj.template_name}_et{et}.json'
+                        print(f'{json_file_path = }')
                         if json_file_path in relevant_json:
 
                             cur_runtime += get_json_runtime(json_file_path)
@@ -83,11 +96,28 @@ def main():
                                         cur_runtime += get_json_runtime(json_file_path)
                                         print(f'{this_lpp}, {this_ppo}')
                                 subxpat_runtime_dict[et] = (cur_runtime, cur_lpp, cur_ppo)
+                            else:
+                                if lpp == specs_obj.lpp and ppo == specs_obj.ppo:
+                                    print(f'final file')
+                                    subxpat_runtime_dict[et] = (cur_runtime, 'UNSAT')
                     else:
                         break
             else:
                 break
-        print(f'{subxpat_runtime_dict = }')
+
+
+    et_list = list(subxpat_runtime_dict.keys())
+    print(f'{et_list}')
+    et_list.sort()
+    print(f'{et_list}')
+
+
+
+    for key in subxpat_runtime_dict.keys():
+        print(f'{key} = {subxpat_runtime_dict[key]}')
+
+    for et in et_array:
+        print(subxpat_runtime_dict[et][0])
 
 
 
