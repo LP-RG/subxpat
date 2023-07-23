@@ -5,8 +5,7 @@ import re
 import networkx as nx
 import subprocess
 from subprocess import PIPE
-import colorama
-
+from colorama import Fore, Back, Style
 from itertools import repeat
 
 from Z3Log.graph import Graph
@@ -149,7 +148,6 @@ class Synthesis:
         """
         if use_graph and use_json_model:  # for SubXPAT
             verilog_str = self.__annotated_graph_to_verilog()
-            self.estimate_area()
         elif use_graph and not use_json_model:  # for general use
             verilog_str = self.__graph_to_verilog()
         elif not use_graph and use_json_model:  # for XPAT
@@ -482,16 +480,28 @@ class Synthesis:
 
     # =========================
     def estimate_area(self):
-        yosys_command = f"read_verilog;\n" \
+        yosys_command = f"read_verilog {self.ver_out_path};\n" \
                         f"synth -flatten;\n" \
                         f"opt;\n" \
                         f"opt_clean -purge;\n" \
-                        f"abc -liberty LIBPATH -script ABCSCRIPTPATH;\n" \
-                        f"stat -liberty LIBPATH;\n"
+                        f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                        f"stat -liberty {sxpatconfig.LIB_PATH};\n"
 
         process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
         if process.stderr:
-            raise Exception(f'YOSYS ERROR!!!\n {process.stderr.decode()}')
+            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}'+Style.RESET_ALL)
+        else:
+
+            if re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()):
+                area = re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()).group(1)
+
+            elif re.search(r"Don't call ABC as there is nothing to map", process.stdout.decode()):
+                area = 0
+            else:
+                raise Exception(Fore.RED +'Yosys ERROR!!!\nNo useful information in the stats log!'+Style.RESET_ALL)
+
+        return float(area)
+
 
     def estimate_power(self):
         pass

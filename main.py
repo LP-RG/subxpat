@@ -61,6 +61,9 @@ def main():
 
     synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model)
     synth_obj.export_verilog()
+    synth_obj.estimate_area()
+    synth_obj.estimate_power()
+    synth_obj.estimate_delay()
 
 
     # Verify the output verilog
