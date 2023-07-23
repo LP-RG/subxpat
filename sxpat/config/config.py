@@ -1,3 +1,7 @@
+# Synthesis with Yosys
+LIB_PATH='config/gscl45nm.lib'
+ABC_SCRIPT_PATH='config/abc.script'
+
 # TemplateSpecs constants
 #   properties
 NAME = 'name'
@@ -8,6 +12,8 @@ NUM_OF_MODELS = 'num_of_models'
 SUBXPAT = 'subxpat'
 TEMPLATE_SPEC_ET = 'et'
 PARTITIONING_PERCENTAGE = 'partitioning_percentage'
+
+
 
 
 #   NetworkX
