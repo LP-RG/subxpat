@@ -3,6 +3,10 @@ from typing import List, Dict, Callable, Iterable, Tuple
 import json
 import re
 import networkx as nx
+import subprocess
+from subprocess import PIPE
+import colorama
+
 from itertools import repeat
 
 from Z3Log.graph import Graph
@@ -145,6 +149,7 @@ class Synthesis:
         """
         if use_graph and use_json_model:  # for SubXPAT
             verilog_str = self.__annotated_graph_to_verilog()
+            self.estimate_area()
         elif use_graph and not use_json_model:  # for general use
             verilog_str = self.__graph_to_verilog()
         elif not use_graph and use_json_model:  # for XPAT
@@ -195,8 +200,12 @@ class Synthesis:
                     assignment += self.__get_fanin_cone(s_n, visited)
 
         if len(succ_n_list) == 2:
-            gate_1 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}' if succ_n_list[0] not in self.graph.input_dict.values() else succ_n_list[0]
-            gate_2 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[1]}' if succ_n_list[1] not in self.graph.input_dict.values() else succ_n_list[1]
+            gate_1 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}' if succ_n_list[
+                                                                             0] not in self.graph.input_dict.values() else \
+            succ_n_list[0]
+            gate_2 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[1]}' if succ_n_list[
+                                                                             1] not in self.graph.input_dict.values() else \
+            succ_n_list[1]
             if self.graph.graph.nodes[n][LABEL] == sxpatconfig.AND:
                 operator = sxpatconfig.VER_AND
             elif self.graph.graph.nodes[n][LABEL] == sxpatconfig.OR:
@@ -205,7 +214,9 @@ class Synthesis:
             assignment += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = " \
                           f"{gate_1} {operator} {gate_2};\n"
         else:
-            gate_1 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}' if succ_n_list[0] not in self.graph.input_dict.values() else succ_n_list[0]
+            gate_1 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}' if succ_n_list[
+                                                                             0] not in self.graph.input_dict.values() else \
+            succ_n_list[0]
             assignment += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = ~{gate_1};\n"
         return assignment
 
@@ -309,8 +320,9 @@ class Synthesis:
             gate = self.graph.graph.nodes[n][LABEL]
             # print(f'{pn = }')
             for idx, el in enumerate(pn):
-                if (el in list(self.graph.input_dict.values()) and el not in list(self.graph.subgraph_input_dict.values())) \
-                    or el in list(self.graph.output_dict.values()):
+                if (el in list(self.graph.input_dict.values()) and el not in list(
+                        self.graph.subgraph_input_dict.values())) \
+                        or el in list(self.graph.output_dict.values()):
                     pass
                 else:
                     pn[idx] = f'{sxpatconfig.VER_WIRE_PREFIX}{el}'
@@ -341,7 +353,6 @@ class Synthesis:
         for n in self.graph.output_dict.values():
             pn = list(self.graph.graph.predecessors(n))
             gate = self.graph.graph.nodes[n][LABEL]
-
 
             if len(pn) == 1:
                 if gate == sxpatconfig.NOT:
@@ -468,6 +479,27 @@ class Synthesis:
 
     def __graph_to_verilog(self):
         pass
+
+    # =========================
+    def estimate_area(self):
+        yosys_command = f"read_verilog;\n" \
+                        f"synth -flatten;\n" \
+                        f"opt;\n" \
+                        f"opt_clean -purge;\n" \
+                        f"abc -liberty LIBPATH -script ABCSCRIPTPATH;\n" \
+                        f"stat -liberty LIBPATH;\n"
+
+        process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
+        if process.stderr:
+            raise Exception(f'YOSYS ERROR!!!\n {process.stderr.decode()}')
+
+    def estimate_power(self):
+        pass
+
+    def estimate_delay(self):
+        pass
+
+    # =========================
 
     def export_verilog(self):
         with open(self.ver_out_path, 'w') as f:
