@@ -193,14 +193,28 @@ class Synthesis:
     def __json_model_wire_declarations_shared(self):
         wire_list = f'//json model\n'
         wire_list += f'wire '
-        for o_idx in range(self.graph.subgraph_num_outputs):
+        for n in self.graph.output_dict.values():
+            pn = list(self.graph.graph.predecessors(n)) #g17
+            wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{pn[0]}_{sxpatconfig.SHARED_PRODUCT_PREFIX}'
+            if n == self.graph.subgraph_num_outputs - 1:
+                wire_list += ';\n'
+            else:
+                wire_list += ', '
+        
+        for out_idx in range(self.graph.subgraph_num_outputs):
             for pit_idx in range(self.pit):
-                wire_list += f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx}'
-
-                if pit_idx == self.pit - 1 and o_idx == self.graph.subgraph_num_outputs - 1:
+                wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{out_idx}'
+                if pit_idx == self.pit - 1 and n == self.graph.subgraph_num_outputs - 1:
                     wire_list += ';\n'
                 else:
                     wire_list += ', '
+        for pit_idx in range(self.pit):
+                wire_list += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}'
+                if pit_idx == self.pit - 1:
+                    wire_list += ';\n'
+                else:
+                    wire_list += ', '
+
         return wire_list
 
     def __subgraph_inputs_assigns(self):
@@ -248,45 +262,42 @@ class Synthesis:
 
         return lpp_assigns
 
-    def __json_model_lpp_and_subgraph_output_assigns_shared(self):
+    def __json_model_lpp_product_assigns_shared(self):
 
-        #find error (duplicated info in ver)
-        lpp_assigns = f'//json model assigns (approximated Shared/XPAT part)\n'
-        annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
-        lpp_assigns += f''
-        for o_idx in range(self.graph.subgraph_num_outputs):
-            p_o = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx}'
+        lpp_assigns = f'\n'
+        lpp_assigns += f'//json model assigns (approximated Shared/XPAT part)\n'
+        lpp_assigns += f'//assign literals to products\n'
+        o_idx = self.graph.subgraph_num_outputs
+        included_products = []
 
-            if self.json_model[p_o]:
-                #p_pr0_o0
-                included_products = []
-                for pit_idx in range(self.pit):
-                    included_products.append(f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx}')
+        for pit_idx in range(self.pit):
+            included_products.append(f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx}')
 
-                for pit_idx in range(self.pit):
-                    included_literals = []
-                    for input_idx in range(self.graph.subgraph_num_inputs):
-                        p_s = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{sxpatconfig.SELECT_PREFIX}'
-                        p_l = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{sxpatconfig.LITERAL_PREFIX}'
+            included_literals = []
+            for input_idx in range(self.graph.subgraph_num_inputs):
+                p_s = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{sxpatconfig.SELECT_PREFIX}'
+                p_l = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{sxpatconfig.LITERAL_PREFIX}'
 
-                        if self.json_model[p_s]:
-                            if self.json_model[p_l]:
-                                included_literals.append(
-                                    f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{input_idx}')
-                            else:
-                                included_literals.append(
-                                    f'{sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{input_idx}')
-                    if included_literals:
-                        lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx} = ' \
-                                       f"{' & '.join(included_literals)};\n"    
+                if self.json_model[p_s]:
+                    if self.json_model[p_l]:
+                        included_literals.append(
+                            f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{input_idx}')
                     else:
-                        lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx} = 1;\n'
-
-                lpp_assigns += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{self.graph.subgraph_output_dict[o_idx]} = {' | '.join(included_products)};\n"
+                        included_literals.append(
+                            f'{sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{input_idx}')
+            if included_literals:
+                lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx} = ' \
+                                f"{' & '.join(included_literals)};\n"    
             else:
-                lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{self.graph.subgraph_output_dict[o_idx]} = 0;\n'
+                lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx} = 0;\n'
 
         return lpp_assigns
+
+
+    def __json_model_product_to_output_assigns_shared(self):
+        pto_assigns = 'f'
+
+        return pto_assigns
 
     def __intact_part_assigns(self):
         intact_part = f'// intact gates assigns\n'
@@ -321,13 +332,12 @@ class Synthesis:
             pn = list(self.graph.graph.predecessors(n))
             gate = self.graph.graph.nodes[n][LABEL]
 
-
             if len(pn) == 1:
                 if gate == sxpatconfig.NOT:
-                    output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}{pn[0]};\n'
+                    output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}{pn[0]}_{sxpatconfig.SHARED_PRODUCT_PREFIX};\n'
                 else:
 
-                    output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_WIRE_PREFIX}{pn[0]};\n'
+                    output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_WIRE_PREFIX}{pn[0]}_{sxpatconfig.SHARED_PRODUCT_PREFIX};\n'
             elif len(pn) == 2:
                 if gate == sxpatconfig.AND:
                     output_assigns += f'{sxpatconfig.VER_ASSIGN}  = ' \
@@ -406,12 +416,16 @@ class Synthesis:
         subgraph_inputs_assigns = self.__subgraph_inputs_assigns()
         # json_model_and_subgraph_outputs_assigns
         json_model_and_subgraph_outputs_assigns = self.__json_model_lpp_and_subgraph_output_assigns()
+
+        #json_model_product_to_output_assigns_shared
+        json_model_product_to_output_assigns_shared = self.__json_model_product_to_output_assigns_shared
+
         # the intact assings
         intact_assigns = self.__intact_part_assigns()
         # output assings
         output_assings = self.__output_assigns()
 
-        assigns = subgraph_inputs_assigns + json_model_and_subgraph_outputs_assigns + intact_assigns + output_assings
+        assigns = subgraph_inputs_assigns + json_model_and_subgraph_outputs_assigns + json_model_product_to_output_assigns_shared + intact_assigns + output_assings
 
         # assignments
 
@@ -430,6 +444,7 @@ class Synthesis:
         # 1) extract inputs and outputs
         input_list = list(self.graph.subgraph_input_dict.values())
         input_list = self.sort_list(input_list)
+        
 
         output_list = list(self.graph.output_dict.values())
         output_list = self.sort_list(output_list)
@@ -437,7 +452,6 @@ class Synthesis:
         # define module signature
         module_name = self.ver_out_name[:-2]
         module_signature = f"{sxpatconfig.VER_MODULE} {module_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
-
 
         # 2) declare inputs
         input_declarations = f'// declaring inputs\n'
@@ -471,7 +485,7 @@ class Synthesis:
 
         
         # json_model_and_subgraph_outputs_assigns
-        json_model_and_subgraph_outputs_assigns = self.__json_model_lpp_and_subgraph_output_assigns_shared()
+        json_model_and_subgraph_outputs_assigns = self.__json_model_lpp_product_assigns_shared()
 
         # shared logic assigns
         shared_assigns = self.__shared_logic_assigns()
@@ -491,18 +505,53 @@ class Synthesis:
 
     def __shared_logic_assigns(self):
 
-        shared_assigns = f'//JSON model shared assign'
+        shared_assigns = f'//if a product has literals and if the product is being "activated" for that output'
         shared_assigns += f'\n'
         for o_idx in range(self.graph.subgraph_num_outputs):
-            p_o = f'{sxpatconfig.PRODUCT_PREFIX}{o_idx}'
+           
             for pit_idx in range(self.pit):
-                shared_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx} = '
-                if self.json_model[p_o]:
-                    shared_assigns += f'1 '
+                json_output = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx}'
+                shared_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx} = '
+                shared_assigns += f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx} '        
+                if self.json_model[json_output]:
+                    shared_assigns += f'{sxpatconfig.VER_AND} 1'   
                 else:
-                    shared_assigns += f'0 '
-                shared_assigns += f'{sxpatconfig.VER_AND} {sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}'
-                shared_assigns += ';\n'
+                    shared_assigns += f'{sxpatconfig.VER_AND} 0'    
+                shared_assigns += ';\n'   
+
+        shared_assigns += f'//compose an output with corresponding products (OR)'
+        shared_assigns += f'\n'
+        #assign OR products in output
+        annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
+        output_quantity = 0
+        for item in annotated_graph_output_list:
+            shared_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{item} = '
+            pit_quantity = self.pit
+            for pit_idx in range(self.pit):    
+                shared_assigns +=  f'{sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.SHARED_PRODUCT_PREFIX}{pit_idx}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{output_quantity}'     
+                if pit_quantity == 1:
+                    shared_assigns += ';\n'     
+                else:
+                    shared_assigns += f' {sxpatconfig.VER_OR} '
+                pit_quantity -= 1 
+            output_quantity +=1
+
+        shared_assigns += f'//if an output has products and if it is part of the JSON model'
+        shared_assigns += f'\n'
+        o_idx = 0
+        for n in self.graph.output_dict.values():
+            pn = list(self.graph.graph.predecessors(n)) #g17
+            shared_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{pn[0]}_{sxpatconfig.SHARED_PRODUCT_PREFIX} = {sxpatconfig.VER_WIRE_PREFIX}{pn[0]} {sxpatconfig.VER_AND} '
+            json_output_p_o = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx}'
+            o_idx += 1
+            print(f'HEREEEE')
+            print(f'{json_output_p_o}')
+            print(f'{self.json_model[json_output_p_o]}')
+            if self.json_model[json_output_p_o]:
+                shared_assigns += f'1'   
+            else:
+                shared_assigns += f'0'    
+            shared_assigns += ';\n'   
 
         return shared_assigns
 
@@ -532,7 +581,7 @@ class Synthesis:
 
         json_model_inputs = f"// JSON model input assign\n"
         for item in annotated_graph_input_list:
-            json_model_inputs += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE}_{item} = {item};\n"
+            json_model_inputs += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{item} = {item};\n"
 
         return json_model_inputs
 
