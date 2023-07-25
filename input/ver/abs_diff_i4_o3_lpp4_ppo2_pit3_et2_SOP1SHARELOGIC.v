@@ -8,29 +8,28 @@ wire w_in3, w_in2, w_in1, w_in0;
 // JSON model output
 wire w_g17, w_g21;
 //json model
-wire p_pr0_o0, p_pr1_o0, p_pr2_o0, p_pr0_o1, p_pr1_o1, p_pr2_o1;
+wire w_g17_pr, w_g21_pr, w_pr0_o0, w_pr1_o0, w_pr2_o0, w_pr0_o1, w_pr1_o1, w_pr2_o1, w_pr0, w_pr1, w_pr2;
 // JSON model input assign
-assign wire_in3 = in3;
-assign wire_in2 = in2;
-assign wire_in1 = in1;
-assign wire_in0 = in0;
+assign w_in3 = in3;
+assign w_in2 = in2;
+assign w_in1 = in1;
+assign w_in0 = in0;
 //json model assigns (approximated Shared/XPAT part)
-assign p_pr0 = w_in1 & ~w_in3;
-assign p_pr1 = ~w_in1 & w_in2;
-assign p_pr2 = 1;
-assign w_g17 = p_pr0_o0 | p_pr1_o0 | p_pr2_o0;
-assign p_pr0 = w_in1 & ~w_in3;
-assign p_pr1 = ~w_in1 & w_in2;
-assign p_pr2 = 1;
-assign w_g21 = p_pr0_o1 | p_pr1_o1 | p_pr2_o1;
+assign w_pr0 = w_in1 & ~w_in3;
+assign w_pr1 = ~w_in1 & w_in2;
+assign w_pr2 = 0;
 //JSON model shared assign
-assign p_pr0_o0 = 1 & p_pr0;
-assign p_pr1_o0 = 1 & p_pr1;
-assign p_pr2_o0 = 1 & p_pr2;
-assign p_pr0_o1 = 1 & p_pr0;
-assign p_pr1_o1 = 1 & p_pr1;
-assign p_pr2_o1 = 1 & p_pr2;
+assign w_pr0_o0 = w_pr0 & 1;
+assign w_pr1_o0 = w_pr1 & 1;
+assign w_pr2_o0 = w_pr2 & 0;
+assign w_pr0_o1 = w_pr0 & 1;
+assign w_pr1_o1 = w_pr1 & 0;
+assign w_pr2_o1 = w_pr2 & 0;
+assign w_g17 = ppr0_o0 | ppr1_o0 | ppr2_o0;
+assign w_g21 = ppr0_o1 | ppr1_o1 | ppr2_o1;
+assign w_g17_pr = w_g17 & 1;
+assign w_g21_pr = w_g21 & 1;
 // output assigns
-assign out0 = w_g17;
-assign out1 = w_g21;
+assign out0 = w_g17_pr;
+assign out1 = w_g21_pr;
 endmodule
