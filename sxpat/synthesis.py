@@ -26,6 +26,7 @@ class Synthesis:
         self.__benchmark_name = template_specs.benchmark_name
         self.__template_name = template_specs.template_name
         self.__template_name = template_specs.template_name
+        self.__iterations = template_specs.iterations
         self.__graph: AnnotatedGraph = graph_obj
         self.__partitioning_percentage = template_specs.partitioning_percentage
         if json_obj == sxpatconfig.UNSAT:
@@ -62,8 +63,20 @@ class Synthesis:
     def benchmark_name(self):
         return self.__benchmark_name
 
+    @benchmark_name.setter
+    def benchmark_name(self, this_name):
+        self.__benchmark_name = this_name
+
     @property
-    def graph(self):
+    def iterations(self):
+        return self.__iterations
+
+    @iterations.setter
+    def iterations(self, this_iteration: int):
+        self.__iterations = this_iteration
+
+    @property
+    def current_graph(self):
         return self.__graph
 
     @property
@@ -126,6 +139,10 @@ class Synthesis:
     def ver_out_path(self):
         return self.__ver_out_path
 
+    @ver_out_path.setter
+    def ver_out_path(self, this_path: str):
+        self.__ver_out_path = this_path
+
     @property
     def verilog_string(self):
         return self.__verilog_string
@@ -136,13 +153,13 @@ class Synthesis:
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extenstion = this_path
-        self.ver_out_name = f'{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}.{extenstion}'
-        return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}.{extenstion}'
+        self.ver_out_name = f'{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
+        return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
 
     def convert_to_verilog(self, use_graph: bool = use_graph, use_json_model: bool = use_json_model):
         """
-        converts the graph and/or the json model into a Verilog string
-        :param use_graph: if set to true, the graph is used
+        converts the current_graph and/or the json model into a Verilog string
+        :param use_graph: if set to true, the current_graph is used
         :param use_json_model: if set to true, the json model is used
         :return: a Verilog description in the form of a String object
         """
@@ -153,7 +170,7 @@ class Synthesis:
         elif not use_graph and use_json_model:  # for XPAT
             verilog_str = self.__json_model_to_verilog()
         else:
-            print(f'ERROR!!! the graph or json model cannot be converted into a Verilog script!')
+            print(f'ERROR!!! the current_graph or json model cannot be converted into a Verilog script!')
             exit()
         return verilog_str
 
@@ -258,7 +275,7 @@ class Synthesis:
             sub_to_json += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx} = ' \
                            f'{sxpatconfig.VER_WIRE_PREFIX}{subgraph_input_list[idx]};\n'
 
-        # for idx in range(self.graph.num_inputs, self.graph.subgraph_num_inputs):
+        # for idx in range(self.current_graph.num_inputs, self.current_graph.subgraph_num_inputs):
         #     sub_to_json += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx} = ' \
         #                    f'{sxpatconfig.VER_WIRE_PREFIX}{subgraph_input_list[idx]};\n'
 
@@ -309,7 +326,7 @@ class Synthesis:
 
     def __intact_part_assigns(self):
         intact_part = f'// intact gates assigns\n'
-        # print(f'{self.graph.graph_intact_gate_dict = }')
+        # print(f'{self.current_graph.graph_intact_gate_dict = }')
 
         for n_idx in self.graph.graph_intact_gate_dict.keys():
 
@@ -511,9 +528,13 @@ class Synthesis:
 
     # =========================
 
-    def export_verilog(self):
-        with open(self.ver_out_path, 'w') as f:
-            f.writelines(self.verilog_string)
+    def export_verilog(self, this_path: str = None):
+        if this_path:
+            with open(f'{this_path}/{self.ver_out_name}', 'w') as f:
+                f.writelines(self.verilog_string)
+        else:
+            with open(self.ver_out_path, 'w') as f:
+                f.writelines(self.verilog_string)
 
     def __repr__(self):
         return f'An object of class Synthesis:\n' \

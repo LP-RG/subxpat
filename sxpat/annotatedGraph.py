@@ -124,8 +124,8 @@ class AnnotatedGraph(Graph):
 
     def extract_subgraph(self):
         """
-        extracts a colored subgraph from the original non-partitioned graph object
-        :return: an annotated graph in which the extracted subgraph is colored
+        extracts a colored subgraph from the original non-partitioned current_graph object
+        :return: an annotated current_graph in which the extracted subgraph is colored
         """
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
@@ -147,7 +147,7 @@ class AnnotatedGraph(Graph):
 
     def export_annotated_graph(self):
         """
-        exports the subgraph (annotated graph) to a GV (GraphViz) file
+        exports the subgraph (annotated current_graph) to a GV (GraphViz) file
         :return:
         """
         with open(self.subgraph_out_path, 'w') as f:
@@ -163,7 +163,7 @@ class AnnotatedGraph(Graph):
 
 
     # TODO: fix checks!
-    # The checks are done on the original graph instead of the annotated graph!
+    # The checks are done on the original current_graph instead of the annotated current_graph!
     def export_node(self, n, file_handler: 'class _io.TextIOWrapper'):
         """
         exports node n as a line of file that is identified by file_hanlder

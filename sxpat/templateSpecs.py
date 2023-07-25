@@ -4,6 +4,7 @@ from .config.config import *
 class TemplateSpecs:
     def __init__(self, **kwargs):
         self.__template_name: str = kwargs[NAME].upper()
+        self.__exact_benchamrk_name: str = kwargs[EXACT]
         self.__benchamrk_name: str = kwargs[BENCHMARK]
         self.__literals_per_product: int = int(kwargs[LITERALS_PER_PRODUCT])
         self.__products_per_output: int = int(kwargs[PRODUCTS_PER_OUTPUT])
@@ -11,6 +12,7 @@ class TemplateSpecs:
         self.__num_of_models = kwargs[NUM_OF_MODELS]
         self.__error_threshold = kwargs[TEMPLATE_SPEC_ET]
         self.__partitioning_percentage = kwargs[PARTITIONING_PERCENTAGE]
+        self.__iterations = kwargs[ITERATIONS]
 
     @property
     def partitioning_percentage(self):
@@ -25,8 +27,16 @@ class TemplateSpecs:
         return self.__template_name
 
     @property
+    def exact_benchmark(self):
+        return self.__exact_benchamrk_name
+
+    @property
     def benchmark_name(self):
         return self.__benchamrk_name
+
+    @benchmark_name.setter
+    def benchmark_name(self, this_name):
+        self.__benchamrk_name = this_name
 
     @property
     def literals_per_product(self):
@@ -49,6 +59,14 @@ class TemplateSpecs:
         return self.__subxpat
 
     @property
+    def iterations(self):
+        return self.__iterations
+
+    @iterations.setter
+    def iterations(self, this_iteration: int):
+        self.__iterations = this_iteration
+
+    @property
     def num_of_models(self):
         return self.__num_of_models
 
@@ -66,4 +84,5 @@ class TemplateSpecs:
                f'{self.subxpat = }\n' \
                f'{self.num_of_models = }\n' \
                f'{self.et = }\n' \
-               f'{self.partitioning_percentage = }\n'
+               f'{self.partitioning_percentage = }\n' \
+               f'{self.iterations = }\n'
