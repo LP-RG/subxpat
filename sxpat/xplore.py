@@ -61,7 +61,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         for lpp in range(max_lpp + 1):
 
-            for i in range(1, total_iterations):
+            for i in range(1, total_iterations + 1):
                 if lpp == 0 and ppo > 1:
                     # print(Fore.BLUE + f'skipping over ({lpp}, {ppo}) and so on...')
                     break
@@ -95,7 +95,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                     print(Fore.GREEN + f'Dominant SAT Cell = ({cur_lpp}, {cur_ppo}) iteration = {i}', end='')
                     print(f' -> [area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})]' + Style.RESET_ALL)
                     found = True
-                    exit()
                 else:
                     print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> UNSAT ' + Style.RESET_ALL)
                     break
@@ -110,9 +109,8 @@ def explore_grid(specs_obj: TemplateSpecs):
         print(Fore.BLUE + f'Exploration of non-dominated cells started...' + Style.RESET_ALL)
 
         for ppo in range(cur_ppo + 1, max_ppo + 1):
-            for lpp in range(1, cur_lpp - 1):
-                print(Fore.BLUE + f'Cell({lpp}, {ppo})')
-                for i in range(1, total_iterations):
+            for lpp in range(1, cur_lpp):
+                for i in range(1, total_iterations + 1):
                     specs_obj.lpp = lpp
                     specs_obj.ppo = ppo
                     specs_obj.iterations = i
@@ -132,8 +130,13 @@ def explore_grid(specs_obj: TemplateSpecs):
                         if not erroreval_verification(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
                             raise Exception(Fore.RED + f'ErrorEval Verification: FAILED!' + Style.RESET_ALL)
                         specs_obj.benchmark_name = approximate_benchmark
-                        print(Fore.GREEN + f'Another SAT Cell = ({cur_lpp}, {cur_ppo})' + Style.RESET_ALL)
-
+                        print(Fore.GREEN + f'Dominant SAT Cell = ({cur_lpp}, {cur_ppo}) iteration = {i}', end='')
+                        print(
+                            f' -> [area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})]' + Style.RESET_ALL)
+                        found = True
+                    else:
+                        print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> UNSAT ' + Style.RESET_ALL)
+                        break
 
 
 
