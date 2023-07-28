@@ -1,5 +1,7 @@
 from typing import Dict, List, Callable
+from colorama import Fore, Style
 import networkx as nx
+import random
 from Z3Log.graph import Graph
 from Z3Log.verilog import Verilog
 from Z3Log.utils import *
@@ -15,12 +17,9 @@ class AnnotatedGraph(Graph):
         convert_verilog_to_gv(benchmark_name)
         super().__init__(benchmark_name, is_clean)
 
-
         self.set_output_dict(self.sort_dict(self.output_dict))
 
-
         self.__partitioning_percentage = partitioning_percentage
-
 
         self.__subgraph = self.extract_subgraph()
 
@@ -109,11 +108,6 @@ class AnnotatedGraph(Graph):
 
         return sorted_dict
 
-
-
-
-
-
     def __repr__(self):
         return f'An object of class AnnotatedGraph:\n' \
                f'{self.name = }\n' \
@@ -124,8 +118,8 @@ class AnnotatedGraph(Graph):
 
     def extract_subgraph(self):
         """
-        extracts a colored subgraph from the original non-partitioned current_graph object
-        :return: an annotated current_graph in which the extracted subgraph is colored
+        extracts a colored subgraph from the original non-partitioned graph object
+        :return: an annotated graph in which the extracted subgraph is colored
         """
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
@@ -134,9 +128,10 @@ class AnnotatedGraph(Graph):
         tmp_graph = self.graph.copy(as_view=False)
         for gate_idx in self.gate_dict:
 
-            partition_limit_idx = int(self.num_gates * (self.pp/100))
+            random_starting_position = random.randint(0, self.num_gates)
+            partition_limit_idx = int(self.num_gates * (self.pp / 100))
             # print(f'{self.pp}% is {partition_limit_idx = } out of {self.num_gates}')
-
+            random_starting_position = random.randint(0, self.num_gates)
             if gate_idx <= partition_limit_idx:
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
@@ -147,7 +142,7 @@ class AnnotatedGraph(Graph):
 
     def export_annotated_graph(self):
         """
-        exports the subgraph (annotated current_graph) to a GV (GraphViz) file
+        exports the subgraph (annotated graph) to a GV (GraphViz) file
         :return:
         """
         with open(self.subgraph_out_path, 'w') as f:
@@ -161,9 +156,8 @@ class AnnotatedGraph(Graph):
         folder, extension = OUTPUT_PATH[GV]
         subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
 
-
     # TODO: fix checks!
-    # The checks are done on the original current_graph instead of the annotated current_graph!
+    # The checks are done on the original graph instead of the annotated graph!
     def export_node(self, n, file_handler: 'class _io.TextIOWrapper'):
         """
         exports node n as a line of file that is identified by file_hanlder
@@ -217,6 +211,7 @@ class AnnotatedGraph(Graph):
         :param n: a node
         :return: True if node n belongs to the subgraph, otherwise returns False
         """
+
         if SUBGRAPH in self.subgraph.nodes[n]:
             if self.subgraph.nodes[n][SUBGRAPH] == 1:
                 return True
@@ -266,7 +261,6 @@ class AnnotatedGraph(Graph):
                 if not self.is_subgraph_member(sn):
                     return True
         return False
-
 
     # TODO:
     # This part should generate a comment in verilog expressing:
@@ -343,7 +337,7 @@ class AnnotatedGraph(Graph):
         # print(f'{tmp_output_dict = }')
         return tmp_output_dict
 
-    #TODO
+    # TODO
     # Deprecated
     def extract_subgraph_fanin(self):
         tmp_fanin_dict: Dict[int, str] = {}
@@ -366,5 +360,3 @@ class AnnotatedGraph(Graph):
                 idx += 1
                 self.color_subgraph_node(n, WHITE)
         return tmp_fanout_dict
-
-

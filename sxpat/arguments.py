@@ -10,11 +10,12 @@ class Arguments(Arguments):
         super().__init__(tmp_args)
         self.__literal_per_product: int = tmp_args.lpp
         self.__product_per_output: int = tmp_args.ppo
-        self.__subxpat: bool = bool(tmp_args.subxpat)
+        self.__subxpat: bool = tmp_args.subxpat
         self.__error_threshold: int = tmp_args.et
         self.__clean: bool = tmp_args.clean
         self.__partitioning_percentage = tmp_args.partitioning_percentage
         self.__iterations = tmp_args.iterations
+        self.__grid: bool = tmp_args.grid
 
     @property
     def partitioning_percentage(self):
@@ -53,6 +54,10 @@ class Arguments(Arguments):
         return self.__iterations
 
     @property
+    def grid(self):
+        return self.__grid
+
+    @property
     def clean(self):
         return self.__clean
 
@@ -86,8 +91,8 @@ class Arguments(Arguments):
                                type=int,
                                help='number-of-monte-carlo-samples')
 
-        my_parser.add_argument('--subxpat', '-subxpat',
-                               type=str,
+        my_parser.add_argument('--subxpat',
+                               type=bool,
                                default=True,
                                help='activate-subxpat')
 
@@ -129,6 +134,10 @@ class Arguments(Arguments):
                                type=int,
                                default=1)
 
+        my_parser.add_argument('--grid',
+                               type=bool,
+                               default=False)
+
         my_parser.add_argument('--clean',
                                type=bool,
                                default=False)
@@ -145,4 +154,5 @@ class Arguments(Arguments):
                f'{self.et = }\n' \
                f'{self.clean = }\n' \
                f'{self.partitioning_percentage = }\n' \
-               f'{self.iterations = }\n'
+               f'{self.iterations = }\n' \
+               f'{self.grid = }'

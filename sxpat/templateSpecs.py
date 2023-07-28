@@ -46,6 +46,10 @@ class TemplateSpecs:
     def lpp(self):
         return self.__literals_per_product
 
+    @lpp.setter
+    def lpp(self, this_lpp):
+        self.__literals_per_product = this_lpp
+
     @property
     def products_per_output(self):
         return self.__products_per_output
@@ -53,6 +57,10 @@ class TemplateSpecs:
     @property
     def ppo(self):
         return self.__products_per_output
+
+    @ppo.setter
+    def ppo(self, this_ppo):
+        self.__products_per_output = this_ppo
 
     @property
     def subxpat(self):
@@ -78,6 +86,7 @@ class TemplateSpecs:
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \
                f'{self.template_name = }\n' \
+               f'{self.exact_benchmark = }\n' \
                f'{self.benchmark_name = }\n' \
                f'{self.lpp = }\n' \
                f'{self.ppo = }\n' \
