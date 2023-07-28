@@ -24,32 +24,30 @@ class Synthesis:
     # follow, inputs, red, white, outputs notation in the Verilog generation
     def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj=None):
         self.__benchmark_name = template_specs.benchmark_name
-        self.__template_name = template_specs.template_name
+        self.__exact_benchmark_name = template_specs.exact_benchmark
         self.__template_name = template_specs.template_name
         self.__iterations = template_specs.iterations
-        self.__graph: AnnotatedGraph = graph_obj
-        self.__partitioning_percentage = template_specs.partitioning_percentage
-        if json_obj == sxpatconfig.UNSAT:
-            print('ERROR!!! the json does not contain any models!')
-            exit(1)
-        self.__json_model: json = json_obj
-
         self.__literal_per_product = template_specs.literals_per_product
         self.__product_per_output = template_specs.products_per_output
         self.__error_threshold = template_specs.et
+        self.__graph: AnnotatedGraph = graph_obj
+        self.__partitioning_percentage = template_specs.partitioning_percentage
+        if json_obj == sxpatconfig.UNSAT:
+            print(Fore.RED + 'ERROR!!! the json does not contain any models!' + Style.RESET_ALL)
+        else:
+            self.__json_model: json = json_obj
+            self.__use_json_model: bool = None
+            self.__use_graph: bool = None
 
-        self.__use_json_model: bool = None
-        self.__use_graph: bool = None
+            folder, extension = sxpatpaths.OUTPUT_PATH[sxpatconfig.JSON]
+            self.__json_in_path: str = None
+            folder, extension = OUTPUT_PATH[sxpatconfig.GV]
+            self.__graph_in_path: str = None
 
-        folder, extension = sxpatpaths.OUTPUT_PATH[sxpatconfig.JSON]
-        self.__json_in_path: str = None
-        folder, extension = OUTPUT_PATH[sxpatconfig.GV]
-        self.__graph_in_path: str = None
+            self.__ver_out_name: str = None
+            self.__ver_out_path: str = self.set_path(OUTPUT_PATH['ver'])
 
-        self.__ver_out_name: str = None
-        self.__ver_out_path: str = self.set_path(OUTPUT_PATH['ver'])
-
-        self.__verilog_string: str = self.convert_to_verilog()
+            self.__verilog_string: str = self.convert_to_verilog()
 
     @property
     def partitioning_percentage(self):
@@ -68,6 +66,10 @@ class Synthesis:
         self.__benchmark_name = this_name
 
     @property
+    def exact_name(self):
+        return self.__exact_benchmark_name
+
+    @property
     def iterations(self):
         return self.__iterations
 
@@ -76,7 +78,7 @@ class Synthesis:
         self.__iterations = this_iteration
 
     @property
-    def current_graph(self):
+    def graph(self):
         return self.__graph
 
     @property
@@ -153,13 +155,14 @@ class Synthesis:
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extenstion = this_path
-        self.ver_out_name = f'{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
-        return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
+        self.ver_out_name = f'{self.exact_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
+        return self.ver_out_name
+        # return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
 
     def convert_to_verilog(self, use_graph: bool = use_graph, use_json_model: bool = use_json_model):
         """
-        converts the current_graph and/or the json model into a Verilog string
-        :param use_graph: if set to true, the current_graph is used
+        converts the graph and/or the json model into a Verilog string
+        :param use_graph: if set to true, the graph is used
         :param use_json_model: if set to true, the json model is used
         :return: a Verilog description in the form of a String object
         """
@@ -170,7 +173,7 @@ class Synthesis:
         elif not use_graph and use_json_model:  # for XPAT
             verilog_str = self.__json_model_to_verilog()
         else:
-            print(f'ERROR!!! the current_graph or json model cannot be converted into a Verilog script!')
+            print(f'ERROR!!! the graph or json model cannot be converted into a Verilog script!')
             exit()
         return verilog_str
 
@@ -275,7 +278,7 @@ class Synthesis:
             sub_to_json += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx} = ' \
                            f'{sxpatconfig.VER_WIRE_PREFIX}{subgraph_input_list[idx]};\n'
 
-        # for idx in range(self.current_graph.num_inputs, self.current_graph.subgraph_num_inputs):
+        # for idx in range(self.graph.num_inputs, self.graph.subgraph_num_inputs):
         #     sub_to_json += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx} = ' \
         #                    f'{sxpatconfig.VER_WIRE_PREFIX}{subgraph_input_list[idx]};\n'
 
@@ -326,10 +329,25 @@ class Synthesis:
 
     def __intact_part_assigns(self):
         intact_part = f'// intact gates assigns\n'
-        # print(f'{self.current_graph.graph_intact_gate_dict = }')
+        # print(f'{self.graph.graph_intact_gate_dict = }')
+        # print(f'We are printing the constant assigns!!!==========================')
+        for n_idx in self.graph.constant_dict.keys():
+            n = self.graph.constant_dict[n_idx]
+
+            sn = list(self.graph.graph.successors(n))
+            Value = self.graph.graph.nodes[n][LABEL]
+
+            if Value.upper() == 'FALSE':
+                Value = "1'b0"
+            else:
+                Value = "1'b1"
+
+            intact_part += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = {Value};\n'
+            #
+            # for s in sn:
+            #     intact_part += f'{sxpatconfig.VER_ASSIGN} {s} = {Value};\n'
 
         for n_idx in self.graph.graph_intact_gate_dict.keys():
-
             n = self.graph.graph_intact_gate_dict[n_idx]
             pn = list(self.graph.graph.predecessors(n))
             gate = self.graph.graph.nodes[n][LABEL]
@@ -373,8 +391,12 @@ class Synthesis:
                 if gate == sxpatconfig.NOT:
                     output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}{pn[0]};\n'
                 else:
-
-                    output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_WIRE_PREFIX}{pn[0]};\n'
+                    # print(f'{pn = }')
+                    if pn[0] in list(self.graph.input_dict.values()) and pn[0] not in list(self.graph.subgraph_input_dict.values()):
+                        # print(f'We are here=============')
+                        output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {pn[0]};\n'
+                    else:
+                        output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_WIRE_PREFIX}{pn[0]};\n'
             elif len(pn) == 2:
                 if gate == sxpatconfig.AND:
                     output_assigns += f'{sxpatconfig.VER_ASSIGN}  = ' \
@@ -496,13 +518,21 @@ class Synthesis:
         pass
 
     # =========================
-    def estimate_area(self):
-        yosys_command = f"read_verilog {self.ver_out_path};\n" \
-                        f"synth -flatten;\n" \
-                        f"opt;\n" \
-                        f"opt_clean -purge;\n" \
-                        f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
-                        f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+    def estimate_area(self, this_path: str = None):
+        if this_path:
+            yosys_command = f"read_verilog {this_path};\n" \
+                            f"synth -flatten;\n" \
+                            f"opt;\n" \
+                            f"opt_clean -purge;\n" \
+                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                            f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+        else:
+            yosys_command = f"read_verilog {self.ver_out_path};\n" \
+                            f"synth -flatten;\n" \
+                            f"opt;\n" \
+                            f"opt_clean -purge;\n" \
+                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                            f"stat -liberty {sxpatconfig.LIB_PATH};\n"
 
         process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
         if process.stderr:

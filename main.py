@@ -35,6 +35,7 @@ def main():
     if args.clean:
         clean_all()
 
+
     setup_folder_structure()
     for key in OUTPUT_PATH.keys():
         directory = OUTPUT_PATH[key][0]
@@ -42,10 +43,25 @@ def main():
             os.makedirs(directory, exist_ok=True)
 
     specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp, products_per_output=args.ppo,
-                              benchmark_name=args.benchmark_name, num_of_models=1, subxpat=args.subxpat, et=args.et,
+                              benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat, et=args.et,
                               partitioning_percentage=args.partitioning_percentage, iterations=args.iterations)
 
-    explore_cell(specs_obj)
+    # ver_obj = Verilog(args.benchmark_name)
+    # print(f'{ver_obj = }')
+    # convert_verilog_to_gv(args.benchmark_name)
+    # graph_obj = Graph(args.benchmark_name, is_clean=False)
+    # graph_obj.export_graph()
+    # folder = 'output/gv'
+    # subprocess.run(f'dot -Tpng {folder}/{args.benchmark_name}.gv > {folder}/{args.benchmark_name}_subgraph.png', shell=True)
+    # print(f'{graph_obj = }')
+    # # exit()
+
+    if args.grid:
+        explore_grid(specs_obj)
+    else:
+        explore_cell(specs_obj)
+
+    # template_obj = Template_SOP1(specs_obj)
 
 
 if __name__ == "__main__":
