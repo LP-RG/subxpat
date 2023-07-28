@@ -56,8 +56,11 @@ def explore_grid(specs_obj: TemplateSpecs):
     cur_ppo = -1
     found = False
 
-    for ppo in range(1, specs_obj.ppo +1):
-        for lpp in range(specs_obj.lpp + 1):
+
+    for ppo in range(1, max_ppo + 1):
+
+        for lpp in range(max_lpp + 1):
+
             for i in range(1, total_iterations):
                 if lpp == 0 and ppo > 1:
                     # print(Fore.BLUE + f'skipping over ({lpp}, {ppo}) and so on...')
@@ -69,13 +72,17 @@ def explore_grid(specs_obj: TemplateSpecs):
                 template_obj.z3_generate_z3pyscript()
                 template_obj.run_z3pyscript(specs_obj.et)
 
+
+
                 if template_obj.import_json_model():
+
                     synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
                     if i > 1:
                         synth_obj.benchmark_name = specs_obj.exact_benchmark
                         synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
                     synth_obj.export_verilog()
                     synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
+
 
                     approximate_benchmark = synth_obj.ver_out_name[:-2]  # remove the extension
                     if not erroreval_verification(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
@@ -88,6 +95,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     print(Fore.GREEN + f'Dominant SAT Cell = ({cur_lpp}, {cur_ppo}) iteration = {i}', end='')
                     print(f' -> [area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})]' + Style.RESET_ALL)
                     found = True
+                    exit()
                 else:
                     print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> UNSAT ' + Style.RESET_ALL)
                     break
@@ -101,7 +109,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     if cur_lpp != -1 and cur_ppo != -1:
         print(Fore.BLUE + f'Exploration of non-dominated cells started...' + Style.RESET_ALL)
 
-        for ppo in range(cur_ppo + 1, max_lpp + 1):
+        for ppo in range(cur_ppo + 1, max_ppo + 1):
             for lpp in range(1, cur_lpp - 1):
                 print(Fore.BLUE + f'Cell({lpp}, {ppo})')
                 for i in range(1, total_iterations):

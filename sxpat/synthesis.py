@@ -156,7 +156,7 @@ class Synthesis:
     def set_path(self, this_path: Tuple[str, str]):
         folder, extenstion = this_path
         self.ver_out_name = f'{self.exact_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
-        return self.ver_out_name
+        return f'{folder}/{self.ver_out_name}'
         # return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
 
     def convert_to_verilog(self, use_graph: bool = use_graph, use_json_model: bool = use_json_model):
@@ -563,6 +563,7 @@ class Synthesis:
             with open(f'{this_path}/{self.ver_out_name}', 'w') as f:
                 f.writelines(self.verilog_string)
         else:
+
             with open(self.ver_out_path, 'w') as f:
                 f.writelines(self.verilog_string)
 
