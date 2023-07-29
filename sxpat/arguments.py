@@ -92,8 +92,7 @@ class Arguments(Arguments):
                                help='number-of-monte-carlo-samples')
 
         my_parser.add_argument('--subxpat',
-                               type=bool,
-                               default=True,
+                               action='store_true',
                                help='activate-subxpat')
 
         my_parser.add_argument('--approximate_benchmark', '-app',
@@ -130,16 +129,16 @@ class Arguments(Arguments):
                                default=10,
                                help='partitioning_percentage')
 
-        my_parser.add_argument('--iterations',
+        my_parser.add_argument('--iterations', '-iterations',
                                type=int,
                                default=1)
 
         my_parser.add_argument('--grid',
-                               type=bool,
+                               action="store_true",
                                default=False)
 
         my_parser.add_argument('--clean',
-                               type=bool,
+                               action="store_true",
                                default=False)
 
         tmp_args = my_parser.parse_args()

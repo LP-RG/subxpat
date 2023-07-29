@@ -1032,7 +1032,7 @@ class Template_SOP1(TemplateCreator):
         ppo_order += f'{TAB}{TAB}# set order of trees\n'
 
         if self.ppo == 1:
-            print(f'No need for ordering the PPOs!')
+            # print(f'No need for ordering the PPOs!')
             ppo_order += f'{TAB}{TAB}True, \n'
         else:
             for output_idx in range(self.current_graph.num_outputs):

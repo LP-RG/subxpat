@@ -25,14 +25,17 @@ def clean_all():
                    OUTPUT_PATH['json'][0]]
 
     for directory in directories:
-        shutil.rmtree(directory)
+        if os.path.exists(directory):
+            shutil.rmtree(directory)
         os.makedirs(directory, exist_ok=True)
 
 
 def main():
     args = Arguments.parse()
+    print(f'{args = }')
 
     if args.clean:
+        print(f'cleaning')
         clean_all()
 
 
