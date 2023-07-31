@@ -13,6 +13,7 @@ SUBXPAT = 'subxpat'
 TEMPLATE_SPEC_ET = 'et'
 PARTITIONING_PERCENTAGE = 'partitioning_percentage'
 ITERATIONS = 'iterations'
+GRID = 'grid'
 EXACT = 'exact'
 
 
