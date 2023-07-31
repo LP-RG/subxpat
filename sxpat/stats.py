@@ -371,8 +371,6 @@ class Stats:
     def plot_grid(self):
         pass
 
-    def plot_runtime(self):
-        pass
 
     def get_et_array(self):
         folder = f'experiments/area/muscat/{self.exact_name}'
@@ -419,7 +417,7 @@ class Stats:
 
                                         if re.search('SAT', this_entry[0]) and not re.search('UNSAT', this_entry[0]):
                                             area = float(this_entry[2])
-                                            print(f'{area = }')
+
                                             if min_area > area:
                                                 min_area = area
             if min_area == float('inf'):
@@ -460,8 +458,15 @@ class Stats:
         ax.set_title(f'{self.exact_name} area: SubXPAT vs. MUSCAT')
         et_list = self.get_et_array()
         muscat_area_list = self.get_muscat_area(et_list)
-        print(f'{muscat_area_list = }')
         subxpat_area_list = self.get_subxpat_area(et_list)
+
+
+        uncomputed_area = []
+        uncomputed_et = []
+        for idx, area in enumerate(subxpat_area_list):
+            if area == -1:
+                uncomputed_area.append(area)
+                uncomputed_et.append(et_list[idx])
 
 
 
@@ -471,14 +476,18 @@ class Stats:
         ax.plot(et_list, subxpat_area_list, label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
                 markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
+        ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
+                markeredgewidth=10, linestyle=None, linewidth=0, markersize = 8)
+
+        plt.xticks(et_list)
         plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure']}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure']}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.pdf"
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.pdf"
         plt.savefig(figurename_png)
         plt.savefig(figurename_pdf)
 
     def plot_runtime(self):
-        print(f'plotting area...')
+        print(f'plotting runtime...')
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Runtime')
@@ -491,9 +500,10 @@ class Stats:
         ax.plot(et_list, subxpat_runtime_list, label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
                 markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
+        plt.xticks(et_list)
         plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure']}/runtimes_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure']}/runtimes_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.pdf"
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/runtimes_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/runtimes_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.pdf"
         plt.savefig(figurename_png)
         plt.savefig(figurename_pdf)
 

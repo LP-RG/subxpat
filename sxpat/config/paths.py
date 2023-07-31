@@ -6,6 +6,6 @@ OUTPUT_PATH = {
     'area': ('output/area', 'txt'),
     'delay': ('output/delay', 'txt'),
     'power': ('output/delay', 'txt'),
-    'figure': 'output/figure'
+    'figure': ('output/figure', 'pdf')
 }
 

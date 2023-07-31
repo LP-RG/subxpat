@@ -17,7 +17,6 @@ from sxpat.stats import Stats
 from sxpat.stats import *
 
 
-
 def explore_cell(specs_obj: TemplateSpecs):
     print(
         Fore.BLUE + f'cell ({specs_obj.lpp}, {specs_obj.ppo}) and et={specs_obj.et} exploration started...' + Style.RESET_ALL)
@@ -74,10 +73,10 @@ def explore_grid(specs_obj: TemplateSpecs):
                 except:
 
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                            this_iteration=i,
-                                                                            this_area='',
-                                                                            this_runtime='',
-                                                                            this_status='Empty')
+                                                                    this_iteration=i,
+                                                                    this_area='',
+                                                                    this_runtime='',
+                                                                    this_status='Empty')
                     break
                 template_obj.z3_generate_z3pyscript()
                 template_obj.run_z3pyscript(specs_obj.et)
@@ -106,12 +105,12 @@ def explore_grid(specs_obj: TemplateSpecs):
                         f' -> [area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})]' + Style.RESET_ALL)
                     found = True
 
-
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                            this_iteration=i,
-                                                                            this_area=area,
-                                                                            this_runtime=runtime,
-                                                                            this_status='SAT')
+                                                                    this_iteration=i,
+                                                                    this_area=area,
+                                                                    this_runtime=runtime,
+                                                                    this_status='SAT')
+
 
                 else:
                     print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> UNSAT ' + Style.RESET_ALL)
@@ -120,10 +119,10 @@ def explore_grid(specs_obj: TemplateSpecs):
                     area = -1
 
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                            this_iteration=i,
-                                                                            this_area=area,
-                                                                            this_runtime=runtime,
-                                                                            this_status='UNSAT')
+                                                                    this_iteration=i,
+                                                                    this_area=area,
+                                                                    this_runtime=runtime,
+                                                                    this_status='UNSAT')
 
                     break
 
@@ -131,9 +130,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                 break
         if found:
             break
-
-
-
 
     if cur_lpp != -1 and cur_ppo != -1:
         print(Fore.BLUE + f'Exploration of non-dominated cells started...' + Style.RESET_ALL)
@@ -169,7 +165,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                         print(
                             f' -> [area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})]' + Style.RESET_ALL)
                         found = True
-                        stats_obj.grid.cells[cur_lpp][cur_ppo].store_model_info(this_model_id=0,
+                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
                                                                                 this_iteration=i,
                                                                                 this_area=area,
                                                                                 this_runtime=runtime,
@@ -177,7 +173,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     else:
                         runtime = template_obj.get_json_runtime()
                         area = -1
-                        stats_obj.grid.cells[cur_lpp][cur_ppo].store_model_info(this_model_id=0,
+                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
                                                                                 this_iteration=i,
                                                                                 this_area=area,
                                                                                 this_runtime=runtime,
@@ -187,5 +183,3 @@ def explore_grid(specs_obj: TemplateSpecs):
                         break
 
     stats_obj.store_grid()
-
-
