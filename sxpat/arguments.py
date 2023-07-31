@@ -16,6 +16,7 @@ class Arguments(Arguments):
         self.__partitioning_percentage = tmp_args.partitioning_percentage
         self.__iterations = tmp_args.iterations
         self.__grid: bool = tmp_args.grid
+        self.__multiple: bool = tmp_args.multiple
 
     @property
     def partitioning_percentage(self):
@@ -56,6 +57,10 @@ class Arguments(Arguments):
     @property
     def grid(self):
         return self.__grid
+
+    @property
+    def multiple(self):
+        return self.__multiple
 
     @property
     def clean(self):
@@ -137,6 +142,10 @@ class Arguments(Arguments):
                                action="store_true",
                                default=False)
 
+        my_parser.add_argument('--multiple',
+                               action="store_true",
+                               default=False)
+
         my_parser.add_argument('--clean',
                                action="store_true",
                                default=False)
@@ -154,4 +163,5 @@ class Arguments(Arguments):
                f'{self.clean = }\n' \
                f'{self.partitioning_percentage = }\n' \
                f'{self.iterations = }\n' \
-               f'{self.grid = }'
+               f'{self.grid = }\n' \
+               f'{self.multiple = }\n'

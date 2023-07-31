@@ -13,6 +13,7 @@ class TemplateSpecs:
         self.__error_threshold = kwargs[TEMPLATE_SPEC_ET]
         self.__partitioning_percentage = kwargs[PARTITIONING_PERCENTAGE]
         self.__iterations = kwargs[ITERATIONS]
+        self.__grid = kwargs[GRID]
 
     @property
     def partitioning_percentage(self):
@@ -75,6 +76,10 @@ class TemplateSpecs:
         self.__iterations = this_iteration
 
     @property
+    def grid(self):
+        return self.__grid
+
+    @property
     def num_of_models(self):
         return self.__num_of_models
 
@@ -94,4 +99,5 @@ class TemplateSpecs:
                f'{self.num_of_models = }\n' \
                f'{self.et = }\n' \
                f'{self.partitioning_percentage = }\n' \
-               f'{self.iterations = }\n'
+               f'{self.iterations = }\n' \
+               f'{self.grid = }\n'

@@ -198,10 +198,20 @@ class Template_SOP1(TemplateCreator):
                         self.json_model = UNSAT
                         return False
 
-    def run_z3pyscript(self, ET=2):
+    def get_json_runtime(self, this_id: int = 0):
+
+        with open(self.json_in_path, 'r') as f:
+            data = json.load(f)
+
+        for d in data:
+            for key in d.keys():
+                if key == "total_time":
+                    return float(d[key])
+
+    def run_z3pyscript(self, ET=2, timeout=1000):
         # print(f'{self.z3_out_path = }')
         # print(f'{ET = }')
-        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}'], stderr=PIPE, stdout=PIPE)
+        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}', f'{timeout}'], stderr=PIPE, stdout=PIPE)
         if process.stderr:
             print(Fore.RED + f"{process.stderr.decode()}" + Style.RESET_ALL)
             raise Exception(Fore.RED + f'ERROR!!! Cannot run file {self.z3_out_path}' + Style.RESET_ALL)
