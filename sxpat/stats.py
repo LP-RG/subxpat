@@ -398,13 +398,104 @@ class Stats:
 
         return area_array
 
+    def get_subxpat_area(self, et_array):
+        folder, extension = OUTPUT_PATH['report']
+        all_reports = [f for f in os.listdir(folder)]
+        area_array = []
+        for et in et_array:
+            min_area = float('inf')
+            for report in all_reports:
+                if re.search('grid', report) and re.search(f'{self.exact_name}', report):
+                    if re.search(f'.*et{et}.*', report):
+                        with open(f'{folder}/{report}', 'r') as f:
+                            rows = csv.reader(f)
+                            for cols in rows:
+                                if re.search('\(\d+X\d+\)', cols[0]):
+                                    for col_idx in range(1, self.iterations):
+
+                                        this_entry = cols[col_idx]
+
+                                        this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
+
+                                        if re.search('SAT', this_entry[0]) and not re.search('UNSAT', this_entry[0]):
+                                            area = float(this_entry[2])
+                                            print(f'{area = }')
+                                            if min_area > area:
+                                                min_area = area
+            if min_area == float('inf'):
+                min_area = -1
+            area_array.append(min_area)
+        return area_array
+
+    def get_subxpat_runtime(self, et_array):
+        folder, extension = OUTPUT_PATH['report']
+        all_reports = [f for f in os.listdir(folder)]
+        runtime_array = []
+        for et in et_array:
+            cur_runtime = 0
+            for report in all_reports:
+                if re.search('grid', report) and re.search(f'{self.exact_name}', report):
+                    if re.search(f'.*et{et}.*', report):
+                        with open(f'{folder}/{report}', 'r') as f:
+                            rows = csv.reader(f)
+                            for cols in rows:
+                                if re.search('\(\d+X\d+\)', cols[0]):
+                                    for col_idx in range(1, self.iterations):
+
+                                        this_entry = cols[col_idx]
+
+                                        this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
+
+                                        if re.search('SAT', this_entry[0]) or re.search('UNSAT', this_entry[0]):
+                                            cur_runtime += float(this_entry[1])
+
+            runtime_array.append(cur_runtime)
+        return runtime_array
+
     def plot_area(self):
+        print(f'plotting area...')
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Area')
         ax.set_title(f'{self.exact_name} area: SubXPAT vs. MUSCAT')
         et_list = self.get_et_array()
         muscat_area_list = self.get_muscat_area(et_list)
+        print(f'{muscat_area_list = }')
+        subxpat_area_list = self.get_subxpat_area(et_list)
+
+
+
+
+        ax.plot(et_list, muscat_area_list, label='MUSCAT',color='red', marker='s', markeredgecolor='red',
+                markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        ax.plot(et_list, subxpat_area_list, label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
+                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        plt.legend(loc='best')
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure']}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure']}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.pdf"
+        plt.savefig(figurename_png)
+        plt.savefig(figurename_pdf)
+
+    def plot_runtime(self):
+        print(f'plotting area...')
+        fig, ax = plt.subplots()
+        ax.set_xlabel(f'ET')
+        ax.set_ylabel(ylabel=f'Runtime')
+        ax.set_title(f'{self.exact_name} Runtimes: SubXPAT')
+        et_list = self.get_et_array()
+
+        subxpat_runtime_list = self.get_subxpat_runtime(et_list)
+
+
+        ax.plot(et_list, subxpat_runtime_list, label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
+                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        plt.legend(loc='best')
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure']}/runtimes_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure']}/runtimes_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.pdf"
+        plt.savefig(figurename_png)
+        plt.savefig(figurename_pdf)
 
     def __repr__(self):
         return f'An object of class Stats:\n' \
