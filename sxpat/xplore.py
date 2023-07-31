@@ -187,5 +187,5 @@ def explore_grid(specs_obj: TemplateSpecs):
                         break
 
     stats_obj.store_grid()
-    stats_obj.plot_area()
+
 

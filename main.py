@@ -68,6 +68,10 @@ def main():
                     continue
             else:
                 explore_cell(specs_obj)
+
+        stats_obj = Stats(specs_obj)
+        stats_obj.plot_area()
+        stats_obj.plot_runtime()
     else:
         specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                   products_per_output=args.ppo,
@@ -78,9 +82,13 @@ def main():
 
 
         if specs_obj.grid:
-            explore_grid(specs_obj)
+            # explore_grid(specs_obj)
+            stats_obj = Stats(specs_obj)
+            stats_obj.plot_area()
+            stats_obj.plot_runtime()
         else:
             explore_cell(specs_obj)
+
 
 
 if __name__ == "__main__":

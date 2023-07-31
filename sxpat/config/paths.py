@@ -5,6 +5,7 @@ OUTPUT_PATH = {
     'html': ('output/html', 'html'),
     'area': ('output/area', 'txt'),
     'delay': ('output/delay', 'txt'),
-    'power': ('output/delay', 'txt')
+    'power': ('output/delay', 'txt'),
+    'figure': 'output/figure'
 }
 
