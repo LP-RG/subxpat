@@ -69,7 +69,7 @@ def main():
                     explore_grid(specs_obj)
                     print(f'')
                 except Exception:
-                    print(f'{Exception}')
+                    raise
                     continue
             else:
                 explore_cell(specs_obj)

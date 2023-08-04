@@ -32,7 +32,7 @@ class Synthesis:
         self.__error_threshold = template_specs.et
         self.__graph: AnnotatedGraph = graph_obj
         self.__partitioning_percentage = template_specs.partitioning_percentage
-        if json_obj == sxpatconfig.UNSAT:
+        if json_obj == sxpatconfig.UNSAT or json_obj == sxpatconfig.UNKNOWN:
             print(Fore.RED + 'ERROR!!! the json does not contain any models!' + Style.RESET_ALL)
         else:
             self.__json_model: json = json_obj
