@@ -56,6 +56,7 @@ def main():
             et_array = list(range(step, max_error + 1, step))
 
 
+        et_array = [args.et]
         for et in et_array:
             specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                       products_per_output=args.ppo,
