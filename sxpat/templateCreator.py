@@ -1863,13 +1863,13 @@ class Template_SOP1ShareLogic(TemplateCreator):
         key_function += f"{TAB}def key_function(parameter_constraint):\n" \
                         f'{TAB}{TAB}p = str(parameter_constraint[0])\n' \
                         f"{TAB}{TAB}o_id = extract_info(r'_o(\d+)', p, int, -1)\n" \
-                        f"{TAB}{TAB}t_id = extract_info(r'_t(\d+)', p, int, 0)\n" \
+                        f"{TAB}{TAB}pr_id = extract_info(r'_pr(\d+)', p, int, 0)\n" \
                         f"{TAB}{TAB}i_id = extract_info(r'_i(\d+)', p, int, 0)\n" \
                         f"{TAB}{TAB}typ = extract_info(r'_(l|s)', p, {{'s': 1, 'l': 2}}.get, 0)\n" \
                         f'{TAB}{TAB}if o_id < 0:\n' \
-                        f'{TAB}{TAB}{TAB}return 0\n' \
+                        f'{TAB}{TAB}{TAB}return (pr_id * 1000 + i_id * 10 + typ)\n' \
                         f'{TAB}{TAB}return (o_id * 100000\n' \
-                        f'{TAB}{TAB}{TAB}{TAB}+ t_id * 1000\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}+ pr_id * 1000\n' \
                         f'{TAB}{TAB}{TAB}{TAB}+ i_id * 10\n' \
                         f'{TAB}{TAB}{TAB}{TAB}+ typ)\n'
 
