@@ -328,6 +328,10 @@ class Synthesis:
 
     def __output_assigns(self):
         output_assigns = f'// output assigns\n'
+        output_list = list(self.graph.output_dict.values())
+
+        output_list = sorted(output_list)
+
 
         for n in self.graph.output_dict.values():
             pn = list(self.graph.graph.predecessors(n))
@@ -337,7 +341,6 @@ class Synthesis:
                 if gate == sxpatconfig.NOT:
                     output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}{pn[0]}_{sxpatconfig.SHARED_PRODUCT_PREFIX};\n'
                 else:
-
                     output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_WIRE_PREFIX}{pn[0]}_{sxpatconfig.SHARED_PRODUCT_PREFIX};\n'
             elif len(pn) == 2:
                 if gate == sxpatconfig.AND:
@@ -491,17 +494,17 @@ class Synthesis:
         # shared logic assigns
         shared_assigns = self.__shared_logic_assigns()
 
-        # output assings
-        output_assings = self.__output_assigns()
+        # output assigns
+        output_assigns = self.__output_assigns()
 
-        assigns = json_input_assign + json_model_and_subgraph_outputs_assigns + shared_assigns + output_assings
+        assigns = json_input_assign + json_model_and_subgraph_outputs_assigns + shared_assigns + output_assigns
 
         # assignments
 
         # endmodule
         ver_str = module_signature + input_declarations + output_declarations + wire_declarations + assigns
 
-        print(f'{ver_str}')
+        # print(f'{ver_str}')
         return ver_str
 
     def __shared_logic_assigns(self):
@@ -523,9 +526,32 @@ class Synthesis:
         shared_assigns += f'//compose an output with corresponding products (OR)'
         shared_assigns += f'\n'
         #assign OR products in output
+        # Morteza added! fixing the correspondence between the graph outputs and the primary outputs ===================
+        # mapping template outputs to primary outputs
         annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
+        primary_output_list = list(self.graph.output_dict.values())
+        sorted_annotated_graph_output_list = [-1] * len(annotated_graph_output_list)
+
+        for node_idx in range(len(annotated_graph_output_list)):
+            this_node = annotated_graph_output_list[node_idx]
+            for key in self.graph.output_dict.keys():
+
+                if primary_output_list[node_idx] == self.graph.output_dict[key]:
+                    sorted_annotated_graph_output_list[key] = this_node
+                    break
+            print(f'{sorted_annotated_graph_output_list = }')
+
+
+        print(f'{annotated_graph_output_list = }')
+        print(f'{primary_output_list = }')
+        print(f'{sorted_annotated_graph_output_list= }')
+        # ==============================================================================================================
+
+
+
+
         output_quantity = 0
-        for item in annotated_graph_output_list:
+        for item in sorted_annotated_graph_output_list:
             shared_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{item} = '
             pit_quantity = self.pit
             for pit_idx in range(self.pit):    
@@ -540,14 +566,15 @@ class Synthesis:
         shared_assigns += f'//if an output has products and if it is part of the JSON model'
         shared_assigns += f'\n'
         o_idx = 0
-        for n in self.graph.output_dict.values():
+        for key in self.graph.output_dict.keys():
+            n = self.graph.output_dict[key]
             pn = list(self.graph.graph.predecessors(n)) #g17
             shared_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{pn[0]}_{sxpatconfig.SHARED_PRODUCT_PREFIX} = {sxpatconfig.VER_WIRE_PREFIX}{pn[0]} {sxpatconfig.VER_AND} '
-            json_output_p_o = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx}'
+            json_output_p_o = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{key}'
             o_idx += 1
-            print(f'HEREEEE')
-            print(f'{json_output_p_o}')
-            print(f'{self.json_model[json_output_p_o]}')
+            # print(f'HEREEEE')
+            # print(f'{json_output_p_o}')
+            # print(f'{self.json_model[json_output_p_o]}')
             if self.json_model[json_output_p_o]:
                 shared_assigns += f'1'   
             else:
