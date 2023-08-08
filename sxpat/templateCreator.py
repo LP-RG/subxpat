@@ -1463,13 +1463,16 @@ class Template_SOP1ShareLogic(TemplateCreator):
         approximate_circuit_constraints += f"{TAB}{F_APPROXIMATE}({','.join(self.graph.input_dict.values())}) == \n"
         approximate_circuit_constraints += f"{TAB}{SUM}("
         for o_idx in range(self.graph.num_outputs):
+
             if o_idx > 0:
                 approximate_circuit_constraints += f"{TAB}{TAB}"
             approximate_circuit_constraints += f"{INTVAL}({2 ** o_idx}) * {Z3_AND} ({SHARED_PARAM_PREFIX}_{SHARED_OUTPUT_PREFIX}{o_idx}, {Z3_OR}("
             for pit_idx in range(self.pit):
+
                 approximate_circuit_constraints += f"{Z3_AND}({SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_OUTPUT_PREFIX}{o_idx},"
 
                 for input_idx in range(self.graph.num_inputs):
+
                     p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
 
@@ -1488,6 +1491,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     else:
                         approximate_circuit_constraints += ','
 
+        # exit()
         return approximate_circuit_constraints
 
         # NM
