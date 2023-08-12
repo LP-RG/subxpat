@@ -20,7 +20,7 @@ class TemplateCreator:
     def __init__(self, template_specs: TemplateSpecs):
         self.__template_name = template_specs.template_name
         self.__benchmark_name = template_specs.benchmark_name
-        print(f'{template_specs.subxpat = }')
+
         self.__subxpat: bool = template_specs.subxpat
         self.__graph = self.import_graph()
 
@@ -54,7 +54,7 @@ class TemplateCreator:
         """
         temp_verilog_obj = Verilog(self.benchmark_name)
         convert_verilog_to_gv(self.benchmark_name)
-        print(f'{self.subxpat = }')
+
         temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False, subxpat=self.subxpat)
         return temp_graph_obj
 
@@ -119,7 +119,7 @@ class Template_SOP1(TemplateCreator):
 
     def import_json_model(self, this_path=None):
         if this_path:
-            self.json_in_path(this_path)
+            self.json_in_path = this_path
         else:
             self.json_in_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
         with open(self.json_in_path, 'r') as f:
@@ -127,12 +127,16 @@ class Template_SOP1(TemplateCreator):
         for d in data:
             for key in d.keys():
                 if key == RESULT:
+                    self.json_status = d[key]
                     if d[key] == SAT:
                         self.json_model = d[MODEL]
-                    else:
-                        # TODO:
-                        # FIX LATER
-                        self.json_model = UNSAT
+                        return True
+                    elif d[key] == UNSAT:
+                        self.json_model = None
+                        return False
+                    elif d[key] == UNKNOWN:
+                        self.json_model = None
+                        return False
 
     def run_z3pyscript(self, ET=2):
         # print(f'{self.z3_out_path = }')
@@ -1065,7 +1069,9 @@ class Template_SOP1ShareLogic(TemplateCreator):
         self.__product_in_total = template_specs.products_in_total
         self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
         self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH['json'])
-        print(f'{template_specs.subxpat = }')
+        self.__json_status = None
+        self.__json_model = None
+
 
         #TODO
         # Create a __json_model propery
@@ -1096,6 +1102,22 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def pit(self):
         return self.__product_in_total
 
+    @property
+    def json_status(self):
+        return self.__json_status
+
+    @json_status.setter
+    def json_status(self, this_status):
+        self.__json_status = this_status
+
+
+    @property
+    def json_model(self):
+        return self.__json_model
+
+    @json_model.setter
+    def json_model(self, this_model):
+        self.__json_model = this_model
 
     @property
     def z3pyscript(self):
@@ -1119,16 +1141,42 @@ class Template_SOP1ShareLogic(TemplateCreator):
         return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PIT}{self.pit}_{self.template_name}.{extenstion}'
 
     def export_z3pyscript(self):
-        print(f'Storing in {self.z3_out_path}')
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
 
-    def run_z3pyscript(self, ET=2):
+    def run_z3pyscript(self, ET=2, num_models = 1):
         # print(f'{self.z3_out_path = }')
         # print(f'{ET = }')
-        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}'], stderr=PIPE)
+        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}', f'{num_models}'], stderr=PIPE)
 
     # From this point on, all functions needed to create SharedXPAT
+    def import_json_model(self, this_path=None):
+        print(f'We are here!!!')
+        if this_path:
+            self.json_in_path = this_path
+        else:
+            self.json_in_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
+        print(f'{self.json_in_path = }')
+
+        with open(self.json_in_path, 'r') as f:
+            print(f'blah blah')
+            data = json.load(f)
+            print(f'{data = }')
+        for d in data:
+            for key in d.keys():
+                if key == RESULT:
+                    print(f'{d[key] = }')
+                    self.json_status = d[key]
+
+                    if d[key] == SAT:
+                        self.json_model = d[MODEL]
+                        return True
+                    elif d[key] == UNSAT:
+                        self.json_model = None
+                        return False
+                    elif d[key] == UNKNOWN:
+                        self.json_model = None
+                        return False
 
     def z3_generate_z3pyscript(self):
         if self.subxpat:
@@ -1899,7 +1947,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
                  f'{TAB}if result != sat:\n' \
                  f'{TAB}{TAB}break\n'
 
-        stats += f'print(json.dumps(found_data, separators=(",", ":"),))\n'
+        # stats += f'print(json.dumps(found_data, separators=(",", ":"),))\n'
 
         return stats
 

@@ -110,6 +110,7 @@ JSON_TRUE = 'true'
 JSON_FALSE = 'false'
 SAT = 'sat'
 UNSAT = 'unsat'
+UNKNOWN = 'unknown'
 
 # Verilog
 
