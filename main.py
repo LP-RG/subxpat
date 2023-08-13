@@ -17,6 +17,7 @@ from sxpat.synthesis import Synthesis
 from sxpat.arguments import Arguments
 from sxpat.verification import erroreval_verification
 from sxpat.xplore import explore_grid
+from sxpat.stats import Stats
 
 
 def main():
@@ -31,28 +32,16 @@ def main():
             os.makedirs(directory, exist_ok=True)
 
     specs_obj = TemplateSpecs(name='SOP1ShareLogic', literals_per_product=args.lpp, products_per_output=args.ppo,
-                              benchmark_name=args.benchmark_name, exact_benchmark = args.benchmark_name,
+                              benchmark_name=args.benchmark_name, exact_benchmark=args.benchmark_name,
                               num_of_models=1, subxpat=args.subxpat, et=args.et,
                               products_in_total=args.pit, shared=args.shared, timeout=args.timeout,
                               partitioning_percentage=0, iterations=1)
 
+    stats_obj = explore_grid(specs_obj)
+    stats_obj.store_grid()
 
-
-    explore_grid(specs_obj)
-    # template_obj = Template_SOP1ShareLogic(specs_obj)
-    #
-    #
-    # template_obj.z3_generate_z3pyscript()
-    #
-    # template_obj.run_z3pyscript(args.et)
-    # template_obj.import_json_model()
-    # # print(f'{template_obj.json_model = }')
-    #
-    # synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model, shared=args.shared,
-    #                       subxpat=args.subxpat)
-    #
-    # synth_obj.export_verilog()
-
+    stats_obj.plot_area()
+    stats_obj.plot_runtime()
 
 
 if __name__ == "__main__":
