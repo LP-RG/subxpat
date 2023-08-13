@@ -17,7 +17,7 @@ from sxpat.stats import Stats
 from sxpat.stats import *
 
 
-def explore_grid(specs_obj: TemplateSpecs):
+def explore_grid(specs_obj: TemplateSpecs) -> Stats:
     print(
         Fore.BLUE + f'Grid ({specs_obj.lpp} X {specs_obj.pit}) and et={specs_obj.et} exploration started...' + Style.RESET_ALL)
     stats_obj = Stats(specs_obj)
@@ -41,7 +41,12 @@ def explore_grid(specs_obj: TemplateSpecs):
 
             else:
                 specs_obj = set_current_context(specs_obj, lpp, pit)
-                template_obj = Template_SOP1ShareLogic(specs_obj)
+                if specs_obj.shared:
+                    template_obj = Template_SOP1ShareLogic(specs_obj)
+                else:
+                    # XPAT
+                    pass
+
 
                 template_obj.z3_generate_z3pyscript()
                 template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, specs_obj.timeout)
@@ -50,16 +55,16 @@ def explore_grid(specs_obj: TemplateSpecs):
                 if cur_status == SAT:
                     synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model,
                                           shared=specs_obj.shared, subxpat=specs_obj.subxpat)
-
-                    print(
-                        Fore.GREEN + f'Cell ({specs_obj.lpp} X {specs_obj.pit}) -> {SAT.upper()}' + Style.RESET_ALL)
                     synth_obj.export_verilog()
                     synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
+                    print(
+                        Fore.GREEN + f'Cell ({specs_obj.lpp} X {specs_obj.pit}) -> {SAT.upper()} (Area = {synth_obj.estimate_area()})' + Style.RESET_ALL)
+
 
                     stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
                                                                     this_iteration=1,
-                                                                    this_area=f'{synth_obj.estimate_area()}',
-                                                                    this_runtime=f'{template_obj.get_json_runtime()}',
+                                                                    this_area=synth_obj.estimate_area(),
+                                                                    this_runtime=template_obj.get_json_runtime(),
                                                                     this_status=SAT)
                     cur_lpp = lpp
                     cur_pit = pit
@@ -70,16 +75,16 @@ def explore_grid(specs_obj: TemplateSpecs):
                         Fore.YELLOW + f'Grid ({specs_obj.lpp} X {specs_obj.pit}) -> {UNSAT.upper()}' + Style.RESET_ALL)
                     stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
                                                                     this_iteration=1,
-                                                                    this_area='-1',
-                                                                    this_runtime=f'{template_obj.get_json_runtime()}',
+                                                                    this_area=-1,
+                                                                    this_runtime=template_obj.get_json_runtime(),
                                                                     this_status=UNSAT)
                 elif cur_status == UNKNOWN:
                     print(
                         Fore.MAGENTA + f'Grid ({specs_obj.lpp} X {specs_obj.pit}) -> {UNKNOWN.upper()}' + Style.RESET_ALL)
                     stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
                                                                     this_iteration=1,
-                                                                    this_area='-1',
-                                                                    this_runtime=f'{template_obj.get_json_runtime()}',
+                                                                    this_area=-1,
+                                                                    this_runtime=template_obj.get_json_runtime(),
                                                                     this_status=UNKNOWN)
                 lpp, pit = next_cell(lpp, pit, max_lpp, max_pit)
 
@@ -91,7 +96,13 @@ def explore_grid(specs_obj: TemplateSpecs):
         for pit in range(cur_pit + 1, max_pit + 1):
             for lpp in range(1, cur_lpp):
                 specs_obj = set_current_context(specs_obj, lpp, pit)
-                template_obj = Template_SOP1ShareLogic(specs_obj)
+
+                if specs_obj.shared:
+                    template_obj = Template_SOP1ShareLogic(specs_obj)
+                else:
+                    # XPAT
+                    pass
+
                 template_obj.z3_generate_z3pyscript()
                 template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, specs_obj.timeout)
                 cur_status = get_status(template_obj)
@@ -99,32 +110,34 @@ def explore_grid(specs_obj: TemplateSpecs):
                 if cur_status == SAT:
                     synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model,
                                           shared=specs_obj.shared, subxpat=specs_obj.subxpat)
-                    print(
-                        Fore.GREEN + f'Cell ({specs_obj.lpp} X {specs_obj.pit}) -> found another {SAT.upper()}' + Style.RESET_ALL)
+
                     synth_obj.export_verilog()
                     synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
+                    print(
+                        Fore.GREEN + f'Cell ({specs_obj.lpp} X {specs_obj.pit}) -> found another {SAT.upper()}' + Style.RESET_ALL)
+
                     stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
                                                                     this_iteration=1,
-                                                                    this_area='',
-                                                                    this_runtime=f'{template_obj.get_json_runtime()}',
+                                                                    this_area=-1,
+                                                                    this_runtime=template_obj.get_json_runtime(),
                                                                     this_status=SAT)
                 elif cur_status == UNSAT:
                     print(
                         Fore.YELLOW + f'Grid ({specs_obj.lpp} X {specs_obj.pit}) -> {UNSAT.upper()}' + Style.RESET_ALL)
                     stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
                                                                     this_iteration=1,
-                                                                    this_area='-1',
-                                                                    this_runtime=f'{template_obj.get_json_runtime()}',
+                                                                    this_area=-1,
+                                                                    this_runtime=template_obj.get_json_runtime(),
                                                                     this_status=UNSAT)
                 elif cur_status == UNKNOWN:
                     print(
                         Fore.MAGENTA + f'Grid ({specs_obj.lpp} X {specs_obj.pit}) -> {UNKNOWN.upper()}' + Style.RESET_ALL)
                     stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
                                                                     this_iteration=1,
-                                                                    this_area='-1',
-                                                                    this_runtime=f'{template_obj.get_json_runtime()}',
+                                                                    this_area=-1,
+                                                                    this_runtime=template_obj.get_json_runtime(),
                                                                     this_status=UNKNOWN)
-    stats_obj.store_grid()
+    return stats_obj
 
 
 def is_last_cell(cur_lpp, cur_pit, max_lpp, max_pit) -> bool:

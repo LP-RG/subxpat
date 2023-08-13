@@ -408,14 +408,17 @@ class Stats:
                         with open(f'{folder}/{report}', 'r') as f:
                             rows = csv.reader(f)
                             for cols in rows:
+
                                 if re.search('\(\d+X\d+\)', cols[0]):
-                                    for col_idx in range(1, self.iterations):
+                                    for col_idx in range(1, self.iterations + 1):
 
                                         this_entry = cols[col_idx]
 
                                         this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
 
-                                        if re.search('SAT', this_entry[0]) and not re.search('UNSAT', this_entry[0]):
+                                        if re.search(f'{sxpatconfig.SAT}', this_entry[0]) and\
+                                                not re.search(sxpatconfig.UNSAT, this_entry[0]) and\
+                                                not re.search(sxpatconfig.UNKNOWN, this_entry[0]):
                                             area = float(this_entry[2])
 
                                             if min_area > area:
@@ -438,13 +441,15 @@ class Stats:
                             rows = csv.reader(f)
                             for cols in rows:
                                 if re.search('\(\d+X\d+\)', cols[0]):
-                                    for col_idx in range(1, self.iterations):
+                                    for col_idx in range(1, self.iterations + 1):
 
                                         this_entry = cols[col_idx]
 
                                         this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
 
-                                        if re.search('SAT', this_entry[0]) or re.search('UNSAT', this_entry[0]):
+                                        if re.search(f'{sxpatconfig.SAT}', this_entry[0]) and \
+                                                not re.search(sxpatconfig.UNSAT, this_entry[0]) and \
+                                                not re.search(sxpatconfig.UNKNOWN, this_entry[0]):
                                             cur_runtime += float(this_entry[1])
 
             runtime_array.append(cur_runtime)
@@ -455,7 +460,7 @@ class Stats:
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Area')
-        ax.set_title(f'{self.exact_name} area: SubXPAT vs. MUSCAT')
+        ax.set_title(f'{self.exact_name} area: SharedLogic vs. XPAT')
         et_list = self.get_et_array()
         muscat_area_list = self.get_muscat_area(et_list)
         subxpat_area_list = self.get_subxpat_area(et_list)
@@ -473,7 +478,7 @@ class Stats:
 
         ax.plot(et_list, muscat_area_list, label='MUSCAT',color='red', marker='s', markeredgecolor='red',
                 markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
-        ax.plot(et_list, subxpat_area_list, label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
+        ax.plot(et_list, subxpat_area_list, label='SharedLogic', color='blue', marker='D', markeredgecolor='black',
                 markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
@@ -491,13 +496,13 @@ class Stats:
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Runtime')
-        ax.set_title(f'{self.exact_name} Runtimes: SubXPAT')
+        ax.set_title(f'{self.exact_name} Runtimes: SharedLogic vs. XPAT')
         et_list = self.get_et_array()
 
         subxpat_runtime_list = self.get_subxpat_runtime(et_list)
+        print(f'{subxpat_runtime_list= }')
 
-
-        ax.plot(et_list, subxpat_runtime_list, label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
+        ax.plot(et_list, subxpat_runtime_list, label='SharedLogic', color='blue', marker='D', markeredgecolor='black',
                 markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         plt.xticks(et_list)
