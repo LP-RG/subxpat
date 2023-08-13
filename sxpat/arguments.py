@@ -10,10 +10,11 @@ class Arguments(Arguments):
         super().__init__(tmp_args)
         self.__literal_per_product: int = tmp_args.lpp
         self.__product_per_output: int = tmp_args.ppo
-        self.__subxpat: bool = True if tmp_args.subxpat == 1 else False
-        self.__shared: bool = True if tmp_args.shared == 1 else False
+        self.__subxpat: bool = tmp_args.subxpat
+        self.__shared: bool = tmp_args.shared
         self.__error_threshold: int = tmp_args.et
         self.__products_in_total: int = tmp_args.pit
+        self.__timeout: int = tmp_args.timeout
 
     @property
     def literals_per_product(self):
@@ -48,6 +49,9 @@ class Arguments(Arguments):
     @property
     def shared(self):
         return self.__shared
+    @property
+    def timeout(self):
+        return self.__timeout
 
     @property
     def error_threshold(self):
@@ -96,15 +100,13 @@ class Arguments(Arguments):
                                type=int,
                                help='number-of-monte-carlo-samples')
 
-        my_parser.add_argument('--subxpat', '-subxpat',
-                               type=int,
-                               default=0,
-                               help='activate-subxpat')
+        my_parser.add_argument('--subxpat',
+                               action="store_true",
+                               default=False)
 
-        my_parser.add_argument('--shared', '-shared',
-                               type=int,
-                               default=1,
-                               help='activate-shared-logic')
+        my_parser.add_argument('--shared',
+                               action="store_true",
+                               default=False)
 
         my_parser.add_argument('--approximate_benchmark', '-app',
                                type=str,
@@ -135,9 +137,19 @@ class Arguments(Arguments):
                                default=10,
                                help='gate-percentage-carved-out')
 
-        my_parser.add_argument('--clean',
-                               type=bool,
+        my_parser.add_argument('--timeout', '-tt',
+                               type=int,
+                               default=1800,
+                               help='solver-timeout-in-seconds')
+
+        my_parser.add_argument('--multiple',
+                               action="store_true",
                                default=False)
+
+        my_parser.add_argument('--clean',
+                               action="store_true",
+                               default=False)
+
 
         tmp_args = my_parser.parse_args()
 
@@ -151,6 +163,7 @@ class Arguments(Arguments):
                f'{self.et = }\n' \
                f'{self.subxpat = }\n' \
                f'{self.shared = }\n' \
+               f'{self.timeout = }\n' \
 
 
 

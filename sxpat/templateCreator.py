@@ -1069,6 +1069,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         self.__product_in_total = template_specs.products_in_total
         self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
         self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH['json'])
+        self.__json_in_path = None
         self.__json_status = None
         self.__json_model = None
 
@@ -1135,6 +1136,14 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def json_out_path(self):
         return self.__json_out_path
 
+    @property
+    def json_in_path(self):
+        return self.__json_in_path
+
+    @json_in_path.setter
+    def json_in_path(self, this_path):
+        self.__json_in_path = this_path
+
     #fix this to add the pit, not ppo
     def set_path(self, this_path: Tuple[str, str]):
         folder, extenstion = this_path
@@ -1144,28 +1153,27 @@ class Template_SOP1ShareLogic(TemplateCreator):
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
 
-    def run_z3pyscript(self, ET=2, num_models = 1):
-        # print(f'{self.z3_out_path = }')
-        # print(f'{ET = }')
-        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}', f'{num_models}'], stderr=PIPE)
+    def run_z3pyscript(self, ET: int = 2, num_models: int = 1, timeout: int = 1800):
+
+        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}', f'{num_models}', f'{timeout}'], stderr=PIPE)
 
     # From this point on, all functions needed to create SharedXPAT
     def import_json_model(self, this_path=None):
-        print(f'We are here!!!')
+
         if this_path:
             self.json_in_path = this_path
         else:
             self.json_in_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
-        print(f'{self.json_in_path = }')
+
 
         with open(self.json_in_path, 'r') as f:
-            print(f'blah blah')
+
             data = json.load(f)
-            print(f'{data = }')
+
         for d in data:
             for key in d.keys():
                 if key == RESULT:
-                    print(f'{d[key] = }')
+
                     self.json_status = d[key]
 
                     if d[key] == SAT:
@@ -1177,6 +1185,16 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     elif d[key] == UNKNOWN:
                         self.json_model = None
                         return False
+
+    def get_json_runtime(self, this_id: int = 0):
+
+        with open(self.json_in_path, 'r') as f:
+            data = json.load(f)
+
+        for d in data:
+            for key in d.keys():
+                if key == "total_time":
+                    return float(d[key])
 
     def z3_generate_z3pyscript(self):
         if self.subxpat:
@@ -1248,22 +1266,22 @@ class Template_SOP1ShareLogic(TemplateCreator):
                   f'\n'
         return imports
 
-    def import_json_model(self, this_path=None):
-        if this_path:
-            self.json_in_path(this_path)
-        else:
-            self.json_in_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
-        with open(self.json_in_path, 'r') as f:
-            data = json.load(f)
-        for d in data:
-            for key in d.keys():
-                if key == RESULT:
-                    if d[key] == SAT:
-                        self.json_model = d[MODEL]
-                    else:
-                        # TODO:
-                        # FIX LATER
-                        self.json_model = UNSAT
+    # def import_json_model(self, this_path=None):
+    #     if this_path:
+    #         self.json_in_path(this_path)
+    #     else:
+    #         self.json_in_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
+    #     with open(self.json_in_path, 'r') as f:
+    #         data = json.load(f)
+    #     for d in data:
+    #         for key in d.keys():
+    #             if key == RESULT:
+    #                 if d[key] == SAT:
+    #                     self.json_model = d[MODEL]
+    #                 else:
+    #                     # TODO:
+    #                     # FIX LATER
+    #                     self.json_model = UNSAT
 
     ## NM
     def z3_generate_z3_abs_function(self):

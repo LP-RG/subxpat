@@ -4,6 +4,7 @@ import json
 import re
 import networkx as nx
 from colorama import Fore, Back, Style
+import subprocess
 
 from Z3Log.graph import Graph
 from Z3Log.config.config import *
@@ -21,7 +22,7 @@ class Synthesis:
     # follow, inputs, red, white, outputs notation in the Verilog generation
     def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj=None, subxpat: bool = False,
                  shared: bool = True):
-        print(f'{Fore.RED}{template_specs = }{Style.RESET_ALL}')
+
 
         self.__subxpat: bool = subxpat
         self.__shared: bool = shared
@@ -392,7 +393,7 @@ class Synthesis:
         input_declarations = f"{sxpatconfig.VER_INPUT} {', '.join(input_list)};\n"
         for o in self.graph.subgraph_output_dict:
             print(f'{self.graph.subgraph_output_dict[o] = }')
-        print(f'{output_list = }')
+        # print(f'{output_list = }')
         output_declarations = f"{sxpatconfig.VER_OUTPUT} {', '.join(output_list)};\n"
 
         # wire declarations
@@ -539,12 +540,12 @@ class Synthesis:
                 if primary_output_list[node_idx] == self.graph.output_dict[key]:
                     sorted_annotated_graph_output_list[key] = this_node
                     break
-            print(f'{sorted_annotated_graph_output_list = }')
-
-
-        print(f'{annotated_graph_output_list = }')
-        print(f'{primary_output_list = }')
-        print(f'{sorted_annotated_graph_output_list= }')
+        #     print(f'{sorted_annotated_graph_output_list = }')
+        #
+        #
+        # print(f'{annotated_graph_output_list = }')
+        # print(f'{primary_output_list = }')
+        # print(f'{sorted_annotated_graph_output_list= }')
         # ==============================================================================================================
 
 
@@ -624,11 +625,45 @@ class Synthesis:
                 raise Exception(f'The names are not correct in this array {this_list}')
         return sorted_list
 
+    def estimate_area(self, this_path: str = None):
+        if this_path:
+            yosys_command = f"read_verilog {this_path};\n" \
+                            f"synth -flatten;\n" \
+                            f"opt;\n" \
+                            f"opt_clean -purge;\n" \
+                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                            f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+        else:
+            # print(f'{self.ver_out_path = }')
+            yosys_command = f"read_verilog {self.ver_out_path};\n" \
+                            f"synth -flatten;\n" \
+                            f"opt;\n" \
+                            f"opt_clean -purge;\n" \
+                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                            f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+
+        process = subprocess.run([YOSYS, '-p', yosys_command], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if process.stderr:
+            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
+        else:
+
+            if re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()):
+                area = re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()).group(1)
+
+            elif re.search(r"Don't call ABC as there is nothing to map", process.stdout.decode()):
+                area = 0
+            else:
+                raise Exception(Fore.RED + 'Yosys ERROR!!!\nNo useful information in the stats log!' + Style.RESET_ALL)
+
+        return float(area)
 
     def __graph_to_verilog(self):
         pass
 
-    def export_verilog(self):
+    def export_verilog(self, this_path = None):
+        if this_path:
+            with open(f'{this_path}/{self.ver_out_name}', 'w') as f:
+                f.writelines(self.verilog_string)
         with open(self.ver_out_path, 'w') as f:
             f.writelines(self.verilog_string)
 

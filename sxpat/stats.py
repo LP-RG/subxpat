@@ -65,8 +65,8 @@ class Cell:
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
         self.__lpp: int = spec_obj.lpp
-        self.__ppo: int = spec_obj.ppo
-        self.__coordinates: Tuple[int, int] = (spec_obj.lpp, spec_obj.ppo)
+        self.__ppo: int = spec_obj.pit
+        self.__coordinates: Tuple[int, int] = (spec_obj.lpp, spec_obj.pit)
         self.__et: int = spec_obj.et
         self.__pap: int = spec_obj.partitioning_percentage
         self.__iterations: int = spec_obj.iterations
@@ -175,7 +175,7 @@ class Grid:
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
         self.__lpp: int = spec_obj.lpp
-        self.__ppo: int = spec_obj.ppo
+        self.__ppo: int = spec_obj.pit
         self.__et: int = spec_obj.et
         self.__pap: int = spec_obj.partitioning_percentage
         self.__iterations: int = spec_obj.iterations
@@ -234,7 +234,7 @@ class Stats:
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
         self.__lpp: int = spec_obj.lpp
-        self.__ppo: int = spec_obj.ppo
+        self.__ppo: int = spec_obj.pit
         self.__et: int = spec_obj.et
         self.__pap: int = spec_obj.partitioning_percentage
         self.__iterations: int = spec_obj.iterations
