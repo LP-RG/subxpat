@@ -1,13 +1,21 @@
+# Synthesis with Yosys
+LIB_PATH='config/gscl45nm.lib'
+ABC_SCRIPT_PATH='config/abc.script'
+
 # TemplateSpecs constants
 #   properties
 NAME = 'name'
 LITERALS_PER_PRODUCT = 'literals_per_product'
 PRODUCTS_PER_OUTPUT = 'products_per_output'
 BENCHMARK = 'benchmark_name'
+EXACT = 'exact_benchmark'
 NUM_OF_MODELS = 'num_of_models'
 SUBXPAT = 'subxpat'
 SHARED = 'shared'
 TEMPLATE_SPEC_ET = 'et'
+TIMEOUT = 'timeout'
+PARTITIONING_PERCENTAGE = 'partitioning_percentage'
+ITERATIONS = 'iterations'
 
 #   NetworkX
 NOT = 'not'

@@ -20,42 +20,128 @@ from sxpat.stats import *
 def explore_grid(specs_obj: TemplateSpecs):
     print(
         Fore.BLUE + f'Grid ({specs_obj.lpp} X {specs_obj.pit}) and et={specs_obj.et} exploration started...' + Style.RESET_ALL)
+    stats_obj = Stats(specs_obj)
 
-    for pit in range(1, specs_obj.pit):
-        for lpp in range(specs_obj.lpp):
-            template_obj = Template_SOP1ShareLogic(specs_obj)
-            template_obj.z3_generate_z3pyscript()
-            template_obj.run_z3pyscript(specs_obj.et)
-            print(f'{get_status(template_obj) = }')
-            # if SAT
+    max_pit = specs_obj.pit
+    max_lpp = specs_obj.lpp
+    cur_lpp = -1
+    cur_pit = -1
+    pit = 1
+    lpp = 0
+    found = False
+    while pit <= max_pit:
+        if found:
+            break
+        while lpp <= max_lpp:
+            if found:
+                break
+            elif lpp == 0 and pit > 1:
+                lpp, pit = next_cell(lpp, pit, max_lpp, max_pit)
+                continue
 
-            # if UNSAT
+            else:
+                specs_obj = set_current_context(specs_obj, lpp, pit)
+                template_obj = Template_SOP1ShareLogic(specs_obj)
 
-            # if UNKNOWN
+                template_obj.z3_generate_z3pyscript()
+                template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, specs_obj.timeout)
+                cur_status = get_status(template_obj)
+
+                if cur_status == SAT:
+                    synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model,
+                                          shared=specs_obj.shared, subxpat=specs_obj.subxpat)
+
+                    print(
+                        Fore.GREEN + f'Cell ({specs_obj.lpp} X {specs_obj.pit}) -> {SAT.upper()}' + Style.RESET_ALL)
+                    synth_obj.export_verilog()
+                    synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
+
+                    stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
+                                                                    this_iteration=1,
+                                                                    this_area=f'{synth_obj.estimate_area()}',
+                                                                    this_runtime=f'{template_obj.get_json_runtime()}',
+                                                                    this_status=SAT)
+                    cur_lpp = lpp
+                    cur_pit = pit
+                    found = True
+
+                elif cur_status == UNSAT:
+                    print(
+                        Fore.YELLOW + f'Grid ({specs_obj.lpp} X {specs_obj.pit}) -> {UNSAT.upper()}' + Style.RESET_ALL)
+                    stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
+                                                                    this_iteration=1,
+                                                                    this_area='-1',
+                                                                    this_runtime=f'{template_obj.get_json_runtime()}',
+                                                                    this_status=UNSAT)
+                elif cur_status == UNKNOWN:
+                    print(
+                        Fore.MAGENTA + f'Grid ({specs_obj.lpp} X {specs_obj.pit}) -> {UNKNOWN.upper()}' + Style.RESET_ALL)
+                    stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
+                                                                    this_iteration=1,
+                                                                    this_area='-1',
+                                                                    this_runtime=f'{template_obj.get_json_runtime()}',
+                                                                    this_status=UNKNOWN)
+                lpp, pit = next_cell(lpp, pit, max_lpp, max_pit)
+
+    # exploring the non-dominated cells
+    if cur_pit != -1 and cur_lpp != -1:
+        print(
+            Fore.BLUE + f'Exploring the non-dominated cells...' + Style.RESET_ALL)
+
+        for pit in range(cur_pit + 1, max_pit + 1):
+            for lpp in range(1, cur_lpp):
+                specs_obj = set_current_context(specs_obj, lpp, pit)
+                template_obj = Template_SOP1ShareLogic(specs_obj)
+                template_obj.z3_generate_z3pyscript()
+                template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, specs_obj.timeout)
+                cur_status = get_status(template_obj)
+
+                if cur_status == SAT:
+                    synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model,
+                                          shared=specs_obj.shared, subxpat=specs_obj.subxpat)
+                    print(
+                        Fore.GREEN + f'Cell ({specs_obj.lpp} X {specs_obj.pit}) -> found another {SAT.upper()}' + Style.RESET_ALL)
+                    synth_obj.export_verilog()
+                    synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
+                    stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
+                                                                    this_iteration=1,
+                                                                    this_area='',
+                                                                    this_runtime=f'{template_obj.get_json_runtime()}',
+                                                                    this_status=SAT)
+                elif cur_status == UNSAT:
+                    print(
+                        Fore.YELLOW + f'Grid ({specs_obj.lpp} X {specs_obj.pit}) -> {UNSAT.upper()}' + Style.RESET_ALL)
+                    stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
+                                                                    this_iteration=1,
+                                                                    this_area='-1',
+                                                                    this_runtime=f'{template_obj.get_json_runtime()}',
+                                                                    this_status=UNSAT)
+                elif cur_status == UNKNOWN:
+                    print(
+                        Fore.MAGENTA + f'Grid ({specs_obj.lpp} X {specs_obj.pit}) -> {UNKNOWN.upper()}' + Style.RESET_ALL)
+                    stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
+                                                                    this_iteration=1,
+                                                                    this_area='-1',
+                                                                    this_runtime=f'{template_obj.get_json_runtime()}',
+                                                                    this_status=UNKNOWN)
+    stats_obj.store_grid()
 
 
-
-
-
-
-
-def is_last_cell(cur_lpp, cur_ppo, max_lpp, max_ppo) -> bool:
-    if cur_lpp == max_lpp and cur_ppo == max_ppo:
+def is_last_cell(cur_lpp, cur_pit, max_lpp, max_pit) -> bool:
+    if cur_lpp == max_lpp and cur_pit == max_pit:
         return True
     else:
         return False
 
 
-def next_cell(cur_lpp, cur_ppo, max_lpp, max_ppo) -> (int, int):
-    if is_last_cell(cur_lpp, cur_ppo, max_lpp, max_ppo):
-        return cur_lpp + 1, cur_lpp + 1
+def next_cell(cur_lpp, cur_pit, max_lpp, max_pit) -> (int, int):
+    if is_last_cell(cur_lpp, cur_pit, max_lpp, max_pit):
+        return cur_lpp + 1, cur_pit + 1
     else:
         if cur_lpp < max_lpp:
-            return cur_lpp + 1, cur_ppo
+            return cur_lpp + 1, cur_pit
         else:
-            return 0, cur_ppo + 1
-
-
+            return 0, cur_pit + 1
 
 
 def get_status(template_obj: Template_SOP1ShareLogic) -> str:
@@ -65,11 +151,15 @@ def get_status(template_obj: Template_SOP1ShareLogic) -> str:
     :rtype: an str containing either of SAT, UNSAT, or UNKNOWN
     """
     template_obj.import_json_model()
-
-    print(f'{template_obj.json_status = }')
     if template_obj.json_status == SAT:
         return SAT
     elif template_obj.json_status == UNSAT:
         return UNSAT
     elif template_obj.json_status == UNKNOWN:
         return UNKNOWN
+
+
+def set_current_context(specs_obj: TemplateSpecs, lpp: int, pit: int) -> TemplateSpecs:
+    specs_obj.lpp = lpp
+    specs_obj.pit = pit
+    return specs_obj
