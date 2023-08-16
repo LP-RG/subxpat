@@ -117,46 +117,6 @@ class Cell:
     def models(self):
         return self.__models
 
-    # def get_runtime(self, this_model_id: int = 0, this_iteration: int = 0, this_runtime: float = None):
-    #     runtime = 0.0
-    #     if this_runtime:
-    #         return this_runtime
-    #     else:
-    #         raise Exception(Fore.RED + 'ERROR!!! No runtime was passed as an input argument!' + Style.RESET_ALL)
-    #         if this_model_id > 0 and this_iteration > 0:
-    #             # find the file
-    #             # synthesize and get the area
-    #             pass
-    #             return runtime
-    #
-    # def get_area(self, this_model_id: int = 0, this_iteration: int = 0, this_area: float = None):
-    #     area = 0.0
-    #     if this_area:
-    #         return this_area
-    #     else:
-    #         raise Exception(Fore.RED + 'ERROR!!! No area was passed as an input argument!' + Style.RESET_ALL)
-    #         if this_model_id > 0 and this_iteration > 0:
-    #             this_path = ''
-    #             yosys_command = f"read_verilog {this_path};\n" \
-    #                             f"synth -flatten;\n" \
-    #                             f"opt;\n" \
-    #                             f"opt_clean -purge;\n" \
-    #                             f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
-    #                             f"stat -liberty {sxpatconfig.LIB_PATH};\n"
-    #
-    #             process = subprocess.run([YOSYS, '-p', yosys_command], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    #             if process.stderr:
-    #                 raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
-    #             else:
-    #                 if re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()):
-    #                     area = re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()).group(1)
-    #                 elif re.search(r"Don't call ABC as there is nothing to map", process.stdout.decode()):
-    #                     area = 0
-    #                 else:
-    #                     raise Exception(
-    #                         Fore.RED + 'Yosys ERROR!!!\nNo useful information in the stats log!' + Style.RESET_ALL)
-    #             return area
-
     def store_model_info(self, this_model_id: int = 0, this_iteration: int = 0, this_area: float = None,
                          this_runtime: float = None,
                          this_status: str = 'SAT'):
@@ -175,12 +135,15 @@ class Grid:
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
         self.__lpp: int = spec_obj.lpp
-        self.__ppo: int = spec_obj.pit
+        self.__ppo: int = spec_obj.ppo
+        self.__pit: int = spec_obj.pit
         self.__et: int = spec_obj.et
         self.__pap: int = spec_obj.partitioning_percentage
         self.__iterations: int = spec_obj.iterations
-
-        self.__cells: List[List[Cell]] = [[Cell(spec_obj) for _ in range(self.ppo + 1)] for _ in range(self.lpp + 1)]
+        if spec_obj.shared:
+            self.__cells: List[List[Cell]] = [[Cell(spec_obj) for _ in range(self.pit + 1)] for _ in range(self.lpp + 1)]
+        else:
+            self.__cells: List[List[Cell]] = [[Cell(spec_obj) for _ in range(self.ppo + 1)] for _ in range(self.lpp + 1)]
 
     @property
     def exact_name(self):
@@ -197,6 +160,10 @@ class Grid:
     @property
     def ppo(self):
         return self.__ppo
+
+    @property
+    def pit(self):
+        return self.__pit
 
     @property
     def et(self):
@@ -234,7 +201,8 @@ class Stats:
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
         self.__lpp: int = spec_obj.lpp
-        self.__ppo: int = spec_obj.pit
+        self.__ppo: int = spec_obj.ppo
+        self.__pit: int = spec_obj.pit
         self.__et: int = spec_obj.et
         self.__pap: int = spec_obj.partitioning_percentage
         self.__iterations: int = spec_obj.iterations
@@ -255,6 +223,10 @@ class Stats:
     @property
     def ppo(self):
         return self.__ppo
+
+    @property
+    def pit(self):
+        return self.__pit
 
     @property
     def et(self):
@@ -356,6 +328,7 @@ class Stats:
                         if ppo == 0 or (lpp == 0 and ppo > 1):
                             continue
                         else:
+
                             this_area = self.grid.cells[lpp][ppo].models[i][0].area
                             this_status = self.grid.cells[lpp][ppo].models[i][0].status
                             this_runtime = self.grid.cells[lpp][ppo].models[i][0].runtime
