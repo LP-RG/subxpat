@@ -16,7 +16,7 @@ from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.synthesis import Synthesis
 from sxpat.arguments import Arguments
 from sxpat.verification import erroreval_verification
-from sxpat.xplore import explore_grid
+from sxpat.xplore import explore_grid_shared, explore_grid_xpat
 from sxpat.stats import Stats
 
 
@@ -37,11 +37,13 @@ def main():
                               products_in_total=args.pit, shared=args.shared, timeout=args.timeout,
                               partitioning_percentage=0, iterations=1)
 
-    stats_obj = explore_grid(specs_obj)
+    if args.shared:
+        stats_obj = explore_grid_shared(specs_obj)
+    else:
+        stats_obj = explore_grid_xpat(specs_obj)
     stats_obj.store_grid()
 
-    stats_obj.plot_area()
-    stats_obj.plot_runtime()
+    stats_obj = Stats(specs_obj)
 
 
 if __name__ == "__main__":

@@ -61,6 +61,10 @@ class TemplateSpecs:
     def ppo(self):
         return self.__products_per_output
 
+    @ppo.setter
+    def ppo(self, this_ppo):
+        self.__products_per_output = this_ppo
+
     @property
     def products_in_total(self):
         return self.__products_in_total
@@ -101,6 +105,7 @@ class TemplateSpecs:
                f'{self.exact_benchmark = }\n' \
                f'{self.lpp = }\n' \
                f'{self.pit = }\n' \
+               f'{self.ppo = }\n' \
                f'{self.subxpat = }\n' \
                f'{self.shared = }\n' \
                f'{self.num_of_models = }\n' \
