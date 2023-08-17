@@ -15,6 +15,7 @@ class Arguments(Arguments):
         self.__error_threshold: int = tmp_args.et
         self.__products_in_total: int = tmp_args.pit
         self.__timeout: int = tmp_args.timeout
+        self.__multiple: bool = tmp_args.multiple
 
     @property
     def literals_per_product(self):
@@ -49,6 +50,11 @@ class Arguments(Arguments):
     @property
     def shared(self):
         return self.__shared
+
+    @property
+    def multiple(self):
+        return self.__multiple
+
     @property
     def timeout(self):
         return self.__timeout
