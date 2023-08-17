@@ -42,8 +42,10 @@ def main():
     else:
         stats_obj = explore_grid_xpat(specs_obj)
     stats_obj.store_grid()
+    stats_obj.plot_area()
 
-    stats_obj = Stats(specs_obj)
+
+    # stats_obj = Stats(specs_obj)
 
 
 if __name__ == "__main__":

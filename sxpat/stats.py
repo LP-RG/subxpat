@@ -117,7 +117,7 @@ class Cell:
     def models(self):
         return self.__models
 
-    def store_model_info(self, this_model_id: int = 0, this_iteration: int = 0, this_area: float = None,
+    def store_model_info(self, this_model_id: int = 0, this_iteration: int = 1, this_area: float = None,
                          this_runtime: float = None,
                          this_status: str = 'SAT'):
         self.models[this_iteration - 1][this_model_id] = Model(this_runtime, this_area, this_model_id, this_status)
@@ -203,9 +203,12 @@ class Stats:
         self.__lpp: int = spec_obj.lpp
         self.__ppo: int = spec_obj.ppo
         self.__pit: int = spec_obj.pit
+        self.__shared: bool = spec_obj.shared
         self.__et: int = spec_obj.et
+
         self.__pap: int = spec_obj.partitioning_percentage
         self.__iterations: int = spec_obj.iterations
+
         self.__grid = Grid(spec_obj)
 
     @property
@@ -227,6 +230,10 @@ class Stats:
     @property
     def pit(self):
         return self.__pit
+
+    @property
+    def shared(self):
+        return self.__shared
 
     @property
     def et(self):
@@ -306,9 +313,16 @@ class Stats:
 
     def store_grid(self):
         folder, extension = OUTPUT_PATH['report']
+        if self.shared:
+            report_file = f'{folder}/grid_{self.exact_name}_{sxpatconfig.SHARED_LOGIC}_{self.lpp}X{self.pit}_et{self.et}_pap{self.pap}.{extension}'
+            max_col = self.pit + 1
+            max_ro = self.lpp + 1
+        else:
+            report_file = f'{folder}/grid_{self.exact_name}_{sxpatconfig.XPAT}_{self.lpp}X{self.ppo}_et{self.et}_pap{self.pap}.{extension}'
+            max_col = self.ppo + 1
+            max_ro = self.lpp + 1
 
-        with open(f'{folder}/grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_pap{self.pap}.{extension}',
-                  'w') as f:
+        with open(report_file,'w') as f:
             csvwriter = csv.writer(f)
             iteration_range = list(range(1, self.iterations + 1))
 
@@ -320,18 +334,18 @@ class Stats:
             csvwriter.writerow(header)
             csvwriter.writerow(subheader)
 
-            for ppo in range(self.ppo + 1):
-                for lpp in range(self.lpp + 1):
-                    cell = f'({lpp}X{ppo})'
+            for col in range(max_col):
+                for ro in range(max_ro):
+                    cell = f'({ro}X{col})'
                     this_row = []
                     for i in range(self.iterations):
-                        if ppo == 0 or (lpp == 0 and ppo > 1):
+                        if col == 0 or (ro == 0 and col > 1):
                             continue
                         else:
 
-                            this_area = self.grid.cells[lpp][ppo].models[i][0].area
-                            this_status = self.grid.cells[lpp][ppo].models[i][0].status
-                            this_runtime = self.grid.cells[lpp][ppo].models[i][0].runtime
+                            this_area = self.grid.cells[ro][col].models[i][0].area
+                            this_status = self.grid.cells[ro][col].models[i][0].status
+                            this_runtime = self.grid.cells[ro][col].models[i][0].runtime
                             this_row.append((this_status, this_runtime, this_area))
 
                     if this_row:

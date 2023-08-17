@@ -1,3 +1,6 @@
+XPAT = 'XPAT'
+SHARED_LOGIC = 'SHARED'
+
 # Synthesis with Yosys
 LIB_PATH='config/gscl45nm.lib'
 ABC_SCRIPT_PATH='config/abc.script'

@@ -146,7 +146,7 @@ def explore_grid_xpat(specs_obj: TemplateSpecs) -> Stats:
     print(
         Fore.BLUE + f'Grid ({specs_obj.lpp} X {specs_obj.pit}) and et={specs_obj.et} Normal XPAT started...' + Style.RESET_ALL)
     stats_obj = Stats(specs_obj)
-    print(f'{specs_obj = }')
+
 
     max_lpp = specs_obj.lpp
     max_ppo = specs_obj.ppo
