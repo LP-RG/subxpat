@@ -15,6 +15,7 @@ class TemplateSpecs:
         self.__products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
         self.__partitioning_percentage = kwargs[PARTITIONING_PERCENTAGE]
         self.__iterations = kwargs[ITERATIONS]
+        self.__all = kwargs[ALL]
         self.__timeout: int = int(kwargs[TIMEOUT])
 
     @property
@@ -86,6 +87,10 @@ class TemplateSpecs:
         return self.__shared
 
     @property
+    def all(self):
+        return self.__all
+
+    @property
     def num_of_models(self):
         return self.__num_of_models
 
@@ -110,4 +115,5 @@ class TemplateSpecs:
                f'{self.shared = }\n' \
                f'{self.num_of_models = }\n' \
                f'{self.et = }\n' \
-               f'{self.timeout = }\n'
+               f'{self.timeout = }\n' \
+               f'{self.all = }'

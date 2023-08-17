@@ -19,6 +19,7 @@ TEMPLATE_SPEC_ET = 'et'
 TIMEOUT = 'timeout'
 PARTITIONING_PERCENTAGE = 'partitioning_percentage'
 ITERATIONS = 'iterations'
+ALL = 'all'
 
 #   NetworkX
 NOT = 'not'
