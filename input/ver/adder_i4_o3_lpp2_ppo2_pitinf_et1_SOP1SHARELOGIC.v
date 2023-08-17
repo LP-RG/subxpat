@@ -18,9 +18,11 @@ assign w_in0 = in0;
 assign p_o0_t0 = w_in1 & w_in2;
 assign p_o0_t1 = ~w_in1 & w_in2;
 assign out0 = p_o0_t0 | p_o0_t1;
+
 assign p_o1_t0 = ~w_in1 & w_in3;
 assign p_o1_t1 = w_in1 & ~w_in3;
 assign out1 = p_o1_t0 | p_o1_t1;
+
 assign p_o2_t0 = w_in1 & w_in3;
 assign p_o2_t1 = w_in1 & w_in3;
 assign out2 = p_o2_t0 | p_o2_t1;

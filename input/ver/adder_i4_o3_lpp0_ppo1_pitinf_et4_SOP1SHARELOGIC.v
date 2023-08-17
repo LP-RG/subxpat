@@ -1,4 +1,4 @@
-module adder_i4_o3_lpp1_ppo1_pitinf_et2_SOP1SHARELOGIC (in0, in1, in2, in3, out0, out1, out2);
+module adder_i4_o3_lpp0_ppo1_pitinf_et4_SOP1SHARELOGIC (in0, in1, in2, in3, out0, out1, out2);
 // declaring inputs
 input in0,  in1,  in2,  in3;
 // declaring outputs
@@ -15,9 +15,9 @@ assign w_in2 = in2;
 assign w_in1 = in1;
 assign w_in0 = in0;
 //json model assigns (approximated/XPATed part)
-assign out0 = 0;
-assign p_o1_t0 = w_in3;
+assign p_o0_t0 = 1;
+assign out0 = p_o0_t0;
+assign p_o1_t0 = 1;
 assign out1 = p_o1_t0;
-assign p_o2_t0 = w_in1;
-assign out2 = p_o2_t0;
+assign out2 = 0;
 endmodule

@@ -31,6 +31,7 @@ def main():
         if ~os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
 
+
     specs_obj = TemplateSpecs(name='SOP1ShareLogic', literals_per_product=args.lpp, products_per_output=args.ppo,
                               benchmark_name=args.benchmark_name, exact_benchmark=args.benchmark_name,
                               num_of_models=1, subxpat=args.subxpat, et=args.et,
@@ -42,7 +43,7 @@ def main():
     else:
         stats_obj = explore_grid_xpat(specs_obj)
     stats_obj.store_grid()
-    stats_obj.plot_area()
+    # stats_obj.plot_area()
 
 
     # stats_obj = Stats(specs_obj)
