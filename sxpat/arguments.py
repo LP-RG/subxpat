@@ -16,6 +16,7 @@ class Arguments(Arguments):
         self.__products_in_total: int = tmp_args.pit
         self.__timeout: int = tmp_args.timeout
         self.__multiple: bool = tmp_args.multiple
+        self.__all: bool = tmp_args.all
 
     @property
     def literals_per_product(self):
@@ -54,6 +55,9 @@ class Arguments(Arguments):
     @property
     def multiple(self):
         return self.__multiple
+    @property
+    def all(self):
+        return self.__all
 
     @property
     def timeout(self):
@@ -114,6 +118,10 @@ class Arguments(Arguments):
                                action="store_true",
                                default=False)
 
+        my_parser.add_argument('--all',
+                               action="store_true",
+                               default=False)
+
         my_parser.add_argument('--approximate_benchmark', '-app',
                                type=str,
                                default=None,
@@ -170,6 +178,8 @@ class Arguments(Arguments):
                f'{self.subxpat = }\n' \
                f'{self.shared = }\n' \
                f'{self.timeout = }\n' \
+               f'{self.multiple = }\n' \
+               f'{self.all = }' \
 
 
 
