@@ -33,7 +33,7 @@ def main():
         stats_obj = Stats(specs_obj)
         stats_obj.plot_area()
         stats_obj.plot_runtime()
-        exit()
+
 
     else:
         if args.clean:
@@ -52,6 +52,8 @@ def main():
             else:
                 step = max_error // 8
                 et_array = list(range(step, max_error + 1, step))
+
+            et_array.reverse()
 
             for et in et_array:
                 specs_obj = TemplateSpecs(name='SOP1ShareLogic', literals_per_product=args.lpp, products_per_output=args.ppo,
