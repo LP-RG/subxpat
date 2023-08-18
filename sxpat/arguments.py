@@ -17,6 +17,7 @@ class Arguments(Arguments):
         self.__timeout: int = tmp_args.timeout
         self.__multiple: bool = tmp_args.multiple
         self.__all: bool = tmp_args.all
+        self.__plot: bool = tmp_args.plot
 
     @property
     def literals_per_product(self):
@@ -38,11 +39,9 @@ class Arguments(Arguments):
     def products_in_total(self):
         return self.__products_in_total
 
-
     @property
     def pit(self):
         return self.__products_in_total
-
 
     @property
     def subxpat(self):
@@ -55,6 +54,7 @@ class Arguments(Arguments):
     @property
     def multiple(self):
         return self.__multiple
+
     @property
     def all(self):
         return self.__all
@@ -74,6 +74,10 @@ class Arguments(Arguments):
     @property
     def clean(self):
         return self.__clean
+
+    @property
+    def plot(self):
+        return self.__plot
 
     @classmethod
     def parse(cls):
@@ -160,10 +164,13 @@ class Arguments(Arguments):
                                action="store_true",
                                default=False)
 
-        my_parser.add_argument('--clean',
+        my_parser.add_argument('--plot',
                                action="store_true",
                                default=False)
 
+        my_parser.add_argument('--clean',
+                               action="store_true",
+                               default=False)
 
         tmp_args = my_parser.parse_args()
 
@@ -179,7 +186,5 @@ class Arguments(Arguments):
                f'{self.shared = }\n' \
                f'{self.timeout = }\n' \
                f'{self.multiple = }\n' \
-               f'{self.all = }' \
-
-
-
+               f'{self.all = }\n' \
+               f'{self.plot = }'

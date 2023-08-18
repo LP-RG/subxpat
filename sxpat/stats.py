@@ -141,9 +141,11 @@ class Grid:
         self.__pap: int = spec_obj.partitioning_percentage
         self.__iterations: int = spec_obj.iterations
         if spec_obj.shared:
-            self.__cells: List[List[Cell]] = [[Cell(spec_obj) for _ in range(self.pit + 1)] for _ in range(self.lpp + 1)]
+            self.__cells: List[List[Cell]] = [[Cell(spec_obj) for _ in range(self.pit + 1)] for _ in
+                                              range(self.lpp + 1)]
         else:
-            self.__cells: List[List[Cell]] = [[Cell(spec_obj) for _ in range(self.ppo + 1)] for _ in range(self.lpp + 1)]
+            self.__cells: List[List[Cell]] = [[Cell(spec_obj) for _ in range(self.ppo + 1)] for _ in
+                                              range(self.lpp + 1)]
 
     @property
     def exact_name(self):
@@ -194,12 +196,13 @@ class Grid:
 
 
 class Stats:
-    def __init__(self, spec_obj: TemplateSpecs):
+    def __init__(self, spec_obj: TemplateSpecs, this_path: str = None):
         """
         stores the stats of an experiment (grid or cell) into an object
         """
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
+        self.__template_name: str = sxpatconfig.SHARED_LOGIC if re.search('Share'.upper(), spec_obj.template_name) else sxpatconfig.XPAT
         self.__lpp: int = spec_obj.lpp
         self.__ppo: int = spec_obj.ppo
         self.__pit: int = spec_obj.pit
@@ -208,6 +211,11 @@ class Stats:
 
         self.__pap: int = spec_obj.partitioning_percentage
         self.__iterations: int = spec_obj.iterations
+
+        if this_path:
+            self.__report_in_path: str = this_path
+        else:
+            self.__report_in_path: str = OUTPUT_PATH['report'][0] # default path
 
         self.__grid = Grid(spec_obj)
 
@@ -218,6 +226,10 @@ class Stats:
     @property
     def approximate_name(self):
         return self.__approximate_name
+
+    @property
+    def template_name(self):
+        return self.__template_name
 
     @property
     def lpp(self):
@@ -250,6 +262,10 @@ class Stats:
     @iterations.setter
     def iterations(self, this_iterations):
         self.__iterations = this_iterations
+
+    @property
+    def report_in_path(self):
+        return self.__report_in_path
 
     @property
     def grid(self):
@@ -311,6 +327,9 @@ class Stats:
     def verilog_paths(self, this_verilog_paths):
         self.__verilog_paths = this_verilog_paths
 
+    def load_grid(self):
+        pass
+
     def store_grid(self):
         folder, extension = OUTPUT_PATH['report']
         if self.shared:
@@ -322,7 +341,7 @@ class Stats:
             max_col = self.ppo + 1
             max_ro = self.lpp + 1
 
-        with open(report_file,'w') as f:
+        with open(report_file, 'w') as f:
             csvwriter = csv.writer(f)
             iteration_range = list(range(1, self.iterations + 1))
 
@@ -358,53 +377,40 @@ class Stats:
     def plot_grid(self):
         pass
 
+    def get_et_array(self, template_name: str = sxpatconfig.SHARED_LOGIC):
 
-    def get_et_array(self):
-        folder = f'experiments/area/muscat/{self.exact_name}'
-        all_areas = [f for f in os.listdir(folder)]
+        all_areas = [f for f in os.listdir(self.report_in_path)]
         et_array = []
         for area in all_areas:
-            if re.search('.*et(\d+).*', area):
+            if re.search('.*et(\d+).*', area) and area.endswith('.csv') and re.search(sxpatconfig.GRID, area) and \
+                    re.search(self.template_name, area) and re.search(self.exact_name, area):
+                print(f'{area = }')
                 this_et = int(re.search('.*et(\d+).*', area).group(1))
                 et_array.append(this_et)
 
         return sorted(et_array)
 
-    def get_muscat_area(self, et_array):
-        folder = f'experiments/area/muscat/{self.exact_name}'
-        all_areas = [f for f in os.listdir(folder)]
-        area_array = []
-        for et in et_array:
-            for area in all_areas:
-                if re.search(f'.*et{et}.*', area):
-                    with open(f'{folder}/{area}', 'r') as a:
-                        this_area = float(a.readline())
-                        area_array.append(this_area)
+    def get_area(self, et_array, template_name: str):
 
-        return area_array
-
-    def get_subxpat_area(self, et_array):
-        folder, extension = OUTPUT_PATH['report']
-        all_reports = [f for f in os.listdir(folder)]
+        all_reports = [f for f in os.listdir(self.report_in_path)]
         area_array = []
         for et in et_array:
             min_area = float('inf')
             for report in all_reports:
-                if re.search('grid', report) and re.search(f'{self.exact_name}', report):
-                    if re.search(f'.*et{et}.*', report):
-                        with open(f'{folder}/{report}', 'r') as f:
+                if re.search(f'.*et{et}.*', report) and \
+                        re.search(sxpatconfig.GRID, report) and \
+                        re.search(self.exact_name, report) and \
+                        re.search(template_name, report):
+                        with open(f'{self.report_in_path}/{report}', 'r') as f:
                             rows = csv.reader(f)
                             for cols in rows:
 
-                                if re.search('\(\d+X\d+\)', cols[0]):
+                                if re.search(f'\(\d+X\d+\)', cols[0]):
                                     for col_idx in range(1, self.iterations + 1):
-
                                         this_entry = cols[col_idx]
-
                                         this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
-
-                                        if re.search(f'{sxpatconfig.SAT}', this_entry[0]) and\
-                                                not re.search(sxpatconfig.UNSAT, this_entry[0]) and\
+                                        if re.search(f'{sxpatconfig.SAT}', this_entry[0]) and \
+                                                not re.search(sxpatconfig.UNSAT, this_entry[0]) and \
                                                 not re.search(sxpatconfig.UNKNOWN, this_entry[0]):
                                             area = float(this_entry[2])
 
@@ -415,16 +421,18 @@ class Stats:
             area_array.append(min_area)
         return area_array
 
-    def get_subxpat_runtime(self, et_array):
-        folder, extension = OUTPUT_PATH['report']
-        all_reports = [f for f in os.listdir(folder)]
+    def get_runtime(self, et_array, template_name: str):
+        all_reports = [f for f in os.listdir(self.report_in_path)]
         runtime_array = []
         for et in et_array:
             cur_runtime = 0
             for report in all_reports:
                 if re.search('grid', report) and re.search(f'{self.exact_name}', report):
-                    if re.search(f'.*et{et}.*', report):
-                        with open(f'{folder}/{report}', 'r') as f:
+                    if re.search(f'.*et{et}.*', report) and \
+                            re.search(sxpatconfig.GRID, report) and \
+                            re.search(self.exact_name, report) and \
+                            re.search(template_name, report):
+                        with open(f'{self.report_in_path}/{report}', 'r') as f:
                             rows = csv.reader(f)
                             for cols in rows:
                                 if re.search('\(\d+X\d+\)', cols[0]):
@@ -447,34 +455,33 @@ class Stats:
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Area')
-        ax.set_title(f'{self.exact_name} area: SharedLogic vs. XPAT')
+        ax.set_title(f'{self.exact_name} area: SharedXPAT({self.lpp}X{self.pit}) vs. XPAT({self.lpp}X{self.ppo})')
+
         et_list = self.get_et_array()
-        muscat_area_list = self.get_muscat_area(et_list)
-        subxpat_area_list = self.get_subxpat_area(et_list)
 
-
+        xpat_area_list = self.get_area(et_list, sxpatconfig.XPAT)
+        shared_area_list = self.get_area(et_list, sxpatconfig.SHARED_LOGIC)
+        print(f'{xpat_area_list = }')
+        print(f'{shared_area_list = }')
         uncomputed_area = []
         uncomputed_et = []
-        for idx, area in enumerate(subxpat_area_list):
+        for idx, area in enumerate(shared_area_list):
             if area == -1:
                 uncomputed_area.append(area)
                 uncomputed_et.append(et_list[idx])
 
-
-
-
-        ax.plot(et_list, muscat_area_list, label='MUSCAT',color='red', marker='s', markeredgecolor='red',
+        ax.plot(et_list, xpat_area_list, label='XPAT', color='red', marker='s', markeredgecolor='red',
                 markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
-        ax.plot(et_list, subxpat_area_list, label='SharedLogic', color='blue', marker='D', markeredgecolor='black',
+        ax.plot(et_list, shared_area_list, label='SharedLogic', color='blue', marker='D', markeredgecolor='black',
                 markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
-                markeredgewidth=10, linestyle=None, linewidth=0, markersize = 8)
+                markeredgewidth=10, linestyle=None, linewidth=0, markersize=8)
 
         plt.xticks(et_list)
         plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.pdf"
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_({self.lpp}X{self.pit})_({self.lpp}X{self.ppo}).png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_({self.lpp}X{self.pit})_({self.lpp}X{self.ppo}).pdf"
         plt.savefig(figurename_png)
         plt.savefig(figurename_pdf)
 
@@ -482,20 +489,34 @@ class Stats:
         print(f'plotting runtime...')
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
-        ax.set_ylabel(ylabel=f'Runtime')
-        ax.set_title(f'{self.exact_name} Runtimes: SharedLogic vs. XPAT')
+        ax.set_ylabel(ylabel=f'Runtime(s)')
+        ax.set_title(f'{self.exact_name} area: SharedXPAT({self.lpp}X{self.pit}) vs. XPAT({self.lpp}X{self.ppo})')
+
         et_list = self.get_et_array()
 
-        subxpat_runtime_list = self.get_subxpat_runtime(et_list)
-        print(f'{subxpat_runtime_list= }')
+        xpat_runtime_list = self.get_runtime(et_list, sxpatconfig.XPAT)
+        shared_runtime_list = self.get_runtime(et_list, sxpatconfig.SHARED_LOGIC)
+        print(f'{xpat_runtime_list = }')
+        print(f'{shared_runtime_list = }')
+        uncomputed_area = []
+        uncomputed_et = []
+        for idx, area in enumerate(shared_runtime_list):
+            if area == -1:
+                uncomputed_area.append(area)
+                uncomputed_et.append(et_list[idx])
 
-        ax.plot(et_list, subxpat_runtime_list, label='SharedLogic', color='blue', marker='D', markeredgecolor='black',
+        ax.plot(et_list, xpat_runtime_list, label='XPAT', color='red', marker='s', markeredgecolor='red',
+                markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        ax.plot(et_list, shared_runtime_list, label='SharedLogic', color='blue', marker='D', markeredgecolor='black',
                 markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
+                markeredgewidth=10, linestyle=None, linewidth=0, markersize=8)
 
         plt.xticks(et_list)
         plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/runtimes_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/runtimes_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.pdf"
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/runtime_{self.exact_name}_({self.lpp}X{self.pit})_({self.lpp}X{self.ppo}).png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/runtime_{self.exact_name}_({self.lpp}X{self.pit})_({self.lpp}X{self.ppo}).pdf"
         plt.savefig(figurename_png)
         plt.savefig(figurename_pdf)
 
