@@ -384,7 +384,7 @@ class Stats:
         for area in all_areas:
             if re.search('.*et(\d+).*', area) and area.endswith('.csv') and re.search(sxpatconfig.GRID, area) and \
                     re.search(self.template_name, area) and re.search(self.exact_name, area):
-                print(f'{area = }')
+
                 this_et = int(re.search('.*et(\d+).*', area).group(1))
                 et_array.append(this_et)
 
@@ -451,7 +451,7 @@ class Stats:
         return runtime_array
 
     def plot_area(self):
-        print(f'plotting area...')
+
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Area')
@@ -461,8 +461,7 @@ class Stats:
 
         xpat_area_list = self.get_area(et_list, sxpatconfig.XPAT)
         shared_area_list = self.get_area(et_list, sxpatconfig.SHARED_LOGIC)
-        print(f'{xpat_area_list = }')
-        print(f'{shared_area_list = }')
+
         uncomputed_area = []
         uncomputed_et = []
         for idx, area in enumerate(shared_area_list):
@@ -486,7 +485,7 @@ class Stats:
         plt.savefig(figurename_pdf)
 
     def plot_runtime(self):
-        print(f'plotting runtime...')
+
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Runtime(s)')
@@ -496,8 +495,7 @@ class Stats:
 
         xpat_runtime_list = self.get_runtime(et_list, sxpatconfig.XPAT)
         shared_runtime_list = self.get_runtime(et_list, sxpatconfig.SHARED_LOGIC)
-        print(f'{xpat_runtime_list = }')
-        print(f'{shared_runtime_list = }')
+
         uncomputed_area = []
         uncomputed_et = []
         for idx, area in enumerate(shared_runtime_list):
