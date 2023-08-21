@@ -613,20 +613,15 @@ class Synthesis:
         annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
         primary_output_list = list(self.graph.output_dict.values())
         sorted_annotated_graph_output_list = [-1] * len(annotated_graph_output_list)
+        # print(f'{annotated_graph_output_list = }')
+        # print(f'{primary_output_list = }')
 
         for node_idx in range(len(annotated_graph_output_list)):
             this_node = annotated_graph_output_list[node_idx]
             for key in self.graph.output_dict.keys():
-
                 if primary_output_list[node_idx] == self.graph.output_dict[key]:
                     sorted_annotated_graph_output_list[key] = this_node
                     break
-        #     print(f'{sorted_annotated_graph_output_list = }')
-        #
-        #
-        # print(f'{annotated_graph_output_list = }')
-        # print(f'{primary_output_list = }')
-        # print(f'{sorted_annotated_graph_output_list= }')
         # ==============================================================================================================
 
         output_quantity = 0
