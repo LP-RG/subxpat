@@ -74,10 +74,19 @@ def explore_grid(specs_obj: TemplateSpecs):
                 if lpp == 0 and ppo > 1:
                     lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
                     continue
-                print(f'current cell and iteration: {lpp},{ppo},{i} ', end='')
+                # print(f'current cell and iteration: {lpp},{ppo},{i} ', end='')
                 # if unsat or empty => move up to the next cell
                 specs_obj = set_current_context(specs_obj, lpp, ppo, i)
-                if is_empty(specs_obj):  # if empty
+                try:
+                    template_obj = Template_SOP1(specs_obj)
+                    template_obj.z3_generate_z3pyscript()
+                    template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, 1800)
+                    cur_status = get_status(template_obj)
+                except:
+                    cur_status = EMPTY
+
+
+                if cur_status == EMPTY:  # if empty
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
                                                                     this_iteration=i,
                                                                     this_area='',
@@ -86,32 +95,28 @@ def explore_grid(specs_obj: TemplateSpecs):
                     print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> Empty ' + Style.RESET_ALL)
 
                     lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
-                else:
-                    template_obj = Template_SOP1(specs_obj)
-                    template_obj.z3_generate_z3pyscript()
+                elif cur_status == UNSAT:
+                    print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> UNSAT ' + Style.RESET_ALL)
+                    runtime = template_obj.get_json_runtime()
+                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                                                                    this_iteration=i,
+                                                                    this_area=-1,
+                                                                    this_runtime=runtime,
+                                                                    this_status='UNSAT')
 
-                    template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, 1)
-                    if is_unsat(template_obj):  # if not empty but unsat
-                        print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> UNSAT ' + Style.RESET_ALL)
-                        runtime = template_obj.get_json_runtime()
-                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                        this_iteration=i,
-                                                                        this_area=-1,
-                                                                        this_runtime=runtime,
-                                                                        this_status='UNSAT')
+                    lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
 
-                        lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
-                    elif is_unknown(template_obj): # if not empty but unkown
-                        print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> TIMEOUT ' + Style.RESET_ALL)
-                        runtime = template_obj.get_json_runtime()
-                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                        this_iteration=i,
-                                                                        this_area=-1,
-                                                                        this_runtime=runtime,
-                                                                        this_status=sxpatconfig.UNKNOWN)
+                elif cur_status == UNKNOWN: # if not empty but unkown
+                    print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> TIMEOUT ' + Style.RESET_ALL)
+                    runtime = template_obj.get_json_runtime()
+                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                                                                    this_iteration=i,
+                                                                    this_area=-1,
+                                                                    this_runtime=runtime,
+                                                                    this_status=sxpatconfig.UNKNOWN)
 
-                        lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
-                    else:  # if not empty but sat
+                    lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
+                elif cur_status == SAT:  # if not empty but sat
                         # if sat => move up to the next iteration, reset the parameters
                         synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
                         if i > 1:
@@ -198,13 +203,22 @@ def is_unsat(template_obj: Template_SOP1) -> bool:
         return False
 
 
-def is_empty(specs_obj: TemplateSpecs) -> bool:
-    try:
-        template_obj = Template_SOP1(specs_obj)
-    except:
-        return True
-    else:
-        return False
+
+
+def get_status(template_obj: Template_SOP1) -> str:
+    """
+    checks whether the current model was sat, unsat or unknown
+    :param: the current template object
+    :rtype: an str containing either of SAT, UNSAT, or UNKNOWN
+    """
+    template_obj.import_json_model()
+    if template_obj.json_status == SAT:
+        return SAT
+    elif template_obj.json_status == UNSAT:
+        return UNSAT
+    elif template_obj.json_status == UNKNOWN:
+        return UNKNOWN
+
 
 
 def explore_grid_old(specs_obj: TemplateSpecs):

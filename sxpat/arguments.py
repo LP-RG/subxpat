@@ -18,6 +18,7 @@ class Arguments(Arguments):
         self.__grid: bool = tmp_args.grid
         self.__multiple: bool = tmp_args.multiple
 
+
     @property
     def partitioning_percentage(self):
         return self.__partitioning_percentage

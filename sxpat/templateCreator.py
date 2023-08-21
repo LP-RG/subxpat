@@ -24,10 +24,13 @@ class TemplateCreator:
         self.__benchmark_name = template_specs.benchmark_name
         self.__exact_benchmark_name = template_specs.exact_benchmark
         self.__partitioning_percentage = template_specs.pp
+        # print(f'Flag 1')
         self.__current_graph = self.import_graph()
+        # print(f'Flag 2')
         self.__exact_graph = self.import_exact_graph()
-
         self.__z3pyscript_out_path = None
+
+
         self.current_graph.export_annotated_graph()
 
     @property
@@ -65,21 +68,26 @@ class TemplateCreator:
         Converts it into a GraphViz (.gv) file, cleans it, and stores it at "output/gv"
         :return: the cleaned GraphViz file as a NetworkX graph object
         """
+        # print(f'importing the graph')
         temp_verilog_obj = Verilog(self.benchmark_name)
         convert_verilog_to_gv(self.benchmark_name)
-        temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False, partitioning_percentage=self.pp)
-
+        # print(f'Flag 3')
+        temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False, partitioning_percentage=1)
+        # print(f'{temp_graph_obj = }')
+        # print(f'Flag 4')
         if len(temp_graph_obj.subgraph_gate_dict) == 0:
-            print(Fore.RED + f'' + Style.RESET_ALL)
+            print(Fore.RED + f'Subgraph is empty!' + Style.RESET_ALL)
             raise Exception(
                 Fore.RED + f'Subgraph has no gates!\nPlease choose another subgraph!\n\nExtracted Subgraph:\n{temp_graph_obj}' + Style.RESET_ALL)
         return temp_graph_obj
 
     def import_exact_graph(self):
+        # print(f'importing the exact graph')
         exact_benchmark_name = ''
         temp_verilog_obj = Verilog(self.exact_benchmark)
         convert_verilog_to_gv(self.exact_benchmark)
         temp_graph_obj = AnnotatedGraph(self.exact_benchmark, is_clean=False, partitioning_percentage=0)
+
         return temp_graph_obj
 
     def __repr__(self):
@@ -103,6 +111,7 @@ class Template_SOP1(TemplateCreator):
         self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
         self.__json_in_path = None
         self.__json_model = None
+        self.__json_status = None
 
     @property
     def literals_per_product(self):
@@ -139,6 +148,14 @@ class Template_SOP1(TemplateCreator):
     @json_model.setter
     def json_model(self, this_json_model):
         self.__json_model = this_json_model
+
+    @property
+    def json_status(self):
+        return self.__json_status
+
+    @json_status.setter
+    def json_status(self, this_status):
+        self.__json_status = this_status
 
     @property
     def et(self):
@@ -191,14 +208,17 @@ class Template_SOP1(TemplateCreator):
                 if key == RESULT:
                     if d[key] == SAT:
                         self.json_model = d[MODEL]
+                        self.json_status = SAT
                         return True
                     elif d[key] == UNSAT:
                         # TODO:
                         # FIX LATER
                         self.json_model = UNSAT
+                        self.json_status = UNSAT
                         return False
                     else:
-                        self.json_model = UNKOWN
+                        self.json_model = UNKNOWN
+                        self.json_status = UNKNOWN
                         return False
 
     def get_json_runtime(self, this_id: int = 0):

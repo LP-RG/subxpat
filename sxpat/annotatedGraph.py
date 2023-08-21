@@ -23,7 +23,11 @@ class AnnotatedGraph(Graph):
         self.__partitioning_percentage = partitioning_percentage
 
 
-        self.__subgraph = self.extract_subgraph()
+        if partitioning_percentage > 0:
+            self.__subgraph = self.extract_subgraph()
+        else:
+            self.__subgraph = self.graph
+
 
         self.__subgraph_input_dict = self.extract_subgraph_inputs()
         self.__subgraph_output_dict = self.extract_subgraph_outputs()
@@ -40,6 +44,7 @@ class AnnotatedGraph(Graph):
         self.__graph_num_intact_gates = len(self.__graph_intact_gate_dict)
 
         folder, extension = OUTPUT_PATH[GV]
+
         self.__out_annotated_graph_path = f'{folder}/{self.name}_subgraph.{extension}'
 
     @property
@@ -132,7 +137,7 @@ class AnnotatedGraph(Graph):
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # 2) We might need to consider the labels
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
-        print("Start extract subgraph")
+        # print(f'Extracting subgraph...')
         tmp_graph = self.graph.copy(as_view=False)
 
         # Data structures containing the literals
@@ -198,9 +203,9 @@ class AnnotatedGraph(Graph):
                 output_edges[out_id].append(int(e[0][1:]))
 
 
-        print("Number of input nodes: ", len(input_literals))
-        print("Number of gates in the circuit: ", len(gate_literals))
-        print("Number of output nodes: ", len(output_literals))
+        # print("Number of input nodes: ", len(input_literals))
+        # print("Number of gates in the circuit: ", len(gate_literals))
+        # print("Number of output nodes: ", len(output_literals))
             
         # Define input edges
         for source in input_edges:
@@ -290,7 +295,7 @@ class AnnotatedGraph(Graph):
         node_partition = []
         if opt.check() == sat:
             print("SAT")
-            print(opt.model())
+            # print(opt.model())
             m = opt.model()
             for t in m.decls():
                 if 'g' not in str(t):                   # Look only the literals associate to the gates
@@ -325,10 +330,15 @@ class AnnotatedGraph(Graph):
                     #print("No path", u, v)
                     pass
 
-
+        # print(f'{node_partition = }')
         # Assign different color to gates in the partition
+        # print(f'{self.gate_dict = }')
+        # print(f'{node_partition = }')
+        # print(f'{node_partition = }')
         for gate_idx in self.gate_dict:
+            # print(f'{gate_idx = }')
             if gate_idx in node_partition:
+                # print(f'{gate_idx} is in the node_partition')
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
             else:
@@ -341,6 +351,7 @@ class AnnotatedGraph(Graph):
         exports the subgraph (annotated graph) to a GV (GraphViz) file
         :return:
         """
+        # print(f'exporting the annotated subgraph!')
         with open(self.subgraph_out_path, 'w') as f:
             f.write(f"{STRICT} {DIGRAPH} \"{self.name}\" {{\n")
             f.write(f"{NODE} [{STYLE} = {FILLED}, {FILLCOLOR} = {WHITE}]\n")
@@ -350,6 +361,8 @@ class AnnotatedGraph(Graph):
                 self.export_edge(e, f)
             f.write(f"}}\n")
         folder, extension = OUTPUT_PATH[GV]
+        # print(f'{self.subgraph_out_path = }')
+        # print(f'{self.name = }')
         subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
 
 
