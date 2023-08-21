@@ -184,13 +184,13 @@ def explore_grid_shared_column_wise(specs_obj: TemplateSpecs) -> Stats:
 
                     if erroreval_verification(specs_obj.exact_benchmark, synth_obj.ver_out_name[:-2], specs_obj.et):
                         print(
-                            Fore.GREEN + f'Cell ({specs_obj.lpp} X {specs_obj.pit}) -> found another {SAT.upper()} (ErrorEval -> PASS)' + Style.RESET_ALL)
+                            Fore.GREEN + f'Cell ({specs_obj.lpp} X {specs_obj.pit}) -> found another {SAT.upper()} (Area = {synth_obj.estimate_area()}) (ErrorEval -> PASS)' + Style.RESET_ALL)
                     else:
                         print(Fore.RED + f'ErrorEval -> FAILED' + Style.RESET_ALL)
                         exit()
                     stats_obj.grid.cells[lpp][pit].store_model_info(this_model_id=0,
                                                                     this_iteration=1,
-                                                                    this_area=-1,
+                                                                    this_area=synth_obj.estimate_area(),
                                                                     this_runtime=template_obj.get_json_runtime(),
                                                                     this_status=SAT)
                 elif cur_status == UNSAT:
@@ -215,7 +215,7 @@ def explore_grid_shared_column_wise(specs_obj: TemplateSpecs) -> Stats:
 def explore_grid_xpat(specs_obj: TemplateSpecs) -> Stats:
 
     print(
-        Fore.BLUE + f'Grid ({specs_obj.lpp} X {specs_obj.pit}) and et={specs_obj.et} Normal XPAT started...' + Style.RESET_ALL)
+        Fore.BLUE + f'Grid ({specs_obj.lpp} X {specs_obj.ppo}) and et={specs_obj.et} Normal XPAT started...' + Style.RESET_ALL)
     stats_obj = Stats(specs_obj)
 
 
@@ -306,11 +306,11 @@ def explore_grid_xpat(specs_obj: TemplateSpecs) -> Stats:
                     synth_obj.export_verilog()
                     synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
                     print(
-                        Fore.GREEN + f'Cell ({specs_obj.lpp} X {specs_obj.ppo}) -> found another {SAT.upper()}' + Style.RESET_ALL)
+                        Fore.GREEN + f'Cell ({specs_obj.lpp} X {specs_obj.ppo}) -> found another {SAT.upper()} (Area = {synth_obj.estimate_area()})' + Style.RESET_ALL)
 
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
                                                                     this_iteration=1,
-                                                                    this_area=-1,
+                                                                    this_area=synth_obj.estimate_area(),
                                                                     this_runtime=template_obj.get_json_runtime(),
                                                                     this_status=SAT)
                 elif cur_status == UNSAT:
