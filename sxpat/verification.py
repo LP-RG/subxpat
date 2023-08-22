@@ -45,12 +45,12 @@ def erroreval_verification(exact_benchmark_name: str, approximate_benchmark: str
                         obtained_wce = int(row[1])
 
                         if obtained_wce <= et:
-                            print(Fore.GREEN + f'{obtained_wce = } <= ET = {et} (ErrorEval PASS)' + Style.RESET_ALL)
-                            # print(f'ErrorEval Error Verification -> PASS' + Style.RESET_ALL)
-                            with open(
-                                    f'output/report/PASS_{approximate_benchmark}.txt',
-                                    'w') as f:
-                                pass
+                            # print(Fore.GREEN + f'{obtained_wce = } <= ET = {et} (ErrorEval PASS)' + Style.RESET_ALL)
+                            # # print(f'ErrorEval Error Verification -> PASS' + Style.RESET_ALL)
+                            # with open(
+                            #         f'output/report/PASS_{approximate_benchmark}.txt',
+                            #         'w') as f:
+                            #     pass
                             return True
 
                         else:

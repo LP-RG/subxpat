@@ -76,8 +76,8 @@ def main():
                 explore_cell(specs_obj)
 
         stats_obj = Stats(specs_obj)
-        stats_obj.plot_area()
-        stats_obj.plot_runtime()
+        # stats_obj.plot_area()
+        # stats_obj.plot_runtime()
     else:
         specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                   products_per_output=args.ppo,

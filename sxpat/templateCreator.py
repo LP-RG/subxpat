@@ -24,14 +24,13 @@ class TemplateCreator:
         self.__benchmark_name = template_specs.benchmark_name
         self.__exact_benchmark_name = template_specs.exact_benchmark
         self.__partitioning_percentage = template_specs.pp
-        # print(f'Flag 1')
         self.__current_graph = self.import_graph()
-        # print(f'Flag 2')
         self.__exact_graph = self.import_exact_graph()
         self.__z3pyscript_out_path = None
 
 
-        self.current_graph.export_annotated_graph()
+        if self.current_graph.subgraph:
+            self.current_graph.export_annotated_graph()
 
     @property
     def partitioning_percentage(self):
@@ -44,22 +43,37 @@ class TemplateCreator:
     @property
     def template_name(self):
         return self.__template_name
+    @template_name.setter
+    def template_name(self, this_template_name):
+        self.__template_name = this_template_name
 
     @property
     def benchmark_name(self):
         return self.__benchmark_name
+    @benchmark_name.setter
+    def benchmark_name(self, this_benchmark_name):
+        self.__benchmark_name = this_benchmark_name
 
     @property
     def exact_benchmark(self):
         return self.__exact_benchmark_name
+    @exact_benchmark.setter
+    def exact_benchmark(self, this_exact_benchmark):
+        self.__exact_benchmark_name = this_exact_benchmark
 
     @property
     def current_graph(self):
         return self.__current_graph
+    @current_graph.setter
+    def current_graph(self, this_current_graph):
+        self.__current_graph = this_current_graph
 
     @property
     def exact_graph(self):
         return self.__exact_graph
+    @exact_graph.setter
+    def exact_graph(self, this_exact_graph):
+        self.__exact_graph = this_exact_graph
 
     def import_graph(self):
         """
@@ -71,14 +85,12 @@ class TemplateCreator:
         # print(f'importing the graph')
         temp_verilog_obj = Verilog(self.benchmark_name)
         convert_verilog_to_gv(self.benchmark_name)
-        # print(f'Flag 3')
+
         temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False, partitioning_percentage=1)
-        # print(f'{temp_graph_obj = }')
-        # print(f'Flag 4')
-        if len(temp_graph_obj.subgraph_gate_dict) == 0:
-            print(Fore.RED + f'Subgraph is empty!' + Style.RESET_ALL)
-            raise Exception(
-                Fore.RED + f'Subgraph has no gates!\nPlease choose another subgraph!\n\nExtracted Subgraph:\n{temp_graph_obj}' + Style.RESET_ALL)
+        # if temp_graph_obj.subgraph is None:
+        #     print(Fore.RED + f'Subgraph is empty!' + Style.RESET_ALL)
+            # raise Exception(
+            #     Fore.RED + f'Subgraph has no gates!\nPlease choose another subgraph!\n\nExtracted Subgraph:\n{temp_graph_obj}' + Style.RESET_ALL)
         return temp_graph_obj
 
     def import_exact_graph(self):
@@ -107,8 +119,9 @@ class Template_SOP1(TemplateCreator):
         self.__iterations = template_specs.iterations
 
         self.__z3pyscript = None
-        self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
-        self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
+        self.__z3_out_path = None
+
+        self.__json_out_path = None
         self.__json_in_path = None
         self.__json_model = None
         self.__json_status = None
@@ -121,6 +134,10 @@ class Template_SOP1(TemplateCreator):
     def lpp(self):
         return self.__literal_per_product
 
+    @lpp.setter
+    def lpp(self, this_lpp):
+        self.__literal_per_product = this_lpp
+
     @property
     def products_per_output(self):
         return self.__product_per_output
@@ -128,6 +145,10 @@ class Template_SOP1(TemplateCreator):
     @property
     def ppo(self):
         return self.__product_per_output
+
+    @ppo.setter
+    def ppo(self, this_ppo):
+        self.__product_per_output = this_ppo
 
     @property
     def subxpat(self):
@@ -172,10 +193,16 @@ class Template_SOP1(TemplateCreator):
     @property
     def z3_out_path(self):
         return self.__z3_out_path
+    @z3_out_path.setter
+    def z3_out_path(self, this_z3_out_path):
+        self.__z3_out_path = this_z3_out_path
 
     @property
     def json_out_path(self):
         return self.__json_out_path
+    @json_out_path.setter
+    def json_out_path(self, this_json_out_path):
+        self.__json_out_path = this_json_out_path
 
     @property
     def json_in_path(self):
@@ -184,6 +211,20 @@ class Template_SOP1(TemplateCreator):
     @json_in_path.setter
     def json_in_path(self, this_json_path):
         self.__json_in_path = this_json_path
+
+
+    def set_new_context(self, specs_obj: TemplateSpecs):
+        self.lpp = specs_obj.lpp
+        self.ppo = specs_obj.ppo
+        self.iterations = specs_obj.iterations
+        self.template_name = specs_obj.template_name
+        self.benchmark_name = specs_obj.benchmark_name
+        self.exact_benchmark = specs_obj.exact_benchmark
+        self.json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
+        self.z3_out_path = self.set_path(OUTPUT_PATH['z3'])
+
+
+
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extension = this_path
