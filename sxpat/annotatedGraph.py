@@ -1,5 +1,6 @@
 from typing import Dict, List, Callable
 from sklearn.cluster import SpectralClustering
+from colorama import Fore, Style
 import networkx as nx
 from Z3Log.graph import Graph
 from Z3Log.verilog import Verilog
@@ -23,25 +24,22 @@ class AnnotatedGraph(Graph):
         self.__partitioning_percentage = partitioning_percentage
 
 
-        if partitioning_percentage > 0:
-            self.__subgraph = self.extract_subgraph()
-        else:
-            self.__subgraph = self.graph
 
+        self.__subgraph = None
+        self.__subgraph_input_dict = None
+        self.__subgraph_output_dict = None
+        self.__subgraph_gate_dict = None
+        self.__subgraph_fanin_dict = None
+        self.__subgraph_fanout_dict = None
+        self.__graph_intact_gate_dict = None
 
-        self.__subgraph_input_dict = self.extract_subgraph_inputs()
-        self.__subgraph_output_dict = self.extract_subgraph_outputs()
-        self.__subgraph_gate_dict = self.extract_subgraph_gates()
-        self.__subgraph_fanin_dict = self.extract_subgraph_fanin()
-        self.__subgraph_fanout_dict = self.extract_subgraph_fanout()
-        self.__graph_intact_gate_dict = self.extract_graph_intact_gates()
+        self.__subgraph_num_inputs = None
+        self.__subgraph_num_outputs = None
+        self.__subgraph_num_gates = None
+        self.__subgraph_num_fanin = None
+        self.__subgraph_num_fanout = None
+        self.__graph_num_intact_gates = None
 
-        self.__subgraph_num_inputs = len(self.subgraph_input_dict)
-        self.__subgraph_num_outputs = len(self.subgraph_output_dict)
-        self.__subgraph_num_gates = len(self.subgraph_gate_dict)
-        self.__subgraph_num_fanin = len(self.subgraph_fanin_dict)
-        self.__subgraph_num_fanout = len(self.subgraph_fanout_dict)
-        self.__graph_num_intact_gates = len(self.__graph_intact_gate_dict)
 
         folder, extension = OUTPUT_PATH[GV]
 
@@ -59,6 +57,10 @@ class AnnotatedGraph(Graph):
     def subgraph(self):
         return self.__subgraph
 
+    @subgraph.setter
+    def subgraph(self, this_subgraph):
+        self.__subgraph = this_subgraph
+
     @property
     def subgraph_out_path(self):
         return self.__out_annotated_graph_path
@@ -66,46 +68,79 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_input_dict(self):
         return self.__subgraph_input_dict
+    @subgraph_input_dict.setter
+    def subgraph_input_dict(self, this_subgraph_input_dict):
+        self.__subgraph_input_dict = this_subgraph_input_dict
 
     @property
     def subgraph_output_dict(self):
         return self.__subgraph_output_dict
+    @subgraph_output_dict.setter
+    def subgraph_output_dict(self, this_subgraph_output_dict):
+        self.__subgraph_output_dict = this_subgraph_output_dict
 
     @property
     def subgraph_gate_dict(self):
         return self.__subgraph_gate_dict
+    @subgraph_gate_dict.setter
+    def subgraph_gate_dict(self, this_subgraph_gate_dict):
+        self.__subgraph_gate_dict = this_subgraph_gate_dict
 
     @property
     def graph_intact_gate_dict(self):
         return self.__graph_intact_gate_dict
+    @graph_intact_gate_dict.setter
+    def graph_intact_gate_dict(self, this_graph_intact_gate_dict):
+        self.__graph_intact_gate_dict = this_graph_intact_gate_dict
 
     @property
     def subgraph_fanin_dict(self):
         return self.__subgraph_fanin_dict
+    @subgraph_fanin_dict.setter
+    def subgraph_fanin_dict(self, this_subgraph_fanin_dict):
+        self.__subgraph_fanin_dict = this_subgraph_fanin_dict
 
     @property
     def subgraph_fanout_dict(self):
         return self.__subgraph_fanout_dict
+    @subgraph_fanout_dict.setter
+    def subgraph_fanout_dict(self, this_subgraph_fanout_dict):
+        self.__subgraph_fanout_dict = this_subgraph_fanout_dict
 
     @property
     def subgraph_num_inputs(self):
         return self.__subgraph_num_inputs
+    @subgraph_num_inputs.setter
+    def subgraph_num_inputs(self, this_subgraph_num_inputs):
+        self.__subgraph_num_inputs = this_subgraph_num_inputs
 
     @property
     def subgraph_num_outputs(self):
         return self.__subgraph_num_outputs
+    @subgraph_num_outputs.setter
+    def subgraph_num_outputs(self, this_subgraph_num_outputs):
+        self.__subgraph_num_outputs = this_subgraph_num_outputs
 
     @property
     def subgraph_num_gates(self):
         return self.__subgraph_num_gates
+    @subgraph_num_gates.setter
+    def subgraph_num_gates(self, this_subgraph_num_gates):
+        self.__subgraph_num_gates = this_subgraph_num_gates
 
     @property
     def subgraph_num_fanin(self):
         return self.__subgraph_num_fanin
+    @subgraph_num_fanin.setter
+    def subgraph_num_fanin(self, this_subgraph_num_fanin):
+        self.__subgraph_num_fanin = this_subgraph_num_fanin
 
     @property
     def subgraph_num_fanout(self):
         return self.__subgraph_num_fanout
+    @subgraph_num_fanout.setter
+    def subgraph_num_fanout(self, this_subgraph_num_fanout):
+        self.__subgraph_num_fanout = this_subgraph_num_fanout
 
     def sort_dict(self, this_dict: Dict) -> Dict:
         sorted_dict: type(this_dict) = {}
@@ -129,13 +164,32 @@ class AnnotatedGraph(Graph):
                f'{self.partitioning_percentage = }\n'
 
     def extract_subgraph(self):
+        # print(f'Flag 1')
+        self.subgraph = self.find_subgraph()
+        self.export_annotated_graph()
+        self.subgraph_input_dict = self.extract_subgraph_inputs()
+        self.subgraph_output_dict = self.extract_subgraph_outputs()
+        self.subgraph_gate_dict = self.extract_subgraph_gates()
+        self.subgraph_fanin_dict = self.extract_subgraph_fanin()
+        self.subgraph_fanout_dict = self.extract_subgraph_fanout()
+        self.graph_intact_gate_dict = self.extract_graph_intact_gates()
+
+        self.subgraph_num_inputs = len(self.subgraph_input_dict)
+        self.subgraph_num_outputs = len(self.subgraph_output_dict)
+        self.subgraph_num_gates = len(self.subgraph_gate_dict)
+        self.subgraph_num_fanin = len(self.subgraph_fanin_dict)
+        self.subgraph_num_fanout = len(self.subgraph_fanout_dict)
+        self.graph_num_intact_gates = len(self.__graph_intact_gate_dict)
+        # print(f'Flag 2')
+
+    def find_subgraph(self):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        print(Fore.BLUE + f'subgraph extraction started -> ' + Style.RESET_ALL, end='')
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
-        # 2) We might need to consider the labels
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         # print(f'Extracting subgraph...')
         tmp_graph = self.graph.copy(as_view=False)
@@ -294,7 +348,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            print("SAT")
+            print(Fore.GREEN + "SAT" + Style.RESET_ALL)
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -304,7 +358,7 @@ class AnnotatedGraph(Graph):
                     gate_id = int(str(t)[2:])
                     node_partition.append(gate_id)      # Gates inside the partition
         else:
-            print("UNSAT")
+            print(Fore.YELLOW + "UNSAT" + Style.RESET_ALL)
       
         # Check partition convexity
         for i in range(len(node_partition) - 1):
@@ -352,6 +406,7 @@ class AnnotatedGraph(Graph):
         :return:
         """
         # print(f'exporting the annotated subgraph!')
+        print(f'{self.subgraph_out_path = }')
         with open(self.subgraph_out_path, 'w') as f:
             f.write(f"{STRICT} {DIGRAPH} \"{self.name}\" {{\n")
             f.write(f"{NODE} [{STYLE} = {FILLED}, {FILLCOLOR} = {WHITE}]\n")

@@ -58,9 +58,11 @@ def explore_grid(specs_obj: TemplateSpecs):
     cur_ppo = -1
 
     stats_obj = Stats(specs_obj)
-
+    template_obj = Template_SOP1(specs_obj)
     for i in range(1, total_iterations + 1):
+        print(Fore.LIGHTBLUE_EX + f'iteration {i}' + Style.RESET_ALL)
         # run for a cell
+        template_obj.current_graph.extract_subgraph()
         ppo = 1
         lpp = 0
         found = False
@@ -74,16 +76,18 @@ def explore_grid(specs_obj: TemplateSpecs):
                 if lpp == 0 and ppo > 1:
                     lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
                     continue
-                # print(f'current cell and iteration: {lpp},{ppo},{i} ', end='')
+
                 # if unsat or empty => move up to the next cell
                 specs_obj = set_current_context(specs_obj, lpp, ppo, i)
+                template_obj.set_new_context(specs_obj)
                 try:
-                    template_obj = Template_SOP1(specs_obj)
                     template_obj.z3_generate_z3pyscript()
                     template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, 1800)
                     cur_status = get_status(template_obj)
                 except:
                     cur_status = EMPTY
+                    # raise Exception(Fore.RED + f'Cannot create the template_obj' + Style.RESET_ALL)
+
 
 
                 if cur_status == EMPTY:  # if empty
@@ -95,7 +99,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> Empty ' + Style.RESET_ALL)
 
                     lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
-                elif cur_status == UNSAT:
+                elif cur_status == UNSAT: # if unsat
                     print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> UNSAT ' + Style.RESET_ALL)
                     runtime = template_obj.get_json_runtime()
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
@@ -106,8 +110,8 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                     lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
 
-                elif cur_status == UNKNOWN: # if not empty but unkown
-                    print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> TIMEOUT ' + Style.RESET_ALL)
+                elif cur_status == UNKNOWN: # if unknown
+                    print(Fore.MAGENTA + f'Cell({lpp},{ppo}) at iteration {i} -> TIMEOUT ' + Style.RESET_ALL)
                     runtime = template_obj.get_json_runtime()
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
                                                                     this_iteration=i,
@@ -116,32 +120,34 @@ def explore_grid(specs_obj: TemplateSpecs):
                                                                     this_status=sxpatconfig.UNKNOWN)
 
                     lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
-                elif cur_status == SAT:  # if not empty but sat
-                        # if sat => move up to the next iteration, reset the parameters
-                        synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
-                        if i > 1:
-                            synth_obj.benchmark_name = specs_obj.exact_benchmark
-                            synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
-                        synth_obj.export_verilog()
-                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
+                elif cur_status == SAT:  # if sat
+                    # print(f'{template_obj.benchmark_name = }')
+                    # print(f'{template_obj.current_graph = }')
+                    # if sat => move up to the next iteration, reset the parameters
+                    synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
+                    if i > 1:
+                        synth_obj.benchmark_name = specs_obj.exact_benchmark
+                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
+                    synth_obj.export_verilog()
+                    synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
 
-                        approximate_benchmark = synth_obj.ver_out_name[:-2]  # remove the extension
-                        if not erroreval_verification(specs_obj.exact_benchmark, approximate_benchmark,
-                                                      template_obj.et):
-                            raise Exception(Fore.RED + f'ErrorEval Verification: FAILED!' + Style.RESET_ALL)
-                        specs_obj.benchmark_name = approximate_benchmark
+                    approximate_benchmark = synth_obj.ver_out_name[:-2]  # remove the extension
+                    if not erroreval_verification(specs_obj.exact_benchmark, approximate_benchmark,
+                                                  template_obj.et):
+                        raise Exception(Fore.RED + f'ErrorEval Verification: FAILED!' + Style.RESET_ALL)
+                    specs_obj.benchmark_name = approximate_benchmark
 
-                        cur_lpp = lpp
-                        cur_ppo = ppo
-                        runtime = template_obj.get_json_runtime()
-                        area = synth_obj.estimate_area()
+                    cur_lpp = lpp
+                    cur_ppo = ppo
+                    runtime = template_obj.get_json_runtime()
+                    area = synth_obj.estimate_area()
 
-                        print(Fore.GREEN + f'Dominant SAT Cell = ({cur_lpp}, {cur_ppo}) iteration = {i}', end='')
-                        print(
-                            f' -> [area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})]' + Style.RESET_ALL)
-                        found = True
+                    print(Fore.GREEN + f'Cell = ({cur_lpp}, {cur_ppo}) iteration = {i} -> SAT', end='')
+                    print(
+                        f' -> [area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})]' + Style.RESET_ALL)
+                    found = True
 
-                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
                                                                         this_iteration=i,
                                                                         this_area=area,
                                                                         this_runtime=runtime,
