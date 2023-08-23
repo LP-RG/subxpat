@@ -48,7 +48,7 @@ def explore_cell(specs_obj: TemplateSpecs):
 
 def explore_grid(specs_obj: TemplateSpecs):
     print(
-        Fore.BLUE + f'Grid ({specs_obj.lpp} X {specs_obj.ppo}) and et={specs_obj.et} exploration started...' + Style.RESET_ALL)
+        Fore.BLUE + f'Subxpat started...' + Style.RESET_ALL)
     i = 1
     total_iterations = specs_obj.iterations
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
@@ -61,7 +61,10 @@ def explore_grid(specs_obj: TemplateSpecs):
     template_obj = Template_SOP1(specs_obj)
     for i in range(1, total_iterations + 1):
         print(Fore.LIGHTBLUE_EX + f'iteration {i}' + Style.RESET_ALL)
+        print(
+            Fore.BLUE + f'Grid ({specs_obj.lpp} X {specs_obj.ppo}) and et={specs_obj.et} exploration started...' + Style.RESET_ALL)
         # run for a cell
+        template_obj.current_graph = template_obj.import_graph()
         template_obj.current_graph.extract_subgraph()
         ppo = 1
         lpp = 0
@@ -78,14 +81,13 @@ def explore_grid(specs_obj: TemplateSpecs):
                     continue
 
                 # if unsat or empty => move up to the next cell
+
                 specs_obj = set_current_context(specs_obj, lpp, ppo, i)
                 template_obj.set_new_context(specs_obj)
-                try:
-                    template_obj.z3_generate_z3pyscript()
-                    template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, 1800)
-                    cur_status = get_status(template_obj)
-                except:
-                    cur_status = EMPTY
+                template_obj.z3_generate_z3pyscript()
+                template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, 1800)
+                cur_status = get_status(template_obj)
+
                     # raise Exception(Fore.RED + f'Cannot create the template_obj' + Style.RESET_ALL)
 
 
@@ -136,7 +138,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                                                   template_obj.et):
                         raise Exception(Fore.RED + f'ErrorEval Verification: FAILED!' + Style.RESET_ALL)
                     specs_obj.benchmark_name = approximate_benchmark
-
+                    template_obj.set_new_context(specs_obj)
                     cur_lpp = lpp
                     cur_ppo = ppo
                     runtime = template_obj.get_json_runtime()

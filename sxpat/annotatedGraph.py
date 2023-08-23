@@ -165,6 +165,7 @@ class AnnotatedGraph(Graph):
 
     def extract_subgraph(self):
         # print(f'Flag 1')
+
         self.subgraph = self.find_subgraph()
         self.export_annotated_graph()
         self.subgraph_input_dict = self.extract_subgraph_inputs()
@@ -187,13 +188,13 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-        print(Fore.BLUE + f'subgraph extraction started -> ' + Style.RESET_ALL, end='')
+        print(Fore.BLUE + f'subgraph extraction started {self.name} -> ' + Style.RESET_ALL, end='')
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         # print(f'Extracting subgraph...')
         tmp_graph = self.graph.copy(as_view=False)
-
+        # print(f'{tmp_graph.nodes = }')
         # Data structures containing the literals
         input_literals = {}                     # literals associated to the input nodes
         gate_literals = {}                      # literals associated to the gates in the circuit
@@ -366,6 +367,7 @@ class AnnotatedGraph(Graph):
                 u = node_partition[i]
                 v = node_partition[j]
                 try:
+
                     path = nx.shortest_path(G, source=u, target=v)
                     all_nodes_in_partition = True
 
@@ -384,11 +386,6 @@ class AnnotatedGraph(Graph):
                     #print("No path", u, v)
                     pass
 
-        # print(f'{node_partition = }')
-        # Assign different color to gates in the partition
-        # print(f'{self.gate_dict = }')
-        # print(f'{node_partition = }')
-        # print(f'{node_partition = }')
         for gate_idx in self.gate_dict:
             # print(f'{gate_idx = }')
             if gate_idx in node_partition:
@@ -406,7 +403,7 @@ class AnnotatedGraph(Graph):
         :return:
         """
         # print(f'exporting the annotated subgraph!')
-        print(f'{self.subgraph_out_path = }')
+        # print(f'{self.subgraph_out_path = }')
         with open(self.subgraph_out_path, 'w') as f:
             f.write(f"{STRICT} {DIGRAPH} \"{self.name}\" {{\n")
             f.write(f"{NODE} [{STYLE} = {FILLED}, {FILLCOLOR} = {WHITE}]\n")
