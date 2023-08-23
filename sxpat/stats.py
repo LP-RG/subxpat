@@ -435,17 +435,41 @@ class Stats:
                         with open(f'{self.report_in_path}/{report}', 'r') as f:
                             rows = csv.reader(f)
                             for cols in rows:
+                                # find the first SAT cell
                                 if re.search('\(\d+X\d+\)', cols[0]):
                                     for col_idx in range(1, self.iterations + 1):
-
                                         this_entry = cols[col_idx]
-
                                         this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
-
                                         if re.search(f'{sxpatconfig.SAT}', this_entry[0]) and \
                                                 not re.search(sxpatconfig.UNSAT, this_entry[0]) and \
                                                 not re.search(sxpatconfig.UNKNOWN, this_entry[0]):
-                                            cur_runtime += float(this_entry[1])
+                                            sat_ro = re.search('\((\d+)X(\d+)\)', cols[0]).group(1)
+                                            sat_co = re.search('\((\d+)X(\d+)\)', cols[0]).group(2)
+
+                                            break
+
+                                # go on and collect the runtime till that point
+                        with open(f'{self.report_in_path}/{report}', 'r') as f:
+                            rows = csv.reader(f)
+                            # print(f'{sat_ro = }, {sat_co = }')
+                            # print(f'{rows = }')
+                            for c in range(1, int(sat_co) + 1):
+                                for r in range(int(sat_ro) + 1):
+                                    for cols in rows:
+                                        if r == 0 and c > 1:
+                                            continue
+                                        if re.search(f'\({r}X{c}\)', cols[0]):
+                                            for col_idx in range(1, self.iterations + 1):
+
+                                                this_entry = cols[col_idx]
+
+                                                this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
+
+                                                # if re.search(f'{sxpatconfig.SAT}', this_entry[0]) and \
+                                                #         not re.search(sxpatconfig.UNSAT, this_entry[0]) and \
+                                                #         not re.search(sxpatconfig.UNKNOWN, this_entry[0]):
+                                                print(f'{this_entry = }')
+                                                cur_runtime += float(this_entry[1])
 
             runtime_array.append(cur_runtime)
         return runtime_array
@@ -495,6 +519,9 @@ class Stats:
 
         xpat_runtime_list = self.get_runtime(et_list, sxpatconfig.XPAT)
         shared_runtime_list = self.get_runtime(et_list, sxpatconfig.SHARED_LOGIC)
+
+        print(f'{xpat_runtime_list = }')
+        print(f'{shared_runtime_list = }')
 
         uncomputed_area = []
         uncomputed_et = []
