@@ -82,11 +82,13 @@ class TemplateCreator:
         Converts it into a GraphViz (.gv) file, cleans it, and stores it at "output/gv"
         :return: the cleaned GraphViz file as a NetworkX graph object
         """
-        # print(f'importing the graph')
+        print(f'{self.benchmark_name = }')
         temp_verilog_obj = Verilog(self.benchmark_name)
         convert_verilog_to_gv(self.benchmark_name)
 
         temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False, partitioning_percentage=1)
+
+
         # if temp_graph_obj.subgraph is None:
         #     print(Fore.RED + f'Subgraph is empty!' + Style.RESET_ALL)
             # raise Exception(
@@ -222,6 +224,7 @@ class Template_SOP1(TemplateCreator):
         self.exact_benchmark = specs_obj.exact_benchmark
         self.json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
         self.z3_out_path = self.set_path(OUTPUT_PATH['z3'])
+
 
 
 
@@ -461,11 +464,11 @@ class Template_SOP1(TemplateCreator):
         # TODO:
         # Fix when PIs are not the subgrpah's inputs
 
-        gate_key_list = list(self.current_graph.gate_dict.keys())
 
-        # for g_idx in range(len(list(self.current_graph.gate_dict))):
+        gate_key_list = list(self.current_graph.gate_dict.keys())
+        constant_key_list = list(self.current_graph.constant_dict.keys())
+        # gates
         for g_idx in gate_key_list:
-            # g_label = list(self.current_graph.gate_dict.values())[g_idx]
             g_label = self.current_graph.gate_dict[g_idx]
             if self.current_graph.is_subgraph_member(g_label):
                 approximate_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
@@ -479,7 +482,21 @@ class Template_SOP1(TemplateCreator):
                                                  f"{', '.join(repeat(BOOLSORT, self.current_graph.num_inputs))}" \
                                                  f", {BOOLSORT}" \
                                                  f")\n"
-
+        # constants
+        for g_idx in constant_key_list:
+            g_label = self.current_graph.constant_dict[g_idx]
+            if self.current_graph.is_subgraph_member(g_label):
+                approximate_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
+                                                 f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}', " \
+                                                 f"{', '.join(repeat(BOOLSORT, self.current_graph.subgraph_num_inputs))}" \
+                                                 f", {BOOLSORT}" \
+                                                 f")\n"
+            else:
+                approximate_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
+                                                 f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}', " \
+                                                 f"{', '.join(repeat(BOOLSORT, self.current_graph.num_inputs))}" \
+                                                 f", {BOOLSORT}" \
+                                                 f")\n"
         approximate_wires_declaration += '\n'
         return approximate_wires_declaration
 
@@ -701,8 +718,7 @@ class Template_SOP1(TemplateCreator):
         exact_wire_constraints += f'{APPROXIMATE_CIRCUIT} = And(\n'
         exact_wire_constraints += f'{TAB}# wires\n'
         subgraph_input_list = self.__z3_get_subgraph_input_list()
-        # print(f'{self.current_graph.gate_dict = }')
-        # print(f'{self.current_graph.constant_dict = }')
+
         gate_key_list = list(self.current_graph.gate_dict.keys())
         # for g_idx in range(len(list(self.current_graph.gate_dict))):
         for g_idx in gate_key_list:
