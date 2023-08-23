@@ -427,6 +427,8 @@ class Stats:
         for et in et_array:
             cur_runtime = 0
             for report in all_reports:
+                sat_ro = -1
+                sat_co = -1
                 if re.search('grid', report) and re.search(f'{self.exact_name}', report):
                     if re.search(f'.*et{et}.*', report) and \
                             re.search(sxpatconfig.GRID, report) and \
@@ -445,31 +447,58 @@ class Stats:
                                                 not re.search(sxpatconfig.UNKNOWN, this_entry[0]):
                                             sat_ro = re.search('\((\d+)X(\d+)\)', cols[0]).group(1)
                                             sat_co = re.search('\((\d+)X(\d+)\)', cols[0]).group(2)
-
                                             break
+                        if sat_ro != -1 and sat_co != -1:
+                            # go on and collect the runtime till that point
+                            with open(f'{self.report_in_path}/{report}', 'r') as f:
+                                rows = csv.reader(f)
+                                # print(f'{sat_ro = }, {sat_co = }')
+                                # print(f'{rows = }')
+                                for c in range(1, int(sat_co) + 1):
+                                    for r in range(int(sat_ro) + 1):
+                                        for cols in rows:
+                                            if r == 0 and c > 1:
+                                                continue
+                                            if re.search(f'\({r}X{c}\)', cols[0]):
+                                                for col_idx in range(1, self.iterations + 1):
 
-                                # go on and collect the runtime till that point
-                        with open(f'{self.report_in_path}/{report}', 'r') as f:
-                            rows = csv.reader(f)
-                            # print(f'{sat_ro = }, {sat_co = }')
-                            # print(f'{rows = }')
-                            for c in range(1, int(sat_co) + 1):
-                                for r in range(int(sat_ro) + 1):
-                                    for cols in rows:
-                                        if r == 0 and c > 1:
-                                            continue
-                                        if re.search(f'\({r}X{c}\)', cols[0]):
-                                            for col_idx in range(1, self.iterations + 1):
+                                                    this_entry = cols[col_idx]
 
-                                                this_entry = cols[col_idx]
+                                                    this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
 
-                                                this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
+                                                    # if re.search(f'{sxpatconfig.SAT}', this_entry[0]) and \
+                                                    #         not re.search(sxpatconfig.UNSAT, this_entry[0]) and \
+                                                    #         not re.search(sxpatconfig.UNKNOWN, this_entry[0]):
+                                                    print(f'{this_entry = }')
+                                                    cur_runtime += float(this_entry[1])
+                        else:
+                            if template_name == sxpatconfig.XPAT:
+                                sat_ro = self.lpp
+                                sat_co = self.ppo
+                            else:
+                                sat_ro = self.lpp
+                                sat_co = self.pit
+                            with open(f'{self.report_in_path}/{report}', 'r') as f:
+                                rows = csv.reader(f)
+                                # print(f'{sat_ro = }, {sat_co = }')
+                                # print(f'{rows = }')
+                                for c in range(1, int(sat_co) + 1):
+                                    for r in range(int(sat_ro) + 1):
+                                        for cols in rows:
+                                            if r == 0 and c > 1:
+                                                continue
+                                            if re.search(f'\({r}X{c}\)', cols[0]):
+                                                for col_idx in range(1, self.iterations + 1):
 
-                                                # if re.search(f'{sxpatconfig.SAT}', this_entry[0]) and \
-                                                #         not re.search(sxpatconfig.UNSAT, this_entry[0]) and \
-                                                #         not re.search(sxpatconfig.UNKNOWN, this_entry[0]):
-                                                print(f'{this_entry = }')
-                                                cur_runtime += float(this_entry[1])
+                                                    this_entry = cols[col_idx]
+
+                                                    this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
+
+                                                    # if re.search(f'{sxpatconfig.SAT}', this_entry[0]) and \
+                                                    #         not re.search(sxpatconfig.UNSAT, this_entry[0]) and \
+                                                    #         not re.search(sxpatconfig.UNKNOWN, this_entry[0]):
+                                                    print(f'{this_entry = }')
+                                                    cur_runtime += float(this_entry[1])
 
             runtime_array.append(cur_runtime)
         return runtime_array
@@ -513,7 +542,7 @@ class Stats:
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Runtime(s)')
-        ax.set_title(f'{self.exact_name} area: SharedXPAT({self.lpp}X{self.pit}) vs. XPAT({self.lpp}X{self.ppo})')
+        ax.set_title(f'{self.exact_name} runtime: SharedXPAT({self.lpp}X{self.pit}) vs. XPAT({self.lpp}X{self.ppo})')
 
         et_list = self.get_et_array()
 
