@@ -423,6 +423,7 @@ class Stats:
 
     def get_runtime(self, et_array, template_name: str):
         all_reports = [f for f in os.listdir(self.report_in_path)]
+
         runtime_array = []
         for et in et_array:
             cur_runtime = 0
@@ -434,6 +435,7 @@ class Stats:
                             re.search(sxpatconfig.GRID, report) and \
                             re.search(self.exact_name, report) and \
                             re.search(template_name, report):
+                        print(f'{report = }')
                         with open(f'{self.report_in_path}/{report}', 'r') as f:
                             rows = csv.reader(f)
                             for cols in rows:
@@ -452,6 +454,7 @@ class Stats:
                             # go on and collect the runtime till that point
                             with open(f'{self.report_in_path}/{report}', 'r') as f:
                                 rows = csv.reader(f)
+                                rows = self.store_rows(rows)
                                 # print(f'{sat_ro = }, {sat_co = }')
                                 # print(f'{rows = }')
                                 for c in range(1, int(sat_co) + 1):
@@ -469,9 +472,10 @@ class Stats:
                                                     # if re.search(f'{sxpatconfig.SAT}', this_entry[0]) and \
                                                     #         not re.search(sxpatconfig.UNSAT, this_entry[0]) and \
                                                     #         not re.search(sxpatconfig.UNKNOWN, this_entry[0]):
-                                                    print(f'{this_entry = }')
+                                                    # print(f'{this_entry = }')
                                                     cur_runtime += float(this_entry[1])
                         else:
+                            # print(f'{sat_ro}, {sat_co}')
                             if template_name == sxpatconfig.XPAT:
                                 sat_ro = self.lpp
                                 sat_co = self.ppo
@@ -480,11 +484,14 @@ class Stats:
                                 sat_co = self.pit
                             with open(f'{self.report_in_path}/{report}', 'r') as f:
                                 rows = csv.reader(f)
+                                rows = self.store_rows(rows)
                                 # print(f'{sat_ro = }, {sat_co = }')
                                 # print(f'{rows = }')
                                 for c in range(1, int(sat_co) + 1):
                                     for r in range(int(sat_ro) + 1):
+                                        print(f'({r}X{c})')
                                         for cols in rows:
+                                            print(f'{cols = }')
                                             if r == 0 and c > 1:
                                                 continue
                                             if re.search(f'\({r}X{c}\)', cols[0]):
@@ -493,15 +500,18 @@ class Stats:
                                                     this_entry = cols[col_idx]
 
                                                     this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
-
-                                                    # if re.search(f'{sxpatconfig.SAT}', this_entry[0]) and \
-                                                    #         not re.search(sxpatconfig.UNSAT, this_entry[0]) and \
-                                                    #         not re.search(sxpatconfig.UNKNOWN, this_entry[0]):
-                                                    print(f'{this_entry = }')
                                                     cur_runtime += float(this_entry[1])
-
+                                                    print(f'{this_entry = }')
+            print(f'{cur_runtime = }')
+            # exit()
             runtime_array.append(cur_runtime)
         return runtime_array
+
+    def store_rows(self, file_rows):
+        rows = []
+        for row in file_rows:
+            rows.append(row)
+        return rows
 
     def plot_area(self):
 
