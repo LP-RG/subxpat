@@ -164,23 +164,25 @@ class AnnotatedGraph(Graph):
                f'{self.partitioning_percentage = }\n'
 
     def extract_subgraph(self):
+        if self.num_gates == 0:
+            print(Fore.LIGHTRED_EX + f'No gates are found in the graph! Skipping the subgraph extraction' + Style.RESET_ALL)
+        else:
+            self.subgraph = self.find_subgraph()
 
-        self.subgraph = self.find_subgraph()
+            self.export_annotated_graph()
+            self.subgraph_input_dict = self.extract_subgraph_inputs()
+            self.subgraph_output_dict = self.extract_subgraph_outputs()
+            self.subgraph_gate_dict = self.extract_subgraph_gates()
+            self.subgraph_fanin_dict = self.extract_subgraph_fanin()
+            self.subgraph_fanout_dict = self.extract_subgraph_fanout()
+            self.graph_intact_gate_dict = self.extract_graph_intact_gates()
 
-        self.export_annotated_graph()
-        self.subgraph_input_dict = self.extract_subgraph_inputs()
-        self.subgraph_output_dict = self.extract_subgraph_outputs()
-        self.subgraph_gate_dict = self.extract_subgraph_gates()
-        self.subgraph_fanin_dict = self.extract_subgraph_fanin()
-        self.subgraph_fanout_dict = self.extract_subgraph_fanout()
-        self.graph_intact_gate_dict = self.extract_graph_intact_gates()
-
-        self.subgraph_num_inputs = len(self.subgraph_input_dict)
-        self.subgraph_num_outputs = len(self.subgraph_output_dict)
-        self.subgraph_num_gates = len(self.subgraph_gate_dict)
-        self.subgraph_num_fanin = len(self.subgraph_fanin_dict)
-        self.subgraph_num_fanout = len(self.subgraph_fanout_dict)
-        self.graph_num_intact_gates = len(self.__graph_intact_gate_dict)
+            self.subgraph_num_inputs = len(self.subgraph_input_dict)
+            self.subgraph_num_outputs = len(self.subgraph_output_dict)
+            self.subgraph_num_gates = len(self.subgraph_gate_dict)
+            self.subgraph_num_fanin = len(self.subgraph_fanin_dict)
+            self.subgraph_num_fanout = len(self.subgraph_fanout_dict)
+            self.graph_num_intact_gates = len(self.__graph_intact_gate_dict)
         # print(f'Flag 2')
 
     def find_subgraph(self):
@@ -194,6 +196,7 @@ class AnnotatedGraph(Graph):
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         # print(f'Extracting subgraph...')
+
         tmp_graph = self.graph.copy(as_view=False)
         # print(f'{tmp_graph.nodes = }')
         # Data structures containing the literals
@@ -247,14 +250,14 @@ class AnnotatedGraph(Graph):
 
                 if in_id not in input_edges:
                     input_edges[in_id] = []
-                # print(f'{e = }')
+                # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
+                # Morteza added ==============
                 try:
-                    input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
+                    input_edges[in_id].append(int(e[1][1:]))
                 except:
-                    my_id = re.search('(\d+)', e[1]).group(1)
+                    my_id = int(re.search('(\d+)', e[1]).group(1))
                     input_edges[in_id].append(my_id)
-                    # print(f'{my_id}')
-                    # exit()
+                # =============================
 
             if 'g' in e[0] and 'g' in e[1]:     # Populate gate_edges structure
                 ns_id = int(e[0][1:])
@@ -270,19 +273,22 @@ class AnnotatedGraph(Graph):
                 out_id = int(e[1][3:])
                 if out_id not in output_edges:
                     output_edges[out_id] = []
-                output_edges[out_id].append(int(e[0][1:]))
+                # output_edges[out_id].append(int(e[0][1:]))
+                # Morteza added ==============
+                try:
+                    output_edges[out_id].append(int(e[0][1:]))
+                except:
+                    my_id = int(re.search('(\d+)', e[0]).group(1))
+                    output_edges[out_id].append(my_id)
+                # =============================
 
 
-        # print("Number of input nodes: ", len(input_literals))
-        # print("Number of gates in the circuit: ", len(gate_literals))
-        # print("Number of output nodes: ", len(output_literals))
-            
-        # Define input edges
         for source in input_edges:
             edge_in_holder = []
             edge_out_holder = []
 
             for destination in input_edges[source]:
+                # print(f'{source = }, {destination = }')
                 e_in = And(Not(input_literals[source]), gate_literals[destination])
 
                 edge_in_holder.append(e_in)
@@ -313,14 +319,19 @@ class AnnotatedGraph(Graph):
 
         # Create graph of the cicuit without input and output nodes
         G = nx.DiGraph()
-
+        # print(f'{tmp_graph.edges = }')
         for e in tmp_graph.edges:
             if 'g' in str(e[0]) and 'g' in str(e[1]):
                 source = int(e[0][1:])
                 destination = int(e[1][1:])
 
                 G.add_edge(source, destination)
-
+        # Morteza added =====================
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]):
+                source = int(e[0][1:])
+                G.add_node(source)
+        # ===================================
         descendants = {}
         ancestors = {}
         for n in G:
@@ -382,7 +393,12 @@ class AnnotatedGraph(Graph):
                 u = node_partition[i]
                 v = node_partition[j]
                 try:
-
+                    # print(f'{u = }')
+                    # print(f'{v = }')
+                    # print(f'{G.nodes = }')
+                    # print(f'{G.edges = }')
+                    # print(f'{gate_literals = }')
+                    # print(f'{node_partition = }')
                     path = nx.shortest_path(G, source=u, target=v)
                     all_nodes_in_partition = True
 
@@ -396,6 +412,7 @@ class AnnotatedGraph(Graph):
                         exit(0)
 
                 except nx.exception.NetworkXNoPath:
+                    # print('Here')
                 # except:
                     # print(Fore.RED + f'Node {u} or {v} do not belong to the graph G {G.nodes}' + Style.RESET_ALL)
                     # raise nx.exception.NetworkXNoPath
