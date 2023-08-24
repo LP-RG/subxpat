@@ -220,9 +220,10 @@ class AnnotatedGraph(Graph):
         partition_output_edges = []             # list of all the output edges ([S_1D' + S_2D' + ..., ...])
 
         # Input and Output constraints (TODO: make those arguments of the function?)
-        I_max = 3
-        O_max = 2
 
+        I_max = 2
+        O_max = 1
+        print(f'{I_max}, {O_max}')
         # Generate all literals
         for e in tmp_graph.edges:
             if 'in' in e[0]:                    # Generate literal for each input node
