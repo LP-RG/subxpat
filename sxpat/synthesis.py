@@ -412,14 +412,20 @@ class Synthesis:
 
     def __intact_gate_wires(self):
         intact_gate_list = list(self.graph.graph_intact_gate_dict.values())
-        intact_gate_variable_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in intact_gate_list]
+        non_input_intact_gate_list = []
+
+        for gate in intact_gate_list:
+            if not self.graph.is_subgraph_input(gate):
+                non_input_intact_gate_list.append(gate)
+
+        intact_gate_variable_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in non_input_intact_gate_list]
 
         intact_wires = f'//intact gates wires \n'
-        if len(intact_gate_list) > 0:
+        if len(non_input_intact_gate_list) > 0:
             intact_wires += f"wire "
-            for gate_idx, gate in enumerate(intact_gate_list):
+            for gate_idx, gate in enumerate(non_input_intact_gate_list):
                 if not self.graph.is_subgraph_input(gate):
-                    if gate_idx < len(intact_gate_list) - 1:
+                    if gate_idx < len(non_input_intact_gate_list) - 1:
                         intact_wires += f"{intact_gate_variable_list[gate_idx]}, "
                     else:
                         intact_wires += f"{intact_gate_variable_list[gate_idx]};\n"

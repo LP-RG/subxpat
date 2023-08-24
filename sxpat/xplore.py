@@ -56,10 +56,13 @@ def explore_grid(specs_obj: TemplateSpecs):
     max_ppo = specs_obj.ppo
     cur_lpp = -1
     cur_ppo = -1
-
+    pre_iter_unsats = 0
+    total_number_of_cells_per_iter = max_lpp * max_ppo + 1
     stats_obj = Stats(specs_obj)
     template_obj = Template_SOP1(specs_obj)
     for i in range(1, total_iterations + 1):
+        if pre_iter_unsats == total_number_of_cells_per_iter:
+            break
         print(Fore.LIGHTBLUE_EX + f'iteration {i}' + Style.RESET_ALL)
         print(
             Fore.BLUE + f'Grid ({specs_obj.lpp} X {specs_obj.ppo}) and et={specs_obj.et} exploration started...' + Style.RESET_ALL)
@@ -111,7 +114,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                                                                     this_status='UNSAT')
 
                     lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
-
+                    pre_iter_unsats += 1
                 elif cur_status == UNKNOWN: # if unknown
                     print(Fore.MAGENTA + f'Cell({lpp},{ppo}) at iteration {i} -> TIMEOUT ' + Style.RESET_ALL)
                     runtime = template_obj.get_json_runtime()
@@ -122,6 +125,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                                                                     this_status=sxpatconfig.UNKNOWN)
 
                     lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
+                    pre_iter_unsats += 1
                 elif cur_status == SAT:  # if sat
                     # print(f'{template_obj.benchmark_name = }')
                     # print(f'{template_obj.current_graph = }')
