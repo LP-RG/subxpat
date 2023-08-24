@@ -234,7 +234,10 @@ class AnnotatedGraph(Graph):
                 out_id = int(e[1][3:])
                 if out_id not in output_literals:
                     output_literals[out_id] = Bool("out_%s" % str(out_id))
-        
+
+        # print(f'{input_literals = }')
+        # print(f'{gate_literals = }')
+        # print(f'{output_literals = }')
         # Populate data structures containing all the edges
         for e in tmp_graph.edges:
             if 'in' in e[0]:                    # Populate input_edges structure
@@ -381,6 +384,9 @@ class AnnotatedGraph(Graph):
                         exit(0)
 
                 except nx.exception.NetworkXNoPath:
+                # except:
+                    # print(Fore.RED + f'Node {u} or {v} do not belong to the graph G {G.nodes}' + Style.RESET_ALL)
+                    # raise nx.exception.NetworkXNoPath
                     # No path between u and v
 
                     #print("No path", u, v)

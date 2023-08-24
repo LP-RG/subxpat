@@ -82,7 +82,7 @@ class TemplateCreator:
         Converts it into a GraphViz (.gv) file, cleans it, and stores it at "output/gv"
         :return: the cleaned GraphViz file as a NetworkX graph object
         """
-        print(f'{self.benchmark_name = }')
+        # print(f'{self.benchmark_name = }')
         temp_verilog_obj = Verilog(self.benchmark_name)
         convert_verilog_to_gv(self.benchmark_name)
 
@@ -570,9 +570,11 @@ class Template_SOP1(TemplateCreator):
 
     def __z3_get_approximate_label(self, node: str):
         graph_gates = list(self.current_graph.gate_dict.values())
-        if node in graph_gates:
-            gate_idx = graph_gates.index(node)
-            return f'{APPROXIMATE_WIRE_PREFIX}{gate_idx + self.current_graph.num_inputs}'
+
+        if node in list(self.current_graph.gate_dict.values()):
+            for gate_idx in self.current_graph.gate_dict.keys():
+                if self.current_graph.gate_dict[gate_idx] == node:
+                    return f'{APPROXIMATE_WIRE_PREFIX}{gate_idx + self.current_graph.num_inputs}'
         else:
             return node
 
@@ -631,7 +633,7 @@ class Template_SOP1(TemplateCreator):
                         node_id = key
 
                 input_list = self.__z3_get_subgraph_input_list()
-
+                # print(f'for the subgraph = {input_list}')
                 return f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + node_id}({','.join(input_list)})"
             else:
                 node_id = -1
@@ -718,14 +720,14 @@ class Template_SOP1(TemplateCreator):
         exact_wire_constraints += f'{APPROXIMATE_CIRCUIT} = And(\n'
         exact_wire_constraints += f'{TAB}# wires\n'
         subgraph_input_list = self.__z3_get_subgraph_input_list()
-
+        # print(f'{subgraph_input_list = }')
         gate_key_list = list(self.current_graph.gate_dict.keys())
-        # for g_idx in range(len(list(self.current_graph.gate_dict))):
         for g_idx in gate_key_list:
-            # g_label = list(self.current_graph.gate_dict.values())[g_idx]
             g_label = self.current_graph.gate_dict[g_idx]
+            # print(f'{g_label = }')
             if not self.current_graph.is_subgraph_member(g_label):
                 g_predecessors = self.get_predecessors_xpat(g_label)
+                # print(f'{g_predecessors = }')
                 g_function = self.get_logical_function_xpat(g_label)
                 assert len(g_predecessors) == 1 or len(g_predecessors) == 2
                 assert g_function == NOT or g_function == AND or g_function == OR
@@ -752,6 +754,7 @@ class Template_SOP1(TemplateCreator):
                     exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
             # if the gate is an output node of the annotated graph (subgraph)
             elif self.current_graph.is_subgraph_member(g_label) and self.current_graph.is_subgraph_output(g_label):
+
                 output_list = list(self.current_graph.subgraph_output_dict.values())
                 output_idx = output_list.index(g_label)
 
