@@ -164,9 +164,9 @@ class AnnotatedGraph(Graph):
                f'{self.partitioning_percentage = }\n'
 
     def extract_subgraph(self):
-        # print(f'Flag 1')
 
         self.subgraph = self.find_subgraph()
+
         self.export_annotated_graph()
         self.subgraph_input_dict = self.extract_subgraph_inputs()
         self.subgraph_output_dict = self.extract_subgraph_outputs()
@@ -188,7 +188,8 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-        print(Fore.BLUE + f'subgraph extraction started {self.name} -> ' + Style.RESET_ALL, end='')
+
+        print(Fore.BLUE + f'finding a subgraph for {self.name}... ' + Style.RESET_ALL)
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
@@ -239,12 +240,21 @@ class AnnotatedGraph(Graph):
         # print(f'{gate_literals = }')
         # print(f'{output_literals = }')
         # Populate data structures containing all the edges
+
         for e in tmp_graph.edges:
             if 'in' in e[0]:                    # Populate input_edges structure
                 in_id = int(e[0][2:])
+
                 if in_id not in input_edges:
                     input_edges[in_id] = []
-                input_edges[in_id].append(int(e[1][1:]))
+                # print(f'{e = }')
+                try:
+                    input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
+                except:
+                    my_id = re.search('(\d+)', e[1]).group(1)
+                    input_edges[in_id].append(my_id)
+                    # print(f'{my_id}')
+                    # exit()
 
             if 'g' in e[0] and 'g' in e[1]:     # Populate gate_edges structure
                 ns_id = int(e[0][1:])
@@ -252,7 +262,9 @@ class AnnotatedGraph(Graph):
                 
                 if ns_id not in gate_edges:       
                     gate_edges[ns_id] = []
+                # try:
                 gate_edges[ns_id].append(nd_id)
+
 
             if 'out' in e[1]:                   # Populate output_edges structure
                 out_id = int(e[1][3:])
@@ -352,7 +364,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            print(Fore.GREEN + "SAT" + Style.RESET_ALL)
+            print(Fore.GREEN + "subgraph found -> SAT" + Style.RESET_ALL)
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -362,7 +374,7 @@ class AnnotatedGraph(Graph):
                     gate_id = int(str(t)[2:])
                     node_partition.append(gate_id)      # Gates inside the partition
         else:
-            print(Fore.YELLOW + "UNSAT" + Style.RESET_ALL)
+            print(Fore.YELLOW + "subgraph not found -> UNSAT" + Style.RESET_ALL)
       
         # Check partition convexity
         for i in range(len(node_partition) - 1):
