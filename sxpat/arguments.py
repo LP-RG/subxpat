@@ -17,6 +17,7 @@ class Arguments(Arguments):
         self.__iterations = tmp_args.iterations
         self.__grid: bool = tmp_args.grid
         self.__multiple: bool = tmp_args.multiple
+        self.__plot: bool = tmp_args.plot
 
 
     @property
@@ -62,6 +63,10 @@ class Arguments(Arguments):
     @property
     def multiple(self):
         return self.__multiple
+
+    @property
+    def plot(self):
+        return self.__plot
 
     @property
     def clean(self):
@@ -147,6 +152,10 @@ class Arguments(Arguments):
                                action="store_true",
                                default=False)
 
+        my_parser.add_argument('--plot',
+                               action="store_true",
+                               default=False)
+
         my_parser.add_argument('--clean',
                                action="store_true",
                                default=False)
@@ -165,4 +174,6 @@ class Arguments(Arguments):
                f'{self.partitioning_percentage = }\n' \
                f'{self.iterations = }\n' \
                f'{self.grid = }\n' \
-               f'{self.multiple = }\n'
+               f'{self.multiple = }\n' \
+               f'{self.plot = }\n' \
+               f'{self.clean = }'
