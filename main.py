@@ -1,5 +1,6 @@
 import shutil
 import csv
+from colorama import Fore, Style
 
 from Z3Log.verilog import Verilog
 from Z3Log.graph import Graph
@@ -35,65 +36,68 @@ def main():
     args = Arguments.parse()
 
 
-    if args.clean:
-        print(f'cleaning...')
-        clean_all()
-
-    setup_folder_structure()
-    for key in sxpatpaths.OUTPUT_PATH.keys():
-        directory = sxpatpaths.OUTPUT_PATH[key][0]
-        if ~os.path.exists(directory):
-            os.makedirs(directory, exist_ok=True)
-
-
-    if args.multiple:
-        n_o = int(re.search(f'.*o(\d+).*', args.benchmark_name).group(1))
-        max_error = 2**(n_o-1)
-        if max_error <= 8:
-            et_array = list(range(1, max_error + 1))
-        else:
-            step = max_error // 8
-            et_array = list(range(step, max_error + 1, step))
-
-
-
-        for et in et_array:
-            specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
-                                      products_per_output=args.ppo,
-                                      benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
-                                      et=et,
-                                      partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                      grid=args.grid)
-
-            if specs_obj.grid:
-                try:
-                    explore_grid(specs_obj)
-                    print(f'')
-                except Exception:
-                    raise
-                    continue
-            else:
-                explore_cell(specs_obj)
-
-        stats_obj = Stats(specs_obj)
-        # stats_obj.plot_area()
-        # stats_obj.plot_runtime()
+    if args.plot:
+        print(Fore.BLUE + f'Plotting...' + Style.RESET_ALL)
     else:
-        specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
-                                  products_per_output=args.ppo,
-                                  benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
-                                  et=args.et,
-                                  partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                  grid=args.grid)
+        if args.clean:
+            print(f'cleaning...')
+            clean_all()
+
+        setup_folder_structure()
+        for key in sxpatpaths.OUTPUT_PATH.keys():
+            directory = sxpatpaths.OUTPUT_PATH[key][0]
+            if ~os.path.exists(directory):
+                os.makedirs(directory, exist_ok=True)
 
 
-        if specs_obj.grid:
-            explore_grid(specs_obj)
+        if args.multiple:
+            n_o = int(re.search(f'.*o(\d+).*', args.benchmark_name).group(1))
+            max_error = 2**(n_o-1)
+            if max_error <= 8:
+                et_array = list(range(1, max_error + 1))
+            else:
+                step = max_error // 8
+                et_array = list(range(step, max_error + 1, step))
+
+
+
+            for et in et_array:
+                specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
+                                          products_per_output=args.ppo,
+                                          benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
+                                          et=et,
+                                          partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
+                                          grid=args.grid)
+
+                if specs_obj.grid:
+                    try:
+                        explore_grid(specs_obj)
+                        print(f'')
+                    except Exception:
+                        raise
+                        continue
+                else:
+                    explore_cell(specs_obj)
+
             stats_obj = Stats(specs_obj)
             # stats_obj.plot_area()
             # stats_obj.plot_runtime()
         else:
-            explore_cell(specs_obj)
+            specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
+                                      products_per_output=args.ppo,
+                                      benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
+                                      et=args.et,
+                                      partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
+                                      grid=args.grid)
+
+
+            if specs_obj.grid:
+                explore_grid(specs_obj)
+                stats_obj = Stats(specs_obj)
+                # stats_obj.plot_area()
+                # stats_obj.plot_runtime()
+            else:
+                explore_cell(specs_obj)
 
 
 
