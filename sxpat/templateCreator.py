@@ -24,9 +24,15 @@ class TemplateCreator:
         self.__benchmark_name = template_specs.benchmark_name
         self.__exact_benchmark_name = template_specs.exact_benchmark
         self.__partitioning_percentage = template_specs.pp
+
+        self.__imax = template_specs.imax
+        self.__omax = template_specs.omax
+
         self.__current_graph = self.import_graph()
         self.__exact_graph = self.import_exact_graph()
         self.__z3pyscript_out_path = None
+
+
 
 
         if self.current_graph.subgraph:
@@ -74,6 +80,22 @@ class TemplateCreator:
     @exact_graph.setter
     def exact_graph(self, this_exact_graph):
         self.__exact_graph = this_exact_graph
+
+    @property
+    def imax(self):
+        return self.__imax
+
+    @imax.setter
+    def imax(self, this_imax):
+        self.__imax = this_imax
+
+    @property
+    def omax(self):
+        return self.__omax
+
+    @omax.setter
+    def omax(self, this_omax):
+        self.__omax = this_omax
 
     def import_graph(self):
         """
@@ -127,6 +149,9 @@ class Template_SOP1(TemplateCreator):
         self.__json_in_path = None
         self.__json_model = None
         self.__json_status = None
+
+
+
 
     @property
     def literals_per_product(self):
@@ -213,6 +238,7 @@ class Template_SOP1(TemplateCreator):
     @json_in_path.setter
     def json_in_path(self, this_json_path):
         self.__json_in_path = this_json_path
+
 
 
     def set_new_context(self, specs_obj: TemplateSpecs):

@@ -36,11 +36,12 @@ def clean_all():
 def main():
     args = Arguments.parse()
 
+
     if args.plot:
         print(Fore.BLUE + f'Plotting...' + Style.RESET_ALL)
     else:
         if args.clean:
-            print(f'cleaning...')
+            print(Fore.BLUE + f'cleaning...' + Style.RESET_ALL)
             clean_all()
 
         setup_folder_structure()
@@ -64,7 +65,7 @@ def main():
                                           benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
                                           et=et,
                                           partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                          grid=args.grid)
+                                          grid=args.grid, imax=args.imax, omax=args.omax)
 
                 if specs_obj.grid:
                     try:
@@ -81,7 +82,7 @@ def main():
                                       benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
                                       et=args.et,
                                       partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                      grid=args.grid)
+                                      grid=args.grid, imax=args.imax, omax=args.omax)
 
             if specs_obj.grid:
                 explore_grid(specs_obj)

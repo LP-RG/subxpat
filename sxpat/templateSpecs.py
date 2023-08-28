@@ -14,6 +14,8 @@ class TemplateSpecs:
         self.__partitioning_percentage = kwargs[PARTITIONING_PERCENTAGE]
         self.__iterations = kwargs[ITERATIONS]
         self.__grid = kwargs[GRID]
+        self.__imax = kwargs[IMAX]
+        self.__omax = kwargs[OMAX]
 
     @property
     def partitioning_percentage(self):
@@ -80,6 +82,22 @@ class TemplateSpecs:
         return self.__grid
 
     @property
+    def imax(self):
+        return self.__imax
+
+    @imax.setter
+    def imax(self, this_imax):
+        self.__imax = this_imax
+
+    @property
+    def omax(self):
+        return self.__omax
+
+    @omax.setter
+    def omax(self, this_omax):
+        self.__omax = this_omax
+
+    @property
     def num_of_models(self):
         return self.__num_of_models
 
@@ -100,4 +118,6 @@ class TemplateSpecs:
                f'{self.et = }\n' \
                f'{self.partitioning_percentage = }\n' \
                f'{self.iterations = }\n' \
-               f'{self.grid = }\n'
+               f'{self.grid = }\n' \
+               f'{self.imax = }\n' \
+               f'{self.omax = }\n'
