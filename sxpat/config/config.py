@@ -131,3 +131,7 @@ VER_ENDMODULE = 'endmodule'
 VER_WIRE_PREFIX = 'w_'
 VER_JSON_WIRE_PREFIX = 'j_'
 VER_INPUT_PREFIX = 'in'
+
+
+
+WEIGHT = 'weight'

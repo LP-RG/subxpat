@@ -44,8 +44,9 @@ class AnnotatedGraph(Graph):
         self.__graph_num_intact_gates = None
 
 
-        folder, extension = OUTPUT_PATH[GV]
+        self.__add_weights()
 
+        folder, extension = OUTPUT_PATH[GV]
         self.__out_annotated_graph_path = f'{folder}/{self.name}_subgraph.{extension}'
 
     @property
@@ -153,8 +154,14 @@ class AnnotatedGraph(Graph):
 
         return sorted_dict
 
-
-
+    def __add_weights(self):
+        for n in self.graph.nodes:
+            self.graph.nodes[n][WEIGHT] = 1
+        #
+        # for n in self.graph.nodes.items():
+        #     print(f'{n = }')
+        #
+        # exit()
 
 
 
@@ -244,10 +251,6 @@ class AnnotatedGraph(Graph):
                 out_id = int(e[1][3:])
                 if out_id not in output_literals:
                     output_literals[out_id] = Bool("out_%s" % str(out_id))
-
-        print(f'{input_literals = }')
-        print(f'{gate_literals = }')
-        print(f'{output_literals = }')
         for e in tmp_graph.edges:
             if 'in' in e[0]:                    # Populate input_edges structure
                 in_id = int(e[0][2:])
@@ -287,14 +290,11 @@ class AnnotatedGraph(Graph):
                     output_edges[out_id].append(my_id)
                 # =============================
 
-        print(f'{input_literals = }')
-        print(f'{gate_literals = }')
         for source in input_edges:
             edge_in_holder = []
             edge_out_holder = []
 
             for destination in input_edges[source]:
-                print(f'{source = }, {destination = }')
                 e_in = And(Not(input_literals[source]), gate_literals[destination])
 
                 edge_in_holder.append(e_in)
@@ -317,9 +317,6 @@ class AnnotatedGraph(Graph):
             partition_output_edges.append(Or(edge_out_holder))
                 
         # Define output edges
-        print(f'{input_edges = }')
-        print(f'{gate_edges = }')
-        print(f'{output_edges = }')
         for output_id in output_edges:
             predecessor = output_edges[output_id][0]    # Output nodes have only one predecessor  (it could be a gate or it could be an input)
             if predecessor not in gate_literals:
@@ -888,6 +885,8 @@ class AnnotatedGraph(Graph):
                 idx += 1
                 self.color_subgraph_node(n, WHITE)
         return tmp_fanout_dict
+
+
 
 
 
