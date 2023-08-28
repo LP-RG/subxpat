@@ -15,6 +15,8 @@ PARTITIONING_PERCENTAGE = 'partitioning_percentage'
 ITERATIONS = 'iterations'
 GRID = 'grid'
 EXACT = 'exact'
+IMAX = 'imax'
+OMAX = 'omax'
 
 
 

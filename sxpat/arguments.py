@@ -18,6 +18,8 @@ class Arguments(Arguments):
         self.__grid: bool = tmp_args.grid
         self.__multiple: bool = tmp_args.multiple
         self.__plot: bool = tmp_args.plot
+        self.__imax:int = tmp_args.imax
+        self.__omax: int = tmp_args.omax
 
 
     @property
@@ -67,6 +69,14 @@ class Arguments(Arguments):
     @property
     def plot(self):
         return self.__plot
+
+    @property
+    def imax(self):
+        return self.__imax
+
+    @property
+    def omax(self):
+        return self.__omax
 
     @property
     def clean(self):
@@ -156,6 +166,16 @@ class Arguments(Arguments):
                                action="store_true",
                                default=False)
 
+        my_parser.add_argument('-imax',
+                               type=int,
+                               default=3,
+                               help='maximum-inputs-for-subgraph')
+
+        my_parser.add_argument('-omax',
+                               type=int,
+                               default=2,
+                               help='maximum-outputs-for-subgraph')
+
         my_parser.add_argument('--clean',
                                action="store_true",
                                default=False)
@@ -176,4 +196,6 @@ class Arguments(Arguments):
                f'{self.grid = }\n' \
                f'{self.multiple = }\n' \
                f'{self.plot = }\n' \
+               f'{self.imax = }\n' \
+               f'{self.omax = }\n' \
                f'{self.clean = }'

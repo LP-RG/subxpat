@@ -56,6 +56,8 @@ def explore_grid(specs_obj: TemplateSpecs):
     max_ppo = specs_obj.ppo
     cur_lpp = -1
     cur_ppo = -1
+
+
     pre_iter_unsats = 0
     total_number_of_cells_per_iter = max_lpp * max_ppo + 1
     stats_obj = Stats(specs_obj)
@@ -67,99 +69,95 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         # run for a cell
         template_obj.current_graph = template_obj.import_graph()
-        template_obj.current_graph.extract_subgraph()
-        print(
-            Fore.BLUE + f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...' + Style.RESET_ALL)
-        ppo = 1
-        lpp = 0
-        found = False
-        while ppo <= max_ppo:
-            if found:
-                break
-            while lpp <= max_lpp:
+        subgraph_is_available = template_obj.current_graph.extract_subgraph(template_obj.imax, template_obj.omax)
+
+        if subgraph_is_available:
+            print(
+                Fore.BLUE + f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...' + Style.RESET_ALL)
+            ppo = 1
+            lpp = 0
+            found = False
+            while ppo <= max_ppo:
                 if found:
                     break
+                while lpp <= max_lpp:
+                    if found:
+                        break
+                    if lpp == 0 and ppo > 1:
+                        lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
+                        continue
 
-                if lpp == 0 and ppo > 1:
-                    lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
-                    continue
-
-                # if unsat or empty => move up to the next cell
-
-                specs_obj = set_current_context(specs_obj, lpp, ppo, i)
-                template_obj.set_new_context(specs_obj)
-                template_obj.z3_generate_z3pyscript()
-                template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, 1800)
-                cur_status = get_status(template_obj)
-
-                    # raise Exception(Fore.RED + f'Cannot create the template_obj' + Style.RESET_ALL)
-
-
-
-                if cur_status == EMPTY:  # if empty
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                    this_iteration=i,
-                                                                    this_area='',
-                                                                    this_runtime='',
-                                                                    this_status='Empty')
-                    print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> Empty ' + Style.RESET_ALL)
-
-                    lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
-                elif cur_status == UNSAT: # if unsat
-                    print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> UNSAT ' + Style.RESET_ALL)
-                    runtime = template_obj.get_json_runtime()
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                    this_iteration=i,
-                                                                    this_area=-1,
-                                                                    this_runtime=runtime,
-                                                                    this_status='UNSAT')
-
-                    lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
-                    pre_iter_unsats += 1
-                elif cur_status == UNKNOWN: # if unknown
-                    print(Fore.MAGENTA + f'Cell({lpp},{ppo}) at iteration {i} -> TIMEOUT ' + Style.RESET_ALL)
-                    runtime = template_obj.get_json_runtime()
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                    this_iteration=i,
-                                                                    this_area=-1,
-                                                                    this_runtime=runtime,
-                                                                    this_status=sxpatconfig.UNKNOWN)
-
-                    lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
-                    pre_iter_unsats += 1
-                elif cur_status == SAT:  # if sat
-                    # print(f'{template_obj.benchmark_name = }')
-                    # print(f'{template_obj.current_graph = }')
-                    # if sat => move up to the next iteration, reset the parameters
-                    synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
-                    if i > 1:
-                        synth_obj.benchmark_name = specs_obj.exact_benchmark
-                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
-                    synth_obj.export_verilog()
-                    synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
-
-                    approximate_benchmark = synth_obj.ver_out_name[:-2]  # remove the extension
-                    if not erroreval_verification(specs_obj.exact_benchmark, approximate_benchmark,
-                                                  template_obj.et):
-                        raise Exception(Fore.RED + f'ErrorEval Verification: FAILED!' + Style.RESET_ALL)
-                    specs_obj.benchmark_name = approximate_benchmark
+                    specs_obj = set_current_context(specs_obj, lpp, ppo, i)
                     template_obj.set_new_context(specs_obj)
-                    cur_lpp = lpp
-                    cur_ppo = ppo
-                    runtime = template_obj.get_json_runtime()
-                    area = synth_obj.estimate_area()
+                    template_obj.z3_generate_z3pyscript()
+                    template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, 1800)
+                    cur_status = get_status(template_obj)
 
-                    print(Fore.GREEN + f'Cell = ({cur_lpp}, {cur_ppo}) iteration = {i} -> SAT', end='')
-                    print(
-                        f' -> [area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})]' + Style.RESET_ALL)
-                    found = True
-
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                    if cur_status == EMPTY:  # if empty
+                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
                                                                         this_iteration=i,
-                                                                        this_area=area,
-                                                                        this_runtime=runtime,
-                                                                        this_status='SAT')
+                                                                        this_area='',
+                                                                        this_runtime='',
+                                                                        this_status='Empty')
+                        print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> Empty ' + Style.RESET_ALL)
 
+                        lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
+                    elif cur_status == UNSAT: # if unsat
+                        print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> UNSAT ' + Style.RESET_ALL)
+                        runtime = template_obj.get_json_runtime()
+                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                                                                        this_iteration=i,
+                                                                        this_area=-1,
+                                                                        this_runtime=runtime,
+                                                                        this_status='UNSAT')
+
+                        lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
+                        pre_iter_unsats += 1
+                    elif cur_status == UNKNOWN: # if unknown
+                        print(Fore.MAGENTA + f'Cell({lpp},{ppo}) at iteration {i} -> TIMEOUT ' + Style.RESET_ALL)
+                        runtime = template_obj.get_json_runtime()
+                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                                                                        this_iteration=i,
+                                                                        this_area=-1,
+                                                                        this_runtime=runtime,
+                                                                        this_status=sxpatconfig.UNKNOWN)
+
+                        lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
+                        pre_iter_unsats += 1
+                    elif cur_status == SAT:  # if sat
+                        # print(f'{template_obj.benchmark_name = }')
+                        # print(f'{template_obj.current_graph = }')
+                        # if sat => move up to the next iteration, reset the parameters
+                        synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
+                        if i > 1:
+                            synth_obj.benchmark_name = specs_obj.exact_benchmark
+                            synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
+                        synth_obj.export_verilog()
+                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
+
+                        approximate_benchmark = synth_obj.ver_out_name[:-2]  # remove the extension
+                        if not erroreval_verification(specs_obj.exact_benchmark, approximate_benchmark,
+                                                      template_obj.et):
+                            raise Exception(Fore.RED + f'ErrorEval Verification: FAILED!' + Style.RESET_ALL)
+                        specs_obj.benchmark_name = approximate_benchmark
+                        template_obj.set_new_context(specs_obj)
+                        cur_lpp = lpp
+                        cur_ppo = ppo
+                        runtime = template_obj.get_json_runtime()
+                        area = synth_obj.estimate_area()
+
+                        print(Fore.GREEN + f'Cell = ({cur_lpp}, {cur_ppo}) iteration = {i} -> SAT', end='')
+                        print(
+                            f' -> [area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})]' + Style.RESET_ALL)
+                        found = True
+
+                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                                                                            this_iteration=i,
+                                                                            this_area=area,
+                                                                            this_runtime=runtime,
+                                                                            this_status='SAT')
+        else:
+            break
     stats_obj.store_grid()
     return stats_obj
 
