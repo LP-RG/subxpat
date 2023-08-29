@@ -247,7 +247,7 @@ class Template_SOP1(TemplateCreator):
         for n in self.current_graph.graph.nodes:
             if n in labels:
                 self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
-                print(f'{self.current_graph.graph.nodes[n] = }')
+
         pass
 
     def set_new_context(self, specs_obj: TemplateSpecs):
