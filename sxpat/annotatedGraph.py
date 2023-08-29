@@ -232,10 +232,7 @@ class AnnotatedGraph(Graph):
         partition_input_edges = []              # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
         partition_output_edges = []             # list of all the output edges ([S_1D' + S_2D' + ..., ...])
 
-        # Input and Output constraints (TODO: make those arguments of the function?)
 
-
-        # print(f'{I_max}, {O_max}')
         # Generate all literals
         for e in tmp_graph.edges:
             if 'in' in e[0]:                    # Generate literal for each input node
@@ -244,13 +241,15 @@ class AnnotatedGraph(Graph):
                     input_literals[in_id] = Bool("in_%s" % str(in_id))
             if 'g' in e[0]:                     # Generate literal for each gate in the circuit
                 g_id = int(e[0][1:])
-                if g_id not in gate_literals:
+                if g_id not in gate_literals and g_id not in self.constant_dict: # Not in constant_dict since we don't care about constants
                     gate_literals[g_id] = Bool("g_%s" % str(g_id))
-            
+
             if 'out' in e[1]:                   # Generate literal for each output node
                 out_id = int(e[1][3:])
                 if out_id not in output_literals:
                     output_literals[out_id] = Bool("out_%s" % str(out_id))
+
+        # Generate structures holding edge information
         for e in tmp_graph.edges:
             if 'in' in e[0]:                    # Populate input_edges structure
                 in_id = int(e[0][2:])
@@ -270,8 +269,11 @@ class AnnotatedGraph(Graph):
             if 'g' in e[0] and 'g' in e[1]:     # Populate gate_edges structure
                 ns_id = int(e[0][1:])
                 nd_id = int(e[1][1:])
-                
-                if ns_id not in gate_edges:       
+
+                if ns_id in self.constant_dict:
+                    print("ERROR: Constants should only be connected to output nodes")
+                    exit(0)
+                if ns_id not in gate_edges:
                     gate_edges[ns_id] = []
                 # try:
                 gate_edges[ns_id].append(nd_id)
@@ -288,8 +290,10 @@ class AnnotatedGraph(Graph):
                 except:
                     my_id = int(re.search('(\d+)', e[0]).group(1))
                     output_edges[out_id].append(my_id)
+
                 # =============================
 
+        # Define input edges
         for source in input_edges:
             edge_in_holder = []
             edge_out_holder = []
@@ -298,9 +302,9 @@ class AnnotatedGraph(Graph):
                 e_in = And(Not(input_literals[source]), gate_literals[destination])
 
                 edge_in_holder.append(e_in)
-    
+
             partition_input_edges.append(Or(edge_in_holder))
-      
+
         # Define gate edges
         for source in gate_edges:
             edge_in_holder = []
@@ -312,14 +316,14 @@ class AnnotatedGraph(Graph):
 
                 edge_in_holder.append(e_in)
                 edge_out_holder.append(e_out)
-    
+
             partition_input_edges.append(Or(edge_in_holder))
             partition_output_edges.append(Or(edge_out_holder))
-                
+
         # Define output edges
         for output_id in output_edges:
             predecessor = output_edges[output_id][0]    # Output nodes have only one predecessor  (it could be a gate or it could be an input)
-            if predecessor not in gate_literals:
+            if predecessor not in gate_literals:        # This handle cases where input and output are directly connected
                 continue
             e_out = And(gate_literals[predecessor],Not(output_literals[output_id]))
 
@@ -338,8 +342,29 @@ class AnnotatedGraph(Graph):
         for e in tmp_graph.edges:
             if 'g' in str(e[0]):
                 source = int(e[0][1:])
+                if source in self.constant_dict:
+                    continue
                 G.add_node(source)
         # ===================================
+
+        # Generate structure with gate weights
+        gate_weight = {}
+        for gate_idx in G.nodes:
+            if gate_idx not in gate_weight:
+                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
+            #print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+
+
+        # Find max weight
+        max_weight = 0
+        for gate_id in gate_weight:
+            max_weight = max(max_weight, gate_weight[gate_id])
+
+        # Update gate weights so that gate_weight = max_weight - max_weight
+        for gate_id in gate_weight:
+            gate_weight[gate_id] = max_weight - gate_weight[gate_id] + 1        # + 1 must be removed, I'm leaving it just for the initial debugging phase
+
+
         descendants = {}
         ancestors = {}
         for n in G:
@@ -361,7 +386,7 @@ class AnnotatedGraph(Graph):
                     not_ancestors.append(Not(gate_literals[source]))
                     ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]), And(not_ancestors))
                     opt.add(ancestor_condition)
-        
+
         # Set input nodes to False
         for input_node_id in input_literals:
             opt.add(input_literals[input_node_id] == False)
@@ -376,7 +401,7 @@ class AnnotatedGraph(Graph):
 
         # Generate function to maximize
         for gate_id in gate_literals:
-            max_func.append(gate_literals[gate_id])
+            max_func.append(gate_literals[gate_id]*gate_weight[gate_id])
 
         # Add function to maximize to the solver
         opt.maximize(Sum(max_func))

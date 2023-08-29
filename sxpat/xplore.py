@@ -64,7 +64,6 @@ def explore_grid(specs_obj: TemplateSpecs):
     template_obj = Template_SOP1(specs_obj)
 
 
-
     for i in range(1, total_iterations + 1):
         if pre_iter_unsats == total_number_of_cells_per_iter:
             break
@@ -72,6 +71,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         # run for a cell
         template_obj.current_graph = template_obj.import_graph()
+        template_obj.label_graph()
         subgraph_is_available = template_obj.current_graph.extract_subgraph(template_obj.imax, template_obj.omax)
 
         if subgraph_is_available:

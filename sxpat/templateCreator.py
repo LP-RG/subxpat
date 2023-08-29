@@ -12,6 +12,7 @@ from Z3Log.graph import Graph
 from Z3Log.verilog import Verilog
 from Z3Log.utils import *
 
+from .labeling import *
 from .config.config import *
 from .templateSpecs import TemplateSpecs
 from .config import paths as sxpatpaths
@@ -240,6 +241,14 @@ class Template_SOP1(TemplateCreator):
         self.__json_in_path = this_json_path
 
 
+
+    def label_graph(self):
+        labels = labeling(self.exact_benchmark, self.benchmark_name )
+        for n in self.current_graph.graph.nodes:
+            if n in labels:
+                self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
+                print(f'{self.current_graph.graph.nodes[n] = }')
+        pass
 
     def set_new_context(self, specs_obj: TemplateSpecs):
         self.lpp = specs_obj.lpp
