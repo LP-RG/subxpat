@@ -22,6 +22,7 @@ class Arguments(Arguments):
         self.__omax: int = tmp_args.omax
 
 
+
     @property
     def partitioning_percentage(self):
         return self.__partitioning_percentage
