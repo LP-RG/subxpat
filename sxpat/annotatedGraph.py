@@ -716,7 +716,11 @@ class AnnotatedGraph(Graph):
         :return: nothing
         """
         if self.is_cleaned_pi(n) or self.is_cleaned_po(n):
-            label = f"{LABEL}=\"{self.subgraph.nodes[n][LABEL]}\""
+            if WEIGHT in self.subgraph.nodes[n]:
+                label = f"{LABEL}=\"{self.subgraph.nodes[n][LABEL]}\""
+            else:
+                label = f"{LABEL}=\"{self.subgraph.nodes[n][LABEL]}\""
+
             if SUBGRAPH in self.subgraph.nodes[n]:
                 color = f"{COLOR}={self.subgraph.nodes[n][COLOR]}"
             elif COLOR in self.subgraph.nodes[n]:
@@ -724,15 +728,21 @@ class AnnotatedGraph(Graph):
             else:
                 color = f"{COLOR}={WHITE}"
             shape = f"{SHAPE}={self.subgraph.nodes[n][SHAPE]}"
-            line = f"{n} [{label}, {shape}, {color}];\n"
+            if WEIGHT in self.subgraph.nodes[n]:
+                weight = f'{WEIGHT} = {self.subgraph.nodes[n][WEIGHT]}'
+            else:
+                weight = f'{WEIGHT} = -1'
         elif self.is_cleaned_gate(n):
-            label = f"{LABEL}=\"{self.subgraph.nodes[n][LABEL]}\\n{n}\""
+            label = f"{LABEL}=\"{self.subgraph.nodes[n][LABEL]}\\n{n}\\n{self.subgraph.nodes[n][WEIGHT]}\""
             if SUBGRAPH in self.subgraph.nodes[n]:
                 color = f"{COLOR}={self.subgraph.nodes[n][COLOR]}"
             else:
                 color = f"{COLOR}={WHITE}"
             shape = f"{SHAPE}={self.subgraph.nodes[n][SHAPE]}"
-            line = f"{n} [{label}, {shape}, {color}];\n"
+            if WEIGHT in self.subgraph.nodes[n]:
+                weight = f'{WEIGHT} = {self.subgraph.nodes[n][WEIGHT]}'
+            else:
+                weight = f'{WEIGHT} = -1'
         elif self.is_cleaned_constant(n):
             label = f"{LABEL}=\"{self.subgraph.nodes[n][LABEL]}\\n{n}\""
             if SUBGRAPH in self.subgraph.nodes[n]:
@@ -740,10 +750,14 @@ class AnnotatedGraph(Graph):
             else:
                 color = f"{COLOR}={WHITE}"
             shape = f"{SHAPE}={self.subgraph.nodes[n][SHAPE]}"
-            line = f"{n} [{label}, {shape}, {color}];\n"
+            if WEIGHT in self.subgraph.nodes[n]:
+                weight = f'{WEIGHT} = {self.subgraph.nodes[n][WEIGHT]}'
+            else:
+                weight = f'{WEIGHT} = -1'
         else:
-            print('ERROR!!! found a node that is not a PI, PO, WIRE, CONSTANT, GATE')
+            print(Fore.RED + f'ERROR!!! a problem occurred while exporting an annotated graph {self.__out_annotated_graph_path}')
             exit()
+        line = f"{n} [{label}, {shape}, {color}, {weight}];\n"
         file_handler.write(line)
 
     def color_subgraph_node(self, n, this_color):
