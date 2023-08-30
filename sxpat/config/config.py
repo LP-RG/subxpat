@@ -135,3 +135,10 @@ VER_INPUT_PREFIX = 'in'
 
 
 WEIGHT = 'weight'
+
+
+# Other tools
+MECALS = 'mecals'
+MUSCAT = 'muscat'
+XPAT = 'xpat'
+BLASYS = 'blasys'
