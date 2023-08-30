@@ -89,7 +89,12 @@ def explore_grid(specs_obj: TemplateSpecs):
                     if lpp == 0 and ppo > 1:
                         lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
                         continue
-
+                    if i == 1:
+                        grid_row = lpp
+                        grid_column = ppo
+                    else:
+                        grid_row = cur_lpp
+                        grid_column = cur_ppo
                     specs_obj = set_current_context(specs_obj, lpp, ppo, i)
                     template_obj.set_new_context(specs_obj)
                     template_obj.z3_generate_z3pyscript()
@@ -97,33 +102,36 @@ def explore_grid(specs_obj: TemplateSpecs):
                     cur_status = get_status(template_obj)
 
                     if cur_status == EMPTY:  # if empty
-                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                        stats_obj.grid.cells[grid_row][grid_column].store_model_info(this_model_id=0,
                                                                         this_iteration=i,
                                                                         this_area='',
                                                                         this_runtime='',
-                                                                        this_status='Empty')
+                                                                        this_status='Empty',
+                                                                        this_cell=(lpp, ppo))
                         print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> Empty ' + Style.RESET_ALL)
 
                         lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
                     elif cur_status == UNSAT: # if unsat
                         print(Fore.YELLOW + f'Cell({lpp},{ppo}) at iteration {i} -> UNSAT ' + Style.RESET_ALL)
                         runtime = template_obj.get_json_runtime()
-                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                        stats_obj.grid.cells[grid_row][grid_column].store_model_info(this_model_id=0,
                                                                         this_iteration=i,
                                                                         this_area=-1,
                                                                         this_runtime=runtime,
-                                                                        this_status='UNSAT')
+                                                                        this_status='UNSAT',
+                                                                        this_cell=(lpp, ppo))
 
                         lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
                         pre_iter_unsats += 1
                     elif cur_status == UNKNOWN: # if unknown
                         print(Fore.MAGENTA + f'Cell({lpp},{ppo}) at iteration {i} -> TIMEOUT ' + Style.RESET_ALL)
                         runtime = template_obj.get_json_runtime()
-                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                        stats_obj.grid.cells[grid_row][grid_column].store_model_info(this_model_id=0,
                                                                         this_iteration=i,
                                                                         this_area=-1,
                                                                         this_runtime=runtime,
-                                                                        this_status=sxpatconfig.UNKNOWN)
+                                                                        this_status=sxpatconfig.UNKNOWN,
+                                                                        this_cell=(lpp, ppo))
 
                         lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
                         pre_iter_unsats += 1
@@ -154,11 +162,12 @@ def explore_grid(specs_obj: TemplateSpecs):
                             f' -> [area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})]' + Style.RESET_ALL)
                         found = True
 
-                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                        stats_obj.grid.cells[grid_row][grid_column].store_model_info(this_model_id=0,
                                                                             this_iteration=i,
                                                                             this_area=area,
                                                                             this_runtime=runtime,
-                                                                            this_status='SAT')
+                                                                            this_status='SAT',
+                                                                            this_cell=(lpp, ppo))
         else:
             break
     stats_obj.store_grid()

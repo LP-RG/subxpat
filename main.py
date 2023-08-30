@@ -38,6 +38,7 @@ def main():
 
 
     if args.plot:
+        # TODO: Fix later
         print(Fore.BLUE + f'Plotting...' + Style.RESET_ALL)
     else:
         if args.clean:
@@ -70,11 +71,12 @@ def main():
                 if specs_obj.grid:
                     try:
                         stats_obj = explore_grid(specs_obj)
-                        print(f'')
+
                     except Exception:
                         raise
 
                 else:
+                    # TODO: Fix later
                     explore_cell(specs_obj)
         else:
             specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
@@ -85,11 +87,11 @@ def main():
                                       grid=args.grid, imax=args.imax, omax=args.omax)
 
             if specs_obj.grid:
-                explore_grid(specs_obj)
-                stats_obj = Stats(specs_obj)
+                stats_obj = explore_grid(specs_obj)
                 # stats_obj.plot_area()
                 # stats_obj.plot_runtime()
             else:
+                # TODO: Fix later
                 explore_cell(specs_obj)
 
 
