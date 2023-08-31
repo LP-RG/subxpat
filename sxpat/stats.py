@@ -488,3 +488,67 @@ class Stats:
                f'{self.ppo = }\n' \
                f'{self.et = }\n' \
                f'{self.grid = }\n'
+
+
+class Result:
+    def __init__(self, benchname: 'str', toolname: 'str') -> None:
+
+        self.__tool = str(toolname)
+
+        if self.tool_name == 'blasys':
+            self.__name = BENCH_DICT[benchname]
+        else:
+            self.__name = str(benchname)
+        self.__logs = self.find_area_logs()
+        self.__logs_dict = self.extract_properties()
+        self.__area_error = self.extract_area_error()
+        self.__error = [error for error, area in self.area_error_list]
+        self.__area = [area for error, area in self.area_error_list]
+        self.__exact = self.extract_exact()
+        pass
+
+    def __repr__(self):
+        return f"An object of <class package.Result>\n" \
+               f"{self.exact = }\n" \
+               f"{self.circuit_name = }\n" \
+               f"{self.tool_name    = }\n" \
+               f"{self.log_dict     = }\n" \
+               f"{self.area_error_list     = }"
+
+    @property
+    def exact(self):
+        return self.__exact
+
+    @property
+    def circuit_name(self):
+        return self.__name
+
+    def set_circuit_name(self, circuit_name):
+        self.__name = circuit_name
+
+    @property
+    def tool_name(self):
+        return self.__tool
+
+    def set_tool_name(self, tool_name):
+        self.__tool = tool_name
+
+    @property
+    def log_list(self):
+        return self.__logs
+
+    @property
+    def log_dict(self):
+        return self.__logs_dict
+
+    @property
+    def area_error_list(self):
+        return self.__area_error
+
+    @property
+    def error_list(self):
+        return self.__error
+
+    @property
+    def area_list(self):
+        return self.__area
