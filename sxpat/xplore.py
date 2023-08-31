@@ -98,7 +98,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     specs_obj = set_current_context(specs_obj, lpp, ppo, i)
                     template_obj.set_new_context(specs_obj)
                     template_obj.z3_generate_z3pyscript()
-                    template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, 1800)
+                    template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models)
                     cur_status = get_status(template_obj)
 
                     if cur_status == EMPTY:  # if empty

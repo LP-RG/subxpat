@@ -12,10 +12,19 @@ ADDER='adder_i8_o5.v'
 ABS='abs_diff_i8_o5.v'
 MUL='mul_i8_o8.v'
 echo $PYTHON $SCRIPT "input/ver/$ADDER" -app "input/ver/$ADDER" -lpp=6 -ppo=6 -iterations=5 --grid --subxpat --clean --multiple
-$PYTHON $SCRIPT "input/ver/$ADDER" -app "input/ver/$ADDER" -lpp=6 -ppo=6 -iterations=5 --grid --subxpat --clean --multiple
+timeout 1s $PYTHON $SCRIPT "input/ver/$ADDER" -app "input/ver/$ADDER" -lpp=6 -ppo=6 -iterations=5 --grid --subxpat --clean --multiple
+if [[ $? -eq 124 ]]; then
+    echo "TIMEOUT!"
+fi
 
 echo $PYTHON $SCRIPT "input/ver/$ABS" -app "input/ver/$ABS" -lpp=6 -ppo=6 -iterations=5 --grid --subxpat  --multiple
-$PYTHON $SCRIPT "input/ver/$ABS" -app "input/ver/$ABS" -lpp=6 -ppo=6 -iterations=5 --grid --subxpat  --multiple
+timeout 1s $PYTHON $SCRIPT "input/ver/$ABS" -app "input/ver/$ABS" -lpp=6 -ppo=6 -iterations=5 --grid --subxpat  --multiple
+if [[ $? -eq 124 ]]; then
+    echo "TIMEOUT!"
+fi
 
 echo $PYTHON $SCRIPT "input/ver/$MUL" -app "input/ver/$MUL" -lpp=6 -ppo=6 -iterations=5 --grid --subxpat  --multiple
-$PYTHON $SCRIPT "input/ver/$MUL" -app "input/ver/$MUL" -lpp=6 -ppo=6 -iterations=5 --grid --subxpat  --multiple
+timeout 1s $PYTHON $SCRIPT "input/ver/$MUL" -app "input/ver/$MUL" -lpp=6 -ppo=6 -iterations=5 --grid --subxpat  --multiple
+if [[ $? -eq 124 ]]; then
+    echo "TIMEOUT!"
+fi
