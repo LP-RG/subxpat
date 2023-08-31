@@ -20,6 +20,7 @@ class Arguments(Arguments):
         self.__plot: bool = tmp_args.plot
         self.__imax:int = tmp_args.imax
         self.__omax: int = tmp_args.omax
+        self.__sensitivity: int = tmp_args.sensitivity
 
 
 
@@ -78,6 +79,10 @@ class Arguments(Arguments):
     @property
     def omax(self):
         return self.__omax
+
+    @property
+    def sensitivity(self):
+        return self.__sensitivity
 
     @property
     def clean(self):
@@ -177,6 +182,11 @@ class Arguments(Arguments):
                                default=2,
                                help='maximum-outputs-for-subgraph')
 
+        my_parser.add_argument('-sensitivity',
+                               type=int,
+                               default=1,
+                               help='partitioning-sensitivity')
+
         my_parser.add_argument('--clean',
                                action="store_true",
                                default=False)
@@ -199,4 +209,5 @@ class Arguments(Arguments):
                f'{self.plot = }\n' \
                f'{self.imax = }\n' \
                f'{self.omax = }\n' \
+               f'{self.sensitivity = }\n' \
                f'{self.clean = }'

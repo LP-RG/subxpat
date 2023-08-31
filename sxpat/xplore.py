@@ -72,7 +72,7 @@ def explore_grid(specs_obj: TemplateSpecs):
         # run for a cell
         template_obj.current_graph = template_obj.import_graph()
         template_obj.label_graph()
-        subgraph_is_available = template_obj.current_graph.extract_subgraph(template_obj.imax, template_obj.omax)
+        subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
 
         if subgraph_is_available:
             print(

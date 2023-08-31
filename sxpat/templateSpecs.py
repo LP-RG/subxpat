@@ -16,6 +16,7 @@ class TemplateSpecs:
         self.__grid = kwargs[GRID]
         self.__imax = kwargs[IMAX]
         self.__omax = kwargs[OMAX]
+        self.__sensitivity = kwargs[SENSITIVITY]
 
     @property
     def partitioning_percentage(self):
@@ -98,6 +99,15 @@ class TemplateSpecs:
         self.__omax = this_omax
 
     @property
+    def sensitivity(self):
+        return self.__sensitivity
+
+    @sensitivity.setter
+    def sensitivity(self, this_sens):
+        self.__sensitivity = this_sens
+
+
+    @property
     def num_of_models(self):
         return self.__num_of_models
 
@@ -120,4 +130,5 @@ class TemplateSpecs:
                f'{self.iterations = }\n' \
                f'{self.grid = }\n' \
                f'{self.imax = }\n' \
-               f'{self.omax = }\n'
+               f'{self.omax = }\n' \
+               f'{self.sensitivity = }'

@@ -17,6 +17,7 @@ GRID = 'grid'
 EXACT = 'exact'
 IMAX = 'imax'
 OMAX = 'omax'
+SENSITIVITY = 'sensitivity'
 
 
 
