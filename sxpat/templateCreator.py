@@ -243,12 +243,11 @@ class Template_SOP1(TemplateCreator):
 
 
     def label_graph(self):
+        print(Fore.BLUE + f'labeling...' + Style.RESET_ALL)
         labels = labeling(self.exact_benchmark, self.benchmark_name )
         for n in self.current_graph.graph.nodes:
             if n in labels:
                 self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
-
-        pass
 
     def set_new_context(self, specs_obj: TemplateSpecs):
         self.lpp = specs_obj.lpp

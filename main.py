@@ -37,6 +37,7 @@ def main():
     args = Arguments.parse()
 
 
+
     if args.plot:
         # TODO: Fix later
         print(Fore.BLUE + f'Plotting...' + Style.RESET_ALL)
@@ -66,7 +67,7 @@ def main():
                                           benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
                                           et=et,
                                           partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                          grid=args.grid, imax=args.imax, omax=args.omax)
+                                          grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity)
 
                 if specs_obj.grid:
                     try:
@@ -84,7 +85,7 @@ def main():
                                       benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
                                       et=args.et,
                                       partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                      grid=args.grid, imax=args.imax, omax=args.omax)
+                                      grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity)
 
             if specs_obj.grid:
                 stats_obj = explore_grid(specs_obj)

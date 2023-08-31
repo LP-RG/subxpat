@@ -11,6 +11,8 @@ from .config.config import *
 from .config import paths as sxpatpaths
 from z3 import *
 
+from .templateSpecs import TemplateSpecs
+
 class AnnotatedGraph(Graph):
     def __init__(self, benchmark_name: str, is_clean: bool = False, partitioning_percentage: int = 50) -> None:
         # Prepare a clean Verilog
@@ -173,17 +175,18 @@ class AnnotatedGraph(Graph):
                f'{self.subgraph_num_gates = }\n' \
                f'{self.partitioning_percentage = }\n'
 
-    def extract_subgraph(self, imax:int = 3, omax:int = 2):
+    def extract_subgraph(self, specs_obj: TemplateSpecs):
 
         if self.num_gates == 0:
             print(Fore.LIGHTRED_EX + f'No gates are found in the graph! Skipping the subgraph extraction' + Style.RESET_ALL)
             return False
         else:
 
-            self.subgraph = self.find_subgraph(imax, omax) # Critian's subgraph extraction
-            # self.subgraph = self.find_subgraph_sensitivity(imax, omax)
+            self.subgraph = self.find_subgraph(specs_obj) # Critian's subgraph extraction
+            # self.subgraph = self.find_subgraph_sensitivity(specs_obj)
 
             self.export_annotated_graph()
+
             self.subgraph_input_dict = self.extract_subgraph_inputs()
             self.subgraph_output_dict = self.extract_subgraph_outputs()
             self.subgraph_gate_dict = self.extract_subgraph_gates()
@@ -199,11 +202,13 @@ class AnnotatedGraph(Graph):
             self.graph_num_intact_gates = len(self.__graph_intact_gate_dict)
             return True
 
-    def find_subgraph_sensitivity(self, imax: int = 3, omax: int = 2):
+    def find_subgraph_sensitivity(self, specs_obj: TemplateSpecs):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
+        omax = specs_obj.omax
 
         print(Fore.BLUE + f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ' + Style.RESET_ALL)
         # Todo:
@@ -486,12 +491,13 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-    def find_subgraph(self, imax: int = 3, omax: int = 2):
+    def find_subgraph(self, specs_obj: TemplateSpecs):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-
+        imax = specs_obj.imax
+        omax = specs_obj.omax
         print(Fore.BLUE + f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ' + Style.RESET_ALL)
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
