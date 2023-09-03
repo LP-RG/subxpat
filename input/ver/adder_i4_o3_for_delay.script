@@ -1,0 +1,8 @@
+read_liberty config/gscl45nm.lib
+read_verilog input/ver/adder_i4_o3_for_metrics.v
+link_design top
+create_clock -name clk -period 1
+set_input_delay -clock clk 0 [all_inputs]
+set_output_delay -clock clk 0 [all_outputs]
+report_checks -digits 6
+exit

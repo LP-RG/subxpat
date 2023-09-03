@@ -15,12 +15,15 @@ from sxpat.templateSpecs import TemplateSpecs
 
 
 class Model:
-    def __init__(self, runtime: float = None, area: float = None, id: int = None, status: str = 'Unexplored', cell: Tuple[int, int] = (-1, -1)):
+    def __init__(self, runtime: float = None, area: float = None, delay: float = None, total_power: float = None,
+                 id: int = None, status: str = 'Unexplored', cell: Tuple[int, int] = (-1, -1)):
         self.__runtime = runtime
         self.__area = area
         self.__id = id
         self.__status = status
         self.__cell = cell
+        self.__delay = delay
+        self.__total_power = total_power
 
 
     @property
@@ -62,6 +65,23 @@ class Model:
     @cell.setter
     def cell(self, this_cell):
         self.__cell = this_cell
+
+    @property
+    def delay(self):
+        return self.__delay
+
+    @delay.setter
+    def delay(self, this_delay):
+        self.__delay = this_delay
+
+
+    @property
+    def total_power(self):
+        return self.__total_power
+
+    @total_power.setter
+    def total_power(self, this_total_power):
+        self.__total_power = this_total_power
 
     def __repr__(self):
         return f'An object of class Model:\n' \
@@ -128,11 +148,13 @@ class Cell:
         return self.__models
 
 
-    def store_model_info(self, this_model_id: int = 0, this_iteration: int = 0, this_area: float = None,
+    def store_model_info(self, this_model_id: int = 0, this_iteration: int = 0,
+                         this_area: float = None, this_delay: float = -1, this_total_power: float = -1,
                          this_runtime: float = None,
                          this_status: str = 'SAT',
                          this_cell: Tuple[int, int] = (-1, -1)):
-        self.models[this_iteration - 1][this_model_id] = Model(this_runtime, this_area, this_model_id, this_status, this_cell)
+        self.models[this_iteration - 1][this_model_id] = Model(this_runtime, this_area, this_delay, this_total_power,
+                                                               this_model_id, this_status, this_cell)
 
     def __repr__(self):
         return f"An object of class Cell:\n" \
@@ -316,7 +338,7 @@ class Stats:
             subheader = ['cell']
             for i in iteration_range:
                 header.append(str(i))
-                subheader.append(('status', 'runtime', 'area', 'cell'))
+                subheader.append(('status', 'runtime', 'area', 'delay', 'total_power', 'cell'))
             csvwriter.writerow(header)
             csvwriter.writerow(subheader)
 
@@ -332,7 +354,9 @@ class Stats:
                             this_status = self.grid.cells[lpp][ppo].models[i][0].status
                             this_runtime = self.grid.cells[lpp][ppo].models[i][0].runtime
                             this_cell = self.grid.cells[lpp][ppo].models[i][0].cell
-                            this_row.append((this_status, this_runtime, this_area, this_cell))
+                            this_delay = self.grid.cells[lpp][ppo].models[i][0].delay
+                            this_total_power = self.grid.cells[lpp][ppo].models[i][0].total_power
+                            this_row.append((this_status, this_runtime, this_area, this_delay,this_total_power, this_cell))
 
                     if this_row:
                         row = [cell]
@@ -490,65 +514,65 @@ class Stats:
                f'{self.grid = }\n'
 
 
-class Result:
-    def __init__(self, benchname: 'str', toolname: 'str') -> None:
-
-        self.__tool = str(toolname)
-
-        if self.tool_name == 'blasys':
-            self.__name = BENCH_DICT[benchname]
-        else:
-            self.__name = str(benchname)
-        self.__logs = self.find_area_logs()
-        self.__logs_dict = self.extract_properties()
-        self.__area_error = self.extract_area_error()
-        self.__error = [error for error, area in self.area_error_list]
-        self.__area = [area for error, area in self.area_error_list]
-        self.__exact = self.extract_exact()
-        pass
-
-    def __repr__(self):
-        return f"An object of <class package.Result>\n" \
-               f"{self.exact = }\n" \
-               f"{self.circuit_name = }\n" \
-               f"{self.tool_name    = }\n" \
-               f"{self.log_dict     = }\n" \
-               f"{self.area_error_list     = }"
-
-    @property
-    def exact(self):
-        return self.__exact
-
-    @property
-    def circuit_name(self):
-        return self.__name
-
-    def set_circuit_name(self, circuit_name):
-        self.__name = circuit_name
-
-    @property
-    def tool_name(self):
-        return self.__tool
-
-    def set_tool_name(self, tool_name):
-        self.__tool = tool_name
-
-    @property
-    def log_list(self):
-        return self.__logs
-
-    @property
-    def log_dict(self):
-        return self.__logs_dict
-
-    @property
-    def area_error_list(self):
-        return self.__area_error
-
-    @property
-    def error_list(self):
-        return self.__error
-
-    @property
-    def area_list(self):
-        return self.__area
+# class Result:
+#     def __init__(self, benchname: 'str', toolname: 'str') -> None:
+#
+#         self.__tool = str(toolname)
+#
+#         if self.tool_name == 'blasys':
+#             self.__name = BENCH_DICT[benchname]
+#         else:
+#             self.__name = str(benchname)
+#         self.__logs = self.find_area_logs()
+#         self.__logs_dict = self.extract_properties()
+#         self.__area_error = self.extract_area_error()
+#         self.__error = [error for error, area in self.area_error_list]
+#         self.__area = [area for error, area in self.area_error_list]
+#         self.__exact = self.extract_exact()
+#         pass
+#
+#     def __repr__(self):
+#         return f"An object of <class package.Result>\n" \
+#                f"{self.exact = }\n" \
+#                f"{self.circuit_name = }\n" \
+#                f"{self.tool_name    = }\n" \
+#                f"{self.log_dict     = }\n" \
+#                f"{self.area_error_list     = }"
+#
+#     @property
+#     def exact(self):
+#         return self.__exact
+#
+#     @property
+#     def circuit_name(self):
+#         return self.__name
+#
+#     def set_circuit_name(self, circuit_name):
+#         self.__name = circuit_name
+#
+#     @property
+#     def tool_name(self):
+#         return self.__tool
+#
+#     def set_tool_name(self, tool_name):
+#         self.__tool = tool_name
+#
+#     @property
+#     def log_list(self):
+#         return self.__logs
+#
+#     @property
+#     def log_dict(self):
+#         return self.__logs_dict
+#
+#     @property
+#     def area_error_list(self):
+#         return self.__area_error
+#
+#     @property
+#     def error_list(self):
+#         return self.__error
+#
+#     @property
+#     def area_list(self):
+#         return self.__area

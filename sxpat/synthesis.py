@@ -526,19 +526,16 @@ class Synthesis:
     # =========================
     def estimate_area(self, this_path: str = None):
         if this_path:
-            yosys_command = f"read_verilog {this_path};\n" \
-                            f"synth -flatten;\n" \
-                            f"opt;\n" \
-                            f"opt_clean -purge;\n" \
-                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
-                            f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+            design_path = this_path
         else:
-            yosys_command = f"read_verilog {self.ver_out_path};\n" \
-                            f"synth -flatten;\n" \
-                            f"opt;\n" \
-                            f"opt_clean -purge;\n" \
-                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
-                            f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+            design_path = self.ver_out_path
+        yosys_command = f"read_verilog {design_path};\n" \
+                        f"synth -flatten;\n" \
+                        f"opt;\n" \
+                        f"opt_clean -purge;\n" \
+                        f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                        f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+
 
         process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
         if process.stderr:
@@ -555,12 +552,122 @@ class Synthesis:
 
         return float(area)
 
+    def __synthesize_for_circuit_metrics(self, this_path: str = None):
+        if this_path:
+            design_in_path = this_path
+        else:
+            design_in_path = self.ver_out_path
+        design_out_path = f'{design_in_path[:-2]}_for_metrics.v'
+        yosys_command = f"read_verilog {design_in_path};\n" \
+                        f"synth -flatten;\n" \
+                        f"opt;\n" \
+                        f"opt_clean -purge;\n" \
+                        f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                        f"write_verilog -noattr {design_out_path}"
+        process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
+        if process.stderr:
+            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
 
-    def estimate_power(self):
-        pass
+    def estimate_delay(self, this_path: str = None):
+        if this_path:
+            design_in_path = this_path
+            module_name= self.extract_module_name(this_path)
+        else:
+            design_in_path = self.ver_out_path
+            module_name = self.extract_module_name()
 
-    def estimate_delay(self):
-        pass
+        design_out_path = f'{design_in_path[:-2]}_for_metrics.v'
+        delay_script = f'{design_in_path[:-2]}_for_delay.script'
+        self.__synthesize_for_circuit_metrics(design_in_path)
+        sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                      f"read_verilog {design_out_path}\n" \
+                      f"link_design {module_name}\n" \
+                      f"create_clock -name clk -period 1\n" \
+                      f"set_input_delay -clock clk 0 [all_inputs]\n" \
+                      f"set_output_delay -clock clk 0 [all_outputs]\n" \
+                      f"report_checks -digits 6\n" \
+                      f"exit"
+        with open(delay_script, 'w') as ds:
+            ds.writelines(sta_command)
+        # process = subprocess.run([sxpatconfig.OPENSTA, delay_script], stderr=PIPE)
+        process = subprocess.run([sxpatconfig.OPENSTA, delay_script], stdout=PIPE, stderr=PIPE)
+        if process.stderr:
+            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
+        else:
+            # print(f'{process.stdout.decode() = }')
+            if re.search('(\d+.\d+).*data arrival time', process.stdout.decode()):
+                time = re.search('(\d+.\d+).*data arrival time', process.stdout.decode()).group(1)
+                return float(time)
+            else:
+                print(Fore.RED + f'ERROR!!! No delay was found!' + Style.RESET_ALL)
+                return -1
+
+
+
+    def extract_module_name(self, this_path: str = None):
+        if this_path:
+            design_in_path = this_path
+        else:
+            design_in_path = self.ver_out_path
+        with open(design_in_path, 'r') as dp:
+            contents = dp.readlines()
+            for line in contents:
+                if re.search(r'module\s+(.*)\(', line):
+                    modulename = re.search(r'module\s+(.*)\(', line).group(1)
+
+        return modulename
+
+    def estimate_power(self, this_path: str = None):
+        if this_path:
+            design_in_path = this_path
+            module_name = self.extract_module_name(this_path)
+        else:
+            design_in_path = self.ver_out_path
+            module_name = self.extract_module_name()
+
+        design_out_path = f'{design_in_path[:-2]}_for_metrics.v'
+        power_script = f'{design_in_path[:-2]}_for_power.script'
+        self.__synthesize_for_circuit_metrics(design_in_path)
+        sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                      f"read_verilog {design_out_path}\n" \
+                      f"link_design {module_name}\n" \
+                      f"create_clock -name clk -period 1\n" \
+                      f"set_input_delay -clock clk 0 [all_inputs]\n" \
+                      f"set_output_delay -clock clk 0 [all_outputs]\n" \
+                      f"report_checks\n" \
+                      f"report_power -digits 12\n" \
+                      f"exit"
+        with open(power_script, 'w') as ds:
+            ds.writelines(sta_command)
+        # process = subprocess.run([sxpatconfig.OPENSTA, power_script], stderr=PIPE)
+        process = subprocess.run([sxpatconfig.OPENSTA, power_script], stdout=PIPE, stderr=PIPE)
+        if process.stderr:
+            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
+        else:
+            # with open('test.log', 'w') as l:
+            #     l.writelines(f'{process.stdout.decode()}')
+            # print(process.stdout.decode())
+            pattern = r"Total\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+[^0-9]*\d+)\s+"
+            if re.search(pattern, process.stdout.decode()):
+                total_power_str = re.search(pattern, process.stdout.decode()).group(4)
+
+                if re.search(r'e[^0-9]*(\d+)', total_power_str):
+                    total_power = float(re.search(r'(\d+.\d+)e[^0-9]*\d+', total_power_str).group(1))
+                    sign = (re.search(r'e([^0-9]*)(\d+)', total_power_str).group(1))
+                    if sign == '-':
+                        sign = -1
+                    else:
+                        sign = +1
+                    exponant = int(re.search(r'e([^0-9]*)(\d+)', total_power_str).group(2))
+                    total_power = total_power * (10 ** (sign * exponant))
+                else:
+                    total_power = total_power_str
+
+                return float(total_power)
+
+            else:
+                print(Fore.YELLOW + f'Warning!!! No power was found!' + Style.RESET_ALL)
+                return -1
 
     # =========================
 

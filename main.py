@@ -14,6 +14,8 @@ from sxpat.config import paths as sxpatpaths
 
 from sxpat.synthesis import Synthesis
 from sxpat.arguments import Arguments
+
+
 from sxpat.xplore import explore_cell, explore_grid
 from sxpat.stats import Stats
 
@@ -36,11 +38,21 @@ def clean_all():
 def main():
     args = Arguments.parse()
 
-
-
     if args.plot:
         # TODO: Fix later
         print(Fore.BLUE + f'Plotting...' + Style.RESET_ALL)
+        specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
+                                  products_per_output=args.ppo,
+                                  benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
+                                  et=args.et,
+                                  partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
+                                  grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
+                                  timeout=args.timeout)
+        stats_obj = Stats(specs_obj)
+        # stats_obj.plot_area()
+
+
+
     else:
         if args.clean:
             print(Fore.BLUE + f'cleaning...' + Style.RESET_ALL)
@@ -67,7 +79,8 @@ def main():
                                           benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
                                           et=et,
                                           partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                          grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity)
+                                          grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
+                                          timeout=args.timeout)
 
                 if specs_obj.grid:
                     try:
@@ -85,7 +98,8 @@ def main():
                                       benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
                                       et=args.et,
                                       partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                      grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity)
+                                      grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
+                                      timeout=args.timeout)
 
             if specs_obj.grid:
                 stats_obj = explore_grid(specs_obj)

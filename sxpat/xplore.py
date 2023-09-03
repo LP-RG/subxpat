@@ -70,8 +70,10 @@ def explore_grid(specs_obj: TemplateSpecs):
         print(Fore.LIGHTBLUE_EX + f'iteration {i}' + Style.RESET_ALL)
 
         # run for a cell
+        # print(f'importing the graph')
         template_obj.current_graph = template_obj.import_graph()
-        template_obj.label_graph()
+        # template_obj.label_graph(0)
+        # print(f'graph is imported')
         subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
 
         if subgraph_is_available:
@@ -92,7 +94,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     if i == 1:
                         grid_row = lpp
                         grid_column = ppo
-                    else:
+                    elif i == 2:
                         grid_row = cur_lpp
                         grid_column = cur_ppo
                     specs_obj = set_current_context(specs_obj, lpp, ppo, i)
@@ -136,8 +138,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                         lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
                         pre_iter_unsats += 1
                     elif cur_status == SAT:  # if sat
-                        # print(f'{template_obj.benchmark_name = }')
-                        # print(f'{template_obj.current_graph = }')
                         # if sat => move up to the next iteration, reset the parameters
                         synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
                         if i > 1:
@@ -156,15 +156,27 @@ def explore_grid(specs_obj: TemplateSpecs):
                         cur_ppo = ppo
                         runtime = template_obj.get_json_runtime()
                         area = synth_obj.estimate_area()
+                        delay = synth_obj.estimate_delay()
+                        total_power = synth_obj.estimate_power()
 
                         print(Fore.GREEN + f'Cell = ({cur_lpp}, {cur_ppo}) iteration = {i} -> SAT', end='')
                         print(
-                            f' -> [area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})]' + Style.RESET_ALL)
+                            f' -> [area={area}, power={total_power}, delay={delay}'
+                            f' (exact area={synth_obj.estimate_area(exact_file_path)},'
+                            f' exact power={synth_obj.estimate_power(exact_file_path)},'
+                            f' exact delay={synth_obj.estimate_delay(exact_file_path)})]' + Style.RESET_ALL)
+
+                        # exact_power = synth_obj.estimate_power(exact_file_path)
+                        # exact_delay = synth_obj.estimate_delay(exact_file_path)
+                        # print(f'{exact_power = }')
+                        # print(f'{exact_delay = }')
                         found = True
 
                         stats_obj.grid.cells[grid_row][grid_column].store_model_info(this_model_id=0,
                                                                             this_iteration=i,
                                                                             this_area=area,
+                                                                            this_total_power = total_power,
+                                                                            this_delay = delay,
                                                                             this_runtime=runtime,
                                                                             this_status='SAT',
                                                                             this_cell=(lpp, ppo))

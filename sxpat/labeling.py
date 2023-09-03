@@ -7,7 +7,7 @@ from Z3Log.utils import *
 from Z3Log.z3solver import Z3solver
 from Z3Log.config import path as z3logpath
 
-def labeling(exact_benchmark_name: str, approximate_benchmark: str,) -> Dict:
+def labeling(exact_benchmark_name: str, approximate_benchmark: str, constant_value: 0) -> Dict:
     # 1) create a clean verilog out of exact and approximate circuits
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()
@@ -28,10 +28,20 @@ def labeling(exact_benchmark_name: str, approximate_benchmark: str,) -> Dict:
     # convert gv to z3 expression
     z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE)
 
+    if constant_value == 0:
+        labels_false = z3py_obj.label_circuit(False)
+        return labels_false, labels_false
+    elif constant_value == 1:
+        labels_true = z3py_obj.label_circuit(True)
+        return labels_true, labels_true
+    else:
+        labels_false = z3py_obj.label_circuit(False)
+        labels_true = z3py_obj.label_circuit(True)
+        return labels_true, labels_false
 
-    labels = z3py_obj.label_circuit()
 
-    return labels
+
+
 
 if __name__ == "__main__":
     pass

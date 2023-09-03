@@ -242,12 +242,17 @@ class Template_SOP1(TemplateCreator):
 
 
 
-    def label_graph(self):
+    def label_graph(self, constant_value = 2):
         print(Fore.BLUE + f'labeling...' + Style.RESET_ALL)
-        labels = labeling(self.exact_benchmark, self.benchmark_name )
+        labels1, labels0 = labeling(self.exact_benchmark, self.benchmark_name, constant_value)
         for n in self.current_graph.graph.nodes:
-            if n in labels:
-                self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
+            if n in labels0 and n in labels1:
+                if constant_value == 0:
+                    self.current_graph.graph.nodes[n][WEIGHT] = int(labels0[n])
+                elif constant_value == 1:
+                    self.current_graph.graph.nodes[n][WEIGHT] = int(labels1[n])
+                else:
+                    self.current_graph.graph.nodes[n][WEIGHT] = max(int(labels0[n]), int(labels1[n]))
 
     def set_new_context(self, specs_obj: TemplateSpecs):
         self.lpp = specs_obj.lpp
@@ -309,7 +314,7 @@ class Template_SOP1(TemplateCreator):
                 if key == "total_time":
                     return float(d[key])
 
-    def run_z3pyscript(self, ET=2, num_models=1, timeout=1000):
+    def run_z3pyscript(self, ET=2, num_models=1, timeout=36000):
         # print(f'{self.z3_out_path = }')
         # print(f'{ET = }')
         process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}', f'{num_models}', f'{timeout}'], stderr=PIPE, stdout=PIPE)

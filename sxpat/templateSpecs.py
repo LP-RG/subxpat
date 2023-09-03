@@ -17,7 +17,7 @@ class TemplateSpecs:
         self.__imax = kwargs[IMAX]
         self.__omax = kwargs[OMAX]
         self.__sensitivity = kwargs[SENSITIVITY]
-
+        self.__timeout = kwargs[TIMEOUT]
     @property
     def partitioning_percentage(self):
         return self.__partitioning_percentage
@@ -106,6 +106,12 @@ class TemplateSpecs:
     def sensitivity(self, this_sens):
         self.__sensitivity = this_sens
 
+    @property
+    def timeout(self):
+        return self.__timeout
+    @timeout.setter
+    def timeout(self, this_timeout):
+        self.__timeout = this_timeout
 
     @property
     def num_of_models(self):
@@ -131,4 +137,5 @@ class TemplateSpecs:
                f'{self.grid = }\n' \
                f'{self.imax = }\n' \
                f'{self.omax = }\n' \
-               f'{self.sensitivity = }'
+               f'{self.sensitivity = }\n' \
+               f'{self.timeout = }'
