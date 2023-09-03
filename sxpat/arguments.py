@@ -21,7 +21,7 @@ class Arguments(Arguments):
         self.__imax:int = tmp_args.imax
         self.__omax: int = tmp_args.omax
         self.__sensitivity: int = tmp_args.sensitivity
-
+        self.__timeout: int = tmp_args.timeout
 
 
     @property
@@ -84,6 +84,9 @@ class Arguments(Arguments):
     def sensitivity(self):
         return self.__sensitivity
 
+    @property
+    def timeout(self):
+        return self.__timeout
     @property
     def clean(self):
         return self.__clean
@@ -187,6 +190,11 @@ class Arguments(Arguments):
                                default=1,
                                help='partitioning-sensitivity')
 
+        my_parser.add_argument('-timeout',
+                               type=int,
+                               default=10800,
+                               help='the-timeout-for-every-cell-in-seconds(default 3 hours)')
+
         my_parser.add_argument('--clean',
                                action="store_true",
                                default=False)
@@ -210,4 +218,5 @@ class Arguments(Arguments):
                f'{self.imax = }\n' \
                f'{self.omax = }\n' \
                f'{self.sensitivity = }\n' \
+               f'{self.timeout = }\n' \
                f'{self.clean = }'

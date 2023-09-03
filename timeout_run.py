@@ -21,7 +21,7 @@ def timeout_run():
                   f'--grid', f'--subxpat']
 
     try:
-        process = subprocess.run(command, timeout=10800, stderr=PIPE)
+        process = subprocess.run(command, timeout=100, stderr=PIPE)
         if process.stderr:
             print(Fore.RED + f'ERROR!!! while running {command}' + Style.RESET_ALL)
 

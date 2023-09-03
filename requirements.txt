@@ -25,4 +25,4 @@ sympy==1.11.1
 threadpoolctl==3.2.0
 typing==3.7.4.3
 z3-solver==4.11.2.0
-z3log==1.0.8
+z3log==1.1.1

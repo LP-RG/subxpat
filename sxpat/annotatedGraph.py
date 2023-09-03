@@ -182,9 +182,34 @@ class AnnotatedGraph(Graph):
             return False
         else:
 
-            self.subgraph = self.find_subgraph(specs_obj) # Critian's subgraph extraction
+            # self.subgraph = self.find_subgraph(specs_obj) # Critian's subgraph extraction
             # self.subgraph = self.find_subgraph_sensitivity(specs_obj)
 
+            iteration = 1
+
+            cnt_nodes = 0
+            specs_obj.sensitivity = 1
+            # TODO look for a better stopping condition
+            print(
+                Fore.BLUE + f'finding a subgraph (imax={specs_obj.imax}, omax={specs_obj.omax}) for {self.name}... ' + Style.RESET_ALL)
+            while ((cnt_nodes < 10 and specs_obj.sensitivity < 2 * specs_obj.et) or cnt_nodes == 0):
+
+                # specs_obj.sensitivity = iteration
+                print(Fore.BLUE + f'iteration {iteration}' + Style.RESET_ALL)
+                self.subgraph = self.find_subgraph_sensitivity(specs_obj)
+
+                iteration += 1
+
+                # Count how many nodes are in the subgraph
+                cnt_nodes = 0
+                for gate_idx in self.gate_dict:
+                    if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
+                        cnt_nodes += 1
+
+                specs_obj.sensitivity = 2 ** iteration - 1
+                # print("Nodes in partition: ", cnt_nodes)
+                # print("Sugraph iteration ", iteration)
+            print(Fore.BLUE + f'exporting subgraph' + Style.RESET_ALL)
             self.export_annotated_graph()
 
             self.subgraph_input_dict = self.extract_subgraph_inputs()
@@ -209,8 +234,9 @@ class AnnotatedGraph(Graph):
         """
         imax = specs_obj.imax
         omax = specs_obj.omax
+        sensitivity_t = specs_obj.sensitivity
 
-        print(Fore.BLUE + f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ' + Style.RESET_ALL)
+
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
@@ -297,6 +323,7 @@ class AnnotatedGraph(Graph):
 
                 # =============================
 
+        # Define input edges
         for source in input_edges:
             edge_in_holder = []
             edge_out_holder = []
@@ -308,10 +335,8 @@ class AnnotatedGraph(Graph):
 
             partition_input_edges.append(Or(edge_in_holder))
 
-        # Define gate edges
-
+        # Define gate edges and data structures containing the edge weights
         edge_w = {}
-
         edge_constraint = {}
 
         for source in gate_edges:
@@ -417,13 +442,11 @@ class AnnotatedGraph(Graph):
         opt.add(Sum(partition_input_edges) <= imax)
         opt.add(Sum(partition_output_edges) <= omax)
 
-        tmp = []
+        sensitivity_constraints = []
         for s in edge_w:
-            tmp.append(edge_constraint[s] * edge_w[s])
-        sum_partition_out = Sum(tmp)
+            sensitivity_constraints.append(edge_constraint[s] * edge_w[s])
 
-        sensitivity_t = 7
-        opt.add(sum_partition_out <= sensitivity_t)
+        opt.add(Sum(sensitivity_constraints) <= sensitivity_t)
 
         # Generate function to maximize
         for gate_id in gate_literals:
@@ -490,6 +513,7 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
+
 
     def find_subgraph(self, specs_obj: TemplateSpecs):
         """
