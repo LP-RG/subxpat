@@ -314,7 +314,7 @@ class Template_SOP1(TemplateCreator):
                 if key == "total_time":
                     return float(d[key])
 
-    def run_z3pyscript(self, ET=2, num_models=1, timeout=36000):
+    def run_z3pyscript(self, ET=2, num_models=1, timeout=10800):
         # print(f'{self.z3_out_path = }')
         # print(f'{ET = }')
         process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}', f'{num_models}', f'{timeout}'], stderr=PIPE, stdout=PIPE)

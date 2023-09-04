@@ -100,7 +100,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     specs_obj = set_current_context(specs_obj, lpp, ppo, i)
                     template_obj.set_new_context(specs_obj)
                     template_obj.z3_generate_z3pyscript()
-                    template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models)
+                    template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, 10800)
                     cur_status = get_status(template_obj)
 
                     if cur_status == EMPTY:  # if empty
@@ -157,6 +157,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                         runtime = template_obj.get_json_runtime()
                         area = synth_obj.estimate_area()
                         delay = synth_obj.estimate_delay()
+                        if area == 0.0 and delay == -1:
+                            delay = 0.0
                         total_power = synth_obj.estimate_power()
 
                         print(Fore.GREEN + f'Cell = ({cur_lpp}, {cur_ppo}) iteration = {i} -> SAT', end='')
@@ -166,10 +168,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                             f' exact power={synth_obj.estimate_power(exact_file_path)},'
                             f' exact delay={synth_obj.estimate_delay(exact_file_path)})]' + Style.RESET_ALL)
 
-                        # exact_power = synth_obj.estimate_power(exact_file_path)
-                        # exact_delay = synth_obj.estimate_delay(exact_file_path)
-                        # print(f'{exact_power = }')
-                        # print(f'{exact_delay = }')
                         found = True
 
                         stats_obj.grid.cells[grid_row][grid_column].store_model_info(this_model_id=0,
