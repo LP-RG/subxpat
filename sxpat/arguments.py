@@ -193,7 +193,7 @@ class Arguments(Arguments):
 
         my_parser.add_argument('-sensitivity',
                                type=int,
-                               default=1,
+                               default=-1,
                                help='maximum-partitioning-sensitivity')
 
         my_parser.add_argument('-subgraphsize',

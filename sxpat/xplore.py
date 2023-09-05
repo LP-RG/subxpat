@@ -68,12 +68,8 @@ def explore_grid(specs_obj: TemplateSpecs):
         if pre_iter_unsats == total_number_of_cells_per_iter:
             break
         print(Fore.LIGHTBLUE_EX + f'iteration {i}' + Style.RESET_ALL)
-
-        # run for a cell
-        # print(f'importing the graph')
         template_obj.current_graph = template_obj.import_graph()
-        template_obj.label_graph(2)
-        # print(f'graph is imported')
+        # template_obj.label_graph(2)
         subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
 
         if subgraph_is_available:
