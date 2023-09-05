@@ -106,7 +106,7 @@ def main():
                                       et=args.et,
                                       partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
                                       grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
-                                      timeout=args.timeout)
+                                      timeout=args.timeout, subgraph_size=args.subgraph_size)
 
             if specs_obj.grid:
                 stats_obj = explore_grid(specs_obj)
