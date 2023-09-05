@@ -644,9 +644,7 @@ class Synthesis:
         if process.stderr:
             raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
         else:
-            # with open('test.log', 'w') as l:
-            #     l.writelines(f'{process.stdout.decode()}')
-            # print(process.stdout.decode())
+
             pattern = r"Total\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+[^0-9]*\d+)\s+"
             if re.search(pattern, process.stdout.decode()):
                 total_power_str = re.search(pattern, process.stdout.decode()).group(4)
