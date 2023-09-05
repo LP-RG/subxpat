@@ -231,9 +231,38 @@ class Stats:
         self.__lpp: int = spec_obj.lpp
         self.__ppo: int = spec_obj.ppo
         self.__et: int = spec_obj.et
-        self.__pap: int = spec_obj.partitioning_percentage
+        self.__max_sensitivity: int = spec_obj.max_sensitivity
+        self.__min_subgraph_size: int = spec_obj.min_subgraph_size
         self.__iterations: int = spec_obj.iterations
+        self.__grid_name: str = self.get_grid_name()
+        self.__grid_path: str = self.get_grid_path()
+        self.__imax: int = spec_obj.imax
+        self.__omax: int = spec_obj.omax
         self.__grid = Grid(spec_obj)
+
+    @property
+    def imax(self):
+        return self.__imax
+
+    @property
+    def omax(self):
+        return self.__omax
+
+    @property
+    def grid_path(self):
+        return self.__grid_path
+
+    @property
+    def grid_name(self):
+        return self.__grid_name
+
+    @property
+    def max_sensitivity(self):
+        return self.__max_sensitivity
+
+    @property
+    def min_subgraph_size(self):
+        return self.__min_subgraph_size
 
     @property
     def exact_name(self):
@@ -327,10 +356,21 @@ class Stats:
     def verilog_paths(self, this_verilog_paths):
         self.__verilog_paths = this_verilog_paths
 
+    def get_grid_name(self):
+        _, extension = OUTPUT_PATH['report']
+        name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_sens{self.max_sensitivity}_graphsize{self.min_subgraph_size}.{extension}'
+        return name
+
+
+    def get_grid_path(self):
+        folder, _ = OUTPUT_PATH['report']
+        path = f'{folder}/{self.grid_name}'
+        return path
+
     def store_grid(self):
         folder, extension = OUTPUT_PATH['report']
 
-        with open(f'{folder}/grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_pap{self.pap}.{extension}',
+        with open(f'{self.grid_path}',
                   'w') as f:
             csvwriter = csv.writer(f)
             iteration_range = list(range(1, self.iterations + 1))
@@ -513,6 +553,8 @@ class Stats:
                f'{self.ppo = }\n' \
                f'{self.et = }\n' \
                f'{self.grid = }\n'
+
+
 
 
 class Result:
