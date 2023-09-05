@@ -81,12 +81,13 @@ def main():
                 et_array = list(range(step, max_error + 1, step))
 
             for et in et_array:
+
                 specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                           products_per_output=args.ppo,
                                           benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
                                           et=et,
                                           partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                          grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=2 * et,
+                                          grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity * et,
                                           timeout=args.timeout, subgraph_size=args.subgraph_size)
 
                 if specs_obj.grid:
