@@ -220,6 +220,449 @@ class Grid:
         return f'An object of class Grid: \n' \
                f'{self.cells = }\n'
 
+class Result:
+    def __init__(self, benchname: 'str', toolname: 'str') -> None:
+        self.__tool = str(toolname)
+        if benchname in list(sxpatconfig.BENCH_DICT.keys()):
+            self.__benchmark = sxpatconfig.BENCH_DICT[benchname]
+        else:
+            self.__benchmark = benchname
+
+        if self.tool_name == sxpatconfig.SUBXPAT:
+
+            self.__error_array: list = self.extract_subxpat_error()
+            self.__grid_files = self.get_grid_files()
+
+            self.__area_dict: dict = None
+            self.__power_dict: dict = None
+            self.__delay_dict: dict = None
+            self.__runtime_dict: dict = None
+            self.extract_subxpat_characteristics()
+
+            self.__exact_area = float(-1)
+            self.__exact_power = float(-1)
+            self.__exact_delay = float(-1)
+
+        else:
+            self.__verilog_files = self.get_verilog_files()
+            if len(self.verilog_files) == 0:
+                self.__status: bool = False
+            else:
+                self.__status: bool = True
+                self.et_str = self.get_et_str()
+                self.__synthesized_files = self.__synthesize()
+
+                self.__error_array: list = self.extract_error()
+
+                self.__area_dict: dict = self.extract_area()
+                self.__power_dict: dict = self.extract_power()
+                self.__delay_dict: dict = self.extract_delay()
+
+                self.__exact_area = float(-1)
+                self.__exact_power = float(-1)
+                self.__exact_delay = float(-1)
+
+                self.clean()
+
+    def __repr__(self):
+        return f"An object of <class package.Result>\n" \
+               f"{self.tool_name    = }\n" \
+               f"{self.benchmark = }\n" \
+               f"{self.exact_area = }\n" \
+               f"{self.exact_power = }\n" \
+               f"{self.exact_delay = }\n" \
+               f"{self.error_array = }\n" \
+               f"{self.area_dict = }\n" \
+               f"{self.power_dict = }\n" \
+               f"{self.delay_dict = }"
+
+
+    @property
+    def grid_files(self):
+        return self.__grid_files
+
+    @property
+    def exact_power(self):
+        return self.__exact_power
+
+    @property
+    def status(self):
+        return self.__status
+
+    @property
+    def exact_area(self):
+        return self.__exact_area
+
+    @property
+    def exact_delay(self):
+        return self.__exact_delay
+
+    @property
+    def verilog_files(self):
+        return self.__verilog_files
+
+    @verilog_files.setter
+    def verilog_files(self, this_verilog_files):
+        self.__verilog_files = this_verilog_files
+
+    @property
+    def synthesized_files(self):
+        return self.__synthesized_files
+
+    @synthesized_files.setter
+    def synthesized_files(self, this_syn_files):
+        self.__synthesized_files = this_syn_files
+
+    @property
+    def benchmark(self):
+        return self.__benchmark
+
+    @benchmark.setter
+    def benchmark(self, this_benchmark):
+        self.__benchmark = this_benchmark
+
+    @property
+    def tool_name(self):
+        return self.__tool
+
+    @tool_name.setter
+    def tool_name(self, this_tool_name):
+        self.__tool = this_tool_name
+
+
+    @property
+    def area_dict(self):
+        return self.__area_dict
+
+    @area_dict.setter
+    def area_dict(self, this_dict):
+        self.__area_dict = this_dict
+
+    @property
+    def power_dict(self):
+        return self.__power_dict
+
+    @power_dict.setter
+    def power_dict(self, this_dict):
+        self.__power_dict = this_dict
+
+    @property
+    def error_array(self):
+        return self.__error_array
+
+    @property
+    def delay_dict(self):
+        return self.__delay_dict
+
+    @delay_dict.setter
+    def delay_dict(self, this_dict):
+        self.__delay_dict = this_dict
+
+    @property
+    def et_str(self):
+        return self.__et_str
+
+    @et_str.setter
+    def et_str(self, this_et_str):
+        self.__et_str = this_et_str
+
+    def clean(self):
+        folder = f'experiments/{self.tool_name}/ver/{self.benchmark}'
+        all_files = [f for f in os.listdir(folder)]
+
+        for file in all_files:
+            if re.search('_syn', file) or file.endswith('script'):
+                os.remove(f'{folder}/{file}')
+
+
+    def get_et_str(self):
+        if self.tool_name == sxpatconfig.XPAT:
+            self.et_str = 'et'
+        elif self.tool_name == sxpatconfig.MUSCAT:
+            self.et_str = 'wc'
+        elif self.tool_name == sxpatconfig.MECALS:
+            self.et_str = 'wce'
+        return self.et_str
+
+    def get_verilog_files(self):
+        folder = f'experiments/{self.tool_name}/ver'
+
+        all_folders = [f for f in os.listdir(folder)]
+        benchmark_folder = None
+        for fold in all_folders:
+            if re.search(self.benchmark, fold):
+                benchmark_folder = fold
+        if benchmark_folder:
+            all_verilogs = [f for f in os.listdir(f'{folder}/{benchmark_folder}/')]
+        else:
+            print(Fore.RED + f'ERROR!!! for tool {self.tool_name} there is no benchmark folder for benchmark {self.benchmark}' + Style.RESET_ALL)
+            return []
+
+        benchmark_verilogs = []
+        for verilog in all_verilogs:
+            if re.search(self.benchmark, verilog) and verilog.endswith('.v') and not re.search('_syn', verilog):
+                benchmark_verilogs.append(f'{verilog}')
+        return benchmark_verilogs
+
+    def __synthesize(self):
+        syn_files: dict = {}
+        for ver_file in self.verilog_files:
+            design_in_path  = f'experiments/{self.tool_name}/ver/{self.benchmark}/{ver_file}'
+            design_out_path = f'{design_in_path[:-2]}_syn.v'
+            yosys_command = f"read_verilog {design_in_path};\n" \
+                            f"synth -flatten;\n" \
+                            f"opt;\n" \
+                            f"opt_clean -purge;\n" \
+                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                            f"write_verilog -noattr {design_out_path}"
+
+            process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
+            if process.stderr:
+                raise Exception(Fore.RED + f'Yosys ERROR!!! in file {design_in_path}\n {process.stderr.decode()}' + Style.RESET_ALL)
+
+            cur_et = int(re.search(f'{self.et_str}(\d+)', design_out_path).group(1))
+            syn_files[cur_et] = design_out_path
+
+
+        return syn_files
+    def extract_error(self):
+        et_array = []
+        for file in self.verilog_files:
+            if re.search(f'{self.et_str}(\d+)', file):
+                cur_et = int(re.search(f'{self.et_str}(\d+)', file).group(1))
+                et_array.append(cur_et)
+        et_array.sort()
+        return et_array
+
+    def extract_area(self):
+        area_dict: dict = {}
+        for error in self.error_array:
+            for key in self.synthesized_files.keys():
+                if error == key:
+                    syn_file = self.synthesized_files[error]
+                    yosys_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                                    f"read_verilog {syn_file};\n" \
+                                    f"synth -flatten;\n" \
+                                    f"opt;\n" \
+                                    f"opt_clean -purge;\n" \
+                                    f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                                    f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+
+                    process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
+                    if process.stderr:
+                        raise Exception(Fore.RED + f'Yosys ERROR!!! in file {syn_file}\n {process.stderr.decode()}' + Style.RESET_ALL)
+                    else:
+
+                        if re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()):
+                            area = re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()).group(1)
+
+                        elif re.search(r"Don't call ABC as there is nothing to map", process.stdout.decode()):
+                            area = 0
+                        else:
+                            raise Exception(Fore.RED + 'Yosys ERROR!!!\nNo useful information in the stats log!' + Style.RESET_ALL)
+                        area_dict[error] = float(area)
+        return area_dict
+
+    def extract_power(self):
+        power_dict: dict = {}
+        for error in self.error_array:
+            for key in self.synthesized_files.keys():
+                if error == key:
+                    syn_file = self.synthesized_files[error]
+                    power_script = f'{syn_file[:-2]}_for_power.script'
+                    module_name = self.extract_module_name(syn_file)
+                    sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                                  f"read_verilog {syn_file}\n" \
+                                  f"link_design {module_name}\n" \
+                                  f"create_clock -name clk -period 1\n" \
+                                  f"set_input_delay -clock clk 0 [all_inputs]\n" \
+                                  f"set_output_delay -clock clk 0 [all_outputs]\n" \
+                                  f"report_checks\n" \
+                                  f"report_power -digits 12\n" \
+                                  f"exit"
+                    with open(power_script, 'w') as ds:
+                        ds.writelines(sta_command)
+                    process = subprocess.run([sxpatconfig.OPENSTA, power_script], stdout=PIPE, stderr=PIPE)
+                    if process.stderr:
+                        raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
+                    else:
+
+                        pattern = r"Total\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+[^0-9]*\d+)\s+"
+                        if re.search(pattern, process.stdout.decode()):
+                            total_power_str = re.search(pattern, process.stdout.decode()).group(4)
+
+                            if re.search(r'e[^0-9]*(\d+)', total_power_str):
+                                total_power = float(re.search(r'(\d+.\d+)e[^0-9]*\d+', total_power_str).group(1))
+                                sign = (re.search(r'e([^0-9]*)(\d+)', total_power_str).group(1))
+                                if sign == '-':
+                                    sign = -1
+                                else:
+                                    sign = +1
+                                exponant = int(re.search(r'e([^0-9]*)(\d+)', total_power_str).group(2))
+                                total_power = total_power * (10 ** (sign * exponant))
+                            else:
+                                total_power = total_power_str
+
+
+                            power_dict[error] = float(total_power)
+                        else:
+                            print(Fore.YELLOW + f'Warning!!! No power was found!' + Style.RESET_ALL)
+                            power_dict[error] = 0
+        return power_dict
+
+    def extract_delay(self):
+        delay_dict: dict = {}
+        for error in self.error_array:
+            for key in self.synthesized_files.keys():
+                if error == key:
+
+                    syn_file = self.synthesized_files[error]
+                    delay_script = f'{syn_file[:-2]}_for_delay.script'
+                    module_name = self.extract_module_name(syn_file)
+                    sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                                  f"read_verilog {syn_file}\n" \
+                                  f"link_design {module_name}\n" \
+                                  f"create_clock -name clk -period 1\n" \
+                                  f"set_input_delay -clock clk 0 [all_inputs]\n" \
+                                  f"set_output_delay -clock clk 0 [all_outputs]\n" \
+                                  f"report_checks -digits 6\n" \
+                                  f"exit"
+                    with open(delay_script, 'w') as ds:
+                        ds.writelines(sta_command)
+                    process = subprocess.run([sxpatconfig.OPENSTA, delay_script], stdout=PIPE, stderr=PIPE)
+                    if process.stderr:
+                        raise Exception(Fore.RED + f'Yosys ERROR!!! in file {syn_file} \n {process.stderr.decode()}' + Style.RESET_ALL)
+
+                    else:
+                    # print(f'{process.stdout.decode() = }')
+                        if re.search('(\d+.\d+).*data arrival time', process.stdout.decode()):
+                            time = re.search('(\d+.\d+).*data arrival time', process.stdout.decode()).group(1)
+                            delay_dict[error] = float(time)
+                        else:
+                            print(Fore.YELLOW + f'Warning!!! in file {syn_file} No delay was found!' + Style.RESET_ALL)
+                            delay_dict[error] = 0
+        return delay_dict
+
+
+
+    def extract_module_name(self, this_path: str = None):
+
+        with open(this_path, 'r') as dp:
+            contents = dp.readlines()
+            for line in contents:
+                if re.search(r'module\s+(.*)\(', line):
+                    modulename = re.search(r'module\s+(.*)\(', line).group(1)
+
+        return modulename
+
+    def extract_subxpat_error(self):
+        n_o = int(re.search(f'.*o(\d+).*', self.benchmark).group(1))
+        max_error = 2 ** (n_o - 1)
+        if max_error <= 8:
+            et_array = list(range(1, max_error + 1))
+        else:
+            step = max_error // 8
+            et_array = list(range(step, max_error + 1, step))
+        return et_array
+
+    def get_grid_files(self):
+        grid_files: dict = {}
+        all_csv_files = [f for f in os.listdir(OUTPUT_PATH['report'][0])]
+        for et in self.error_array:
+            for csv_file in all_csv_files:
+                if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark, csv_file):
+                    cur_et = int(re.search('et(\d+)', csv_file).group(1))
+                    if cur_et == et:
+                        grid_files[csv_file] = et
+
+        return grid_files
+
+
+
+
+    def extract_subxpat_characteristics(self):
+        folder, _ = OUTPUT_PATH['report']
+
+        power_dict = {}
+        area_dict = {}
+        delay_dict = {}
+        cell_dict = {}
+        runtime_dict = {}
+
+        for cur_grid_file in self.grid_files.keys():
+            cur_et = self.grid_files[cur_grid_file]
+            with open(f'{folder}/{cur_grid_file}', 'r') as gf:
+                min_area = float('inf')
+                min_power = 0
+                min_delay = 0
+                min_runtime = 0
+                min_cell = (0, 0)
+
+                csvreader = csv.reader(gf)
+                for line in csvreader:
+                    if not re.search('iterations', line[0]) and not re.search('cell', line[0]):
+                        for column in line:
+                            if not re.search('\d+X\d+', column):
+                                result = column.strip().replace('(', '').replace(')', '').split(',')
+                                if re.search('UNSAT', result[0]):
+                                    cur_status = 'UNSAT'
+                                    cur_runtime = float(result[1])
+                                    cur_area = -1
+                                    cur_delay = -1
+                                    cur_power = -1
+                                    cur_cell = (int(result[5]), int(result[6]))
+                                    min_runtime += cur_runtime
+
+                                elif re.search('Unexplored', result[0]):
+                                    cur_status = 'UNEXPLORED'
+                                    cur_runtime = -1
+                                    cur_area = -1
+                                    cur_delay = -1
+                                    cur_power = -1
+                                    cur_cell = -1
+
+                                elif re.search('unknown', result[0]):
+                                    cur_status = 'UNKNOWN'
+                                    cur_runtime = float(result[1])
+                                    cur_area = -1
+                                    cur_delay = -1
+                                    cur_power = -1
+                                    cur_cell = (int(result[5]), int(result[6]))
+                                    min_runtime += cur_runtime
+                                else:
+                                    cur_status = 'SAT'
+                                    cur_runtime = float(result[1])
+                                    cur_area = float(result[2])
+                                    cur_delay = float(result[3])
+                                    cur_power = float(result[4])
+                                    cur_cell = (int(result[5]), int(result[6]))
+
+                                    if cur_area < min_area and cur_area != -1:
+                                        min_area = cur_area
+                                        min_power = cur_power
+                                        min_delay = cur_delay
+                                        min_cell = cur_cell
+                                        min_runtime += cur_runtime
+            area_dict[cur_et] = min_area
+            power_dict[cur_et] = min_power
+            delay_dict[cur_et] = min_delay
+            runtime_dict[cur_et] = min_runtime
+            cell_dict[cur_et] = min_cell
+
+        self.area_dict = area_dict
+        self.power_dict = power_dict
+        self.delay_dict = delay_dict
+
+
+
+
+
+
+
+
+
+
+
 
 class Stats:
     def __init__(self, spec_obj: TemplateSpecs):
@@ -284,9 +727,6 @@ class Stats:
     def et(self):
         return self.__et
 
-    @property
-    def pap(self):
-        return self.__pap
 
     @property
     def iterations(self):
@@ -358,7 +798,10 @@ class Stats:
 
     def get_grid_name(self):
         _, extension = OUTPUT_PATH['report']
-        name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_sens{self.max_sensitivity}_graphsize{self.min_subgraph_size}.{extension}'
+        if self.max_sensitivity == -1:
+            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_without_sensitivity.{extension}'
+        else:
+            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_sens{self.max_sensitivity}_graphsize{self.min_subgraph_size}.{extension}'
         return name
 
 
@@ -406,89 +849,147 @@ class Stats:
 
                         csvwriter.writerow(row)
 
-    def plot_grid(self):
+    def _gather_results(self):
+        mecals = Result(self.exact_name, sxpatconfig.MECALS)
+        muscat = Result(self.exact_name, sxpatconfig.MUSCAT)
+        xpat = Result(self.exact_name, sxpatconfig.XPAT)
+        subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
+        self.plot_area(subxpat= subxpat,
+                  xpat= xpat,
+                  mecals= mecals,
+                  muscat= muscat)
+        self.plot_power(subxpat=subxpat,
+                       xpat=xpat,
+                       mecals=mecals,
+                       muscat=muscat)
+        self.plot_delay(subxpat=subxpat,
+                       xpat=xpat,
+                       mecals=mecals,
+                       muscat=muscat)
+
+    def plot_area(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
+        fig, ax = plt.subplots()
+        ax.set_xlabel(f'ET')
+        ax.set_ylabel(ylabel=f'Area')
+        ax.set_title(f'{self.exact_name} Area comparison', fontsize = 30)
+
+        et_list = subxpat.error_array
+
+        if muscat.status:
+            ax.plot(et_list, muscat.area_dict.values(), label='MUSCAT', color='red', marker='s', markeredgecolor='red',
+                    markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        if mecals.status:
+            ax.plot(et_list, mecals.area_dict.values(), label='MECALS', color='black', marker='s', markeredgecolor='red',
+                    markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        if xpat.status:
+            ax.plot(et_list, xpat.area_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='black',
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        ax.plot(et_list, subxpat.area_dict.values(), label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
+                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        # ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
+        #         markeredgewidth=10, linestyle=None, linewidth=0, markersize=8)
+        #
+        plt.xticks(et_list)
+        plt.legend(loc='best')
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.pdf"
+        plt.savefig(figurename_png)
+        plt.savefig(figurename_pdf)
+
+    def plot_power(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
+        fig, ax = plt.subplots()
+        ax.set_xlabel(f'ET')
+        ax.set_ylabel(ylabel=f'Area')
+        ax.set_title(f'{self.exact_name} Power comparison', fontsize=30)
+
+        et_list = subxpat.error_array
+
+        if muscat.status:
+            ax.plot(et_list, muscat.power_dict.values(), label='MUSCAT', color='red', marker='s', markeredgecolor='red',
+                    markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        if mecals.status:
+            ax.plot(et_list, mecals.power_dict.values(), label='MECALS', color='black', marker='s',
+                    markeredgecolor='red',
+                    markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        if xpat.status:
+            ax.plot(et_list, xpat.power_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='black',
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        ax.plot(et_list, subxpat.power_dict.values(), label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
+                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        # ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
+        #         markeredgewidth=10, linestyle=None, linewidth=0, markersize=8)
+        #
+        plt.xticks(et_list)
+        plt.legend(loc='best')
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.pdf"
+        plt.savefig(figurename_png)
+        plt.savefig(figurename_pdf)
+
+    def plot_delay(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
+        fig, ax = plt.subplots()
+        ax.set_xlabel(f'ET')
+        ax.set_ylabel(ylabel=f'Area')
+        ax.set_title(f'{self.exact_name} Delay comparison', fontsize=30)
+
+        et_list = subxpat.error_array
+
+        if muscat.status:
+            ax.plot(et_list, muscat.delay_dict.values(), label='MUSCAT', color='red', marker='s', markeredgecolor='red',
+                    markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        if mecals.status:
+            ax.plot(et_list, mecals.delay_dict.values(), label='MECALS', color='black', marker='s',
+                    markeredgecolor='red',
+                    markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        if xpat.status:
+            ax.plot(et_list, xpat.delay_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='black',
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        ax.plot(et_list, subxpat.delay_dict.values(), label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
+                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        # ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
+        #         markeredgewidth=10, linestyle=None, linewidth=0, markersize=8)
+        #
+        plt.xticks(et_list)
+        plt.legend(loc='best')
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.pdf"
+        plt.savefig(figurename_png)
+        plt.savefig(figurename_pdf)
+
+    def plot_pap(self):
+        pass
+
+    def plot_pdap(self):
         pass
 
 
-    def get_et_array(self):
-        folder = f'experiments/area/muscat/{self.exact_name}'
-        all_areas = [f for f in os.listdir(folder)]
-        et_array = []
-        for area in all_areas:
-            if re.search('.*et(\d+).*', area):
-                this_et = int(re.search('.*et(\d+).*', area).group(1))
-                et_array.append(this_et)
 
-        return sorted(et_array)
 
-    def get_muscat_area(self, et_array):
-        folder = f'experiments/area/muscat/{self.exact_name}'
-        all_areas = [f for f in os.listdir(folder)]
-        area_array = []
-        for et in et_array:
-            for area in all_areas:
-                if re.search(f'.*et{et}.*', area):
-                    with open(f'{folder}/{area}', 'r') as a:
-                        this_area = float(a.readline())
-                        area_array.append(this_area)
 
-        return area_array
 
-    def get_subxpat_area(self, et_array):
-        folder, extension = OUTPUT_PATH['report']
-        all_reports = [f for f in os.listdir(folder)]
-        area_array = []
-        for et in et_array:
-            min_area = float('inf')
-            for report in all_reports:
-                if re.search('grid', report) and re.search(f'{self.exact_name}', report):
-                    if re.search(f'.*et{et}.*', report):
-                        with open(f'{folder}/{report}', 'r') as f:
-                            rows = csv.reader(f)
-                            for cols in rows:
-                                if re.search('\(\d+X\d+\)', cols[0]):
-                                    for col_idx in range(1, self.iterations):
 
-                                        this_entry = cols[col_idx]
 
-                                        this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
 
-                                        if re.search('SAT', this_entry[0]) and not re.search('UNSAT', this_entry[0]):
-                                            area = float(this_entry[2])
 
-                                            if min_area > area:
-                                                min_area = area
-            if min_area == float('inf'):
-                min_area = -1
-            area_array.append(min_area)
-        return area_array
 
-    def get_subxpat_runtime(self, et_array):
-        folder, extension = OUTPUT_PATH['report']
-        all_reports = [f for f in os.listdir(folder)]
-        runtime_array = []
-        for et in et_array:
-            cur_runtime = 0
-            for report in all_reports:
-                if re.search('grid', report) and re.search(f'{self.exact_name}', report):
-                    if re.search(f'.*et{et}.*', report):
-                        with open(f'{folder}/{report}', 'r') as f:
-                            rows = csv.reader(f)
-                            for cols in rows:
-                                if re.search('\(\d+X\d+\)', cols[0]):
-                                    for col_idx in range(1, self.iterations):
+    def __repr__(self):
+        return f'An object of class Stats:\n' \
+               f'{self.exact_name = }\n' \
+               f'{self.approximate_name = }\n' \
+               f'{self.lpp = }\n' \
+               f'{self.ppo = }\n' \
+               f'{self.et = }\n' \
+               f'{self.grid = }\n'
 
-                                        this_entry = cols[col_idx]
 
-                                        this_entry = this_entry.strip().replace('(', '').replace(')', '').split(',')
 
-                                        if re.search('SAT', this_entry[0]) or re.search('UNSAT', this_entry[0]):
-                                            cur_runtime += float(this_entry[1])
-
-            runtime_array.append(cur_runtime)
-        return runtime_array
-
-    def plot_area(self):
+    def plot_area_old(self):
         print(f'plotting area...')
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
@@ -524,7 +1025,7 @@ class Stats:
         plt.savefig(figurename_png)
         plt.savefig(figurename_pdf)
 
-    def plot_runtime(self):
+    def plot_runtime_old(self):
         print(f'plotting runtime...')
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
@@ -545,299 +1046,4 @@ class Stats:
         plt.savefig(figurename_png)
         plt.savefig(figurename_pdf)
 
-    def __repr__(self):
-        return f'An object of class Stats:\n' \
-               f'{self.exact_name = }\n' \
-               f'{self.approximate_name = }\n' \
-               f'{self.lpp = }\n' \
-               f'{self.ppo = }\n' \
-               f'{self.et = }\n' \
-               f'{self.grid = }\n'
 
-
-
-
-class Result:
-    def __init__(self, benchname: 'str', toolname: 'str') -> None:
-        self.__tool = str(toolname)
-        if benchname in list(sxpatconfig.BENCH_DICT.keys()):
-            self.__benchmark = sxpatconfig.BENCH_DICT[benchname]
-        else:
-            self.__benchmark = benchname
-        self.__verilog_files = self.get_verilog_files()
-        self.et_str = self.get_et_str()
-        self.__synthesized_files = self.__synthesize()
-        self.__error_array: list = self.extract_error()
-
-        self.__area_dict: dict = self.extract_area()
-        self.__power_dict: dict = self.extract_power()
-        self.__delay_dict: dict = self.extract_delay()
-
-        self.__exact_area = float(-1)
-        self.__exact_power = float(-1)
-        self.__exact_delay = float(-1)
-
-        self.clean()
-
-    def __repr__(self):
-        return f"An object of <class package.Result>\n" \
-               f"{self.tool_name    = }\n" \
-               f"{self.benchmark = }\n" \
-               f"{self.exact_area = }\n" \
-               f"{self.exact_power = }\n" \
-               f"{self.exact_delay = }\n" \
-               f"{self.error_array = }\n" \
-               f"{self.area_dict = }\n" \
-               f"{self.power_dict = }\n" \
-               f"{self.delay_dict = }"
-
-    @property
-    def exact_power(self):
-        return self.__exact_power
-
-    @property
-    def exact_area(self):
-        return self.__exact_area
-
-    @property
-    def exact_delay(self):
-        return self.__exact_delay
-
-    @property
-    def verilog_files(self):
-        return self.__verilog_files
-
-    @verilog_files.setter
-    def verilog_files(self, this_verilog_files):
-        self.__verilog_files = this_verilog_files
-
-    @property
-    def synthesized_files(self):
-        return self.__synthesized_files
-
-    @synthesized_files.setter
-    def synthesized_files(self, this_syn_files):
-        self.__synthesized_files = this_syn_files
-
-    @property
-    def benchmark(self):
-        return self.__benchmark
-
-    @benchmark.setter
-    def benchmark(self, this_benchmark):
-        self.__benchmark = this_benchmark
-
-    @property
-    def tool_name(self):
-        return self.__tool
-
-    @tool_name.setter
-    def tool_name(self, this_tool_name):
-        self.__tool = this_tool_name
-
-
-    @property
-    def area_dict(self):
-        return self.__area_dict
-
-    @property
-    def power_dict(self):
-        return self.__power_dict
-
-    @property
-    def error_array(self):
-        return self.__error_array
-
-    @property
-    def delay_dict(self):
-        return self.__delay_dict
-
-    @property
-    def et_str(self):
-        return self.__et_str
-
-    @et_str.setter
-    def et_str(self, this_et_str):
-        self.__et_str = this_et_str
-
-    def clean(self):
-        folder = f'experiments/{self.tool_name}/ver/{self.benchmark}'
-        all_files = [f for f in os.listdir(folder)]
-
-        for file in all_files:
-            if re.search('_syn', file) or file.endswith('script'):
-                os.remove(f'{folder}/{file}')
-
-
-    def get_et_str(self):
-        if self.tool_name == sxpatconfig.XPAT:
-            self.et_str = 'et'
-        elif self.tool_name == sxpatconfig.MUSCAT:
-            self.et_str = 'wc'
-        elif self.tool_name == sxpatconfig.MECALS:
-            self.et_str = 'wce'
-        return self.et_str
-
-    def get_verilog_files(self):
-        folder = f'experiments/{self.tool_name}/ver'
-
-        all_folders = [f for f in os.listdir(folder)]
-        benchmark_folder = None
-        for fold in all_folders:
-            if re.search(self.benchmark, fold):
-                benchmark_folder = fold
-        if benchmark_folder:
-            all_verilogs = [f for f in os.listdir(f'{folder}/{benchmark_folder}/')]
-        else:
-            print(Fore.RED + f'ERROR!!! there is no benchmark folder for benchmark {self.benchmark}' + Style.RESET_ALL)
-            exit()
-
-        benchmark_verilogs = []
-        for verilog in all_verilogs:
-            if re.search(self.benchmark, verilog) and verilog.endswith('.v') and not re.search('_syn', verilog):
-                benchmark_verilogs.append(f'{verilog}')
-        return benchmark_verilogs
-
-    def __synthesize(self):
-        syn_files: dict = {}
-        for ver_file in self.verilog_files:
-            design_in_path  = f'experiments/{self.tool_name}/ver/{self.benchmark}/{ver_file}'
-            design_out_path = f'{design_in_path[:-2]}_syn.v'
-            yosys_command = f"read_verilog {design_in_path};\n" \
-                            f"synth -flatten;\n" \
-                            f"opt;\n" \
-                            f"opt_clean -purge;\n" \
-                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
-                            f"write_verilog -noattr {design_out_path}"
-
-            process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
-            if process.stderr:
-                raise Exception(Fore.RED + f'Yosys ERROR!!! in file {design_in_path}\n {process.stderr.decode()}' + Style.RESET_ALL)
-
-            cur_et = int(re.search(f'{self.et_str}(\d+)', design_out_path).group(1))
-            syn_files[cur_et] = design_out_path
-
-
-        return syn_files
-    def extract_error(self):
-        et_array = []
-        for file in self.verilog_files:
-            if re.search(f'{self.et_str}(\d+)', file):
-                cur_et = int(re.search(f'{self.et_str}(\d+)', file).group(1))
-                et_array.append(cur_et)
-        et_array.sort()
-        return et_array
-
-    def extract_area(self):
-        area_dict: dict = {}
-        for error in self.synthesized_files.keys():
-            syn_file = self.synthesized_files[error]
-            yosys_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
-                            f"read_verilog {syn_file};\n" \
-                            f"synth -flatten;\n" \
-                            f"opt;\n" \
-                            f"opt_clean -purge;\n" \
-                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
-                            f"stat -liberty {sxpatconfig.LIB_PATH};\n"
-
-            process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
-            if process.stderr:
-                raise Exception(Fore.RED + f'Yosys ERROR!!! in file {syn_file}\n {process.stderr.decode()}' + Style.RESET_ALL)
-            else:
-
-                if re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()):
-                    area = re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()).group(1)
-
-                elif re.search(r"Don't call ABC as there is nothing to map", process.stdout.decode()):
-                    area = 0
-                else:
-                    raise Exception(Fore.RED + 'Yosys ERROR!!!\nNo useful information in the stats log!' + Style.RESET_ALL)
-                area_dict[error] = area
-        return area_dict
-
-    def extract_power(self):
-        power_dict: dict = {}
-        for error in self.synthesized_files.keys():
-            syn_file = self.synthesized_files[error]
-            power_script = f'{syn_file[:-2]}_for_power.script'
-            module_name = self.extract_module_name(syn_file)
-            sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
-                          f"read_verilog {syn_file}\n" \
-                          f"link_design {module_name}\n" \
-                          f"create_clock -name clk -period 1\n" \
-                          f"set_input_delay -clock clk 0 [all_inputs]\n" \
-                          f"set_output_delay -clock clk 0 [all_outputs]\n" \
-                          f"report_checks\n" \
-                          f"report_power -digits 12\n" \
-                          f"exit"
-            with open(power_script, 'w') as ds:
-                ds.writelines(sta_command)
-            process = subprocess.run([sxpatconfig.OPENSTA, power_script], stdout=PIPE, stderr=PIPE)
-            if process.stderr:
-                raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
-            else:
-
-                pattern = r"Total\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+[^0-9]*\d+)\s+"
-                if re.search(pattern, process.stdout.decode()):
-                    total_power_str = re.search(pattern, process.stdout.decode()).group(4)
-
-                    if re.search(r'e[^0-9]*(\d+)', total_power_str):
-                        total_power = float(re.search(r'(\d+.\d+)e[^0-9]*\d+', total_power_str).group(1))
-                        sign = (re.search(r'e([^0-9]*)(\d+)', total_power_str).group(1))
-                        if sign == '-':
-                            sign = -1
-                        else:
-                            sign = +1
-                        exponant = int(re.search(r'e([^0-9]*)(\d+)', total_power_str).group(2))
-                        total_power = total_power * (10 ** (sign * exponant))
-                    else:
-                        total_power = total_power_str
-
-
-                    power_dict[error] = total_power
-                else:
-                    print(Fore.YELLOW + f'Warning!!! No power was found!' + Style.RESET_ALL)
-                    power_dict[error] = 0
-        return power_dict
-
-    def extract_delay(self):
-        delay_dict: dict = {}
-        for error in self.synthesized_files.keys():
-            syn_file = self.synthesized_files[error]
-            delay_script = f'{syn_file[:-2]}_for_delay.script'
-            module_name = self.extract_module_name(syn_file)
-            sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
-                          f"read_verilog {syn_file}\n" \
-                          f"link_design {module_name}\n" \
-                          f"create_clock -name clk -period 1\n" \
-                          f"set_input_delay -clock clk 0 [all_inputs]\n" \
-                          f"set_output_delay -clock clk 0 [all_outputs]\n" \
-                          f"report_checks -digits 6\n" \
-                          f"exit"
-            with open(delay_script, 'w') as ds:
-                ds.writelines(sta_command)
-            process = subprocess.run([sxpatconfig.OPENSTA, delay_script], stdout=PIPE, stderr=PIPE)
-            if process.stderr:
-                raise Exception(Fore.RED + f'Yosys ERROR!!! in file {syn_file} \n {process.stderr.decode()}' + Style.RESET_ALL)
-
-            else:
-            # print(f'{process.stdout.decode() = }')
-                if re.search('(\d+.\d+).*data arrival time', process.stdout.decode()):
-                    time = re.search('(\d+.\d+).*data arrival time', process.stdout.decode()).group(1)
-                    delay_dict[error] = time
-                else:
-                    print(Fore.YELLOW + f'Warning!!! in file {syn_file} No delay was found!' + Style.RESET_ALL)
-                    delay_dict[error] = 0
-        return delay_dict
-
-
-
-    def extract_module_name(self, this_path: str = None):
-
-        with open(this_path, 'r') as dp:
-            contents = dp.readlines()
-            for line in contents:
-                if re.search(r'module\s+(.*)\(', line):
-                    modulename = re.search(r'module\s+(.*)\(', line).group(1)
-
-        return modulename

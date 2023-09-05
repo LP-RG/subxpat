@@ -178,39 +178,32 @@ class AnnotatedGraph(Graph):
     def extract_subgraph(self, specs_obj: TemplateSpecs):
 
         if self.num_gates == 0:
-            print(Fore.LIGHTRED_EX + f'No gates are found in the graph! Skipping the subgraph extraction' + Style.RESET_ALL)
+            print(
+                Fore.LIGHTRED_EX + f'No gates are found in the graph! Skipping the subgraph extraction' + Style.RESET_ALL)
             return False
         else:
-
-            # self.subgraph = self.find_subgraph(specs_obj) # Critian's subgraph extraction
-            # self.subgraph = self.find_subgraph_sensitivity(specs_obj)
-
-            iteration = 1
-
-            cnt_nodes = 0
-            specs_obj.sensitivity = 1
-            # print(f'{specs_obj.sensitivity =}')
-            # TODO look for a better stopping condition
-            print(
-                Fore.BLUE + f'finding a subgraph (imax={specs_obj.imax}, omax={specs_obj.omax}) for {self.name}... ' + Style.RESET_ALL)
-            while ((cnt_nodes < specs_obj.min_subgraph_size and specs_obj.sensitivity < specs_obj.max_sensitivity) or cnt_nodes == 0):
-
-                # specs_obj.sensitivity = iteration
-                print(Fore.BLUE + f'iteration {iteration}' + Style.RESET_ALL)
-                self.subgraph = self.find_subgraph_sensitivity(specs_obj)
-
-                iteration += 1
-
-                # Count how many nodes are in the subgraph
+            print(Fore.BLUE + f'finding a subgraph (imax={specs_obj.imax}, omax={specs_obj.omax}) for ... {self.name}' + Style.RESET_ALL)
+            if specs_obj.max_sensitivity == -1:
+                print(Fore.BLUE + f"Partition without sensitivity start..." + Style.RESET_ALL)
+                self.subgraph = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
+            else:
+                print(Fore.BLUE + f"Partition with sensitivity start..." + Style.RESET_ALL)
+                iteration = 1
                 cnt_nodes = 0
-                for gate_idx in self.gate_dict:
-                    if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                        cnt_nodes += 1
-
-                specs_obj.sensitivity = 2 ** iteration - 1
-                # print("Nodes in partition: ", cnt_nodes)
-                # print("Sugraph iteration ", iteration)
-            print(Fore.BLUE + f'exporting subgraph' + Style.RESET_ALL)
+                specs_obj.sensitivity = 1
+                while ((cnt_nodes < specs_obj.min_subgraph_size and specs_obj.sensitivity < specs_obj.max_sensitivity) or cnt_nodes == 0):
+                    # specs_obj.sensitivity = iteration
+                    print(Fore.BLUE + f'iteration {iteration}' + Style.RESET_ALL)
+                    self.subgraph = self.find_subgraph_sensitivity(specs_obj)
+                    iteration += 1
+                    # Count how many nodes are in the subgraph
+                    cnt_nodes = 0
+                    for gate_idx in self.gate_dict:
+                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
+                            cnt_nodes += 1
+                    specs_obj.sensitivity = 2 ** iteration - 1
+                    print("Nodes in partition: ", cnt_nodes)
+            print(Fore.BLUE + f'subgraph exported!' + Style.RESET_ALL)
             self.export_annotated_graph()
 
             self.subgraph_input_dict = self.extract_subgraph_inputs()
@@ -237,7 +230,7 @@ class AnnotatedGraph(Graph):
         omax = specs_obj.omax
         sensitivity_t = specs_obj.sensitivity
 
-
+        # print(Fore.BLUE + f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ' + Style.RESET_ALL)
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
@@ -514,7 +507,6 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
-
 
     def find_subgraph(self, specs_obj: TemplateSpecs):
         """
