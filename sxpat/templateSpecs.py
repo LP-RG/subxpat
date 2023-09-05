@@ -16,8 +16,11 @@ class TemplateSpecs:
         self.__grid = kwargs[GRID]
         self.__imax = kwargs[IMAX]
         self.__omax = kwargs[OMAX]
-        self.__sensitivity = kwargs[SENSITIVITY]
+        self.__max_sensitivity = kwargs[SENSITIVITY]
+        self.__sensitivity = 0
         self.__timeout = kwargs[TIMEOUT]
+        self.__min_subgraph_size = kwargs[SUBGRAPHSIZE]
+
     @property
     def partitioning_percentage(self):
         return self.__partitioning_percentage
@@ -99,12 +102,20 @@ class TemplateSpecs:
         self.__omax = this_omax
 
     @property
+    def max_sensitivity(self):
+        return self.__max_sensitivity
+
+    @max_sensitivity.setter
+    def max_sensitivity(self, this_sens):
+        self.__max_sensitivity = this_sens
+
+    @property
     def sensitivity(self):
         return self.__sensitivity
 
     @sensitivity.setter
-    def sensitivity(self, this_sens):
-        self.__sensitivity = this_sens
+    def sensitivity(self, this_sensitivity):
+        self.__sensitivity = this_sensitivity
 
     @property
     def timeout(self):
@@ -122,6 +133,14 @@ class TemplateSpecs:
     def et(self):
         return self.__error_threshold
 
+    @property
+    def min_subgraph_size(self):
+        return self.__min_subgraph_size
+
+    @min_subgraph_size.setter
+    def min_subgraph_size(self, this_subgraph_size):
+        self.__min_subgraph_size = this_subgraph_size
+
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \
                f'{self.template_name = }\n' \
@@ -137,5 +156,7 @@ class TemplateSpecs:
                f'{self.grid = }\n' \
                f'{self.imax = }\n' \
                f'{self.omax = }\n' \
+               f'{self.max_sensitivity = }\n' \
                f'{self.sensitivity = }\n' \
-               f'{self.timeout = }'
+               f'{self.timeout = }\n' \
+               f'{self.min_subgraph_size = }'

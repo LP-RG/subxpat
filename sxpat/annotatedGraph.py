@@ -189,10 +189,11 @@ class AnnotatedGraph(Graph):
 
             cnt_nodes = 0
             specs_obj.sensitivity = 1
+            # print(f'{specs_obj.sensitivity =}')
             # TODO look for a better stopping condition
             print(
                 Fore.BLUE + f'finding a subgraph (imax={specs_obj.imax}, omax={specs_obj.omax}) for {self.name}... ' + Style.RESET_ALL)
-            while ((cnt_nodes < 10 and specs_obj.sensitivity < 2 * specs_obj.et) or cnt_nodes == 0):
+            while ((cnt_nodes < specs_obj.min_subgraph_size and specs_obj.sensitivity < specs_obj.max_sensitivity) or cnt_nodes == 0):
 
                 # specs_obj.sensitivity = iteration
                 print(Fore.BLUE + f'iteration {iteration}' + Style.RESET_ALL)

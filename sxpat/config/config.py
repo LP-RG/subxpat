@@ -22,6 +22,7 @@ IMAX = 'imax'
 OMAX = 'omax'
 SENSITIVITY = 'sensitivity'
 TIMEOUT = 'timeout'
+SUBGRAPHSIZE = 'subgraph_size'
 
 
 
@@ -147,3 +148,10 @@ MECALS = 'mecals'
 MUSCAT = 'muscat'
 XPAT = 'xpat'
 BLASYS = 'blasys'
+
+BENCH_DICT = {'abs_diff_2': 'abs_diff_i4_o3', 'abs_diff_4': 'abs_diff_i8_o5', 'abs_diff_6': 'abs_diff_i12_o7',
+              'adder_2': 'adder_i4_o3', 'adder_4': 'adder_i8_o5', 'adder_6': 'adder_i12_o7',
+              'mul_2': 'mul_i4_o4', 'mul_4': 'mul_i8_o8', 'mul_6': 'mul_i12_o12',
+              'madd_2': 'madd_i6_o4', 'madd_3': 'madd_i9_o6',
+              'sad_2': 'sad_i10_o3'
+              }

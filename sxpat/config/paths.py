@@ -3,9 +3,9 @@ from Z3Log.config.path import *
 OUTPUT_PATH = {
     'json': ('output/json', 'json'),
     'html': ('output/html', 'html'),
-    'area': ('output/area', 'txt'),
-    'delay': ('output/delay', 'txt'),
-    'power': ('output/delay', 'txt'),
-    'figure': ('output/figure', 'pdf')
+    'figure': ('output/figure', 'pdf'),
+    'area': ('experiments/area', 'txt'),
+    'power': ('experiments/area', 'txt'),
+    'delay': ('experiments/area', 'txt'),
+    'runtime': ('experiments/runtime', 'txt')
 }
-

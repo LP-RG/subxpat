@@ -22,6 +22,7 @@ class Arguments(Arguments):
         self.__omax: int = tmp_args.omax
         self.__sensitivity: int = tmp_args.sensitivity
         self.__timeout: int = tmp_args.timeout
+        self.__subgraph_size: int = tmp_args.subgraphsize
 
 
     @property
@@ -87,6 +88,11 @@ class Arguments(Arguments):
     @property
     def timeout(self):
         return self.__timeout
+
+    @property
+    def subgraph_size(self):
+        return self.__subgraph_size
+
     @property
     def clean(self):
         return self.__clean
@@ -188,7 +194,12 @@ class Arguments(Arguments):
         my_parser.add_argument('-sensitivity',
                                type=int,
                                default=1,
-                               help='partitioning-sensitivity')
+                               help='maximum-partitioning-sensitivity')
+
+        my_parser.add_argument('-subgraphsize',
+                               type=int,
+                               default=10,
+                               help='minimum-size-for-subgraphs')
 
         my_parser.add_argument('-timeout',
                                type=int,
@@ -219,4 +230,5 @@ class Arguments(Arguments):
                f'{self.omax = }\n' \
                f'{self.sensitivity = }\n' \
                f'{self.timeout = }\n' \
+               f'{self.subgraph_size = }\n' \
                f'{self.clean = }'

@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 from typing import Tuple, List, Dict
 from colorama import Fore, Style
 import subprocess
+from subprocess import PIPE
 
 from Z3Log.config.config import *
 from Z3Log.config.path import *
@@ -514,65 +515,287 @@ class Stats:
                f'{self.grid = }\n'
 
 
-# class Result:
-#     def __init__(self, benchname: 'str', toolname: 'str') -> None:
-#
-#         self.__tool = str(toolname)
-#
-#         if self.tool_name == 'blasys':
-#             self.__name = BENCH_DICT[benchname]
-#         else:
-#             self.__name = str(benchname)
-#         self.__logs = self.find_area_logs()
-#         self.__logs_dict = self.extract_properties()
-#         self.__area_error = self.extract_area_error()
-#         self.__error = [error for error, area in self.area_error_list]
-#         self.__area = [area for error, area in self.area_error_list]
-#         self.__exact = self.extract_exact()
-#         pass
-#
-#     def __repr__(self):
-#         return f"An object of <class package.Result>\n" \
-#                f"{self.exact = }\n" \
-#                f"{self.circuit_name = }\n" \
-#                f"{self.tool_name    = }\n" \
-#                f"{self.log_dict     = }\n" \
-#                f"{self.area_error_list     = }"
-#
-#     @property
-#     def exact(self):
-#         return self.__exact
-#
-#     @property
-#     def circuit_name(self):
-#         return self.__name
-#
-#     def set_circuit_name(self, circuit_name):
-#         self.__name = circuit_name
-#
-#     @property
-#     def tool_name(self):
-#         return self.__tool
-#
-#     def set_tool_name(self, tool_name):
-#         self.__tool = tool_name
-#
-#     @property
-#     def log_list(self):
-#         return self.__logs
-#
-#     @property
-#     def log_dict(self):
-#         return self.__logs_dict
-#
-#     @property
-#     def area_error_list(self):
-#         return self.__area_error
-#
-#     @property
-#     def error_list(self):
-#         return self.__error
-#
-#     @property
-#     def area_list(self):
-#         return self.__area
+class Result:
+    def __init__(self, benchname: 'str', toolname: 'str') -> None:
+        self.__tool = str(toolname)
+        if benchname in list(sxpatconfig.BENCH_DICT.keys()):
+            self.__benchmark = sxpatconfig.BENCH_DICT[benchname]
+        else:
+            self.__benchmark = benchname
+        self.__verilog_files = self.get_verilog_files()
+        self.et_str = self.get_et_str()
+        self.__synthesized_files = self.__synthesize()
+        self.__error_array: list = self.extract_error()
+
+        self.__area_dict: dict = self.extract_area()
+        self.__power_dict: dict = self.extract_power()
+        self.__delay_dict: dict = self.extract_delay()
+
+        self.__exact_area = float(-1)
+        self.__exact_power = float(-1)
+        self.__exact_delay = float(-1)
+
+        self.clean()
+
+    def __repr__(self):
+        return f"An object of <class package.Result>\n" \
+               f"{self.tool_name    = }\n" \
+               f"{self.benchmark = }\n" \
+               f"{self.exact_area = }\n" \
+               f"{self.exact_power = }\n" \
+               f"{self.exact_delay = }\n" \
+               f"{self.error_array = }\n" \
+               f"{self.area_dict = }\n" \
+               f"{self.power_dict = }\n" \
+               f"{self.delay_dict = }"
+
+    @property
+    def exact_power(self):
+        return self.__exact_power
+
+    @property
+    def exact_area(self):
+        return self.__exact_area
+
+    @property
+    def exact_delay(self):
+        return self.__exact_delay
+
+    @property
+    def verilog_files(self):
+        return self.__verilog_files
+
+    @verilog_files.setter
+    def verilog_files(self, this_verilog_files):
+        self.__verilog_files = this_verilog_files
+
+    @property
+    def synthesized_files(self):
+        return self.__synthesized_files
+
+    @synthesized_files.setter
+    def synthesized_files(self, this_syn_files):
+        self.__synthesized_files = this_syn_files
+
+    @property
+    def benchmark(self):
+        return self.__benchmark
+
+    @benchmark.setter
+    def benchmark(self, this_benchmark):
+        self.__benchmark = this_benchmark
+
+    @property
+    def tool_name(self):
+        return self.__tool
+
+    @tool_name.setter
+    def tool_name(self, this_tool_name):
+        self.__tool = this_tool_name
+
+
+    @property
+    def area_dict(self):
+        return self.__area_dict
+
+    @property
+    def power_dict(self):
+        return self.__power_dict
+
+    @property
+    def error_array(self):
+        return self.__error_array
+
+    @property
+    def delay_dict(self):
+        return self.__delay_dict
+
+    @property
+    def et_str(self):
+        return self.__et_str
+
+    @et_str.setter
+    def et_str(self, this_et_str):
+        self.__et_str = this_et_str
+
+    def clean(self):
+        folder = f'experiments/{self.tool_name}/ver/{self.benchmark}'
+        all_files = [f for f in os.listdir(folder)]
+
+        for file in all_files:
+            if re.search('_syn', file) or file.endswith('script'):
+                os.remove(f'{folder}/{file}')
+
+
+    def get_et_str(self):
+        if self.tool_name == sxpatconfig.XPAT:
+            self.et_str = 'et'
+        elif self.tool_name == sxpatconfig.MUSCAT:
+            self.et_str = 'wc'
+        elif self.tool_name == sxpatconfig.MECALS:
+            self.et_str = 'wce'
+        return self.et_str
+
+    def get_verilog_files(self):
+        folder = f'experiments/{self.tool_name}/ver'
+
+        all_folders = [f for f in os.listdir(folder)]
+        benchmark_folder = None
+        for fold in all_folders:
+            if re.search(self.benchmark, fold):
+                benchmark_folder = fold
+        if benchmark_folder:
+            all_verilogs = [f for f in os.listdir(f'{folder}/{benchmark_folder}/')]
+        else:
+            print(Fore.RED + f'ERROR!!! there is no benchmark folder for benchmark {self.benchmark}' + Style.RESET_ALL)
+            exit()
+
+        benchmark_verilogs = []
+        for verilog in all_verilogs:
+            if re.search(self.benchmark, verilog) and verilog.endswith('.v') and not re.search('_syn', verilog):
+                benchmark_verilogs.append(f'{verilog}')
+        return benchmark_verilogs
+
+    def __synthesize(self):
+        syn_files: dict = {}
+        for ver_file in self.verilog_files:
+            design_in_path  = f'experiments/{self.tool_name}/ver/{self.benchmark}/{ver_file}'
+            design_out_path = f'{design_in_path[:-2]}_syn.v'
+            yosys_command = f"read_verilog {design_in_path};\n" \
+                            f"synth -flatten;\n" \
+                            f"opt;\n" \
+                            f"opt_clean -purge;\n" \
+                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                            f"write_verilog -noattr {design_out_path}"
+
+            process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
+            if process.stderr:
+                raise Exception(Fore.RED + f'Yosys ERROR!!! in file {design_in_path}\n {process.stderr.decode()}' + Style.RESET_ALL)
+
+            cur_et = int(re.search(f'{self.et_str}(\d+)', design_out_path).group(1))
+            syn_files[cur_et] = design_out_path
+
+
+        return syn_files
+    def extract_error(self):
+        et_array = []
+        for file in self.verilog_files:
+            if re.search(f'{self.et_str}(\d+)', file):
+                cur_et = int(re.search(f'{self.et_str}(\d+)', file).group(1))
+                et_array.append(cur_et)
+        et_array.sort()
+        return et_array
+
+    def extract_area(self):
+        area_dict: dict = {}
+        for error in self.synthesized_files.keys():
+            syn_file = self.synthesized_files[error]
+            yosys_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                            f"read_verilog {syn_file};\n" \
+                            f"synth -flatten;\n" \
+                            f"opt;\n" \
+                            f"opt_clean -purge;\n" \
+                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                            f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+
+            process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
+            if process.stderr:
+                raise Exception(Fore.RED + f'Yosys ERROR!!! in file {syn_file}\n {process.stderr.decode()}' + Style.RESET_ALL)
+            else:
+
+                if re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()):
+                    area = re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()).group(1)
+
+                elif re.search(r"Don't call ABC as there is nothing to map", process.stdout.decode()):
+                    area = 0
+                else:
+                    raise Exception(Fore.RED + 'Yosys ERROR!!!\nNo useful information in the stats log!' + Style.RESET_ALL)
+                area_dict[error] = area
+        return area_dict
+
+    def extract_power(self):
+        power_dict: dict = {}
+        for error in self.synthesized_files.keys():
+            syn_file = self.synthesized_files[error]
+            power_script = f'{syn_file[:-2]}_for_power.script'
+            module_name = self.extract_module_name(syn_file)
+            sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                          f"read_verilog {syn_file}\n" \
+                          f"link_design {module_name}\n" \
+                          f"create_clock -name clk -period 1\n" \
+                          f"set_input_delay -clock clk 0 [all_inputs]\n" \
+                          f"set_output_delay -clock clk 0 [all_outputs]\n" \
+                          f"report_checks\n" \
+                          f"report_power -digits 12\n" \
+                          f"exit"
+            with open(power_script, 'w') as ds:
+                ds.writelines(sta_command)
+            process = subprocess.run([sxpatconfig.OPENSTA, power_script], stdout=PIPE, stderr=PIPE)
+            if process.stderr:
+                raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
+            else:
+
+                pattern = r"Total\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+[^0-9]*\d+)\s+"
+                if re.search(pattern, process.stdout.decode()):
+                    total_power_str = re.search(pattern, process.stdout.decode()).group(4)
+
+                    if re.search(r'e[^0-9]*(\d+)', total_power_str):
+                        total_power = float(re.search(r'(\d+.\d+)e[^0-9]*\d+', total_power_str).group(1))
+                        sign = (re.search(r'e([^0-9]*)(\d+)', total_power_str).group(1))
+                        if sign == '-':
+                            sign = -1
+                        else:
+                            sign = +1
+                        exponant = int(re.search(r'e([^0-9]*)(\d+)', total_power_str).group(2))
+                        total_power = total_power * (10 ** (sign * exponant))
+                    else:
+                        total_power = total_power_str
+
+
+                    power_dict[error] = total_power
+                else:
+                    print(Fore.YELLOW + f'Warning!!! No power was found!' + Style.RESET_ALL)
+                    power_dict[error] = 0
+        return power_dict
+
+    def extract_delay(self):
+        delay_dict: dict = {}
+        for error in self.synthesized_files.keys():
+            syn_file = self.synthesized_files[error]
+            delay_script = f'{syn_file[:-2]}_for_delay.script'
+            module_name = self.extract_module_name(syn_file)
+            sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                          f"read_verilog {syn_file}\n" \
+                          f"link_design {module_name}\n" \
+                          f"create_clock -name clk -period 1\n" \
+                          f"set_input_delay -clock clk 0 [all_inputs]\n" \
+                          f"set_output_delay -clock clk 0 [all_outputs]\n" \
+                          f"report_checks -digits 6\n" \
+                          f"exit"
+            with open(delay_script, 'w') as ds:
+                ds.writelines(sta_command)
+            process = subprocess.run([sxpatconfig.OPENSTA, delay_script], stdout=PIPE, stderr=PIPE)
+            if process.stderr:
+                raise Exception(Fore.RED + f'Yosys ERROR!!! in file {syn_file} \n {process.stderr.decode()}' + Style.RESET_ALL)
+
+            else:
+            # print(f'{process.stdout.decode() = }')
+                if re.search('(\d+.\d+).*data arrival time', process.stdout.decode()):
+                    time = re.search('(\d+.\d+).*data arrival time', process.stdout.decode()).group(1)
+                    delay_dict[error] = time
+                else:
+                    print(Fore.YELLOW + f'Warning!!! in file {syn_file} No delay was found!' + Style.RESET_ALL)
+                    delay_dict[error] = 0
+        return delay_dict
+
+
+
+    def extract_module_name(self, this_path: str = None):
+
+        with open(this_path, 'r') as dp:
+            contents = dp.readlines()
+            for line in contents:
+                if re.search(r'module\s+(.*)\(', line):
+                    modulename = re.search(r'module\s+(.*)\(', line).group(1)
+
+        return modulename
