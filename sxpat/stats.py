@@ -243,6 +243,10 @@ class Result:
             self.__exact_power = float(-1)
             self.__exact_delay = float(-1)
 
+            self.__area_iteration_dict: dict = {}
+            self.__power_iteration_dict: dict = {}
+            self.__delay_iteration_dict: dict = {}
+
         else:
             self.__verilog_files = self.get_verilog_files()
             if len(self.verilog_files) == 0:
@@ -264,6 +268,10 @@ class Result:
 
                 self.clean()
 
+                self.__area_iteration_dict: dict = {}
+                self.__power_iteration_dict: dict = {}
+                self.__delay_iteration_dict: dict = {}
+
     def __repr__(self):
         return f"An object of <class package.Result>\n" \
                f"{self.tool_name    = }\n" \
@@ -276,6 +284,29 @@ class Result:
                f"{self.power_dict = }\n" \
                f"{self.delay_dict = }"
 
+    @property
+    def area_iteration_dict(self):
+        return self.__area_iteration_dict
+
+    @area_iteration_dict.setter
+    def area_iteration_dict(self, this_dict):
+        self.__area_iteration_dict = this_dict
+
+    @property
+    def power_iteration_dict(self):
+        return self.__power_iteration_dict
+
+    @power_iteration_dict.setter
+    def power_iteration_dict(self, this_dict):
+        self.__power_iteration_dict = this_dict
+
+    @property
+    def delay_iteration_dict(self):
+        return self.__delay_iteration_dict
+
+    @delay_iteration_dict.setter
+    def delay_iteration_dict(self, this_dict):
+        self.__delay_iteration_dict = this_dict
 
     @property
     def grid_files(self):
@@ -849,7 +880,7 @@ class Stats:
 
                         csvwriter.writerow(row)
 
-    def _gather_results(self):
+    def gather_results(self):
         mecals = Result(self.exact_name, sxpatconfig.MECALS)
         muscat = Result(self.exact_name, sxpatconfig.MUSCAT)
         xpat = Result(self.exact_name, sxpatconfig.XPAT)
@@ -866,6 +897,8 @@ class Stats:
                        xpat=xpat,
                        mecals=mecals,
                        muscat=muscat)
+        self.plot_iterations(sxpatconfig.AREA)
+
 
     def plot_area(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
@@ -968,12 +1001,91 @@ class Stats:
     def plot_pdap(self):
         pass
 
+    def plot_iterations(self, metric: str = sxpatconfig.AREA):
+        subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
+        self._get_iteration_characteristcs(subxpat)
 
+        fig, ax = plt.subplots()
+        ax.set_xlabel(f'iterations')
+        ax.set_ylabel(ylabel=f'{metric}')
+        ax.set_title(f'{self.exact_name} {metric} over iterations', fontsize=30)
+        iteration_list = []
+        for idx, error in enumerate(subxpat.error_array):
+            iteration_list = list(range(1, len(subxpat.area_iteration_dict[error]) + 1))
+            if metric == sxpatconfig.AREA:
+                ax.plot(iteration_list, subxpat.area_iteration_dict[error], label=f'ET={error}', color=sxpatconfig.COLOR_DICT[idx], marker='D', markeredgecolor=sxpatconfig.COLOR_DICT[idx],
+                        markeredgewidth=3, linestyle='solid', linewidth=2, markersize=2)
+            elif metric == sxpatconfig.POWER:
+                ax.plot(iteration_list, subxpat.power_iteration_dict[error], label=f'ET={error}', color=sxpatconfig.COLOR_DICT[idx], marker='D', markeredgecolor=sxpatconfig.COLOR_DICT[idx],
+                        markeredgewidth=3, linestyle='solid', linewidth=2, markersize=2)
+            elif metric == sxpatconfig.DELAY:
+                ax.plot(iteration_list, subxpat.delay_iteration_dict[error], label=f'ET={error}', color=sxpatconfig.COLOR_DICT[idx], marker='D', markeredgecolor=sxpatconfig.COLOR_DICT[idx],
+                        markeredgewidth=3, linestyle='solid', linewidth=2, markersize=2)
+            else:
+                print(Fore.RED + f'ERROR!!! metric {metric} is not correct. Choose among AREA, POWER, and DELAY!' + Style.RESET_ALL)
 
+        if len(iteration_list) > 0:
+            plt.xticks(iteration_list)
+            plt.legend(loc='best')
+            figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/{metric}_over_iterations_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_without_sensitivity.png"
+            figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/{metric}_over_iterations_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_without_sensitivity.pdf"
+            plt.savefig(figurename_png)
+            plt.savefig(figurename_pdf)
+        else:
+            print(Fore.RED + f'ERROR!!! no iterations found => iteration_list variable is empty' + Style.RESET_ALL)
 
+    def _get_num_iterations(self):
+        subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
+        iterations = -1
 
+        folder, _ = OUTPUT_PATH['report']
+        with open(f'{folder}/{list(subxpat.grid_files.keys())[0]}', 'r') as gf:
+            csvreader = csv.reader(gf)
+            for line in csvreader:
+                if re.search('iterations', line[0]):
+                    iterations = len(line) - 1
+                    break
+        return iterations
 
+    def _get_iteration_characteristcs(self, subxpat: Result):
 
+        iterations = self._get_num_iterations()
+        area_iteration_dict = {}
+        power_iteration_dict = {}
+        delay_iteration_dict = {}
+        if iterations == -1:
+            print(Fore.RED + f'ERROR!!! number of iterations is -1 for these results!' + Style.RESET_ALL)
+            exit()
+
+        folder, _ = OUTPUT_PATH['report']
+        for grid_file in subxpat.grid_files.keys():
+            error = subxpat.grid_files[grid_file]
+            cur_area_list = [float('inf')] * iterations
+            cur_power_list = [float('inf')] * iterations
+            cur_delay_list = [float('inf')] * iterations
+            with open(f'{folder}/{grid_file}', 'r') as gf:
+                csvreader = csv.reader(gf)
+                for line in csvreader:
+                    if not re.search('iterations', line[0]) and not re.search('cell', line[0]):
+                        for iteration, column in enumerate(line):
+                            if not re.search('\d+X\d+', column):
+                                result = column.strip().replace('(', '').replace(')', '').split(',')
+                                if re.search('SAT', result[0]) and not re.search('UNSAT', result[0]):
+                                    cur_area = float(result[2])
+                                    cur_power = float(result[4])
+                                    cur_delay = float(result[3])
+
+                                    if cur_area < cur_area_list[iteration-1]:
+                                        cur_area_list[iteration-1] = cur_area
+                                        cur_power_list[iteration-1] = cur_power
+                                        cur_delay_list[iteration-1] = cur_delay
+            area_iteration_dict[error] = cur_area_list
+            power_iteration_dict[error] = cur_power_list
+            delay_iteration_dict[error] = cur_delay_list
+
+            subxpat.area_iteration_dict = area_iteration_dict
+            subxpat.power_iteration_dict = power_iteration_dict
+            subxpat.delay_iteration_dict = delay_iteration_dict
 
 
 
@@ -988,62 +1100,5 @@ class Stats:
                f'{self.grid = }\n'
 
 
-
-    def plot_area_old(self):
-        print(f'plotting area...')
-        fig, ax = plt.subplots()
-        ax.set_xlabel(f'ET')
-        ax.set_ylabel(ylabel=f'Area')
-        ax.set_title(f'{self.exact_name} area: SubXPAT vs. MUSCAT')
-        et_list = self.get_et_array()
-        muscat_area_list = self.get_muscat_area(et_list)
-        subxpat_area_list = self.get_subxpat_area(et_list)
-
-
-        uncomputed_area = []
-        uncomputed_et = []
-        for idx, area in enumerate(subxpat_area_list):
-            if area == -1:
-                uncomputed_area.append(area)
-                uncomputed_et.append(et_list[idx])
-
-
-
-
-        ax.plot(et_list, muscat_area_list, label='MUSCAT',color='red', marker='s', markeredgecolor='red',
-                markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
-        ax.plot(et_list, subxpat_area_list, label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
-                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
-
-        ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
-                markeredgewidth=10, linestyle=None, linewidth=0, markersize = 8)
-
-        plt.xticks(et_list)
-        plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.pdf"
-        plt.savefig(figurename_png)
-        plt.savefig(figurename_pdf)
-
-    def plot_runtime_old(self):
-        print(f'plotting runtime...')
-        fig, ax = plt.subplots()
-        ax.set_xlabel(f'ET')
-        ax.set_ylabel(ylabel=f'Runtime')
-        ax.set_title(f'{self.exact_name} Runtimes: SubXPAT')
-        et_list = self.get_et_array()
-
-        subxpat_runtime_list = self.get_subxpat_runtime(et_list)
-
-
-        ax.plot(et_list, subxpat_runtime_list, label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
-                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
-
-        plt.xticks(et_list)
-        plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/runtimes_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/runtimes_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_pap{self.pap}.pdf"
-        plt.savefig(figurename_png)
-        plt.savefig(figurename_pdf)
 
 

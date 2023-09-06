@@ -7,8 +7,8 @@ echo -e "====================================
 ===================================="
 ADDER='adder_i8_o5.v'
 MADD='madd_i6_o4.v'
-#echo $PYTHON $SCRIPT "input/ver/$ADDER" -app "input/ver/$ADDER" -lpp=4 -ppo=4 -iterations=4 --grid --subxpat --multiple -subgraphsize=30 -sensitivity=4 --clean
-#$PYTHON $SCRIPT "input/ver/$ADDER" -app "input/ver/$ADDER" -lpp=4 -ppo=4 -iterations=4 --grid --subxpat --multiple -subgraphsize=30 -sensitivity=4 --clean
+echo $PYTHON $SCRIPT "input/ver/$ADDER" -app "input/ver/$ADDER" -lpp=4 -ppo=4 -iterations=4 --grid --subxpat --multiple -subgraphsize=30 -sensitivity=4 --clean
+$PYTHON $SCRIPT "input/ver/$ADDER" -app "input/ver/$ADDER" -lpp=4 -ppo=4 -iterations=4 --grid --subxpat --multiple -subgraphsize=30 -sensitivity=4 --clean
 
 echo $PYTHON $SCRIPT "input/ver/$ADDER" -app "input/ver/$ADDER" -lpp=4 -ppo=4 -iterations=4 --grid --subxpat --multiple  -sensitivity=-1 --clean
 $PYTHON $SCRIPT "input/ver/$ADDER" -app "input/ver/$ADDER" -lpp=4 -ppo=4 -iterations=4 --grid --subxpat --multiple  -sensitivity=-1 --clean

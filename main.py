@@ -52,7 +52,8 @@ def main():
 
 
         stats_obj = Stats(specs_obj)
-        stats_obj._gather_results()
+        stats_obj.gather_results()
+        stats_obj.plot_iterations()
 
 
 
@@ -77,27 +78,36 @@ def main():
             else:
                 step = max_error // 8
                 et_array = list(range(step, max_error + 1, step))
-
+            # et_array = [8, 6, 8, 6]
+            specs_obj = None
             for et in et_array:
+                # print(f'{specs_obj = }')
                 if args.sensitivity < 0:
                     specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                               products_per_output=args.ppo,
-                                              benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
+                                              benchmark_name=args.approximate_benchmark, num_of_models=1,
+                                              subxpat=args.subxpat,
                                               et=et,
-                                              partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                              grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
+                                              partitioning_percentage=args.partitioning_percentage,
+                                              iterations=args.iterations,
+                                              grid=args.grid, imax=args.imax, omax=args.omax,
+                                              sensitivity=args.sensitivity,
                                               timeout=args.timeout, subgraph_size=args.subgraph_size)
                 else:
                     specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                               products_per_output=args.ppo,
-                                              benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
+                                              benchmark_name=args.approximate_benchmark, num_of_models=1,
+                                              subxpat=args.subxpat,
                                               et=et,
-                                              partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                              grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity * et,
+                                              partitioning_percentage=args.partitioning_percentage,
+                                              iterations=args.iterations,
+                                              grid=args.grid, imax=args.imax, omax=args.omax,
+                                              sensitivity=args.sensitivity * et,
                                               timeout=args.timeout, subgraph_size=args.subgraph_size)
 
                 if specs_obj.grid:
                     try:
+
                         stats_obj = explore_grid(specs_obj)
 
                     except Exception:
@@ -107,6 +117,7 @@ def main():
                     # TODO: Fix later
                     explore_cell(specs_obj)
         else:
+            specs_obj = None
             if args.sensitivity < 0:
                 specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                           products_per_output=args.ppo,
@@ -125,7 +136,7 @@ def main():
                                           iterations=args.iterations,
                                           grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity * args.et,
                                           timeout=args.timeout, subgraph_size=args.subgraph_size)
-            print(f'{specs_obj = }')
+            # print(f'{specs_obj = }')
             if specs_obj.grid:
                 stats_obj = explore_grid(specs_obj)
                 # stats_obj.plot_area()

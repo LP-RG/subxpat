@@ -4,6 +4,7 @@ import json
 import re
 import networkx as nx
 import subprocess
+import os
 from subprocess import PIPE
 from colorama import Fore, Back, Style
 from itertools import repeat
@@ -594,7 +595,7 @@ class Synthesis:
         if process.stderr:
             raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
         else:
-            # print(f'{process.stdout.decode() = }')
+            os.remove(delay_script)
             if re.search('(\d+.\d+).*data arrival time', process.stdout.decode()):
                 time = re.search('(\d+.\d+).*data arrival time', process.stdout.decode()).group(1)
                 return float(time)
@@ -644,7 +645,7 @@ class Synthesis:
         if process.stderr:
             raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
         else:
-
+            os.remove(power_script)
             pattern = r"Total\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+[^0-9]*\d+)\s+"
             if re.search(pattern, process.stdout.decode()):
                 total_power_str = re.search(pattern, process.stdout.decode()).group(4)

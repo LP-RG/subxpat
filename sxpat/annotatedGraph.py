@@ -21,6 +21,8 @@ class AnnotatedGraph(Graph):
         convert_verilog_to_gv(benchmark_name)
         # exit()
         super().__init__(benchmark_name, is_clean)
+        folder, extension = INPUT_PATH['ver']
+
 
 
         self.set_output_dict(self.sort_dict(self.output_dict))
@@ -182,7 +184,7 @@ class AnnotatedGraph(Graph):
                 Fore.LIGHTRED_EX + f'No gates are found in the graph! Skipping the subgraph extraction' + Style.RESET_ALL)
             return False
         else:
-            print(Fore.BLUE + f'finding a subgraph (imax={specs_obj.imax}, omax={specs_obj.omax}) for ... {self.name}' + Style.RESET_ALL)
+            print(Fore.BLUE + f'finding a subgraph (imax={specs_obj.imax}, omax={specs_obj.omax}) for {self.name}' + Style.RESET_ALL)
             if specs_obj.max_sensitivity == -1:
                 print(Fore.BLUE + f"Partition without sensitivity start..." + Style.RESET_ALL)
                 self.subgraph = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
@@ -515,7 +517,7 @@ class AnnotatedGraph(Graph):
         """
         imax = specs_obj.imax
         omax = specs_obj.omax
-        print(Fore.BLUE + f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ' + Style.RESET_ALL)
+        # print(Fore.BLUE + f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ' + Style.RESET_ALL)
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
