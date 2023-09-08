@@ -1,4 +1,69 @@
+import dataclasses as dc
+from typing import Any
+
 from .config.config import *
+
+
+@dc.dataclass
+class _TemplateSpecs:
+
+    template_name: str
+    exact_benchmark: str
+    benchmark_name: str
+
+    literals_per_product: int
+    lpp = property(lambda s: s.literals_per_product)
+    products_per_output: int
+    ppo = property(lambda s: s.products_per_output)
+
+    subxpat: bool
+    num_of_models: int
+
+    error_treshold: int
+    et = property(lambda s: s.error_treshold)
+    partitioning_percentage: Any
+    pp = property(lambda s: s.partitioning_percentage)
+
+    iterations: Any
+    grid: Any
+    imax: Any
+    omax: Any
+    max_sensitivity: Any
+    sensitivity: Any
+    timeout: Any
+    min_subgraph_size: Any
+    min_subgraph_size: Any
+
+    def __post_init__(self):
+        raise Exception("Refactoring in stand by. [assigned: Marco]")
+
+        self.template_name = self.template_name.upper()
+        self.literals_per_product = int(self.literals_per_product)
+        self.products_per_output = int(self.products_per_output)
+        self.num_of_models = int(self.num_of_models)
+        self.error_treshold = int(self.error_treshold)
+
+    def __repr__(self):
+        return "\n".join(
+            f'An object of Class TemplateSpecs:',
+            f' > {self.template_name = }',
+            f' > {self.exact_benchmark = }',
+            f' > {self.benchmark_name = }',
+            f' > {self.lpp = }',
+            f' > {self.ppo = }',
+            f' > {self.subxpat = }',
+            f' > {self.num_of_models = }',
+            f' > {self.et = }',
+            f' > {self.partitioning_percentage = }',
+            f' > {self.iterations = }',
+            f' > {self.grid = }',
+            f' > {self.imax = }',
+            f' > {self.omax = }',
+            f' > {self.max_sensitivity = }',
+            f' > {self.sensitivity = }',
+            f' > {self.timeout = }',
+            f' > {self.min_subgraph_size = }',
+        )
 
 
 class TemplateSpecs:
@@ -120,6 +185,7 @@ class TemplateSpecs:
     @property
     def timeout(self):
         return self.__timeout
+
     @timeout.setter
     def timeout(self, this_timeout):
         self.__timeout = this_timeout
@@ -127,7 +193,6 @@ class TemplateSpecs:
     @property
     def num_of_models(self):
         return self.__num_of_models
-
 
     @property
     def et(self):
