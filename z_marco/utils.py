@@ -1,5 +1,5 @@
 import time
-from typing import Any, Callable, Iterable, List
+from typing import Any, Callable, Iterable
 import colorama
 
 
@@ -7,12 +7,14 @@ class color:
     def factory(color: str) -> Callable[[str], str]:
         return lambda s: color + s + colorama.Fore.RESET
 
-    s = success = staticmethod(factory(colorama.Fore.GREEN))
-    w = warning = staticmethod(factory(colorama.Fore.YELLOW))
-    e = error = staticmethod(factory(colorama.Fore.RED))
-    i1 = info1 = staticmethod(factory(colorama.Fore.CYAN))
-    i2 = info2 = staticmethod(factory(colorama.Fore.BLUE))
-    i3 = info3 = staticmethod(factory(colorama.Fore.MAGENTA))
+    s = success = green = staticmethod(factory(colorama.Fore.GREEN))
+    w = warning = yellow = staticmethod(factory(colorama.Fore.YELLOW))
+    e = error = red = staticmethod(factory(colorama.Fore.RED))
+    i1 = info1 = cyan = staticmethod(factory(colorama.Fore.CYAN))
+    i2 = info2 = blue = staticmethod(factory(colorama.Fore.BLUE))
+    i3 = info3 = magenta = staticmethod(factory(colorama.Fore.MAGENTA))
+    black = staticmethod(factory(colorama.Fore.BLACK))
+    white = staticmethod(factory(colorama.Fore.WHITE))
 
 
 class pprint:
@@ -21,12 +23,14 @@ class pprint:
             print(color + str(title) + colorama.Fore.RESET, *args, **kwargs)
         return p
 
-    e = error = staticmethod(factory(colorama.Fore.RED))
-    w = warning = staticmethod(factory(colorama.Fore.YELLOW))
-    s = success = staticmethod(factory(colorama.Fore.GREEN))
-    i1 = info1 = staticmethod(factory(colorama.Fore.CYAN))
-    i2 = info2 = staticmethod(factory(colorama.Fore.BLUE))
-    i3 = info3 = staticmethod(factory(colorama.Fore.MAGENTA))
+    s = success = green = staticmethod(factory(colorama.Fore.GREEN))
+    w = warning = yellow = staticmethod(factory(colorama.Fore.YELLOW))
+    e = error = red = staticmethod(factory(colorama.Fore.RED))
+    i1 = info1 = cyan = staticmethod(factory(colorama.Fore.CYAN))
+    i2 = info2 = blue = staticmethod(factory(colorama.Fore.BLUE))
+    i3 = info3 = magenta = staticmethod(factory(colorama.Fore.MAGENTA))
+    black = staticmethod(factory(colorama.Fore.BLACK))
+    white = staticmethod(factory(colorama.Fore.WHITE))
 
 
 def augment(extra_parameters: Iterable[str]):
