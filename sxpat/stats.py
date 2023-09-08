@@ -708,10 +708,11 @@ class Stats:
         self.__max_sensitivity: int = spec_obj.max_sensitivity
         self.__min_subgraph_size: int = spec_obj.min_subgraph_size
         self.__iterations: int = spec_obj.iterations
-        self.__grid_name: str = self.get_grid_name()
-        self.__grid_path: str = self.get_grid_path()
         self.__imax: int = spec_obj.imax
         self.__omax: int = spec_obj.omax
+        self.__grid_name: str = self.get_grid_name()
+        self.__grid_path: str = self.get_grid_path()
+
         self.__grid = Grid(spec_obj)
 
     @property
@@ -830,9 +831,9 @@ class Stats:
     def get_grid_name(self):
         _, extension = OUTPUT_PATH['report']
         if self.max_sensitivity == -1:
-            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_without_sensitivity.{extension}'
+            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_imax{self.imax}_omax{self.omax}_without_sensitivity.{extension}'
         else:
-            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_sens{self.max_sensitivity}_graphsize{self.min_subgraph_size}.{extension}'
+            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_imax{self.imax}_omax{self.omax}_sens{self.max_sensitivity}_graphsize{self.min_subgraph_size}.{extension}'
         return name
 
 
