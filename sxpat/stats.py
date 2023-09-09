@@ -247,6 +247,8 @@ class Result:
             self.__power_iteration_dict: dict = {}
             self.__delay_iteration_dict: dict = {}
 
+            self.__partitioning_dict: List[bool, int, int, int, int] = {}
+
         else:
             self.__verilog_files = self.get_verilog_files()
             if len(self.verilog_files) == 0:
@@ -283,6 +285,15 @@ class Result:
                f"{self.area_dict = }\n" \
                f"{self.power_dict = }\n" \
                f"{self.delay_dict = }"
+
+
+    @property
+    def partitioning_dict(self):
+        return self.__partitioning_dict
+
+    @partitioning_dict.setter
+    def partitioning_dict(self, this_dict):
+        self.__partitioning_dict = this_dict
 
     @property
     def area_iteration_dict(self):
@@ -1002,6 +1013,13 @@ class Stats:
     def plot_pdap(self):
         pass
 
+
+    def plot_partitioning(self, metric: str = sxpatconfig.AREA):
+        subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
+        self._get_partitioning_characteristics(subxpat)
+        # for an error, extract the grid for each partitioning approach
+
+
     def plot_iterations(self, metric: str = sxpatconfig.AREA):
         subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
         self._get_iteration_characteristcs(subxpat)
@@ -1048,7 +1066,43 @@ class Stats:
                     break
         return iterations
 
-    def _get_iteration_characteristcs(self, subxpat: Result):
+    def _get_partitioning_characteristics(self, subxpat: Result):
+        partitioning_dict: Dict = {}
+        for error in subxpat.error_array:
+            for grid_file in subxpat.grid_files.keys():
+                if re.search(f'et{error}', grid_file):
+                    print(f'{grid_file = }')
+                    cur_imax = int(re.search(f'imax(\d+)', grid_file).group(1))
+                    cur_omax = int(re.search(f'omax(\d+)', grid_file).group(1))
+                    cur_sensitivity = False if re.search(f'without', grid_file) else True
+                    if cur_sensitivity:
+                        cur_max_sensitivity = int(re.search('sens(\d+)', grid_file).group(1))
+                        cur_min_subgraph_size = int(re.search('graphsize(\d+)', grid_file).group(1))
+                    else:
+                        cur_max_sensitivity = -1
+                        cur_min_subgraph_size = -1
+                    self._get_iteration_characteristcs(subxpat, imax=cur_imax, omax=cur_omax, sensitivity=cur_sensitivity,
+                                                       max_sensitivity=cur_max_sensitivity, min_subgraph_size=cur_min_subgraph_size)
+                    print(f'{subxpat.area_iteration_dict = }')
+
+
+        subxpat.partitioning_dict = partitioning_dict
+
+    def _grid_file_is_valid(self, subxpat: Result, grid_file:str, imax:int=3, omax:int=2, sensitivity:bool=False,
+                                      max_sensitivity:int = 100, min_subgraph_size:int = 10):
+        valid = False
+        if re.search(f'imax{imax}', grid_file) and re.search(f'omax{omax}', grid_file):
+            if sensitivity:
+                if re.search(f'without', grid_file):
+                    valid = True
+            else:
+                if re.search(f'sens{max()}', grid_file) and re.search(f'subgraphsize{min_subgraph_size}', grid_file):
+                    valid = True
+        return valid
+
+
+    def _get_iteration_characteristcs(self, subxpat: Result, imax:int=3, omax:int=2, sensitivity:bool=False,
+                                      max_sensitivity:int = 100, min_subgraph_size:int = 10):
 
         iterations = self._get_num_iterations()
         area_iteration_dict = {}
@@ -1060,33 +1114,36 @@ class Stats:
 
         folder, _ = OUTPUT_PATH['report']
         for grid_file in subxpat.grid_files.keys():
-            error = subxpat.grid_files[grid_file]
-            cur_area_list = [float('inf')] * iterations
-            cur_power_list = [float('inf')] * iterations
-            cur_delay_list = [float('inf')] * iterations
-            with open(f'{folder}/{grid_file}', 'r') as gf:
-                csvreader = csv.reader(gf)
-                for line in csvreader:
-                    if not re.search('iterations', line[0]) and not re.search('cell', line[0]):
-                        for iteration, column in enumerate(line):
-                            if not re.search('\d+X\d+', column):
-                                result = column.strip().replace('(', '').replace(')', '').split(',')
-                                if re.search('SAT', result[0]) and not re.search('UNSAT', result[0]):
-                                    cur_area = float(result[2])
-                                    cur_power = float(result[4])
-                                    cur_delay = float(result[3])
 
-                                    if cur_area < cur_area_list[iteration-1]:
-                                        cur_area_list[iteration-1] = cur_area
-                                        cur_power_list[iteration-1] = cur_power
-                                        cur_delay_list[iteration-1] = cur_delay
-            area_iteration_dict[error] = cur_area_list
-            power_iteration_dict[error] = cur_power_list
-            delay_iteration_dict[error] = cur_delay_list
+            if grid_file:
+                error = subxpat.grid_files[grid_file]
+                cur_area_list = [float('inf')] * iterations
+                cur_power_list = [float('inf')] * iterations
+                cur_delay_list = [float('inf')] * iterations
+                with open(f'{folder}/{grid_file}', 'r') as gf:
+                    csvreader = csv.reader(gf)
+                    for line in csvreader:
+                        if not re.search('iterations', line[0]) and not re.search('cell', line[0]):
+                            for iteration, column in enumerate(line):
+                                if not re.search('\d+X\d+', column):
+                                    result = column.strip().replace('(', '').replace(')', '').split(',')
+                                    if re.search('SAT', result[0]) and not re.search('UNSAT', result[0]):
+                                        cur_area = float(result[2])
+                                        cur_power = float(result[4])
+                                        cur_delay = float(result[3])
 
-            subxpat.area_iteration_dict = area_iteration_dict
-            subxpat.power_iteration_dict = power_iteration_dict
-            subxpat.delay_iteration_dict = delay_iteration_dict
+                                        if cur_area < cur_area_list[iteration-1]:
+                                            cur_area_list[iteration-1] = cur_area
+                                            cur_power_list[iteration-1] = cur_power
+                                            cur_delay_list[iteration-1] = cur_delay
+                area_iteration_dict[error] = cur_area_list
+                power_iteration_dict[error] = cur_power_list
+                delay_iteration_dict[error] = cur_delay_list
+
+                subxpat.area_iteration_dict = area_iteration_dict
+                subxpat.power_iteration_dict = power_iteration_dict
+                subxpat.delay_iteration_dict = delay_iteration_dict
+
 
 
 
