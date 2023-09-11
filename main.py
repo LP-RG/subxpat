@@ -52,8 +52,9 @@ def main():
 
 
         stats_obj = Stats(specs_obj)
-        stats_obj.gather_results()
-        stats_obj.plot_iterations()
+        # stats_obj.gather_results()
+        # stats_obj.plot_iterations()
+        stats_obj.plot_partitioning()
 
 
 

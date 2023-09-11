@@ -17,5 +17,5 @@ $PYTHON $SCRIPT "input/ver/$MUL_8" -lpp=8 -ppo=8 -et=48 --subxpat --grid -iterat
 $PYTHON $SCRIPT "input/ver/$MUL_8" -lpp=8 -ppo=8 -et=32 --subxpat --grid -iterations=8 -app "input/ver/$MUL_8"
 $PYTHON $SCRIPT "input/ver/$MUL_8" -lpp=8 -ppo=8 -et=16 --subxpat --grid -iterations=8 -app "input/ver/$MUL_8"
 
-$PYTHON $SCRIPT "input/ver/$MUL_8" -lpp=8 -ppo=8 -et=16 --subxpat --grid -iterations=8 -app "input/ver/$MUL_8" --plot
+
 

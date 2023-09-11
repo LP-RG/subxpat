@@ -17,5 +17,5 @@ $PYTHON $SCRIPT "input/ver/$MADD_9" -lpp=9 -ppo=9 -et=12 --subxpat --grid -itera
 $PYTHON $SCRIPT "input/ver/$MADD_9" -lpp=9 -ppo=9 -et=8 --subxpat --grid -iterations=9 -app "input/ver/$MADD_9"
 $PYTHON $SCRIPT "input/ver/$MADD_9" -lpp=9 -ppo=9 -et=4 --subxpat --grid -iterations=9 -app "input/ver/$MADD_9"
 
-$PYTHON $SCRIPT "input/ver/$MADD_9" -lpp=9 -ppo=9 -et=4 --subxpat --grid -iterations=9 -app "input/ver/$MADD_9" --plot
+
 
