@@ -13,22 +13,20 @@ class InvertibleDict(MutableMapping, Generic[K, V]):
     __slots__ = ("_forward", "_backward", "__inv")
 
     def __init__(self, forward: Mapping[K, V], /, *,
-                 _forward: Mapping[K, V] = None,
-                 _backward: Mapping[V, K] = None,
                  _inv: InvertibleDict[V, K] = None
                  ) -> None:
         self._forward: Dict[K, V]
         self._backward: Dict[V, K]
 
-        if _forward is not None:
-            self._forward = _forward
-            self._backward = _backward
+        if _inv is not None:
+            self._forward = _inv._backward
+            self._backward = _inv._forward
             self.__inv = _inv
 
         else:
             self._forward = {k: v for k, v in (forward or dict()).items()}
             self._backward = {v: k for k, v in (forward or dict()).items()}
-            self.__inv = self.__class__(None, _forward=self._backward, _backward=self._forward)
+            self.__inv = self.__class__(None, _inv=self)
 
         self._check_correct()
 
