@@ -6,6 +6,7 @@ from typing import Tuple, List, Dict
 from colorama import Fore, Style
 import subprocess
 from subprocess import PIPE
+from shutil import copy
 
 from Z3Log.config.config import *
 from Z3Log.config.path import *
@@ -14,6 +15,26 @@ from sxpat.config import config as sxpatconfig
 from sxpat.config import paths as sxpatpaths
 from sxpat.templateSpecs import TemplateSpecs
 
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
 
 class Model:
     def __init__(self, runtime: float = None, area: float = None, delay: float = None, total_power: float = None,
@@ -223,46 +244,65 @@ class Grid:
 class Result:
     def __init__(self, benchname: 'str', toolname: 'str') -> None:
         self.__tool = str(toolname)
-        if benchname in list(sxpatconfig.BENCH_DICT.keys()):
-            self.__benchmark = sxpatconfig.BENCH_DICT[benchname]
-        else:
-            self.__benchmark = benchname
+
+        if self.tool_name == sxpatconfig.MECALS or self.tool_name == sxpatconfig.SUBXPAT or self.tool_name == sxpatconfig.XPAT:
+            if benchname in list(sxpatconfig.BENCH_DICT.keys()):
+                self.__benchmark = sxpatconfig.BENCH_DICT[benchname]
+            else:
+                self.__benchmark = benchname
+        elif self.tool_name == sxpatconfig.MUSCAT:
+            if benchname in list(sxpatconfig.BENCH_DICT.keys()):
+                self.__benchmark = benchname
+            elif benchname in list(sxpatconfig.BENCH_DICT.values()):
+                for key in sxpatconfig.BENCH_DICT.keys():
+                    if sxpatconfig.BENCH_DICT[key] == benchname:
+                        self.__benchmark = key
+                        break
+            else:
+                self.__benchmark = benchname
 
         if self.tool_name == sxpatconfig.SUBXPAT:
 
             self.__error_array: list = self.extract_subxpat_error()
             self.__grid_files = self.get_grid_files()
+            if len(self.grid_files) == 0:
+                self.__status: bool = False
+            else:
+                self.__status: bool = True
+                self.__area_dict: dict = None
+                self.__power_dict: dict = None
+                self.__delay_dict: dict = None
+                self.__runtime_dict: dict = None
+                self.extract_subxpat_characteristics()
 
-            self.__area_dict: dict = None
-            self.__power_dict: dict = None
-            self.__delay_dict: dict = None
-            self.__runtime_dict: dict = None
-            self.extract_subxpat_characteristics()
+                self.__exact_area = float(-1)
+                self.__exact_power = float(-1)
+                self.__exact_delay = float(-1)
 
-            self.__exact_area = float(-1)
-            self.__exact_power = float(-1)
-            self.__exact_delay = float(-1)
+                self.__area_iteration_dict: dict = {}
+                self.__power_iteration_dict: dict = {}
+                self.__delay_iteration_dict: dict = {}
 
-            self.__area_iteration_dict: dict = {}
-            self.__power_iteration_dict: dict = {}
-            self.__delay_iteration_dict: dict = {}
+                self.__partitioning_dict: List[bool, int, int, int, int] = {}
 
-            self.__partitioning_dict: List[bool, int, int, int, int] = {}
-
-        else:
+        elif self.tool_name == sxpatconfig.MECALS:
             self.__verilog_files = self.get_verilog_files()
             if len(self.verilog_files) == 0:
                 self.__status: bool = False
             else:
+                self.clean()
                 self.__status: bool = True
                 self.et_str = self.get_et_str()
-                self.__synthesized_files = self.__synthesize()
+                self.__synthesized_files = self.synthesize()
 
                 self.__error_array: list = self.extract_error()
 
                 self.__area_dict: dict = self.extract_area()
+
                 self.__power_dict: dict = self.extract_power()
+                # print(f'{self.synthesized_files = }')
                 self.__delay_dict: dict = self.extract_delay()
+                # print(f'{self.synthesized_files = }')
 
                 self.__exact_area = float(-1)
                 self.__exact_power = float(-1)
@@ -273,6 +313,55 @@ class Result:
                 self.__area_iteration_dict: dict = {}
                 self.__power_iteration_dict: dict = {}
                 self.__delay_iteration_dict: dict = {}
+
+        elif self.tool_name == sxpatconfig.MUSCAT or self.tool_name == sxpatconfig.XPAT:
+            self.__et_str = self.get_et_str()
+            # print(f'we are here 1')
+            self.__verilog_files = self.get_verilog_files()
+            # print(f'we are here 2')
+            self.__pareto_files = self.get_pareto_files()
+            if len(self.verilog_files) == 0 and len(self.pareto_files) == 0:
+                self.__status: bool = False
+            elif len(self.pareto_files) !=0:
+
+                self.__status: bool = True
+                self.__verilog_files = self.pareto_files.values()
+                self.__error_array: list = self.extract_error()
+                # print(f'{self.pareto_files = }')
+                # print(f'{self.verilog_files = }')
+                self.__pareto_files: dict = {}
+                self.__synthesized_files: dict = {}
+                self.__area_dict: dict = self.extract_area()
+                # print(f'{self.area_dict = }')
+
+                self.__delay_dict: dict = self.extract_delay()
+                self.__power_dict: dict = self.extract_power()
+                # print(f'{self.delay_dict = }')
+                # print(f'{self.power_dict = }')
+
+                self.__exact_area = float(-1)
+                self.__exact_power = float(-1)
+                self.__exact_delay = float(-1)
+                self.clean()
+                # exit()
+            elif len(self.pareto_files) == 0:
+                self.__status: bool = True
+                self.__error_array: list = self.extract_error()
+
+                self.__pareto_files: dict = {}
+                self.__synthesized_files: dict = {}
+                self.__area_dict: dict = self.extract_area()
+
+                self.__delay_dict: dict = self.extract_delay()
+                self.__power_dict: dict = self.extract_power()
+
+
+                self.__exact_area = float(-1)
+                self.__exact_power = float(-1)
+                self.__exact_delay = float(-1)
+                self.export_pareto_files()
+                self.clean()
+
 
     def __repr__(self):
         return f"An object of <class package.Result>\n" \
@@ -286,6 +375,14 @@ class Result:
                f"{self.power_dict = }\n" \
                f"{self.delay_dict = }"
 
+
+    @property
+    def pareto_files(self):
+        return self.__pareto_files
+
+    @pareto_files.setter
+    def pareto_files(self, this_files):
+        self.__pareto_files = this_files
 
     @property
     def partitioning_dict(self):
@@ -407,6 +504,39 @@ class Result:
     @et_str.setter
     def et_str(self, this_et_str):
         self.__et_str = this_et_str
+    def get_pareto_files(self):
+        pareto_files: dict = {}
+        folder = f'experiments/{self.tool_name}/pareto_ver/{self.benchmark}'
+        if os.path.exists(folder):
+            all_files = [f for f in os.listdir(folder)]
+            # print(f'{all_files = }')
+            # print(f'{self.et_str = }')
+            for file in all_files:
+                if file.endswith('.v') and re.search(self.benchmark, file) and re.search(self.et_str, file):
+                    pattern = f'{self.et_str}(\d+)'
+                    # print(f'{re.search(pattern, file).group(1) = }')
+                    # cur_et = re.search(pattern, file).group(1)
+                    # cur_et = int(cur_et)
+                    cur_et = int(re.search(pattern, file).group(1))
+
+                    pareto_files[cur_et] = file
+            return pareto_files
+        else:
+            return {}
+
+
+    def export_pareto_files(self):
+        folder = f'experiments/{self.tool_name}/pareto_ver/{self.benchmark}'
+        os.makedirs(folder, exist_ok=True)
+
+        existing_files = [f for f in os.listdir(folder)]
+        for error in self.pareto_files.keys():
+            ver_path = self.pareto_files[error]
+            ver_file = ver_path.split('/')[-1]
+            if ver_file not in existing_files:
+                copy(ver_path, folder)
+
+
 
     def clean(self):
         folder = f'experiments/{self.tool_name}/ver/{self.benchmark}'
@@ -428,7 +558,7 @@ class Result:
 
     def get_verilog_files(self):
         folder = f'experiments/{self.tool_name}/ver'
-
+        # print(f'we are here')
         all_folders = [f for f in os.listdir(folder)]
         benchmark_folder = None
         for fold in all_folders:
@@ -446,7 +576,13 @@ class Result:
                 benchmark_verilogs.append(f'{verilog}')
         return benchmark_verilogs
 
-    def __synthesize(self):
+    def synthesize(self):
+        if self.tool_name == sxpatconfig.MECALS:
+            return self.__synthesize_mecals()
+        elif self.tool_name == sxpatconfig.MUSCAT or self.tool_name == sxpatconfig.XPAT:
+            return self.__synthesize_muscat()
+
+    def __synthesize_mecals(self):
         syn_files: dict = {}
         for ver_file in self.verilog_files:
             design_in_path  = f'experiments/{self.tool_name}/ver/{self.benchmark}/{ver_file}'
@@ -467,20 +603,58 @@ class Result:
 
 
         return syn_files
+
+    def __synthesize_muscat(self):
+        syn_files: dict = {}
+        for error in self.pareto_files.keys():
+            design_in_path  = self.pareto_files[error]
+            design_out_path = f'{design_in_path[:-2]}_syn.v'
+            yosys_command = f"read_verilog {design_in_path};\n" \
+                            f"synth -flatten;\n" \
+                            f"opt;\n" \
+                            f"opt_clean -purge;\n" \
+                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                            f"write_verilog -noattr {design_out_path}"
+
+            process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
+            if process.stderr:
+                raise Exception(Fore.RED + f'Yosys ERROR!!! in file {design_in_path}\n {process.stderr.decode()}' + Style.RESET_ALL)
+
+            cur_et = int(re.search(f'{self.et_str}(\d+)', design_out_path).group(1))
+            # print(f'{cur_et = }')
+            syn_files[cur_et] = design_out_path
+
+        return syn_files
+
     def extract_error(self):
         et_array = []
+
         for file in self.verilog_files:
-            if re.search(f'{self.et_str}(\d+)', file):
+
+            pattern = f'{self.et_str}(\d+)'
+            if re.search(pattern, file):
                 cur_et = int(re.search(f'{self.et_str}(\d+)', file).group(1))
                 et_array.append(cur_et)
+
+        et_array = list(set(et_array))
         et_array.sort()
         return et_array
 
+
     def extract_area(self):
+        if self.tool_name == sxpatconfig.MECALS:
+            return self._extract_area_mecals()
+        elif self.tool_name == sxpatconfig.MUSCAT or self.tool_name == sxpatconfig.XPAT:
+            return self._extract_area_muscat()
+
+    def _extract_area_mecals(self):
         area_dict: dict = {}
+        i=0
         for error in self.error_array:
             for key in self.synthesized_files.keys():
                 if error == key:
+                    i += 1
+                    printProgressBar(i, len(self.verilog_files), prefix=f'Synthesizing ({self.tool_name}):', suffix='Complete', length=50)
                     syn_file = self.synthesized_files[error]
                     yosys_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
                                     f"read_verilog {syn_file};\n" \
@@ -505,14 +679,81 @@ class Result:
                         area_dict[error] = float(area)
         return area_dict
 
+    def _extract_area_muscat(self):
+
+        i = 0
+        area_dict: dict = {}
+        for error in self.error_array:
+            for ver_file in self.verilog_files:
+
+                if re.search(f'{self.et_str}{error}', ver_file):
+                    i += 1
+                    printProgressBar(i , len(self.verilog_files), prefix=f'Synthesizing ({self.tool_name}):', suffix='Complete', length=50)
+                    ver_file = folder = f'experiments/{self.tool_name}/ver/{self.benchmark}/{ver_file}'
+                    yosys_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                                    f"read_verilog {ver_file};\n" \
+                                    f"synth -flatten;\n" \
+                                    f"opt;\n" \
+                                    f"opt_clean -purge;\n" \
+                                    f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                                    f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+
+                    process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
+                    if process.stderr:
+                        raise Exception(Fore.RED + f'Yosys ERROR!!! in file {ver_file}\n {process.stderr.decode()}' + Style.RESET_ALL)
+                    else:
+                        # print(f'--------------------------------------------')
+                        # print(process.stdout.decode())
+                        if re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()):
+                            area = re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()).group(1)
+
+                        elif re.search(r"Don't call ABC as there is nothing to map", process.stdout.decode()):
+                            area = 0
+                        else:
+                            area = 0
+                            # raise Exception(Fore.RED + f'Yosys ERROR!!!\nNo useful information in the stats log! for {ver_file}' + Style.RESET_ALL)
+
+                        area_dict[ver_file] = float(area)
+
+        min_area_dict: Dict = {}
+        pareto_file_dict: Dict = {}
+        for error in self.error_array:
+            min_area = float('inf')
+            min_ver = f''
+            for ver_file in area_dict.keys():
+                if re.search(f'{self.et_str}{error}', ver_file):
+                    if area_dict[ver_file] < min_area:
+                        min_area = area_dict[ver_file]
+                        min_ver = ver_file
+
+            min_area_dict[error] = min_area
+            pareto_file_dict[error] = min_ver
+
+        self.pareto_files = pareto_file_dict
+        self.synthesized_files = self.synthesize()
+
+        return min_area_dict
+
     def extract_power(self):
+        if self.tool_name == sxpatconfig.MECALS:
+            return self._extract_power_mecals()
+        elif self.tool_name == sxpatconfig.MUSCAT or self.tool_name == sxpatconfig.XPAT:
+            return self._extract_power_muscat()
+
+    def _extract_power_mecals(self):
+
         power_dict: dict = {}
+        # print(f'{self.error_array = }')
         for error in self.error_array:
             for key in self.synthesized_files.keys():
+                # print(f'{key}')
                 if error == key:
+                    # print(f'{error} == {key}')
                     syn_file = self.synthesized_files[error]
+                    # print(f'{syn_file = }')
                     power_script = f'{syn_file[:-2]}_for_power.script'
                     module_name = self.extract_module_name(syn_file)
+                    # print(f'{module_name = }')
                     sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
                                   f"read_verilog {syn_file}\n" \
                                   f"link_design {module_name}\n" \
@@ -528,7 +769,7 @@ class Result:
                     if process.stderr:
                         raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
                     else:
-
+                        # print(f'{process.stdout.decode() = }')
                         pattern = r"Total\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+[^0-9]*\d+)\s+"
                         if re.search(pattern, process.stdout.decode()):
                             total_power_str = re.search(pattern, process.stdout.decode()).group(4)
@@ -552,7 +793,60 @@ class Result:
                             power_dict[error] = 0
         return power_dict
 
+    def _extract_power_muscat(self):
+        power_dict: dict = {}
+
+        for error in self.synthesized_files.keys():
+
+            ver_file = self.synthesized_files[error]
+
+            delay_script = f'{ver_file[:-2]}_for_delay.script'
+            module_name = self.extract_module_name(ver_file)
+            sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                          f"read_verilog {ver_file}\n" \
+                          f"link_design {module_name}\n" \
+                          f"create_clock -name clk -period 1\n" \
+                          f"set_input_delay -clock clk 0 [all_inputs]\n" \
+                          f"set_output_delay -clock clk 0 [all_outputs]\n" \
+                          f"report_checks\n" \
+                          f"report_power -digits 12\n" \
+                          f"exit"
+            with open(delay_script, 'w') as ds:
+                ds.writelines(sta_command)
+            process = subprocess.run([sxpatconfig.OPENSTA, delay_script], stdout=PIPE, stderr=PIPE)
+            if process.stderr:
+                raise Exception(
+                    Fore.RED + f'Yosys ERROR!!! in file {ver_file} \n {process.stderr.decode()}' + Style.RESET_ALL)
+            pattern = r"Total\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+[^0-9]*\d+)\s+"
+            if re.search(pattern, process.stdout.decode()):
+                total_power_str = re.search(pattern, process.stdout.decode()).group(4)
+
+                if re.search(r'e[^0-9]*(\d+)', total_power_str):
+                    total_power = float(re.search(r'(\d+.\d+)e[^0-9]*\d+', total_power_str).group(1))
+                    sign = (re.search(r'e([^0-9]*)(\d+)', total_power_str).group(1))
+                    if sign == '-':
+                        sign = -1
+                    else:
+                        sign = +1
+                    exponant = int(re.search(r'e([^0-9]*)(\d+)', total_power_str).group(2))
+                    total_power = total_power * (10 ** (sign * exponant))
+                else:
+                    total_power = total_power_str
+
+                power_dict[error] = float(total_power)
+            else:
+                print(Fore.YELLOW + f'Warning!!! No power was found!' + Style.RESET_ALL)
+                power_dict[error] = 0
+
+        return power_dict
+
     def extract_delay(self):
+        if self.tool_name == sxpatconfig.MECALS:
+            return self._extract_delay_mecals()
+        elif self.tool_name == sxpatconfig.MUSCAT or self.tool_name == sxpatconfig.XPAT:
+            return self._extract_delay_muscat()
+
+    def _extract_delay_mecals(self):
         delay_dict: dict = {}
         for error in self.error_array:
             for key in self.synthesized_files.keys():
@@ -585,6 +879,40 @@ class Result:
                             delay_dict[error] = 0
         return delay_dict
 
+    def _extract_delay_muscat(self):
+        delay_dict: dict = {}
+
+        for error in self.synthesized_files.keys():
+
+            ver_file = self.synthesized_files[error]
+
+            delay_script = f'{ver_file[:-2]}_for_delay.script'
+            module_name = self.extract_module_name(ver_file)
+            sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                          f"read_verilog {ver_file}\n" \
+                          f"link_design {module_name}\n" \
+                          f"create_clock -name clk -period 1\n" \
+                          f"set_input_delay -clock clk 0 [all_inputs]\n" \
+                          f"set_output_delay -clock clk 0 [all_outputs]\n" \
+                          f"report_checks -digits 6\n" \
+                          f"exit"
+            with open(delay_script, 'w') as ds:
+                ds.writelines(sta_command)
+            process = subprocess.run([sxpatconfig.OPENSTA, delay_script], stdout=PIPE, stderr=PIPE)
+            if process.stderr:
+                raise Exception(
+                    Fore.RED + f'Yosys ERROR!!! in file {ver_file} \n {process.stderr.decode()}' + Style.RESET_ALL)
+
+            else:
+                # print(f'{process.stdout.decode() = }')
+                if re.search('(\d+.\d+).*data arrival time', process.stdout.decode()):
+                    time = re.search('(\d+.\d+).*data arrival time', process.stdout.decode()).group(1)
+                    delay_dict[error] = float(time)
+                else:
+                    print(Fore.YELLOW + f'Warning!!! in file {ver_file} No delay was found!' + Style.RESET_ALL)
+                    delay_dict[error] = 0
+
+        return delay_dict
 
 
     def extract_module_name(self, this_path: str = None):
@@ -893,23 +1221,42 @@ class Stats:
                         csvwriter.writerow(row)
 
     def gather_results(self):
-        mecals = Result(self.exact_name, sxpatconfig.MECALS)
+        # mecals = Result(self.exact_name, sxpatconfig.MECALS)
+        # print(f'mecals finished!')
+        # xpat = Result(self.exact_name, sxpatconfig.XPAT)
         muscat = Result(self.exact_name, sxpatconfig.MUSCAT)
-        xpat = Result(self.exact_name, sxpatconfig.XPAT)
+
         subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
-        self.plot_area(subxpat= subxpat,
-                  xpat= xpat,
-                  mecals= mecals,
-                  muscat= muscat)
-        self.plot_power(subxpat=subxpat,
-                       xpat=xpat,
-                       mecals=mecals,
-                       muscat=muscat)
-        self.plot_delay(subxpat=subxpat,
-                       xpat=xpat,
-                       mecals=mecals,
-                       muscat=muscat)
-        self.plot_iterations(sxpatconfig.AREA)
+
+        #
+        # self.plot_area(subxpat= subxpat,
+        #           xpat= xpat,
+        #           mecals= mecals,
+        #           muscat= muscat)
+        # self.plot_power(subxpat=subxpat,
+        #                xpat=xpat,
+        #                mecals=mecals,
+        #                muscat=muscat)
+        # self.plot_delay(subxpat=subxpat,
+        #                xpat=xpat,
+        #                mecals=mecals,
+        #                muscat=muscat)
+        #
+        # self.plot_pap(subxpat=subxpat,
+        #                xpat=xpat,
+        #                mecals=mecals,
+        #                muscat=muscat)
+        #
+        # self.plot_adp(subxpat=subxpat,
+        #                xpat=xpat,
+        #                mecals=mecals,
+        #                muscat=muscat)
+        #
+        # self.plot_pdap(subxpat=subxpat,
+        #                xpat=xpat,
+        #                mecals=mecals,
+        #                muscat=muscat)
+        # self.plot_iterations(sxpatconfig.AREA)
 
 
     def plot_area(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
@@ -921,16 +1268,16 @@ class Stats:
         et_list = subxpat.error_array
 
         if muscat.status:
-            ax.plot(et_list, muscat.area_dict.values(), label='MUSCAT', color='red', marker='s', markeredgecolor='red',
+            ax.plot(et_list, muscat.area_dict.values(), label='MUSCAT', color='red', marker='o', markeredgecolor='red',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if mecals.status:
-            ax.plot(et_list, mecals.area_dict.values(), label='MECALS', color='black', marker='s', markeredgecolor='red',
+            ax.plot(et_list, mecals.area_dict.values(), label='MECALS', color='black', marker='o', markeredgecolor='black',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if xpat.status:
-            ax.plot(et_list, xpat.area_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='black',
+            ax.plot(xpat.error_array, xpat.area_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='green',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
-
-        ax.plot(et_list, subxpat.area_dict.values(), label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
+        if subxpat.status:
+            ax.plot(et_list, subxpat.area_dict.values(), label='SubXPAT', color='blue', marker='D', markeredgecolor='blue',
                 markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         # ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
@@ -946,23 +1293,23 @@ class Stats:
     def plot_power(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
-        ax.set_ylabel(ylabel=f'Area')
+        ax.set_ylabel(ylabel=f'Power')
         ax.set_title(f'{self.exact_name} Power comparison', fontsize=30)
 
         et_list = subxpat.error_array
 
         if muscat.status:
-            ax.plot(et_list, muscat.power_dict.values(), label='MUSCAT', color='red', marker='s', markeredgecolor='red',
+            ax.plot(et_list, muscat.power_dict.values(), label='MUSCAT', color='red', marker='o', markeredgecolor='red',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if mecals.status:
-            ax.plot(et_list, mecals.power_dict.values(), label='MECALS', color='black', marker='s',
-                    markeredgecolor='red',
+            ax.plot(et_list, mecals.power_dict.values(), label='MECALS', color='black', marker='o',
+                    markeredgecolor='black',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if xpat.status:
-            ax.plot(et_list, xpat.power_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='black',
+            ax.plot(xpat.error_array, xpat.power_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='green',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
-
-        ax.plot(et_list, subxpat.power_dict.values(), label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
+        if subxpat.status:
+            ax.plot(et_list, subxpat.power_dict.values(), label='SubXPAT', color='blue', marker='D', markeredgecolor='blue',
                 markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         # ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
@@ -978,23 +1325,23 @@ class Stats:
     def plot_delay(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
-        ax.set_ylabel(ylabel=f'Area')
+        ax.set_ylabel(ylabel=f'Delay')
         ax.set_title(f'{self.exact_name} Delay comparison', fontsize=30)
 
         et_list = subxpat.error_array
 
         if muscat.status:
-            ax.plot(et_list, muscat.delay_dict.values(), label='MUSCAT', color='red', marker='s', markeredgecolor='red',
+            ax.plot(et_list, muscat.delay_dict.values(), label='MUSCAT', color='red', marker='o', markeredgecolor='red',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if mecals.status:
-            ax.plot(et_list, mecals.delay_dict.values(), label='MECALS', color='black', marker='s',
-                    markeredgecolor='red',
+            ax.plot(et_list, mecals.delay_dict.values(), label='MECALS', color='black', marker='o',
+                    markeredgecolor='black',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if xpat.status:
-            ax.plot(et_list, xpat.delay_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='black',
+            ax.plot(xpat.error_array, xpat.delay_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='green',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
-
-        ax.plot(et_list, subxpat.delay_dict.values(), label='SubXPAT', color='blue', marker='D', markeredgecolor='black',
+        if subxpat.status:
+            ax.plot(et_list, subxpat.delay_dict.values(), label='SubXPAT', color='blue', marker='D', markeredgecolor='blue',
                 markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         # ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
@@ -1007,11 +1354,115 @@ class Stats:
         plt.savefig(figurename_png)
         plt.savefig(figurename_pdf)
 
-    def plot_pap(self):
-        pass
+    def plot_pap(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
+        fig, ax = plt.subplots()
+        ax.set_xlabel(f'ET')
+        ax.set_ylabel(ylabel=f'PAP')
+        ax.set_title(f'{self.exact_name} Power X Area comparison', fontsize=30)
 
-    def plot_pdap(self):
-        pass
+        et_list = subxpat.error_array
+
+        # muscat_power_area_product =
+
+
+
+        if muscat.status:
+            ax.plot(et_list, [muscat.power_dict[key] * muscat.area_dict[key] for key in muscat.power_dict.keys()], label='MUSCAT', color='red', marker='o', markeredgecolor='red',
+                    markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        if mecals.status:
+            ax.plot(et_list, [mecals.power_dict[key] * mecals.area_dict[key] for key in mecals.power_dict.keys()], label='MECALS', color='black', marker='o',
+                    markeredgecolor='black',
+                    markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        if xpat.status:
+            ax.plot(xpat.error_array, [xpat.power_dict[key] * xpat.area_dict[key] for key in xpat.power_dict.keys()], label='XPAT', color='green', marker='D', markeredgecolor='green',
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        if subxpat.status:
+            ax.plot(et_list, [subxpat.power_dict[key] * subxpat.area_dict[key] for key in subxpat.power_dict.keys()], label='SubXPAT', color='blue', marker='D', markeredgecolor='blue',
+                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+
+        #
+        plt.xticks(et_list)
+        plt.legend(loc='best')
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_product_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_product_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.pdf"
+        plt.savefig(figurename_png)
+        plt.savefig(figurename_pdf)
+
+
+    def plot_pdap(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
+        fig, ax = plt.subplots()
+        ax.set_xlabel(f'ET')
+        ax.set_ylabel(ylabel=f'PDAP')
+        ax.set_title(f'{self.exact_name} Power X Delay X Area comparison', fontsize=30)
+
+        et_list = subxpat.error_array
+
+        # muscat_power_area_product =
+
+        if muscat.status:
+            ax.plot(et_list, [muscat.delay_dict[key] * muscat.power_dict[key] * muscat.power_dict[key] for key in muscat.power_dict.keys()],
+                    label='MUSCAT', color='red', marker='o', markeredgecolor='red',
+                    markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        if mecals.status:
+            ax.plot(et_list, [mecals.delay_dict[key] * mecals.power_dict[key] * mecals.power_dict[key] for key in mecals.power_dict.keys()],
+                    label='MECALS', color='black', marker='o',
+                    markeredgecolor='black',
+                    markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        if xpat.status:
+            ax.plot(xpat.error_array, [xpat.delay_dict[key] * xpat.power_dict[key] * xpat.power_dict[key] for key in xpat.power_dict.keys()],
+                    label='XPAT', color='green', marker='D', markeredgecolor='green',
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+        if subxpat.status:
+            ax.plot(et_list, [subxpat.delay_dict[key] * subxpat.power_dict[key] * subxpat.power_dict[key] for key in subxpat.power_dict.keys()],
+                label='SubXPAT', color='blue', marker='D', markeredgecolor='blue',
+                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        #
+        plt.xticks(et_list)
+        plt.legend(loc='best')
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_delay_product_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_delay_product_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.pdf"
+        plt.savefig(figurename_png)
+        plt.savefig(figurename_pdf)
+
+    def plot_adp(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
+        fig, ax = plt.subplots()
+        ax.set_xlabel(f'ET')
+        ax.set_ylabel(ylabel=f'DAP')
+        ax.set_title(f'{self.exact_name} Delay X Area comparison', fontsize=30)
+
+        et_list = subxpat.error_array
+
+        # muscat_power_area_product =
+
+        if muscat.status:
+            ax.plot(et_list, [muscat.delay_dict[key] * muscat.area_dict[key] for key in muscat.power_dict.keys()],
+                    label='MUSCAT', color='red', marker='o', markeredgecolor='red',
+                    markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        if mecals.status:
+            ax.plot(et_list, [mecals.delay_dict[key] * mecals.area_dict[key] for key in mecals.area_dict.keys()],
+                    label='MECALS', color='black', marker='o',
+                    markeredgecolor='black',
+                    markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
+        if xpat.status:
+            ax.plot(xpat.error_array, [xpat.delay_dict[key] * xpat.area_dict[key] for key in xpat.area_dict.keys()],
+                    label='XPAT', color='green', marker='D', markeredgecolor='green',
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+        if subxpat.status:
+            ax.plot(et_list, [subxpat.delay_dict[key] * subxpat.area_dict[key] for key in subxpat.area_dict.keys()],
+                label='SubXPAT', color='blue', marker='D', markeredgecolor='blue',
+                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        #
+        plt.xticks(et_list)
+        plt.legend(loc='best')
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_product_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_product_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.pdf"
+        plt.savefig(figurename_png)
+        plt.savefig(figurename_pdf)
+
 
 
     def plot_partitioning(self, metric: str = sxpatconfig.AREA):
@@ -1071,7 +1522,7 @@ class Stats:
         for error in subxpat.error_array:
             for grid_file in subxpat.grid_files.keys():
                 if re.search(f'et{error}', grid_file):
-                    print(f'{grid_file = }')
+                    # print(f'{grid_file = }')
                     cur_imax = int(re.search(f'imax(\d+)', grid_file).group(1))
                     cur_omax = int(re.search(f'omax(\d+)', grid_file).group(1))
                     cur_sensitivity = False if re.search(f'without', grid_file) else True
@@ -1083,7 +1534,7 @@ class Stats:
                         cur_min_subgraph_size = -1
                     self._get_iteration_characteristcs(subxpat, imax=cur_imax, omax=cur_omax, sensitivity=cur_sensitivity,
                                                        max_sensitivity=cur_max_sensitivity, min_subgraph_size=cur_min_subgraph_size)
-                    print(f'{subxpat.area_iteration_dict = }')
+                    # print(f'{subxpat.area_iteration_dict = }')
 
 
         subxpat.partitioning_dict = partitioning_dict
