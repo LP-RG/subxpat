@@ -337,7 +337,6 @@ class Template_SOP1(TemplateCreator):
             exact_circuit_outputs_declaration = self.z3_generate_exact_circuit_outputs_declaration()
             approximate_circuit_outputs_declaration = self.z3_generate_approximate_circuit_outputs_declaration()
             exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()
-
             approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_subxpat()
             for_all_solver = self.z3_generate_forall_solver_subxpat()
             verification_solver = self.z3_generate_verification_solver()
@@ -487,13 +486,20 @@ class Template_SOP1(TemplateCreator):
         exact_wires_declaration = ''
         exact_wires_declaration += f'# wires functions declaration for exact circuit\n'
 
-        for g_idx in range(self.exact_graph.num_gates):
+        for g_idx in self.exact_graph.gate_dict:
             exact_wires_declaration += f"{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx} = " \
                                        f"{FUNCTION}('{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}', " \
                                        f"{', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))}" \
                                        f", {BOOLSORT}" \
                                        f")\n"
 
+        for g_idx in self.exact_graph.constant_dict:
+            print(f'{g_idx = }')
+            exact_wires_declaration += f"{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx} = " \
+                                       f"{FUNCTION}('{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}', " \
+                                       f"{', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))}" \
+                                       f", {BOOLSORT}" \
+                                       f")\n"
         exact_wires_declaration += '\n'
         return exact_wires_declaration
 
@@ -592,7 +598,8 @@ class Template_SOP1(TemplateCreator):
     def z3_express_node_as_wire_constraints(self, node: str):
         # print(f'{self.exact_graph.graph.nodes = }')
         assert node in list(self.exact_graph.input_dict.values()) or node in list(self.exact_graph.gate_dict.values()) \
-               or node in list(self.exact_graph.output_dict.values())
+               or node in list(self.exact_graph.output_dict.values()) or node in list(self.exact_graph.constant_dict.values())
+
         if node in list(self.exact_graph.input_dict.values()):
             return node
         elif node in list(self.exact_graph.gate_dict.values()):
@@ -606,6 +613,9 @@ class Template_SOP1(TemplateCreator):
                 if self.exact_graph.output_dict[key] == node:
                     node_id = key
             return f"{EXACT_WIRES_PREFIX}{OUT}{node_id}({','.join(list(self.exact_graph.input_dict.values()))})"
+        elif node in list(self.exact_graph.constant_dict.values()):
+            # print(f'{self.current_graph.graph.nodes[node] = }')
+            return Z3_GATES_DICTIONARY[self.exact_graph.graph.nodes[node][LABEL]]
 
     def __z3_get_approximate_label(self, node: str):
         graph_gates = list(self.current_graph.gate_dict.values())
@@ -694,7 +704,10 @@ class Template_SOP1(TemplateCreator):
         exact_wire_constraints += f'# exact circuit constraints\n'
         exact_wire_constraints += f'{EXACT_CIRCUIT} = And(\n'
         exact_wire_constraints += f'{TAB}# wires\n'
-        for g_idx in range(self.exact_graph.num_gates):
+
+
+        for g_idx in self.exact_graph.gate_dict:
+
             g_label = self.exact_graph.gate_dict[g_idx]
             g_predecessors = self.get_predecessors(g_label)
             g_function = self.get_logical_function(g_label)

@@ -197,14 +197,18 @@ class Synthesis:
 
     def __json_model_wire_declarations(self):
         wire_list = f'//json model\n'
-        wire_list += f'wire '
-        for o_idx in range(self.graph.subgraph_num_outputs):
-            for ppo_idx in range(self.ppo):
-                wire_list += f'{sxpatconfig.PRODUCT_PREFIX}{o_idx}_{sxpatconfig.TREE_PREFIX}{ppo_idx}'
-                if ppo_idx == self.ppo - 1 and o_idx == self.graph.subgraph_num_outputs - 1:
-                    wire_list += ';\n'
-                else:
-                    wire_list += ', '
+
+        if self.ppo > 0 and self.graph.subgraph_num_outputs:
+            wire_list += f'wire '
+            for o_idx in range(self.graph.subgraph_num_outputs):
+                for ppo_idx in range(self.ppo):
+                    wire_list += f'{sxpatconfig.PRODUCT_PREFIX}{o_idx}_{sxpatconfig.TREE_PREFIX}{ppo_idx}'
+                    if ppo_idx == self.ppo - 1 and o_idx == self.graph.subgraph_num_outputs - 1:
+                        wire_list += ';\n'
+                    else:
+                        wire_list += ', '
+        else:
+            wire_list += f'// No wires detected!'
         return wire_list
 
     def __get_fanin_cone(self, n: str, visited: List[str] = []):
@@ -413,6 +417,7 @@ class Synthesis:
 
     def __intact_gate_wires(self):
         intact_gate_list = list(self.graph.graph_intact_gate_dict.values())
+        constant_intact_gate_list = list(self.graph.constant_dict.values())
         non_input_intact_gate_list = []
 
         for gate in intact_gate_list:
@@ -432,6 +437,15 @@ class Synthesis:
                         intact_wires += f"{intact_gate_variable_list[gate_idx]};\n"
         else:
             intact_wires += f'{TAB}//no intact gates detected!\n'
+        if len(constant_intact_gate_list) > 0:
+            intact_wires += f'{sxpatconfig.VER_WIRE} '
+            for gate_idx, gate in enumerate(constant_intact_gate_list):
+                if gate_idx == len(constant_intact_gate_list) - 1:
+                    intact_wires += f'{sxpatconfig.VER_WIRE_PREFIX}{gate};'
+                else:
+                    intact_wires += f'{sxpatconfig.VER_WIRE_PREFIX}{gate}, '
+
+
         return intact_wires
 
     def __get_module_signature(self):
@@ -457,14 +471,16 @@ class Synthesis:
         annotated_graph_input_list = list(self.graph.subgraph_input_dict.values())
         annotated_graph_input_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in annotated_graph_input_list]
         annotated_graph_input_wires = f"//annotated subgraph inputs\n"
-        annotated_graph_input_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_input_list)};\n"
+        if len(annotated_graph_input_list) != 0:
+            annotated_graph_input_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_input_list)};\n"
         return annotated_graph_input_wires
 
     def __get_subgraph_output_wires(self):
         annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
         annotated_graph_output_list = [sxpatconfig.VER_WIRE_PREFIX + item for item in annotated_graph_output_list]
         annotated_graph_output_wires = f"//annotated subgraph outputs\n"
-        annotated_graph_output_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_output_list)};\n"
+        if len(annotated_graph_output_list) != 0:
+            annotated_graph_output_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_output_list)};\n"
         return annotated_graph_output_wires
 
     def __annotated_graph_to_verilog(self):

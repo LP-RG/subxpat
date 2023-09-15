@@ -20,6 +20,11 @@ class TemplateSpecs:
         self.__sensitivity = 0
         self.__timeout = kwargs[TIMEOUT]
         self.__min_subgraph_size = kwargs[SUBGRAPHSIZE]
+        self.__mode = kwargs[MODE]
+
+    @property
+    def mode(self):
+        return self.__mode
 
     @property
     def partitioning_percentage(self):
@@ -159,4 +164,5 @@ class TemplateSpecs:
                f'{self.max_sensitivity = }\n' \
                f'{self.sensitivity = }\n' \
                f'{self.timeout = }\n' \
-               f'{self.min_subgraph_size = }'
+               f'{self.min_subgraph_size = }\n' \
+               f'{self.mode = }'

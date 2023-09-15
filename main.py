@@ -39,6 +39,7 @@ def clean_all():
 def main():
     args = Arguments.parse()
     # print(f'{args = }')
+    # exit()
     if args.plot:
 
         print(Fore.BLUE + f'Plotting...' + Style.RESET_ALL)
@@ -48,7 +49,7 @@ def main():
                                   et=args.et,
                                   partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
-                                  timeout=args.timeout, subgraph_size=args.subgraph_size)
+                                  timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode)
 
 
         stats_obj = Stats(specs_obj)
@@ -93,7 +94,7 @@ def main():
                                               iterations=args.iterations,
                                               grid=args.grid, imax=args.imax, omax=args.omax,
                                               sensitivity=args.sensitivity,
-                                              timeout=args.timeout, subgraph_size=args.subgraph_size)
+                                              timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode)
                 else:
                     specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                               products_per_output=args.ppo,
@@ -104,7 +105,7 @@ def main():
                                               iterations=args.iterations,
                                               grid=args.grid, imax=args.imax, omax=args.omax,
                                               sensitivity=args.sensitivity * et,
-                                              timeout=args.timeout, subgraph_size=args.subgraph_size)
+                                              timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode)
 
                 if specs_obj.grid:
                     try:
@@ -126,7 +127,7 @@ def main():
                                           et=args.et,
                                           partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
                                           grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
-                                          timeout=args.timeout, subgraph_size=args.subgraph_size)
+                                          timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode)
             else:
                 specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                           products_per_output=args.ppo,
@@ -136,7 +137,7 @@ def main():
                                           partitioning_percentage=args.partitioning_percentage,
                                           iterations=args.iterations,
                                           grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity * args.et,
-                                          timeout=args.timeout, subgraph_size=args.subgraph_size)
+                                          timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode)
             # print(f'{specs_obj = }')
             if specs_obj.grid:
                 stats_obj = explore_grid(specs_obj)
