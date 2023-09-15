@@ -64,7 +64,8 @@ def explore_grid(specs_obj: TemplateSpecs):
     total_number_of_cells_per_iter = max_lpp * max_ppo + 1
     stats_obj = Stats(specs_obj)
     template_obj = Template_SOP1(specs_obj)
-
+    print(f' num_gates = {len(template_obj.exact_graph.graph.nodes) - len(template_obj.exact_graph.input_dict) - len(template_obj.exact_graph.output_dict)}')
+    exit()
 
 
     for i in range(1, total_iterations + 1):
