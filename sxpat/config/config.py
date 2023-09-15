@@ -23,7 +23,7 @@ OMAX = 'omax'
 SENSITIVITY = 'sensitivity'
 TIMEOUT = 'timeout'
 SUBGRAPHSIZE = 'subgraph_size'
-
+MODE = 'mode'
 
 
 
@@ -161,6 +161,16 @@ BENCH_DICT = {'abs_diff_2': 'abs_diff_i4_o3', 'abs_diff_4': 'abs_diff_i8_o5', 'a
 COLOR_DICT = ['blue', 'red', 'black', 'green',
               'purple', 'olive', 'orange', 'brown',
               'gray', 'pink', 'cyan']
+
+
+SUBXPAT_COLOR_DICT = {'i2_o1':'blue',
+                      'i2_o2':'purple',
+                      'i3_o1': 'olive',
+                      'i3_o2': 'orange',
+                      'i3_o3': 'brown',
+                      'i4_o1': 'gray',
+                      'i4_o2': 'pink',
+                      'i4_o3': 'cyan'}
 
 AREA = 'Area'
 POWER = 'Power'

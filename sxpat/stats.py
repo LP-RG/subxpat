@@ -242,7 +242,7 @@ class Grid:
                f'{self.cells = }\n'
 
 class Result:
-    def __init__(self, benchname: 'str', toolname: 'str') -> None:
+    def __init__(self, benchname: 'str', toolname: 'str', imax: int=3, omax: int =2) -> None:
         self.__tool = str(toolname)
 
         if self.tool_name == sxpatconfig.MECALS or self.tool_name == sxpatconfig.SUBXPAT or self.tool_name == sxpatconfig.XPAT:
@@ -262,12 +262,17 @@ class Result:
                 self.__benchmark = benchname
 
         if self.tool_name == sxpatconfig.SUBXPAT:
-
+            self.__imax = imax
+            self.__omax = omax
             self.__error_array: list = self.extract_subxpat_error()
             self.__grid_files = self.get_grid_files()
+
+
+
             if len(self.grid_files) == 0:
                 self.__status: bool = False
             else:
+
                 self.__status: bool = True
                 self.__area_dict: dict = None
                 self.__power_dict: dict = None
@@ -375,6 +380,13 @@ class Result:
                f"{self.power_dict = }\n" \
                f"{self.delay_dict = }"
 
+    @property
+    def imax(self):
+        return self.__imax
+
+    @property
+    def omax(self):
+        return self.__omax
 
     @property
     def pareto_files(self):
@@ -940,7 +952,12 @@ class Result:
         all_csv_files = [f for f in os.listdir(OUTPUT_PATH['report'][0])]
         for et in self.error_array:
             for csv_file in all_csv_files:
-                if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark, csv_file):
+                # print(f'{csv_file = }')
+                imax = f'imax{self.imax}'
+                omax = f'omax{self.omax}'
+                if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark, csv_file)\
+                    and re.search(imax, csv_file) and re.search(omax, csv_file):
+                    # print(f'{csv_file = }')
                     cur_et = int(re.search('et(\d+)', csv_file).group(1))
                     if cur_et == et:
                         grid_files[csv_file] = et
@@ -1049,10 +1066,17 @@ class Stats:
         self.__iterations: int = spec_obj.iterations
         self.__imax: int = spec_obj.imax
         self.__omax: int = spec_obj.omax
+        self.__mode: int = spec_obj.mode
         self.__grid_name: str = self.get_grid_name()
         self.__grid_path: str = self.get_grid_path()
 
         self.__grid = Grid(spec_obj)
+
+
+    @property
+    def mode(self):
+        return self.__mode
+
 
     @property
     def imax(self):
@@ -1169,10 +1193,10 @@ class Stats:
 
     def get_grid_name(self):
         _, extension = OUTPUT_PATH['report']
-        if self.max_sensitivity == -1:
+        if self.max_sensitivity == -1 and self.mode !=3:
             name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_imax{self.imax}_omax{self.omax}_without_sensitivity.{extension}'
-        else:
-            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_imax{self.imax}_omax{self.omax}_sens{self.max_sensitivity}_graphsize{self.min_subgraph_size}.{extension}'
+        elif self.mode == 3:
+            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_subgraphsize{self.min_subgraph_size}.{extension}'
         return name
 
 
@@ -1221,192 +1245,203 @@ class Stats:
                         csvwriter.writerow(row)
 
     def gather_results(self):
-        # mecals = Result(self.exact_name, sxpatconfig.MECALS)
-        # print(f'mecals finished!')
-        # xpat = Result(self.exact_name, sxpatconfig.XPAT)
+        mecals = Result(self.exact_name, sxpatconfig.MECALS)
+        xpat = Result(self.exact_name, sxpatconfig.XPAT)
         muscat = Result(self.exact_name, sxpatconfig.MUSCAT)
 
-        subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
+        subxpat = []
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=1))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=2))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=3, omax=1))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=3, omax=2))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=3, omax=3))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=4, omax=1))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=4, omax=2))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=4, omax=3))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=1))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=1))
+
 
         #
-        # self.plot_area(subxpat= subxpat,
-        #           xpat= xpat,
-        #           mecals= mecals,
-        #           muscat= muscat)
-        # self.plot_power(subxpat=subxpat,
-        #                xpat=xpat,
-        #                mecals=mecals,
-        #                muscat=muscat)
-        # self.plot_delay(subxpat=subxpat,
-        #                xpat=xpat,
-        #                mecals=mecals,
-        #                muscat=muscat)
+        self.plot_area(subxpat_list= subxpat,
+                  xpat= xpat,
+                  mecals= mecals,
+                  muscat= muscat)
+        self.plot_power(subxpat_list= subxpat,
+                       xpat=xpat,
+                       mecals=mecals,
+                       muscat=muscat)
+        self.plot_delay(subxpat_list= subxpat,
+                       xpat=xpat,
+                       mecals=mecals,
+                       muscat=muscat)
         #
-        # self.plot_pap(subxpat=subxpat,
-        #                xpat=xpat,
-        #                mecals=mecals,
-        #                muscat=muscat)
+        self.plot_pap(subxpat_list= subxpat,
+                       xpat=xpat,
+                       mecals=mecals,
+                       muscat=muscat)
         #
-        # self.plot_adp(subxpat=subxpat,
-        #                xpat=xpat,
-        #                mecals=mecals,
-        #                muscat=muscat)
+        self.plot_adp(subxpat_list= subxpat,
+                       xpat=xpat,
+                       mecals=mecals,
+                       muscat=muscat)
         #
-        # self.plot_pdap(subxpat=subxpat,
-        #                xpat=xpat,
-        #                mecals=mecals,
-        #                muscat=muscat)
+        self.plot_pdap(subxpat_list= subxpat,
+                       xpat=xpat,
+                       mecals=mecals,
+                       muscat=muscat)
         # self.plot_iterations(sxpatconfig.AREA)
 
 
-    def plot_area(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
+    def plot_area(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Area')
-        ax.set_title(f'{self.exact_name} Area comparison', fontsize = 30)
+        ax.set_title(f'{self.exact_name} Area comparison', fontsize = 20)
 
-        et_list = subxpat.error_array
+
 
         if muscat.status:
-            ax.plot(et_list, muscat.area_dict.values(), label='MUSCAT', color='red', marker='o', markeredgecolor='red',
+            ax.plot(muscat.error_array, muscat.area_dict.values(), label='MUSCAT', color='red', marker='o', markeredgecolor='red',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if mecals.status:
-            ax.plot(et_list, mecals.area_dict.values(), label='MECALS', color='black', marker='o', markeredgecolor='black',
+            ax.plot(mecals.error_array, mecals.area_dict.values(), label='MECALS', color='black', marker='o', markeredgecolor='black',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if xpat.status:
             ax.plot(xpat.error_array, xpat.area_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='green',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
-        if subxpat.status:
-            ax.plot(et_list, subxpat.area_dict.values(), label='SubXPAT', color='blue', marker='D', markeredgecolor='blue',
-                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        for subxpat in subxpat_list:
+            if subxpat.status:
+                color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                ax.plot(subxpat.error_array, subxpat.area_dict.values(), label=f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}', color=color, marker='D', markeredgecolor=color,
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         # ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
         #         markeredgewidth=10, linestyle=None, linewidth=0, markersize=8)
         #
-        plt.xticks(et_list)
+        plt.xticks(muscat.error_array)
         plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.pdf"
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}.pdf"
         plt.savefig(figurename_png)
-        plt.savefig(figurename_pdf)
+        # plt.savefig(figurename_pdf)
 
-    def plot_power(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
+    def plot_power(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Power')
-        ax.set_title(f'{self.exact_name} Power comparison', fontsize=30)
+        ax.set_title(f'{self.exact_name} Power comparison', fontsize=20)
 
-        et_list = subxpat.error_array
+
 
         if muscat.status:
-            ax.plot(et_list, muscat.power_dict.values(), label='MUSCAT', color='red', marker='o', markeredgecolor='red',
+            ax.plot(muscat.error_array, muscat.power_dict.values(), label='MUSCAT', color='red', marker='o', markeredgecolor='red',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if mecals.status:
-            ax.plot(et_list, mecals.power_dict.values(), label='MECALS', color='black', marker='o',
+            ax.plot(mecals.error_array, mecals.power_dict.values(), label='MECALS', color='black', marker='o',
                     markeredgecolor='black',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if xpat.status:
             ax.plot(xpat.error_array, xpat.power_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='green',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
-        if subxpat.status:
-            ax.plot(et_list, subxpat.power_dict.values(), label='SubXPAT', color='blue', marker='D', markeredgecolor='blue',
-                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+        for subxpat in subxpat_list:
+            if subxpat.status:
+                color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                ax.plot(subxpat.error_array, subxpat.power_dict.values(), label=f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}', color=color, marker='D', markeredgecolor=color,
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         # ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
         #         markeredgewidth=10, linestyle=None, linewidth=0, markersize=8)
         #
-        plt.xticks(et_list)
+        plt.xticks(muscat.error_array)
         plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.pdf"
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_{self.exact_name}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_{self.exact_name}.pdf"
         plt.savefig(figurename_png)
-        plt.savefig(figurename_pdf)
+        # plt.savefig(figurename_pdf)
 
-    def plot_delay(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
+    def plot_delay(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Delay')
-        ax.set_title(f'{self.exact_name} Delay comparison', fontsize=30)
+        ax.set_title(f'{self.exact_name} Delay comparison', fontsize=20)
 
-        et_list = subxpat.error_array
 
         if muscat.status:
-            ax.plot(et_list, muscat.delay_dict.values(), label='MUSCAT', color='red', marker='o', markeredgecolor='red',
+            ax.plot(muscat.error_array, muscat.delay_dict.values(), label='MUSCAT', color='red', marker='o', markeredgecolor='red',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if mecals.status:
-            ax.plot(et_list, mecals.delay_dict.values(), label='MECALS', color='black', marker='o',
+            ax.plot(mecals.error_array, mecals.delay_dict.values(), label='MECALS', color='black', marker='o',
                     markeredgecolor='black',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if xpat.status:
             ax.plot(xpat.error_array, xpat.delay_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='green',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
-        if subxpat.status:
-            ax.plot(et_list, subxpat.delay_dict.values(), label='SubXPAT', color='blue', marker='D', markeredgecolor='blue',
-                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+        for subxpat in subxpat_list:
+            # color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+            if subxpat.status:
+                color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                ax.plot(subxpat.error_array, subxpat.delay_dict.values(), label=f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}', color=color, marker='D', markeredgecolor=color,
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         # ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
         #         markeredgewidth=10, linestyle=None, linewidth=0, markersize=8)
         #
-        plt.xticks(et_list)
+        plt.xticks(muscat.error_array)
         plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.pdf"
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_{self.exact_name}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_{self.exact_name}.pdf"
         plt.savefig(figurename_png)
-        plt.savefig(figurename_pdf)
+        # plt.savefig(figurename_pdf)
 
-    def plot_pap(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
+    def plot_pap(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'PAP')
-        ax.set_title(f'{self.exact_name} Power X Area comparison', fontsize=30)
-
-        et_list = subxpat.error_array
-
-        # muscat_power_area_product =
-
+        ax.set_title(f'{self.exact_name} Power X Area comparison', fontsize=20)
 
 
         if muscat.status:
-            ax.plot(et_list, [muscat.power_dict[key] * muscat.area_dict[key] for key in muscat.power_dict.keys()], label='MUSCAT', color='red', marker='o', markeredgecolor='red',
+            ax.plot(muscat.error_array, [muscat.power_dict[key] * muscat.area_dict[key] for key in muscat.power_dict.keys()], label='MUSCAT', color='red', marker='o', markeredgecolor='red',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if mecals.status:
-            ax.plot(et_list, [mecals.power_dict[key] * mecals.area_dict[key] for key in mecals.power_dict.keys()], label='MECALS', color='black', marker='o',
+            ax.plot(mecals.error_array, [mecals.power_dict[key] * mecals.area_dict[key] for key in mecals.power_dict.keys()], label='MECALS', color='black', marker='o',
                     markeredgecolor='black',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if xpat.status:
             ax.plot(xpat.error_array, [xpat.power_dict[key] * xpat.area_dict[key] for key in xpat.power_dict.keys()], label='XPAT', color='green', marker='D', markeredgecolor='green',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
-
-        if subxpat.status:
-            ax.plot(et_list, [subxpat.power_dict[key] * subxpat.area_dict[key] for key in subxpat.power_dict.keys()], label='SubXPAT', color='blue', marker='D', markeredgecolor='blue',
-                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+        for subxpat in subxpat_list:
+            if subxpat.status:
+                color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                ax.plot(subxpat.error_array, [subxpat.power_dict[key] * subxpat.area_dict[key] for key in subxpat.power_dict.keys()], label=f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}', color=color, marker='D', markeredgecolor=color,
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
 
         #
-        plt.xticks(et_list)
+        plt.xticks(muscat.error_array)
         plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_product_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_product_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.pdf"
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_product_{self.exact_name}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_product_{self.exact_name}.pdf"
         plt.savefig(figurename_png)
-        plt.savefig(figurename_pdf)
+        # plt.savefig(figurename_pdf)
 
 
-    def plot_pdap(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
+    def plot_pdap(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'PDAP')
-        ax.set_title(f'{self.exact_name} Power X Delay X Area comparison', fontsize=30)
+        ax.set_title(f'{self.exact_name} Power X Delay X Area comparison', fontsize=20)
 
-        et_list = subxpat.error_array
-
-        # muscat_power_area_product =
 
         if muscat.status:
-            ax.plot(et_list, [muscat.delay_dict[key] * muscat.power_dict[key] * muscat.power_dict[key] for key in muscat.power_dict.keys()],
+            ax.plot(muscat.error_array, [muscat.delay_dict[key] * muscat.power_dict[key] * muscat.power_dict[key] for key in muscat.power_dict.keys()],
                     label='MUSCAT', color='red', marker='o', markeredgecolor='red',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if mecals.status:
-            ax.plot(et_list, [mecals.delay_dict[key] * mecals.power_dict[key] * mecals.power_dict[key] for key in mecals.power_dict.keys()],
+            ax.plot(mecals.error_array, [mecals.delay_dict[key] * mecals.power_dict[key] * mecals.power_dict[key] for key in mecals.power_dict.keys()],
                     label='MECALS', color='black', marker='o',
                     markeredgecolor='black',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
@@ -1414,35 +1449,33 @@ class Stats:
             ax.plot(xpat.error_array, [xpat.delay_dict[key] * xpat.power_dict[key] * xpat.power_dict[key] for key in xpat.power_dict.keys()],
                     label='XPAT', color='green', marker='D', markeredgecolor='green',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
-        if subxpat.status:
-            ax.plot(et_list, [subxpat.delay_dict[key] * subxpat.power_dict[key] * subxpat.power_dict[key] for key in subxpat.power_dict.keys()],
-                label='SubXPAT', color='blue', marker='D', markeredgecolor='blue',
-                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+        for subxpat in subxpat_list:
+            if subxpat.status:
+                color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                ax.plot(subxpat.error_array, [subxpat.delay_dict[key] * subxpat.power_dict[key] * subxpat.power_dict[key] for key in subxpat.power_dict.keys()],
+                    label=f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}', color='blue', marker='D', markeredgecolor=color,
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         #
-        plt.xticks(et_list)
+        plt.xticks(muscat.error_array)
         plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_delay_product_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_delay_product_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.pdf"
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_delay_product_{self.exact_name}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_delay_product_{self.exact_name}.pdf"
         plt.savefig(figurename_png)
-        plt.savefig(figurename_pdf)
+        # plt.savefig(figurename_pdf)
 
-    def plot_adp(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
+    def plot_adp(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'DAP')
-        ax.set_title(f'{self.exact_name} Delay X Area comparison', fontsize=30)
-
-        et_list = subxpat.error_array
-
-        # muscat_power_area_product =
+        ax.set_title(f'{self.exact_name} Delay X Area comparison', fontsize=20)
 
         if muscat.status:
-            ax.plot(et_list, [muscat.delay_dict[key] * muscat.area_dict[key] for key in muscat.power_dict.keys()],
+            ax.plot(muscat.error_array, [muscat.delay_dict[key] * muscat.area_dict[key] for key in muscat.power_dict.keys()],
                     label='MUSCAT', color='red', marker='o', markeredgecolor='red',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
         if mecals.status:
-            ax.plot(et_list, [mecals.delay_dict[key] * mecals.area_dict[key] for key in mecals.area_dict.keys()],
+            ax.plot(mecals.error_array, [mecals.delay_dict[key] * mecals.area_dict[key] for key in mecals.area_dict.keys()],
                     label='MECALS', color='black', marker='o',
                     markeredgecolor='black',
                     markeredgewidth=5, linestyle='dashed', linewidth=2, markersize=3)
@@ -1450,18 +1483,20 @@ class Stats:
             ax.plot(xpat.error_array, [xpat.delay_dict[key] * xpat.area_dict[key] for key in xpat.area_dict.keys()],
                     label='XPAT', color='green', marker='D', markeredgecolor='green',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
-        if subxpat.status:
-            ax.plot(et_list, [subxpat.delay_dict[key] * subxpat.area_dict[key] for key in subxpat.area_dict.keys()],
-                label='SubXPAT', color='blue', marker='D', markeredgecolor='blue',
-                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+        for subxpat in subxpat_list:
+            if subxpat.status:
+                color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                ax.plot(subxpat.error_array, [subxpat.delay_dict[key] * subxpat.area_dict[key] for key in subxpat.area_dict.keys()],
+                    label=f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}', color=color, marker='D', markeredgecolor='blue',
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         #
-        plt.xticks(et_list)
+        plt.xticks(muscat.error_array)
         plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_product_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/power_area_product_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_sens{self.max_sensitivity}_subgraphsize{self.min_subgraph_size}.pdf"
+        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_product_{self.exact_name}.png"
+        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_product_{self.exact_name}.pdf"
         plt.savefig(figurename_png)
-        plt.savefig(figurename_pdf)
+        # plt.savefig(figurename_pdf)
 
 
 

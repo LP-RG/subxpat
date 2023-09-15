@@ -23,7 +23,11 @@ class Arguments(Arguments):
         self.__sensitivity: int = tmp_args.sensitivity
         self.__timeout: int = tmp_args.timeout
         self.__subgraph_size: int = tmp_args.subgraphsize
+        self.__mode: int = tmp_args.mode
 
+    @property
+    def mode(self):
+        return self.__mode
 
     @property
     def partitioning_percentage(self):
@@ -206,6 +210,11 @@ class Arguments(Arguments):
                                default=10800,
                                help='the-timeout-for-every-cell-in-seconds(default 3 hours)')
 
+        my_parser.add_argument('-mode',
+                               type=int,
+                               default=1,
+                               help='selects-partitioning-algorithm')
+
         my_parser.add_argument('--clean',
                                action="store_true",
                                default=False)
@@ -231,4 +240,5 @@ class Arguments(Arguments):
                f'{self.sensitivity = }\n' \
                f'{self.timeout = }\n' \
                f'{self.subgraph_size = }\n' \
+               f'{self.mode = }\n' \
                f'{self.clean = }'

@@ -4,7 +4,7 @@ output/
 Laura/
 input/ver/*.v
 experiments/
-
+*.xlsx
 *__pycache__/
 
 # Exclusions!

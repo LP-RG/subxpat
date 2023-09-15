@@ -48,6 +48,7 @@ def explore_cell(specs_obj: TemplateSpecs):
 
 def explore_grid(specs_obj: TemplateSpecs):
     print(f'{specs_obj = }')
+    # exit()
     print(
         Fore.BLUE + f'Subxpat started...' + Style.RESET_ALL)
     i = 1
@@ -81,8 +82,9 @@ def explore_grid(specs_obj: TemplateSpecs):
         #         print(f'Exists!')
         #         os.remove(f'{folder}/{specs_obj.benchmark_name}.{extension}')
 
-        if specs_obj.max_sensitivity > 0:
+        if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3:
             template_obj.label_graph(2)
+        # template_obj.label_graph(2)
         subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
 
         if subgraph_is_available:
