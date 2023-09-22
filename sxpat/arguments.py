@@ -212,7 +212,7 @@ class Arguments(Arguments):
 
         my_parser.add_argument('-mode',
                                type=int,
-                               default=1,
+                               default=3,
                                help='selects-partitioning-algorithm')
 
         my_parser.add_argument('--clean',

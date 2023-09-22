@@ -170,7 +170,18 @@ SUBXPAT_COLOR_DICT = {'i2_o1':'blue',
                       'i3_o3': 'brown',
                       'i4_o1': 'gray',
                       'i4_o2': 'pink',
-                      'i4_o3': 'cyan'}
+                      'i4_o3': 'cyan',
+                      'subgraphsize5': 'blue',
+                      'subgraphsize10': 'purple',
+                      'subgraphsize15': 'olive',
+                      'subgraphsize20': 'orange',
+                      'subgraphsize25': 'brown',
+                      'subgraphsize30': 'gray',
+                      'subgraphsize35': 'pink',
+                      'subgraphsize40': 'cyan',
+                      'subgraphsize45': 'yellow',
+                      'subgraphsize50': 'violet'
+                      }
 
 AREA = 'Area'
 POWER = 'Power'

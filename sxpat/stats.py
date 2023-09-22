@@ -242,7 +242,7 @@ class Grid:
                f'{self.cells = }\n'
 
 class Result:
-    def __init__(self, benchname: 'str', toolname: 'str', imax: int=3, omax: int =2) -> None:
+    def __init__(self, benchname: 'str', toolname: 'str', mode: int = 1, imax: int = 0, omax: int = 0, subgraphsize: int = 5) -> None:
         self.__tool = str(toolname)
 
         if self.tool_name == sxpatconfig.MECALS or self.tool_name == sxpatconfig.SUBXPAT or self.tool_name == sxpatconfig.XPAT:
@@ -262,11 +262,23 @@ class Result:
                 self.__benchmark = benchname
 
         if self.tool_name == sxpatconfig.SUBXPAT:
-            self.__imax = imax
-            self.__omax = omax
+            self.__mode = mode
+            if self.mode == 1:
+                self.__imax = imax
+                self.__omax = omax
+            elif self.mode == 2:
+                print(Fore.RED + f'Warning! mode variable 2 is not correct! Not collecting subxpat results!' + Style.RESET_ALL)
+            elif self.mode == 3:
+                self.__subgraphsize = subgraphsize
+            else:
+                print(Fore.RED + f'Warning! mode variable was not correct! Not collecting subxpat results!' + Style.RESET_ALL)
+
+
+
             self.__error_array: list = self.extract_subxpat_error()
             self.__grid_files = self.get_grid_files()
-
+            # print(f'{self.grid_files = }')
+            # exit()
 
 
             if len(self.grid_files) == 0:
@@ -379,6 +391,14 @@ class Result:
                f"{self.area_dict = }\n" \
                f"{self.power_dict = }\n" \
                f"{self.delay_dict = }"
+
+    @property
+    def subgraphsize(self):
+        return self.__subgraphsize
+
+    @property
+    def mode(self):
+        return self.__mode
 
     @property
     def imax(self):
@@ -952,15 +972,28 @@ class Result:
         all_csv_files = [f for f in os.listdir(OUTPUT_PATH['report'][0])]
         for et in self.error_array:
             for csv_file in all_csv_files:
-                # print(f'{csv_file = }')
-                imax = f'imax{self.imax}'
-                omax = f'omax{self.omax}'
-                if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark, csv_file)\
-                    and re.search(imax, csv_file) and re.search(omax, csv_file):
-                    # print(f'{csv_file = }')
-                    cur_et = int(re.search('et(\d+)', csv_file).group(1))
-                    if cur_et == et:
-                        grid_files[csv_file] = et
+
+                if self.mode == 1:
+                    imax = f'imax{self.imax}'
+                    omax = f'omax{self.omax}'
+                    if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark,
+                                                                                                csv_file) \
+                            and re.search(imax, csv_file) and re.search(omax, csv_file):
+                        # print(f'{csv_file = }')
+                        cur_et = int(re.search('et(\d+)', csv_file).group(1))
+                        if cur_et == et:
+                            grid_files[csv_file] = et
+                elif self.mode == 3:
+                    subgraphsize = f'subgraphsize{self.subgraphsize}'
+                    if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark,
+                                                                                                csv_file) \
+                            and re.search(subgraphsize, csv_file):
+                        # print(f'{csv_file = }')
+                        cur_et = int(re.search('et(\d+)', csv_file).group(1))
+                        if cur_et == et:
+                            grid_files[csv_file] = et
+
+
 
         return grid_files
 
@@ -1069,9 +1102,13 @@ class Stats:
         self.__mode: int = spec_obj.mode
         self.__grid_name: str = self.get_grid_name()
         self.__grid_path: str = self.get_grid_path()
-
+        self.__specs_obj: TemplateSpecs = spec_obj
         self.__grid = Grid(spec_obj)
 
+
+    @property
+    def specs(self):
+        return self.__specs_obj
 
     @property
     def mode(self):
@@ -1250,50 +1287,80 @@ class Stats:
         muscat = Result(self.exact_name, sxpatconfig.MUSCAT)
 
         subxpat = []
-        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=1))
-        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=2))
-        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=3, omax=1))
-        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=3, omax=2))
-        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=3, omax=3))
-        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=4, omax=1))
-        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=4, omax=2))
-        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=4, omax=3))
         # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=1))
         # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=1))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=2))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=3, omax=1))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=3, omax=2))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=3, omax=3))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=4, omax=1))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=4, omax=2))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=4, omax=3))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=1))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=1))
+
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=5))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=10))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=15))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=20))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=25))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=30))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=35))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=40))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=45))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=50))
+
 
 
         #
         self.plot_area(subxpat_list= subxpat,
                   xpat= xpat,
                   mecals= mecals,
-                  muscat= muscat)
-        self.plot_power(subxpat_list= subxpat,
+                  muscat= muscat,
+                  best=True)
+
+        self.plot_area(subxpat_list=subxpat,
                        xpat=xpat,
                        mecals=mecals,
-                       muscat=muscat)
-        self.plot_delay(subxpat_list= subxpat,
-                       xpat=xpat,
-                       mecals=mecals,
-                       muscat=muscat)
-        #
-        self.plot_pap(subxpat_list= subxpat,
-                       xpat=xpat,
-                       mecals=mecals,
-                       muscat=muscat)
-        #
+                       muscat=muscat,
+                       best=False)
+        # self.plot_power(subxpat_list= subxpat,
+        #                xpat=xpat,
+        #                mecals=mecals,
+        #                muscat=muscat)
+        # self.plot_delay(subxpat_list= subxpat,
+        #                xpat=xpat,
+        #                mecals=mecals,
+        #                muscat=muscat)
+        # #
+        # self.plot_pap(subxpat_list= subxpat,
+        #                xpat=xpat,
+        #                mecals=mecals,
+        #                muscat=muscat)
+        # #
         self.plot_adp(subxpat_list= subxpat,
                        xpat=xpat,
                        mecals=mecals,
-                       muscat=muscat)
-        #
-        self.plot_pdap(subxpat_list= subxpat,
-                       xpat=xpat,
-                       mecals=mecals,
-                       muscat=muscat)
+                       muscat=muscat,
+                       best=True)
+        self.plot_adp(subxpat_list=subxpat,
+                      xpat=xpat,
+                      mecals=mecals,
+                      muscat=muscat,
+                      best=False)
+        # #
+        # self.plot_pdap(subxpat_list= subxpat,
+        #                xpat=xpat,
+        #                mecals=mecals,
+        #                muscat=muscat)
         # self.plot_iterations(sxpatconfig.AREA)
 
+    def get_cmap(self, n, name='hsv'):
+        '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct
+        RGB color; the keyword argument name must be a standard mpl colormap name.'''
+        return plt.cm.get_cmap(name, n)
 
-    def plot_area(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
+    def plot_area(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result, best: bool =  True):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Area')
@@ -1311,19 +1378,46 @@ class Stats:
             ax.plot(xpat.error_array, xpat.area_dict.values(), label='XPAT', color='green', marker='D', markeredgecolor='green',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
-        for subxpat in subxpat_list:
-            if subxpat.status:
-                color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
-                ax.plot(subxpat.error_array, subxpat.area_dict.values(), label=f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}', color=color, marker='D', markeredgecolor=color,
-                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+        if best:
+            best_area_dict: Dict = {}
+            for idx, subxpat in enumerate(subxpat_list):
+                if subxpat.status:
+                    for et in subxpat.error_array:
+                        if et in best_area_dict.keys():
+                            if subxpat.area_dict[et] < best_area_dict[et]:
+                                best_area_dict[et] = subxpat.area_dict[et]
 
-        # ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
-        #         markeredgewidth=10, linestyle=None, linewidth=0, markersize=8)
-        #
+                        else:
+                            best_area_dict[et] = subxpat.area_dict[et]
+                    if self.mode == 1:
+                        label = f'SubXPAT_io_best'
+                        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_best.png"
+                        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_best.pdf"
+                    elif self.mode == 3:
+                        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.png"
+                        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.pdf"
+                        label = f'SubXPAT_subgraphsize_best'
+            ax.plot(subxpat_list[0].error_array, best_area_dict.values(), label=label, marker='D', markeredgecolor='blue',
+                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+        else:
+            for idx, subxpat in enumerate(subxpat_list):
+                if subxpat.status:
+                    if self.mode == 1:
+                        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_multiple.png"
+                        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_multiple.pdf"
+                        color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                        label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
+                    elif self.mode == 3:
+                        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_multiple.png"
+                        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_multiple.pdf"
+                        color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']
+                        label = f'SubXPAT_subgraphsize{subxpat.subgraphsize}'
+                    ax.plot(subxpat.error_array, subxpat.area_dict.values(), label=label,marker='D', markeredgecolor=color,
+                        markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
         plt.xticks(muscat.error_array)
         plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}.pdf"
+
         plt.savefig(figurename_png)
         # plt.savefig(figurename_pdf)
 
@@ -1348,8 +1442,13 @@ class Stats:
 
         for subxpat in subxpat_list:
             if subxpat.status:
-                color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
-                ax.plot(subxpat.error_array, subxpat.power_dict.values(), label=f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}', color=color, marker='D', markeredgecolor=color,
+                if self.mode == 1:
+                    color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                    label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
+                elif self.mode == 3:
+                    color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']
+                    label = f'SubXPAT_subgraphsize{subxpat.subgraphsize}'
+                ax.plot(subxpat.error_array, subxpat.power_dict.values(), label=label, color=color, marker='D', markeredgecolor=color,
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         # ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
@@ -1382,8 +1481,13 @@ class Stats:
         for subxpat in subxpat_list:
             # color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
             if subxpat.status:
-                color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
-                ax.plot(subxpat.error_array, subxpat.delay_dict.values(), label=f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}', color=color, marker='D', markeredgecolor=color,
+                if self.mode == 1:
+                    color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                    label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
+                elif self.mode == 3:
+                    color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']
+                    label = f'SubXPAT_subgraphsize{subxpat.subgraphsize}'
+                ax.plot(subxpat.error_array, subxpat.delay_dict.values(), label=label, color=color, marker='D', markeredgecolor=color,
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         # ax.plot(uncomputed_et, uncomputed_area, label='N/A', color='red', marker='o', markeredgecolor='red',
@@ -1415,8 +1519,14 @@ class Stats:
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
         for subxpat in subxpat_list:
             if subxpat.status:
-                color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
-                ax.plot(subxpat.error_array, [subxpat.power_dict[key] * subxpat.area_dict[key] for key in subxpat.power_dict.keys()], label=f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}', color=color, marker='D', markeredgecolor=color,
+                if self.mode == 1:
+                    color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                    label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
+                elif self.mode == 3:
+                    color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']
+                    label = f'SubXPAT_subgraphsize{subxpat.subgraphsize}'
+                ax.plot(subxpat.error_array, [subxpat.power_dict[key] * subxpat.area_dict[key] for key in subxpat.power_dict.keys()],
+                        label=label, color=color, marker='D', markeredgecolor=color,
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
 
@@ -1451,9 +1561,14 @@ class Stats:
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
         for subxpat in subxpat_list:
             if subxpat.status:
-                color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                if self.mode == 1:
+                    color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                    label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
+                elif self.mode == 3:
+                    color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']
+                    label = f'SubXPAT_subgraphsize{subxpat.subgraphsize}'
                 ax.plot(subxpat.error_array, [subxpat.delay_dict[key] * subxpat.power_dict[key] * subxpat.power_dict[key] for key in subxpat.power_dict.keys()],
-                    label=f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}', color='blue', marker='D', markeredgecolor=color,
+                    label=label, color='blue', marker='D', markeredgecolor=color,
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         #
@@ -1464,7 +1579,7 @@ class Stats:
         plt.savefig(figurename_png)
         # plt.savefig(figurename_pdf)
 
-    def plot_adp(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
+    def plot_adp(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result, best: bool = True):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'DAP')
@@ -1483,18 +1598,53 @@ class Stats:
             ax.plot(xpat.error_array, [xpat.delay_dict[key] * xpat.area_dict[key] for key in xpat.area_dict.keys()],
                     label='XPAT', color='green', marker='D', markeredgecolor='green',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
-        for subxpat in subxpat_list:
-            if subxpat.status:
-                color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
-                ax.plot(subxpat.error_array, [subxpat.delay_dict[key] * subxpat.area_dict[key] for key in subxpat.area_dict.keys()],
-                    label=f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}', color=color, marker='D', markeredgecolor='blue',
+
+
+        if best:
+            best_area_dict: Dict = {}
+            respective_delay_dict: Dict = {}
+            for idx, subxpat in enumerate(subxpat_list):
+                if subxpat.status:
+                    for et in subxpat.error_array:
+                        if et in best_area_dict.keys():
+                            if subxpat.area_dict[et] < best_area_dict[et]:
+                                best_area_dict[et] = subxpat.area_dict[et]
+                                respective_delay_dict[et] = subxpat.delay_dict[et]
+                        else:
+                            best_area_dict[et] = subxpat.area_dict[et]
+                            respective_delay_dict[et] = subxpat.delay_dict[et]
+                    if self.mode == 1:
+                        label = f'SubXPAT_io_best'
+                        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_{self.exact_name}_io_best.png"
+                        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_{self.exact_name}_io_best.pdf"
+                    elif self.mode == 3:
+                        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_{self.exact_name}_subgraph_best.png"
+                        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_{self.exact_name}_subgraph_best.pdf"
+                        label = f'SubXPAT_subgraphsize_best'
+            ax.plot(subxpat_list[0].error_array, [respective_delay_dict[key] * best_area_dict[key] for key in subxpat_list[0].area_dict.keys()],
+                    label=label, marker='D', markeredgecolor='blue',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+        else:
+            for subxpat in subxpat_list:
+                if subxpat.status:
+                    if self.mode == 1:
+                        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_{self.exact_name}_io_multiple.png"
+                        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_{self.exact_name}_io_multiple.pdf"
+                        color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+                        label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
+                    elif self.mode == 3:
+                        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_product_{self.exact_name}_subgraph_multiple.png"
+                        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_product_{self.exact_name}_subgraph_multiple.pdf"
+                        color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']
+                        label = f'SubXPAT_subgraphsize{subxpat.subgraphsize}'
+                    ax.plot(subxpat.error_array, [subxpat.delay_dict[key] * subxpat.area_dict[key] for key in subxpat.area_dict.keys()],
+                        label=label, color=color, marker='D', markeredgecolor='blue',
+                        markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         #
         plt.xticks(muscat.error_array)
         plt.legend(loc='best')
-        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_product_{self.exact_name}.png"
-        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_product_{self.exact_name}.pdf"
+
         plt.savefig(figurename_png)
         # plt.savefig(figurename_pdf)
 
