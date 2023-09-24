@@ -10,6 +10,6 @@ experiments/
 # Exclusions!
 !requirements.txt
 !main.py
-!experiments/xpat/pareto_ver/
-!experiments/muscat/pareto_ver/
-!experiments/mecals/pareto_ver/
+!experiments/xpat/pareto_ver
+!experiments/muscat/pareto_ver
+!experiments/mecals/pareto_ver
