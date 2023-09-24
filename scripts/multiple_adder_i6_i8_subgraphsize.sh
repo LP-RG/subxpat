@@ -4,8 +4,9 @@ PYTHON='python3'
 SCRIPT='main.py'
 
 ADDER_6='adder_i6_o4.v'
-for SIZE in 5 10 15 20 25 30 35 40 45 50
+for SIZE in 1 2 3 4 5 10 15 20 25 30 35 40 45 50
 do
+
   $PYTHON $SCRIPT "input/ver/$ADDER_6" -lpp=6 -ppo=6 -et=8 --subxpat --grid -iterations=12 -app "input/ver/$ADDER_6" -mode=3 -subgraphsize="$SIZE"
   $PYTHON $SCRIPT "input/ver/$ADDER_6" -lpp=6 -ppo=6 -et=7 --subxpat --grid -iterations=12 -app "input/ver/$ADDER_6" -mode=3 -subgraphsize="$SIZE"
   $PYTHON $SCRIPT "input/ver/$ADDER_6" -lpp=6 -ppo=6 -et=6 --subxpat --grid -iterations=12 -app "input/ver/$ADDER_6" -mode=3 -subgraphsize="$SIZE"
@@ -17,7 +18,7 @@ do
 done
 
 ADDER_8='adder_i8_o5.v'
-for SIZE in 5 10 15 20 25 30 35 40 45 50
+for SIZE in 1 2 3 4 5 10 15 20 25 30 35 40 45 50
 do
   $PYTHON $SCRIPT "input/ver/$ADDER_8" -lpp=8 -ppo=8 -et=16 --subxpat --grid -iterations=16 -app "input/ver/$ADDER_8" -mode=3 -subgraphsize="$SIZE"
   $PYTHON $SCRIPT "input/ver/$ADDER_8" -lpp=8 -ppo=8 -et=14 --subxpat --grid -iterations=16 -app "input/ver/$ADDER_8" -mode=3 -subgraphsize="$SIZE"
