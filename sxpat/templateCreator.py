@@ -270,7 +270,7 @@ class Template_SOP1(TemplateCreator):
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extension = this_path
-        return f'{folder}/{self.exact_benchmark}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}_{TEMPLATE_SPEC_ET}{self.et}_{PAP}{self.partitioning_percentage}_{ITER}{self.iterations}.{extension}'
+        return f'{folder}/{self.exact_benchmark}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}_{TEMPLATE_SPEC_ET}{self.et}_{ITER}{self.iterations}.{extension}'
 
     def export_z3pyscript(self):
         # print(f'Storing in {self.z3_out_path}')

@@ -61,6 +61,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
 
     pre_iter_unsats = 0
+    pre_iter_same = False
     total_number_of_cells_per_iter = max_lpp * max_ppo + 1
     stats_obj = Stats(specs_obj)
     template_obj = Template_SOP1(specs_obj)
@@ -72,19 +73,15 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if pre_iter_unsats == total_number_of_cells_per_iter:
             break
+        elif equal_in_last_two_iterations(stats_obj):
+            break
+
         print(Fore.LIGHTBLUE_EX + f'iteration {i}' + Style.RESET_ALL)
         template_obj.current_graph = template_obj.import_graph()
 
-        # if specs_obj.exact_benchmark != specs_obj.benchmark_name:
-        #     folder, extension = INPUT_PATH['ver']
-        #     print(f'{folder}/{specs_obj.benchmark_name}.{extension}')
-        #     if os.path.exists(f'{folder}/{specs_obj.benchmark_name}.{extension}'):
-        #         print(f'Exists!')
-        #         os.remove(f'{folder}/{specs_obj.benchmark_name}.{extension}')
-
         if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3:
             template_obj.label_graph(2)
-        # template_obj.label_graph(2)
+
         subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
 
         if subgraph_is_available:
@@ -185,10 +182,31 @@ def explore_grid(specs_obj: TemplateSpecs):
                                                                             this_runtime=runtime,
                                                                             this_status='SAT',
                                                                             this_cell=(lpp, ppo))
+
         else:
             break
     stats_obj.store_grid()
     return stats_obj
+
+def equal_in_last_two_iterations(stats_obj: Stats):
+    for ppo in range(stats_obj.ppo):
+        for lpp in range(stats_obj.lpp):
+            for iteration in range(stats_obj.iterations - 1, 0, -1):
+                    num_model = 0
+                    if stats_obj.grid.cells[lpp][ppo].models[iteration][num_model].status == 'SAT' and \
+                       stats_obj.grid.cells[lpp][ppo].models[iteration - 1][num_model].status == 'SAT':
+                        pre_area = stats_obj.grid.cells[lpp][ppo].models[iteration - 1][num_model].area
+                        cur_area = stats_obj.grid.cells[lpp][ppo].models[iteration][num_model].area
+                        pre_power = stats_obj.grid.cells[lpp][ppo].models[iteration - 1][num_model].total_power
+                        cur_power = stats_obj.grid.cells[lpp][ppo].models[iteration][num_model].total_power
+                        pre_delay = stats_obj.grid.cells[lpp][ppo].models[iteration - 1][num_model].delay
+                        cur_delay = stats_obj.grid.cells[lpp][ppo].models[iteration][num_model].delay
+                        if pre_area == cur_area and pre_delay == cur_delay and pre_power == cur_power:
+                            print(Fore.BLUE + f'Loop detected.\nThe area, power, and delay of iterations {iteration-1} and {iteration} are identical' + Style.RESET_ALL)
+                            print(Fore.LIGHTYELLOW_EX + f'Area {pre_area}\nPower={pre_power}\nDelay={pre_delay}' + Style.RESET_ALL)
+                            return True
+    return False
+
 
 
 def is_last_cell(cur_lpp, cur_ppo, max_lpp, max_ppo) -> bool:
