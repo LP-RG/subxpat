@@ -107,8 +107,11 @@ class Model:
 
     def __repr__(self):
         return f'An object of class Model:\n' \
+               f'{self.status = }' \
                f'{self.runtime = }\n' \
                f'{self.area = }\n' \
+               f'{self.total_power = }\n' \
+               f'{self.delay = }\n' \
                f'{self.id = }\n'
 
 
@@ -459,6 +462,10 @@ class Result:
     @property
     def status(self):
         return self.__status
+
+    @status.setter
+    def status(self, this_status):
+        self.__status = this_status
 
     @property
     def exact_area(self):
@@ -1097,6 +1104,7 @@ class Stats:
         self.__max_sensitivity: int = spec_obj.max_sensitivity
         self.__min_subgraph_size: int = spec_obj.min_subgraph_size
         self.__iterations: int = spec_obj.iterations
+        self.__number_of_models: int = spec_obj.num_of_models
         self.__imax: int = spec_obj.imax
         self.__omax: int = spec_obj.omax
         self.__mode: int = spec_obj.mode
@@ -1285,19 +1293,20 @@ class Stats:
         mecals = Result(self.exact_name, sxpatconfig.MECALS)
         xpat = Result(self.exact_name, sxpatconfig.XPAT)
         muscat = Result(self.exact_name, sxpatconfig.MUSCAT)
-
+        # mecals.status = False
+        # xpat.status = False
+        # muscat.status = False
         subxpat = []
-        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=1))
-        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=1))
-        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=2))
-        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=3, omax=1))
-        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=3, omax=2))
-        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=3, omax=3))
-        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=4, omax=1))
-        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=4, omax=2))
-        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=4, omax=3))
-        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=1))
-        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, imax=2, omax=1))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=1, imax=2, omax=1))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=1, imax=2, omax=2))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=1, imax=3, omax=1))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=1, imax=3, omax=2))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=1, imax=3, omax=3))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=1, imax=4, omax=1))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=1, imax=4, omax=2))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=1, imax=4, omax=3))
+        # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=1, imax=4, omax=4))
+
 
         subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=5))
         subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=10))
@@ -1313,11 +1322,11 @@ class Stats:
 
 
         #
-        self.plot_area(subxpat_list= subxpat,
-                  xpat= xpat,
-                  mecals= mecals,
-                  muscat= muscat,
-                  best=True)
+        # self.plot_area(subxpat_list= subxpat,
+        #           xpat= xpat,
+        #           mecals= mecals,
+        #           muscat= muscat,
+        #           best=True)
 
         self.plot_area(subxpat_list=subxpat,
                        xpat=xpat,
@@ -1338,16 +1347,16 @@ class Stats:
         #                mecals=mecals,
         #                muscat=muscat)
         # #
-        self.plot_adp(subxpat_list= subxpat,
-                       xpat=xpat,
-                       mecals=mecals,
-                       muscat=muscat,
-                       best=True)
-        self.plot_adp(subxpat_list=subxpat,
-                      xpat=xpat,
-                      mecals=mecals,
-                      muscat=muscat,
-                      best=False)
+        # self.plot_adp(subxpat_list= subxpat,
+        #                xpat=xpat,
+        #                mecals=mecals,
+        #                muscat=muscat,
+        #                best=True)
+        # self.plot_adp(subxpat_list=subxpat,
+        #               xpat=xpat,
+        #               mecals=mecals,
+        #               muscat=muscat,
+        #               best=False)
         # #
         # self.plot_pdap(subxpat_list= subxpat,
         #                xpat=xpat,
@@ -1365,7 +1374,7 @@ class Stats:
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Area')
         ax.set_title(f'{self.exact_name} Area comparison', fontsize = 20)
-
+        print(f'{subxpat_list[0].mode = }')
 
 
         if muscat.status:
@@ -1389,25 +1398,28 @@ class Stats:
 
                         else:
                             best_area_dict[et] = subxpat.area_dict[et]
-                    if self.mode == 1:
+                    if subxpat.mode == 1:
                         label = f'SubXPAT_io_best'
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_best.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_best.pdf"
-                    elif self.mode == 3:
+                    elif subxpat.mode == 3:
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.pdf"
                         label = f'SubXPAT_subgraphsize_best'
             ax.plot(subxpat_list[0].error_array, best_area_dict.values(), label=label, marker='D', markeredgecolor='blue',
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
         else:
+            print(f'we are here')
             for idx, subxpat in enumerate(subxpat_list):
                 if subxpat.status:
-                    if self.mode == 1:
+                    if subxpat.mode == 1:
+
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_multiple.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_multiple.pdf"
                         color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
                         label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
-                    elif self.mode == 3:
+                    elif subxpat.mode == 3:
+
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_multiple.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_multiple.pdf"
                         color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']

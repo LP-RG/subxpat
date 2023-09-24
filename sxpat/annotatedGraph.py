@@ -177,52 +177,6 @@ class AnnotatedGraph(Graph):
                f'{self.subgraph_num_gates = }\n' \
                f'{self.partitioning_percentage = }\n'
 
-    # def extract_subgraph(self, specs_obj: TemplateSpecs):
-    #
-    #     if self.num_gates == 0:
-    #         print(
-    #             Fore.LIGHTRED_EX + f'No gates are found in the graph! Skipping the subgraph extraction' + Style.RESET_ALL)
-    #         return False
-    #     else:
-    #         print(Fore.BLUE + f'finding a subgraph (imax={specs_obj.imax}, omax={specs_obj.omax}) for {self.name}' + Style.RESET_ALL)
-    #         if specs_obj.max_sensitivity == -1:
-    #             print(Fore.BLUE + f"Partition without sensitivity start..." + Style.RESET_ALL)
-    #             self.subgraph = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
-    #         else:
-    #             print(Fore.BLUE + f"Partition with sensitivity start..." + Style.RESET_ALL)
-    #             iteration = 1
-    #             cnt_nodes = 0
-    #             specs_obj.sensitivity = 1
-    #             while ((cnt_nodes < specs_obj.min_subgraph_size and specs_obj.sensitivity < specs_obj.max_sensitivity) or cnt_nodes == 0):
-    #                 # specs_obj.sensitivity = iteration
-    #                 print(Fore.BLUE + f'iteration {iteration}' + Style.RESET_ALL)
-    #                 self.subgraph = self.find_subgraph_sensitivity(specs_obj)
-    #                 iteration += 1
-    #                 # Count how many nodes are in the subgraph
-    #                 cnt_nodes = 0
-    #                 for gate_idx in self.gate_dict:
-    #                     if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-    #                         cnt_nodes += 1
-    #                 specs_obj.sensitivity = 2 ** iteration - 1
-    #                 print("Nodes in partition: ", cnt_nodes)
-    #         print(Fore.BLUE + f'subgraph exported!' + Style.RESET_ALL)
-    #         self.export_annotated_graph()
-    #
-    #         self.subgraph_input_dict = self.extract_subgraph_inputs()
-    #         self.subgraph_output_dict = self.extract_subgraph_outputs()
-    #         self.subgraph_gate_dict = self.extract_subgraph_gates()
-    #         self.subgraph_fanin_dict = self.extract_subgraph_fanin()
-    #         self.subgraph_fanout_dict = self.extract_subgraph_fanout()
-    #         self.graph_intact_gate_dict = self.extract_graph_intact_gates()
-    #
-    #         self.subgraph_num_inputs = len(self.subgraph_input_dict)
-    #         self.subgraph_num_outputs = len(self.subgraph_output_dict)
-    #         self.subgraph_num_gates = len(self.subgraph_gate_dict)
-    #         self.subgraph_num_fanin = len(self.subgraph_fanin_dict)
-    #         self.subgraph_num_fanout = len(self.subgraph_fanout_dict)
-    #         self.graph_num_intact_gates = len(self.__graph_intact_gate_dict)
-    #         return True
-
     def extract_subgraph(self, specs_obj: TemplateSpecs):
 
         if self.num_gates == 0:
@@ -247,7 +201,7 @@ class AnnotatedGraph(Graph):
                 specs_obj.sensitivity = 1
                 n_outputs = len(self.output_dict)
 
-                while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs):
+                while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                     # specs_obj.sensitivity = iteration
                     self.subgraph = self.find_subgraph_sensitivity(specs_obj)
 
@@ -268,7 +222,7 @@ class AnnotatedGraph(Graph):
                 specs_obj.sensitivity = 1
                 n_outputs = len(self.output_dict)
 
-                while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs):
+                while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                     # specs_obj.sensitivity = iteration
                     self.subgraph = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
 
