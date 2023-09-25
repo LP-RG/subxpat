@@ -32,7 +32,7 @@ class Synthesis:
         self.__product_per_output = template_specs.products_per_output
         self.__error_threshold = template_specs.et
         self.__graph: AnnotatedGraph = graph_obj
-        self.__partitioning_percentage = template_specs.partitioning_percentage
+        self.__num_models: int = template_specs.num_of_models
         if json_obj == sxpatconfig.UNSAT or json_obj == sxpatconfig.UNKNOWN:
             print(Fore.RED + 'ERROR!!! the json does not contain any models!' + Style.RESET_ALL)
         else:
@@ -50,13 +50,10 @@ class Synthesis:
 
             self.__verilog_string: str = self.convert_to_verilog()
 
-    @property
-    def partitioning_percentage(self):
-        return self.__partitioning_percentage
 
     @property
-    def pp(self):
-        return self.__partitioning_percentage
+    def num_of_models(self):
+        return self.__num_models
 
     @property
     def benchmark_name(self):
@@ -154,11 +151,13 @@ class Synthesis:
     def verilog_string(self, this_verilog_string):
         self.__verilog_string = this_verilog_string
 
-    def set_path(self, this_path: Tuple[str, str]):
+    def set_path(self, this_path: Tuple[str, str], id: int = 0):
         folder, extenstion = this_path
-        self.ver_out_name = f'{self.exact_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
+        if self.num_of_models == 1:
+            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
+        elif self.num_of_models > 1:
+            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.ITER}{self.iterations}_id{id}.{extenstion}'
         return f'{folder}/{self.ver_out_name}'
-        # return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
 
     def convert_to_verilog(self, use_graph: bool = use_graph, use_json_model: bool = use_json_model):
         """
@@ -484,6 +483,7 @@ class Synthesis:
         return annotated_graph_output_wires
 
     def __annotated_graph_to_verilog(self):
+
         ver_str = f''
         # 1. module signature
         module_signature = self.__get_module_signature()
@@ -691,7 +691,6 @@ class Synthesis:
             with open(f'{this_path}/{self.ver_out_name}', 'w') as f:
                 f.writelines(self.verilog_string)
         else:
-
             with open(self.ver_out_path, 'w') as f:
                 f.writelines(self.verilog_string)
 

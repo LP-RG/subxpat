@@ -1307,7 +1307,10 @@ class Stats:
         # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=1, imax=4, omax=3))
         # subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=1, imax=4, omax=4))
 
-
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=1))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=2))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=3))
+        subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=4))
         subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=5))
         subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=10))
         subxpat.append(Result(self.exact_name, sxpatconfig.SUBXPAT, mode=3, subgraphsize=15))
@@ -1322,11 +1325,11 @@ class Stats:
 
 
         #
-        # self.plot_area(subxpat_list= subxpat,
-        #           xpat= xpat,
-        #           mecals= mecals,
-        #           muscat= muscat,
-        #           best=True)
+        self.plot_area(subxpat_list= subxpat,
+                  xpat= xpat,
+                  mecals= mecals,
+                  muscat= muscat,
+                  best=True)
 
         self.plot_area(subxpat_list=subxpat,
                        xpat=xpat,
@@ -1374,7 +1377,7 @@ class Stats:
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Area')
         ax.set_title(f'{self.exact_name} Area comparison', fontsize = 20)
-        print(f'{subxpat_list[0].mode = }')
+
 
 
         if muscat.status:
@@ -1407,28 +1410,37 @@ class Stats:
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.pdf"
                         label = f'SubXPAT_subgraphsize_best'
             ax.plot(subxpat_list[0].error_array, best_area_dict.values(), label=label, marker='D', markeredgecolor='blue',
-                    markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+            markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
         else:
-            print(f'we are here')
+
             for idx, subxpat in enumerate(subxpat_list):
                 if subxpat.status:
                     if subxpat.mode == 1:
 
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_multiple.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_multiple.pdf"
-                        color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
+
                         label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
                     elif subxpat.mode == 3:
 
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_multiple.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_multiple.pdf"
-                        color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']
+
                         label = f'SubXPAT_subgraphsize{subxpat.subgraphsize}'
-                    ax.plot(subxpat.error_array, subxpat.area_dict.values(), label=label,marker='D', markeredgecolor=color,
+                    ax.plot(subxpat.error_array, subxpat.area_dict.values(), label=label,marker='D',
                         markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
         plt.xticks(muscat.error_array)
-        plt.legend(loc='best')
+        if len(subxpat_list) > 8:
+            plt.legend()
+            # Put a legend below current axis
+            # plt.legend(loc='upper center', bbox_to_anchor=(1.5, 0.5),
+            #           fancybox=True, shadow=True, ncol=5)
+            # plt.tight_layout()
+        else:
+            plt.legend(loc='best')
+
+
 
         plt.savefig(figurename_png)
         # plt.savefig(figurename_pdf)
