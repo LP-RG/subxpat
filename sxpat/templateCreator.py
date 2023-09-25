@@ -148,8 +148,8 @@ class Template_SOP1(TemplateCreator):
 
         self.__json_out_path = None
         self.__json_in_path = None
-        self.__json_model = None
-        self.__json_status = None
+        self.__json_model: List = []
+        self.__json_status: List = []
 
 
 
@@ -278,6 +278,7 @@ class Template_SOP1(TemplateCreator):
             z.writelines(self.z3pyscript)
 
     def import_json_model(self, this_path=None):
+        print(f'Calling import json model')
         if this_path:
             self.json_in_path(this_path)
         else:
@@ -285,24 +286,30 @@ class Template_SOP1(TemplateCreator):
 
         with open(self.json_in_path, 'r') as f:
             data = json.load(f)
+        # for d in data:
+        #     print(f'{d = }')
 
         for d in data:
+            # print(f'{d = }')
             for key in d.keys():
+                # print(f'{key = }')
                 if key == RESULT:
                     if d[key] == SAT:
-                        self.json_model = d[MODEL]
-                        self.json_status = SAT
-                        return True
+                        # self.json_model = d[MODEL]
+                        self.json_model.append(d[MODEL])
+                        self.json_status.append(SAT)
                     elif d[key] == UNSAT:
-                        # TODO:
-                        # FIX LATER
-                        self.json_model = UNSAT
-                        self.json_status = UNSAT
-                        return False
+                        self.json_model.append(None)
+                        self.json_status.append(UNSAT)
                     else:
-                        self.json_model = UNKNOWN
-                        self.json_status = UNKNOWN
-                        return False
+                        self.json_model.append(None)
+                        self.json_status.append(UNKNOWN)
+        print(f'We are here!')
+        # for stat in self.json_status:
+        #     if stat == UNSAT or stat == UNKNOWN:
+        #         return False
+        # return True
+
 
     def get_json_runtime(self, this_id: int = 0):
 

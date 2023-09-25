@@ -79,8 +79,8 @@ def explore_grid(specs_obj: TemplateSpecs):
         print(Fore.LIGHTBLUE_EX + f'iteration {i}' + Style.RESET_ALL)
         template_obj.current_graph = template_obj.import_graph()
 
-        if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3:
-            template_obj.label_graph(2)
+        # if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3:
+        #     template_obj.label_graph(2)
 
         subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
 
@@ -100,11 +100,13 @@ def explore_grid(specs_obj: TemplateSpecs):
                         lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
                         continue
 
+                    print(f'{lpp} {ppo}')
+
                     specs_obj = set_current_context(specs_obj, lpp, ppo, i)
                     template_obj.set_new_context(specs_obj)
                     template_obj.z3_generate_z3pyscript()
 
-                    template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, 10800)
+                    template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models + 1, 10800)
                     cur_status = get_status(template_obj)
 
                     if cur_status == EMPTY:  # if empty
@@ -270,13 +272,15 @@ def get_status(template_obj: Template_SOP1) -> str:
     :param: the current template object
     :rtype: an str containing either of SAT, UNSAT, or UNKNOWN
     """
+    print(f'getting status')
     template_obj.import_json_model()
-    if template_obj.json_status == SAT:
+    if template_obj.json_status[0] == SAT:
         return SAT
-    elif template_obj.json_status == UNSAT:
+    elif template_obj.json_status[0] == UNSAT:
         return UNSAT
-    elif template_obj.json_status == UNKNOWN:
+    elif template_obj.json_status[0] == UNKNOWN:
         return UNKNOWN
+
 
 
 
