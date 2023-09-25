@@ -79,8 +79,8 @@ def explore_grid(specs_obj: TemplateSpecs):
         print(Fore.LIGHTBLUE_EX + f'iteration {i}' + Style.RESET_ALL)
         template_obj.current_graph = template_obj.import_graph()
 
-        # if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3:
-        #     template_obj.label_graph(2)
+        if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3:
+            template_obj.label_graph(2)
 
         subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
 
