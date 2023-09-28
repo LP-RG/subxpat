@@ -1,10 +1,13 @@
+from abc import abstractclassmethod
+from enum import Enum
 from itertools import repeat, islice
-from typing import Tuple, List, Callable, Any, Union
+from typing import Iterable, Iterator, Tuple, List, Callable, Any, Union
 import networkx as nx
 import json
 import subprocess
 from subprocess import PIPE
 from colorama import Fore, Style
+import dataclasses as dc
 
 from Z3Log.config.config import *
 from Z3Log.config.path import *
@@ -33,9 +36,6 @@ class TemplateCreator:
         self.__exact_graph = self.import_exact_graph()
         self.__z3pyscript_out_path = None
 
-
-
-
         if self.current_graph.subgraph:
             self.current_graph.export_annotated_graph()
 
@@ -50,6 +50,7 @@ class TemplateCreator:
     @property
     def template_name(self):
         return self.__template_name
+
     @template_name.setter
     def template_name(self, this_template_name):
         self.__template_name = this_template_name
@@ -57,6 +58,7 @@ class TemplateCreator:
     @property
     def benchmark_name(self):
         return self.__benchmark_name
+
     @benchmark_name.setter
     def benchmark_name(self, this_benchmark_name):
         self.__benchmark_name = this_benchmark_name
@@ -64,6 +66,7 @@ class TemplateCreator:
     @property
     def exact_benchmark(self):
         return self.__exact_benchmark_name
+
     @exact_benchmark.setter
     def exact_benchmark(self, this_exact_benchmark):
         self.__exact_benchmark_name = this_exact_benchmark
@@ -71,6 +74,7 @@ class TemplateCreator:
     @property
     def current_graph(self):
         return self.__current_graph
+
     @current_graph.setter
     def current_graph(self, this_current_graph):
         self.__current_graph = this_current_graph
@@ -78,6 +82,7 @@ class TemplateCreator:
     @property
     def exact_graph(self):
         return self.__exact_graph
+
     @exact_graph.setter
     def exact_graph(self, this_exact_graph):
         self.__exact_graph = this_exact_graph
@@ -111,11 +116,10 @@ class TemplateCreator:
 
         temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False, partitioning_percentage=1)
 
-
         # if temp_graph_obj.subgraph is None:
         #     print(Fore.RED + f'Subgraph is empty!' + Style.RESET_ALL)
-            # raise Exception(
-            #     Fore.RED + f'Subgraph has no gates!\nPlease choose another subgraph!\n\nExtracted Subgraph:\n{temp_graph_obj}' + Style.RESET_ALL)
+        # raise Exception(
+        #     Fore.RED + f'Subgraph has no gates!\nPlease choose another subgraph!\n\nExtracted Subgraph:\n{temp_graph_obj}' + Style.RESET_ALL)
         return temp_graph_obj
 
     def import_exact_graph(self):
@@ -150,9 +154,6 @@ class Template_SOP1(TemplateCreator):
         self.__json_in_path = None
         self.__json_model = None
         self.__json_status = None
-
-
-
 
     @property
     def literals_per_product(self):
@@ -221,6 +222,7 @@ class Template_SOP1(TemplateCreator):
     @property
     def z3_out_path(self):
         return self.__z3_out_path
+
     @z3_out_path.setter
     def z3_out_path(self, this_z3_out_path):
         self.__z3_out_path = this_z3_out_path
@@ -228,6 +230,7 @@ class Template_SOP1(TemplateCreator):
     @property
     def json_out_path(self):
         return self.__json_out_path
+
     @json_out_path.setter
     def json_out_path(self, this_json_out_path):
         self.__json_out_path = this_json_out_path
@@ -240,9 +243,7 @@ class Template_SOP1(TemplateCreator):
     def json_in_path(self, this_json_path):
         self.__json_in_path = this_json_path
 
-
-
-    def label_graph(self, constant_value = 2):
+    def label_graph(self, constant_value: int = 2):
         print(Fore.BLUE + f'labeling...' + Style.RESET_ALL)
         labels1, labels0 = labeling(self.exact_benchmark, self.benchmark_name, constant_value)
         for n in self.current_graph.graph.nodes:
@@ -263,10 +264,6 @@ class Template_SOP1(TemplateCreator):
         self.exact_benchmark = specs_obj.exact_benchmark
         self.json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
         self.z3_out_path = self.set_path(OUTPUT_PATH['z3'])
-
-
-
-
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extension = this_path
@@ -345,13 +342,13 @@ class Template_SOP1(TemplateCreator):
             find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
             store_data = self.z3_generate_store_data()
             self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
-                              + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
-                              + approximate_circuit_wires_declaration \
-                              + exact_circuit_outputs_declaration \
-                              + approximate_circuit_outputs_declaration \
-                              + exact_circuit_constraints + approximate_circuit_constraints_subxpat \
-                              + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
-                              + store_data
+                + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
+                + approximate_circuit_wires_declaration \
+                + exact_circuit_outputs_declaration \
+                + approximate_circuit_outputs_declaration \
+                + exact_circuit_constraints + approximate_circuit_constraints_subxpat \
+                + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
+                + store_data
 
         # TODO: Fix Later
         else:
@@ -373,10 +370,10 @@ class Template_SOP1(TemplateCreator):
             find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
             store_data = self.z3_generate_store_data()
             self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
-                              + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
-                              + exact_circuit_outputs_declaration + exact_circuit_constraints + approximate_circuit_constraints \
-                              + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
-                              + store_data
+                + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
+                + exact_circuit_outputs_declaration + exact_circuit_constraints + approximate_circuit_constraints \
+                + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
+                + store_data
 
         self.export_z3pyscript()
 
@@ -503,7 +500,6 @@ class Template_SOP1(TemplateCreator):
         # TODO:
         # Fix when PIs are not the subgrpah's inputs
 
-
         gate_key_list = list(self.current_graph.gate_dict.keys())
         constant_key_list = list(self.current_graph.constant_dict.keys())
         # gates
@@ -591,8 +587,9 @@ class Template_SOP1(TemplateCreator):
 
     def z3_express_node_as_wire_constraints(self, node: str):
         # print(f'{self.exact_graph.graph.nodes = }')
-        assert node in list(self.exact_graph.input_dict.values()) or node in list(self.exact_graph.gate_dict.values()) \
-               or node in list(self.exact_graph.output_dict.values())
+        assert node in list(self.exact_graph.input_dict.values()) \
+            or node in list(self.exact_graph.gate_dict.values()) \
+            or node in list(self.exact_graph.output_dict.values())
         if node in list(self.exact_graph.input_dict.values()):
             return node
         elif node in list(self.exact_graph.gate_dict.values()):
@@ -656,11 +653,11 @@ class Template_SOP1(TemplateCreator):
         # print(f'{self.current_graph.input_dict.values() = }')
         # print(f'{self.current_graph.gate_dict.values() = }')
         # print(f'{self.current_graph.output_dict.values() = }')
-        assert node in list(self.current_graph.input_dict.values()) or node in list(
-            self.current_graph.gate_dict.values()) \
-               or node in list(self.current_graph.output_dict.values()) or node in list(
-            self.current_graph.constant_dict.values()) \
-               or node.startswith(APPROXIMATE_WIRE_PREFIX)
+        assert node in list(self.current_graph.input_dict.values()) \
+            or node in list(self.current_graph.gate_dict.values()) \
+            or node in list(self.current_graph.output_dict.values()) \
+            or node in list(self.current_graph.constant_dict.values()) \
+            or node.startswith(APPROXIMATE_WIRE_PREFIX)
 
         if node in list(self.current_graph.input_dict.values()):
             return node
@@ -1465,4 +1462,367 @@ class Template_SOP1ShareLogic(TemplateCreator):
     # eerag
     # asdfsd
 
-    ##### here, I have to insert something
+    # here, I have to insert something
+
+
+def format_lines(lines: Iterator[str], indent_amount: int = 0, extra_newlines: int = 0) -> str:
+    def indenter(s: str) -> str:
+        return TAB * indent_amount + s
+    return "\n".join(map(indenter, lines)) + "\n" * (1 + extra_newlines)
+
+
+class DistanceFunction:
+    def __init__(self) -> None: raise NotImplementedError(f"Class `{self.__class__.__name__}` is an abstract class, cannot be instantiated.")
+
+    @abstractclassmethod
+    def declaration_function(self, prefix: str) -> str:
+        pass
+
+    @abstractclassmethod
+    def definition_function(self, prefix: str,
+                            vars_1: Iterable[str], vars_2: Iterable[str]
+                            ) -> List[str]:
+        pass
+
+
+class HammingDistance(DistanceFunction):
+    def __init__(self) -> None: pass
+
+    def declaration_function(self, prefix: str) -> List[str]:
+        return [""]
+
+    def definition_function(self, prefix: str,
+                            vars_1: Iterable[str], vars_2: Iterable[str]
+                            ) -> List[str]:
+        return [
+            "# Function: hamming distance",
+            f"{prefix}_out_dist == " + " + ".join(
+                f"If({v1} == {v2}, 0, 1)"
+                for v1, v2 in zip(vars_1, vars_2)
+            ) + ","
+        ]
+
+
+class WeightedAbsoluteDifference(DistanceFunction):
+    def __init__(self, weights: Iterable[int]) -> None:
+        self.weights = list(weights)
+
+    def declaration_function(self, prefix: str) -> List[str]:
+        return [
+            f"{prefix}_val1 = {Z3INT}('val1')",
+            f"{prefix}_val2 = {Z3INT}('val2')",
+            ""
+        ]
+
+    def definition_function(self, prefix: str,
+                            vars_1: Iterable[str], vars_2: Iterable[str]
+                            ) -> List[str]:
+        val1 = f"{prefix}_val1"
+        val2 = f"{prefix}_val2"
+        val1_parts = [f"{v}*{w}" for v, w in zip(vars_1, self.weights)]
+        val2_parts = [f"{v}*{w}" for v, w in zip(vars_2, self.weights)]
+        return [
+            "# Function: weighted sum absolute difference",
+            f"{val1} == {' + '.join(val1_parts)},",
+            f"{val2} == {' + '.join(val2_parts)},",
+            f"{prefix}_out_dist == If({val1} > {val2}, {val1} - {val2}, {val2} - {val1}),"
+        ]
+
+
+class IntegerAbsoluteDifference(WeightedAbsoluteDifference):
+    def __init__(self, variables_count: int) -> None:
+        super().__init__(2**i for i in range(variables_count-1, -1, -1))
+
+    def definition_function(self, prefix: str,
+                            vars_1: Iterable[str], vars_2: Iterable[str]
+                            ) -> List[str]:
+        lines = super().definition_function(prefix, vars_1, vars_2)
+        lines[0] = "# Function: integer sum absolute difference"
+        return lines
+
+
+class Template_V2(Template_SOP1):
+    def __init__(self, template_specs: TemplateSpecs):
+        super().__init__(template_specs)
+
+        self.c_name_1 = "c1"
+        self.c_name_2 = "c2"
+
+        self.cir_dist_func = IntegerAbsoluteDifference(len(self.exact_graph.output_dict))
+        self.sub_dist_func = HammingDistance()
+
+    def get_cir_out(self, c_name: str = None, vars: Iterable[str] = None):
+        c_name = "" if c_name is None else f"{c_name}_"
+        vars = map(lambda v: EXACT_OUTPUT_PREFIX+v, self.current_graph.output_dict.values()) if vars is None else vars
+        return [
+            f"{c_name}{name}"
+            for name in vars
+        ]
+
+    def get_sub_out(self, c_name: str = None, vars: Iterable[str] = None):
+        c_name = "" if c_name is None else f"{c_name}_sub_"
+        vars = list(self.current_graph.subgraph_output_dict.values() if vars is None else vars)
+        return [
+            f"{c_name}{name}"
+            for name in vars
+        ]
+
+    def z3_generate_exact_circuit_constraints(self, c_name: str):
+        return format_lines([
+            self.z3_generate_exact_circuit_wire_constraints(c_name),    # wires
+            self.z3_generate_exact_circuit_output_constraints(c_name),  # outputs
+            ")"
+        ])
+
+    def prefixed_name(self, raw: str, c_name: str) -> str:
+        if raw in self.exact_graph.input_dict.values():
+            return raw
+        return f"{c_name}_{self.z3_express_node_as_wire_constraints(raw)}"
+
+    def z3_generate_exact_circuit_wire_constraints(self, c_name: str):
+        def prefixed_name(raw): return self.prefixed_name(raw, c_name)
+
+        lines = []
+        lines.extend([f'# exact circuit constraints',
+                      f'{c_name} = And(',
+                      f'{TAB}# wires'])
+
+        for g_idx in range(self.exact_graph.num_gates):
+            g_label = self.exact_graph.gate_dict[g_idx]
+            g_predecessors = self.get_predecessors(g_label)
+            g_function = self.get_logical_function(g_label)
+
+            if g_label in self.current_graph.subgraph_output_dict.values():
+                lines.append(
+                    f"{TAB}{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}"
+                    f"({','.join(self.exact_graph.input_dict.values())})"
+                    f" == {c_name}_sub_{g_label},"
+                )
+                continue
+
+            assert len(g_predecessors) == 1 or len(g_predecessors) == 2
+            assert g_function in (NOT, AND, OR)
+
+            if len(g_predecessors) == 1:
+                pred_1 = prefixed_name(g_predecessors[0])
+                lines.append(
+                    f"{TAB}{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}"
+                    f"({','.join(self.exact_graph.input_dict.values())})"
+                    f" == {TO_Z3_GATE_DICT[g_function]}({pred_1}),"
+                )
+
+            else:
+                pred_1 = prefixed_name(g_predecessors[0])
+                pred_2 = prefixed_name(g_predecessors[1])
+                lines.append(
+                    f"{TAB}{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}"
+                    f"({','.join(self.exact_graph.input_dict.values())})"
+                    f" == {TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),"
+                )
+
+        return format_lines(lines)
+
+    def z3_generate_exact_circuit_output_constraints(self, c_name: str):
+        exact_output_constraints = ''
+        exact_output_constraints += f'{TAB}# boolean outputs (from the least significant)\n'
+        for output_idx in self.exact_graph.output_dict.keys():
+            output_label = self.exact_graph.output_dict[output_idx]
+            output_predecessors = list(self.exact_graph.graph.predecessors(output_label))
+            assert len(output_predecessors) == 1
+
+            if output_predecessors[0] in list(self.exact_graph.input_dict.values()):
+                pred = self.z3_express_node_as_wire_constraints(output_predecessors[0])
+            else:
+                pred = f"{c_name}_{self.z3_express_node_as_wire_constraints(output_predecessors[0])}"
+            output = self.z3_express_node_as_wire_constraints(output_label)
+            exact_output_constraints += f'{TAB}{c_name}_{output} == {pred},\n'
+        return exact_output_constraints
+
+    def z3_generate_exact_circuit_outputs_declaration(self, c_name: str):
+        return format_lines(
+            [
+                f"# outputs functions declaration for exact circuit",
+                *(
+                    (
+                        f"{c_name}_{EXACT_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} "
+                        f"('{c_name}_{EXACT_OUTPUT_PREFIX}{OUT}{output_idx}', {', '.join(repeat(BOOLSORT, self.current_graph.num_inputs + 1))})"
+                    )
+                    for output_idx in range(self.current_graph.num_outputs)
+                )
+            ],
+            extra_newlines=1
+        )
+
+    def z3_generate_exact_circuit_wires_declaration(self, c_name: str):
+        return format_lines([
+            f"# wires functions declaration for exact circuit",
+            *(
+                (
+                    f"{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx} = "
+                    f"{FUNCTION}('{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}', "
+                    f"{', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))}, {BOOLSORT})"
+                )
+                for g_idx in range(self.exact_graph.num_gates)
+            )
+        ])
+
+    def z3_generate_utility_variables(self):
+        return format_lines([
+            f'# utility variables',
+            f"error = {Z3INT}('error')",
+        ])
+
+    def generate_z3py_suboutput_variables(self, c_name: str):
+        return format_lines([
+            f"# Subgraph output variables declaration",
+            *(
+                self.declare_gate(name).strip()
+                for name in self.get_sub_out(c_name)
+            )
+        ])
+
+    def z3_generate_distance_declaration(self):
+        return format_lines([
+            "# Distance variables",
+            f"cir_out_dist = {Z3INT}('cir_out_dist')",
+            *self.cir_dist_func.declaration_function("cir"),
+            f"sub_out_dist = {Z3INT}('sub_out_dist')",
+            *self.sub_dist_func.declaration_function("sub")
+        ])
+
+    def z3_generate_distance_definition(self):
+        fun_cir_vars = [
+            f"{EXACT_OUTPUT_PREFIX}{v[1:]}({','.join(list(self.exact_graph.input_dict.values()))})"
+            for v in self.get_cir_out()
+        ]
+
+        cir_vars_1 = self.get_cir_out(self.c_name_1, fun_cir_vars)
+        cir_vars_2 = self.get_cir_out(self.c_name_2, fun_cir_vars)
+        sub_vars_1 = self.get_sub_out(self.c_name_1)
+        sub_vars_2 = self.get_sub_out(self.c_name_2)
+        return format_lines(
+            [
+                "# circuits distance",
+                *self.cir_dist_func.definition_function("cir", cir_vars_1, cir_vars_2),
+                "",
+                "# subcircuits distance",
+                *self.sub_dist_func.definition_function("sub", sub_vars_1, sub_vars_2)
+            ],
+            indent_amount=1
+        )
+
+    def z3_generate_forall_solver_circuits(self):
+        return format_lines(
+            [
+                "# circuits",
+                f"{self.c_name_1},",
+                f"{self.c_name_2},",
+            ],
+            indent_amount=2
+        )
+
+    def z3_generate_optimizer(self):
+        return format_lines(
+            [
+                f"# optimizer",
+                f"optimizer = z3.Optimize()",
+                f"",
+                f"# add circuits to optimizer",
+                f"optimizer.add({self.c_name_1}, {self.c_name_2})",
+                f"",
+                f"# add distances",
+                f"optimizer.add(",
+                self.z3_generate_distance_definition(),
+                f")",
+                f"",
+                f"# add constraints",
+                f"optimizer.add(cir_out_dist > ET)",
+                f"",
+                f"# setup objective",
+                f"objective = optimizer.minimize(sub_out_dist)",
+                f"",
+                f"# optimize",
+                f"optimizer.check()",
+                f"optimizer.lower(objective)",
+                f"",
+                f"# extract wanted distance",
+                f"model = optimizer.model()",
+            ],
+            extra_newlines=1)
+
+    def z3_generate_script_output(self):
+        return format_lines([
+            f"# print results",
+            f"print('e = cir_out_dist =', model[cir_out_dist])",
+            f"print('d = sub_out_dist =', model[sub_out_dist])",
+        ])
+
+    def generate_z3py_script_v2_phase1(self):
+        imports = self.z3_generate_imports()  # parent
+        config = self.z3_generate_config()
+        z3_abs_function = self.z3_generate_z3_abs_function()  # parent
+        input_variables_declaration = self.z3_generate_declare_input_variables()
+
+        subinputs_1 = self.generate_z3py_suboutput_variables(self.c_name_1)
+        subinputs_2 = self.generate_z3py_suboutput_variables(self.c_name_2)
+
+        integer_function_declaration_1 = self.z3_generate_declare_integer_function(f"{self.c_name_1}_{F_EXACT}")
+        integer_function_declaration_2 = self.z3_generate_declare_integer_function(f"{self.c_name_2}_{F_EXACT}")
+
+        utility_variables = self.z3_generate_utility_variables()
+        # implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters_subxpat()
+        # TODO: MARCO
+        circuit_1 = "".join([
+            self.z3_generate_exact_circuit_wires_declaration(self.c_name_1),  # exact_circuit_wires_declaration
+            self.z3_generate_exact_circuit_outputs_declaration(self.c_name_1),  # exact_circuit_outputs_declaration
+            self.z3_generate_exact_circuit_constraints(self.c_name_1),  # exact_circuit_constraints
+        ])
+        circuit_2 = "".join([
+            self.z3_generate_exact_circuit_wires_declaration(self.c_name_2),  # exact_circuit_wires_declaration
+            self.z3_generate_exact_circuit_outputs_declaration(self.c_name_2),  # exact_circuit_outputs_declaration
+            self.z3_generate_exact_circuit_constraints(self.c_name_2),  # exact_circuit_constraints
+        ])
+        distance_declaration = self.z3_generate_distance_declaration()
+        # TODO: MARCO
+        # approximate_circuit_wires_declaration = self.z3_generate_approximate_circuit_wires_declaration_subxpat()
+        # approximate_circuit_outputs_declaration = self.z3_generate_approximate_circuit_outputs_declaration()
+        # approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_subxpat()
+
+        optimizer = self.z3_generate_optimizer()
+        output = self.z3_generate_script_output()
+
+        # verification_solver = self.z3_generate_verification_solver()
+        # parameter_constraint_list = self.z3_generate_parameter_constraint_list()
+        # find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
+        # store_data = self.z3_generate_store_data()
+
+        z3pyscript = "".join([
+            imports,
+            config,
+            z3_abs_function,
+            input_variables_declaration,
+            subinputs_1,
+            subinputs_2,
+            integer_function_declaration_1,
+            integer_function_declaration_2,
+            utility_variables,
+            # implicit_parameters_declaration,
+            # exact_circuit_wires_declaration,
+            # approximate_circuit_wires_declaration,
+            # exact_circuit_outputs_declaration,
+            # approximate_circuit_outputs_declaration,
+            # exact_circuit_constraints,
+            # approximate_circuit_constraints_subxpat,
+            circuit_1,
+            circuit_2,
+            distance_declaration,
+            optimizer,
+            output,
+            # verification_solver,
+            # parameter_constraint_list,
+            # find_wanted_number_of_models,
+            # store_data
+        ])
+
+        with open("TMP.py", "w") as f:
+            f.write(z3pyscript)
