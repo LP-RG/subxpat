@@ -1,7 +1,9 @@
+from itertools import filterfalse
 from typing import Dict, List, Callable
 from sklearn.cluster import SpectralClustering
 from colorama import Fore, Style
 import time
+import io
 
 import networkx as nx
 from Z3Log.graph import Graph
@@ -13,6 +15,7 @@ from z3 import *
 
 from .templateSpecs import TemplateSpecs
 
+
 class AnnotatedGraph(Graph):
     def __init__(self, benchmark_name: str, is_clean: bool = False, partitioning_percentage: int = 50) -> None:
         # Prepare a clean Verilog
@@ -23,14 +26,9 @@ class AnnotatedGraph(Graph):
         super().__init__(benchmark_name, is_clean)
         folder, extension = INPUT_PATH['ver']
 
-
-
         self.set_output_dict(self.sort_dict(self.output_dict))
 
-
         self.__partitioning_percentage = partitioning_percentage
-
-
 
         self.__subgraph = None
         self.__subgraph_input_dict = None
@@ -46,7 +44,6 @@ class AnnotatedGraph(Graph):
         self.__subgraph_num_fanin = None
         self.__subgraph_num_fanout = None
         self.__graph_num_intact_gates = None
-
 
         self.__add_weights()
 
@@ -76,6 +73,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_input_dict(self):
         return self.__subgraph_input_dict
+
     @subgraph_input_dict.setter
     def subgraph_input_dict(self, this_subgraph_input_dict):
         self.__subgraph_input_dict = this_subgraph_input_dict
@@ -83,6 +81,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_output_dict(self):
         return self.__subgraph_output_dict
+
     @subgraph_output_dict.setter
     def subgraph_output_dict(self, this_subgraph_output_dict):
         self.__subgraph_output_dict = this_subgraph_output_dict
@@ -90,6 +89,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_gate_dict(self):
         return self.__subgraph_gate_dict
+
     @subgraph_gate_dict.setter
     def subgraph_gate_dict(self, this_subgraph_gate_dict):
         self.__subgraph_gate_dict = this_subgraph_gate_dict
@@ -97,6 +97,7 @@ class AnnotatedGraph(Graph):
     @property
     def graph_intact_gate_dict(self):
         return self.__graph_intact_gate_dict
+
     @graph_intact_gate_dict.setter
     def graph_intact_gate_dict(self, this_graph_intact_gate_dict):
         self.__graph_intact_gate_dict = this_graph_intact_gate_dict
@@ -104,6 +105,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_fanin_dict(self):
         return self.__subgraph_fanin_dict
+
     @subgraph_fanin_dict.setter
     def subgraph_fanin_dict(self, this_subgraph_fanin_dict):
         self.__subgraph_fanin_dict = this_subgraph_fanin_dict
@@ -111,6 +113,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_fanout_dict(self):
         return self.__subgraph_fanout_dict
+
     @subgraph_fanout_dict.setter
     def subgraph_fanout_dict(self, this_subgraph_fanout_dict):
         self.__subgraph_fanout_dict = this_subgraph_fanout_dict
@@ -118,6 +121,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_num_inputs(self):
         return self.__subgraph_num_inputs
+
     @subgraph_num_inputs.setter
     def subgraph_num_inputs(self, this_subgraph_num_inputs):
         self.__subgraph_num_inputs = this_subgraph_num_inputs
@@ -125,6 +129,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_num_outputs(self):
         return self.__subgraph_num_outputs
+
     @subgraph_num_outputs.setter
     def subgraph_num_outputs(self, this_subgraph_num_outputs):
         self.__subgraph_num_outputs = this_subgraph_num_outputs
@@ -132,6 +137,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_num_gates(self):
         return self.__subgraph_num_gates
+
     @subgraph_num_gates.setter
     def subgraph_num_gates(self, this_subgraph_num_gates):
         self.__subgraph_num_gates = this_subgraph_num_gates
@@ -139,6 +145,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_num_fanin(self):
         return self.__subgraph_num_fanin
+
     @subgraph_num_fanin.setter
     def subgraph_num_fanin(self, this_subgraph_num_fanin):
         self.__subgraph_num_fanin = this_subgraph_num_fanin
@@ -146,6 +153,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_num_fanout(self):
         return self.__subgraph_num_fanout
+
     @subgraph_num_fanout.setter
     def subgraph_num_fanout(self, this_subgraph_num_fanout):
         self.__subgraph_num_fanout = this_subgraph_num_fanout
@@ -166,8 +174,6 @@ class AnnotatedGraph(Graph):
         #     print(f'{n = }')
         #
         # exit()
-
-
 
     def __repr__(self):
         return f'An object of class AnnotatedGraph:\n' \
@@ -798,10 +804,10 @@ class AnnotatedGraph(Graph):
         # print(f'{self.name = }')
         subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
 
-
     # TODO: fix checks!
     # The checks are done on the original graph instead of the annotated graph!
-    def export_node(self, n, file_handler: 'class _io.TextIOWrapper'):
+
+    def export_node(self, n, file_handler: io.TextIOWrapper):
         """
         exports node n as a line of file that is identified by file_hanlder
         :param n: the label of node n
@@ -868,13 +874,8 @@ class AnnotatedGraph(Graph):
         :param n: a node
         :return: True if node n belongs to the subgraph, otherwise returns False
         """
-        if SUBGRAPH in self.subgraph.nodes[n]:
-            if self.subgraph.nodes[n][SUBGRAPH] == 1:
-                return True
-            else:
-                return False
-        else:
-            return False
+        # NOTE: updated by Marco
+        return self.subgraph.nodes[n].get(SUBGRAPH, 0) == 1
 
     def is_subgraph_fanin(self, n):
         """
@@ -889,6 +890,12 @@ class AnnotatedGraph(Graph):
                     return True
         else:
             return False
+        # NOTE: updated by Marco
+        # TODO: verify
+        return (
+            not self.is_subgraph_member(n)
+            and any(map(self.is_subgraph_member, self.subgraph.successors(n)))
+        )
 
     def is_subgraph_fanout(self, n):
         """
@@ -903,6 +910,12 @@ class AnnotatedGraph(Graph):
                     return True
         else:
             return False
+        # NOTE: updated by Marco
+        # TODO: verify
+        return (
+            not self.is_subgraph_member(n)
+            and any(map(self.is_subgraph_member, self.subgraph.predecessors(n)))
+        )
 
     def is_subgraph_output(self, n):
         """
@@ -917,11 +930,17 @@ class AnnotatedGraph(Graph):
                 if not self.is_subgraph_member(sn):
                     return True
         return False
-
+        # NOTE: updated by Marco
+        # TODO: verify
+        return (
+            self.is_subgraph_member(n)
+            and not all(map(self.is_subgraph_member, self.subgraph.successors(n)))
+        )
 
     # TODO:
     # This part should generate a comment in verilog expressing:
     # Annotated subgraph inputs
+
     def is_subgraph_input(self, n):
         """
         checks whether node n is an input node of the subgraph; an input node is a (non-member) node that has an ingoing edge
@@ -934,8 +953,13 @@ class AnnotatedGraph(Graph):
             for sn in successors:
                 if self.is_subgraph_member(sn):
                     return True
-
         return False
+        # NOTE: updated by Marco
+        # TODO: verify
+        return (
+            not self.is_subgraph_member(n)
+            and any(map(self.is_subgraph_member, self.subgraph.successors(n)))
+        )
 
     def extract_subgraph_gates(self) -> Dict[int, str]:
         """
@@ -951,6 +975,15 @@ class AnnotatedGraph(Graph):
 
         return s_gates_dict
 
+        # NOTE: updated by Marco
+        # TODO: verify
+        graph_gate_id: Dict[str, int] = {v: i for i, v in enumerate(self.gate_dict.values())}
+        return {
+            graph_gate_id[n]: n
+            for n in self.subgraph.nodes
+            if self.is_subgraph_member(n)
+        }
+
     def extract_graph_intact_gates(self):
         """
         extracts non-subgraph gates and stores them in a dictionary where keys are indices and values are gate labels
@@ -965,6 +998,14 @@ class AnnotatedGraph(Graph):
 
         return s_gates_dict
 
+        # NOTE: updated by Marco
+        # TODO: verify
+        return {
+            i: n
+            for i, n in enumerate(self.gate_dict.values())
+            if not self.is_subgraph_member(n)
+        }
+
     def extract_subgraph_inputs(self):
         """
         extracts subgraph inputs (non-member nodes) and stores them in a dictionary where keys are indices and values are gate labels
@@ -977,6 +1018,16 @@ class AnnotatedGraph(Graph):
                 s_input_dict[idx] = n
                 idx += 1
         return s_input_dict
+
+        # NOTE: updated by Marco
+        # TODO: verify
+        return {
+            i: n
+            for i, n in enumerate(filter(
+                self.is_subgraph_input,
+                self.gate_dict.values()
+            ))
+        }
 
     def extract_subgraph_outputs(self):
         """
@@ -994,7 +1045,7 @@ class AnnotatedGraph(Graph):
         # print(f'{tmp_output_dict = }')
         return tmp_output_dict
 
-    #TODO
+    # TODO
     # Deprecated
     def extract_subgraph_fanin(self):
         tmp_fanin_dict: Dict[int, str] = {}
@@ -1017,8 +1068,3 @@ class AnnotatedGraph(Graph):
                 idx += 1
                 self.color_subgraph_node(n, WHITE)
         return tmp_fanout_dict
-
-
-
-
-
