@@ -1389,21 +1389,24 @@ class Template_SOP1(TemplateCreator):
         return stats
 
     def z3_generate_config(self):
-        config = ''
-        config += f'ET = int(sys.argv[1])\n' \
-                  f'wanted_models: int = 1 if len(sys.argv) < 3 else int(sys.argv[2])\n' \
-                  f'timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])\n' \
-                  f'max_possible_ET: int = 2 ** 3 - 1\n' \
-                  f'\n'
-
-        return config
+        # NOTE: updated by Marco
+        return format_lines([
+            f"ET = int(sys.argv[1])",
+            f"wanted_models: int = 1 if len(sys.argv) < 3 else int(sys.argv[2])",
+            f"timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])",
+            f"max_possible_ET: int = 2 ** 3 - 1",
+        ], extra_newlines=2)
 
     def z3_dump_results_onto_json(self):
-        results = ''
-        folder, extension = sxpatpaths.OUTPUT_PATH[JSON]
+        # NOTE: updated by Marco
+        return format_lines([
+            f"with open(f'{self.json_out_path}', 'w') as ofile:",
+            f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))",
+        ], extra_newlines=1)
 
-        results += f"with open(f'{self.json_out_path}', 'w') as ofile:\n" \
-                   f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
+        folder, extension = sxpatpaths.OUTPUT_PATH[JSON]  # MarcoNote: not used?
+        results = f"with open(f'{self.json_out_path}', 'w') as ofile:\n" \
+            f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
         return results
 
 
@@ -1796,18 +1799,9 @@ class Template_V2(Template_SOP1):
             self.z3_generate_exact_circuit_constraints(self.c_name_2),  # exact_circuit_constraints
         ])
         distance_declaration = self.z3_generate_distance_declaration()
-        # TODO: MARCO
-        # approximate_circuit_wires_declaration = self.z3_generate_approximate_circuit_wires_declaration_subxpat()
-        # approximate_circuit_outputs_declaration = self.z3_generate_approximate_circuit_outputs_declaration()
-        # approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_subxpat()
 
         optimizer = self.z3_generate_optimizer()
         output = self.z3_generate_script_output()
-
-        # verification_solver = self.z3_generate_verification_solver()
-        # parameter_constraint_list = self.z3_generate_parameter_constraint_list()
-        # find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
-        # store_data = self.z3_generate_store_data()
 
         z3pyscript = "".join([
             imports,
@@ -1819,13 +1813,6 @@ class Template_V2(Template_SOP1):
             integer_function_declaration_1,
             integer_function_declaration_2,
             utility_variables,
-            # implicit_parameters_declaration,
-            # exact_circuit_wires_declaration,
-            # approximate_circuit_wires_declaration,
-            # exact_circuit_outputs_declaration,
-            # approximate_circuit_outputs_declaration,
-            # exact_circuit_constraints,
-            # approximate_circuit_constraints_subxpat,
             circuit_1,
             circuit_2,
             distance_declaration,
