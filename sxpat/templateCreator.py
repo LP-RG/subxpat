@@ -1509,8 +1509,8 @@ class WeightedAbsoluteDifference(DistanceFunction):
 
     def declaration_function(self, prefix: str) -> List[str]:
         return [
-            f"{prefix}_val1 = {Z3INT}('val1')",
-            f"{prefix}_val2 = {Z3INT}('val2')",
+            f"{prefix}_val1 = {Z3INT}('{prefix}_val1')",
+            f"{prefix}_val2 = {Z3INT}('{prefix}_val2')",
             ""
         ]
 
@@ -1531,7 +1531,7 @@ class WeightedAbsoluteDifference(DistanceFunction):
 
 class IntegerAbsoluteDifference(WeightedAbsoluteDifference):
     def __init__(self, variables_count: int) -> None:
-        super().__init__(2**i for i in range(variables_count-1, -1, -1))
+        super().__init__(2**i for i in range(variables_count))
 
     def definition_function(self, prefix: str,
                             vars_1: Iterable[str], vars_2: Iterable[str]
@@ -1548,8 +1548,8 @@ class Template_V2(Template_SOP1):
         self.c_name_1 = "c1"
         self.c_name_2 = "c2"
 
-        self.cir_dist_func = IntegerAbsoluteDifference(len(self.exact_graph.output_dict))
-        self.sub_dist_func = HammingDistance()
+        self.cir_dist_func = None
+        self.sub_dist_func = None
 
     def get_cir_out(self, c_name: str = None, vars: Iterable[str] = None):
         c_name = "" if c_name is None else f"{c_name}_"
@@ -1566,6 +1566,13 @@ class Template_V2(Template_SOP1):
             f"{c_name}{name}"
             for name in vars
         ]
+
+    def setup_distance_functions(self) -> List[int]:
+        nodes = self.current_graph.subgraph.nodes
+        weights = [nodes[n][WEIGHT] for n in self.get_sub_out()]
+
+        self.cir_dist_func = IntegerAbsoluteDifference(len(self.get_cir_out()))
+        self.sub_dist_func = WeightedAbsoluteDifference(weights)
 
     def z3_generate_exact_circuit_constraints(self, c_name: str):
         return format_lines([
@@ -1758,6 +1765,12 @@ class Template_V2(Template_SOP1):
         ])
 
     def generate_z3py_script_v2_phase1(self):
+        # check
+        assert None is not self.current_graph.subgraph, \
+            "Subgraph is not defined, did you miss calling `import_graph` and `extract_subgraph`?"
+        assert None not in [self.sub_dist_func, self.cir_dist_func], \
+            "Distance functions are not defined, did you miss calling `setup_distance_functions`?"
+
         imports = self.z3_generate_imports()  # parent
         config = self.z3_generate_config()
         z3_abs_function = self.z3_generate_z3_abs_function()  # parent
