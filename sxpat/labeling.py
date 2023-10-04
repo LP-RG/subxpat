@@ -26,7 +26,7 @@ def labeling(exact_benchmark_name: str, approximate_benchmark: str, constant_val
     graph_obj_approx.export_graph()
 
     # convert gv to z3 expression
-    z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE)
+    z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE)
 
     if constant_value == 0:
         labels_false = z3py_obj.label_circuit(False)
