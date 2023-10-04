@@ -216,7 +216,7 @@ class AnnotatedGraph(Graph):
                     iteration += 1
                     specs_obj.sensitivity = 2 ** iteration - 1
             elif mode == 3:
-                print("Partition with sensitivity start... Using only min_subgraph_size parameter")
+                print(Fore.BLUE + "Partition with sensitivity start... Using only min_subgraph_size parameter" + Style.RESET_ALL)
                 iteration = 1
                 cnt_nodes = 0
                 specs_obj.sensitivity = 1
@@ -232,8 +232,9 @@ class AnnotatedGraph(Graph):
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
 
-                    print("Nodes in partition: ", cnt_nodes)
-                    print("Sugraph iteration ", iteration)
+                    print(Fore.BLUE + f"Sugraph iteration {iteration}"+Style.RESET_ALL )
+                    print(Fore.BLUE + f"Nodes in partition: {cnt_nodes}" +Style.RESET_ALL)
+
                     iteration += 1
                     specs_obj.sensitivity = 2 ** iteration - 1
 
@@ -818,7 +819,7 @@ class AnnotatedGraph(Graph):
         omax = specs_obj.omax
         sensitivity_t = specs_obj.sensitivity
 
-        print(Fore.BLUE + f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ' + Style.RESET_ALL)
+
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)

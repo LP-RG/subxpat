@@ -21,6 +21,12 @@ class TemplateSpecs:
         self.__timeout = kwargs[TIMEOUT]
         self.__min_subgraph_size = kwargs[SUBGRAPHSIZE]
         self.__mode = kwargs[MODE]
+        self.__population = kwargs[POPULATION]
+
+
+    @property
+    def population(self):
+        return self.__population
 
     @property
     def mode(self):
@@ -165,4 +171,5 @@ class TemplateSpecs:
                f'{self.sensitivity = }\n' \
                f'{self.timeout = }\n' \
                f'{self.min_subgraph_size = }\n' \
-               f'{self.mode = }'
+               f'{self.mode = }\n' \
+               f'{self.population = }'
