@@ -105,21 +105,13 @@ class TemplateCreator:
         Converts it into a GraphViz (.gv) file, cleans it, and stores it at "output/gv"
         :return: the cleaned GraphViz file as a NetworkX graph object
         """
-        # print(f'{self.benchmark_name = }')
+        # print(Fore.LIGHTMAGENTA_EX+ f'importing {self.benchmark_name}' + Style.RESET_ALL)
         temp_verilog_obj = Verilog(self.benchmark_name)
         convert_verilog_to_gv(self.benchmark_name)
-
         temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False, partitioning_percentage=1)
-
-
-        # if temp_graph_obj.subgraph is None:
-        #     print(Fore.RED + f'Subgraph is empty!' + Style.RESET_ALL)
-            # raise Exception(
-            #     Fore.RED + f'Subgraph has no gates!\nPlease choose another subgraph!\n\nExtracted Subgraph:\n{temp_graph_obj}' + Style.RESET_ALL)
         return temp_graph_obj
 
     def import_exact_graph(self):
-        # print(f'importing the exact graph')
         exact_benchmark_name = ''
         temp_verilog_obj = Verilog(self.exact_benchmark)
         convert_verilog_to_gv(self.exact_benchmark)
@@ -142,6 +134,8 @@ class Template_SOP1(TemplateCreator):
         self.__subxpat: bool = template_specs.subxpat
         self.__error_threshold = template_specs.et
         self.__iterations = template_specs.iterations
+        self.__num_models = template_specs.num_of_models
+
 
         self.__z3pyscript = None
         self.__z3_out_path = None
@@ -152,7 +146,13 @@ class Template_SOP1(TemplateCreator):
         self.__json_status: List = []
 
 
+    @property
+    def num_models(self):
+        return self.__num_models
 
+    @num_models.setter
+    def num_models(self, this_num_models):
+        self.__num_models = this_num_models
 
     @property
     def literals_per_product(self):
@@ -270,15 +270,16 @@ class Template_SOP1(TemplateCreator):
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extension = this_path
-        return f'{folder}/{self.exact_benchmark}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}_{TEMPLATE_SPEC_ET}{self.et}_{ITER}{self.iterations}.{extension}'
-
+        path = f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}_{TEMPLATE_SPEC_ET}{self.et}_{ITER}{self.iterations}.{extension}'
+        return path
     def export_z3pyscript(self):
         # print(f'Storing in {self.z3_out_path}')
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
 
     def import_json_model(self, this_path=None):
-        print(f'Calling import json model')
+        self.json_model = []
+        self.json_status = []
         if this_path:
             self.json_in_path(this_path)
         else:
@@ -304,11 +305,7 @@ class Template_SOP1(TemplateCreator):
                     else:
                         self.json_model.append(None)
                         self.json_status.append(UNKNOWN)
-        print(f'We are here!')
-        # for stat in self.json_status:
-        #     if stat == UNSAT or stat == UNKNOWN:
-        #         return False
-        # return True
+
 
 
     def get_json_runtime(self, this_id: int = 0):

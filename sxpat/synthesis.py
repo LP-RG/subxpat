@@ -1,5 +1,5 @@
 from builtins import property
-from typing import List, Dict, Callable, Iterable, Tuple
+from typing import List, Dict, Callable, Iterable, Tuple, AnyStr
 import json
 import re
 import networkx as nx
@@ -23,7 +23,7 @@ class Synthesis:
     # TODO:
     # we assign wires to both inputs and outputs of an annotated subgraph
     # follow, inputs, red, white, outputs notation in the Verilog generation
-    def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj=None):
+    def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj: List[Dict] = None):
         self.__benchmark_name = template_specs.benchmark_name
         self.__exact_benchmark_name = template_specs.exact_benchmark
         self.__template_name = template_specs.template_name
@@ -37,6 +37,10 @@ class Synthesis:
             print(Fore.RED + 'ERROR!!! the json does not contain any models!' + Style.RESET_ALL)
         else:
             self.__json_model: json = json_obj
+            self.__num_models = self.get_num_models_from_json(json_obj)
+
+
+
             self.__use_json_model: bool = None
             self.__use_graph: bool = None
 
@@ -48,8 +52,9 @@ class Synthesis:
             self.__ver_out_name: str = None
             self.__ver_out_path: str = self.set_path(OUTPUT_PATH['ver'])
 
-            self.__verilog_string: str = self.convert_to_verilog()
+            self.__verilog_string: List[str] = [AnyStr] * self.num_of_models
 
+            self.__verilog_string = self.convert_to_verilog()
 
     @property
     def num_of_models(self):
@@ -151,12 +156,31 @@ class Synthesis:
     def verilog_string(self, this_verilog_string):
         self.__verilog_string = this_verilog_string
 
-    def set_path(self, this_path: Tuple[str, str], id: int = 0):
+    def get_num_models_from_json(self, json_obj: List[Dict]):
+        num_models = 0
+
+        for idx in range(len(json_obj)):
+            if json_obj[idx]:
+                # print(f'{json_obj[idx] = }')
+                num_models += 1
+
+        return num_models
+
+    def set_path(self, this_path: Tuple[str, str] = None, this_name: str = None, id: int = 0):
         folder, extenstion = this_path
-        if self.num_of_models == 1:
-            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
-        elif self.num_of_models > 1:
-            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.ITER}{self.iterations}_id{id}.{extenstion}'
+
+        if this_name:
+            self.ver_out_name = this_name
+        else:
+            if re.search('id(\d+)', self.benchmark_name):
+                self.ver_out_name = f'{self.benchmark_name}_{id}.{extenstion}'
+            else:
+                if self.num_of_models == 1:
+                    self.ver_out_name = f'{self.exact_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
+                elif self.num_of_models > 1:
+                    self.ver_out_name = f'{self.exact_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.ITER}{self.iterations}_id{id}.{extenstion}'
+        self.ver_out_path = f'{folder}/{self.ver_out_name}'
+
         return f'{folder}/{self.ver_out_name}'
 
     def convert_to_verilog(self, use_graph: bool = use_graph, use_json_model: bool = use_json_model):
@@ -167,6 +191,7 @@ class Synthesis:
         :return: a Verilog description in the form of a String object
         """
         if use_graph and use_json_model:  # for SubXPAT
+            # print(Fore.BLUE + f'converting annotated graph to Verilog (it can be used for both XPAT and SubXPAT)' + Style.RESET_ALL)
             verilog_str = self.__annotated_graph_to_verilog()
         elif use_graph and not use_json_model:  # for general use
             verilog_str = self.__graph_to_verilog()
@@ -177,9 +202,9 @@ class Synthesis:
             exit()
         return verilog_str
 
-    def __json_input_wire_declarations(self):
+    def __json_input_wire_declarations(self, idx: int = 0):
         graph_input_list = list(self.graph.subgraph_input_dict.values())
-        # print(f'{graph_input_list = }')
+
 
         input_wire_list = f'//json input wires\n'
         input_wire_list += f'{sxpatconfig.VER_WIRE} '
@@ -282,23 +307,18 @@ class Synthesis:
             sub_to_json += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx} = ' \
                            f'{sxpatconfig.VER_WIRE_PREFIX}{subgraph_input_list[idx]};\n'
 
-        # for idx in range(self.graph.num_inputs, self.graph.subgraph_num_inputs):
-        #     sub_to_json += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx} = ' \
-        #                    f'{sxpatconfig.VER_WIRE_PREFIX}{subgraph_input_list[idx]};\n'
-
-        # print(f'{sub_to_json = }')
 
         return sub_to_json
 
-    def __json_model_lpp_and_subgraph_output_assigns(self):
+    def __json_model_lpp_and_subgraph_output_assigns(self, idx: int = 0):
         lpp_assigns = f'//json model assigns (approximated/XPATed part)\n'
         annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
-        # print(f'{annotated_graph_output_list = }')
+        # print(f'{self.num_of_models = }')
         lpp_assigns += f''
         for o_idx in range(self.graph.subgraph_num_outputs):
             p_o = f'{sxpatconfig.PRODUCT_PREFIX}{o_idx}'
-
-            if self.json_model[p_o]:
+            # print(f'{idx = }')
+            if self.json_model[idx][p_o]:
                 # p_o0_t0, p_o0_t1
                 included_products = []
                 for ppo_idx in range(self.ppo):
@@ -309,8 +329,8 @@ class Synthesis:
                     for input_idx in range(self.graph.subgraph_num_inputs):
                         p_s = f'{sxpatconfig.PRODUCT_PREFIX}{o_idx}_{sxpatconfig.TREE_PREFIX}{ppo_idx}_{sxpatconfig.INPUT_LITERAL_PREFIX}{input_idx}_{sxpatconfig.SELECT_PREFIX}'
                         p_l = f'{sxpatconfig.PRODUCT_PREFIX}{o_idx}_{sxpatconfig.TREE_PREFIX}{ppo_idx}_{sxpatconfig.INPUT_LITERAL_PREFIX}{input_idx}_{sxpatconfig.LITERAL_PREFIX}'
-                        if self.json_model[p_s]:
-                            if self.json_model[p_l]:
+                        if self.json_model[idx][p_s]:
+                            if self.json_model[idx][p_l]:
                                 included_literals.append(
                                     f'{sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{input_idx}')
                             else:
@@ -447,13 +467,16 @@ class Synthesis:
 
         return intact_wires
 
-    def __get_module_signature(self):
+    def __get_module_signature(self, idx: int = 0):
+
         input_list = list(self.graph.input_dict.values())
         input_list.reverse()
         output_list = list(self.graph.output_dict.values())
         # Sort Dictionary
-        module_name = self.ver_out_name[:-2]
+
+        module_name = f'{self.ver_out_name[:-2]}'
         module_signature = f"{sxpatconfig.VER_MODULE} {module_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
+
         return module_signature
 
     def __declare_inputs_outputs(self):
@@ -482,57 +505,64 @@ class Synthesis:
             annotated_graph_output_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_output_list)};\n"
         return annotated_graph_output_wires
 
-    def __annotated_graph_to_verilog(self):
+    def __annotated_graph_to_verilog(self) -> List[AnyStr]:
+        ver_string = []
+        for idx in range(self.num_of_models):
 
-        ver_str = f''
-        # 1. module signature
-        module_signature = self.__get_module_signature()
+            self.set_path(this_path=OUTPUT_PATH['ver'], id=idx)
 
-        # 2. declarations
-        # input/output declarations
-        io_declaration = self.__declare_inputs_outputs()
+            ver_str = f''
+            # 1. module signature
+            module_signature = self.__get_module_signature(idx)
 
-        # 3. wire declarations
-        intact_wires = self.__intact_gate_wires()
+            # 2. declarations
+            # input/output declarations
+            io_declaration = self.__declare_inputs_outputs()
 
-        # 4. subgraph input wires
-        annotated_graph_input_wires = self.__get_subgraph_input_wires()
+            # 3. wire declarations
+            intact_wires = self.__intact_gate_wires()
 
-        # 5. subgraph output wires
-        annotated_graph_output_wires = self.__get_subgraph_output_wires()
+            # 4. subgraph input wires
+            annotated_graph_input_wires = self.__get_subgraph_input_wires()
 
-        # 6. json model input wires
-        json_input_wires = self.__json_input_wire_declarations()
+            # 5. subgraph output wires
+            annotated_graph_output_wires = self.__get_subgraph_output_wires()
 
-        # 7. json model wires
-        json_model_wires = self.__json_model_wire_declarations()
+            # 6. json model input wires
+            json_input_wires = self.__json_input_wire_declarations()
 
-        wire_declarations = intact_wires + annotated_graph_input_wires + annotated_graph_output_wires + json_input_wires + json_model_wires
+            # 7. json model wires
+            json_model_wires = self.__json_model_wire_declarations()
 
-        # 8. assigns
-        # subgraph_inputs_assigns
-        subgraph_inputs_assigns = self.__subgraph_inputs_assigns()
+            wire_declarations = intact_wires + annotated_graph_input_wires + annotated_graph_output_wires + json_input_wires + json_model_wires
 
-        # 9. map subgraph inputs to json inputs
-        subgraph_to_json_input_mapping = self.__subgraph_to_json_input_mapping()
+            # 8. assigns
+            # subgraph_inputs_assigns
+            subgraph_inputs_assigns = self.__subgraph_inputs_assigns()
 
-        # 10. json_model_and_subgraph_outputs_assigns
-        json_model_and_subgraph_outputs_assigns = self.__json_model_lpp_and_subgraph_output_assigns()
+            # 9. map subgraph inputs to json inputs
+            subgraph_to_json_input_mapping = self.__subgraph_to_json_input_mapping()
 
-        # 11. the intact assigns
-        intact_assigns = self.__intact_part_assigns()
+            # 10. json_model_and_subgraph_outputs_assigns
+            json_model_and_subgraph_outputs_assigns = self.__json_model_lpp_and_subgraph_output_assigns(idx)
 
-        # 12. output assigns
-        output_assigns = self.__output_assigns()
+            # 11. the intact assigns
+            intact_assigns = self.__intact_part_assigns()
 
-        assigns = subgraph_inputs_assigns + subgraph_to_json_input_mapping + json_model_and_subgraph_outputs_assigns + intact_assigns + output_assigns
+            # 12. output assigns
+            output_assigns = self.__output_assigns()
 
-        # assignments
+            assigns = subgraph_inputs_assigns + subgraph_to_json_input_mapping + json_model_and_subgraph_outputs_assigns + intact_assigns + output_assigns
 
-        # endmodule
-        ver_str = module_signature + io_declaration + wire_declarations + assigns
+            # assignments
 
-        return ver_str
+            # endmodule
+            ver_str = module_signature + io_declaration + wire_declarations + assigns
+
+            ver_string.append(ver_str)
+
+
+        return ver_string
 
     def __json_model_to_verilog(self):
         pass
@@ -546,6 +576,7 @@ class Synthesis:
             design_path = this_path
         else:
             design_path = self.ver_out_path
+
         yosys_command = f"read_verilog {design_path};\n" \
                         f"synth -flatten;\n" \
                         f"opt;\n" \
@@ -686,13 +717,21 @@ class Synthesis:
 
     # =========================
 
-    def export_verilog(self, this_path: str = None):
-        if this_path:
-            with open(f'{this_path}/{self.ver_out_name}', 'w') as f:
-                f.writelines(self.verilog_string)
+    def export_verilog(self, this_path: str = None, idx: int = -1):
+        if idx >= 0:
+            if this_path:
+                with open(f'{this_path}/{self.ver_out_name}', 'w') as f:
+                    f.writelines(self.verilog_string[idx])
+            else:
+                with open(self.ver_out_path, 'w') as f:
+                    f.writelines(self.verilog_string[idx])
         else:
-            with open(self.ver_out_path, 'w') as f:
-                f.writelines(self.verilog_string)
+            if this_path:
+                with open(f'{this_path}/{self.ver_out_name}', 'w') as f:
+                    f.writelines(self.verilog_string[0])
+            else:
+                with open(self.ver_out_path, 'w') as f:
+                    f.writelines(self.verilog_string[0])
 
     def __repr__(self):
         return f'An object of class Synthesis:\n' \

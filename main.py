@@ -45,11 +45,11 @@ def main():
         print(Fore.BLUE + f'Plotting...' + Style.RESET_ALL)
         specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                   products_per_output=args.ppo,
-                                  benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
+                                  benchmark_name=args.approximate_benchmark, num_of_models=args.num_models, subxpat=args.subxpat,
                                   et=args.et,
                                   partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
-                                  timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode)
+                                  timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population)
 
 
         stats_obj = Stats(specs_obj)
@@ -84,25 +84,25 @@ def main():
                 if args.sensitivity < 0:
                     specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                               products_per_output=args.ppo,
-                                              benchmark_name=args.approximate_benchmark, num_of_models=1,
+                                              benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
                                               subxpat=args.subxpat,
                                               et=et,
                                               partitioning_percentage=args.partitioning_percentage,
                                               iterations=args.iterations,
                                               grid=args.grid, imax=args.imax, omax=args.omax,
                                               sensitivity=args.sensitivity,
-                                              timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode)
+                                              timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population)
                 else:
                     specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                               products_per_output=args.ppo,
-                                              benchmark_name=args.approximate_benchmark, num_of_models=1,
+                                              benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
                                               subxpat=args.subxpat,
                                               et=et,
                                               partitioning_percentage=args.partitioning_percentage,
                                               iterations=args.iterations,
                                               grid=args.grid, imax=args.imax, omax=args.omax,
                                               sensitivity=args.sensitivity * et,
-                                              timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode)
+                                              timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population)
 
                 if specs_obj.grid:
                     try:
@@ -120,21 +120,21 @@ def main():
             if args.sensitivity < 0:
                 specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                           products_per_output=args.ppo,
-                                          benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
+                                          benchmark_name=args.approximate_benchmark, num_of_models=args.num_models, subxpat=args.subxpat,
                                           et=args.et,
                                           partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
                                           grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
-                                          timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode)
+                                          timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population)
             else:
                 specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
                                           products_per_output=args.ppo,
-                                          benchmark_name=args.approximate_benchmark, num_of_models=1,
+                                          benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
                                           subxpat=args.subxpat,
                                           et=args.et,
                                           partitioning_percentage=args.partitioning_percentage,
                                           iterations=args.iterations,
                                           grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity * args.et,
-                                          timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode)
+                                          timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population)
             # print(f'{specs_obj = }')
             if specs_obj.grid:
                 stats_obj = explore_grid(specs_obj)

@@ -24,6 +24,7 @@ SENSITIVITY = 'sensitivity'
 TIMEOUT = 'timeout'
 SUBGRAPHSIZE = 'subgraph_size'
 MODE = 'mode'
+POPULATION = 'population'
 
 
 

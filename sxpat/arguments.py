@@ -24,6 +24,16 @@ class Arguments(Arguments):
         self.__timeout: int = tmp_args.timeout
         self.__subgraph_size: int = tmp_args.subgraphsize
         self.__mode: int = tmp_args.mode
+        self.__population: int = tmp_args.population
+        self.__num_models: int = tmp_args.num_models
+
+    @property
+    def num_models(self):
+        return self.__num_models
+
+    @property
+    def population(self):
+        return self.__population
 
     @property
     def mode(self):
@@ -215,9 +225,23 @@ class Arguments(Arguments):
                                default=3,
                                help='selects-partitioning-algorithm')
 
+
+        my_parser.add_argument('-population',
+                               type= int,
+                               default=1,
+                               help='selected-solutions-at-every-iteration')
+
+
+        my_parser.add_argument('-num_models',
+                               type=int,
+                               default=1,
+                               help='number-of-models')
+
         my_parser.add_argument('--clean',
                                action="store_true",
                                default=False)
+
+
 
         tmp_args = my_parser.parse_args()
 
@@ -241,4 +265,6 @@ class Arguments(Arguments):
                f'{self.timeout = }\n' \
                f'{self.subgraph_size = }\n' \
                f'{self.mode = }\n' \
+               f'{self.population = }\n' \
+               f'{self.num_models = }\n' \
                f'{self.clean = }'
