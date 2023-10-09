@@ -1,6 +1,8 @@
 import csv
 from colorama import Fore, Style
 import Z3Log
+from typing import Dict, List, Tuple
+from tabulate import tabulate
 
 from Z3Log.verilog import Verilog
 from Z3Log.graph import Graph
@@ -81,7 +83,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             template_obj.set_new_context(specs_obj)
             template_obj.current_graph = template_obj.import_graph()
             if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3:
-                template_obj.label_graph(2)
+                template_obj.label_graph(0)
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
 
             if subgraph_is_available:
@@ -115,7 +117,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                         elif cur_status == SAT:
 
                             synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
-                            cur_model_results: Dict = {}
+                            cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
                             for idx in range(synth_obj.num_of_models):
                                 synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
                                 synth_obj.export_verilog(idx=idx)
@@ -146,13 +148,12 @@ def explore_grid(specs_obj: TemplateSpecs):
                             total_power = synth_obj.estimate_power()
 
                             print(
-                                Fore.GREEN + f'Cell = ({cur_lpp}, {cur_ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)',
-                                end='')
-                            print(
-                                f' -> [area={area}, power={total_power}, delay={delay}'
-                                f' (exact area={synth_obj.estimate_area(exact_file_path)},'
-                                f' exact power={synth_obj.estimate_power(exact_file_path)},'
-                                f' exact delay={synth_obj.estimate_delay(exact_file_path)})]' + Style.RESET_ALL)
+                                Fore.GREEN + f'Cell = ({cur_lpp}, {cur_ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)',)
+                            exact_stats = [synth_obj.estimate_area(exact_file_path),
+                                           synth_obj.estimate_power(exact_file_path),
+                                           synth_obj.estimate_delay(exact_file_path)]
+                            print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
+
                             found = True
                             stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
                                                                             this_iteration=i,
@@ -367,6 +368,38 @@ def explore_grid_old(specs_obj: TemplateSpecs):
     stats_obj.store_grid()
     return stats_obj
 
+
+
+def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_stats: List = None) -> None:
+    data = []
+    if exact_stats:
+        exact_area = exact_stats[0]
+        exact_power = exact_stats[1]
+        exact_delay = exact_stats[2]
+        data.append(['Exact', exact_area, exact_power, exact_delay])
+        if normalize:
+            for key in cur_model_result.keys():
+                cur_model_result[key][0] = (cur_model_result[key][0] / exact_area) * 100
+                cur_model_result[key][1] = (cur_model_result[key][1] / exact_power) * 100
+                cur_model_result[key][2] = (cur_model_result[key][2] / exact_delay) * 100
+
+    if len(cur_model_result) < 10:
+        sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
+        for idx, key in enumerate(sorted_candidates):
+            print(f'{sorted_candidates[idx] = }')
+            this_id = re.search('(id.*)', sorted_candidates[idx][0]).group(1).split('.')[0]
+            this_area = sorted_candidates[idx][1][0]
+            this_power = sorted_candidates[idx][1][1]
+            this_delay = sorted_candidates[idx][1][2]
+            data.append([this_id, this_area, this_power, this_delay])
+        print(Fore.LIGHTGREEN_EX + tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]) + Style.RESET_ALL)
+    else:
+        sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
+        best_area = sorted_candidates[0][1][0]
+        best_power = sorted_candidates[0][1][1]
+        best_delay = sorted_candidates[0][1][2]
+        print(Fore.LIGHTGREEN_EX + tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]) + Style.RESET_ALL)
+        #print the best model for now
 
 def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
     for key in candidates.keys():

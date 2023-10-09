@@ -254,6 +254,7 @@ class Template_SOP1(TemplateCreator):
                 else:
                     self.current_graph.graph.nodes[n][WEIGHT] = max(int(labels0[n]), int(labels1[n]))
 
+
     def set_new_context(self, specs_obj: TemplateSpecs):
         self.lpp = specs_obj.lpp
         self.ppo = specs_obj.ppo
