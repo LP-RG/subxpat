@@ -1574,8 +1574,12 @@ class Template_V2(Template_SOP1):
         nodes = self.current_graph.subgraph.nodes
         weights = [nodes[n][WEIGHT] for n in self.get_sub_out()]
 
+        # circuit distance
         self.cir_dist_func = IntegerAbsoluteDifference(len(self.get_cir_out()))
+
+        # subcircuit distance
         self.sub_dist_func = WeightedAbsoluteDifference(weights)
+        # self.sub_dist_func = HammingDistance(weights)
 
     def z3_generate_exact_circuit_constraints(self, c_name: str):
         return format_lines([
