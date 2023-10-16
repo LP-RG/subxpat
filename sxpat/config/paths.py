@@ -1,6 +1,7 @@
+from typing import Dict, Tuple
 from Z3Log.config.path import *
 
-OUTPUT_PATH = {
+OUTPUT_PATH: Dict[str, Tuple[str, str]] = {
     'json': ('output/json', 'json'),
     'html': ('output/html', 'html'),
     'figure': ('output/figure', 'pdf'),

@@ -702,8 +702,8 @@ class Template_SOP1(TemplateCreator):
                 if g_predecessors[0] in list(self.exact_graph.input_dict.values()):
                     pred_1 = g_predecessors[0]
                 else:
-
                     pred_1 = self.z3_express_node_as_wire_constraints(g_predecessors[0])
+
                 exact_wire_constraints += f"{TAB}{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}(" \
                                           f"{','.join(list(self.exact_graph.input_dict.values()))}) == "
 
@@ -1752,7 +1752,7 @@ class Template_V2(Template_SOP1):
                 f"objective = optimizer.minimize(sub_out_dist)",
                 f"",
                 f"# optimize",
-                f"optimizer.check()",
+                f"result = optimizer.check()",
                 f"optimizer.lower(objective)",
                 f"",
                 f"# extract wanted distance",
@@ -1763,11 +1763,11 @@ class Template_V2(Template_SOP1):
     def z3_generate_script_output(self):
         return format_lines([
             f"# print results",
-            f"print('e = cir_out_dist =', model[cir_out_dist])",
-            f"print('d = sub_out_dist =', model[sub_out_dist])",
+            f"print('circuit error       =', 'infinity' if result == z3.unsat else model[cir_out_dist])",
+            f"print('subcircuit distance =', 'infinity' if result == z3.unsat else model[sub_out_dist])",
         ])
 
-    def generate_z3py_script_v2_phase1(self):
+    def generate_z3py_script_v2_phase1(self, file_path: str = "TMP.py"):
         # check
         assert None is not self.current_graph.subgraph, \
             "Subgraph is not defined, did you miss calling `import_graph` and `extract_subgraph`?"
@@ -1824,5 +1824,5 @@ class Template_V2(Template_SOP1):
             # store_data
         ])
 
-        with open("TMP.py", "w") as f:
+        with open(file_path, "w") as f:
             f.write(z3pyscript)
