@@ -18,12 +18,11 @@ class Arguments(Arguments):
         self.__grid: bool = tmp_args.grid
         self.__multiple: bool = tmp_args.multiple
         self.__plot: bool = tmp_args.plot
-        self.__imax:int = tmp_args.imax
+        self.__imax: int = tmp_args.imax
         self.__omax: int = tmp_args.omax
         self.__sensitivity: int = tmp_args.sensitivity
         self.__timeout: int = tmp_args.timeout
         self.__subgraph_size: int = tmp_args.subgraphsize
-
 
     @property
     def partitioning_percentage(self):
