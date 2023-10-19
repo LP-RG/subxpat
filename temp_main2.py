@@ -1,8 +1,8 @@
 import networkx as nx
 
 from sxpat.config.config import WEIGHT
-from sxpat.distance_function import IntegerAbsoluteDifference, WeightedAbsoluteDifference
-from sxpat.runner_creator.utils import exctract_subgraph, exctract_subgraph3
+from sxpat.distance_function import HammingDistance, IntegerAbsoluteDifference, WeightedAbsoluteDifference
+from sxpat.runner_creator.utils import exctract_subgraph
 from sxpat.runner_creator.xpat_creator import XPatRunnerCreator
 from sxpat.templateCreator import Template_SOP1
 from sxpat.templateSpecs import TemplateSpecs
@@ -39,6 +39,7 @@ graph.export_annotated_graph()
 circuit_distance_function = IntegerAbsoluteDifference()
 subweights = [graph.subgraph.nodes[n][WEIGHT] for n in graph.subgraph_output_dict.values()]
 subcircuit_distance_function = WeightedAbsoluteDifference(subweights)
+# subcircuit_distance_function = HammingDistance()
 
 # convert AnnotatedGraph to MaGraph(s)
 full_graph = MaGraph(digraph=graph.subgraph)
