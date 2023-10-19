@@ -1474,359 +1474,359 @@ def format_lines(lines: Iterator[str], indent_amount: int = 0, extra_newlines: i
     return "\n".join(map(indenter, lines)) + "\n" * (1 + extra_newlines)
 
 
-class DistanceFunction:
-    def __init__(self) -> None: raise NotImplementedError(f"Class `{self.__class__.__name__}` is an abstract class, cannot be instantiated.")
+# class DistanceFunction:
+#     def __init__(self) -> None: raise NotImplementedError(f"Class `{self.__class__.__name__}` is an abstract class, cannot be instantiated.")
 
-    @abstractclassmethod
-    def declaration_function(self, prefix: str) -> str:
-        pass
+#     @abstractclassmethod
+#     def declaration_function(self, prefix: str) -> str:
+#         pass
 
-    @abstractclassmethod
-    def definition_function(self, prefix: str,
-                            vars_1: Iterable[str], vars_2: Iterable[str]
-                            ) -> List[str]:
-        pass
-
-
-class HammingDistance(DistanceFunction):
-    def __init__(self) -> None: pass
-
-    def declaration_function(self, prefix: str) -> List[str]:
-        return [""]
-
-    def definition_function(self, prefix: str,
-                            vars_1: Iterable[str], vars_2: Iterable[str]
-                            ) -> List[str]:
-        return [
-            "# Function: hamming distance",
-            f"{prefix}_out_dist == " + " + ".join(
-                f"If({v1} == {v2}, 0, 1)"
-                for v1, v2 in zip(vars_1, vars_2)
-            ) + ","
-        ]
+#     @abstractclassmethod
+#     def definition_function(self, prefix: str,
+#                             vars_1: Iterable[str], vars_2: Iterable[str]
+#                             ) -> List[str]:
+#         pass
 
 
-class WeightedAbsoluteDifference(DistanceFunction):
-    def __init__(self, weights: Iterable[int]) -> None:
-        self.weights = list(weights)
+# class HammingDistance(DistanceFunction):
+#     def __init__(self) -> None: pass
 
-    def declaration_function(self, prefix: str) -> List[str]:
-        return [
-            f"{prefix}_val1 = {Z3INT}('{prefix}_val1')",
-            f"{prefix}_val2 = {Z3INT}('{prefix}_val2')",
-            ""
-        ]
+#     def declaration_function(self, prefix: str) -> List[str]:
+#         return [""]
 
-    def definition_function(self, prefix: str,
-                            vars_1: Iterable[str], vars_2: Iterable[str]
-                            ) -> List[str]:
-        val1 = f"{prefix}_val1"
-        val2 = f"{prefix}_val2"
-        val1_parts = [f"{v}*{w}" for v, w in zip(vars_1, self.weights)]
-        val2_parts = [f"{v}*{w}" for v, w in zip(vars_2, self.weights)]
-        return [
-            "# Function: weighted sum absolute difference",
-            f"{val1} == {' + '.join(val1_parts)},",
-            f"{val2} == {' + '.join(val2_parts)},",
-            f"{prefix}_out_dist == If({val1} > {val2}, {val1} - {val2}, {val2} - {val1}),"
-        ]
+#     def definition_function(self, prefix: str,
+#                             vars_1: Iterable[str], vars_2: Iterable[str]
+#                             ) -> List[str]:
+#         return [
+#             "# Function: hamming distance",
+#             f"{prefix}_out_dist == " + " + ".join(
+#                 f"If({v1} == {v2}, 0, 1)"
+#                 for v1, v2 in zip(vars_1, vars_2)
+#             ) + ","
+#         ]
 
 
-class IntegerAbsoluteDifference(WeightedAbsoluteDifference):
-    def __init__(self, variables_count: int) -> None:
-        super().__init__(2**i for i in range(variables_count))
+# class WeightedAbsoluteDifference(DistanceFunction):
+#     def __init__(self, weights: Iterable[int]) -> None:
+#         self.weights = list(weights)
 
-    def definition_function(self, prefix: str,
-                            vars_1: Iterable[str], vars_2: Iterable[str]
-                            ) -> List[str]:
-        lines = super().definition_function(prefix, vars_1, vars_2)
-        lines[0] = "# Function: integer sum absolute difference"
-        return lines
+#     def declaration_function(self, prefix: str) -> List[str]:
+#         return [
+#             f"{prefix}_val1 = {Z3INT}('{prefix}_val1')",
+#             f"{prefix}_val2 = {Z3INT}('{prefix}_val2')",
+#             ""
+#         ]
+
+#     def definition_function(self, prefix: str,
+#                             vars_1: Iterable[str], vars_2: Iterable[str]
+#                             ) -> List[str]:
+#         val1 = f"{prefix}_val1"
+#         val2 = f"{prefix}_val2"
+#         val1_parts = [f"{v}*{w}" for v, w in zip(vars_1, self.weights)]
+#         val2_parts = [f"{v}*{w}" for v, w in zip(vars_2, self.weights)]
+#         return [
+#             "# Function: weighted sum absolute difference",
+#             f"{val1} == {' + '.join(val1_parts)},",
+#             f"{val2} == {' + '.join(val2_parts)},",
+#             f"{prefix}_out_dist == If({val1} > {val2}, {val1} - {val2}, {val2} - {val1}),"
+#         ]
 
 
-class Template_V2(Template_SOP1):
-    def __init__(self, template_specs: TemplateSpecs):
-        super().__init__(template_specs)
+# class IntegerAbsoluteDifference(WeightedAbsoluteDifference):
+#     def __init__(self, variables_count: int) -> None:
+#         super().__init__(2**i for i in range(variables_count))
 
-        self.c_name_1 = "c1"
-        self.c_name_2 = "c2"
+#     def definition_function(self, prefix: str,
+#                             vars_1: Iterable[str], vars_2: Iterable[str]
+#                             ) -> List[str]:
+#         lines = super().definition_function(prefix, vars_1, vars_2)
+#         lines[0] = "# Function: integer sum absolute difference"
+#         return lines
 
-        self.cir_dist_func = None
-        self.sub_dist_func = None
 
-    def get_cir_out(self, c_name: str = None, vars: Iterable[str] = None):
-        c_name = "" if c_name is None else f"{c_name}_"
-        vars = map(lambda v: EXACT_OUTPUT_PREFIX+v, self.current_graph.output_dict.values()) if vars is None else vars
-        return [
-            f"{c_name}{name}"
-            for name in vars
-        ]
+# class Template_V2(Template_SOP1):
+#     def __init__(self, template_specs: TemplateSpecs):
+#         super().__init__(template_specs)
 
-    def get_sub_out(self, c_name: str = None, vars: Iterable[str] = None):
-        c_name = "" if c_name is None else f"{c_name}_sub_"
-        vars = list(self.current_graph.subgraph_output_dict.values() if vars is None else vars)
-        return [
-            f"{c_name}{name}"
-            for name in vars
-        ]
+#         self.c_name_1 = "c1"
+#         self.c_name_2 = "c2"
 
-    def setup_distance_functions(self) -> List[int]:
-        nodes = self.current_graph.subgraph.nodes
-        weights = [nodes[n][WEIGHT] for n in self.get_sub_out()]
+#         self.cir_dist_func = None
+#         self.sub_dist_func = None
 
-        # circuit distance
-        self.cir_dist_func = IntegerAbsoluteDifference(len(self.get_cir_out()))
+#     def get_cir_out(self, c_name: str = None, vars: Iterable[str] = None):
+#         c_name = "" if c_name is None else f"{c_name}_"
+#         vars = map(lambda v: EXACT_OUTPUT_PREFIX+v, self.current_graph.output_dict.values()) if vars is None else vars
+#         return [
+#             f"{c_name}{name}"
+#             for name in vars
+#         ]
 
-        # subcircuit distance
-        self.sub_dist_func = WeightedAbsoluteDifference(weights)
-        # self.sub_dist_func = HammingDistance(weights)
+#     def get_sub_out(self, c_name: str = None, vars: Iterable[str] = None):
+#         c_name = "" if c_name is None else f"{c_name}_sub_"
+#         vars = list(self.current_graph.subgraph_output_dict.values() if vars is None else vars)
+#         return [
+#             f"{c_name}{name}"
+#             for name in vars
+#         ]
 
-    def z3_generate_exact_circuit_constraints(self, c_name: str):
-        return format_lines([
-            self.z3_generate_exact_circuit_wire_constraints(c_name),    # wires
-            self.z3_generate_exact_circuit_output_constraints(c_name),  # outputs
-            ")"
-        ])
+#     def setup_distance_functions(self) -> List[int]:
+#         nodes = self.current_graph.subgraph.nodes
+#         weights = [nodes[n][WEIGHT] for n in self.get_sub_out()]
 
-    def prefixed_name(self, raw: str, c_name: str) -> str:
-        if raw in self.exact_graph.input_dict.values():
-            return raw
-        return f"{c_name}_{self.z3_express_node_as_wire_constraints(raw)}"
+#         # circuit distance
+#         self.cir_dist_func = IntegerAbsoluteDifference(len(self.get_cir_out()))
 
-    def z3_generate_exact_circuit_wire_constraints(self, c_name: str):
-        def prefixed_name(raw): return self.prefixed_name(raw, c_name)
+#         # subcircuit distance
+#         self.sub_dist_func = WeightedAbsoluteDifference(weights)
+#         # self.sub_dist_func = HammingDistance(weights)
 
-        lines = []
-        lines.extend([f'# exact circuit constraints',
-                      f'{c_name} = And(',
-                      f'{TAB}# wires'])
+#     def z3_generate_exact_circuit_constraints(self, c_name: str):
+#         return format_lines([
+#             self.z3_generate_exact_circuit_wire_constraints(c_name),    # wires
+#             self.z3_generate_exact_circuit_output_constraints(c_name),  # outputs
+#             ")"
+#         ])
 
-        for g_idx in range(self.exact_graph.num_gates):
-            g_label = self.exact_graph.gate_dict[g_idx]
-            g_predecessors = self.get_predecessors(g_label)
-            g_function = self.get_logical_function(g_label)
+#     def prefixed_name(self, raw: str, c_name: str) -> str:
+#         if raw in self.exact_graph.input_dict.values():
+#             return raw
+#         return f"{c_name}_{self.z3_express_node_as_wire_constraints(raw)}"
 
-            if g_label in self.current_graph.subgraph_output_dict.values():
-                lines.append(
-                    f"{TAB}{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}"
-                    f"({','.join(self.exact_graph.input_dict.values())})"
-                    f" == {c_name}_sub_{g_label},"
-                )
-                continue
+#     def z3_generate_exact_circuit_wire_constraints(self, c_name: str):
+#         def prefixed_name(raw): return self.prefixed_name(raw, c_name)
 
-            assert len(g_predecessors) == 1 or len(g_predecessors) == 2
-            assert g_function in (NOT, AND, OR)
+#         lines = []
+#         lines.extend([f'# exact circuit constraints',
+#                       f'{c_name} = And(',
+#                       f'{TAB}# wires'])
 
-            if len(g_predecessors) == 1:
-                pred_1 = prefixed_name(g_predecessors[0])
-                lines.append(
-                    f"{TAB}{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}"
-                    f"({','.join(self.exact_graph.input_dict.values())})"
-                    f" == {TO_Z3_GATE_DICT[g_function]}({pred_1}),"
-                )
+#         for g_idx in range(self.exact_graph.num_gates):
+#             g_label = self.exact_graph.gate_dict[g_idx]
+#             g_predecessors = self.get_predecessors(g_label)
+#             g_function = self.get_logical_function(g_label)
 
-            else:
-                pred_1 = prefixed_name(g_predecessors[0])
-                pred_2 = prefixed_name(g_predecessors[1])
-                lines.append(
-                    f"{TAB}{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}"
-                    f"({','.join(self.exact_graph.input_dict.values())})"
-                    f" == {TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),"
-                )
+#             if g_label in self.current_graph.subgraph_output_dict.values():
+#                 lines.append(
+#                     f"{TAB}{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}"
+#                     f"({','.join(self.exact_graph.input_dict.values())})"
+#                     f" == {c_name}_sub_{g_label},"
+#                 )
+#                 continue
 
-        return format_lines(lines)
+#             assert len(g_predecessors) == 1 or len(g_predecessors) == 2
+#             assert g_function in (NOT, AND, OR)
 
-    def z3_generate_exact_circuit_output_constraints(self, c_name: str):
-        exact_output_constraints = ''
-        exact_output_constraints += f'{TAB}# boolean outputs (from the least significant)\n'
-        for output_idx in self.exact_graph.output_dict.keys():
-            output_label = self.exact_graph.output_dict[output_idx]
-            output_predecessors = list(self.exact_graph.graph.predecessors(output_label))
-            assert len(output_predecessors) == 1
+#             if len(g_predecessors) == 1:
+#                 pred_1 = prefixed_name(g_predecessors[0])
+#                 lines.append(
+#                     f"{TAB}{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}"
+#                     f"({','.join(self.exact_graph.input_dict.values())})"
+#                     f" == {TO_Z3_GATE_DICT[g_function]}({pred_1}),"
+#                 )
 
-            if output_predecessors[0] in list(self.exact_graph.input_dict.values()):
-                pred = self.z3_express_node_as_wire_constraints(output_predecessors[0])
-            else:
-                pred = f"{c_name}_{self.z3_express_node_as_wire_constraints(output_predecessors[0])}"
-            output = self.z3_express_node_as_wire_constraints(output_label)
-            exact_output_constraints += f'{TAB}{c_name}_{output} == {pred},\n'
-        return exact_output_constraints
+#             else:
+#                 pred_1 = prefixed_name(g_predecessors[0])
+#                 pred_2 = prefixed_name(g_predecessors[1])
+#                 lines.append(
+#                     f"{TAB}{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}"
+#                     f"({','.join(self.exact_graph.input_dict.values())})"
+#                     f" == {TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),"
+#                 )
 
-    def z3_generate_exact_circuit_outputs_declaration(self, c_name: str):
-        return format_lines(
-            [
-                f"# outputs functions declaration for exact circuit",
-                *(
-                    (
-                        f"{c_name}_{EXACT_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} "
-                        f"('{c_name}_{EXACT_OUTPUT_PREFIX}{OUT}{output_idx}', {', '.join(repeat(BOOLSORT, self.current_graph.num_inputs + 1))})"
-                    )
-                    for output_idx in range(self.current_graph.num_outputs)
-                )
-            ],
-            extra_newlines=1
-        )
+#         return format_lines(lines)
 
-    def z3_generate_exact_circuit_wires_declaration(self, c_name: str):
-        return format_lines([
-            f"# wires functions declaration for exact circuit",
-            *(
-                (
-                    f"{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx} = "
-                    f"{FUNCTION}('{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}', "
-                    f"{', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))}, {BOOLSORT})"
-                )
-                for g_idx in range(self.exact_graph.num_gates)
-            )
-        ])
+#     def z3_generate_exact_circuit_output_constraints(self, c_name: str):
+#         exact_output_constraints = ''
+#         exact_output_constraints += f'{TAB}# boolean outputs (from the least significant)\n'
+#         for output_idx in self.exact_graph.output_dict.keys():
+#             output_label = self.exact_graph.output_dict[output_idx]
+#             output_predecessors = list(self.exact_graph.graph.predecessors(output_label))
+#             assert len(output_predecessors) == 1
 
-    def z3_generate_utility_variables(self):
-        return format_lines([
-            f'# utility variables',
-            f"error = {Z3INT}('error')",
-        ])
+#             if output_predecessors[0] in list(self.exact_graph.input_dict.values()):
+#                 pred = self.z3_express_node_as_wire_constraints(output_predecessors[0])
+#             else:
+#                 pred = f"{c_name}_{self.z3_express_node_as_wire_constraints(output_predecessors[0])}"
+#             output = self.z3_express_node_as_wire_constraints(output_label)
+#             exact_output_constraints += f'{TAB}{c_name}_{output} == {pred},\n'
+#         return exact_output_constraints
 
-    def generate_z3py_suboutput_variables(self, c_name: str):
-        return format_lines([
-            f"# Subgraph output variables declaration",
-            *(
-                self.declare_gate(name).strip()
-                for name in self.get_sub_out(c_name)
-            )
-        ])
+#     def z3_generate_exact_circuit_outputs_declaration(self, c_name: str):
+#         return format_lines(
+#             [
+#                 f"# outputs functions declaration for exact circuit",
+#                 *(
+#                     (
+#                         f"{c_name}_{EXACT_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} "
+#                         f"('{c_name}_{EXACT_OUTPUT_PREFIX}{OUT}{output_idx}', {', '.join(repeat(BOOLSORT, self.current_graph.num_inputs + 1))})"
+#                     )
+#                     for output_idx in range(self.current_graph.num_outputs)
+#                 )
+#             ],
+#             extra_newlines=1
+#         )
 
-    def z3_generate_distance_declaration(self):
-        return format_lines([
-            "# Distance variables",
-            f"cir_out_dist = {Z3INT}('cir_out_dist')",
-            *self.cir_dist_func.declaration_function("cir"),
-            f"sub_out_dist = {Z3INT}('sub_out_dist')",
-            *self.sub_dist_func.declaration_function("sub")
-        ])
+#     def z3_generate_exact_circuit_wires_declaration(self, c_name: str):
+#         return format_lines([
+#             f"# wires functions declaration for exact circuit",
+#             *(
+#                 (
+#                     f"{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx} = "
+#                     f"{FUNCTION}('{c_name}_{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}', "
+#                     f"{', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))}, {BOOLSORT})"
+#                 )
+#                 for g_idx in range(self.exact_graph.num_gates)
+#             )
+#         ])
 
-    def z3_generate_distance_definition(self):
-        fun_cir_vars = [
-            f"{EXACT_OUTPUT_PREFIX}{v[1:]}({','.join(list(self.exact_graph.input_dict.values()))})"
-            for v in self.get_cir_out()
-        ]
+#     def z3_generate_utility_variables(self):
+#         return format_lines([
+#             f'# utility variables',
+#             f"error = {Z3INT}('error')",
+#         ])
 
-        cir_vars_1 = self.get_cir_out(self.c_name_1, fun_cir_vars)
-        cir_vars_2 = self.get_cir_out(self.c_name_2, fun_cir_vars)
-        sub_vars_1 = self.get_sub_out(self.c_name_1)
-        sub_vars_2 = self.get_sub_out(self.c_name_2)
-        return format_lines(
-            [
-                "# circuits distance",
-                *self.cir_dist_func.definition_function("cir", cir_vars_1, cir_vars_2),
-                "",
-                "# subcircuits distance",
-                *self.sub_dist_func.definition_function("sub", sub_vars_1, sub_vars_2)
-            ],
-            indent_amount=1
-        )
+#     def generate_z3py_suboutput_variables(self, c_name: str):
+#         return format_lines([
+#             f"# Subgraph output variables declaration",
+#             *(
+#                 self.declare_gate(name).strip()
+#                 for name in self.get_sub_out(c_name)
+#             )
+#         ])
 
-    def z3_generate_forall_solver_circuits(self):
-        return format_lines(
-            [
-                "# circuits",
-                f"{self.c_name_1},",
-                f"{self.c_name_2},",
-            ],
-            indent_amount=2
-        )
+#     def z3_generate_distance_declaration(self):
+#         return format_lines([
+#             "# Distance variables",
+#             f"cir_out_dist = {Z3INT}('cir_out_dist')",
+#             *self.cir_dist_func.declaration_function("cir"),
+#             f"sub_out_dist = {Z3INT}('sub_out_dist')",
+#             *self.sub_dist_func.declaration_function("sub")
+#         ])
 
-    def z3_generate_optimizer(self):
-        return format_lines(
-            [
-                f"# optimizer",
-                f"optimizer = z3.Optimize()",
-                f"",
-                f"# add circuits to optimizer",
-                f"optimizer.add({self.c_name_1}, {self.c_name_2})",
-                f"",
-                f"# add distances",
-                f"optimizer.add(",
-                self.z3_generate_distance_definition(),
-                f")",
-                f"",
-                f"# add constraints",
-                f"optimizer.add(cir_out_dist > ET)",
-                f"",
-                f"# setup objective",
-                f"objective = optimizer.minimize(sub_out_dist)",
-                f"",
-                f"# optimize",
-                f"result = optimizer.check()",
-                f"optimizer.lower(objective)",
-                f"",
-                f"# extract wanted distance",
-                f"model = optimizer.model()",
-            ],
-            extra_newlines=1)
+#     def z3_generate_distance_definition(self):
+#         fun_cir_vars = [
+#             f"{EXACT_OUTPUT_PREFIX}{v[1:]}({','.join(list(self.exact_graph.input_dict.values()))})"
+#             for v in self.get_cir_out()
+#         ]
 
-    def z3_generate_script_output(self):
-        return format_lines([
-            f"# print results",
-            f"print('circuit error       =', 'infinity' if result == z3.unsat else model[cir_out_dist])",
-            f"print('subcircuit distance =', 'infinity' if result == z3.unsat else model[sub_out_dist])",
-        ])
+#         cir_vars_1 = self.get_cir_out(self.c_name_1, fun_cir_vars)
+#         cir_vars_2 = self.get_cir_out(self.c_name_2, fun_cir_vars)
+#         sub_vars_1 = self.get_sub_out(self.c_name_1)
+#         sub_vars_2 = self.get_sub_out(self.c_name_2)
+#         return format_lines(
+#             [
+#                 "# circuits distance",
+#                 *self.cir_dist_func.definition_function("cir", cir_vars_1, cir_vars_2),
+#                 "",
+#                 "# subcircuits distance",
+#                 *self.sub_dist_func.definition_function("sub", sub_vars_1, sub_vars_2)
+#             ],
+#             indent_amount=1
+#         )
 
-    def generate_z3py_script_v2_phase1(self, file_path: str = "TMP.py"):
-        # check
-        assert None is not self.current_graph.subgraph, \
-            "Subgraph is not defined, did you miss calling `import_graph` and `extract_subgraph`?"
-        assert None not in [self.sub_dist_func, self.cir_dist_func], \
-            "Distance functions are not defined, did you miss calling `setup_distance_functions`?"
+#     def z3_generate_forall_solver_circuits(self):
+#         return format_lines(
+#             [
+#                 "# circuits",
+#                 f"{self.c_name_1},",
+#                 f"{self.c_name_2},",
+#             ],
+#             indent_amount=2
+#         )
 
-        imports = self.z3_generate_imports()  # parent
-        config = self.z3_generate_config()
-        z3_abs_function = self.z3_generate_z3_abs_function()  # parent
-        input_variables_declaration = self.z3_generate_declare_input_variables()
+#     def z3_generate_optimizer(self):
+#         return format_lines(
+#             [
+#                 f"# optimizer",
+#                 f"optimizer = z3.Optimize()",
+#                 f"",
+#                 f"# add circuits to optimizer",
+#                 f"optimizer.add({self.c_name_1}, {self.c_name_2})",
+#                 f"",
+#                 f"# add distances",
+#                 f"optimizer.add(",
+#                 self.z3_generate_distance_definition(),
+#                 f")",
+#                 f"",
+#                 f"# add constraints",
+#                 f"optimizer.add(cir_out_dist > ET)",
+#                 f"",
+#                 f"# setup objective",
+#                 f"objective = optimizer.minimize(sub_out_dist)",
+#                 f"",
+#                 f"# optimize",
+#                 f"result = optimizer.check()",
+#                 f"optimizer.lower(objective)",
+#                 f"",
+#                 f"# extract wanted distance",
+#                 f"model = optimizer.model()",
+#             ],
+#             extra_newlines=1)
 
-        subinputs_1 = self.generate_z3py_suboutput_variables(self.c_name_1)
-        subinputs_2 = self.generate_z3py_suboutput_variables(self.c_name_2)
+#     def z3_generate_script_output(self):
+#         return format_lines([
+#             f"# print results",
+#             f"print('circuit error       =', 'infinity' if result == z3.unsat else model[cir_out_dist])",
+#             f"print('subcircuit distance =', 'infinity' if result == z3.unsat else model[sub_out_dist])",
+#         ])
 
-        integer_function_declaration_1 = self.z3_generate_declare_integer_function(f"{self.c_name_1}_{F_EXACT}")
-        integer_function_declaration_2 = self.z3_generate_declare_integer_function(f"{self.c_name_2}_{F_EXACT}")
+#     def generate_z3py_script_v2_phase1(self, file_path: str = "TMP.py"):
+#         # check
+#         assert None is not self.current_graph.subgraph, \
+#             "Subgraph is not defined, did you miss calling `import_graph` and `extract_subgraph`?"
+#         assert None not in [self.sub_dist_func, self.cir_dist_func], \
+#             "Distance functions are not defined, did you miss calling `setup_distance_functions`?"
 
-        utility_variables = self.z3_generate_utility_variables()
-        # implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters_subxpat()
-        # TODO: MARCO
-        circuit_1 = "".join([
-            self.z3_generate_exact_circuit_wires_declaration(self.c_name_1),  # exact_circuit_wires_declaration
-            self.z3_generate_exact_circuit_outputs_declaration(self.c_name_1),  # exact_circuit_outputs_declaration
-            self.z3_generate_exact_circuit_constraints(self.c_name_1),  # exact_circuit_constraints
-        ])
-        circuit_2 = "".join([
-            self.z3_generate_exact_circuit_wires_declaration(self.c_name_2),  # exact_circuit_wires_declaration
-            self.z3_generate_exact_circuit_outputs_declaration(self.c_name_2),  # exact_circuit_outputs_declaration
-            self.z3_generate_exact_circuit_constraints(self.c_name_2),  # exact_circuit_constraints
-        ])
-        distance_declaration = self.z3_generate_distance_declaration()
+#         imports = self.z3_generate_imports()  # parent
+#         config = self.z3_generate_config()
+#         z3_abs_function = self.z3_generate_z3_abs_function()  # parent
+#         input_variables_declaration = self.z3_generate_declare_input_variables()
 
-        optimizer = self.z3_generate_optimizer()
-        output = self.z3_generate_script_output()
+#         subinputs_1 = self.generate_z3py_suboutput_variables(self.c_name_1)
+#         subinputs_2 = self.generate_z3py_suboutput_variables(self.c_name_2)
 
-        z3pyscript = "".join([
-            imports,
-            config,
-            z3_abs_function,
-            input_variables_declaration,
-            subinputs_1,
-            subinputs_2,
-            integer_function_declaration_1,
-            integer_function_declaration_2,
-            utility_variables,
-            circuit_1,
-            circuit_2,
-            distance_declaration,
-            optimizer,
-            output,
-            # verification_solver,
-            # parameter_constraint_list,
-            # find_wanted_number_of_models,
-            # store_data
-        ])
+#         integer_function_declaration_1 = self.z3_generate_declare_integer_function(f"{self.c_name_1}_{F_EXACT}")
+#         integer_function_declaration_2 = self.z3_generate_declare_integer_function(f"{self.c_name_2}_{F_EXACT}")
 
-        with open(file_path, "w") as f:
-            f.write(z3pyscript)
+#         utility_variables = self.z3_generate_utility_variables()
+#         # implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters_subxpat()
+#         # TODO: MARCO
+#         circuit_1 = "".join([
+#             self.z3_generate_exact_circuit_wires_declaration(self.c_name_1),  # exact_circuit_wires_declaration
+#             self.z3_generate_exact_circuit_outputs_declaration(self.c_name_1),  # exact_circuit_outputs_declaration
+#             self.z3_generate_exact_circuit_constraints(self.c_name_1),  # exact_circuit_constraints
+#         ])
+#         circuit_2 = "".join([
+#             self.z3_generate_exact_circuit_wires_declaration(self.c_name_2),  # exact_circuit_wires_declaration
+#             self.z3_generate_exact_circuit_outputs_declaration(self.c_name_2),  # exact_circuit_outputs_declaration
+#             self.z3_generate_exact_circuit_constraints(self.c_name_2),  # exact_circuit_constraints
+#         ])
+#         distance_declaration = self.z3_generate_distance_declaration()
+
+#         optimizer = self.z3_generate_optimizer()
+#         output = self.z3_generate_script_output()
+
+#         z3pyscript = "".join([
+#             imports,
+#             config,
+#             z3_abs_function,
+#             input_variables_declaration,
+#             subinputs_1,
+#             subinputs_2,
+#             integer_function_declaration_1,
+#             integer_function_declaration_2,
+#             utility_variables,
+#             circuit_1,
+#             circuit_2,
+#             distance_declaration,
+#             optimizer,
+#             output,
+#             # verification_solver,
+#             # parameter_constraint_list,
+#             # find_wanted_number_of_models,
+#             # store_data
+#         ])
+
+#         with open(file_path, "w") as f:
+#             f.write(z3pyscript)
