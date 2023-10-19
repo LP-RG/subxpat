@@ -1,8 +1,6 @@
-from itertools import filterfalse
-from typing import Dict, List, Callable
+from typing import Dict, List, Optional
 from sklearn.cluster import SpectralClustering
 from colorama import Fore, Style
-import time
 import io
 
 import networkx as nx
@@ -59,11 +57,11 @@ class AnnotatedGraph(Graph):
         return self.__partitioning_percentage
 
     @property
-    def subgraph(self):
+    def subgraph(self) -> Optional[nx.DiGraph]:
         return self.__subgraph
 
     @subgraph.setter
-    def subgraph(self, this_subgraph):
+    def subgraph(self, this_subgraph: nx.DiGraph):
         self.__subgraph = this_subgraph
 
     @property
@@ -516,7 +514,7 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-    def find_subgraph(self, specs_obj: TemplateSpecs):
+    def find_subgraph(self, specs_obj: TemplateSpecs) -> nx.DiGraph:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -804,9 +802,6 @@ class AnnotatedGraph(Graph):
         # print(f'{self.name = }')
         subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
 
-    # TODO: fix checks!
-    # The checks are done on the original graph instead of the annotated graph!
-
     def export_node(self, n, file_handler: io.TextIOWrapper):
         """
         exports node n as a line of file that is identified by file_hanlder
@@ -858,6 +853,35 @@ class AnnotatedGraph(Graph):
             exit()
         line = f"{n} [{label}, {shape}, {color}, {weight}];\n"
         file_handler.write(line)
+
+    # def export_subgraph(self, file_path: str):
+    #     """
+    #     exports the subgraph (ONLY THE SUBGRAPH) to a GV (GraphViz) file
+    #     """
+    #     # NOTE: added by Marco
+    #     base, _ = os.path.splitext(file_path)
+    #     gv_path = f"{base}.gv"
+    #     png_path = f"{base}.png"
+
+    #     subgraph_gates_set = set(chain(
+    #         self.subgraph_input_dict.values(),
+    #         self.subgraph_gate_dict.values(),
+    #         self.subgraph_output_dict.values()
+    #     ))
+
+    #     with open(gv_path, "w") as f:
+    #         f.write(f"{STRICT} {DIGRAPH} \"{self.name}\" {{\n")
+    #         f.write(f"{NODE} [{STYLE} = {FILLED}, {FILLCOLOR} = {WHITE}]\n")
+    #         for n in self.subgraph.nodes:
+    #             if n in subgraph_gates_set:
+    #                 super().export_node(n, f)
+    #         for n1, n2 in self.subgraph.edges:
+    #             if n1 in subgraph_gates_set and n2 in subgraph_gates_set:
+    #                 self.export_edge((n1, n2), f)
+    #         f.write(f"}}\n")
+
+    #     # convert to png
+    #     os.system(f"dot -Tpng {gv_path} > {png_path}")
 
     def color_subgraph_node(self, n, this_color):
         """
