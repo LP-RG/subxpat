@@ -107,8 +107,10 @@ class TemplateCreator:
         """
         # print(Fore.LIGHTMAGENTA_EX+ f'importing {self.benchmark_name}' + Style.RESET_ALL)
         temp_verilog_obj = Verilog(self.benchmark_name)
+
         convert_verilog_to_gv(self.benchmark_name)
         temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False, partitioning_percentage=1)
+
         return temp_graph_obj
 
     def import_exact_graph(self):

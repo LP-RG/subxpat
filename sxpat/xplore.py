@@ -49,6 +49,7 @@ def explore_cell(specs_obj: TemplateSpecs):
 
 
 def explore_grid(specs_obj: TemplateSpecs):
+    print(f'{specs_obj = }')
     print(
         Fore.BLUE + f'Subxpat started...' + Style.RESET_ALL)
     i = 1
