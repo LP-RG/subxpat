@@ -2,6 +2,7 @@ from builtins import property
 from typing import List, Dict, Callable, Iterable, Tuple, AnyStr
 import json
 import re
+import shutil
 import networkx as nx
 import subprocess
 import os
@@ -470,7 +471,11 @@ class Synthesis:
     def __get_module_signature(self, idx: int = 0):
 
         input_list = list(self.graph.input_dict.values())
-        input_list.reverse()
+
+        input_list.sort(key=lambda x: re.search('\d+', x).group())
+
+        # input_list.sort(key=lambda x: re.search('\d+', x).group())
+
         output_list = list(self.graph.output_dict.values())
         # Sort Dictionary
 
@@ -481,7 +486,9 @@ class Synthesis:
 
     def __declare_inputs_outputs(self):
         input_list = list(self.graph.input_dict.values())
-        input_list.reverse()
+        input_list.sort(key=lambda x: re.search('\d+', x).group())
+        # input_list.reverse()
+        # print(f'{input_list = }')
         output_list = list(self.graph.output_dict.values())
         input_declarations = f"//input/output declarations\n"
         input_declarations += f"{sxpatconfig.VER_INPUT} {', '.join(input_list)};\n"
@@ -688,9 +695,10 @@ class Synthesis:
         with open(power_script, 'w') as ds:
             ds.writelines(sta_command)
         # process = subprocess.run([sxpatconfig.OPENSTA, power_script], stderr=PIPE)
+
         process = subprocess.run([sxpatconfig.OPENSTA, power_script], stdout=PIPE, stderr=PIPE)
         if process.stderr:
-            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
+            raise Exception(Fore.RED + f'OpenSTA ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
         else:
             os.remove(power_script)
             pattern = r"Total\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+[^0-9]*\d+)\s+"
