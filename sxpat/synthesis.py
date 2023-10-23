@@ -177,9 +177,9 @@ class Synthesis:
                 self.ver_out_name = f'{self.benchmark_name}_{id}.{extenstion}'
             else:
                 if self.num_of_models == 1:
-                    self.ver_out_name = f'{self.exact_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
+                    self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_id0.{extenstion}'
                 elif self.num_of_models > 1:
-                    self.ver_out_name = f'{self.exact_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.ITER}{self.iterations}_id{id}.{extenstion}'
+                    self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_id{id}.{extenstion}'
         self.ver_out_path = f'{folder}/{self.ver_out_name}'
 
         return f'{folder}/{self.ver_out_name}'

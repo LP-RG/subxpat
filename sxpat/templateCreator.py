@@ -273,7 +273,13 @@ class Template_SOP1(TemplateCreator):
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extension = this_path
-        path = f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}_{TEMPLATE_SPEC_ET}{self.et}_{ITER}{self.iterations}.{extension}'
+        # print(f'setting json out path...')
+        # print(f'{self.benchmark_name = }')
+        if re.search('id', self.benchmark_name):
+            path = f'{folder}/{self.benchmark_name}_{ITER}{self.iterations}.{extension}'
+        else:
+            path = f'{folder}/{self.benchmark_name}_{TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{ITER}{self.iterations}.{extension}'
+        # print(f'{path = }')
         return path
     def export_z3pyscript(self):
         # print(f'Storing in {self.z3_out_path}')
@@ -1429,60 +1435,3 @@ class Template_SOP1(TemplateCreator):
                    f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
         return results
 
-
-# TODO: Later (Cata)
-class Template_SOP1ShareLogic(TemplateCreator):
-    def __init__(self, template_specs: TemplateSpecs):
-        super().__init__(template_specs)
-        self.__literal_per_product = template_specs.literals_per_product
-        self.__product_per_output = template_specs.products_per_output
-        self.__z3pyscript = None
-        self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
-        self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH['json'])
-
-    @property
-    def literals_per_product(self):
-        return self.__literal_per_product
-
-    @property
-    def lpp(self):
-        return self.__literal_per_product
-
-    @property
-    def products_per_output(self):
-        return self.__product_per_output
-
-    @property
-    def ppo(self):
-        return self.__product_per_output
-
-    @property
-    def z3pyscript(self):
-        return self.__z3pyscript
-
-    @z3pyscript.setter
-    def z3pyscript(self, input_z3pyscript):
-        self.__z3pyscript = input_z3pyscript
-
-    @property
-    def z3_out_path(self):
-        return self.__z3_out_path
-
-    @property
-    def json_out_path(self):
-        return self.__json_out_path
-
-    def set_path(self, this_path: Tuple[str, str]):
-        folder, extenstion = this_path
-        return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}.{extenstion}'
-
-    def export_z3pyscript(self):
-        print(f'Storing in {self.z3_out_path}')
-        with open(self.z3_out_path, 'w') as z:
-            z.writelines(self.z3pyscript)
-
-    # run_z3pyscript
-    # eerag
-    # asdfsd
-
-    ##### here, I have to insert something
