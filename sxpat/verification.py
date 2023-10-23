@@ -34,6 +34,8 @@ def erroreval_verification(exact_benchmark_name: str, approximate_benchmark: str
     # print(f'evaluating the metric with monotonic...')
     z3py_obj_qor.export_z3pyscript()
     z3py_obj_qor.run_z3pyscript_qor()
+    os.remove(z3py_obj_qor.out_path)
+
     # print(f'metric is evaluated!')
 
     # Compare the obtained WCE
@@ -55,6 +57,7 @@ def erroreval_verification(exact_benchmark_name: str, approximate_benchmark: str
                             #         'w') as f:
                             #     pass
                             os.remove(report_file)
+
                             return True
 
                         else:

@@ -1,4 +1,7 @@
 import csv
+import os
+import shutil
+
 from colorama import Style, Fore
 from typing import Dict
 from Z3Log.verilog import Verilog
@@ -32,14 +35,37 @@ def labeling(exact_benchmark_name: str, approximate_benchmark: str, constant_val
         z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE)
 
     if constant_value == 0:
+
         labels_false = z3py_obj.label_circuit(False)
+        z3_folder, _ = OUTPUT_PATH['z3']
+        report_folder, _ = OUTPUT_PATH['report']
+        all_files = [f for f in os.listdir(z3_folder)]
+        # print(f'{all_files = }')
+        for dir in all_files:
+            if os.path.isdir(f'{z3_folder}/{dir}') and re.search('labeling', dir):
+                # print(f'removing... {z3_folder}/{dir}')
+                shutil.rmtree(f'{z3_folder}/{dir}')
+                shutil.rmtree(f'{report_folder}/{dir}')
+
         return labels_false, labels_false
     elif constant_value == 1:
         labels_true = z3py_obj.label_circuit(True)
+        folder, _ = OUTPUT_PATH['z3']
+        all_files = [f for f in os.listdir(folder)]
+
+        for dir in all_files:
+            if os.path.isdir(f'{folder}/{dir}') and re.search('labeling', dir):
+                shutil.rmtree(f'{folder}/{dir}')
         return labels_true, labels_true
     else:
         labels_false = z3py_obj.label_circuit(False)
         labels_true = z3py_obj.label_circuit(True)
+        folder, _ = OUTPUT_PATH['z3']
+        all_files = [f for f in os.listdir(folder)]
+
+        for dir in all_files:
+            if os.path.isdir(f'{folder}/{dir}') and re.search('labeling', dir):
+                shutil.rmtree(f'{folder}/{dir}')
         return labels_true, labels_false
 
 
