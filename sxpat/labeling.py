@@ -41,11 +41,11 @@ def labeling(exact_benchmark_name: str, approximate_benchmark: str, constant_val
         report_folder, _ = OUTPUT_PATH['report']
         all_files = [f for f in os.listdir(z3_folder)]
         # print(f'{all_files = }')
-        for dir in all_files:
-            if os.path.isdir(f'{z3_folder}/{dir}') and re.search('labeling', dir):
-                # print(f'removing... {z3_folder}/{dir}')
-                shutil.rmtree(f'{z3_folder}/{dir}')
-                shutil.rmtree(f'{report_folder}/{dir}')
+        # for dir in all_files:
+        #     if os.path.isdir(f'{z3_folder}/{dir}') and re.search('labeling', dir):
+        #         # print(f'removing... {z3_folder}/{dir}')
+        #         shutil.rmtree(f'{z3_folder}/{dir}')
+        #         shutil.rmtree(f'{report_folder}/{dir}')
 
         return labels_false, labels_false
     elif constant_value == 1:
