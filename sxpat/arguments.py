@@ -26,6 +26,16 @@ class Arguments(Arguments):
         self.__mode: int = tmp_args.mode
         self.__population: int = tmp_args.population
         self.__num_models: int = tmp_args.num_models
+        self.__min_labeling: bool = tmp_args.min_labeling
+        self.__shared: bool = tmp_args.shared
+
+    @property
+    def shared(self):
+        return self.__shared
+
+    @property
+    def min_labeling(self):
+        return self.__min_labeling
 
     @property
     def num_models(self):
@@ -241,6 +251,14 @@ class Arguments(Arguments):
                                action="store_true",
                                default=False)
 
+        my_parser.add_argument('--min_labeling',
+                               action="store_true",
+                               default=False)
+
+        my_parser.add_argument('--shared',
+                               action="store_true",
+                               default=False)
+
 
 
         tmp_args = my_parser.parse_args()
@@ -266,5 +284,7 @@ class Arguments(Arguments):
                f'{self.subgraph_size = }\n' \
                f'{self.mode = }\n' \
                f'{self.population = }\n' \
-               f'{self.num_models = }\n' \
+               f'{self.num_models = }\n'\
+               f'{self.min_labeling = }\n' \
+               f'{self.shared = }\n' \
                f'{self.clean = }'

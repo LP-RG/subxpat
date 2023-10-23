@@ -244,9 +244,9 @@ class Template_SOP1(TemplateCreator):
 
 
 
-    def label_graph(self, constant_value = 2):
+    def label_graph(self, constant_value = 2, min_labeling: bool = False):
         print(Fore.BLUE + f'labeling...' + Style.RESET_ALL)
-        labels1, labels0 = labeling(self.exact_benchmark, self.benchmark_name, constant_value)
+        labels1, labels0 = labeling(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling)
         for n in self.current_graph.graph.nodes:
             if n in labels0 and n in labels1:
                 if constant_value == 0:

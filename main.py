@@ -17,7 +17,7 @@ from sxpat.synthesis import Synthesis
 from sxpat.arguments import Arguments
 
 
-from sxpat.xplore import explore_cell, explore_grid
+from sxpat.xplore import explore_grid
 from sxpat.stats import Stats, Result
 
 
@@ -38,8 +38,12 @@ def clean_all():
 
 def main():
     args = Arguments.parse()
-    # print(f'{args = }')
+    print(f'{args = }')
     # exit()
+
+
+
+
     if args.plot:
 
         print(Fore.BLUE + f'Plotting...' + Style.RESET_ALL)
@@ -49,9 +53,8 @@ def main():
                                   et=args.et,
                                   partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
-                                  timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population)
-
-
+                                  timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
+                                  min_labeling=args.min_labeling, shared= args.shared)
         stats_obj = Stats(specs_obj)
         stats_obj.gather_results()
 
@@ -69,80 +72,17 @@ def main():
             if ~os.path.exists(directory):
                 os.makedirs(directory, exist_ok=True)
 
-        if args.multiple:
-            n_o = int(re.search(f'.*o(\d+).*', args.benchmark_name).group(1))
-            max_error = 2**(n_o-1)
-            if max_error <= 8:
-                et_array = list(range(1, max_error + 1))
-            else:
-                step = max_error // 8
-                et_array = list(range(step, max_error + 1, step))
-            # et_array = [8, 6, 8, 6]
-            specs_obj = None
-            for et in et_array:
-                # print(f'{specs_obj = }')
-                if args.sensitivity < 0:
-                    specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
-                                              products_per_output=args.ppo,
-                                              benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
-                                              subxpat=args.subxpat,
-                                              et=et,
-                                              partitioning_percentage=args.partitioning_percentage,
-                                              iterations=args.iterations,
-                                              grid=args.grid, imax=args.imax, omax=args.omax,
-                                              sensitivity=args.sensitivity,
-                                              timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population)
-                else:
-                    specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
-                                              products_per_output=args.ppo,
-                                              benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
-                                              subxpat=args.subxpat,
-                                              et=et,
-                                              partitioning_percentage=args.partitioning_percentage,
-                                              iterations=args.iterations,
-                                              grid=args.grid, imax=args.imax, omax=args.omax,
-                                              sensitivity=args.sensitivity * et,
-                                              timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population)
+        specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
+                                  products_per_output=args.ppo,
+                                  benchmark_name=args.approximate_benchmark, num_of_models=args.num_models, subxpat=args.subxpat,
+                                  et=args.et,
+                                  partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
+                                  grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
+                                  timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
+                                  min_labeling=args.min_labeling, shared= args.shared)
 
-                if specs_obj.grid:
-                    try:
-
-                        stats_obj = explore_grid(specs_obj)
-
-                    except Exception:
-                        raise
-
-                else:
-                    # TODO: Fix later
-                    explore_cell(specs_obj)
-        else:
-            specs_obj = None
-            if args.sensitivity < 0:
-                specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
-                                          products_per_output=args.ppo,
-                                          benchmark_name=args.approximate_benchmark, num_of_models=args.num_models, subxpat=args.subxpat,
-                                          et=args.et,
-                                          partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                          grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
-                                          timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population)
-            else:
-                specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
-                                          products_per_output=args.ppo,
-                                          benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
-                                          subxpat=args.subxpat,
-                                          et=args.et,
-                                          partitioning_percentage=args.partitioning_percentage,
-                                          iterations=args.iterations,
-                                          grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity * args.et,
-                                          timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population)
-            # print(f'{specs_obj = }')
-            if specs_obj.grid:
-                stats_obj = explore_grid(specs_obj)
-                # stats_obj.plot_area()
-                # stats_obj.plot_runtime()
-            else:
-                # TODO: Fix later
-                explore_cell(specs_obj)
+        if specs_obj.grid:
+            stats_obj = explore_grid(specs_obj)
 
 
 if __name__ == "__main__":

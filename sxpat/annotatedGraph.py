@@ -152,10 +152,7 @@ class AnnotatedGraph(Graph):
 
     def sort_dict(self, this_dict: Dict) -> Dict:
         sorted_dict: type(this_dict) = {}
-
-        for i in range(len(this_dict)):
-            sorted_dict[i] = this_dict[i]
-
+        sorted_dict = dict(sorted(this_dict.items(), key=lambda x:x[0]))
         return sorted_dict
 
     def __add_weights(self):

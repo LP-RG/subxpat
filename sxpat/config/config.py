@@ -25,6 +25,8 @@ TIMEOUT = 'timeout'
 SUBGRAPHSIZE = 'subgraph_size'
 MODE = 'mode'
 POPULATION = 'population'
+MIN_LABELING = 'min_labeling'
+SHARED = 'shared'
 
 
 
