@@ -19,33 +19,6 @@ from sxpat.stats import Stats
 from sxpat.stats import *
 
 
-def explore_cell(specs_obj: TemplateSpecs):
-    print(
-        Fore.BLUE + f'cell ({specs_obj.lpp}, {specs_obj.ppo}) and et={specs_obj.et} exploration started...' + Style.RESET_ALL)
-    i = 1
-    total_iterations = specs_obj.iterations
-    exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
-    for i in range(1, total_iterations):
-        specs_obj.iterations = i
-        template_obj = Template_SOP1(specs_obj)
-        template_obj.z3_generate_z3pyscript()
-        template_obj.run_z3pyscript(specs_obj.et)
-
-        if template_obj.import_json_model():
-            synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
-            if i > 1:
-                synth_obj.benchmark_name = specs_obj.exact_benchmark
-                synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
-            synth_obj.export_verilog()
-            synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
-            print(f'area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})')
-            approximate_benchmark = synth_obj.ver_out_name[:-2]  # remove the extension
-            if not erroreval_verification(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
-                raise Exception(Fore.RED + f'ErrorEval Verification: FAILED!' + Style.RESET_ALL)
-            specs_obj.benchmark_name = approximate_benchmark
-        else:
-            print(Fore.YELLOW + f'Change the parameters!' + Style.RESET_ALL)
-            exit()
 
 
 def explore_grid(specs_obj: TemplateSpecs):
@@ -84,7 +57,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             template_obj.set_new_context(specs_obj)
             template_obj.current_graph = template_obj.import_graph()
             if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3:
-                template_obj.label_graph(0)
+                template_obj.label_graph(0, min_labeling=specs_obj.min_labeling)
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
 
             if subgraph_is_available:
@@ -331,7 +304,9 @@ def explore_grid_old(specs_obj: TemplateSpecs):
                             if not erroreval_verification(specs_obj.exact_benchmark, approximate_benchmark,
                                                           template_obj.et):
                                 raise Exception(Fore.RED + f'ErrorEval Verification: FAILED!' + Style.RESET_ALL)
-                        # exit()
+
+
+                        # print( "print(u'\N{check mark}')")
                         specs_obj.benchmark_name = approximate_benchmark
                         template_obj.set_new_context(specs_obj)
 
@@ -387,7 +362,7 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
     if len(cur_model_result) < 10:
         sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
         for idx, key in enumerate(sorted_candidates):
-            print(f'{sorted_candidates[idx] = }')
+            # print(f'{sorted_candidates[idx] = }')
             this_id = re.search('(id.*)', sorted_candidates[idx][0]).group(1).split('.')[0]
             this_area = sorted_candidates[idx][1][0]
             this_power = sorted_candidates[idx][1][1]
@@ -396,9 +371,12 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
         print(Fore.LIGHTGREEN_EX + tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]) + Style.RESET_ALL)
     else:
         sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
+        # print(sorted_candidates)
+        best_id = re.search('(id.*)', sorted_candidates[0][0]).group(1).split('.')[0]
         best_area = sorted_candidates[0][1][0]
         best_power = sorted_candidates[0][1][1]
         best_delay = sorted_candidates[0][1][2]
+        data.append([best_id, best_area, best_power, best_delay])
         print(Fore.LIGHTGREEN_EX + tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]) + Style.RESET_ALL)
         #print the best model for now
 

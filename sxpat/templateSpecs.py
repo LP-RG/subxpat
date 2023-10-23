@@ -22,8 +22,15 @@ class TemplateSpecs:
         self.__min_subgraph_size = kwargs[SUBGRAPHSIZE]
         self.__mode = kwargs[MODE]
         self.__population = kwargs[POPULATION]
+        self.__min_labeling = kwargs[MIN_LABELING]
+        self.__shared = kwargs[SHARED]
 
-
+    @property
+    def shared(self):
+        return self.__shared
+    @property
+    def min_labeling(self):
+        return self.__min_labeling
     @property
     def population(self):
         return self.__population
@@ -172,4 +179,6 @@ class TemplateSpecs:
                f'{self.timeout = }\n' \
                f'{self.min_subgraph_size = }\n' \
                f'{self.mode = }\n' \
-               f'{self.population = }'
+               f'{self.population = }\n' \
+               f'{self.shared = }\n'  \
+               f'{self.min_labeling = }'
