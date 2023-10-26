@@ -9,7 +9,9 @@ from Z3Log.graph import Graph
 from Z3Log.utils import *
 from Z3Log.z3solver import Z3solver
 from Z3Log.config import path as z3logpath
-from sxpat.templateCreator import Template_SOP1
+from sxpat.templateCreator import TemplateCreator, Template_SOP1, Template_SOP1ShareLogic
+
+
 from sxpat.templateSpecs import TemplateSpecs
 from sxpat.config.paths import *
 from sxpat.config.config import *
@@ -19,6 +21,54 @@ from sxpat.stats import Stats
 from sxpat.stats import *
 
 
+
+def explore_grid_shared(specs_obj: TemplateSpecs):
+    exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
+    print(f'{specs_obj = }')
+    print(
+        Fore.BLUE + f'Subxpat with logic sharing started...' + Style.RESET_ALL)
+    template_obj = Template_SOP1ShareLogic(specs_obj)
+
+    template_obj.set_new_context(specs_obj)
+    template_obj.current_graph = template_obj.import_graph()
+
+    if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3:
+        template_obj.label_graph(0, min_labeling=specs_obj.min_labeling)
+    subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
+
+    print(f'{subgraph_is_available = }')
+    # exit()
+    template_obj.z3_generate_z3pyscript()
+    # exit()
+    template_obj.run_z3pyscript(specs_obj.et, specs_obj.num_of_models, specs_obj.timeout)
+    cur_status = get_status(template_obj)
+    # print(f'{cur_status = }')
+    if cur_status == SAT:
+        # print(f'{type(template_obj.json_model) = }')
+        # print(f'{template_obj.json_status = }')
+        # print(f'{len(template_obj.json_model) = }')
+        synth_obj = Synthesis(specs_obj, template_obj.graph, template_obj.json_model)
+        cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
+        for idx in range(synth_obj.num_of_models):
+            synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
+            synth_obj.export_verilog(idx=idx)
+            synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
+            cur_model_results[synth_obj.ver_out_name] = synth_obj.estimate_area(), \
+                synth_obj.estimate_power(), \
+                synth_obj.estimate_delay(),
+        # exit()
+        print(Fore.GREEN + f'verifying all approximate circuits -> ', end='' + Style.RESET_ALL)
+        for candidate in cur_model_results:
+
+            approximate_benchmark = candidate[:-2]
+            if not erroreval_verification(specs_obj.exact_benchmark, approximate_benchmark,
+                                          specs_obj.et):
+                raise Exception(Fore.RED + f'ErrorEval Verification: FAILED!' + Style.RESET_ALL)
+        print(Fore.GREEN + f'ErrorEval PASS! ' + Style.RESET_ALL)
+        exact_stats = [synth_obj.estimate_area(exact_file_path),
+                       synth_obj.estimate_power(exact_file_path),
+                       synth_obj.estimate_delay(exact_file_path)]
+        print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
 
 
 def explore_grid(specs_obj: TemplateSpecs):
@@ -115,11 +165,11 @@ def explore_grid(specs_obj: TemplateSpecs):
                             cur_ppo = ppo
                             runtime = template_obj.get_json_runtime()
                             synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
-                            area = synth_obj.estimate_area()
-                            delay = synth_obj.estimate_delay()
-                            if area == 0.0 and delay == -1:
-                                delay = 0.0
-                            total_power = synth_obj.estimate_power()
+                            # area = synth_obj.estimate_area()
+                            # delay = synth_obj.estimate_delay()
+                            # if area == 0.0 and delay == -1:
+                            #     delay = 0.0
+                            # total_power = synth_obj.estimate_power()
 
                             print(
                                 Fore.GREEN + f'Cell = ({cur_lpp}, {cur_ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)',)
@@ -129,14 +179,14 @@ def explore_grid(specs_obj: TemplateSpecs):
                             print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
 
                             found = True
-                            stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                            this_iteration=i,
-                                                                            this_area=area,
-                                                                            this_total_power=total_power,
-                                                                            this_delay=delay,
-                                                                            this_runtime=runtime,
-                                                                            this_status='SAT',
-                                                                            this_cell=(lpp, ppo))
+                            # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                            #                                                 this_iteration=i,
+                            #                                                 this_area=area,
+                            #                                                 this_total_power=total_power,
+                            #                                                 this_delay=delay,
+                            #                                                 this_runtime=runtime,
+                            #                                                 this_status='SAT',
+                            #                                                 this_cell=(lpp, ppo))
                             # add current results to next_generation
                             for key in cur_model_results.keys():
                                 next_generation[key] = cur_model_results[key]
@@ -506,7 +556,7 @@ def is_unsat(template_obj: Template_SOP1) -> bool:
 
 
 
-def get_status(template_obj: Template_SOP1) -> str:
+def get_status(template_obj: Template_SOP1 or Template_SOP1ShareLogic) -> str:
     """
     checks whether the current model was sat, unsat or unknown
     :param: the current template object

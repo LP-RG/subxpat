@@ -26,8 +26,17 @@ SUBGRAPHSIZE = 'subgraph_size'
 MODE = 'mode'
 POPULATION = 'population'
 MIN_LABELING = 'min_labeling'
-SHARED = 'shared'
 
+
+# shared
+SHARED = 'shared'
+PRODUCTS_IN_TOTAL = 'products_in_total'
+SHARED_PARAM_PREFIX = 'p'
+SHARED_PRODUCT_PREFIX = 'pr'
+SHARED_OUTPUT_PREFIX = 'o'
+SHARED_SELECT_PREFIX = 's'
+SHARED_LITERAL_PREFIX = 'l'
+SHARED_INPUT_LITERAL_PREFIX = 'i'
 
 
 #   NetworkX
@@ -87,6 +96,7 @@ LPP = 'lpp'
 PPO = 'ppo'
 PAP = 'pap'
 ITER = 'iter'
+PIT = 'pit'
 
 # Graph related
 LABEL = 'label'

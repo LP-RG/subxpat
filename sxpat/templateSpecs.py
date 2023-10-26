@@ -24,6 +24,7 @@ class TemplateSpecs:
         self.__population = kwargs[POPULATION]
         self.__min_labeling = kwargs[MIN_LABELING]
         self.__shared = kwargs[SHARED]
+        self.__products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
 
     @property
     def shared(self):
@@ -159,6 +160,19 @@ class TemplateSpecs:
     def min_subgraph_size(self, this_subgraph_size):
         self.__min_subgraph_size = this_subgraph_size
 
+    @property
+    def products_in_total(self):
+        return self.__products_in_total
+
+    @property
+    def pit(self):
+        return self.__products_in_total
+
+    @pit.setter
+    def pit(self, this_pit):
+        self.__products_in_total = this_pit
+
+
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \
                f'{self.template_name = }\n' \
@@ -166,6 +180,7 @@ class TemplateSpecs:
                f'{self.benchmark_name = }\n' \
                f'{self.lpp = }\n' \
                f'{self.ppo = }\n' \
+               f'{self.pit = }\n' \
                f'{self.subxpat = }\n' \
                f'{self.num_of_models = }\n' \
                f'{self.et = }\n' \
