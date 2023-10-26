@@ -28,6 +28,15 @@ class Arguments(Arguments):
         self.__num_models: int = tmp_args.num_models
         self.__min_labeling: bool = tmp_args.min_labeling
         self.__shared: bool = tmp_args.shared
+        self.__products_in_total: int = tmp_args.pit
+
+    @property
+    def products_in_total(self):
+        return self.__products_in_total
+
+    @property
+    def pit(self):
+        return self.__products_in_total
 
     @property
     def shared(self):
@@ -233,7 +242,9 @@ class Arguments(Arguments):
         my_parser.add_argument('-mode',
                                type=int,
                                default=3,
-                               help='selects-partitioning-algorithm')
+                               help='selects-partitioning-algorithm [if 1=> imax,omax] \
+                                    [if 2=> imax,omax,min_size,sensitivity] \
+                                    [if 3=>min_size,sensitivity]')
 
 
         my_parser.add_argument('-population',
@@ -249,15 +260,24 @@ class Arguments(Arguments):
 
         my_parser.add_argument('--clean',
                                action="store_true",
-                               default=False)
+                               default=False,
+                               help='cleans-output-directory-and-its-contents')
 
         my_parser.add_argument('--min_labeling',
                                action="store_true",
-                               default=False)
+                               default=False,
+                               help='[if true labels-gates-with-min-error] \
+                                     [if false max-error]')
 
         my_parser.add_argument('--shared',
                                action="store_true",
-                               default=False)
+                               default=False,
+                               help='activates-logic-sharing')
+
+        my_parser.add_argument('--pit', '-pit',
+                               type=int,
+                               default=5,
+                               help='products-in-total')
 
 
 
@@ -269,6 +289,7 @@ class Arguments(Arguments):
         return f'An object of class Arguments:\n' \
                f'{self.literals_per_product = }\n' \
                f'{self.products_per_output = }\n' \
+               f'{self.products_in_total = }\n' \
                f'{self.subxpat = }\n' \
                f'{self.et = }\n' \
                f'{self.clean = }\n' \

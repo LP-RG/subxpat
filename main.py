@@ -17,7 +17,7 @@ from sxpat.synthesis import Synthesis
 from sxpat.arguments import Arguments
 
 
-from sxpat.xplore import explore_grid
+from sxpat.xplore import explore_grid, explore_grid_shared
 from sxpat.stats import Stats, Result
 
 
@@ -47,14 +47,15 @@ def main():
     if args.plot:
 
         print(Fore.BLUE + f'Plotting...' + Style.RESET_ALL)
-        specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
+        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.benchmark_name, literals_per_product=args.lpp,
                                   products_per_output=args.ppo,
                                   benchmark_name=args.approximate_benchmark, num_of_models=args.num_models, subxpat=args.subxpat,
                                   et=args.et,
                                   partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
-                                  min_labeling=args.min_labeling, shared= args.shared)
+                                  min_labeling=args.min_labeling,
+                                  shared= args.shared, products_in_total=args.pit)
         stats_obj = Stats(specs_obj)
         stats_obj.gather_results()
 
@@ -72,17 +73,21 @@ def main():
             if ~os.path.exists(directory):
                 os.makedirs(directory, exist_ok=True)
 
-        specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
+        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.benchmark_name, literals_per_product=args.lpp,
                                   products_per_output=args.ppo,
                                   benchmark_name=args.approximate_benchmark, num_of_models=args.num_models, subxpat=args.subxpat,
                                   et=args.et,
                                   partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
-                                  min_labeling=args.min_labeling, shared= args.shared)
+                                  min_labeling=args.min_labeling,
+                                  shared= args.shared, products_in_total=args.pit)
 
         if specs_obj.grid:
-            stats_obj = explore_grid(specs_obj)
+            if specs_obj.shared:
+                stats_obj = explore_grid_shared(specs_obj)
+            else:
+                stats_obj = explore_grid(specs_obj)
 
 
 if __name__ == "__main__":
