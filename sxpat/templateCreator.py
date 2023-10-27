@@ -1655,7 +1655,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def z3_generate_z3pyscript(self):
         if self.subxpat:
             if self.shared: # Shared Subxpat (The best)
-                # print(Fore.LIGHTBLUE_EX + f'shared subxpat runner generation...' + Style.RESET_ALL)
                 imports = self.z3_generate_imports()  # parent
                 config = self.z3_generate_config()
                 z3_abs_function = self.z3_generate_z3_abs_function()  # parent
@@ -1776,8 +1775,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def z3_generate_declare_input_variables(self):
         input_variables = ''
         input_variables += f'# Inputs variables declaration\n'
-        for inp_key in self.graph.input_dict.keys():
-            input_variables += self.declare_gate(inp_key, self.graph.input_dict)
+        for inp_key in self.exact_graph.input_dict.keys():
+            input_variables += self.declare_gate(inp_key, self.exact_graph.input_dict)
         input_variables += '\n'
         return input_variables
 
@@ -1795,8 +1794,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
         utility_variables = ''
         utility_variables += f'# utility variables'
         utility_variables += f"\n" \
-                             f"difference = z3_abs({F_EXACT}({', '.join(self.graph.input_dict.values())}) - " \
-                             f"{F_APPROXIMATE}({', '.join(self.graph.input_dict.values())})" \
+                             f"difference = z3_abs({F_EXACT}({', '.join(self.exact_graph.input_dict.values())}) - " \
+                             f"{F_APPROXIMATE}({', '.join(self.exact_graph.input_dict.values())})" \
                              f")\n" \
                              f"error = {Z3INT}('error')\n"
 
@@ -1821,9 +1820,9 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
     def z3_generate_oti_subxpat_shared(self):
         temp_oti = ''
-        for o_idx in range(self.graph.num_outputs):
+        for o_idx in range(self.graph.subgraph_num_outputs):
             for ppo_idx in range(self.ppo):
-                for input_idx in range(self.graph.num_inputs):
+                for input_idx in range(self.graph.subgraph_num_inputs):
                     p_s = f'{PRODUCT_PREFIX}{o_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     p_l = f'{PRODUCT_PREFIX}{o_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
                     temp_oti += self.declare_gate(p_s)
@@ -1999,7 +1998,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         return list(self.graph.graph.predecessors(node))
 
     def get_predecessors_exact(self, node: str) -> List[str]:
-        return list(self.graph.graph.predecessors(node))
+        return list(self.exact_graph.graph.predecessors(node))
 
 
     # NM
@@ -2007,7 +2006,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         return self.graph.graph.nodes[node][LABEL]
 
     def get_logical_function_exact(self, node: str) -> str:
-        return self.graph.graph.nodes[node][LABEL]
+        return self.exact_graph.graph.nodes[node][LABEL]
 
     def z3_express_node_as_wire_constraints_subxpat_shared_exact_circuit(self, node: str):
         assert node in list(self.exact_graph.input_dict.values()) or node in list(self.exact_graph.gate_dict.values()) \
@@ -2061,7 +2060,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
             g_predecessors = self.get_predecessors_exact(g_label)
             g_function = self.get_logical_function_exact(g_label)
 
-            assert len(g_predecessors) == 1 or len(g_predecessors) == 2
+            assert len(g_predecessors) == 1 or len(g_predecessors) == 2, Fore.RED + f'ERROR!!! {len(g_predecessors) = }' + Style.RESET_ALL
             assert g_function == NOT or g_function == AND or g_function == OR
             if len(g_predecessors) == 1:
                 if g_predecessors[0] in list(self.exact_graph.input_dict.values()):
@@ -2545,7 +2544,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         double_no_care = self.z3_generate_forall_solver_redundancy_constraints_double_no_care_subxpat_shared()
         remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_subxpat_shared()
         remove_unused_products = self.z3_generate_forall_solver_redundancy_constraints_remove_unused_products_subxpat_shared()
-        set_pit_order = self.z3_generate_forall_solver_redundancy_constraints_set_pit_order()
+        set_pit_order = self.z3_generate_forall_solver_redundancy_constraints_set_pit_order_subxpat_shared()
         set_order = f''
         double_no_care += '\n'
         remove_constant_zero_permutation += '\n'
@@ -2582,6 +2581,52 @@ class Template_SOP1ShareLogic(TemplateCreator):
         end = f"{TAB})\n))\n"
         redundancy += double_no_care + remove_constant_zero_permutation + set_ppo_order + end
         return redundancy
+
+
+    def z3_generate_forall_solver_redundancy_constraints_set_pit_order_subxpat_shared(self):
+        """
+        this will also remove duplicates
+        :return:
+        """
+        # sth like this: imaging that pit = 3
+        # (IntVal(1) * p_pr0_i0_s + IntVal(2) * p_pr0_i0_l + IntVal(4) * p_pr0_i1_s + IntVal(8) * p_pr0_i1_l > \
+        # IntVal(1) * p_pr1_i0_s + IntVal(2) * p_pr1_i0_l + IntVal(4) * p_pr1_i1_s + IntVal(8) * p_pr1_i1_l),
+        # IntVal(1) * p_pr1_i0_s + IntVal(2) * p_pr1_i0_l + IntVal(4) * p_pr1_i1_s + IntVal(8) * p_pr1_i1_l) > \
+        # IntVal(1) * p_pr2_i0_s + IntVal(2) * p_pr2_i0_l + IntVal(4) * p_pr2_i1_s + IntVal(8) * p_pr2_i1_l)
+
+        pit_order = ''
+        pit_order += f'{TAB}{TAB}# set order of pits\n'
+        if self.pit >= 1:
+
+            for pit_idx in range(self.pit - 1):
+                pit_order += f"{TAB}{TAB}("
+
+                # left side
+                for input_idx in range(self.graph.subgraph_num_inputs):
+                    p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_s'
+                    p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_l'
+                    loop_1_last_iter_flag = pit_idx == self.pit - 1
+                    loop_2_last_iter_flag = input_idx == self.graph.subgraph_num_inputs - 1
+                    pit_order += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s} + {INTVAL}({2 ** (2 * input_idx + 1)}) * {p_l}'
+                    if loop_2_last_iter_flag:
+                        pit_order += f') > ('
+                    else:
+                        pit_order += f' + '
+
+                # right side
+                for input_idx in range(self.graph.subgraph_num_inputs):
+                    p_s = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx + 1}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_s'
+                    p_l = f'{SHARED_PARAM_PREFIX}_{SHARED_PRODUCT_PREFIX}{pit_idx + 1}_{SHARED_INPUT_LITERAL_PREFIX}{input_idx}_l'
+                    loop_1_last_iter_flag = pit_idx + 1 == self.pit - 1
+                    loop_2_last_iter_flag = input_idx == self.graph.subgraph_num_inputs - 1
+                    pit_order += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s} + {INTVAL}({2 ** (2 * input_idx + 1)}) * {p_l}'
+
+                    if loop_2_last_iter_flag:
+                        pit_order += f'), \n'
+                    else:
+                        pit_order += f' + '
+
+        return pit_order
 
     def z3_generate_forall_solver_redundancy_constraints_set_pit_order(self):
         """
