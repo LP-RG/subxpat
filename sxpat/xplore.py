@@ -79,15 +79,20 @@ def explore_grid(specs_obj: TemplateSpecs):
     total_iterations = specs_obj.iterations
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
     max_lpp = specs_obj.lpp
-    max_ppo = specs_obj.ppo
+    if specs_obj.shared:
+        max_ppo = specs_obj.pit
+    else:
+        max_ppo = specs_obj.ppo
     cur_lpp = -1
     cur_ppo = -1
 
     pre_iter_same = False
     total_number_of_cells_per_iter = max_lpp * max_ppo + 1
     stats_obj = Stats(specs_obj)
-    template_obj = Template_SOP1(specs_obj)
-
+    if specs_obj.shared:
+        template_obj = Template_SOP1ShareLogic(specs_obj)
+    else:
+        template_obj = Template_SOP1(specs_obj)
 
 
     current_population: Dict = {specs_obj.benchmark_name: -1}
@@ -121,6 +126,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                         if lpp == 0 and ppo > 1:
                             lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
                             continue
+
                         specs_obj = set_current_context(specs_obj, lpp, ppo, i)
                         template_obj.set_new_context(specs_obj)
                         template_obj.z3_generate_z3pyscript()
@@ -139,7 +145,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                             # print(f'{lpp}, {ppo}')
                         elif cur_status == SAT:
-
                             synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
                             cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
                             for idx in range(synth_obj.num_of_models):
@@ -520,7 +525,10 @@ def next_cell(cur_lpp, cur_ppo, max_lpp, max_ppo) -> (int, int):
 
 def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int) -> TemplateSpecs:
     specs_obj.lpp = lpp
-    specs_obj.ppo = ppo
+    if specs_obj.shared:
+        specs_obj.pit = ppo
+    else:
+        specs_obj.ppo = ppo
     specs_obj.iterations = iteration
 
     return specs_obj
