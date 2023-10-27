@@ -1099,7 +1099,10 @@ class Stats:
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
         self.__lpp: int = spec_obj.lpp
-        self.__ppo: int = spec_obj.ppo
+        if spec_obj.shared:
+            self.__ppo: int = spec_obj.pit
+        else:
+            self.__ppo: int = spec_obj.ppo
         self.__et: int = spec_obj.et
         self.__max_sensitivity: int = spec_obj.max_sensitivity
         self.__min_subgraph_size: int = spec_obj.min_subgraph_size
