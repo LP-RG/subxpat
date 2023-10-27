@@ -17,7 +17,7 @@ from sxpat.synthesis import Synthesis
 from sxpat.arguments import Arguments
 
 
-from sxpat.xplore import explore_grid, explore_grid_shared
+from sxpat.xplore import explore_grid#, explore_grid_shared
 from sxpat.stats import Stats, Result
 
 
