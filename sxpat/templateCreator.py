@@ -305,16 +305,10 @@ class Template_SOP1(TemplateCreator):
 
         with open(self.json_in_path, 'r') as f:
             data = json.load(f)
-        # for d in data:
-        #     print(f'{d = }')
-
         for d in data:
-            # print(f'{d = }')
             for key in d.keys():
-                # print(f'{key = }')
                 if key == RESULT:
                     if d[key] == SAT:
-                        # self.json_model = d[MODEL]
                         self.json_model.append(d[MODEL])
                         self.json_status.append(SAT)
                     elif d[key] == UNSAT:
@@ -1454,15 +1448,34 @@ class Template_SOP1ShareLogic(TemplateCreator):
         self.__product_per_output = template_specs.products_per_output
         self.__z3pyscript = None
         self.__product_in_total = template_specs.products_in_total
+        self.__et = template_specs.et
+        self.__iterations = template_specs.iterations
         self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
         self.__json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH['json'])
         self.__json_in_path = None
         self.__json_model: List = []
         self.__json_status: List = []
+
         
         # TODO
         # Create a __json_model propery
-    
+
+    @property
+    def iterations(self):
+        return self.__iterations
+
+    @iterations.setter
+    def iterations(self, this_iteration: int):
+        self.__iterations = this_iteration
+
+    @property
+    def et(self):
+        return self.__et
+
+    @et.setter
+    def et(self, this_et):
+        self.__et = this_et
+
     @property
     def graph(self):
         return self.current_graph
@@ -1575,19 +1588,27 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
     # fix this to add the pit, not ppo
     def set_path(self, this_path: Tuple[str, str]):
-        folder, extenstion = this_path
-        if self.shared:
-            return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PIT}{self.pit}_{self.template_name}.{extenstion}'
+        # folder, extenstion = this_path
+        # if self.shared:
+        #     return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PIT}{self.pit}_{self.template_name}.{extenstion}'
+        # else:
+        #     return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}.{extenstion}'
+        folder, extension = this_path
+
+        if re.search('id', self.benchmark_name):
+            path = f'{folder}/{self.benchmark_name}_{ITER}{self.iterations}.{extension}'
         else:
-            return f'{folder}/{self.benchmark_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{self.template_name}.{extenstion}'
+            path = f'{folder}/{self.benchmark_name}_{TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{ITER}{self.iterations}.{extension}'
+        # print(f'{path = }')
+        return path
 
     def export_z3pyscript(self):
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
 
-    def run_z3pyscript(self, et: int = 2, num_models: int = 1, timeout: int = 1800):
+    def run_z3pyscript(self, ET: int = 2, num_models: int = 1, timeout: int = 1800):
 
-        process = subprocess.run([PYTHON3, self.z3_out_path, f'{et}', f'{num_models}', f'{timeout}'], stderr=PIPE,
+        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}', f'{num_models}', f'{timeout}'], stderr=PIPE,
                                  stdout=PIPE)
 
         if process.stderr:
@@ -1597,6 +1618,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
     # From this point on, all functions needed to create SharedXPAT
     def import_json_model(self, this_path=None):
+        self.json_model = []
+        self.json_status = []
 
         if this_path:
             self.json_in_path = this_path
@@ -1604,28 +1627,11 @@ class Template_SOP1ShareLogic(TemplateCreator):
             self.json_in_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
 
         with open(self.json_in_path, 'r') as f:
-
             data = json.load(f)
-
         for d in data:
             for key in d.keys():
-                # if key == RESULT:
-                #
-                #     self.json_status = d[key]
-                #
-                #     if d[key] == SAT:
-                #         self.json_model = d[MODEL]
-                #         return True
-                #     elif d[key] == UNSAT:
-                #         self.json_model = None
-                #         return False
-                #     elif d[key] == UNKNOWN:
-                #         self.json_model = None
-                #         return False
-
                 if key == RESULT:
                     if d[key] == SAT:
-                        # self.json_model = d[MODEL]
                         self.json_model.append(d[MODEL])
                         self.json_status.append(SAT)
                     elif d[key] == UNSAT:
@@ -1634,6 +1640,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     else:
                         self.json_model.append(None)
                         self.json_status.append(UNKNOWN)
+
+
     def get_json_runtime(self, this_id: int = 0):
 
         with open(self.json_in_path, 'r') as f:
@@ -1647,7 +1655,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def z3_generate_z3pyscript(self):
         if self.subxpat:
             if self.shared: # Shared Subxpat (The best)
-                print(Fore.LIGHTBLUE_EX + f'shared subxpat runner generation...' + Style.RESET_ALL)
+                # print(Fore.LIGHTBLUE_EX + f'shared subxpat runner generation...' + Style.RESET_ALL)
                 imports = self.z3_generate_imports()  # parent
                 config = self.z3_generate_config()
                 z3_abs_function = self.z3_generate_z3_abs_function()  # parent
@@ -1690,7 +1698,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         # ===========================================================================================
         elif not self.subxpat:
             if self.shared: # Shared XPAT (Cata's work)
-                print(Fore.LIGHTCYAN_EX + f'Shared XPAT runner generation!' + Style.RESET_ALL)
+                # print(Fore.LIGHTCYAN_EX + f'Shared XPAT runner generation!' + Style.RESET_ALL)
                 imports = self.z3_generate_imports()  # parent
                 config = self.z3_generate_config()
                 z3_abs_function = self.z3_generate_z3_abs_function()  # parent
@@ -1968,7 +1976,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def z3_generate_exact_circuit_outputs_declaration(self):
         exact_circuit_output_declaration = ''
         exact_circuit_output_declaration += f'# outputs functions declaration for exact circuit\n'
-        for output_idx in range(self.current_graph.num_outputs):
+        for output_idx in range(self.exact_graph.num_outputs):
             exact_circuit_output_declaration += f"{EXACT_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{EXACT_OUTPUT_PREFIX}{OUT}{output_idx}', " \
                                                 f"{', '.join(repeat(BOOLSORT, self.graph.num_inputs + 1))}" \
                                                 f")\n"
@@ -1990,11 +1998,37 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def get_predecessors(self, node: str) -> List[str]:
         return list(self.graph.graph.predecessors(node))
 
+    def get_predecessors_exact(self, node: str) -> List[str]:
+        return list(self.graph.graph.predecessors(node))
+
+
     # NM
     def get_logical_function(self, node: str) -> str:
         return self.graph.graph.nodes[node][LABEL]
 
-    # NM
+    def get_logical_function_exact(self, node: str) -> str:
+        return self.graph.graph.nodes[node][LABEL]
+
+    def z3_express_node_as_wire_constraints_subxpat_shared_exact_circuit(self, node: str):
+        assert node in list(self.exact_graph.input_dict.values()) or node in list(self.exact_graph.gate_dict.values()) \
+               or node in list(self.exact_graph.output_dict.values()) or node in list(self.exact_graph.constant_dict.values()) \
+               or node.startswith(APPROXIMATE_WIRE_PREFIX)
+        if node in list(self.exact_graph.input_dict.values()):
+            return node
+        elif node in list(self.exact_graph.gate_dict.values()):
+            node_id = -1
+            for key in self.exact_graph.gate_dict.keys():
+                if self.exact_graph.gate_dict[key] == node:
+                    node_id = key
+            return f"{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + node_id}({','.join(list(self.exact_graph.input_dict.values()))})"
+        elif node in list(self.exact_graph.output_dict.values()):
+            for key in self.exact_graph.output_dict.keys():
+                if self.exact_graph.output_dict[key] == node:
+                    node_id = key
+            return f"{EXACT_WIRES_PREFIX}{OUT}{node_id}({','.join(list(self.exact_graph.input_dict.values()))})"
+        elif node in list(self.exact_graph.constant_dict.values()):
+            return Z3_GATES_DICTIONARY[self.exact_graph.graph.nodes[node][LABEL]]
+
     def z3_express_node_as_wire_constraints(self, node: str):
         assert node in list(self.graph.input_dict.values()) or node in list(self.graph.gate_dict.values()) \
                or node in list(self.graph.output_dict.values()) or node in list(self.graph.constant_dict.values()) \
@@ -2022,35 +2056,35 @@ class Template_SOP1ShareLogic(TemplateCreator):
         exact_wire_constraints += f'{EXACT_CIRCUIT} = And(\n'
         exact_wire_constraints += f'{TAB}# wires\n'
 
-        for g_idx in (self.graph.gate_dict.keys()):
-            g_label = self.graph.gate_dict[g_idx]
-            g_predecessors = self.get_predecessors(g_label)
-            g_function = self.get_logical_function(g_label)
+        for g_idx in (self.exact_graph.gate_dict.keys()):
+            g_label = self.exact_graph.gate_dict[g_idx]
+            g_predecessors = self.get_predecessors_exact(g_label)
+            g_function = self.get_logical_function_exact(g_label)
 
             assert len(g_predecessors) == 1 or len(g_predecessors) == 2
             assert g_function == NOT or g_function == AND or g_function == OR
             if len(g_predecessors) == 1:
-                if g_predecessors[0] in list(self.graph.input_dict.values()):
+                if g_predecessors[0] in list(self.exact_graph.input_dict.values()):
                     pred_1 = g_predecessors[0]
                 else:
 
-                    pred_1 = self.z3_express_node_as_wire_constraints(g_predecessors[0])
-                exact_wire_constraints += f"{TAB}{EXACT_WIRES_PREFIX}{self.graph.num_inputs + g_idx}(" \
-                                          f"{','.join(list(self.graph.input_dict.values()))}) == "
+                    pred_1 = self.z3_express_node_as_wire_constraints_subxpat_shared_exact_circuit(g_predecessors[0])
+                exact_wire_constraints += f"{TAB}{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}(" \
+                                          f"{','.join(list(self.exact_graph.input_dict.values()))}) == "
 
                 exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
             else:
-                exact_wire_constraints += f"{TAB}{EXACT_WIRES_PREFIX}{self.graph.num_inputs + g_idx}(" \
-                                          f"{','.join(list(self.graph.input_dict.values()))}) == "
+                exact_wire_constraints += f"{TAB}{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}(" \
+                                          f"{','.join(list(self.exact_graph.input_dict.values()))}) == "
 
-                if g_predecessors[0] in list(self.graph.input_dict.values()):
+                if g_predecessors[0] in list(self.exact_graph.input_dict.values()):
                     pred_1 = g_predecessors[0]
                 else:
-                    pred_1 = self.z3_express_node_as_wire_constraints(g_predecessors[0])
-                if g_predecessors[1] in list(self.graph.input_dict.values()):
+                    pred_1 = self.z3_express_node_as_wire_constraints_subxpat_shared_exact_circuit(g_predecessors[0])
+                if g_predecessors[1] in list(self.exact_graph.input_dict.values()):
                     pred_2 = g_predecessors[1]
                 else:
-                    pred_2 = self.z3_express_node_as_wire_constraints(g_predecessors[1])
+                    pred_2 = self.z3_express_node_as_wire_constraints_subxpat_shared_exact_circuit(g_predecessors[1])
 
                 exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
         return exact_wire_constraints
@@ -2059,12 +2093,12 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def z3_generate_exact_circuit_output_constraints(self):
         exact_output_constraints = ''
         exact_output_constraints += f'{TAB}# boolean outputs (from the least significant)\n'
-        for output_idx in self.graph.output_dict.keys():
-            output_label = self.graph.output_dict[output_idx]
-            output_predecessors = list(self.graph.graph.predecessors(output_label))
+        for output_idx in self.exact_graph.output_dict.keys():
+            output_label = self.exact_graph.output_dict[output_idx]
+            output_predecessors = list(self.exact_graph.graph.predecessors(output_label))
             assert len(output_predecessors) == 1
-            pred = self.z3_express_node_as_wire_constraints(output_predecessors[0])
-            output = self.z3_express_node_as_wire_constraints(output_label)
+            pred = self.z3_express_node_as_wire_constraints_subxpat_shared_exact_circuit(output_predecessors[0])
+            output = self.z3_express_node_as_wire_constraints_subxpat_shared_exact_circuit(output_label)
             exact_output_constraints += f'{TAB}{output} == {pred},\n'
         return exact_output_constraints
 
@@ -2072,14 +2106,14 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def z3_generate_exact_circuit_integer_output_constraints(self):
         exact_integer_outputs = ''
         exact_integer_outputs += f'{TAB}# exact_integer_outputs\n'
-        exact_integer_outputs += f"{TAB}{F_EXACT}({','.join(self.graph.input_dict.values())}) == \n"
+        exact_integer_outputs += f"{TAB}{F_EXACT}({','.join(self.exact_graph.input_dict.values())}) == \n"
 
-        for idx in range(self.graph.num_outputs):
-            output_label = self.graph.output_dict[idx]
-            if idx == self.graph.num_outputs - 1:
-                exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints(output_label)},\n"
+        for idx in range(self.exact_graph.num_outputs):
+            output_label = self.exact_graph.output_dict[idx]
+            if idx == self.exact_graph.num_outputs - 1:
+                exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints_subxpat_shared_exact_circuit(output_label)},\n"
             else:
-                exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints(output_label)} +\n"
+                exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints_subxpat_shared_exact_circuit(output_label)} +\n"
         return exact_integer_outputs
 
     # NM

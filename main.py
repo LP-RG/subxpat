@@ -84,10 +84,12 @@ def main():
                                   shared= args.shared, products_in_total=args.pit)
 
         if specs_obj.grid:
-            if specs_obj.shared:
-                stats_obj = explore_grid_shared(specs_obj)
-            else:
-                stats_obj = explore_grid(specs_obj)
+            stats_obj = explore_grid(specs_obj)
+            # if specs_obj.shared:
+            #     stats_obj = explore_grid_shared(specs_obj)
+            # else:
+            #     stats_obj = explore_grid(specs_obj)
+
 
 
 if __name__ == "__main__":
