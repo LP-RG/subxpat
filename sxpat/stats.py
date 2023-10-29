@@ -120,7 +120,12 @@ class Cell:
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
         self.__lpp: int = spec_obj.lpp
-        self.__ppo: int = spec_obj.ppo
+        if spec_obj.shared:
+            self.__ppo: int = spec_obj.pit
+        else:
+            self.__ppo: int = spec_obj.ppo
+
+
         self.__coordinates: Tuple[int, int] = (spec_obj.lpp, spec_obj.ppo)
         self.__et: int = spec_obj.et
         self.__pap: int = spec_obj.partitioning_percentage
@@ -194,7 +199,10 @@ class Grid:
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
         self.__lpp: int = spec_obj.lpp
-        self.__ppo: int = spec_obj.ppo
+        if spec_obj.shared:
+            self.__ppo: int = spec_obj.pit
+        else:
+            self.__ppo: int = spec_obj.ppo
         self.__et: int = spec_obj.et
         self.__pap: int = spec_obj.partitioning_percentage
         self.__iterations: int = spec_obj.iterations
@@ -1096,14 +1104,19 @@ class Stats:
         """
         stores the stats of an experiment (grid or cell) into an object
         """
+        self.__template_name = spec_obj.template_name
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
         self.__lpp: int = spec_obj.lpp
+
+        self.__pit: int = spec_obj.pit
         if spec_obj.shared:
             self.__ppo: int = spec_obj.pit
         else:
             self.__ppo: int = spec_obj.ppo
         self.__et: int = spec_obj.et
+        self.__shared: bool = spec_obj.shared
+        self.__subxpat: bool = spec_obj.subxpat
         self.__max_sensitivity: int = spec_obj.max_sensitivity
         self.__min_subgraph_size: int = spec_obj.min_subgraph_size
         self.__iterations: int = spec_obj.iterations
@@ -1111,12 +1124,27 @@ class Stats:
         self.__imax: int = spec_obj.imax
         self.__omax: int = spec_obj.omax
         self.__mode: int = spec_obj.mode
+
         self.__grid_name: str = self.get_grid_name()
         self.__grid_path: str = self.get_grid_path()
         self.__specs_obj: TemplateSpecs = spec_obj
         self.__grid = Grid(spec_obj)
 
 
+    @property
+    def template_name(self):
+        return self.__template_name
+    @property
+    def pit(self):
+        return self.__pit
+
+    @property
+    def shared(self):
+        return self.__shared
+
+    @property
+    def subxpat(self):
+        return self.__subxpat
     @property
     def specs(self):
         return self.__specs_obj
@@ -1241,11 +1269,22 @@ class Stats:
 
     def get_grid_name(self):
         _, extension = OUTPUT_PATH['report']
-        if self.max_sensitivity == -1 and self.mode !=3:
-            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_imax{self.imax}_omax{self.omax}_without_sensitivity.{extension}'
+        if self.mode == 1:
+
+            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_{self.template_name}_mode{self.mode}_imax{self.imax}_omax{self.omax}_largest.{extension}'
+            return name
+        if self.mode == 2:
+
+            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_{self.template_name}_mode{self.mode}_imax{self.imax}_omax{self.omax}_subgraphsize{self.min_subgraph_size}.{extension}'
+            return name
         elif self.mode == 3:
-            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_subgraphsize{self.min_subgraph_size}.{extension}'
-        return name
+
+            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_{self.template_name}_mode{self.mode}_subgraphsize{self.min_subgraph_size}.{extension}'
+            return name
+        else:
+            print(Fore.RED +f"ERROR!!! In ({__name__}): something is wrong for grid file names!"+ Style.RESET_ALL)
+            exit()
+
 
 
     def get_grid_path(self):
