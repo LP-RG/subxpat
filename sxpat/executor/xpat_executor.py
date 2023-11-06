@@ -58,7 +58,6 @@ class XPatExecutor(Executor):
         # TODO: Should we generate the file everytime or skip if already present?
         # if not os.path.exists(self.script_path):
         with open(self.script_path, "w") as file:
-            print(file)
             self.creator.generate_script(file)
 
         # run the process
@@ -82,6 +81,6 @@ class XPatExecutor(Executor):
             raise ChildProcessError(message)
 
         # load result
-        print("Gathering results")
         output_path = self.creator.gen_json_outfile_name().format(ET=self.error_threshold)
+        print(f"Gathering results ({output_path})")
         return self._load_result(output_path)
