@@ -13,7 +13,8 @@ class RunnerCreator:
     def generate_script(self, path: str = None) -> None:
         pass
 
-    def empty_lines(self, num: int = 1) -> List[str]:
+    @staticmethod
+    def empty_lines(num: int = 1) -> List[str]:
         return [""] * num
 
     def gen_imports(self) -> List[str]:
@@ -26,7 +27,8 @@ class RunnerCreator:
             "import re",
         ]
 
-    def declare_gate(self, name: str) -> str:
+    @staticmethod
+    def declare_gate(name: str) -> str:
         return f"{name} = z3.Bool('{name}')"
 
     # @classmethod
