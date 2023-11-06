@@ -51,8 +51,8 @@ class XPatRunnerCreator(RunnerCreator):
             *self.gen_declare_input_variables(),
             "",
             # exact circuit
-            # *self.gen_exact_circuit_wires(),
-            *self.gen_exact_circuit_wires_declaration(),
+            # *self.gen_exact_circuit_wires(), # Third Kind
+            *self.gen_exact_circuit_wires_declaration(), # Second Kind
             "",
             *self.gen_exact_circuit_outputs(),
             "",
@@ -66,7 +66,7 @@ class XPatRunnerCreator(RunnerCreator):
             # solver
             *self.gen_error_computation(),
             "",
-            *self.gen_solver(),
+            *self.gen_solver(),  # Inside this, there are Second and Third Kinds
             "",
             # verifier
             *self.gen_verifier(),
@@ -110,7 +110,6 @@ class XPatRunnerCreator(RunnerCreator):
         ]
 
     def gen_declare_products_parameters(self) -> List[str]:
-        # # NOTE: alternative, using comprehension
         return list(chain.from_iterable((
             map(
                 self.declare_gate,
@@ -122,7 +121,7 @@ class XPatRunnerCreator(RunnerCreator):
         )))
 
     def gen_exact_circuit_wires_declaration(self):
-        # NOTE: MANGO
+        # NOTE: Second Kind
         return [
             "# exact gates declaration",
             *(
@@ -132,7 +131,7 @@ class XPatRunnerCreator(RunnerCreator):
         ]
 
     def gen_exact_circuit_wires_assignment(self):
-        # NOTE: MANGO
+        # NOTE: Second Kind
 
         lines = []
         for gate_name in self.exact_graph.gates:
@@ -191,6 +190,7 @@ class XPatRunnerCreator(RunnerCreator):
     #     return exact_wire_constraints
 
     def gen_exact_circuit_wires(self) -> List[str]:
+        # NOTE: Third Kind
         lines = ["# exact circuit gates"]
         for gate_name in self.exact_graph.gates:
             gate_preds = [
@@ -367,7 +367,7 @@ class XPatRunnerCreator(RunnerCreator):
             f"forall_solver.add(z3.ForAll(",
             f"{TAB}[{', '.join(self.exact_graph.inputs)}],",
             f"{TAB}z3.And(",
-            *indent_lines(self.gen_exact_circuit_wires_assignment(), 2),
+            *indent_lines(self.gen_exact_circuit_wires_assignment(), 2),  # Second Kind
             "",
             *indent_lines(self.gen_constraints_error(), 2),
             "",
