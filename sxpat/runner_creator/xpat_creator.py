@@ -1,6 +1,6 @@
 # typing
 from __future__ import annotations
-from typing import Tuple, List
+from typing import TextIO, Tuple, List
 
 # libs
 from itertools import chain
@@ -26,6 +26,7 @@ class XPatRunnerCreator(RunnerCreator):
                  error_function: DistanceFunction,
                  exact_circuit_name: str = "c1", template_circuit_name: str = "c2") -> None:
         self.exact_graph: MaGraph = exact_graph
+
         self.exact_name: str = exact_name
 
         self.literal_per_product: int = literal_per_product
@@ -39,29 +40,19 @@ class XPatRunnerCreator(RunnerCreator):
     lpp = property(lambda s: s.literal_per_product)
     ppo = property(lambda s: s.product_per_output)
 
-    def generate_script(self, path: str = None) -> str:
+    def generate_script(self, output: TextIO = None) -> str:
         text = format_lines([
             # generics
             *self.gen_imports(),
             "",
             *self.gen_arguments_parsing(),
             "",
-            # rest
-            *self.generate_partial_script().split("\n")
-        ])
-
-        if path is not None:
-            with open(path, "w") as f:
-                f.write(text)
-        return text
-
-    def generate_partial_script(self) -> str:
-        return format_lines([
             # inputs
             *self.gen_declare_input_variables(),
             "",
             # exact circuit
-            *self.gen_exact_circuit_wires(),
+            # *self.gen_exact_circuit_wires(),
+            *self.gen_exact_circuit_wires_declaration(),
             "",
             *self.gen_exact_circuit_outputs(),
             "",
@@ -84,6 +75,11 @@ class XPatRunnerCreator(RunnerCreator):
             *self.gen_executer(),
             ""
         ])
+
+        if output is not None:
+            output.write(text)
+
+        return text
 
     def gen_arguments_parsing(self) -> List[str]:
         return [
@@ -124,6 +120,75 @@ class XPatRunnerCreator(RunnerCreator):
             for tree_i in range(self.ppo)
             for in_name in self.exact_graph.inputs
         )))
+
+    def gen_exact_circuit_wires_declaration(self):
+        # NOTE: MANGO
+        return [
+            "# exact gates declaration",
+            *(
+                self.declare_gate(f"{self.exact_circuit_name}_{gate_name}")
+                for gate_name in self.exact_graph.gates
+            )
+        ]
+
+    def gen_exact_circuit_wires_assignment(self):
+        # NOTE: MANGO
+
+        lines = []
+        for gate_name in self.exact_graph.gates:
+            gate_preds = [
+                name if name in self.exact_graph.inputs else f"{self.exact_circuit_name}_{name}"
+                for name in self.exact_graph.predecessors(gate_name)
+            ]
+            gate_func = self.exact_graph.function_of(gate_name)
+
+            assert len(gate_preds) in [1, 2]
+            assert gate_func in [NOT, AND, OR]
+
+            lines.append(f"{self.exact_circuit_name}_{gate_name} == z3.{TO_Z3_GATE_DICT[gate_func]}({', '.join(gate_preds)}),")
+
+        return [
+            f"# exact gates assignment",
+            *lines,
+        ]
+
+    # def z3_generate_exact_circuit_wire_constraints(self):
+    #     exact_wire_constraints = ''
+    #     exact_wire_constraints += f'# exact circuit constraints\n'
+    #     exact_wire_constraints += f'{EXACT_CIRCUIT} = And(\n'
+    #     exact_wire_constraints += f'{TAB}# wires\n'
+    #     for g_idx in range(self.exact_graph.num_gates):
+    #         g_label = self.exact_graph.gate_dict[g_idx]
+    #         g_predecessors = self.get_predecessors(g_label)
+    #         g_function = self.get_logical_function(g_label)
+
+    #         assert len(g_predecessors) == 1 or len(g_predecessors) == 2
+    #         assert g_function == NOT or g_function == AND or g_function == OR
+    #         if len(g_predecessors) == 1:
+    #             if g_predecessors[0] in list(self.exact_graph.input_dict.values()):
+    #                 pred_1 = g_predecessors[0]
+    #             else:
+    #                 pred_1 = self.z3_express_node_as_wire_constraints(g_predecessors[0])
+
+    #             exact_wire_constraints += f"{TAB}{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}(" \
+    #                                       f"{','.join(list(self.exact_graph.input_dict.values()))}) == "
+
+    #             exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
+    #         else:
+    #             exact_wire_constraints += f"{TAB}{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}(" \
+    #                                       f"{','.join(list(self.exact_graph.input_dict.values()))}) == "
+
+    #             if g_predecessors[0] in list(self.exact_graph.input_dict.values()):
+    #                 pred_1 = g_predecessors[0]
+    #             else:
+    #                 pred_1 = self.z3_express_node_as_wire_constraints(g_predecessors[0])
+    #             if g_predecessors[1] in list(self.exact_graph.input_dict.values()):
+    #                 pred_2 = g_predecessors[1]
+    #             else:
+    #                 pred_2 = self.z3_express_node_as_wire_constraints(g_predecessors[1])
+
+    #             exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
+    #     return exact_wire_constraints
 
     def gen_exact_circuit_wires(self) -> List[str]:
         lines = ["# exact circuit gates"]
@@ -302,6 +367,8 @@ class XPatRunnerCreator(RunnerCreator):
             f"forall_solver.add(z3.ForAll(",
             f"{TAB}[{', '.join(self.exact_graph.inputs)}],",
             f"{TAB}z3.And(",
+            *indent_lines(self.gen_exact_circuit_wires_assignment(), 2),
+            "",
             *indent_lines(self.gen_constraints_error(), 2),
             "",
             *indent_lines(self.get_constraints_atmost(), 2),
@@ -324,7 +391,15 @@ class XPatRunnerCreator(RunnerCreator):
 
     def gen_json_outfile_name(self):
         folder, extension = sxpatpaths.OUTPUT_PATH[JSON]
-        return f"{folder}/{self.exact_name}_{LPP}{self.lpp}_{PPO}{self.ppo}_{TEMPLATE_SPEC_ET}{{ET}}_XPat.{extension}"
+        return (
+            f"{folder}/{self.exact_name}"
+            f"_{LPP}{self.literal_per_product}"
+            f"_{PPO}{self.product_per_output}"
+            f"_{DST}{self.error_function.abbreviation}"
+            f"_{TEMPLATE_SPEC_ET}{{ET}}"
+            f"_XPat"
+            f".{extension}"
+        )
 
     def gen_executer(self):
         return f"""
