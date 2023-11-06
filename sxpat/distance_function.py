@@ -1,11 +1,19 @@
 from __future__ import annotations
 from typing import Iterable, List, Optional
-from abc import abstractmethod
+from abc import abstractmethod, abstractproperty
 
 
 class DistanceFunction:
     def __init__(self) -> None:
         raise NotImplementedError(f"Class `{self.__class__.__name__}` is an abstract class.")
+
+    @abstractproperty
+    def name(self):
+        raise NotImplementedError(f"Property `{self.__class__.__name__}.name` is an abstract property.")
+
+    @abstractproperty
+    def abbreviation(self):
+        raise NotImplementedError(f"Property `{self.__class__.__name__}.abbreviation` is an abstract property.")
 
     @abstractmethod
     def declare(self, vars_1: Iterable[str], vars_2: Iterable[str],
@@ -19,6 +27,9 @@ class DistanceFunction:
 
 class HammingDistance(DistanceFunction):
     def __init__(self) -> None: pass
+
+    name = property(lambda _: "Hamming Distance")
+    abbreviation = property(lambda _: "HamD")
 
     @classmethod
     def _declare(cls,
@@ -44,6 +55,9 @@ class HammingDistance(DistanceFunction):
 class WeightedAbsoluteDifference(DistanceFunction):
     def __init__(self, weights: Iterable[int]) -> None:
         self._weights: List[int] = list(weights)
+
+    name = property(lambda _: "Weighted Absolute Difference")
+    abbreviation = property(lambda _: "WAD")
 
     @classmethod
     def _declare(cls,
@@ -75,6 +89,9 @@ class WeightedAbsoluteDifference(DistanceFunction):
 class IntegerAbsoluteDifference(WeightedAbsoluteDifference):
     def __init__(self) -> None:
         super().__init__([])
+
+    name = property(lambda _: "Integer Absolute Difference")
+    abbreviation = property(lambda _: "IAD")
 
     @classmethod
     def _declare(cls,
