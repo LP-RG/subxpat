@@ -25,6 +25,12 @@ class TemplateSpecs:
         self.__min_labeling = kwargs[MIN_LABELING]
         self.__shared = kwargs[SHARED]
         self.__products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
+        self.__parallel: bool = kwargs[PARALLEL]
+
+
+    @property
+    def parallel(self):
+        return self.__parallel
 
     @property
     def shared(self):
@@ -196,4 +202,5 @@ class TemplateSpecs:
                f'{self.mode = }\n' \
                f'{self.population = }\n' \
                f'{self.shared = }\n'  \
+               f'{self.parallel = }\n' \
                f'{self.min_labeling = }'

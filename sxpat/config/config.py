@@ -26,7 +26,7 @@ SUBGRAPHSIZE = 'subgraph_size'
 MODE = 'mode'
 POPULATION = 'population'
 MIN_LABELING = 'min_labeling'
-
+PARALLEL = 'parallel'
 
 # shared
 SHARED = 'shared'
@@ -161,6 +161,7 @@ MECALS = 'mecals'
 MUSCAT = 'muscat'
 XPAT = 'xpat'
 BLASYS = 'blasys'
+SHARED_SUBXPAT = 'shared_subxpat'
 
 
 # for plotting

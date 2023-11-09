@@ -256,7 +256,7 @@ class Result:
     def __init__(self, benchname: 'str', toolname: 'str', mode: int = 1, imax: int = 0, omax: int = 0, subgraphsize: int = 5) -> None:
         self.__tool = str(toolname)
 
-        if self.tool_name == sxpatconfig.MECALS or self.tool_name == sxpatconfig.SUBXPAT or self.tool_name == sxpatconfig.XPAT:
+        if self.tool_name == sxpatconfig.MECALS or self.tool_name == sxpatconfig.SUBXPAT or self.tool_name == sxpatconfig.XPAT or self.tool_name == sxpatconfig.SHARED_SUBXPAT:
             if benchname in list(sxpatconfig.BENCH_DICT.keys()):
                 self.__benchmark = sxpatconfig.BENCH_DICT[benchname]
             else:
@@ -272,7 +272,7 @@ class Result:
             else:
                 self.__benchmark = benchname
 
-        if self.tool_name == sxpatconfig.SUBXPAT:
+        if self.tool_name == sxpatconfig.SUBXPAT or self.tool_name == sxpatconfig.SHARED_SUBXPAT:
             self.__mode = mode
             if self.mode == 1:
                 self.__imax = imax
@@ -288,8 +288,7 @@ class Result:
 
             self.__error_array: list = self.extract_subxpat_error()
             self.__grid_files = self.get_grid_files()
-            # print(f'{self.grid_files = }')
-            # exit()
+
 
 
             if len(self.grid_files) == 0:
@@ -987,29 +986,51 @@ class Result:
         all_csv_files = [f for f in os.listdir(OUTPUT_PATH['report'][0])]
         for et in self.error_array:
             for csv_file in all_csv_files:
+                if self.tool_name == sxpatconfig.SHARED_SUBXPAT:
 
-                if self.mode == 1:
-                    imax = f'imax{self.imax}'
-                    omax = f'omax{self.omax}'
-                    if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark,
-                                                                                                csv_file) \
-                            and re.search(imax, csv_file) and re.search(omax, csv_file):
+                    if re.search('SHARED', csv_file):
                         # print(f'{csv_file = }')
-                        cur_et = int(re.search('et(\d+)', csv_file).group(1))
-                        if cur_et == et:
-                            grid_files[csv_file] = et
-                elif self.mode == 3:
-                    subgraphsize = f'subgraphsize{self.subgraphsize}'
-                    if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark,
-                                                                                                csv_file) \
-                            and re.search(subgraphsize, csv_file):
-                        # print(f'{csv_file = }')
-                        cur_et = int(re.search('et(\d+)', csv_file).group(1))
-                        if cur_et == et:
-                            grid_files[csv_file] = et
+                        if self.mode == 1:
+                            imax = f'imax{self.imax}'
+                            omax = f'omax{self.omax}'
+                            if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark,csv_file) \
+                                    and re.search(imax, csv_file) and re.search(omax, csv_file):
+                                # print(f'{csv_file = }')
+                                cur_et = int(re.search('et(\d+)', csv_file).group(1))
+                                if cur_et == et:
+                                    grid_files[csv_file] = et
+                        elif self.mode == 3:
+                            subgraphsize = f'subgraphsize{self.subgraphsize}'
+                            if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark,
+                                                                                                        csv_file) \
+                                    and re.search(subgraphsize, csv_file):
+                                # print(f'{csv_file = }')
+                                cur_et = int(re.search('et(\d+)', csv_file).group(1))
+                                if cur_et == et:
+                                    grid_files[csv_file] = et
+                else:
+                    if self.mode == 1:
+                        imax = f'imax{self.imax}'
+                        omax = f'omax{self.omax}'
+                        if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark,
+                                                                                                    csv_file) \
+                                and re.search(imax, csv_file) and re.search(omax, csv_file):
+                            # print(f'{csv_file = }')
+                            cur_et = int(re.search('et(\d+)', csv_file).group(1))
+                            if cur_et == et:
+                                grid_files[csv_file] = et
+                    elif self.mode == 3:
+                        subgraphsize = f'subgraphsize{self.subgraphsize}'
+                        if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark,
+                                                                                                    csv_file) \
+                                and re.search(subgraphsize, csv_file):
+                            # print(f'{csv_file = }')
+                            cur_et = int(re.search('et(\d+)', csv_file).group(1))
+                            if cur_et == et:
+                                grid_files[csv_file] = et
 
 
-
+        # print(f'{grid_files = }')
         return grid_files
 
 
@@ -1335,6 +1356,22 @@ class Stats:
         mecals = Result(self.exact_name, sxpatconfig.MECALS)
         xpat = Result(self.exact_name, sxpatconfig.XPAT)
         muscat = Result(self.exact_name, sxpatconfig.MUSCAT)
+        shared_subxpat = []
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=1))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=2))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=3))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=4))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=5))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=10))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=15))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=20))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=25))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=30))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=35))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=40))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=45))
+        shared_subxpat.append(Result(self.exact_name, sxpatconfig.SHARED_SUBXPAT, mode=3, subgraphsize=50))
+
         # mecals.status = False
         # xpat.status = False
         # muscat.status = False
@@ -1367,13 +1404,15 @@ class Stats:
 
 
         #
-        self.plot_area(subxpat_list= subxpat,
+        self.plot_area(shared_subxpat_list= shared_subxpat,
+                       subxpat_list= subxpat,
                   xpat= xpat,
                   mecals= mecals,
                   muscat= muscat,
                   best=True)
 
-        self.plot_area(subxpat_list=subxpat,
+        self.plot_area(shared_subxpat_list= shared_subxpat,
+                       subxpat_list=subxpat,
                        xpat=xpat,
                        mecals=mecals,
                        muscat=muscat,
@@ -1414,7 +1453,7 @@ class Stats:
         RGB color; the keyword argument name must be a standard mpl colormap name.'''
         return plt.cm.get_cmap(name, n)
 
-    def plot_area(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result, best: bool =  True):
+    def plot_area(self, shared_subxpat_list: List[Result], subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result, best: bool =  True):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Area')
@@ -1451,8 +1490,32 @@ class Stats:
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.pdf"
                         label = f'SubXPAT_subgraphsize_best'
-            ax.plot(subxpat_list[0].error_array, best_area_dict.values(), label=label, marker='D', markeredgecolor='blue',
-            markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+            if subxpat_list:
+                ax.plot(subxpat_list[0].error_array, best_area_dict.values(), label=label, marker='D', markeredgecolor='blue',
+                markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
+
+            shared_best_area_dict: Dict = {}
+            for idx, shared in enumerate(shared_subxpat_list):
+                if shared.status:
+                    for et in shared.error_array:
+                        if et in shared_best_area_dict.keys():
+                            if shared.area_dict[et] < shared_best_area_dict[et]:
+                                shared_best_area_dict[et] = shared.area_dict[et]
+
+                        else:
+                            shared_best_area_dict[et] = shared.area_dict[et]
+                    if shared.mode == 1:
+                        label = f'Shared_SubXPAT_io_best'
+                        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_best.png"
+                        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_best.pdf"
+                    elif shared.mode == 3:
+                        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.png"
+                        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.pdf"
+                        label = f'Shared_SubXPAT_subgraphsize_best'
+            if shared_subxpat_list != []:
+                ax.plot(shared_subxpat_list[0].error_array, shared_best_area_dict.values(), label=label, marker='D',
+                        markeredgecolor='black',
+                        markeredgewidth=5, linestyle='dotted', linewidth=2, markersize=3)
         else:
 
             for idx, subxpat in enumerate(subxpat_list):
@@ -1472,22 +1535,41 @@ class Stats:
                     ax.plot(subxpat.error_array, subxpat.area_dict.values(), label=label,marker='D',
                         markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
 
+            for idx, shared in enumerate(shared_subxpat_list):
+                if shared.status:
+                    if shared.mode == 1:
+
+                        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_multiple.png"
+                        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_multiple.pdf"
+
+                        label = f'Shared_SubXPAT_i{shared.imax}_o{shared.omax}'
+                    elif shared.mode == 3:
+
+                        figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_multiple.png"
+                        figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_multiple.pdf"
+
+                        label = f'Shared_SubXPAT_subgraphsize{shared.subgraphsize}'
+                    ax.plot(shared.error_array, shared.area_dict.values(), label=label,marker='D',
+                        markeredgewidth=5, linestyle='dotted', linewidth=2, markersize=3)
+
         plt.xticks(muscat.error_array)
         if len(subxpat_list) > 8:
-            plt.legend()
+            # plt.legend()
+            pass
             # Put a legend below current axis
             # plt.legend(loc='upper center', bbox_to_anchor=(1.5, 0.5),
             #           fancybox=True, shadow=True, ncol=5)
             # plt.tight_layout()
         else:
-            plt.legend(loc='best')
+            # plt.legend(loc='best')
+            pass
 
 
 
         plt.savefig(figurename_png)
         # plt.savefig(figurename_pdf)
 
-    def plot_power(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
+    def plot_power(self, shared_subxpat_list: List[Result], subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Power')
@@ -1527,7 +1609,7 @@ class Stats:
         plt.savefig(figurename_png)
         # plt.savefig(figurename_pdf)
 
-    def plot_delay(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
+    def plot_delay(self, shared_subxpat_list: List[Result], subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Delay')
@@ -1566,7 +1648,7 @@ class Stats:
         plt.savefig(figurename_png)
         # plt.savefig(figurename_pdf)
 
-    def plot_pap(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
+    def plot_pap(self, shared_subxpat_list: List[Result], subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'PAP')
@@ -1605,7 +1687,7 @@ class Stats:
         # plt.savefig(figurename_pdf)
 
 
-    def plot_pdap(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
+    def plot_pdap(self, shared_subxpat_list: List[Result], subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'PDAP')
@@ -1645,7 +1727,7 @@ class Stats:
         plt.savefig(figurename_png)
         # plt.savefig(figurename_pdf)
 
-    def plot_adp(self, subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result, best: bool = True):
+    def plot_adp(self, shared_subxpat_list: List[Result], subxpat_list: List[Result], xpat: Result, mecals: Result, muscat: Result, best: bool = True):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'DAP')

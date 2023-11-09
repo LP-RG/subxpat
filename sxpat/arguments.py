@@ -29,6 +29,13 @@ class Arguments(Arguments):
         self.__min_labeling: bool = tmp_args.min_labeling
         self.__shared: bool = tmp_args.shared
         self.__products_in_total: int = tmp_args.pit
+        self.__parallel: bool = tmp_args.parallel
+
+
+
+    @property
+    def parallel(self):
+        return self.__parallel
 
     @property
     def products_in_total(self):
@@ -279,6 +286,10 @@ class Arguments(Arguments):
                                default=5,
                                help='products-in-total')
 
+        my_parser.add_argument('--parallel',
+                               action="store_true",
+                               default=False)
+
 
 
         tmp_args = my_parser.parse_args()
@@ -308,4 +319,5 @@ class Arguments(Arguments):
                f'{self.num_models = }\n'\
                f'{self.min_labeling = }\n' \
                f'{self.shared = }\n' \
+               f'{self.parallel = }\n' \
                f'{self.clean = }'
