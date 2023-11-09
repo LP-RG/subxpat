@@ -10,7 +10,44 @@ from Z3Log.utils import *
 from Z3Log.z3solver import Z3solver
 from Z3Log.config import path as z3logpath
 
-def labeling(exact_benchmark_name: str, approximate_benchmark: str, constant_value: 0, min_labeling: bool) -> Dict:
+
+
+def labeling(exact_benchmark_name: str, approximate_benchmark: str, min_labeling: bool = False, parallel: bool = True) -> Dict:
+    verilog_obj_exact = Verilog(exact_benchmark_name)
+    verilog_obj_exact.export_circuit()
+
+    verilog_obj_approx = Verilog(approximate_benchmark)
+    verilog_obj_approx.export_circuit()
+
+    convert_verilog_to_gv(exact_benchmark_name)
+    convert_verilog_to_gv(approximate_benchmark)
+
+    # 2) convert clean exact and approximate circuits into their gv formats
+    graph_obj_exact = Graph(exact_benchmark_name)
+    graph_obj_approx = Graph(approximate_benchmark)
+
+    graph_obj_exact.export_graph()
+    graph_obj_approx.export_graph()
+
+    # convert gv to z3 expression
+    if min_labeling:
+        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, style='min', parallel=parallel)
+    else:
+        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, parallel=parallel)
+
+    z3py_obj.run_implicit_labeling(z3py_obj.implicit_labeling, parallel)
+
+    labels = {}
+    for key in z3py_obj.labels.keys():
+        weight = z3py_obj.labels[key]
+        if key.startswith('app_'):
+            key = key.replace('app_', "")
+        labels[key] = weight
+    return labels
+
+
+#TODO: Deprecated
+def labeling_old(exact_benchmark_name: str, approximate_benchmark: str, constant_value: 0, min_labeling: bool) -> Dict:
     # 1) create a clean verilog out of exact and approximate circuits
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()

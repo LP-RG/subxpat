@@ -10,6 +10,7 @@ from Z3Log.utils import *
 from .config.config import *
 from .config import paths as sxpatpaths
 from z3 import *
+import cProfile
 
 from .templateSpecs import TemplateSpecs
 
@@ -1030,11 +1031,11 @@ class AnnotatedGraph(Graph):
             sensitivity_constraints.append(edge_constraint[s] * edge_w[s])
 
         opt.add(Sum(sensitivity_constraints) <= sensitivity_t)
-
+        # print(f'{sensitivity_constraints = }')
         # Generate function to maximize
         for gate_id in gate_literals:
             max_func.append(gate_literals[gate_id])
-
+        # print(f'{max_func = }')
         # Add function to maximize to the solver
         opt.maximize(Sum(max_func))
 

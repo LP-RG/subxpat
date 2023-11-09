@@ -19,6 +19,9 @@ from sxpat.synthesis import Synthesis
 from sxpat.verification import erroreval_verification
 from sxpat.stats import Stats
 from sxpat.stats import *
+import cProfile
+
+
 
 
 
@@ -68,7 +71,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             template_obj.set_new_context(specs_obj)
             template_obj.current_graph = template_obj.import_graph()
             if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3:
-                template_obj.label_graph(0, min_labeling=specs_obj.min_labeling)
+                template_obj.label_graph(min_labeling=specs_obj.min_labeling)
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
 
             if subgraph_is_available:

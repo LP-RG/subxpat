@@ -55,7 +55,7 @@ def main():
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
                                   min_labeling=args.min_labeling,
-                                  shared= args.shared, products_in_total=args.pit)
+                                  shared= args.shared, products_in_total=args.pit, parallel=args.parallel)
         stats_obj = Stats(specs_obj)
         stats_obj.gather_results()
 
@@ -81,14 +81,10 @@ def main():
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
                                   min_labeling=args.min_labeling,
-                                  shared= args.shared, products_in_total=args.pit)
+                                  shared= args.shared, products_in_total=args.pit, parallel=args.parallel)
 
         if specs_obj.grid:
             stats_obj = explore_grid(specs_obj)
-            # if specs_obj.shared:
-            #     stats_obj = explore_grid_shared(specs_obj)
-            # else:
-            #     stats_obj = explore_grid(specs_obj)
 
 
 
