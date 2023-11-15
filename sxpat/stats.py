@@ -1138,6 +1138,17 @@ class Stats:
         self.__et: int = spec_obj.et
         self.__shared: bool = spec_obj.shared
         self.__subxpat: bool = spec_obj.subxpat
+
+
+        if self.subxpat and self.shared:
+            self.__tool_name = sxpatconfig.SHARED_SUBXPAT
+        elif self.subxpat and not self.shared:
+            self.__tool_name = sxpatconfig.SUBXPAT
+        elif not self.subxpat and self.shared:
+            self.__tool_name = sxpatconfig.SHARED_XPAT
+        elif not self.subxpat and not self.shared:
+            self.__tool_name = sxpatconfig.XPAT
+
         self.__max_sensitivity: int = spec_obj.max_sensitivity
         self.__min_subgraph_size: int = spec_obj.min_subgraph_size
         self.__iterations: int = spec_obj.iterations
@@ -1151,6 +1162,10 @@ class Stats:
         self.__specs_obj: TemplateSpecs = spec_obj
         self.__grid = Grid(spec_obj)
 
+
+    @property
+    def tool_name(self):
+        return self.__tool_name
 
     @property
     def template_name(self):
@@ -1290,21 +1305,31 @@ class Stats:
 
     def get_grid_name(self):
         _, extension = OUTPUT_PATH['report']
-        if self.mode == 1:
 
-            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_{self.template_name}_mode{self.mode}_imax{self.imax}_omax{self.omax}_largest.{extension}'
-            return name
-        if self.mode == 2:
+        name = f''
+        name = f'grid_{self.exact_name}_'\
+               f'{self.lpp}' \
+               f'X{self.pit if (self.tool_name==sxpatconfig.SHARED_SUBXPAT or self.tool_name==sxpatconfig.SHARED_XPAT) else self.ppo}_' \
+               f'et{self.et}_{self.template_name}_{self.tool_name}'
 
-            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_{self.template_name}_mode{self.mode}_imax{self.imax}_omax{self.omax}_subgraphsize{self.min_subgraph_size}.{extension}'
-            return name
-        elif self.mode == 3:
+        if self.tool_name == sxpatconfig.SUBXPAT or self.tool_name == sxpatconfig.SHARED_SUBXPAT:
+            name += f'_mode{self.mode}_'
+            if self.mode == 1:
+                name += f'imax{self.imax}_omax{self.omax}_largest.{extension}'
+                return name
+            if self.mode == 2:
+                name += f'imax{self.imax}_omax{self.omax}_subgraphsize{self.min_subgraph_size}.{extension}'
+                return name
+            elif self.mode == 3:
 
-            name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_{self.template_name}_mode{self.mode}_subgraphsize{self.min_subgraph_size}.{extension}'
-            return name
+                name += f'subgraphsize{self.min_subgraph_size}.{extension}'
+                return name
+            else:
+                print(Fore.RED +f"ERROR!!! In ({__name__}): something is wrong for grid file names!"+ Style.RESET_ALL)
+                exit()
         else:
-            print(Fore.RED +f"ERROR!!! In ({__name__}): something is wrong for grid file names!"+ Style.RESET_ALL)
-            exit()
+            name += f'.{extension}'
+            return name
 
 
 

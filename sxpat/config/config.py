@@ -162,7 +162,7 @@ MUSCAT = 'muscat'
 XPAT = 'xpat'
 BLASYS = 'blasys'
 SHARED_SUBXPAT = 'shared_subxpat'
-
+SHARED_XPAT = 'shared_xpat'
 
 # for plotting
 BENCH_DICT = {'abs_diff_2': 'abs_diff_i4_o3', 'abs_diff_4': 'abs_diff_i8_o5', 'abs_diff_6': 'abs_diff_i12_o7',

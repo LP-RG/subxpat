@@ -228,7 +228,7 @@ class Synthesis:
                 verilog_str = self.__json_model_to_verilog_shared() # Shared XPAT
             else:
 
-                verilog_str = self.__json_model_to_verilog() # XPAT (Vanilla)
+                verilog_str = self.__annotated_graph_to_verilog() # XPAT (Vanilla)
 
         else:
             print(Fore.RED + f'ERROR!!! the graph or json model cannot be converted into a Verilog script!'+ Style.RESET_ALL)
