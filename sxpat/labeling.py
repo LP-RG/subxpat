@@ -31,11 +31,13 @@ def labeling(exact_benchmark_name: str, approximate_benchmark: str, min_labeling
 
     # convert gv to z3 expression
     if min_labeling:
+        print(Fore.LIGHTBLUE_EX + f'min labeling...' + Style.RESET_ALL)
         z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, style='min', parallel=parallel)
     else:
+        print(Fore.LIGHTBLUE_EX + f'max labeling...' + Style.RESET_ALL)
         z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, parallel=parallel)
 
-    z3py_obj.run_implicit_labeling(z3py_obj.implicit_labeling, parallel)
+    z3py_obj.run_implicit_labeling()
 
     labels = {}
     for key in z3py_obj.labels.keys():

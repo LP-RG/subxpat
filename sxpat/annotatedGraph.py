@@ -9,8 +9,9 @@ from Z3Log.verilog import Verilog
 from Z3Log.utils import *
 from .config.config import *
 from .config import paths as sxpatpaths
+from Z3Log.z3solver import Z3solver
 from z3 import *
-import cProfile
+
 
 from .templateSpecs import TemplateSpecs
 
@@ -23,6 +24,7 @@ class AnnotatedGraph(Graph):
         # exit()
         super().__init__(benchmark_name, is_clean)
         folder, extension = INPUT_PATH['ver']
+
 
 
 
@@ -1118,6 +1120,21 @@ class AnnotatedGraph(Graph):
         # print(f'{self.name = }')
         subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
 
+
+
+
+    def evaluate_subgraph_error(self) -> float:
+        """
+        This function removes the annotated part (so called the subgraph) of the graph and the evaluates the error (which
+        is a metric of choice)
+        :return: the computed error
+        """
+        # 1) read the exact circuit
+        # 2) create a copy of the self.graph and remove the annotated nodes, and consider it as an approximate graph
+
+
+
+        return 0.0
 
     # TODO: fix checks!
     # The checks are done on the original graph instead of the annotated graph!
