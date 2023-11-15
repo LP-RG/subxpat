@@ -184,62 +184,65 @@ class AnnotatedGraph(Graph):
                 Fore.LIGHTYELLOW_EX + f'No gates are found in the graph! Skipping the subgraph extraction' + Style.RESET_ALL)
             return False
         else:
-            mode = specs_obj.mode
-            if mode == 1:
-                print(Fore.BLUE + f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition" + Style.RESET_ALL)
-                self.subgraph = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
-                cnt_nodes = 0
-                for gate_idx in self.gate_dict:
-                    if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                        cnt_nodes += 1
-
-                print(Fore.GREEN + f" (#ofNodes={cnt_nodes})" + Style.RESET_ALL)
-            elif mode == 2:
-                print(Fore.BLUE + f"Partition with sensitivity start... Using imax={specs_obj.imax}, omax={specs_obj.omax}," \
-                                  f"and min_subgraph_size={specs_obj.min_subgraph_size}" + Style.RESET_ALL)
-                iteration = 1
-                cnt_nodes = 0
-                specs_obj.sensitivity = 1
-                n_outputs = len(self.output_dict)
-
-                while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
-                    # specs_obj.sensitivity = iteration
-                    print(Fore.LIGHTBLUE_EX + f"Sugraph iteration {iteration} " + Style.RESET_ALL)
-                    self.subgraph = self.find_subgraph_sensitivity(specs_obj)
-
-                    # Count how many nodes are in the subgraph
+            if specs_obj.subxpat:
+                mode = specs_obj.mode
+                if mode == 1:
+                    print(Fore.BLUE + f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition" + Style.RESET_ALL)
+                    self.subgraph = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
 
                     print(Fore.GREEN + f" (#ofNodes={cnt_nodes})" + Style.RESET_ALL)
-
-                    iteration += 1
-                    specs_obj.sensitivity = 2 ** iteration - 1
-            elif mode == 3:
-                print(Fore.BLUE + f"Partition with sensitivity start... Using only min_subgraph_size={specs_obj.min_subgraph_size} parameter" + Style.RESET_ALL)
-                iteration = 1
-                cnt_nodes = 0
-                specs_obj.sensitivity = 1
-                n_outputs = len(self.output_dict)
-
-                while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
-                    # specs_obj.sensitivity = iteration
-                    print(Fore.BLUE + f"Sugraph iteration {iteration}" + Style.RESET_ALL)
-                    self.subgraph = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
-
-                    # Count how many nodes are in the subgraph
+                elif mode == 2:
+                    print(Fore.BLUE + f"Partition with sensitivity start... Using imax={specs_obj.imax}, omax={specs_obj.omax}," \
+                                      f"and min_subgraph_size={specs_obj.min_subgraph_size}" + Style.RESET_ALL)
+                    iteration = 1
                     cnt_nodes = 0
-                    for gate_idx in self.gate_dict:
-                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                            cnt_nodes += 1
+                    specs_obj.sensitivity = 1
+                    n_outputs = len(self.output_dict)
+
+                    while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
+                        # specs_obj.sensitivity = iteration
+                        print(Fore.LIGHTBLUE_EX + f"Sugraph iteration {iteration} " + Style.RESET_ALL)
+                        self.subgraph = self.find_subgraph_sensitivity(specs_obj)
+
+                        # Count how many nodes are in the subgraph
+                        cnt_nodes = 0
+                        for gate_idx in self.gate_dict:
+                            if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
+                                cnt_nodes += 1
+
+                        print(Fore.GREEN + f" (#ofNodes={cnt_nodes})" + Style.RESET_ALL)
+
+                        iteration += 1
+                        specs_obj.sensitivity = 2 ** iteration - 1
+                elif mode == 3:
+                    print(Fore.BLUE + f"Partition with sensitivity start... Using only min_subgraph_size={specs_obj.min_subgraph_size} parameter" + Style.RESET_ALL)
+                    iteration = 1
+                    cnt_nodes = 0
+                    specs_obj.sensitivity = 1
+                    n_outputs = len(self.output_dict)
+
+                    while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
+                        # specs_obj.sensitivity = iteration
+                        print(Fore.BLUE + f"Sugraph iteration {iteration}" + Style.RESET_ALL)
+                        self.subgraph = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
+
+                        # Count how many nodes are in the subgraph
+                        cnt_nodes = 0
+                        for gate_idx in self.gate_dict:
+                            if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
+                                cnt_nodes += 1
 
 
-                    print(Fore.GREEN + f" (#ofNodes={cnt_nodes})" +Style.RESET_ALL)
+                        print(Fore.GREEN + f" (#ofNodes={cnt_nodes})" +Style.RESET_ALL)
 
-                    iteration += 1
-                    specs_obj.sensitivity = 2 ** iteration - 1
+                        iteration += 1
+                        specs_obj.sensitivity = 2 ** iteration - 1
+            else:
+                self.subgraph = self.entire_graph()
 
             self.export_annotated_graph()
 
@@ -1100,6 +1103,18 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
+
+
+    def entire_graph(self):
+        tmp_graph = self.graph.copy()
+
+
+        for gate_idx in self.gate_dict:
+
+            tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
+            tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
+
+        return tmp_graph
     def export_annotated_graph(self):
         """
         exports the subgraph (annotated graph) to a GV (GraphViz) file
@@ -1123,6 +1138,7 @@ class AnnotatedGraph(Graph):
 
 
 
+    # TODO:for external modifications
     def evaluate_subgraph_error(self) -> float:
         """
         This function removes the annotated part (so called the subgraph) of the graph and the evaluates the error (which
@@ -1131,9 +1147,6 @@ class AnnotatedGraph(Graph):
         """
         # 1) read the exact circuit
         # 2) create a copy of the self.graph and remove the annotated nodes, and consider it as an approximate graph
-
-
-
         return 0.0
 
     # TODO: fix checks!

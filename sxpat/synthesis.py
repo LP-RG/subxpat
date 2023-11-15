@@ -227,7 +227,9 @@ class Synthesis:
             if self.shared:
                 verilog_str = self.__json_model_to_verilog_shared() # Shared XPAT
             else:
+
                 verilog_str = self.__json_model_to_verilog() # XPAT (Vanilla)
+
         else:
             print(Fore.RED + f'ERROR!!! the graph or json model cannot be converted into a Verilog script!'+ Style.RESET_ALL)
             exit()
@@ -1042,7 +1044,51 @@ class Synthesis:
         return ver_string
 
     def __json_model_to_verilog(self):
-        pass
+        ver_string = []
+        for idx in range(self.num_of_models):
+            ver_str = f''
+            module_name = 'module circuit('
+            inputs = ', '.join([f'in{i}' for i in range(self.graph.num_inputs)])
+            outputs = ', '.join([f'out{o}' for o in range(self.graph.num_outputs)])
+            module_name += f'{inputs}, {outputs});\n\n'
+
+            i_decl = f'input {inputs};\n'
+            o_decl = f'output {outputs};\n'
+
+            enabled_outputs = []
+            for o in range(self.graph.num_outputs):
+                if self.json_model[idx][f'p_o{o}']:
+                    enabled_outputs.append(f'{o}')
+
+            wires = []
+            for o in enabled_outputs:
+                for p in range(self.ppo):
+                    wires.append(f'o{o}_t{p}')
+
+            wire_decl = f"wire {', '.join(wire for wire in wires)};\n\n"
+            products = ''
+            for o in range(self.graph.num_outputs):
+                if f'{o}' in enabled_outputs:
+                    included_products = []
+                    for p in range(self.ppo):
+                        included_literals = []
+                        for i in range(self.graph.num_inputs):
+                            if self.json_model[idx][f'p_o{o}_t{p}_i{i}_s']:
+                                if self.json_model[idx][f'p_o{o}_t{p}_i{i}_l']:
+                                    included_literals.append(f'in{i}')
+                                else:
+                                    included_literals.append(f'~in{i}')
+                        if included_literals:
+                            products += f"assign o{o}_t{p} = {' & '.join(included_literals)};\n"
+                            included_products.append(f'o{o}_t{p}')
+                    products += f"assign out{o} = {' | '.join(included_products)};\n\n"
+                else:
+                    products += f'assign out{o} = 0;\n\n'
+
+            ver_str += module_name + i_decl + o_decl + wire_decl + products
+            ver_str += 'endmodule\n'
+            ver_string.append(ver_str)
+        return ver_string
     # =========================
     def estimate_area(self, this_path: str = None):
         if this_path:

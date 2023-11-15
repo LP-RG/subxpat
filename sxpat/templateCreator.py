@@ -346,7 +346,7 @@ class Template_SOP1(TemplateCreator):
             raise Exception(Fore.RED + f'ERROR!!! Cannot run file {self.z3_out_path}' + Style.RESET_ALL)
 
     def z3_generate_z3pyscript(self):
-        if self.subxpat:
+        if self.subxpat or (not self.subxpat and not self.shared):
             imports = self.z3_generate_imports()  # parent
             config = self.z3_generate_config()
             z3_abs_function = self.z3_generate_z3_abs_function()  # parent
@@ -377,32 +377,6 @@ class Template_SOP1(TemplateCreator):
                               + exact_circuit_constraints + approximate_circuit_constraints_subxpat \
                               + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
                               + store_data
-
-        # TODO: Fix Later
-        else:
-            imports = self.z3_generate_imports()  # parent
-            config = self.z3_generate_config()
-            z3_abs_function = self.z3_generate_z3_abs_function()  # parent
-            input_variables_declaration = self.z3_generate_declare_input_variables()
-            exact_integer_function_declaration = self.z3_generate_declare_integer_function(F_EXACT)
-            approximate_integer_function_declaration = self.z3_generate_declare_integer_function(F_APPROXIMATE)
-            utility_variables = self.z3_generate_utility_variables()
-            implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters()
-            exact_circuit_wires_declaration = self.z3_generate_exact_circuit_wires_declaration()
-            exact_circuit_outputs_declaration = self.z3_generate_exact_circuit_outputs_declaration()
-            exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()
-            approximate_circuit_constraints = self.z3_generate_approximate_circuit_constraints()
-            for_all_solver = self.z3_generate_forall_solver()
-            verification_solver = self.z3_generate_verification_solver()
-            parameter_constraint_list = self.z3_generate_parameter_constraint_list()
-            find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
-            store_data = self.z3_generate_store_data()
-            self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
-                              + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
-                              + exact_circuit_outputs_declaration + exact_circuit_constraints + approximate_circuit_constraints \
-                              + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
-                              + store_data
-
         self.export_z3pyscript()
 
     def z3_generate_imports(self):
