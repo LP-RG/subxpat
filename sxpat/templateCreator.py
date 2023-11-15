@@ -252,7 +252,9 @@ class Template_SOP1(TemplateCreator):
         self.__json_in_path = this_json_path
 
     def label_graph(self, min_labeling: bool = False, parallel: bool = True):
+
         labels = labeling(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
+
         for n in self.current_graph.graph.nodes:
             if n in labels:
                 self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
@@ -1568,6 +1570,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
         self.__json_in_path = this_path
 
     def label_graph(self, min_labeling: bool = False, parallel: bool = True):
+
+        
         labels = labeling(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
 
         for n in self.current_graph.graph.nodes:

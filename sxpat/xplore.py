@@ -16,7 +16,7 @@ from sxpat.templateSpecs import TemplateSpecs
 from sxpat.config.paths import *
 from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
-from sxpat.verification import erroreval_verification
+from sxpat.verification import erroreval_verification_explicit, erroreval_verification_buggy
 from sxpat.stats import Stats
 from sxpat.stats import *
 import cProfile
@@ -117,7 +117,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                             print(Fore.GREEN + f'verifying all approximate circuits -> ', end='' + Style.RESET_ALL)
                             for candidate in cur_model_results:
                                 approximate_benchmark = candidate[:-2]
-                                if not erroreval_verification(specs_obj.exact_benchmark, approximate_benchmark,
+
+                                if not erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark,
                                                               template_obj.et):
                                     raise Exception(Fore.RED + f'ErrorEval Verification: FAILED!' + Style.RESET_ALL)
                             print(Fore.GREEN + f'ErrorEval PASS! '+ Style.RESET_ALL)
@@ -129,11 +130,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                             cur_ppo = ppo
                             runtime = template_obj.get_json_runtime()
                             synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
-                            # area = synth_obj.estimate_area()
-                            # delay = synth_obj.estimate_delay()
-                            # if area == 0.0 and delay == -1:
-                            #     delay = 0.0
-                            # total_power = synth_obj.estimate_power()
+
 
                             print(
                                 Fore.GREEN + f'Cell = ({cur_lpp}, {cur_ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)',)
@@ -143,27 +140,17 @@ def explore_grid(specs_obj: TemplateSpecs):
                             print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
 
                             found = True
-                            # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                            #                                                 this_iteration=i,
-                            #                                                 this_area=area,
-                            #                                                 this_total_power=total_power,
-                            #                                                 this_delay=delay,
-                            #                                                 this_runtime=runtime,
-                            #                                                 this_status='SAT',
-                            #                                                 this_cell=(lpp, ppo))
-                            # add current results to next_generation
+
                             for key in cur_model_results.keys():
                                 next_generation[key] = cur_model_results[key]
                             pre_iter_unsats[candidate] = 0
             else:
                 break
 
-        # form the new population
-        # print(Fore.LIGHTMAGENTA_EX + f'{next_generation = }' + Style.RESET_ALL)
-        # pick the winning candidates for the next iteration
+
         current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
         total[i] = current_population
-        # print(Fore.LIGHTYELLOW_EX + f'{current_population = }' + Style.RESET_ALL)
+
         next_generation = {}
         pre_iter_unsats = {}
         for key in current_population.keys():

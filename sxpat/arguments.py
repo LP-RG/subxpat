@@ -290,7 +290,9 @@ class Arguments(Arguments):
                                action="store_true",
                                default=False)
 
-
+        my_parser.add_argument('--evaluate',
+                               action="store_true",
+                               default=False)
 
         tmp_args = my_parser.parse_args()
 
