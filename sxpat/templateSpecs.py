@@ -12,7 +12,8 @@ class TemplateSpecs:
         self.__num_of_models = kwargs[NUM_OF_MODELS]
         self.__error_threshold = kwargs[TEMPLATE_SPEC_ET]
         self.__partitioning_percentage = kwargs[PARTITIONING_PERCENTAGE]
-        self.__iterations = kwargs[ITERATIONS]
+
+        self.__iterations = kwargs[ITERATIONS] if self.subxpat else 1
         self.__grid = kwargs[GRID]
         self.__imax = kwargs[IMAX]
         self.__omax = kwargs[OMAX]

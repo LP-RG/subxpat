@@ -27,8 +27,15 @@ import cProfile
 
 def explore_grid(specs_obj: TemplateSpecs):
     print(f'{specs_obj = }')
-    print(
-        Fore.BLUE + f'Subxpat {"Shared started..." if specs_obj.shared else "started..."}' + Style.RESET_ALL)
+    if specs_obj.subxpat and specs_obj.shared:
+        print(Fore.BLUE + f'Shared SubXPAT started...' + Style.RESET_ALL)
+    elif specs_obj.subxpat and not specs_obj.shared:
+        print(Fore.BLUE + f'SubXPAT started...' + Style.RESET_ALL)
+    elif not specs_obj.subxpat and specs_obj.shared:
+        print(Fore.BLUE + f'Shared XPAT started...' + Style.RESET_ALL)
+    elif not specs_obj.subxpat and not specs_obj.shared:
+        print(Fore.BLUE + f'XPAT started...' + Style.RESET_ALL)
+
     i = 1
     total_iterations = specs_obj.iterations
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
@@ -60,7 +67,10 @@ def explore_grid(specs_obj: TemplateSpecs):
     pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
 
     for i in range(1, total_iterations + 1):
-        print(Fore.LIGHTBLUE_EX + f'iteration {i}' + Style.RESET_ALL)
+        if not specs_obj.subxpat:
+            print(Fore.LIGHTBLUE_EX + f'Only one iteration' + Style.RESET_ALL)
+        else:
+            print(Fore.LIGHTBLUE_EX + f'iteration {i}' + Style.RESET_ALL)
         for candidate in current_population:
             # print(f'{pre_iter_unsats[candidate] = } {total_number_of_cells_per_iter = }')
             if pre_iter_unsats[candidate] == total_number_of_cells_per_iter:

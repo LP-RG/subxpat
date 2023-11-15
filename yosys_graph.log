@@ -23,20 +23,20 @@
 
 
 -- Running command `
-        read_verilog output/ver/adder_i8_o5_et6_SOP1_id0_0_0_0.v
-        show -prefix output/gv/adder_i8_o5_et6_SOP1_id0_0_0_0 -format gv
+        read_verilog output/ver/abs_diff_i8_o5.v
+        show -prefix output/gv/abs_diff_i8_o5 -format gv
         ' --
 
-1. Executing Verilog-2005 frontend: output/ver/adder_i8_o5_et6_SOP1_id0_0_0_0.v
-Parsing Verilog input from `output/ver/adder_i8_o5_et6_SOP1_id0_0_0_0.v' to AST representation.
-Generating RTLIL representation for module `\adder_i8_o5_et6_SOP1_id0_0_0_0'.
+1. Executing Verilog-2005 frontend: output/ver/abs_diff_i8_o5.v
+Parsing Verilog input from `output/ver/abs_diff_i8_o5.v' to AST representation.
+Generating RTLIL representation for module `\top'.
 Successfully finished Verilog frontend.
 
 2. Generating Graphviz representation of design.
-Writing dot description to `output/gv/adder_i8_o5_et6_SOP1_id0_0_0_0.dot'.
-Dumping module adder_i8_o5_et6_SOP1_id0_0_0_0 to page 1.
-Exec: dot -Tgv 'output/gv/adder_i8_o5_et6_SOP1_id0_0_0_0.dot' > 'output/gv/adder_i8_o5_et6_SOP1_id0_0_0_0.gv.new' && mv 'output/gv/adder_i8_o5_et6_SOP1_id0_0_0_0.gv.new' 'output/gv/adder_i8_o5_et6_SOP1_id0_0_0_0.gv'
+Writing dot description to `output/gv/abs_diff_i8_o5.dot'.
+Dumping module top to page 1.
+Exec: dot -Tgv 'output/gv/abs_diff_i8_o5.dot' > 'output/gv/abs_diff_i8_o5.gv.new' && mv 'output/gv/abs_diff_i8_o5.gv.new' 'output/gv/abs_diff_i8_o5.gv'
 
-End of script. Logfile hash: 1f521e2699, CPU: user 0.01s system 0.01s, MEM: 125.27 MB peak
+End of script. Logfile hash: dba729cb7a, CPU: user 0.02s system 0.03s, MEM: 106.48 MB peak
 Yosys 0.34+27 (git sha1 7d30f716e, clang 10.0.0-4ubuntu1 -fPIC -Os)
-Time spent: 96% 1x show (0 sec), 3% 2x read_verilog (0 sec)
+Time spent: 94% 1x show (0 sec), 5% 2x read_verilog (0 sec)
