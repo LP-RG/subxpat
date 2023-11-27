@@ -39,7 +39,7 @@ def clean_all():
 def main():
     args = Arguments.parse()
     print(f'{args = }')
-    # exit()
+
 
 
 

@@ -23,20 +23,20 @@
 
 
 -- Running command `
-        read_verilog output/ver/adder_i8_o5.v
-        show -prefix output/gv/adder_i8_o5 -format gv
+        read_verilog output/ver/adder_i4_o3.v
+        show -prefix output/gv/adder_i4_o3 -format gv
         ' --
 
-1. Executing Verilog-2005 frontend: output/ver/adder_i8_o5.v
-Parsing Verilog input from `output/ver/adder_i8_o5.v' to AST representation.
+1. Executing Verilog-2005 frontend: output/ver/adder_i4_o3.v
+Parsing Verilog input from `output/ver/adder_i4_o3.v' to AST representation.
 Generating RTLIL representation for module `\top'.
 Successfully finished Verilog frontend.
 
 2. Generating Graphviz representation of design.
-Writing dot description to `output/gv/adder_i8_o5.dot'.
+Writing dot description to `output/gv/adder_i4_o3.dot'.
 Dumping module top to page 1.
-Exec: dot -Tgv 'output/gv/adder_i8_o5.dot' > 'output/gv/adder_i8_o5.gv.new' && mv 'output/gv/adder_i8_o5.gv.new' 'output/gv/adder_i8_o5.gv'
+Exec: dot -Tgv 'output/gv/adder_i4_o3.dot' > 'output/gv/adder_i4_o3.gv.new' && mv 'output/gv/adder_i4_o3.gv.new' 'output/gv/adder_i4_o3.gv'
 
-End of script. Logfile hash: 621be8b6a8, CPU: user 0.01s system 0.03s, MEM: 102.29 MB peak
+End of script. Logfile hash: 4130af3391, CPU: user 0.00s system 0.02s, MEM: 91.86 MB peak
 Yosys 0.34+27 (git sha1 7d30f716e, clang 10.0.0-4ubuntu1 -fPIC -Os)
-Time spent: 96% 1x show (0 sec), 3% 2x read_verilog (0 sec)
+Time spent: 97% 1x show (0 sec), 2% 2x read_verilog (0 sec)

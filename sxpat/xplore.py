@@ -29,13 +29,16 @@ def explore_grid(specs_obj: TemplateSpecs):
     print(f'{specs_obj = }')
     if specs_obj.subxpat and specs_obj.shared:
         print(Fore.BLUE + f'Shared SubXPAT started...' + Style.RESET_ALL)
+        toolname = sxpatconfig.SHARED_SUBXPAT
     elif specs_obj.subxpat and not specs_obj.shared:
         print(Fore.BLUE + f'SubXPAT started...' + Style.RESET_ALL)
+        toolname = sxpatconfig.SUBXPAT
     elif not specs_obj.subxpat and specs_obj.shared:
         print(Fore.BLUE + f'Shared XPAT started...' + Style.RESET_ALL)
+        toolname = sxpatconfig.SHARED_XPAT
     elif not specs_obj.subxpat and not specs_obj.shared:
         print(Fore.BLUE + f'XPAT started...' + Style.RESET_ALL)
-
+        toolname = sxpatconfig.XPAT
     i = 1
     total_iterations = specs_obj.iterations
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
@@ -124,6 +127,19 @@ def explore_grid(specs_obj: TemplateSpecs):
                                                                             synth_obj.estimate_power(),\
                                                                             synth_obj.estimate_delay(),\
                                                                             (lpp, ppo)
+
+                            with open(f"{OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{toolname}.csv", 'w') as f:
+                                csvwriter = csv.writer(f)
+
+                                header = list(range(len(cur_model_results)))
+                                all = list(cur_model_results.values())
+                                content = [f for f, _, _, _ in all]
+                                print(f'{content = }')
+
+                                csvwriter.writerow(header)
+                                csvwriter.writerow(content)
+
+
                             print(Fore.GREEN + f'verifying all approximate circuits -> ', end='' + Style.RESET_ALL)
                             for candidate in cur_model_results:
                                 approximate_benchmark = candidate[:-2]
