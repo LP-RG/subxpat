@@ -38,7 +38,7 @@ class Synthesis:
         self.__error_threshold = template_specs.et
         self.__graph: AnnotatedGraph = graph_obj
         self.__num_models: int = template_specs.num_of_models
-
+        print(f'{self.__num_models = }')
         if self.shared:
             self.__products_in_total: int = template_specs.products_in_total
         else:
