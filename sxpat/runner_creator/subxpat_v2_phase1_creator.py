@@ -3,42 +3,78 @@ from __future__ import annotations
 from typing import Tuple, List, Iterable
 
 # libs
-from itertools import chain
+# from itertools import chain
 
 # Z3Log libs
 from Z3Log.config.config import *
-from sxpat.annotatedGraph import AnnotatedGraph
+from Z3Log.config import path as z3logpath
+# from sxpat.annotatedGraph import AnnotatedGraph
 
 # sxpat libs
 from sxpat.config.config import *
-from sxpat.config import paths as sxpatpaths
+# from sxpat.config import paths as sxpatpaths
 from sxpat.distance_function import DistanceFunction
-from sxpat.runner_creator.xpat_creator import XPatRunnerCreator
+# from sxpat.runner_creator.xpat_creator_direct import XPatRunnerCreator
 from z_marco.ma_graph import MaGraph
 
 # package
 from .runner_creator import RunnerCreator
-from .utils import format_lines, indent_lines, exctract_subgraph
+from .utils import format_lines, indent_lines
+# from sxpat.graph_utils.extract_subgraph import exctract_subgraph
 
 
 class SubXPatV2Phase1RunnerCreator(RunnerCreator):
     def __init__(self,
-                 full_graph: MaGraph, sub_graph: MaGraph,
-                 exact_name: str,
+                 # input
+                 full_graph: MaGraph,
+                 sub_graph: MaGraph,
+                 graph_name: str,
+                 # parameters
                  circuit_distance_function: DistanceFunction,
                  subcircuit_distance_function: DistanceFunction,
-                 circuit1_name: str = "c1", circuit2_name: str = "c2"):
+                 *,
+                 circuit1_name: str = "c1",  # can be left as default
+                 circuit2_name: str = "c2",  # can be left as default
+                 ) -> None:
 
         self.graph = full_graph
         self.subgraph = sub_graph
+        self.graph_name = graph_name
 
         self.c1_name = circuit1_name
         self.c2_name = circuit2_name
 
-        self.cir_dist_func = circuit_distance_function
-        self.sub_dist_func = subcircuit_distance_function
+        self.circuit_distance_function = circuit_distance_function
+        self.subcircuit_distance_function = subcircuit_distance_function
 
-    def generate_script(self, path: str = None) -> str:
+    name = property(lambda _: "V2P1")
+    """DEPRECATED"""
+
+    def get_script_name(self) -> str:
+        # compute base name
+        name = '_'.join([
+            self.graph_name,
+            f"{NameParameters.DST.value}ful{self.circuit_distance_function.abbreviation}",
+            f"{NameParameters.DST.value}sub{self.subcircuit_distance_function.abbreviation}",
+            "V2P1"
+        ])
+
+        # get folder and extension
+        folder, extension = z3logpath.OUTPUT_PATH['z3']
+
+        return f"{folder}/{name}.{extension}"
+
+    # def gen_json_outfile_name(self):
+    #     name = '_'.join([
+    #         self.graph_name,
+    #         f"{NameParameters.DST.value}ful{self.circuit_distance_function_name}",
+    #         f"{NameParameters.DST.value}sub{self.subcircuit_distance_function_name}",
+    #         "V2P1"
+    #     ])
+    #     folder, extension = sxpatpaths.OUTPUT_PATH[JSON]
+    #     return f"{folder}/{name}.{extension}"
+
+    def generate_script(self) -> str:
         text = format_lines([
             # generics
             *self.gen_imports(),
@@ -71,9 +107,9 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
             "",
         ])
 
-        if path is not None:
-            with open(path, "w") as f:
-                f.write(text)
+        # if path is not None:
+        #     with open(path, "w") as f:
+        #         f.write(text)
         return text
 
     def gen_arguments_parsing(self) -> List[str]:
@@ -88,29 +124,29 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
     def gen_declare_input_variables(self) -> List[str]:
         return [
             "# inputs variables declaration",
-            *map(self.declare_gate, self.graph.inputs)
+            *map(self.declare_z3_gate, self.graph.inputs)
         ]
 
     def gen_sub_outputs(self):
-        def prefixed(prefix: str, strings: Iterable[str]) -> Iterable[str]:
-            return map(lambda s: f"{prefix}_{s}", strings)
+        def prefixed(prefixes: Iterable[str], strings: Iterable[str]) -> Iterable[str]:
+            return map(lambda s: "_".join((*prefixes, s)), strings)
 
         return [
             f"# Subgraph output variables declaration",
             *(
-                self.declare_gate(name)
-                for name in prefixed(self.c1_name, self.subgraph.outputs)
+                self.declare_z3_gate(name)
+                for name in prefixed((self.c1_name,), self.subgraph.outputs)
             ),
             *(
-                self.declare_gate(name)
-                for name in prefixed(self.c2_name, self.subgraph.outputs)
+                self.declare_z3_gate(name)
+                for name in prefixed((self.c2_name,), self.subgraph.outputs)
             )
         ]
 
     def gen_exact_circuit_wires(self, prefix: str) -> List[str]:
         subout_preds = {self.subgraph.predecessors(n)[0]: n for n in self.subgraph.outputs}
 
-        lines = ["# exact circuit gates"]
+        lines = []
         for gate_name in self.graph.gates:
 
             if gate_name in subout_preds:
@@ -128,11 +164,13 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
 
             lines.append(f"{prefix}_{gate_name} = z3.{TO_Z3_GATE_DICT[gate_func]}({', '.join(gate_preds)})")
 
-        return lines
+        return [
+            "# exact circuit gates",
+            *lines
+        ]
 
     def gen_exact_circuit_outputs(self, prefix: str):
-        lines = ["# exact circuit outputs"]
-
+        lines = []
         for out_name in self.graph.outputs:
             out_preds = [
                 name if name in self.graph.inputs else f"{prefix}_{name}"
@@ -143,7 +181,10 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
 
             lines.append(f"{prefix}_{out_name} = {out_preds[0]}")
 
-        return lines
+        return [
+            "# exact circuit outputs",
+            *lines
+        ]
 
     def gen_distance_functions(self):
         cir_vars_1 = [f"{self.c1_name}_{name}" for name in self.graph.outputs]
@@ -153,9 +194,9 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
 
         return [
             "# Distance variables",
-            *self.cir_dist_func.declare(cir_vars_1, cir_vars_2, "cir"),
+            *self.circuit_distance_function.declare(cir_vars_1, cir_vars_2, "cir"),
             "",
-            *self.sub_dist_func.declare(sub_vars_1, sub_vars_2, "sub"),
+            *self.subcircuit_distance_function.declare(sub_vars_1, sub_vars_2, "sub"),
         ]
 
     def gen_optimizer(self):
@@ -178,11 +219,13 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
         ]
 
     def gen_output(self):
+
         return [
             f"# print results",
             f"print(result)",
-            f"print('e = cir_out_dist =', model.evaluate(cir_out_dist))",
-            f"print('d = sub_out_dist =', model.evaluate(sub_out_dist))",
+            f"print(model.evaluate(sub_out_dist) if result == z3.sat else '')",
+            # f"print('e = cir_out_dist =', model.evaluate(cir_out_dist))",
+            # f"print('d = sub_out_dist =', model.evaluate(sub_out_dist))",
         ]
 
     # # ! DOING ABOVE HERE
