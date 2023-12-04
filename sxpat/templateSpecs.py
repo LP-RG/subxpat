@@ -1,69 +1,4 @@
-import dataclasses as dc
-from typing import Any
-
 from .config.config import *
-
-
-@dc.dataclass
-class _TemplateSpecs:
-
-    template_name: str
-    exact_benchmark: str
-    benchmark_name: str
-
-    literals_per_product: int
-    lpp = property(lambda s: s.literals_per_product)
-    products_per_output: int
-    ppo = property(lambda s: s.products_per_output)
-
-    subxpat: bool
-    num_of_models: int
-
-    error_treshold: int
-    et = property(lambda s: s.error_treshold)
-    partitioning_percentage: Any
-    pp = property(lambda s: s.partitioning_percentage)
-
-    iterations: Any
-    grid: Any
-    imax: Any
-    omax: Any
-    max_sensitivity: Any
-    sensitivity: Any
-    timeout: Any
-    min_subgraph_size: Any
-    min_subgraph_size: Any
-
-    def __post_init__(self):
-        raise Exception("Refactoring in stand by. [assigned: Marco]")
-
-        self.template_name = self.template_name.upper()
-        self.literals_per_product = int(self.literals_per_product)
-        self.products_per_output = int(self.products_per_output)
-        self.num_of_models = int(self.num_of_models)
-        self.error_treshold = int(self.error_treshold)
-
-    def __repr__(self):
-        return "\n".join(
-            f'An object of Class TemplateSpecs:',
-            f' > {self.template_name = }',
-            f' > {self.exact_benchmark = }',
-            f' > {self.benchmark_name = }',
-            f' > {self.lpp = }',
-            f' > {self.ppo = }',
-            f' > {self.subxpat = }',
-            f' > {self.num_of_models = }',
-            f' > {self.et = }',
-            f' > {self.partitioning_percentage = }',
-            f' > {self.iterations = }',
-            f' > {self.grid = }',
-            f' > {self.imax = }',
-            f' > {self.omax = }',
-            f' > {self.max_sensitivity = }',
-            f' > {self.sensitivity = }',
-            f' > {self.timeout = }',
-            f' > {self.min_subgraph_size = }',
-        )
 
 
 class TemplateSpecs:
@@ -77,7 +12,8 @@ class TemplateSpecs:
         self.__num_of_models = kwargs[NUM_OF_MODELS]
         self.__error_threshold = kwargs[TEMPLATE_SPEC_ET]
         self.__partitioning_percentage = kwargs[PARTITIONING_PERCENTAGE]
-        self.__iterations = kwargs[ITERATIONS]
+
+        self.__iterations = kwargs[ITERATIONS] if self.subxpat else 1
         self.__grid = kwargs[GRID]
         self.__imax = kwargs[IMAX]
         self.__omax = kwargs[OMAX]
@@ -85,6 +21,33 @@ class TemplateSpecs:
         self.__sensitivity = 0
         self.__timeout = kwargs[TIMEOUT]
         self.__min_subgraph_size = kwargs[SUBGRAPHSIZE]
+        self.__mode = kwargs[MODE]
+        self.__population = kwargs[POPULATION]
+        self.__min_labeling = kwargs[MIN_LABELING]
+        print("AAA", self.__min_labeling)
+        self.__shared = kwargs[SHARED]
+        self.__products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
+        self.__parallel: bool = kwargs[PARALLEL]
+
+    @property
+    def parallel(self):
+        return self.__parallel
+
+    @property
+    def shared(self):
+        return self.__shared
+
+    @property
+    def min_labeling(self):
+        return self.__min_labeling
+
+    @property
+    def population(self):
+        return self.__population
+
+    @property
+    def mode(self):
+        return self.__mode
 
     @property
     def partitioning_percentage(self):
@@ -206,6 +169,18 @@ class TemplateSpecs:
     def min_subgraph_size(self, this_subgraph_size):
         self.__min_subgraph_size = this_subgraph_size
 
+    @property
+    def products_in_total(self):
+        return self.__products_in_total
+
+    @property
+    def pit(self):
+        return self.__products_in_total
+
+    @pit.setter
+    def pit(self, this_pit):
+        self.__products_in_total = this_pit
+
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \
                f'{self.template_name = }\n' \
@@ -213,6 +188,7 @@ class TemplateSpecs:
                f'{self.benchmark_name = }\n' \
                f'{self.lpp = }\n' \
                f'{self.ppo = }\n' \
+               f'{self.pit = }\n' \
                f'{self.subxpat = }\n' \
                f'{self.num_of_models = }\n' \
                f'{self.et = }\n' \
@@ -224,4 +200,9 @@ class TemplateSpecs:
                f'{self.max_sensitivity = }\n' \
                f'{self.sensitivity = }\n' \
                f'{self.timeout = }\n' \
-               f'{self.min_subgraph_size = }'
+               f'{self.min_subgraph_size = }\n' \
+               f'{self.mode = }\n' \
+               f'{self.population = }\n' \
+               f'{self.shared = }\n'  \
+               f'{self.parallel = }\n' \
+               f'{self.min_labeling = }'

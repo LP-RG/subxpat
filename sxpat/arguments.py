@@ -23,6 +23,45 @@ class Arguments(Arguments):
         self.__sensitivity: int = tmp_args.sensitivity
         self.__timeout: int = tmp_args.timeout
         self.__subgraph_size: int = tmp_args.subgraphsize
+        self.__mode: int = tmp_args.mode
+        self.__population: int = tmp_args.population
+        self.__num_models: int = tmp_args.num_models
+        self.__min_labeling: bool = tmp_args.min_labeling
+        self.__shared: bool = tmp_args.shared
+        self.__products_in_total: int = tmp_args.pit
+        self.__parallel: bool = tmp_args.parallel
+
+    @property
+    def parallel(self):
+        return self.__parallel
+
+    @property
+    def products_in_total(self):
+        return self.__products_in_total
+
+    @property
+    def pit(self):
+        return self.__products_in_total
+
+    @property
+    def shared(self):
+        return self.__shared
+
+    @property
+    def min_labeling(self):
+        return self.__min_labeling
+
+    @property
+    def num_models(self):
+        return self.__num_models
+
+    @property
+    def population(self):
+        return self.__population
+
+    @property
+    def mode(self):
+        return self.__mode
 
     @property
     def partitioning_percentage(self):
@@ -205,7 +244,49 @@ class Arguments(Arguments):
                                default=10800,
                                help='the-timeout-for-every-cell-in-seconds(default 3 hours)')
 
+        my_parser.add_argument('-mode',
+                               type=int,
+                               default=3,
+                               help='selects-partitioning-algorithm [if 1=> imax,omax] \
+                                    [if 2=> imax,omax,min_size,sensitivity] \
+                                    [if 3=>min_size,sensitivity]')
+
+        my_parser.add_argument('-population',
+                               type=int,
+                               default=1,
+                               help='selected-solutions-at-every-iteration')
+
+        my_parser.add_argument('-num_models',
+                               type=int,
+                               default=1,
+                               help='number-of-models')
+
         my_parser.add_argument('--clean',
+                               action="store_true",
+                               default=False,
+                               help='cleans-output-directory-and-its-contents')
+
+        my_parser.add_argument('--min_labeling',
+                               action="store_true",
+                               default=False,
+                               help='[if true labels-gates-with-min-error] \
+                                     [if false max-error]')
+
+        my_parser.add_argument('--shared',
+                               action="store_true",
+                               default=False,
+                               help='activates-logic-sharing')
+
+        my_parser.add_argument('--pit', '-pit',
+                               type=int,
+                               default=5,
+                               help='products-in-total')
+
+        my_parser.add_argument('--parallel',
+                               action="store_true",
+                               default=False)
+
+        my_parser.add_argument('--evaluate',
                                action="store_true",
                                default=False)
 
@@ -217,6 +298,7 @@ class Arguments(Arguments):
         return f'An object of class Arguments:\n' \
                f'{self.literals_per_product = }\n' \
                f'{self.products_per_output = }\n' \
+               f'{self.products_in_total = }\n' \
                f'{self.subxpat = }\n' \
                f'{self.et = }\n' \
                f'{self.clean = }\n' \
@@ -230,4 +312,10 @@ class Arguments(Arguments):
                f'{self.sensitivity = }\n' \
                f'{self.timeout = }\n' \
                f'{self.subgraph_size = }\n' \
+               f'{self.mode = }\n' \
+               f'{self.population = }\n' \
+               f'{self.num_models = }\n'\
+               f'{self.min_labeling = }\n' \
+               f'{self.shared = }\n' \
+               f'{self.parallel = }\n' \
                f'{self.clean = }'
