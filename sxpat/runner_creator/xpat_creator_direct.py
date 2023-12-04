@@ -7,12 +7,14 @@ from itertools import chain
 
 # Z3Log libs
 from Z3Log.config.config import *
+from Z3Log.config import path as z3logpath
 
 # sxpat libs
 from sxpat.config.config import *
 from sxpat.config import paths as sxpatpaths
 from sxpat.distance_function import DistanceFunction
 from z_marco.ma_graph import MaGraph
+from sxpat.config.config import NameParameters
 
 # package
 from .runner_creator import RunnerCreator
@@ -21,10 +23,16 @@ from .utils import format_lines, indent_lines
 
 class XPatRunnerCreator(RunnerCreator):
     def __init__(self,
+                 # input
                  exact_graph: MaGraph, exact_name: str,
-                 literal_per_product: int, product_per_output: int,
+                 # parameters
+                 literal_per_product: int,
+                 product_per_output: int,
+                 # error stuff
                  error_function: DistanceFunction,
-                 exact_circuit_name: str = "c1", template_circuit_name: str = "c2") -> None:
+                 *,
+                 exact_circuit_name: str = "c1",
+                 template_circuit_name: str = "c2") -> None:
         self.exact_graph: MaGraph = exact_graph
 
         self.exact_name: str = exact_name
@@ -40,7 +48,30 @@ class XPatRunnerCreator(RunnerCreator):
     lpp = property(lambda s: s.literal_per_product)
     ppo = property(lambda s: s.product_per_output)
 
-    def generate_script(self, output: TextIO = None) -> str:
+    name = property(lambda _: "XPATD")
+    """Deprecated"""
+
+    @staticmethod
+    def get_script_name(graph_name: str,
+                        literals_per_product: int,
+                        products_per_output: int,
+                        distance_function_name: str
+                        ) -> str:
+        # compute base name
+        name = '_'.join([
+            graph_name,
+            f"{NameParameters.LPP.value}{literals_per_product}",
+            f"{NameParameters.PPO.value}{products_per_output}",
+            f"{NameParameters.DST.value}{distance_function_name}",
+            "XPATD"
+        ])
+
+        # get folder and extension
+        folder, extension = z3logpath.OUTPUT_PATH['z3']
+
+        return f"{folder}/{name}.{extension}"
+
+    def generate_script(self) -> str:
         text = format_lines([
             # generics
             *self.gen_imports(),
@@ -51,8 +82,7 @@ class XPatRunnerCreator(RunnerCreator):
             *self.gen_declare_input_variables(),
             "",
             # exact circuit
-            # *self.gen_exact_circuit_wires(), # Third Kind
-            *self.gen_exact_circuit_wires_declaration(), # Second Kind
+            *self.gen_exact_circuit_wires(),
             "",
             *self.gen_exact_circuit_outputs(),
             "",
@@ -66,8 +96,9 @@ class XPatRunnerCreator(RunnerCreator):
             # solver
             *self.gen_error_computation(),
             "",
-            *self.gen_solver(),  # Inside this, there are Second and Third Kinds
+            *self.gen_solver(),
             "",
+            # self.gen_smt_dump("direct.smt"),
             # verifier
             *self.gen_verifier(),
             "",
@@ -76,8 +107,8 @@ class XPatRunnerCreator(RunnerCreator):
             ""
         ])
 
-        if output is not None:
-            output.write(text)
+        # if output is not None:
+        #     output.write(text)
 
         return text
 
@@ -93,7 +124,7 @@ class XPatRunnerCreator(RunnerCreator):
     def gen_declare_input_variables(self) -> List[str]:
         return [
             "# inputs variables declaration",
-            *map(self.declare_gate, self.exact_graph.inputs)
+            *map(self.declare_z3_gate, self.exact_graph.inputs)
         ]
 
     def gen_declare_template_parameters(self) -> List[str]:
@@ -105,51 +136,20 @@ class XPatRunnerCreator(RunnerCreator):
 
     def gen_declare_output_parameters(self) -> List[str]:
         return [
-            self.declare_gate(f"p_{out_name}")
+            self.declare_z3_gate(f"p_{out_name}")
             for out_name in self.exact_graph.outputs
         ]
 
     def gen_declare_products_parameters(self) -> List[str]:
         return list(chain.from_iterable((
             map(
-                self.declare_gate,
+                self.declare_z3_gate,
                 self.gen_parameter_pair(out_name, tree_i, in_name)
             )
             for out_name in self.exact_graph.outputs
             for tree_i in range(self.ppo)
             for in_name in self.exact_graph.inputs
         )))
-
-    def gen_exact_circuit_wires_declaration(self):
-        # NOTE: Second Kind
-        return [
-            "# exact gates declaration",
-            *(
-                self.declare_gate(f"{self.exact_circuit_name}_{gate_name}")
-                for gate_name in self.exact_graph.gates
-            )
-        ]
-
-    def gen_exact_circuit_wires_assignment(self):
-        # NOTE: Second Kind
-
-        lines = []
-        for gate_name in self.exact_graph.gates:
-            gate_preds = [
-                name if name in self.exact_graph.inputs else f"{self.exact_circuit_name}_{name}"
-                for name in self.exact_graph.predecessors(gate_name)
-            ]
-            gate_func = self.exact_graph.function_of(gate_name)
-
-            assert len(gate_preds) in [1, 2]
-            assert gate_func in [NOT, AND, OR]
-
-            lines.append(f"{self.exact_circuit_name}_{gate_name} == z3.{TO_Z3_GATE_DICT[gate_func]}({', '.join(gate_preds)}),")
-
-        return [
-            f"# exact gates assignment",
-            *lines,
-        ]
 
     # def z3_generate_exact_circuit_wire_constraints(self):
     #     exact_wire_constraints = ''
@@ -189,6 +189,38 @@ class XPatRunnerCreator(RunnerCreator):
     #             exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
     #     return exact_wire_constraints
 
+    # def gen_exact_circuit_wires_declaration(self):
+    #     # NOTE: Second Kind
+    #     return [
+    #         "# exact gates declaration",
+    #         *(
+    #             self.declare_z3_gate(f"{self.exact_circuit_name}_{gate_name}")
+    #             for gate_name in self.exact_graph.gates
+    #         )
+    #     ]
+
+    # def gen_exact_circuit_wires_assignment(self):
+    #     # NOTE: Second Kind
+
+    #     lines = []
+    #     for gate_name in self.exact_graph.gates:
+    #         gate_preds = [
+    #             name if name in self.exact_graph.inputs else f"{self.exact_circuit_name}_{name}"
+    #             for name in self.exact_graph.predecessors(gate_name)
+    #         ]
+    #         gate_func = self.exact_graph.function_of(gate_name)
+
+    #         assert len(gate_preds) in [1, 2]
+    #         assert gate_func in [NOT, AND, OR]
+
+    #         lines.append(
+    #             f"{self.exact_circuit_name}_{gate_name} == z3.{TO_Z3_GATE_DICT[gate_func]}({', '.join(gate_preds)}),")
+
+    #     return [
+    #         f"# exact gates assignment",
+    #         *lines,
+    #     ]
+
     def gen_exact_circuit_wires(self) -> List[str]:
         # NOTE: Third Kind
         lines = ["# exact circuit gates"]
@@ -202,12 +234,13 @@ class XPatRunnerCreator(RunnerCreator):
             assert len(gate_preds) in [1, 2]
             assert gate_func in [NOT, AND, OR]
 
-            lines.append(f"{self.exact_circuit_name}_{gate_name} = z3.{TO_Z3_GATE_DICT[gate_func]}({', '.join(gate_preds)})")
+            lines.append(
+                f"{self.exact_circuit_name}_{gate_name} = z3.{TO_Z3_GATE_DICT[gate_func]}({', '.join(gate_preds)})")
 
         return lines
 
     def gen_exact_circuit_outputs(self):
-        lines = ["# exact circuit outputs (from the least significant)"]
+        lines = ["# exact circuit outputs"]
 
         for out_name in self.exact_graph.outputs:
             out_preds = [
@@ -217,7 +250,8 @@ class XPatRunnerCreator(RunnerCreator):
 
             assert len(out_preds) == 1
 
-            lines.append(f"{self.exact_circuit_name}_{out_name} = {out_preds[0]}")
+            lines.append(
+                f"{self.exact_circuit_name}_{out_name} = {out_preds[0]}")
 
         return lines
 
@@ -233,7 +267,8 @@ class XPatRunnerCreator(RunnerCreator):
         return (f"{prefix}_{SELECT_PREFIX}", f"{prefix}_{LITERAL_PREFIX}")
 
     def gen_template_circuit_leaf(self, out_name: str, tree_i: int, in_name: str) -> str:
-        select_param, literal_param = self.gen_parameter_pair(out_name, tree_i, in_name)
+        select_param, literal_param = self.gen_parameter_pair(
+            out_name, tree_i, in_name)
         return f"z3.Or(z3.Not({select_param}), {literal_param} == {in_name})"
 
     def gen_template_circuit_trees(self) -> List[str]:
@@ -244,7 +279,8 @@ class XPatRunnerCreator(RunnerCreator):
                     self.gen_template_circuit_leaf(out_name, tree_i, in_name)
                     for in_name in self.exact_graph.inputs
                 ]
-                lines.append(f"{self.template_circuit_name}_{out_name}_t{tree_i} = z3.And({', '.join(leaves)})")
+                lines.append(
+                    f"{self.template_circuit_name}_{out_name}_t{tree_i} = z3.And({', '.join(leaves)})")
         return lines
 
     def gen_template_circuit_outputs(self):
@@ -253,10 +289,11 @@ class XPatRunnerCreator(RunnerCreator):
         for out_name in self.exact_graph.outputs:
             trees = []
             for tree_i in range(self.ppo):
-                trees.append(f"{self.template_circuit_name}_{out_name}_t{tree_i}")
+                trees.append(
+                    f"{self.template_circuit_name}_{out_name}_t{tree_i}")
             lines.append(
                 f"{self.template_circuit_name}_{out_name} = "
-                f"z3.And(p_{out_name}, {', '.join(trees)})"
+                f"z3.And(p_{out_name}, z3.Or({', '.join(trees)}))"
             )
 
         return lines
@@ -287,9 +324,11 @@ class XPatRunnerCreator(RunnerCreator):
             for tree_i in range(self.ppo):
                 parameters = []
                 for in_name in self.exact_graph.inputs:
-                    param_name = self.gen_select_parameter(out_name, tree_i, in_name)
+                    param_name = self.gen_select_parameter(
+                        out_name, tree_i, in_name)
                     parameters.append(f"z3.If({param_name}, 1, 0)")
-                constraints.append(f"({' + '.join(parameters)}) <= {self.lpp},")
+                constraints.append(
+                    f"({' + '.join(parameters)}) <= {self.lpp},")
 
         return [
             f"# literals_per_product constraints",
@@ -302,7 +341,8 @@ class XPatRunnerCreator(RunnerCreator):
             implies = []
             for tree_i in range(self.ppo):
                 for in_name in self.exact_graph.inputs:
-                    p_s, p_l = self.gen_parameter_pair(out_name, tree_i, in_name)
+                    p_s, p_l = self.gen_parameter_pair(
+                        out_name, tree_i, in_name)
                     implies.append(f"z3.Implies({p_l}, {p_s})")
             constraints.append(f"{', '.join(implies)},")
 
@@ -317,8 +357,10 @@ class XPatRunnerCreator(RunnerCreator):
             parameters = []
             for tree_i in range(self.ppo):
                 for in_name in self.exact_graph.inputs:
-                    parameters.extend(self.gen_parameter_pair(out_name, tree_i, in_name))
-            constraints.append(f"z3.Implies(z3.Not(p_{out_name}), z3.Not(z3.Or({', '.join(parameters)}))),")
+                    parameters.extend(self.gen_parameter_pair(
+                        out_name, tree_i, in_name))
+            constraints.append(
+                f"z3.Implies(z3.Not(p_{out_name}), z3.Not(z3.Or({', '.join(parameters)}))),")
 
         return [
             "# remove constant 0 permutations (ignored trees permutations)",
@@ -345,7 +387,8 @@ class XPatRunnerCreator(RunnerCreator):
         constraints = []
         for out_name in self.exact_graph.outputs:
             trees = [gen_tree(out_name, tree_i) for tree_i in range(self.ppo)]
-            trees_comparisons = [f"({tree_1} >= {tree_2})," for tree_1, tree_2 in zip(trees, trees[1:])]
+            trees_comparisons = [
+                f"({tree_1} >= {tree_2})," for tree_1, tree_2 in zip(trees, trees[1:])]
             constraints.extend(trees_comparisons)
 
         return [
@@ -367,7 +410,6 @@ class XPatRunnerCreator(RunnerCreator):
             f"forall_solver.add(z3.ForAll(",
             f"{TAB}[{', '.join(self.exact_graph.inputs)}],",
             f"{TAB}z3.And(",
-            *indent_lines(self.gen_exact_circuit_wires_assignment(), 2),  # Second Kind
             "",
             *indent_lines(self.gen_constraints_error(), 2),
             "",
@@ -397,7 +439,7 @@ class XPatRunnerCreator(RunnerCreator):
             f"_{PPO}{self.product_per_output}"
             f"_{DST}{self.error_function.abbreviation}"
             f"_{TEMPLATE_SPEC_ET}{{ET}}"
-            f"_XPat"
+            f"_{self.name}"
             f".{extension}"
         )
 
@@ -465,7 +507,7 @@ class XPatRunnerCreator(RunnerCreator):
                     verification_solver.add(out_dist > verification_ET)
 
                     # run solver
-                    verification_solver.set("timeout", int(timeout * 1000))  # add timeout in millideconds
+                    verification_solver.set("timeout", int(timeout * 1000))  # add timeout in milliseconds
                     v_result = verification_solver.check()
 
                     if v_result == z3.unsat:
