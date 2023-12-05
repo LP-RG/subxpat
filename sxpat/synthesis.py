@@ -1,17 +1,19 @@
-from builtins import property
-from typing import List, Dict, Callable, Iterable, Tuple
+from typing import List, Optional, Tuple
+
 import json
 import re
 import networkx as nx
+
 import subprocess
 import os
 from subprocess import PIPE
-from colorama import Fore, Back, Style
-from itertools import repeat
 
 from Z3Log.graph import Graph
 from Z3Log.config.config import *
 from Z3Log.config.path import *
+
+from z_marco.ma_graph import MaGraph
+from z_marco.utils import pprint, color
 
 from .annotatedGraph import AnnotatedGraph
 from .config import paths as sxpatpaths
@@ -23,7 +25,7 @@ class Synthesis:
     # TODO:
     # we assign wires to both inputs and outputs of an annotated subgraph
     # follow, inputs, red, white, outputs notation in the Verilog generation
-    def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj=None):
+    def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj=None, magraph: MaGraph = None):
         self.__benchmark_name = template_specs.benchmark_name
         self.__exact_benchmark_name = template_specs.exact_benchmark
         self.__template_name = template_specs.template_name
@@ -32,9 +34,10 @@ class Synthesis:
         self.__product_per_output = template_specs.products_per_output
         self.__error_threshold = template_specs.et
         self.__graph: AnnotatedGraph = graph_obj
+        self.__magraph: Optional[MaGraph] = magraph
         self.__partitioning_percentage = template_specs.partitioning_percentage
         if json_obj == sxpatconfig.UNSAT or json_obj == sxpatconfig.UNKNOWN:
-            print(Fore.RED + 'ERROR!!! the json does not contain any models!' + Style.RESET_ALL)
+            print(color.error('ERROR!!! the json does not contain any models!'))
         else:
             self.__json_model: json = json_obj
             self.__use_json_model: bool = None
@@ -160,14 +163,18 @@ class Synthesis:
         return f'{folder}/{self.ver_out_name}'
         # return f'{folder}/{self.benchmark_name}_{sxpatconfig.LPP}{self.lpp}_{sxpatconfig.PPO}{self.ppo}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{sxpatconfig.PAP}{self.pp}_{sxpatconfig.ITER}{self.iterations}.{extenstion}'
 
-    def convert_to_verilog(self, use_graph: bool = use_graph, use_json_model: bool = use_json_model):
+    def convert_to_verilog(self,
+                           use_graph: bool = use_graph,
+                           use_json_model: bool = use_json_model):
         """
         converts the graph and/or the json model into a Verilog string
         :param use_graph: if set to true, the graph is used
         :param use_json_model: if set to true, the json model is used
         :return: a Verilog description in the form of a String object
         """
-        if use_graph and use_json_model:  # for SubXPAT
+        if self.__magraph:
+            verilog_str = self.__magraph_to_verilog()
+        elif use_graph and use_json_model:  # for SubXPAT
             verilog_str = self.__annotated_graph_to_verilog()
         elif use_graph and not use_json_model:  # for general use
             verilog_str = self.__graph_to_verilog()
@@ -220,11 +227,11 @@ class Synthesis:
 
         if len(succ_n_list) == 2:
             gate_1 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}' if succ_n_list[
-                                                                             0] not in self.graph.input_dict.values() else \
-            succ_n_list[0]
+                0] not in self.graph.input_dict.values() else \
+                succ_n_list[0]
             gate_2 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[1]}' if succ_n_list[
-                                                                             1] not in self.graph.input_dict.values() else \
-            succ_n_list[1]
+                1] not in self.graph.input_dict.values() else \
+                succ_n_list[1]
             if self.graph.graph.nodes[n][LABEL] == sxpatconfig.AND:
                 operator = sxpatconfig.VER_AND
             elif self.graph.graph.nodes[n][LABEL] == sxpatconfig.OR:
@@ -234,8 +241,8 @@ class Synthesis:
                           f"{gate_1} {operator} {gate_2};\n"
         else:
             gate_1 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}' if succ_n_list[
-                                                                             0] not in self.graph.input_dict.values() else \
-            succ_n_list[0]
+                0] not in self.graph.input_dict.values() else \
+                succ_n_list[0]
             assignment += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = ~{gate_1};\n"
         return assignment
 
@@ -467,6 +474,67 @@ class Synthesis:
         annotated_graph_output_wires += f"{sxpatconfig.VER_WIRE} {', '.join(annotated_graph_output_list)};\n"
         return annotated_graph_output_wires
 
+    def __magraph_to_verilog(self):
+        ver_str = f''
+        input_list = list(reversed(self.__magraph.inputs))
+        output_list = list(self.__magraph.outputs)
+
+        # 1. module signature
+        ver_str += f"{sxpatconfig.VER_MODULE} {self.ver_out_name[:-2]} ({', '.join(input_list)}, {', '.join(output_list)});\n"
+
+        # 2. declarations
+        # 2.1 inputs / outputs
+        ver_str += '\n'.join((
+            f"// input/output declarations",
+            f"{sxpatconfig.VER_INPUT} {', '.join(input_list)};",
+            f"{sxpatconfig.VER_OUTPUT} {', '.join(output_list)};"
+        )) + '\n'
+        # 2.2 wires
+        ver_str += '\n'.join((
+            f'// gates wires',
+            f"{sxpatconfig.VER_WIRE} {', '.join(self.__magraph.gates)};"
+        )) + '\n'
+
+        # 3. assignments
+        # 3.1 constants
+        constants = {True: "1'b1", False: "1'b0"}
+        ver_str += '\n'.join((
+            f'// constants assignments',
+            *(
+                f'{sxpatconfig.VER_ASSIGN} {name} = {constants[value]};'
+                for name, value in self.__magraph.constants
+            )
+        )) + '\n'
+        # 3.2 gates
+        cases = {
+            (1, sxpatconfig.NOT): lambda ps: f'{sxpatconfig.VER_NOT}{ps[0]}',
+            (2, sxpatconfig.AND): lambda ps: f'{ps[0]} {sxpatconfig.VER_AND} {ps[1]}',
+            (2, sxpatconfig.OR): lambda ps: f'{ps[0]} {sxpatconfig.VER_OR} {ps[1]}',
+        }
+        lines = []
+        for name in self.__magraph.gates:
+            preds = self.__magraph.predecessors(name)
+            case = (len(preds), self.__magraph.function_of(name))
+            if case not in cases:
+                pprint.e(f'ERROR! node {name} has an invalid value (#predecessors={case[0]}, function={case[1]})')
+                exit(1)
+            lines.append(f'{sxpatconfig.VER_ASSIGN} {name} = {cases[case](preds)};')
+        ver_str += '\n'.join((
+            f'// gates assignments',
+            *lines
+        )) + '\n'
+        # 3.3 outputs
+        ver_str += '\n'.join((
+            f'// output assigns',
+            *(
+                f'{sxpatconfig.VER_ASSIGN} {name} = {self.__magraph.predecessors(name)[0]};'
+                for name in self.__magraph.outputs
+            )
+        )) + '\n'
+
+        ver_str += f'{sxpatconfig.VER_ENDMODULE}'
+        return ver_str
+
     def __annotated_graph_to_verilog(self):
         ver_str = f''
         # 1. module signature
@@ -537,10 +605,9 @@ class Synthesis:
                         f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
                         f"stat -liberty {sxpatconfig.LIB_PATH};\n"
 
-
         process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
         if process.stderr:
-            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}'+Style.RESET_ALL)
+            raise Exception(color.error(f'Yosys ERROR!!!\n {process.stderr.decode()}'))
         else:
 
             if re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()):
@@ -549,7 +616,7 @@ class Synthesis:
             elif re.search(r"Don't call ABC as there is nothing to map", process.stdout.decode()):
                 area = 0
             else:
-                raise Exception(Fore.RED +'Yosys ERROR!!!\nNo useful information in the stats log!'+Style.RESET_ALL)
+                raise Exception(color.error('Yosys ERROR!!!\nNo useful information in the stats log!'))
 
         return float(area)
 
@@ -567,12 +634,12 @@ class Synthesis:
                         f"write_verilog -noattr {design_out_path}"
         process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
         if process.stderr:
-            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
+            raise Exception(color.error(f'Yosys ERROR!!!\n {process.stderr.decode()}'))
 
     def estimate_delay(self, this_path: str = None):
         if this_path:
             design_in_path = this_path
-            module_name= self.extract_module_name(this_path)
+            module_name = self.extract_module_name(this_path)
         else:
             design_in_path = self.ver_out_path
             module_name = self.extract_module_name()
@@ -593,17 +660,15 @@ class Synthesis:
         # process = subprocess.run([sxpatconfig.OPENSTA, delay_script], stderr=PIPE)
         process = subprocess.run([sxpatconfig.OPENSTA, delay_script], stdout=PIPE, stderr=PIPE)
         if process.stderr:
-            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
+            raise Exception(color.error(f'Yosys ERROR!!!\n {process.stderr.decode()}'))
         else:
             os.remove(delay_script)
             if re.search('(\d+.\d+).*data arrival time', process.stdout.decode()):
                 time = re.search('(\d+.\d+).*data arrival time', process.stdout.decode()).group(1)
                 return float(time)
             else:
-                print(Fore.RED + f'ERROR!!! No delay was found!' + Style.RESET_ALL)
+                print(color.error(f'ERROR!!! No delay was found!'))
                 return -1
-
-
 
     def extract_module_name(self, this_path: str = None):
         if this_path:
@@ -643,7 +708,7 @@ class Synthesis:
         # process = subprocess.run([sxpatconfig.OPENSTA, power_script], stderr=PIPE)
         process = subprocess.run([sxpatconfig.OPENSTA, power_script], stdout=PIPE, stderr=PIPE)
         if process.stderr:
-            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
+            raise Exception(color.error(f'Yosys ERROR!!!\n {process.stderr.decode()}'))
         else:
             os.remove(power_script)
             pattern = r"Total\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+[^0-9]*\d+)\s+"
@@ -665,7 +730,7 @@ class Synthesis:
                 return float(total_power)
 
             else:
-                print(Fore.YELLOW + f'Warning!!! No power was found!' + Style.RESET_ALL)
+                pprint.warning(f'Warning!!! No power was found!')
                 return -1
 
     # =========================
