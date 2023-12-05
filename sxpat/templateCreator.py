@@ -261,6 +261,7 @@ class Template_SOP1(TemplateCreator):
 
     #TODO: Deprecated
     def label_graph_old(self, constant_value = 2, min_labeling: bool = False):
+        """ ~ DEPRECATED ~ """
         print(Fore.BLUE + f'labeling...' + Style.RESET_ALL)
         labels1, labels0 = labeling_old(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling)
         for n in self.current_graph.graph.nodes:
