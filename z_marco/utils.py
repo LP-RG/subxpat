@@ -73,6 +73,15 @@ def augment(extra_parameters: Iterable[str]):
     return decorator
 
 
+def static(**vars):
+    def decorate(func):
+        for k, v in vars.items():
+            setattr(func, k, v)
+        return func
+
+    return decorate
+
+
 if __name__ == "__main__":
     pprint.e("ERROR", "some other", "message", [1, True, dict()])
     pprint.w("WARNING", "some other", "message", [1, True, dict()])
@@ -80,3 +89,10 @@ if __name__ == "__main__":
     pprint.i1("INFO 1", "some other", "message", [1, True, dict()])
     pprint.i2("INFO 2", "some other", "message", [1, True, dict()])
     pprint.i3("INFO 3", "some other", "message", [1, True, dict()])
+
+    print(color.e("ERROR"), "some other", "message", [1, True, dict()])
+    print(color.w("WARNING"), "some other", "message", [1, True, dict()])
+    print(color.s("SUCCESS"), "some other", "message", [1, True, dict()])
+    print(color.i1("INFO 1"), "some other", "message", [1, True, dict()])
+    print(color.i2("INFO 2"), "some other", "message", [1, True, dict()])
+    print(color.i3("INFO 3"), "some other", "message", [1, True, dict()])
