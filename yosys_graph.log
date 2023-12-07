@@ -19,7 +19,7 @@
  |                                                                            |
  \----------------------------------------------------------------------------/
 
- Yosys 0.34+27 (git sha1 7d30f716e, clang 10.0.0-4ubuntu1 -fPIC -Os)
+ Yosys 0.23+21 (git sha1 e56c68996, clang 10.0.0 -fPIC -Os)
 
 
 -- Running command `
@@ -37,6 +37,6 @@ Writing dot description to `output/gv/adder_i8_o5.dot'.
 Dumping module top to page 1.
 Exec: dot -Tgv 'output/gv/adder_i8_o5.dot' > 'output/gv/adder_i8_o5.gv.new' && mv 'output/gv/adder_i8_o5.gv.new' 'output/gv/adder_i8_o5.gv'
 
-End of script. Logfile hash: 621be8b6a8, CPU: user 0.00s system 0.01s, MEM: 102.09 MB peak
-Yosys 0.34+27 (git sha1 7d30f716e, clang 10.0.0-4ubuntu1 -fPIC -Os)
-Time spent: 95% 1x show (0 sec), 4% 2x read_verilog (0 sec)
+End of script. Logfile hash: 621be8b6a8, CPU: user 0.00s system 0.01s, MEM: 101.55 MB peak
+Yosys 0.23+21 (git sha1 e56c68996, clang 10.0.0 -fPIC -Os)
+Time spent: 94% 1x show (0 sec), 5% 2x read_verilog (0 sec)
