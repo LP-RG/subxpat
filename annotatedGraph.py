@@ -277,16 +277,12 @@ class AnnotatedGraph(Graph):
         """
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
-        print(f'{feasibility_treshold = }')
-
-
 
         # print(Fore.BLUE + f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ' + Style.RESET_ALL)
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         # print(f'Extracting subgraph...')
-
 
         tmp_graph = self.graph.copy(as_view=False)
         # print(f'{tmp_graph.nodes = }')
@@ -436,15 +432,11 @@ class AnnotatedGraph(Graph):
         # ===================================
 
         # Generate structure with gate weights
-        for n in self.graph.nodes:
-            print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
-        print(f'{self.gate_dict = }')
         gate_weight = {}
         for gate_idx in G.nodes:
-
             if gate_idx not in gate_weight:
                 gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
-            print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
 
         # Find max weight
         max_weight = 0
@@ -454,9 +446,7 @@ class AnnotatedGraph(Graph):
         # Update gate weights so that gate_weight = max_weight - max_weight
         for gate_id in gate_weight:
             gate_weight[gate_id] = max_weight - gate_weight[
-                gate_id] + 1# + 1 must be removed, I'm leaving it just for the initial debugging phase
-
-
+                gate_id] + 1  # + 1 must be removed, I'm leaving it just for the initial debugging phase
 
         descendants = {}
         ancestors = {}
@@ -495,7 +485,7 @@ class AnnotatedGraph(Graph):
 
         feasibility_constraints = []
         for s in edge_w:
-
+            
             if gate_weight[s] <= feasibility_treshold:
                 print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
@@ -567,7 +557,6 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
-
 
     def find_subgraph_sensitivity(self, specs_obj: TemplateSpecs):
         """

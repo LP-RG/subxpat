@@ -83,7 +83,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 specs_obj.benchmark_name = candidate[:-2]
             template_obj.set_new_context(specs_obj)
             template_obj.current_graph = template_obj.import_graph()
-            if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3:
+            if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3 or specs_obj.mode == 4:
                 template_obj.label_graph(min_labeling=specs_obj.min_labeling)
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
 
