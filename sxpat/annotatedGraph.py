@@ -446,18 +446,6 @@ class AnnotatedGraph(Graph):
                 gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
             print("Gate", gate_idx, " value ", gate_weight[gate_idx])
 
-        # Find max weight
-        max_weight = 0
-        for gate_id in gate_weight:
-            max_weight = max(max_weight, gate_weight[gate_id])
-
-        # Update gate weights so that gate_weight = max_weight - max_weight
-        for gate_id in gate_weight:
-            gate_weight[gate_id] = max_weight - gate_weight[
-                gate_id] + 1# + 1 must be removed, I'm leaving it just for the initial debugging phase
-
-
-
         descendants = {}
         ancestors = {}
         for n in G:
