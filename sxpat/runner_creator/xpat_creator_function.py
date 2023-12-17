@@ -17,7 +17,7 @@ from z_marco.ma_graph import MaGraph
 
 # package
 from .runner_creator import RunnerCreator
-from .utils import format_lines, indent_lines
+from sxpat.utils.utils import declare_z3_function, call_z3_function, format_lines, indent_lines
 
 
 class XPatRunnerCreator(RunnerCreator):
@@ -56,7 +56,7 @@ class XPatRunnerCreator(RunnerCreator):
             f"{NameParameters.LPP.value}{literals_per_product}",
             f"{NameParameters.PPO.value}{products_per_output}",
             f"{NameParameters.DST.value}{distance_function_name}",
-            "XPATD"
+            "XPATF"
         ])
 
         # get folder and extension
@@ -130,7 +130,7 @@ class XPatRunnerCreator(RunnerCreator):
         return [
             "# exact gates declaration",
             *(
-                self.declare_z3_function(
+                declare_z3_function(
                     f"{self.exact_circuit_name}_{gate_name}",
                     len(self.exact_graph.inputs), "z3.BoolSort()", "z3.BoolSort()"
                 )
@@ -138,7 +138,7 @@ class XPatRunnerCreator(RunnerCreator):
             ),
             "# exact outputs declaration",
             *(
-                self.declare_z3_function(
+                declare_z3_function(
                     f"{self.exact_circuit_name}_{out_name}",
                     len(self.exact_graph.inputs), "z3.BoolSort()", "z3.BoolSort()"
                 )
@@ -154,7 +154,7 @@ class XPatRunnerCreator(RunnerCreator):
                 (
                     name
                     if name in self.exact_graph.inputs
-                    else self.call_z3_function(f"{self.exact_circuit_name}_{name}", self.exact_graph.inputs)
+                    else call_z3_function(f"{self.exact_circuit_name}_{name}", self.exact_graph.inputs)
                 )
                 for name in self.exact_graph.predecessors(gate_name)
             ]
@@ -163,7 +163,7 @@ class XPatRunnerCreator(RunnerCreator):
             assert len(gate_preds) in [1, 2]
             assert gate_func in [NOT, AND, OR]
 
-            left_side = self.call_z3_function(
+            left_side = call_z3_function(
                 f"{self.exact_circuit_name}_{gate_name}", self.exact_graph.inputs)
             gates.append(
                 f"{left_side} == z3.{TO_Z3_GATE_DICT[gate_func]}({', '.join(gate_preds)}),")
@@ -175,14 +175,14 @@ class XPatRunnerCreator(RunnerCreator):
                 (
                     name
                     if name in self.exact_graph.inputs
-                    else self.call_z3_function(f"{self.exact_circuit_name}_{name}", self.exact_graph.inputs)
+                    else call_z3_function(f"{self.exact_circuit_name}_{name}", self.exact_graph.inputs)
                 )
                 for name in self.exact_graph.predecessors(out_name)
             ]
 
             assert len(out_preds) == 1
 
-            left_side = self.call_z3_function(
+            left_side = call_z3_function(
                 f"{self.exact_circuit_name}_{out_name}", self.exact_graph.inputs)
             outputs.append(f"{left_side} == {out_preds[0]},")
 
@@ -224,7 +224,7 @@ class XPatRunnerCreator(RunnerCreator):
             ),
             # "# template trees declaration",
             # *(
-            #     self.declare_z3_function(
+            #     declare_z3_function(
             #         f"{self.template_circuit_name}_{out_name}_t{tree_i}",
             #         len(self.exact_graph.inputs), "z3.BoolSort()", "z3.BoolSort()"
             #     )
@@ -233,7 +233,7 @@ class XPatRunnerCreator(RunnerCreator):
             # ),
             "# template outputs declaration",
             *(
-                self.declare_z3_function(
+                declare_z3_function(
                     f"{self.template_circuit_name}_{out_name}",
                     len(self.exact_graph.inputs), "z3.BoolSort()", "z3.BoolSort()"
                 )
@@ -261,7 +261,7 @@ class XPatRunnerCreator(RunnerCreator):
                     "),"
                 ])
 
-            left_side = self.call_z3_function(
+            left_side = call_z3_function(
                 f"{self.template_circuit_name}_{out_name}", self.exact_graph.inputs)
             outputs.extend([
                 f"{left_side} == z3.And(p_{out_name}, z3.Or(",
@@ -288,63 +288,78 @@ class XPatRunnerCreator(RunnerCreator):
     # ERROR
 
     def gen_error(self):
+        vars_1 = [
+            f"{self.exact_circuit_name}_{v}"
+            for v in self.exact_graph.outputs
+        ]
+        vars_2 = [
+            f"{self.template_circuit_name}_{v}"
+            for v in self.exact_graph.outputs
+        ]
+
         return [
             f"# error declaration",
-            *self.gen_error_declarations(),
+            *self.error_function.declare(),
+            # *self.gen_error_declarations(),
             f"# error computation",
             "error_vars = z3.And(",
-            *indent_lines(self.gen_error_assignmets()),
+            *indent_lines(self.error_function.assign(vars_1, vars_2)),
+            # *indent_lines(self.gen_error_assignmets()),
             ")",
         ]
 
     def gen_error_declarations(self) -> List[str]:
         return [
-            self.declare_z3_function(
+            declare_z3_function(
                 "val1", len(self.exact_graph.inputs),
                 "z3.BoolSort()", "z3.IntSort()"
             ),
-            self.declare_z3_function(
+            declare_z3_function(
                 "val2", len(self.exact_graph.inputs),
                 "z3.BoolSort()", "z3.IntSort()"
             ),
-            # self.declare_z3_function(
+            # declare_z3_function(
             #     "out_dist", len(self.exact_graph.inputs),
             #     "z3.BoolSort()", "z3.IntSort()"
             # ),
             (
                 f"out_dist = z3.Abs("
-                + self.call_z3_function('val1', self.exact_graph.inputs)
+                + call_z3_function('val1', self.exact_graph.inputs)
                 + " - "
-                + self.call_z3_function('val2', self.exact_graph.inputs)
+                + call_z3_function('val2', self.exact_graph.inputs)
                 + ")"
             )
         ]
 
     def gen_error_assignmets(self) -> List[str]:
         # TODO: can be regeneralized, this is just for testing "function" vs "direct"
-        val1_call = self.call_z3_function("val1", self.exact_graph.inputs)
+        val1_call = call_z3_function("val1", self.exact_graph.inputs)
+        # TODO: HERE: GENERALIZZARE FUNZIONE, IN MODO CHE FUNZIONI A `FUNZIONI`
         val1 = (
             f"{val1_call} == "
             + " + ".join([
-                self.call_z3_function(
-                    f"{self.exact_circuit_name}_{v}", self.exact_graph.inputs) + f"*{w}"
+                call_z3_function(
+                    f"{self.exact_circuit_name}_{v}",
+                    self.exact_graph.inputs
+                ) + f"*{w}"
                 for v, w in zip(self.exact_graph.outputs, self.error_function._weights)
             ])
             + ","
-
         )
-        val2_call = self.call_z3_function("val2", self.exact_graph.inputs)
+        val2_call = call_z3_function("val2", self.exact_graph.inputs)
         val2 = (
             f"{val2_call} == "
             + " + ".join([
-                self.call_z3_function(
-                    f"{self.template_circuit_name}_{v}", self.exact_graph.inputs) + f"*{w}"
+                call_z3_function(
+                    f"{self.template_circuit_name}_{v}",
+                    self.exact_graph.inputs
+                ) + f"*{w}"
                 for v, w in zip(self.exact_graph.outputs, self.error_function._weights)
             ])
             + ","
         )
         # out_dist = (
-        #     self.call_z3_function("out_dist", self.exact_graph.inputs)
+        #     call_z3_function("out_dist", self.exact_graph.inputs)
         #     + f" == z3.Abs({val1_call} - {val2_call}),"
         # )
         return [
@@ -359,7 +374,7 @@ class XPatRunnerCreator(RunnerCreator):
         return [
             "# error constraints",
             "error_vars,",
-            # f"{self.call_z3_function('out_dist', self.exact_graph.inputs)} <= ET,",
+            # f"{call_z3_function('out_dist', self.exact_graph.inputs)} <= ET,",
             f"out_dist <= ET,",
         ]
 
@@ -482,7 +497,7 @@ class XPatRunnerCreator(RunnerCreator):
                 self.template_circuit_name + ",",
             ]),
             f"{TAB}# error variable",
-            # f"{TAB}error == {self.call_z3_function('out_dist', self.exact_graph.inputs)},",
+            # f"{TAB}error == {call_z3_function('out_dist', self.exact_graph.inputs)},",
             f"{TAB}error_vars,",
             f"{TAB}error == out_dist,",
             ")",

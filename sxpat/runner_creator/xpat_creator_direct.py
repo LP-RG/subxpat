@@ -18,7 +18,7 @@ from sxpat.config.config import NameParameters
 
 # package
 from .runner_creator import RunnerCreator
-from .utils import format_lines, indent_lines
+from ..utils.utils import format_lines, indent_lines
 
 
 class XPatRunnerCreator(RunnerCreator):

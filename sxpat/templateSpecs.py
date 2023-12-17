@@ -24,10 +24,12 @@ class TemplateSpecs:
         self.__mode = kwargs[MODE]
         self.__population = kwargs[POPULATION]
         self.__min_labeling = kwargs[MIN_LABELING]
-        print("AAA", self.__min_labeling)
         self.__shared = kwargs[SHARED]
         self.__products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
         self.__parallel: bool = kwargs[PARALLEL]
+
+        self.__full_error_function: int = int(kwargs[FULL_ERROR_FUNCTION])
+        self.__sub_error_function: int = int(kwargs[SUB_ERROR_FUNCTION])
 
     @property
     def parallel(self):
@@ -180,6 +182,14 @@ class TemplateSpecs:
     @pit.setter
     def pit(self, this_pit):
         self.__products_in_total = this_pit
+
+    @property
+    def full_error_function(self):
+        return self.__full_error_function
+
+    @property
+    def sub_error_function(self):
+        return self.__sub_error_function
 
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \

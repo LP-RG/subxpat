@@ -30,6 +30,8 @@ class Arguments(Arguments):
         self.__shared: bool = tmp_args.shared
         self.__products_in_total: int = tmp_args.pit
         self.__parallel: bool = tmp_args.parallel
+        self.__full_error_function = tmp_args.full_error_function
+        self.__sub_error_function = tmp_args.sub_error_function
 
     @property
     def parallel(self):
@@ -134,6 +136,14 @@ class Arguments(Arguments):
     @property
     def clean(self):
         return self.__clean
+
+    @property
+    def full_error_function(self):
+        return self.__full_error_function
+
+    @property
+    def sub_error_function(self):
+        return self.__sub_error_function
 
     @classmethod
     def parse(cls):
@@ -289,6 +299,14 @@ class Arguments(Arguments):
         my_parser.add_argument('--evaluate',
                                action="store_true",
                                default=False)
+
+        # error functions
+        my_parser.add_argument('--full_error_function',
+                               choices=['1'],
+                               default=1)
+        my_parser.add_argument('--sub_error_function',
+                               choices=['1', '2'],
+                               default=1)
 
         tmp_args = my_parser.parse_args()
 
