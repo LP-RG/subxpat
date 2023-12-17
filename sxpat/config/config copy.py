@@ -1,11 +1,9 @@
-from enum import Enum
-
 # OpenSTA for power and delay analysis
 OPENSTA = 'sta'
 
 # Synthesis with Yosys
-LIB_PATH = 'config/gscl45nm.lib'
-ABC_SCRIPT_PATH = 'config/abc.script'
+LIB_PATH='config/gscl45nm.lib'
+ABC_SCRIPT_PATH='config/abc.script'
 
 # TemplateSpecs constants
 #   properties
@@ -29,9 +27,6 @@ MODE = 'mode'
 POPULATION = 'population'
 MIN_LABELING = 'min_labeling'
 PARALLEL = 'parallel'
-FULL_ERROR_FUNCTION = 'full_error_function'
-SUB_ERROR_FUNCTION = 'sub_error_function'
-
 
 # shared
 SHARED = 'shared'
@@ -58,7 +53,7 @@ Z3_AND = 'And'
 Z3_OR = 'Or'
 Z3_NOT = 'Not'
 SUM = 'Sum'
-INTVAL = 'IntVal'
+INTVAL= 'IntVal'
 SOLVER = 'Solver()'
 ADD = 'add'
 FORALL = 'ForAll'
@@ -102,16 +97,6 @@ PPO = 'ppo'
 PAP = 'pap'
 ITER = 'iter'
 PIT = 'pit'
-DST = 'dst'
-
-
-class NameParameters(Enum):
-    LPP = 'lpp'
-    PPO = 'ppo'
-    PAP = 'pap'
-    ITER = 'iter'
-    DST = 'dst'
-
 
 # Graph related
 LABEL = 'label'
@@ -138,26 +123,13 @@ STYLE = 'style'
 FILLED = 'filled'
 
 
-# result json fields
-class ResultFields(Enum):
-    RESULT = 'result'
-    TOTAL_TIME = 'total_time'
-    MODEL = 'model'
-
-
+# json fields
 RESULT = 'result'
 TOTAL_TIME = 'total_time'
 MODEL = 'model'
 
 JSON_TRUE = 'true'
 JSON_FALSE = 'false'
-
-
-class SolverStatus(Enum):
-    SAT = 'sat'
-    UNSAT = 'unsat'
-    UNKNOWN = 'unknown'
-
 
 SAT = 'sat'
 UNSAT = 'unsat'
@@ -178,6 +150,7 @@ VER_ENDMODULE = 'endmodule'
 VER_WIRE_PREFIX = 'w_'
 VER_JSON_WIRE_PREFIX = 'j_'
 VER_INPUT_PREFIX = 'in'
+
 
 
 WEIGHT = 'weight'
@@ -204,8 +177,8 @@ COLOR_DICT = ['blue', 'red', 'black', 'green',
               'gray', 'pink', 'cyan']
 
 
-SUBXPAT_COLOR_DICT = {'i2_o1': 'blue',
-                      'i2_o2': 'purple',
+SUBXPAT_COLOR_DICT = {'i2_o1':'blue',
+                      'i2_o2':'purple',
                       'i3_o1': 'olive',
                       'i3_o2': 'orange',
                       'i3_o3': 'brown',

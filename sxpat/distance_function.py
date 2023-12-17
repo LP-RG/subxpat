@@ -1,6 +1,8 @@
 from __future__ import annotations
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from abc import abstractmethod, abstractproperty
+
+from sxpat.utils.utils import call_z3_function, declare_z3_function, declare_z3_gate
 
 
 class DistanceFunction:
@@ -16,9 +18,16 @@ class DistanceFunction:
         raise NotImplementedError(f"Property `{self.__class__.__name__}.abbreviation` is an abstract property.")
 
     @abstractmethod
-    def declare(self, vars_1: Iterable[str], vars_2: Iterable[str],
-                prefix: str = None) -> List[str]:
+    def with_no_input(self):
+        raise NotImplementedError(f"Method `{self.__class__.__name__}.with_no_input` is an abstract method.")
+
+    @abstractmethod
+    def declare(self, prefix: str = None) -> List[str]:
         raise NotImplementedError(f"Method `{self.__class__.__name__}.declare` is an abstract method.")
+
+    @abstractmethod
+    def assign(self, vars_1: Sequence[str], vars_2: Sequence[str], prefix: str = None) -> List[str]:
+        raise NotImplementedError(f"Method `{self.__class__.__name__}.assign` is an abstract method.")
 
     @staticmethod
     def _prefix(prefix: Optional[str]) -> str:
@@ -26,88 +35,153 @@ class DistanceFunction:
 
 
 class HammingDistance(DistanceFunction):
-    def __init__(self) -> None: pass
+    def __init__(self, inputs: Sequence[str]) -> None:
+        self._inputs: Tuple[str] = tuple(inputs)
 
     name = property(lambda _: "Hamming Distance")
     abbreviation = property(lambda _: "HamD")
 
+    def with_no_input(self):
+        return type(self)([])
+
     @classmethod
-    def _declare(cls,
-                 vars_1: Iterable[str], vars_2: Iterable[str],
-                 prefix: str) -> List[str]:
+    def _declare(cls, inputs: Sequence[str], prefix: str) -> List[str]:
         return [
-            "# Function: hamming distance",
-            f"{prefix}out_dist = " + " + ".join(
-                f"z3.If({v1} == {v2}, 0, 1)"
-                for v1, v2 in zip(vars_1, vars_2)
+            declare_z3_function(
+                f"{prefix}val", len(inputs),
+                "z3.BoolSort()", "z3.IntSort()"
+            ),
+            (
+                f"{prefix}out_dist = "
+                + call_z3_function(f"{prefix}val", inputs)
             )
         ]
 
-    def declare(self,
-                vars_1: Iterable[str], vars_2: Iterable[str],
-                prefix: str = None) -> List[str]:
-        return self._declare(
+    @classmethod
+    def _assign(cls,
+                inputs: Sequence[str],
+                vars_1: Sequence[str], vars_2: Sequence[str],
+                prefix: str):
+        parts = [
+            f"{call_z3_function(v1, inputs)} != {call_z3_function(v2, inputs)}"
+            for v1, v2 in zip(vars_1, vars_2)
+        ]
+        return [
+            "# Function: hamming distance",
+            call_z3_function(f"{prefix}val", inputs) + f" == z3.Sum({', '.join(parts)}),"
+        ]
+
+    def declare(self, prefix: str = None) -> List[str]:
+        return self._declare(self._inputs, self._prefix(prefix))
+
+    def assign(self,
+               vars_1: Sequence[str], vars_2: Sequence[str],
+               prefix: str = None) -> List[str]:
+        return self._assign(
+            self._inputs,
             vars_1, vars_2,
-            self._prefix(prefix)
+            self._prefix(prefix),
         )
 
 
 class WeightedAbsoluteDifference(DistanceFunction):
-    def __init__(self, weights: Iterable[int]) -> None:
-        self._weights: List[int] = list(weights)
+    def __init__(self,
+                 inputs: Sequence[str], weights: Sequence[int]
+                 ) -> None:
+        self._inputs: Tuple[str] = tuple(inputs)
+        self._weights: Tuple[int] = tuple(weights)
 
-    name = property(lambda _: "Weighted Absolute Difference")
+    name = property(lambda _: "Absolute Difference of Weighted Sums")
     abbreviation = property(lambda _: "WAD")
 
+    def with_no_input(self):
+        return type(self)([], self._weights)
+
     @classmethod
     def _declare(cls,
-                 vars_1: Iterable[str], vars_2: Iterable[str],
-                 prefix: str,
-                 weights: List[int]) -> List[str]:
-        val1 = f"{prefix}val1"
-        val2 = f"{prefix}val2"
-        val1_parts = [f"{v}*{w}" for v, w in zip(vars_1, weights)]
-        val2_parts = [f"{v}*{w}" for v, w in zip(vars_2, weights)]
-
+                 inputs: Sequence[str], prefix: str
+                 ) -> List[str]:
         return [
-            "# Function: weighted sum absolute difference",
-            f"{val1} = {' + '.join(val1_parts)}",
-            f"{val2} = {' + '.join(val2_parts)}",
-            f"{prefix}out_dist = z3.If({val1} > {val2}, {val1} - {val2}, {val2} - {val1})"
+            *[
+                declare_z3_function(
+                    f"{prefix}val1", len(inputs),
+                    "z3.BoolSort()", "z3.IntSort()"
+                ),
+                declare_z3_function(
+                    f"{prefix}val2", len(inputs),
+                    "z3.BoolSort()", "z3.IntSort()"
+                ),
+            ],
+            (
+                f"{prefix}out_dist = z3.Abs("
+                + call_z3_function(f"{prefix}val1", inputs)
+                + " - "
+                + call_z3_function(f"{prefix}val2", inputs)
+                + ")"
+            )
         ]
 
-    def declare(self,
-                vars_1: Iterable[str], vars_2: Iterable[str],
-                prefix: str = None) -> List[str]:
-        return self._declare(
-            vars_1, vars_2,
-            self._prefix(prefix),
-            self._weights
+    @classmethod
+    def _assign_one(cls,
+                    val_name: str, inputs: Sequence[str],
+                    vars: Sequence[str], weights: Sequence[int]
+                    ) -> str:
+        vars = [
+            call_z3_function(v, inputs) + f'*{w}'
+            for v, w in zip(vars, weights)
+        ]
+        return (
+            f"{call_z3_function(val_name, inputs)} == "
+            + f"z3.Sum({', '.join(vars)})"
         )
-
-
-class IntegerAbsoluteDifference(WeightedAbsoluteDifference):
-    def __init__(self) -> None:
-        super().__init__([])
-
-    name = property(lambda _: "Integer Absolute Difference")
-    abbreviation = property(lambda _: "IAD")
 
     @classmethod
-    def _declare(cls,
-                 vars_1: Iterable[str], vars_2: Iterable[str],
-                 prefix: str) -> List[str]:
-        lines = super()._declare(
-            vars_1, vars_2, prefix,
-            [2**i for i in range(len(vars_1))]
-        )
-        lines[0] = "# Function: integer sum absolute difference"
-        return lines
+    def _assign(cls,
+                inputs: Sequence[str],
+                vars_1: Sequence[str], vars_2: Sequence[str],
+                weights: Sequence[int], prefix: str
+                ) -> List[str]:
+        return [
+            "# Function: weighted sum absolute difference",
+            cls._assign_one(f"{prefix}val1", inputs, vars_1, weights) + ",",
+            cls._assign_one(f"{prefix}val2", inputs, vars_2, weights) + ",",
+        ]
 
-    def declare(self,
-                vars_1: Iterable[str], vars_2: Iterable[str],
-                prefix: str = None) -> List[str]:
-        return self._declare(
+    def declare(self, prefix: str = None) -> List[str]:
+        return self._declare(self._inputs, self._prefix(prefix))
+
+    def assign(self,
+               vars_1: Sequence[str], vars_2: Sequence[str],
+               prefix: str = None) -> List[str]:
+        return self._assign(
+            self._inputs,
             vars_1, vars_2,
-            self._prefix(prefix)
+            self._weights,
+            self._prefix(prefix),
         )
+
+# class IntegerAbsoluteDifference(WeightedAbsoluteDifference):
+#     def __init__(self) -> None:
+#         super().__init__([])
+
+#     name = property(lambda _: "Integer Absolute Difference")
+#     abbreviation = property(lambda _: "IAD")
+
+#     @classmethod
+#     def _declare(cls,
+#                  vars_1: Iterable[str], vars_2: Iterable[str],
+#                  prefix: str) -> List[str]:
+#         lines = super()._declare(
+#             vars_1, vars_2, prefix,
+#             [2**i for i in range(len(vars_1))]
+#         )
+#         lines[0] = "# Function: integer sum absolute difference"
+#         return lines
+
+#     def declare(self,
+#                 vars_1: Iterable[str], vars_2: Iterable[str],
+#                 prefix: str = None) -> List[str]:
+#         return self._declare(
+#             vars_1, vars_2,
+#             self._prefix(prefix)
+#         )

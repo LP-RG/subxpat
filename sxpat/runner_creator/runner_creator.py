@@ -31,14 +31,6 @@ class RunnerCreator:
     def declare_z3_gate(name: str) -> str:
         return f"{name} = z3.Bool('{name}')"
 
-    @staticmethod
-    def declare_z3_function(name: str, input_count: int, input_type: str, output_type: str) -> str:
-        return f"{name} = z3.Function('{name}', {', '.join([input_type]*input_count)}, {output_type})"
-
-    @staticmethod
-    def call_z3_function(name: str, arguments: Iterable[str]) -> str:
-        return f"{name}({', '.join(arguments)})"
-
     def gen_smt_dump(self, filename: str) -> str:
         return f"with open('{filename}', 'w') as f: f.write(forall_solver.to_smt2())"
 

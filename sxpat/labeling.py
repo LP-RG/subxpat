@@ -11,7 +11,11 @@ from Z3Log.z3solver import Z3solver
 from Z3Log.config import path as z3logpath
 
 
-def labeling(exact_benchmark_name: str, approximate_benchmark: str, min_labeling: bool = False, parallel: bool = True) -> Dict:
+def labeling(exact_benchmark_name: str,
+             approximate_benchmark: str,
+             min_labeling: bool = False,
+             parallel: bool = True
+             ) -> Dict:
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()
 
@@ -44,6 +48,7 @@ def labeling(exact_benchmark_name: str, approximate_benchmark: str, min_labeling
         if key.startswith('app_'):
             key = key.replace('app_', "")
         labels[key] = weight
+
     return labels
 
 
