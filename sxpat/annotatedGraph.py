@@ -277,7 +277,7 @@ class AnnotatedGraph(Graph):
         """
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
-        print(f'{feasibility_treshold = }')
+        # print(f'{feasibility_treshold = }')
 
 
 
@@ -436,15 +436,15 @@ class AnnotatedGraph(Graph):
         # ===================================
 
         # Generate structure with gate weights
-        for n in self.graph.nodes:
-            print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
-        print(f'{self.gate_dict = }')
+        # for n in self.graph.nodes:
+        #     print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
+        # print(f'{self.gate_dict = }')
         gate_weight = {}
         for gate_idx in G.nodes:
 
             if gate_idx not in gate_weight:
                 gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
-            print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
 
         descendants = {}
         ancestors = {}
@@ -485,7 +485,7 @@ class AnnotatedGraph(Graph):
         for s in edge_w:
 
             if gate_weight[s] <= feasibility_treshold:
-                print(s, "is feasible", gate_weight[s])
+                # print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
 
         opt.add(Sum(feasibility_constraints) >= 1)
