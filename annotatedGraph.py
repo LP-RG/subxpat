@@ -487,7 +487,7 @@ class AnnotatedGraph(Graph):
         for s in edge_w:
             
             if gate_weight[s] <= feasibility_treshold:
-                print(s, "is feasible", gate_weight[s])
+                # print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
 
         opt.add(Sum(feasibility_constraints) >= 1)
