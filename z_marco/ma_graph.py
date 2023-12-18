@@ -77,22 +77,28 @@ class MaGraph:
         )
 
     @classmethod
-    def from_digraph(cls, digraph: nx.DiGraph) -> MaGraph:
+    def from_digraph(cls, digraph: nx.DiGraph, *, sort_inputs: bool = True, sort_outputs: bool = True) -> MaGraph:
         inputs = tuple(
             name
             for name, data in digraph.nodes(data=True)
             if data["shape"] == "circle"
         )
+        if sort_inputs:
+            inputs = tuple(sorted(inputs, key=lambda s: int(re.sub("[^0-9]", "", s))))
+
         gates = tuple(
             name
             for name, data in digraph.nodes(data=True)
             if data["shape"] == "invhouse"
         )
+
         outputs = tuple(
             name
             for name, data in digraph.nodes(data=True)
             if data["shape"] == "doublecircle"
         )
+        if sort_outputs:
+            outputs = tuple(sorted(outputs, key=lambda s: int(re.sub("[^0-9]", "", s))))
 
         _functions = {'not', 'and', 'or'}
         info = {name: dict() for name in digraph.nodes}
