@@ -476,7 +476,7 @@ class Synthesis:
 
     def __magraph_to_verilog(self):
         ver_str = f''
-        input_list = list(reversed(self.__magraph.inputs))
+        input_list = list(self.__magraph.inputs)
         output_list = list(self.__magraph.outputs)
 
         # 1. module signature

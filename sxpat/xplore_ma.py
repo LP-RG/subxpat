@@ -1,4 +1,5 @@
 import csv
+from time import time
 from typing import Iterator
 from colorama import Fore, Style
 import Z3Log
@@ -43,14 +44,19 @@ def explore_cell(specs_obj: TemplateSpecs):
         graph = template_obj.import_graph()
         template_obj.current_graph = graph
 
-        # generate subgraph
+        # label graph
+        t_start = time()
         template_obj.label_graph(False, True)
+        print(f'labeling_time = {time() - t_start}')
+
+        # extract subgraph
+        t_start = time()
         graph.extract_subgraph(specs_obj)
+        print(f'subgraph_extraction_time = {time() - t_start}')
         # graph.export_annotated_graph()
 
         # convert AnnotatedGraph to MaGraph(s)
         full_graph = MaGraph.from_digraph(graph.subgraph)
-        # full_graph = outputs_reordered(full_graph, ['out0', 'out1', 'out2'])
         sub_graph = exctract_subgraph(graph)
 
         # print(sub_graph)
@@ -75,19 +81,12 @@ def explore_cell(specs_obj: TemplateSpecs):
         elif specs_obj.sub_error_function == 2:
             subcircuit_distance_function = HammingDistance(
                 sub_graph.inputs
-            )   
+            )
         else:
             raise RuntimeError("Should not ever raise this")
 
         # log subgraph output info
         print("out_weights =", [(n, graph.subgraph.nodes[n][WEIGHT]) for n in sub_graph.unaliased_outputs])
-
-        # TODO
-        # far partire esperimenti con ham e wad
-        # - ham vs wad
-        # -
-
-        # integra subgraph extraction
 
         # create the executor object
         executor = SubXPatV2Executor(
@@ -100,7 +99,6 @@ def explore_cell(specs_obj: TemplateSpecs):
 
         # run the executor, retrieving the status (sat, unsat, ...) and the model (only if sat)
         status, model = executor.run()
-        exit()
         if status != 'sat':
             # no model was found
             pprint.warning(f'Change the parameters!')
