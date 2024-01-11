@@ -490,10 +490,13 @@ class Synthesis:
             f"{sxpatconfig.VER_OUTPUT} {', '.join(output_list)};"
         )) + '\n'
         # 2.2 wires
-        ver_str += '\n'.join((
-            f'// gates wires',
-            f"{sxpatconfig.VER_WIRE} {', '.join(self.__magraph.gates)};"
-        )) + '\n'
+        if len(self.__magraph.gates) == 0:
+            ver_str += "// No wires\n"
+        else:
+            ver_str += '\n'.join((
+                f'// gates wires',
+                f"{sxpatconfig.VER_WIRE} {', '.join(self.__magraph.gates)};"
+            )) + '\n'
 
         # 3. assignments
         # 3.1 constants
