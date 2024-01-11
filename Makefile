@@ -3,7 +3,7 @@
 PY := python3
 ENV_NAME := venv
 
-SFTW_DEP := graphviz graphviz-dev yosys
+SFTW_DEP := graphviz graphviz-dev yosys opensta
 
 EXTRA_FOLDERS := 
 
@@ -32,7 +32,7 @@ py_dep: py_init
 
 sftw_dep:
 	@echo "\n[[ installing/upgrading software dependencies ]]"
-	sudo apt install --upgrade $(SFTW_DEP)
+	sudo apt install --yes --upgrade $(SFTW_DEP)
 
 folders_dep:
 	@echo "\n[[ creating required folders ]]"
