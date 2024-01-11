@@ -38,7 +38,8 @@ folders_dep:
 	@echo "\n[[ creating required folders ]]"
 	$(if $(strip $(EXTRA_FOLDERS)),mkdir -p $(EXTRA_FOLDERS),)
 
-setup: sftw_dep folders_dep py_init py_dep
+setup: folders_dep py_init py_dep
+setup-all: sftw_dep folders_dep py_init py_dep
 
 rm_cache:
 	@echo "\n[[ removing all pycache folders ]]"
