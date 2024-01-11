@@ -21,7 +21,6 @@ specs_obj = TemplateSpecs(
     exact=args.benchmark_name,
     benchmark_name=args.benchmark_name,
 
-
     # XPAT
     literals_per_product=args.lpp,
     products_per_output=args.ppo,
@@ -73,7 +72,7 @@ graph.export_annotated_graph()
 
 # convert AnnotatedGraph to MaGraph(s)
 full_graph = MaGraph(digraph=graph.subgraph)
-sub_graph = MaGraph(digraph=exctract_subgraph(graph))
+sub_graph = MaGraph(digraph=extract_subgraph(graph))
 
 # define distance/error functions
 circuit_distance_function = WeightedAbsoluteDifference(
