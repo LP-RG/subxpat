@@ -3,7 +3,7 @@
 PY := python3
 ENV_NAME := venv
 
-SFTW_DEP := graphviz graphviz-dev
+SFTW_DEP := graphviz graphviz-dev yosys
 
 EXTRA_FOLDERS := 
 
