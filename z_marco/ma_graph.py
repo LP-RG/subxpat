@@ -52,6 +52,12 @@ ALIAS_PREFIX = 'ref'
 
 @dc.dataclass(frozen=True)
 class MaGraph:
+
+    class NodeType(Enum):
+        INPUT = 0
+        GATE = 1
+        CONSTANT = 2
+        OUTPUT = 3
     # TODO: this class is a subclass of Graph?, but does not really fit in the inheritance,
     # TODO: in the future should be refactored to behave like the parents, or made its own class
 
@@ -92,6 +98,13 @@ class MaGraph:
             if data["shape"] == "invhouse"
         )
 
+        const_map = {'TRUE': True, 'FALSE': False}
+        constants = tuple(
+            (name, const_map[data['label']])
+            for name, data in digraph.nodes(data=True)
+            if data["shape"] == "square"
+        )
+
         outputs = tuple(
             name
             for name, data in digraph.nodes(data=True)
@@ -111,7 +124,8 @@ class MaGraph:
 
         edges = digraph.edges
 
-        return cls(inputs, gates, outputs, [], info, edges)
+        return cls(inputs, gates, outputs, constants, info, edges)
+        # return cls(inputs, gates, outputs, [], info, edges)
 
     def successors(self, node_name: str) -> Tuple[str]:
         return tuple(
@@ -314,7 +328,7 @@ def xpat_model_to_magraph(model: Dict[str, bool], *, iter_id: int = 1) -> MaGrap
     return MaGraph(inputs, gates, outputs, constants, info, edges)
 
 
-def exctract_subgraph(graph: AnnotatedGraph) -> MaGraph:
+def extract_subgraph(graph: AnnotatedGraph) -> MaGraph:
     gg: nx.DiGraph = graph.graph
     new_graph = nx.DiGraph()
 
@@ -341,12 +355,12 @@ def exctract_subgraph(graph: AnnotatedGraph) -> MaGraph:
         for name in outputs_names
     )
 
-    # add normal edges
+    # add subgraph edges (destination being in the subgraph)
     subgraph_gates = set(graph.subgraph_gate_dict.values())
     for src, dst in gg.edges:
-        if (src in subgraph_gates or dst in subgraph_gates) and (src not in outputs_names):
+        if dst in subgraph_gates:
             new_graph.add_edge(src, dst)
-    # add output edges
+    # add output edges (output to ref_output)
     for out_name in outputs_names:
         new_graph.add_edge(out_name, f"{ALIAS_PREFIX}_{out_name}")
 
