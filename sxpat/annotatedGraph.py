@@ -1406,14 +1406,14 @@ class AnnotatedGraph(Graph):
 
         return tmp_graph
 
-    def export_annotated_graph(self):
+    def export_annotated_graph(self, filename: str = None):
         """
         exports the subgraph (annotated graph) to a GV (GraphViz) file
         :return:
         """
         # print(f'exporting the annotated subgraph!')
         # print(f'{self.subgraph_out_path = }')
-        with open(self.subgraph_out_path, 'w') as f:
+        with open(filename or self.subgraph_out_path, 'w') as f:
             f.write(f"{STRICT} {DIGRAPH} \"{self.name}\" {{\n")
             f.write(f"{NODE} [{STYLE} = {FILLED}, {FILLCOLOR} = {WHITE}]\n")
             for n in self.subgraph.nodes:
