@@ -1,5 +1,5 @@
 import csv
-from time import time
+import time
 from typing import Iterator
 from colorama import Fore, Style
 import Z3Log
@@ -14,6 +14,7 @@ from sxpat.templateSpecs import TemplateSpecs
 from sxpat.config.paths import *
 from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
+from sxpat.utils.filesystem import create_directory
 from sxpat.verification import erroreval_verification
 from sxpat.stats import Stats
 from sxpat.stats import *
@@ -21,7 +22,7 @@ from sxpat.stats import *
 # executor
 from sxpat.executor.subxpat2_executor import SubXPatV2Executor
 # graph
-from z_marco.ma_graph import MaGraph, draw_gv, insert_subgraph, exctract_subgraph, xpat_model_to_magraph
+from z_marco.ma_graph import MaGraph, draw_gv, insert_subgraph, extract_subgraph, xpat_model_to_magraph
 # distance function
 from sxpat.distance_function import WeightedAbsoluteDifference, HammingDistance
 
@@ -45,19 +46,28 @@ def explore_cell(specs_obj: TemplateSpecs):
         template_obj.current_graph = graph
 
         # label graph
-        t_start = time()
-        template_obj.label_graph(False, True)
-        print(f'labeling_time = {time() - t_start}')
+        t_start = time.time()
+        template_obj.label_graph(specs_obj.min_labeling, True)
+        print(f'labeling_time = {time.time() - t_start}')
 
         # extract subgraph
-        t_start = time()
+        t_start = time.time()
         graph.extract_subgraph(specs_obj)
-        print(f'subgraph_extraction_time = {time() - t_start}')
-        # graph.export_annotated_graph()
+        print(f'subgraph_extraction_time = {time.time() - t_start}')
+
+        folder = 'output/gv/subgraphs'
+        graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
+        create_directory(folder)
+        graph.export_annotated_graph(graph_path)
+        print(f'exported at {graph_path}')
+        # exit()
 
         # convert AnnotatedGraph to MaGraph(s)
         full_graph = MaGraph.from_digraph(graph.subgraph)
-        sub_graph = exctract_subgraph(graph)
+        sub_graph = extract_subgraph(graph)
+
+        # print(full_graph.constants)
+        # exit()
 
         # print(sub_graph)
         # draw_gv(sub_graph, "subby.gv")
