@@ -47,6 +47,6 @@ rm_cache:
 
 rm_pyenv:
 	@echo "\n[[ removing the virtual python environment ]]"
-	rm -rf $(ENV_NAME)
+	rm -r $(ENV_NAME)
 
 clean: rm_cache rm_pyenv
