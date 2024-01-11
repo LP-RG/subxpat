@@ -128,6 +128,14 @@ class XPatRunnerCreator(RunnerCreator):
 
     def gen_exact_circuit_declarations(self):
         return [
+            "# exact constants declarations",
+            *(
+                declare_z3_function(
+                    f"{self.exact_circuit_name}_{const_name}",
+                    len(self.graph.inputs), "z3.BoolSort()", "z3.BoolSort()"
+                )
+                for const_name, const_value in self.exact_graph.constants
+            ),
             "# exact gates declaration",
             *(
                 declare_z3_function(
@@ -147,6 +155,12 @@ class XPatRunnerCreator(RunnerCreator):
         ]
 
     def gen_exact_circuit_assignments(self):
+        # => constants
+        constants = []
+        for const_name, const_value in self.exact_graph.constants:
+            left_side = call_z3_function(f"{self.exact_circuit_name}_{const_name}", self.graph.inputs)
+            constants.append(f'{left_side} == z3.BoolVal({const_value}),')
+
         # => gates
         gates = []
         for gate_name in self.exact_graph.gates:
@@ -160,6 +174,8 @@ class XPatRunnerCreator(RunnerCreator):
             ]
             gate_func = self.exact_graph.function_of(gate_name)
 
+            # print(self.exact_graph.inputs)
+            # print(gate_name, ":", gate_preds, gate_func)
             assert len(gate_preds) in [1, 2]
             assert gate_func in [NOT, AND, OR]
 

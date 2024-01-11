@@ -20,7 +20,7 @@ from z_marco.ma_graph import MaGraph
 # package
 from .runner_creator import RunnerCreator
 from sxpat.utils.utils import call_z3_function, declare_z3_function, format_lines, indent_lines
-# from sxpat.graph_utils.extract_subgraph import exctract_subgraph
+# from sxpat.graph_utils.extract_subgraph import extract_subgraph
 
 
 class SubXPatV2Phase1RunnerCreator(RunnerCreator):
@@ -142,6 +142,15 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
     def gen_circuits_declarations(self):
         def _gen_declarations(circuit_name: str):
             return [
+                "# exact constants declarations",
+                *(
+                    declare_z3_function(
+                        f"{circuit_name}_{const_name}",
+                        len(self.graph.inputs), "z3.BoolSort()",
+                        "z3.BoolSort()"
+                    )
+                    for const_name, const_value in self.graph.constants
+                ),
                 "# exact gates declaration",
                 *(
                     declare_z3_function(
@@ -171,6 +180,12 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
     def gen_circuits_assignments(self):
         def _gen_assignments(circuit_name: str):
             subout_preds = {self.subgraph.predecessors(n)[0]: n for n in self.subgraph.outputs}
+
+            # => constants
+            constants = []
+            for const_name, const_value in self.graph.constants:
+                left_side = call_z3_function(f"{circuit_name}_{const_name}", self.graph.inputs)
+                constants.append(f'{left_side} == z3.BoolVal({const_value}),')
 
             # => gates
             gates = []
@@ -214,6 +229,8 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
                 outputs.append(f"{left_side} == {out_preds[0]},")
 
             return [
+                f"# {circuit_name} constants assignment",
+                *constants,
                 f"# {circuit_name} gates assignment",
                 *gates,
                 f"# {circuit_name} outputs assignment",
