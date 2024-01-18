@@ -37,7 +37,7 @@ sftw_dep:
 
 folders_dep:
 	@echo "\n[[ creating required folders ]]"
-	$(if $(strip $(EXTRA_FOLDERS)),mkdir -p $(EXTRA_FOLDERS),)
+	$(if $(strip $(EXTRA_FOLDERS)),mkdir -p $(EXTRA_FOLDERS),# nothing to create)
 
 setup: folders_dep py_init py_dep
 setup-all: sftw_dep folders_dep py_init py_dep
@@ -56,4 +56,8 @@ REQUIRED_OBJECTS := config input sxpat z_marco
 REQUIRED_OBJECTS += Makefile requirements.txt
 REQUIRED_OBJECTS += phase1_testing.py temp_main6.py
 send_package:
-	scp -r $(REQUIRED_OBJECTS) $(user)@10.21.12.72:~/$(directory)
+	scp -r $(REQUIRED_OBJECTS) $(user)@10.21.12.72:$(directory)
+
+gather_logs:
+	mkdir -p from_remote
+	scp -T $(user)@10.21.12.72:"$(files)" from_remote/
