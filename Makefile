@@ -5,7 +5,8 @@ ENV_NAME := venv
 
 SFTW_DEP := graphviz graphviz-dev yosys opensta
 
-EXTRA_FOLDERS := 
+EXTRA_FOLDERS := test/ver test/z3
+EXTRA_FOLDERS += output/aig output/area output/delay output/figure output/gv output/json output/log output/report output/ver output/z3
 
 # computed
 
@@ -50,3 +51,9 @@ rm_pyenv:
 	rm -r $(ENV_NAME)
 
 clean: rm_cache rm_pyenv
+
+REQUIRED_OBJECTS := config input sxpat z_marco
+REQUIRED_OBJECTS += Makefile requirements.txt
+REQUIRED_OBJECTS += phase1_testing.py temp_main6.py
+send_package:
+	scp -r $(REQUIRED_OBJECTS) $(user)@10.21.12.72:~/$(directory)
