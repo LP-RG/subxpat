@@ -52,9 +52,7 @@ def labeling(exact_benchmark_name: str,
     return labels
 
 
-# TODO: Deprecated
-def labeling_old(exact_benchmark_name: str, approximate_benchmark: str, constant_value: 0, min_labeling: bool) -> Dict:
-    """ ~ DEPRECATED ~ """
+def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str, constant_value: 0, min_labeling: bool) -> Dict:
     # 1) create a clean verilog out of exact and approximate circuits
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()
