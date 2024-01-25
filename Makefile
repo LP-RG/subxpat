@@ -54,10 +54,11 @@ clean: rm_cache rm_pyenv
 
 REQUIRED_OBJECTS := config input sxpat z_marco
 REQUIRED_OBJECTS += Makefile requirements.txt
-REQUIRED_OBJECTS += phase1_testing.py temp_main6.py
+REQUIRED_OBJECTS += v2_testing.py temp_main6.py
 send_package:
 	scp -r $(REQUIRED_OBJECTS) $(user)@10.21.12.72:$(directory)
 
+files ?= Documents/11_jan/11_jan.log Documents/11_jan/11_jan.2.log Documents/18_jan/18_jan.log Documents/18_jan2/18_jan2.log
 gather_logs:
 	mkdir -p from_remote
 	scp -T $(user)@10.21.12.72:"$(files)" from_remote/
