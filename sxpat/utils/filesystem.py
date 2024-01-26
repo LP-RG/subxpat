@@ -2,15 +2,42 @@ import os
 import tempfile
 
 
+class FS:
+    """NOT YET USED"""
+    @classmethod
+    def makedir(cls, path: str) -> None:
+        """Recursively create the directory. Does nothing if the directory already exists."""
+        os.makedirs(path, exist_ok=True)
+
+    @classmethod
+    def listdir(cls, path: str):
+        """Returns a list of paths representing all files in the given folder."""
+        path = path.rstrip('/')
+        return [f"{path}/{file}" for file in os.listdir(path)]
+
+    @classmethod
+    def open(cls, path: str, mode: str):
+        folder, _ = os.path.split(path)
+        cls.create_directory(folder)
+        return open(path, mode)
+
+
 def create_directory(path: str) -> None:
     """Recursively create the directory. Does nothing if the directory already exists."""
     os.makedirs(path, exist_ok=True)
 
 
 def open_file(path: str, mode: str):
+    """Open the wanted file, creating all necessary folders in the path"""
     folder, filename = os.path.split(path)
     create_directory(folder)
     return open(path, mode)
+
+
+def listdir(path: str):
+    """Returns a list of paths representing all files in the given folder."""
+    path = path.rstrip('/')
+    return [f"{path}/{file}" for file in os.listdir(path)]
 
 
 def get_temporary_file(directory: str = None, delete: bool = False, binary: bool = False):
