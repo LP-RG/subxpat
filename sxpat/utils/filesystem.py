@@ -12,7 +12,7 @@ class FS:
     @classmethod
     def listdir(cls, path: str):
         """Returns a list of paths representing all files in the given folder."""
-        path = path.rstrip('/')
+        path = os.path.normpath(path)
         return [f"{path}/{file}" for file in os.listdir(path)]
 
     @classmethod
@@ -29,15 +29,18 @@ def create_directory(path: str) -> None:
 
 def open_file(path: str, mode: str):
     """Open the wanted file, creating all necessary folders in the path"""
-    folder, filename = os.path.split(path)
-    create_directory(folder)
+    directory = os.path.dirname(path)
+    create_directory(directory)
     return open(path, mode)
 
 
 def listdir(path: str):
     """Returns a list of paths representing all files in the given folder."""
-    path = path.rstrip('/')
-    return [f"{path}/{file}" for file in os.listdir(path)]
+    path = os.path.normpath(path)
+    return [
+        os.path.relpath(f"{path}/{file}")
+        for file in os.listdir(path)
+    ]
 
 
 def get_temporary_file(directory: str = None, delete: bool = False, binary: bool = False):
