@@ -1,6 +1,6 @@
 import csv
 import time
-from typing import Iterable, Iterator
+from typing import Iterable, Iterator, Union
 from colorama import Fore, Style
 
 from tabulate import tabulate
@@ -350,7 +350,7 @@ def is_last_cell(cur_lpp, cur_ppo, max_lpp, max_ppo) -> bool:
     return cur_lpp == max_lpp and cur_ppo == max_ppo
 
 
-def next_cell(cur_lpp, cur_ppo, max_lpp, max_ppo) -> (int, int):
+def next_cell(cur_lpp, cur_ppo, max_lpp, max_ppo) -> Tuple[int, int]:
     if is_last_cell(cur_lpp, cur_ppo, max_lpp, max_ppo):
         return cur_lpp + 1, cur_lpp + 1
     else:
@@ -420,13 +420,19 @@ def is_unsat(template_obj: Template_SOP1) -> bool:
         return False
 
 
-def get_status(template_obj: Template_SOP1) -> str:
+def get_status(template_obj: Union[Template_SOP1, Template_SOP1ShareLogic]) -> str:
     """
     checks whether the current model was sat, unsat or unknown
     :param: the current template object
     :rtype: an str containing either of SAT, UNSAT, or UNKNOWN
     """
+
+    # NOTE: updated by marco
     template_obj.import_json_model()
+    assert template_obj.json_status in [SAT, UNSAT, UNKNOWN], "Invalid status"
+    return template_obj.json_status
+
+    # original
     if template_obj.json_status == SAT:
         return SAT
     elif template_obj.json_status == UNSAT:
