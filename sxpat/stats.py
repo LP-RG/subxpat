@@ -16,8 +16,14 @@ from sxpat.templateSpecs import TemplateSpecs
 
 
 class Model:
-    def __init__(self, runtime: float = None, area: float = None, delay: float = None, total_power: float = None,
-                 id: int = None, status: str = 'Unexplored', cell: Tuple[int, int] = (-1, -1)):
+    def __init__(self,
+                 runtime: float = None,
+                 area: float = None,
+                 delay: float = None,
+                 total_power: float = None,
+                 id: int = None,
+                 status: str = 'Unexplored',
+                 cell: Tuple[int, int] = (-1, -1)):
         self.__runtime = runtime
         self.__area = area
         self.__id = id
@@ -25,7 +31,6 @@ class Model:
         self.__cell = cell
         self.__delay = delay
         self.__total_power = total_power
-
 
     @property
     def runtime(self):
@@ -74,7 +79,6 @@ class Model:
     @delay.setter
     def delay(self, this_delay):
         self.__delay = this_delay
-
 
     @property
     def total_power(self):
@@ -148,7 +152,6 @@ class Cell:
     def models(self):
         return self.__models
 
-
     def store_model_info(self, this_model_id: int = 0, this_iteration: int = 0,
                          this_area: float = None, this_delay: float = -1, this_total_power: float = -1,
                          this_runtime: float = None,
@@ -220,6 +223,7 @@ class Grid:
         return f'An object of class Grid: \n' \
                f'{self.cells = }\n'
 
+
 class Result:
     def __init__(self, benchname: 'str', toolname: 'str') -> None:
         self.__tool = str(toolname)
@@ -285,7 +289,6 @@ class Result:
                f"{self.area_dict = }\n" \
                f"{self.power_dict = }\n" \
                f"{self.delay_dict = }"
-
 
     @property
     def partitioning_dict(self):
@@ -371,7 +374,6 @@ class Result:
     def tool_name(self, this_tool_name):
         self.__tool = this_tool_name
 
-
     @property
     def area_dict(self):
         return self.__area_dict
@@ -416,7 +418,6 @@ class Result:
             if re.search('_syn', file) or file.endswith('script'):
                 os.remove(f'{folder}/{file}')
 
-
     def get_et_str(self):
         if self.tool_name == sxpatconfig.XPAT:
             self.et_str = 'et'
@@ -449,7 +450,7 @@ class Result:
     def __synthesize(self):
         syn_files: dict = {}
         for ver_file in self.verilog_files:
-            design_in_path  = f'experiments/{self.tool_name}/ver/{self.benchmark}/{ver_file}'
+            design_in_path = f'experiments/{self.tool_name}/ver/{self.benchmark}/{ver_file}'
             design_out_path = f'{design_in_path[:-2]}_syn.v'
             yosys_command = f"read_verilog {design_in_path};\n" \
                             f"synth -flatten;\n" \
@@ -465,8 +466,8 @@ class Result:
             cur_et = int(re.search(f'{self.et_str}(\d+)', design_out_path).group(1))
             syn_files[cur_et] = design_out_path
 
-
         return syn_files
+
     def extract_error(self):
         et_array = []
         for file in self.verilog_files:
@@ -545,7 +546,6 @@ class Result:
                             else:
                                 total_power = total_power_str
 
-
                             power_dict[error] = float(total_power)
                         else:
                             print(Fore.YELLOW + f'Warning!!! No power was found!' + Style.RESET_ALL)
@@ -576,7 +576,7 @@ class Result:
                         raise Exception(Fore.RED + f'Yosys ERROR!!! in file {syn_file} \n {process.stderr.decode()}' + Style.RESET_ALL)
 
                     else:
-                    # print(f'{process.stdout.decode() = }')
+                        # print(f'{process.stdout.decode() = }')
                         if re.search('(\d+.\d+).*data arrival time', process.stdout.decode()):
                             time = re.search('(\d+.\d+).*data arrival time', process.stdout.decode()).group(1)
                             delay_dict[error] = float(time)
@@ -584,8 +584,6 @@ class Result:
                             print(Fore.YELLOW + f'Warning!!! in file {syn_file} No delay was found!' + Style.RESET_ALL)
                             delay_dict[error] = 0
         return delay_dict
-
-
 
     def extract_module_name(self, this_path: str = None):
 
@@ -618,9 +616,6 @@ class Result:
                         grid_files[csv_file] = et
 
         return grid_files
-
-
-
 
     def extract_subxpat_characteristics(self):
         folder, _ = OUTPUT_PATH['report']
@@ -696,20 +691,10 @@ class Result:
         self.delay_dict = delay_dict
 
 
-
-
-
-
-
-
-
-
-
-
 class Stats:
     def __init__(self, spec_obj: TemplateSpecs):
         """
-        stores the stats of an experiment (grid or cell) into an object
+            stores the stats of an experiment (grid or cell) into an object
         """
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
@@ -723,7 +708,6 @@ class Stats:
         self.__omax: int = spec_obj.omax
         self.__grid_name: str = self.get_grid_name()
         self.__grid_path: str = self.get_grid_path()
-
         self.__grid = Grid(spec_obj)
 
     @property
@@ -769,7 +753,6 @@ class Stats:
     @property
     def et(self):
         return self.__et
-
 
     @property
     def iterations(self):
@@ -847,7 +830,6 @@ class Stats:
             name = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_imax{self.imax}_omax{self.omax}_sens{self.max_sensitivity}_graphsize{self.min_subgraph_size}.{extension}'
         return name
 
-
     def get_grid_path(self):
         folder, _ = OUTPUT_PATH['report']
         path = f'{folder}/{self.grid_name}'
@@ -883,7 +865,7 @@ class Stats:
                             this_cell = self.grid.cells[lpp][ppo].models[i][0].cell
                             this_delay = self.grid.cells[lpp][ppo].models[i][0].delay
                             this_total_power = self.grid.cells[lpp][ppo].models[i][0].total_power
-                            this_row.append((this_status, this_runtime, this_area, this_delay,this_total_power, this_cell))
+                            this_row.append((this_status, this_runtime, this_area, this_delay, this_total_power, this_cell))
 
                     if this_row:
                         row = [cell]
@@ -897,26 +879,25 @@ class Stats:
         muscat = Result(self.exact_name, sxpatconfig.MUSCAT)
         xpat = Result(self.exact_name, sxpatconfig.XPAT)
         subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
-        self.plot_area(subxpat= subxpat,
-                  xpat= xpat,
-                  mecals= mecals,
-                  muscat= muscat)
+        self.plot_area(subxpat=subxpat,
+                       xpat=xpat,
+                       mecals=mecals,
+                       muscat=muscat)
         self.plot_power(subxpat=subxpat,
-                       xpat=xpat,
-                       mecals=mecals,
-                       muscat=muscat)
+                        xpat=xpat,
+                        mecals=mecals,
+                        muscat=muscat)
         self.plot_delay(subxpat=subxpat,
-                       xpat=xpat,
-                       mecals=mecals,
-                       muscat=muscat)
+                        xpat=xpat,
+                        mecals=mecals,
+                        muscat=muscat)
         self.plot_iterations(sxpatconfig.AREA)
-
 
     def plot_area(self, subxpat: Result, xpat: Result, mecals: Result, muscat: Result):
         fig, ax = plt.subplots()
         ax.set_xlabel(f'ET')
         ax.set_ylabel(ylabel=f'Area')
-        ax.set_title(f'{self.exact_name} Area comparison', fontsize = 30)
+        ax.set_title(f'{self.exact_name} Area comparison', fontsize=30)
 
         et_list = subxpat.error_array
 
@@ -1013,12 +994,10 @@ class Stats:
     def plot_pdap(self):
         pass
 
-
     def plot_partitioning(self, metric: str = sxpatconfig.AREA):
         subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
         self._get_partitioning_characteristics(subxpat)
         # for an error, extract the grid for each partitioning approach
-
 
     def plot_iterations(self, metric: str = sxpatconfig.AREA):
         subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
@@ -1085,11 +1064,10 @@ class Stats:
                                                        max_sensitivity=cur_max_sensitivity, min_subgraph_size=cur_min_subgraph_size)
                     print(f'{subxpat.area_iteration_dict = }')
 
-
         subxpat.partitioning_dict = partitioning_dict
 
-    def _grid_file_is_valid(self, subxpat: Result, grid_file:str, imax:int=3, omax:int=2, sensitivity:bool=False,
-                                      max_sensitivity:int = 100, min_subgraph_size:int = 10):
+    def _grid_file_is_valid(self, subxpat: Result, grid_file: str, imax: int = 3, omax: int = 2, sensitivity: bool = False,
+                            max_sensitivity: int = 100, min_subgraph_size: int = 10):
         valid = False
         if re.search(f'imax{imax}', grid_file) and re.search(f'omax{omax}', grid_file):
             if sensitivity:
@@ -1100,9 +1078,8 @@ class Stats:
                     valid = True
         return valid
 
-
-    def _get_iteration_characteristcs(self, subxpat: Result, imax:int=3, omax:int=2, sensitivity:bool=False,
-                                      max_sensitivity:int = 100, min_subgraph_size:int = 10):
+    def _get_iteration_characteristcs(self, subxpat: Result, imax: int = 3, omax: int = 2, sensitivity: bool = False,
+                                      max_sensitivity: int = 100, min_subgraph_size: int = 10):
 
         iterations = self._get_num_iterations()
         area_iteration_dict = {}
@@ -1144,10 +1121,6 @@ class Stats:
                 subxpat.power_iteration_dict = power_iteration_dict
                 subxpat.delay_iteration_dict = delay_iteration_dict
 
-
-
-
-
     def __repr__(self):
         return f'An object of class Stats:\n' \
                f'{self.exact_name = }\n' \
@@ -1156,7 +1129,3 @@ class Stats:
                f'{self.ppo = }\n' \
                f'{self.et = }\n' \
                f'{self.grid = }\n'
-
-
-
-
