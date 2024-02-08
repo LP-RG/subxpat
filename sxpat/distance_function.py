@@ -17,6 +17,11 @@ class DistanceFunction:
     def abbreviation(self):
         raise NotImplementedError(f"Property `{self.__class__.__name__}.abbreviation` is an abstract property.")
 
+    @abstractproperty
+    def min_distance(self) -> int:
+        """The minimum value above 0 this function can be."""
+        raise NotImplementedError(f"Property `{self.__class__.__name__}.min_distance` is an abstract property.")
+
     @abstractmethod
     def with_no_input(self):
         raise NotImplementedError(f"Method `{self.__class__.__name__}.with_no_input` is an abstract method.")
@@ -38,8 +43,10 @@ class HammingDistance(DistanceFunction):
     def __init__(self, inputs: Sequence[str]) -> None:
         self._inputs: Tuple[str] = tuple(inputs)
 
-    name = property(lambda _: "Hamming Distance")
-    abbreviation = property(lambda _: "HamD")
+    name = property(lambda s: "Hamming Distance")
+    abbreviation = property(lambda s: "HamD")
+
+    min_distance = property(lambda s: 1)
 
     def with_no_input(self):
         return type(self)([])
@@ -91,8 +98,10 @@ class WeightedAbsoluteDifference(DistanceFunction):
         self._inputs: Tuple[str] = tuple(inputs)
         self._weights: Tuple[int] = tuple(weights)
 
-    name = property(lambda _: "Absolute Difference of Weighted Sums")
-    abbreviation = property(lambda _: "WAD")
+    name = property(lambda s: "Absolute Difference of Weighted Sums")
+    abbreviation = property(lambda s: "WAD")
+
+    min_distance = property(lambda s: min(s._weights))
 
     def with_no_input(self):
         return type(self)([], self._weights)
@@ -164,8 +173,8 @@ class WeightedAbsoluteDifference(DistanceFunction):
 #     def __init__(self) -> None:
 #         super().__init__([])
 
-#     name = property(lambda _: "Integer Absolute Difference")
-#     abbreviation = property(lambda _: "IAD")
+#     name = property(lambda s: "Integer Absolute Difference")
+#     abbreviation = property(lambda s: "IAD")
 
 #     @classmethod
 #     def _declare(cls,
