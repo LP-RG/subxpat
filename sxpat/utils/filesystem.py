@@ -4,7 +4,13 @@ import tempfile
 
 
 class FS:
-    """NOT YET USED"""
+    @classmethod
+    def exists(cls, path: str) -> bool:
+        """Returns if there is something at the given path."""
+        path = os.path.normpath(path)
+
+        return os.path.exists(path)
+
     @classmethod
     def mkdir(cls, path: str) -> None:
         """Recursively create the directory. Does nothing if the directory already exists."""
@@ -14,16 +20,24 @@ class FS:
 
     @classmethod
     def rmdir(cls, path: str, recursive: bool = False) -> None:
-        """Remove the directory (recursively if wanted)."""
+        """Remove the directory (recursively if wanted). Does nothing if the directory does not exist."""
         path = os.path.normpath(path)
 
-        (shutil.rmtree if recursive else os.rmdir)(path)
+        if FS.exists(path):
+            (shutil.rmtree if recursive else os.rmdir)(path)
+
+    @classmethod
+    def cleandir(cls, path: str) -> None:
+        """Creates or empty the directory."""
+        path = os.path.normpath(path)
+
+        FS.rmdir(path, True)
+        FS.mkdir(path)
 
     @classmethod
     def listdir(cls, path: str):
         """Returns a list of paths representing all files in the given folder."""
         path = os.path.normpath(path)
-
         return [
             os.path.relpath(f"{path}/{file}")
             for file in os.listdir(path)
