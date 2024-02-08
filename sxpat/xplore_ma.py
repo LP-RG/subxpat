@@ -17,7 +17,7 @@ from sxpat.templateSpecs import TemplateSpecs
 from sxpat.config.paths import *
 from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
-from sxpat.utils.filesystem import create_directory
+from sxpat.utils.filesystem import FS
 from sxpat.verification import erroreval_verification, erroreval_verification_explicit, erroreval_verification_buggy
 from sxpat.stats import Stats
 from sxpat.stats import *
@@ -65,7 +65,7 @@ def explore_cell(specs_obj: TemplateSpecs):
 
         folder = 'output/gv/subgraphs'
         graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
-        create_directory(folder)
+        FS.mkdir(folder)
         graph.export_annotated_graph(graph_path)
         print(f'exported at {graph_path}')
 
