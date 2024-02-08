@@ -16,135 +16,73 @@ from sxpat.config import config as sxpatconfig
 from sxpat.synthesis import Synthesis
 from sxpat.arguments import Arguments
 
-
-from sxpat.xplore import explore_cell, explore_grid
+from sxpat.xplore import explore_grid  # , explore_grid_shared
 from sxpat.stats import Stats, Result
 
-
-def clean_all():
-    directories = [z3logpath.OUTPUT_PATH['ver'][0], z3logpath.OUTPUT_PATH['aig'][0], z3logpath.OUTPUT_PATH['gv'][0],
-                   z3logpath.OUTPUT_PATH['z3'][0],
-                   z3logpath.OUTPUT_PATH['report'][0], z3logpath.OUTPUT_PATH['figure'][0], z3logpath.TEST_PATH['tb'][0],
-                   sxpatpaths.OUTPUT_PATH['area'][0], sxpatpaths.OUTPUT_PATH['power'][0], sxpatpaths.OUTPUT_PATH['delay'][0],
-                   z3logpath.LOG_PATH['yosys'][0],
-                   sxpatpaths.OUTPUT_PATH['json'][0]]
-
-    for directory in directories:
-
-        if os.path.exists(directory):
-            shutil.rmtree(directory)
-        os.makedirs(directory, exist_ok=True)
+from z_marco.utils import pprint
+from sxpat.utils.filesystem import FS
 
 
 def main():
     args = Arguments.parse()
-    # print(f'{args = }')
-    if args.plot:
+    print(f'{args = }')
 
-        print(Fore.BLUE + f'Plotting...' + Style.RESET_ALL)
-        specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
+    if args.plot:
+        pprint.info2('Plotting...')
+        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.benchmark_name, literals_per_product=args.lpp,
                                   products_per_output=args.ppo,
-                                  benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
+                                  benchmark_name=args.approximate_benchmark, num_of_models=args.num_models, subxpat=args.subxpat,
                                   et=args.et,
                                   partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
-                                  timeout=args.timeout, subgraph_size=args.subgraph_size)
-
-
+                                  timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
+                                  min_labeling=args.min_labeling,
+                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel)
         stats_obj = Stats(specs_obj)
-        # stats_obj.gather_results()
-        # stats_obj.plot_iterations()
-        stats_obj.plot_partitioning()
-
-
-
-
+        stats_obj.gather_results()
 
     else:
         if args.clean:
-            print(Fore.BLUE + f'cleaning...' + Style.RESET_ALL)
+            pprint.info2('cleaning...')
             clean_all()
 
         setup_folder_structure()
-        for key in sxpatpaths.OUTPUT_PATH.keys():
-            directory = sxpatpaths.OUTPUT_PATH[key][0]
-            if ~os.path.exists(directory):
-                os.makedirs(directory, exist_ok=True)
+        for (directory, _) in sxpatpaths.OUTPUT_PATH.values():
+            FS.mkdir(directory)
 
-        if args.multiple:
-            n_o = int(re.search(f'.*o(\d+).*', args.benchmark_name).group(1))
-            max_error = 2**(n_o-1)
-            if max_error <= 8:
-                et_array = list(range(1, max_error + 1))
-            else:
-                step = max_error // 8
-                et_array = list(range(step, max_error + 1, step))
-            # et_array = [8, 6, 8, 6]
-            specs_obj = None
-            for et in et_array:
-                # print(f'{specs_obj = }')
-                if args.sensitivity < 0:
-                    specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
-                                              products_per_output=args.ppo,
-                                              benchmark_name=args.approximate_benchmark, num_of_models=1,
-                                              subxpat=args.subxpat,
-                                              et=et,
-                                              partitioning_percentage=args.partitioning_percentage,
-                                              iterations=args.iterations,
-                                              grid=args.grid, imax=args.imax, omax=args.omax,
-                                              sensitivity=args.sensitivity,
-                                              timeout=args.timeout, subgraph_size=args.subgraph_size)
-                else:
-                    specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
-                                              products_per_output=args.ppo,
-                                              benchmark_name=args.approximate_benchmark, num_of_models=1,
-                                              subxpat=args.subxpat,
-                                              et=et,
-                                              partitioning_percentage=args.partitioning_percentage,
-                                              iterations=args.iterations,
-                                              grid=args.grid, imax=args.imax, omax=args.omax,
-                                              sensitivity=args.sensitivity * et,
-                                              timeout=args.timeout, subgraph_size=args.subgraph_size)
+        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.benchmark_name, literals_per_product=args.lpp,
+                                  products_per_output=args.ppo,
+                                  benchmark_name=args.approximate_benchmark, num_of_models=args.num_models, subxpat=args.subxpat,
+                                  et=args.et,
+                                  partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
+                                  grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
+                                  timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
+                                  min_labeling=args.min_labeling,
+                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel)
 
-                if specs_obj.grid:
-                    try:
-
-                        stats_obj = explore_grid(specs_obj)
-
-                    except Exception:
-                        raise
-
-                else:
-                    # TODO: Fix later
-                    explore_cell(specs_obj)
+        if specs_obj.grid:
+            stats_obj = explore_grid(specs_obj)
         else:
-            specs_obj = None
-            if args.sensitivity < 0:
-                specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
-                                          products_per_output=args.ppo,
-                                          benchmark_name=args.approximate_benchmark, num_of_models=1, subxpat=args.subxpat,
-                                          et=args.et,
-                                          partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                          grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
-                                          timeout=args.timeout, subgraph_size=args.subgraph_size)
-            else:
-                specs_obj = TemplateSpecs(name='Sop1', exact=args.benchmark_name, literals_per_product=args.lpp,
-                                          products_per_output=args.ppo,
-                                          benchmark_name=args.approximate_benchmark, num_of_models=1,
-                                          subxpat=args.subxpat,
-                                          et=args.et,
-                                          partitioning_percentage=args.partitioning_percentage,
-                                          iterations=args.iterations,
-                                          grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity * args.et,
-                                          timeout=args.timeout, subgraph_size=args.subgraph_size)
-            # print(f'{specs_obj = }')
-            if specs_obj.grid:
-                stats_obj = explore_grid(specs_obj)
-                # stats_obj.plot_area()
-                # stats_obj.plot_runtime()
-            else:
-                # TODO: Fix later
-                explore_cell(specs_obj)
+            # TODO: Marco: What should happen here?
+            raise
+
+
+def clean_all():
+    for (directory, _) in [
+        z3logpath.OUTPUT_PATH['ver'],
+        z3logpath.OUTPUT_PATH['gv'],
+        z3logpath.OUTPUT_PATH['aig'],
+        z3logpath.OUTPUT_PATH['z3'],
+        z3logpath.OUTPUT_PATH['report'],
+        z3logpath.OUTPUT_PATH['figure'],
+        z3logpath.LOG_PATH['yosys'],
+        z3logpath.TEST_PATH['tb'],
+        sxpatpaths.OUTPUT_PATH['area'],
+        sxpatpaths.OUTPUT_PATH['power'],
+        sxpatpaths.OUTPUT_PATH['delay'],
+        sxpatpaths.OUTPUT_PATH['json']
+    ]:
+        FS.cleandir(directory)
 
 
 if __name__ == "__main__":
