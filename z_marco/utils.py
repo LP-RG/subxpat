@@ -7,6 +7,8 @@ class color:
     def factory(color: str) -> Callable[[str], str]:
         return lambda s: color + s + colorama.Fore.RESET
 
+    with_color = staticmethod(factory)
+
     s = success = green = staticmethod(factory(colorama.Fore.GREEN))
     w = warning = yellow = staticmethod(factory(colorama.Fore.YELLOW))
     e = error = red = staticmethod(factory(colorama.Fore.RED))
@@ -22,6 +24,8 @@ class pprint:
         def p(title: Any, *args: Any, **kwargs: Any) -> None:
             print(color + str(title) + colorama.Fore.RESET, *args, **kwargs)
         return p
+
+    with_color = staticmethod(factory)
 
     s = success = green = staticmethod(factory(colorama.Fore.GREEN))
     w = warning = yellow = staticmethod(factory(colorama.Fore.YELLOW))
