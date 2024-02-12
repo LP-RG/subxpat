@@ -8,14 +8,14 @@ from Z3Log.graph import Graph
 from Z3Log.verilog import Verilog
 from Z3Log.utils import *
 
-from z_marco.utils import pprint
 from .config.config import *
 from .config import paths as sxpatpaths
 from Z3Log.z3solver import Z3solver
 from z3 import *
 
-
 from .templateSpecs import TemplateSpecs
+
+from z_marco.utils import pprint
 
 
 class AnnotatedGraph(Graph):
@@ -1441,7 +1441,7 @@ class AnnotatedGraph(Graph):
 
     # TODO: fix checks!
     # The checks are done on the original graph instead of the annotated graph!
-    def export_node(self, n, file_handler: 'class _io.TextIOWrapper'):
+    def export_node(self, n, file_handler: io.TextIOBase):
         """
         exports node n as a line of file that is identified by file_hanlder
         :param n: the label of node n
