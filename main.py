@@ -63,7 +63,7 @@ def main():
         if specs_obj.grid:
             stats_obj = explore_grid(specs_obj)
         else:
-            # TODO: Marco: What should happen here?
+            # todo:question: What should happen here?
             raise
 
 

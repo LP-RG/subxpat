@@ -45,6 +45,9 @@ class FS:
 
     @classmethod
     def open(cls, path: str, mode: str):
+        """TODO: should this also create the directory or not?"""
+        raise NotImplementedError()
+
         path = os.path.normpath(path)
         directory = os.path.dirname(path)
 
