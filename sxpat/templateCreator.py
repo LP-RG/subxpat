@@ -20,6 +20,8 @@ from .annotatedGraph import AnnotatedGraph
 
 
 class TemplateCreator:
+    is_two_phase_kind = False
+
     def __init__(self, template_specs: TemplateSpecs):
         self.__template_name = template_specs.template_name
         self.__benchmark_name = template_specs.benchmark_name
@@ -134,6 +136,12 @@ class TemplateCreator:
         temp_graph_obj = AnnotatedGraph(self.exact_benchmark, is_clean=False, partitioning_percentage=0)
 
         return temp_graph_obj
+
+    def run_phase1(self, arguments: Tuple):
+        raise NotImplementedError(f"{self.__class__.__name__}.run_phase1(...) is not yet implemented.")
+
+    def run_phase2(self):
+        raise NotImplementedError(f"{self.__class__.__name__}.run_phase2(...) is not yet implemented.")
 
     def __repr__(self):
         return f'An object of Class TemplateCreator:\n' \
