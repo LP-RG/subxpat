@@ -2,7 +2,7 @@ import json
 import os
 import subprocess
 from time import time
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 from sxpat.distance_function import DistanceFunction
 from z_marco.ma_graph import MaGraph
 from sxpat.runner_creator.subxpat_v2_phase1_creator import SubXPatV2Phase1RunnerCreator
@@ -11,6 +11,9 @@ from sxpat.runner_creator.xpat_creator_function import XPatRunnerCreator
 from Z3Log.config.config import PYTHON3
 from sxpat.config.config import ResultFields as rf
 from z_marco.utils import pprint
+
+
+NOTHING = object()
 
 
 class SubXPatV2Executor:
@@ -33,7 +36,10 @@ class SubXPatV2Executor:
                  ) -> None:
 
         # store info
+        self.full_graph = full_graph
+        self.sub_graph = sub_graph
         self.exact_name = exact_name
+
         self.literals_per_product = literals_per_product
         self.products_per_output = products_per_output
 
@@ -46,33 +52,40 @@ class SubXPatV2Executor:
         # self.wanted_models_count = wanted_models_count
         # self.execution_timeout = execution_timeout
 
+    def set_graphs(self, full_graph: MaGraph, sub_graph: MaGraph):
+        self.full_graph = full_graph
+        self.sub_graph = sub_graph
+
+    def set_error_functions(self, circuit_error_function: DistanceFunction, subcircuit_error_function: DistanceFunction):
+        self.circuit_error_function = circuit_error_function
+        self.subcircuit_error_function = subcircuit_error_function
+
+    def set_context(self, literals_per_product, products_per_output):
+        self.literals_per_product = literals_per_product
+        self.products_per_output = products_per_output
+
+    def _phase1(self, arguments: Tuple[int, int, float] = None) -> int:
+        # create creator object
         self.phase1_creator = SubXPatV2Phase1RunnerCreator(
-            full_graph, sub_graph, exact_name,
-            circuit_error_function,
-            subcircuit_error_function
+            self.full_graph, self.sub_graph, self.exact_name,
+            self.circuit_error_function,
+            self.subcircuit_error_function
         )
 
-        self.phase2_creator = XPatRunnerCreator(
-            sub_graph, exact_name,
-            literals_per_product, products_per_output,
-            subcircuit_error_function
-        )
-
-    def _phase1(self) -> int:
         # generate script
         script_path = self.phase1_creator.get_script_name()
         print(f"Generating phase1 script {script_path}")
         with open(script_path, "w") as file:
             file.write(self.phase1_creator.generate_script())
 
+        # update arguments (et, num_models, timeout)
+        arguments = arguments or [self.error_threshold]
+        arguments = [str(a) for a in arguments]
+
         # run process
         print(f"Running phase1 script {script_path}")
         process = subprocess.run(
-            [
-                PYTHON3,
-                script_path,
-                str(self.error_threshold),
-            ],
+            [PYTHON3, script_path, *arguments],
             stderr=subprocess.PIPE, stdout=subprocess.PIPE
         )
         # if error
@@ -95,6 +108,13 @@ class SubXPatV2Executor:
         return max_sub_distance
 
     def _phase2(self, max_sub_distance: int):
+        # create creator object
+        self.phase2_creator = XPatRunnerCreator(
+            self.sub_graph, self.exact_name,
+            self.literals_per_product, self.products_per_output,
+            self.subcircuit_error_function
+        )
+
         # generate script
         script_path = self.phase2_creator.get_script_name(
             f"{self.exact_name}_sub",
