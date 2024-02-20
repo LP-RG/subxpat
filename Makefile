@@ -5,6 +5,7 @@ ENV_NAME := venv
 
 SFTW_DEP := graphviz graphviz-dev yosys opensta
 
+# This will not be needed as the main.py already creates the folders
 EXTRA_FOLDERS := test/ver test/z3
 EXTRA_FOLDERS += output/aig output/area output/delay output/figure output/gv output/json output/log output/report output/ver output/z3
 
@@ -44,7 +45,7 @@ setup-all: sftw_dep folders_dep py_init py_dep
 
 rm_cache:
 	@echo "\n[[ removing all pycache folders ]]"
-	find . -name __pycache__ -exec rm -rf {} \;
+	find . -name __pycache__ -prune -exec rm -rf {} \;
 
 rm_pyenv:
 	@echo "\n[[ removing the virtual python environment ]]"
