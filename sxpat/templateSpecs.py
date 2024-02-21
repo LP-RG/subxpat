@@ -9,6 +9,7 @@ class TemplateSpecs:
         self.__literals_per_product: int = int(kwargs[LITERALS_PER_PRODUCT])
         self.__products_per_output: int = int(kwargs[PRODUCTS_PER_OUTPUT])
         self.__subxpat: bool = kwargs[SUBXPAT]
+        self.__subxpat_v2: bool = kwargs[SUBXPAT_V2]
         self.__num_of_models = kwargs[NUM_OF_MODELS]
         self.__error_threshold = kwargs[TEMPLATE_SPEC_ET]
         self.__partitioning_percentage = kwargs[PARTITIONING_PERCENTAGE]
@@ -103,6 +104,10 @@ class TemplateSpecs:
     def subxpat(self):
         return self.__subxpat
 
+    @property
+    def subxpat_v2(self):
+        return self.__subxpat_v2
+    
     @property
     def iterations(self):
         return self.__iterations
@@ -200,6 +205,7 @@ class TemplateSpecs:
                f'{self.ppo = }\n' \
                f'{self.pit = }\n' \
                f'{self.subxpat = }\n' \
+               f'{self.subxpat_v2 = }\n' \
                f'{self.num_of_models = }\n' \
                f'{self.et = }\n' \
                f'{self.partitioning_percentage = }\n' \

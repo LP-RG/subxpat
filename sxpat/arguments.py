@@ -1,8 +1,74 @@
+from __future__ import annotations
+from typing import Dict, Any
+
 import argparse
 import sys
-import typing
 from Z3Log.argument import Arguments
 from Z3Log.config.config import *
+
+
+import dataclasses as dc
+
+
+# @dc.dataclass
+# class Arguments:
+#     """Missing the ones from Z3Log"""
+
+#     literal_per_product: int
+#     product_per_output: int
+#     subxpat: bool
+#     subxpat_v2: bool
+#     error_threshold: int
+#     clean: bool
+#     partitioning_percentage: int
+#     iterations: int
+#     grid: bool
+#     multiple: bool
+#     plot: bool
+#     imax: int
+#     omax: int
+#     sensitivity: int
+#     timeout: int
+#     subgraph_size: int
+#     mode: int
+#     population: int
+#     num_models: int
+#     min_labeling: bool
+#     shared: bool
+#     products_in_total: int
+#     parallel: bool
+#     full_error_function: int
+#     sub_error_function: int
+
+#     @classmethod
+#     def from_dict(cls, o: Dict[str, Any]) -> Arguments:
+#         return cls(
+#             o.lpp,
+#             o.ppo,
+#             o.subxpat,
+#             o.subxpat_v2,
+#             o.et,
+#             o.clean,
+#             o.partitioning_percentage,
+#             o.iterations,
+#             o.grid,
+#             o.multiple,
+#             o.plot,
+#             o.imax,
+#             o.omax,
+#             o.sensitivity,
+#             o.timeout,
+#             o.subgraphsize,
+#             o.mode,
+#             o.population,
+#             o.num_models,
+#             o.min_labeling,
+#             o.shared,
+#             o.pit,
+#             o.parallel,
+#             o.full_error_function,
+#             o.sub_error_function,
+#         )
 
 
 class Arguments(Arguments):
@@ -11,10 +77,11 @@ class Arguments(Arguments):
         self.__literal_per_product: int = tmp_args.lpp
         self.__product_per_output: int = tmp_args.ppo
         self.__subxpat: bool = tmp_args.subxpat
+        self.__subxpat_v2: bool = tmp_args.subxpat_v2
         self.__error_threshold: int = tmp_args.et
         self.__clean: bool = tmp_args.clean
-        self.__partitioning_percentage = tmp_args.partitioning_percentage
-        self.__iterations = tmp_args.iterations
+        self.__partitioning_percentage: int = tmp_args.partitioning_percentage
+        self.__iterations: int = tmp_args.iterations
         self.__grid: bool = tmp_args.grid
         self.__multiple: bool = tmp_args.multiple
         self.__plot: bool = tmp_args.plot
@@ -30,8 +97,8 @@ class Arguments(Arguments):
         self.__shared: bool = tmp_args.shared
         self.__products_in_total: int = tmp_args.pit
         self.__parallel: bool = tmp_args.parallel
-        self.__full_error_function = tmp_args.full_error_function
-        self.__sub_error_function = tmp_args.sub_error_function
+        self.__full_error_function: int = tmp_args.full_error_function
+        self.__sub_error_function: int = tmp_args.sub_error_function
 
     @property
     def parallel(self):
@@ -88,6 +155,10 @@ class Arguments(Arguments):
     @property
     def subxpat(self):
         return self.__subxpat
+
+    @property
+    def subxpat_v2(self):
+        return self.__subxpat_v2
 
     @property
     def error_threshold(self):
@@ -178,6 +249,9 @@ class Arguments(Arguments):
         my_parser.add_argument('--subxpat',
                                action='store_true',
                                help='activate-subxpat')
+        my_parser.add_argument('--subxpat-v2',
+                               action='store_true',
+                               help='activate v2 of subxpat')
 
         my_parser.add_argument('--approximate_benchmark', '-app',
                                type=str,
