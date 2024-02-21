@@ -67,7 +67,7 @@ def main():
             stats_obj = explore_grid(specs_obj)
         else:
             # todo:question: What should happen here?
-            raise RuntimeError('WIP: for now --grid must be passed')
+            raise NotImplementedError('WIP: for now --grid must be passed')
 
 
 def clean_all():
