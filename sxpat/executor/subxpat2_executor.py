@@ -60,9 +60,12 @@ class SubXPatV2Executor:
         self.circuit_error_function = circuit_error_function
         self.subcircuit_error_function = subcircuit_error_function
 
-    def set_context(self, literals_per_product, products_per_output):
+    def set_context(self, exact_benchmark, error_threshold, literals_per_product, products_per_output, iteration):
+        self.exact_name = exact_benchmark
+        self.error_threshold = error_threshold
         self.literals_per_product = literals_per_product
         self.products_per_output = products_per_output
+        self.iteration = iteration
 
     def _phase1(self, arguments: Tuple[int, int, float] = None) -> int:
         # create creator object
@@ -83,7 +86,7 @@ class SubXPatV2Executor:
         arguments = [str(a) for a in arguments]
 
         # run process
-        print(f"Running phase1 script {script_path}")
+        print(f"Running phase1 script {script_path} with arguments {arguments}")
         process = subprocess.run(
             [PYTHON3, script_path, *arguments],
             stderr=subprocess.PIPE, stdout=subprocess.PIPE
@@ -112,7 +115,8 @@ class SubXPatV2Executor:
         self.phase2_creator = XPatRunnerCreator(
             self.sub_graph, self.exact_name,
             self.literals_per_product, self.products_per_output,
-            self.subcircuit_error_function
+            self.subcircuit_error_function,
+            self.iteration
         )
 
         # generate script
@@ -127,12 +131,13 @@ class SubXPatV2Executor:
             file.write(self.phase2_creator.generate_script())
 
         # run script
-        print(f"Running phase2 script {script_path}")
+        print(f"Running phase2 script {script_path} with arguments [{max_sub_distance-1}]")
         process = subprocess.run(
             [
                 PYTHON3,
                 script_path,
-                str(max_sub_distance),
+                # todo:hack: temporarily set 1 model max and 1 hour timeout
+                str(max_sub_distance - 1), str(1), str(1 * 60 * 60)
             ],
             stderr=subprocess.PIPE, stdout=subprocess.PIPE
         )
@@ -144,9 +149,9 @@ class SubXPatV2Executor:
 
         # load result
         print(f"Gathering results of phase2 script {script_path}")
-        output_path = self.phase2_creator.gen_json_outfile_name().format(ET=max_sub_distance)
+        output_path = self.phase2_creator.gen_json_outfile_name().format(ET=max_sub_distance-1)
         with open(output_path, "r") as ifile:
-            # only one model was searched for
+            # todo:temporary: only one model is searched for
             output: Dict[str, Any] = json.load(ifile)[0]
 
         # extract and return
@@ -163,7 +168,10 @@ class SubXPatV2Executor:
 
         # phase 2
         p2_start = time()
-        status, model = self._phase2(max_sub_distance - 1)
+        status, model = self._phase2(max_sub_distance)
         print(f"p2_time = {(time() - p2_start):.6f}")
 
         return status, model
+
+    def gen_json_outfile_name(self, et):
+        return self.phase2_creator.gen_json_outfile_name(et)

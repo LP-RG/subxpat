@@ -25,6 +25,7 @@ class XPatRunnerCreator(RunnerCreator):
                  exact_graph: MaGraph, exact_name: str,
                  literal_per_product: int, product_per_output: int,
                  error_function: DistanceFunction,
+                 iteration: int,
                  exact_circuit_name: str = "c1", template_circuit_name: str = "c2") -> None:
         self.exact_graph: MaGraph = exact_graph
 
@@ -32,6 +33,7 @@ class XPatRunnerCreator(RunnerCreator):
 
         self.literal_per_product: int = literal_per_product
         self.product_per_output: int = product_per_output
+        self.iteration: int = iteration
 
         self.exact_circuit_name: str = exact_circuit_name
         self.template_circuit_name: str = template_circuit_name
@@ -519,15 +521,17 @@ class XPatRunnerCreator(RunnerCreator):
             ")",
         ]
 
-    def gen_json_outfile_name(self):
+    def gen_json_outfile_name(self, et=None):
         folder, extension = sxpatpaths.OUTPUT_PATH[JSON]
+        et_text = "{ET}" if et is None else et
         return (
             f"{folder}/{self.exact_name}"
             f"_{LPP}{self.literal_per_product}"
             f"_{PPO}{self.product_per_output}"
             f"_{DST}{self.error_function.abbreviation}"
-            f"_{TEMPLATE_SPEC_ET}{{ET}}"
-            f"_{self.name}"
+            # f"_et{self.et}"
+            f"_{TEMPLATE_SPEC_ET}{et_text}"
+            f"_iter{self.iteration}"
             f".{extension}"
         )
 

@@ -1,3 +1,4 @@
+import json
 from time import time as time_now
 from typing import Tuple
 
@@ -10,6 +11,8 @@ from sxpat.templateCreator import Template_SOP1
 from sxpat.templateSpecs import TemplateSpecs
 
 import sxpat.config.config as sxpat_config
+from sxpat.config import paths as sxpatpaths
+
 
 from z_marco.ma_graph import MaGraph, extract_subgraph
 
@@ -32,8 +35,10 @@ class Template_V2(Template_SOP1):
 
     def set_new_context(self, template_specs: TemplateSpecs):
         super().set_new_context(template_specs)
+        self.et = template_specs.et
+        
 
-        self.executor.set_context(self.lpp, self.ppo)
+        self.executor.set_context(self.exact_benchmark, self.et, self.lpp, self.ppo, self.iterations)
 
     def set_graph_and_update_functions(self, annotated_graph: AnnotatedGraph):
         # > Graphs
@@ -70,6 +75,8 @@ class Template_V2(Template_SOP1):
 
         self.executor.set_error_functions(circuit_distance_function, subcircuit_distance_function)
 
+        return full_graph, sub_graph
+
     def run_phase1(self, arguments: Tuple):
         p1_start = time_now()
         self.max_sub_distance = self.executor._phase1(arguments)
@@ -78,5 +85,31 @@ class Template_V2(Template_SOP1):
 
     def run_phase2(self):
         p2_start = time_now()
-        self.executor._phase2(self.max_sub_distance - 1)
+        status, model = self.executor._phase2(self.max_sub_distance)
         print(f"p2_time = {(time_now() - p2_start):.6f}")
+
+        return status, model
+
+    # @override
+    def import_json_model(self, this_path=None):
+        self.json_model = []
+        self.json_status = []
+        if this_path:
+            self.json_in_path(this_path)
+        else:
+            self.json_in_path = self.executor.gen_json_outfile_name(self.max_sub_distance - 1)
+
+        with open(self.json_in_path, 'r') as f:
+            data = json.load(f)
+        for d in data:
+            for key in d.keys():
+                if key == sxpat_config.RESULT:
+                    if d[key] == sxpat_config.SAT:
+                        self.json_model.append(d[sxpat_config.MODEL])
+                        self.json_status.append(sxpat_config.SAT)
+                    elif d[key] == sxpat_config.UNSAT:
+                        self.json_model.append(None)
+                        self.json_status.append(sxpat_config.UNSAT)
+                    else:
+                        self.json_model.append(None)
+                        self.json_status.append(sxpat_config.UNKNOWN)
