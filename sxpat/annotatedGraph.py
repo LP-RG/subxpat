@@ -271,7 +271,11 @@ class AnnotatedGraph(Graph):
             self.subgraph_num_fanin = len(self.subgraph_fanin_dict)
             self.subgraph_num_fanout = len(self.subgraph_fanout_dict)
             self.graph_num_intact_gates = len(self.__graph_intact_gate_dict)
-            return True
+
+            if self.subgraph_num_gates == 0:
+                return False
+            else:
+                return True
 
     def find_subgraph_feasible(self, specs_obj: TemplateSpecs):
         """
