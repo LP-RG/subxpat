@@ -99,6 +99,7 @@ class Arguments(Arguments):
         self.__parallel: bool = tmp_args.parallel
         self.__full_error_function: int = tmp_args.full_error_function
         self.__sub_error_function: int = tmp_args.sub_error_function
+        self.et_partitioning: int = tmp_args.et_partitioning
 
     @property
     def parallel(self):
@@ -381,6 +382,11 @@ class Arguments(Arguments):
         my_parser.add_argument('--sub_error_function',
                                choices=['1', '2'],
                                default=1)
+
+        #
+        my_parser.add_argument('--et-partitioning',
+                               choices=['asc', 'desc'],
+                               default='asc')
 
         tmp_args = my_parser.parse_args()
 

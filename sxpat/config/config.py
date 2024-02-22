@@ -32,7 +32,7 @@ MIN_LABELING = 'min_labeling'
 PARALLEL = 'parallel'
 FULL_ERROR_FUNCTION = 'full_error_function'
 SUB_ERROR_FUNCTION = 'sub_error_function'
-
+ET_PARTITIONING = 'et_partitioning'
 
 # shared
 SHARED = 'shared'

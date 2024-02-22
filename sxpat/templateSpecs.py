@@ -32,6 +32,8 @@ class TemplateSpecs:
         self.__full_error_function: int = int(kwargs[FULL_ERROR_FUNCTION])
         self.__sub_error_function: int = int(kwargs[SUB_ERROR_FUNCTION])
 
+        self.et_partitioning: str = kwargs[ET_PARTITIONING]
+
     @property
     def parallel(self):
         return self.__parallel
@@ -67,6 +69,10 @@ class TemplateSpecs:
     @property
     def exact_benchmark(self):
         return self.__exact_benchamrk_name
+
+    @exact_benchmark.setter
+    def exact_benchmark(self, value):
+        self.__exact_benchamrk_name = value
 
     @property
     def benchmark_name(self):
@@ -107,7 +113,7 @@ class TemplateSpecs:
     @property
     def subxpat_v2(self):
         return self.__subxpat_v2
-    
+
     @property
     def iterations(self):
         return self.__iterations
@@ -168,6 +174,10 @@ class TemplateSpecs:
     def et(self):
         return self.__error_threshold
 
+    @et.setter
+    def et(self, value):
+        self.__error_threshold = value
+
     @property
     def min_subgraph_size(self):
         return self.__min_subgraph_size
@@ -221,4 +231,8 @@ class TemplateSpecs:
                f'{self.population = }\n' \
                f'{self.shared = }\n'  \
                f'{self.parallel = }\n' \
-               f'{self.min_labeling = }'
+               f'{self.min_labeling = }\n' \
+               f'{self.full_error_function = }\n' \
+               f'{self.sub_error_function = }\n' \
+               f'{self.et_partitioning = }\n' \
+               f''

@@ -232,6 +232,10 @@ class Template_SOP1(TemplateCreator):
     def et(self):
         return self.__error_threshold
 
+    @et.setter
+    def et(self, value):
+        self.__error_threshold = value
+        
     @property
     def iterations(self):
         return self.__iterations
@@ -336,7 +340,6 @@ class Template_SOP1(TemplateCreator):
                         self.json_status.append(UNKNOWN)
 
     def get_json_runtime(self, this_id: int = 0):
-
         with open(self.json_in_path, 'r') as f:
             data = json.load(f)
 
