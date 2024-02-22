@@ -258,6 +258,9 @@ def explore_grid(specs_obj: TemplateSpecs):
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
             print(f'subgraph_extraction_time = {time.time() - t_start}')
 
+            if not subgraph_is_available:
+                exit()
+
             # export subgraph
             folder = 'output/gv/subgraphs'
             graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
