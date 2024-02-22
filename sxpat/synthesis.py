@@ -1,18 +1,18 @@
-from builtins import property
-from typing import List, Dict, Callable, Iterable, Tuple, AnyStr
+from typing import List, Dict, Optional, Tuple, AnyStr
+
 import json
 import re
-import shutil
-import networkx as nx
+
 import subprocess
-import os
 from subprocess import PIPE
-from colorama import Fore, Back, Style
-from itertools import repeat
+import os
 
 from Z3Log.graph import Graph
 from Z3Log.config.config import *
 from Z3Log.config.path import *
+
+from z_marco.ma_graph import MaGraph
+from z_marco.utils import pprint, color
 
 from .annotatedGraph import AnnotatedGraph
 from .config import paths as sxpatpaths
@@ -24,7 +24,7 @@ class Synthesis:
     # TODO:
     # we assign wires to both inputs and outputs of an annotated subgraph
     # follow, inputs, red, white, outputs notation in the Verilog generation
-    def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj: List[Dict] = None):
+    def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj: List[Dict] = None, magraph: MaGraph = None):
         self.__benchmark_name = template_specs.benchmark_name
         self.__exact_benchmark_name = template_specs.exact_benchmark
         self.__template_name = template_specs.template_name
@@ -37,15 +37,19 @@ class Synthesis:
         self.__product_per_output = template_specs.products_per_output
         self.__error_threshold = template_specs.et
         self.__graph: AnnotatedGraph = graph_obj
+        self.__magraph: Optional[MaGraph] = magraph
+        self.__partitioning_percentage = template_specs.partitioning_percentage
+
         self.__num_models: int = template_specs.num_of_models
         print(f'{self.__num_models = }')
+
         if self.shared:
             self.__products_in_total: int = template_specs.products_in_total
         else:
             self.__products_in_total: float = float('inf')
 
         if json_obj == sxpatconfig.UNSAT or json_obj == sxpatconfig.UNKNOWN:
-            print(Fore.RED + 'ERROR!!! the json does not contain any models!' + Style.RESET_ALL)
+            pprint.error('ERROR!!! the json does not contain any models!')
         else:
             self.__json_model: json = json_obj
             self.__num_models = self.get_num_models_from_json(json_obj)
@@ -61,9 +65,16 @@ class Synthesis:
             self.__ver_out_name: str = None
             self.__ver_out_path: str = self.set_path(OUTPUT_PATH['ver'])
 
-            self.__verilog_string: List[str] = [AnyStr] * self.num_of_models
+            self.__verilog_string: List[str] = self.convert_to_verilog()
+            # print(self.__verilog_string)
 
-            self.__verilog_string = self.convert_to_verilog()
+    @property
+    def partitioning_percentage(self):
+        return self.__partitioning_percentage
+
+    @property
+    def pp(self):
+        return self.__partitioning_percentage
 
     @property
     def products_in_total(self):
@@ -182,11 +193,11 @@ class Synthesis:
         self.__verilog_string = this_verilog_string
 
     def get_num_models_from_json(self, json_obj: List[Dict]):
-        num_models = 0
+        # todo:refactor
 
+        num_models = 0
         for idx in range(len(json_obj)):
             if json_obj[idx]:
-                # print(f'{json_obj[idx] = }')
                 num_models += 1
 
         return num_models
@@ -196,44 +207,44 @@ class Synthesis:
 
         if this_name:
             self.ver_out_name = this_name
-        else:
-            if re.search('id(\d+)', self.benchmark_name):
-                self.ver_out_name = f'{self.benchmark_name}_{id}.{extenstion}'
-            else:
-                if self.num_of_models == 1:
-                    self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_id0.{extenstion}'
-                elif self.num_of_models > 1:
-                    self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_id{id}.{extenstion}'
+
+        elif re.search('id(\d+)', self.benchmark_name):
+            self.ver_out_name = f'{self.benchmark_name}_{id}.{extenstion}'
+
+        elif self.num_of_models == 1:
+            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_id0.{extenstion}'
+
+        elif self.num_of_models > 1:
+            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_id{id}.{extenstion}'
+
         self.ver_out_path = f'{folder}/{self.ver_out_name}'
+        return self.ver_out_path
 
-        return f'{folder}/{self.ver_out_name}'
-
-    def convert_to_verilog(self, use_graph: bool = use_graph, use_json_model: bool = use_json_model):
+    def convert_to_verilog(self):
         """
         converts the graph and/or the json model into a Verilog string
         :param use_graph: if set to true, the graph is used
         :param use_json_model: if set to true, the json model is used
         :return: a Verilog description in the form of a String object
         """
-
-        if self.subxpat:  # for SubXPAT
-            if self.shared:
-                verilog_str = self.__annotated_graph_to_verilog_shared()  # Shared SubXPAT
-            else:
-                verilog_str = self.__annotated_graph_to_verilog()  # SubXPAT
-        elif not self.subxpat:
-            if self.shared:
-                verilog_str = self.__json_model_to_verilog_shared()  # Shared XPAT
-            else:
-
-                verilog_str = self.__annotated_graph_to_verilog()  # XPAT (Vanilla)
-
+        if self.__magraph:
+            # todo:hack: temporary
+            verilog_str = [self.__magraph_to_verilog()]
+        elif self.subxpat and self.shared:
+            verilog_str = self.__annotated_graph_to_verilog_shared()  # Shared SubXPAT
+        elif self.subxpat and not self.shared:
+            verilog_str = self.__annotated_graph_to_verilog()  # SubXPAT
+        elif not self.subxpat and self.shared:
+            verilog_str = self.__json_model_to_verilog_shared()  # Shared XPAT
+        elif not self.subxpat and not self.shared:
+            verilog_str = self.__annotated_graph_to_verilog()  # XPAT (Vanilla)
         else:
-            print(Fore.RED + f'ERROR!!! the graph or json model cannot be converted into a Verilog script!' + Style.RESET_ALL)
-            exit()
+            pprint.error('ERROR!!! the graph or json model cannot be converted into a Verilog script!')
+            exit(1)
+
         return verilog_str
 
-    def __json_input_wire_declarations(self, idx: int = 0):
+    def __json_input_wire_declarations(self):
         graph_input_list = list(self.graph.subgraph_input_dict.values())
 
         input_wire_list = f'//json input wires\n'
@@ -329,7 +340,9 @@ class Synthesis:
                 pi_list.append(node)
             else:
                 g_list.append(node)
-        pi_list.sort(key=lambda x: re.search('\d+', x).group())
+
+        # note:marco: bug found, was sorting by string and not by int
+        pi_list.sort(key=lambda x: int(re.search('\d+', x).group()))
         for el in pi_list:
             subpgraph_input_list_ordered.append(el)
         for el in g_list:
@@ -352,11 +365,11 @@ class Synthesis:
     def __json_model_lpp_and_subgraph_output_assigns(self, idx: int = 0):
         lpp_assigns = f'//json model assigns (approximated/XPATed part)\n'
         annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
-        # print(f'{self.num_of_models = }')
+
         lpp_assigns += f''
         for o_idx in range(self.graph.subgraph_num_outputs):
             p_o = f'{sxpatconfig.PRODUCT_PREFIX}{o_idx}'
-            # print(f'{idx = }')
+
             if self.json_model[idx][p_o]:
                 # p_o0_t0, p_o0_t1
                 included_products = []
@@ -409,13 +422,11 @@ class Synthesis:
             n = self.graph.graph_intact_gate_dict[n_idx]
             pn = list(self.graph.graph.predecessors(n))
             gate = self.graph.graph.nodes[n][LABEL]
-            # print(f'{pn = }')
             for idx, el in enumerate(pn):
-                # print(f'{el = }')
-                # print(f'{self.graph.input_dict = }')
-                # print(f'{el in list(self.graph.input_dict.values()) = }')
-                if (el in list(self.graph.input_dict.values()) and el not in list(self.graph.subgraph_input_dict.values())) \
-                        or el in list(self.graph.output_dict.values()):
+                if (
+                    (el in list(self.graph.input_dict.values()) and el not in list(self.graph.subgraph_input_dict.values()))
+                    or (el in list(self.graph.output_dict.values()))
+                ):
                     pass
                 else:
                     pn[idx] = f'{sxpatconfig.VER_WIRE_PREFIX}{el}'
@@ -435,7 +446,7 @@ class Synthesis:
                                    f'{pn[0]} {sxpatconfig.VER_OR} ' \
                                    f'{pn[1]};\n'
             else:
-                print(Fore.RED + f'ERROR!!! node {n} has more than two drivers!' + Style.RESET_ALL)
+                pprint.error(f'ERROR!!! node {n} has more than two drivers!')
                 exit()
 
         return intact_part
@@ -503,26 +514,28 @@ class Synthesis:
         return intact_wires
 
     def __get_module_signature(self, idx: int = 0):
-
         input_list = list(self.graph.input_dict.values())
 
-        input_list.sort(key=lambda x: re.search('\d+', x).group())
-
+        # note:marco: bug found, was sorting by string and not by int
+        input_list.sort(key=lambda x: int(re.search('\d+', x).group()))
         # input_list.sort(key=lambda x: re.search('\d+', x).group())
 
         output_list = list(self.graph.output_dict.values())
         # Sort Dictionary
 
-        module_name = f'{self.ver_out_name[:-2]}'
+        module_name = self.ver_out_name[:-2]
         module_signature = f"{sxpatconfig.VER_MODULE} {module_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
 
         return module_signature
 
     def __declare_inputs_outputs(self):
         input_list = list(self.graph.input_dict.values())
-        input_list.sort(key=lambda x: re.search('\d+', x).group())
+        # note:marco: bug found, was sorting by string and not by int
+        input_list.sort(key=lambda x: int(re.search('\d+', x).group()))
+        # input_list.sort(key=lambda x: re.search('\d+', x).group())
         # input_list.reverse()
         # print(f'{input_list = }')
+
         output_list = list(self.graph.output_dict.values())
         input_declarations = f"//input/output declarations\n"
         input_declarations += f"{sxpatconfig.VER_INPUT} {', '.join(input_list)};\n"
@@ -1076,6 +1089,71 @@ class Synthesis:
             ver_str += 'endmodule\n'
             ver_string.append(ver_str)
         return ver_string
+
+    def __magraph_to_verilog(self):
+        ver_str = f''
+        input_list = list(self.__magraph.inputs)
+        output_list = list(self.__magraph.outputs)
+
+        # 1. module signature
+        ver_str += f"{sxpatconfig.VER_MODULE} {self.ver_out_name[:-2]} ({', '.join(input_list)}, {', '.join(output_list)});\n"
+
+        # 2. declarations
+        # 2.1 inputs / outputs
+        ver_str += '\n'.join((
+            f"// input/output declarations",
+            f"{sxpatconfig.VER_INPUT} {', '.join(input_list)};",
+            f"{sxpatconfig.VER_OUTPUT} {', '.join(output_list)};"
+        )) + '\n'
+        # 2.2 wires
+        if len(self.__magraph.gates) == 0:
+            ver_str += "// No wires\n"
+        else:
+            ver_str += '\n'.join((
+                f'// gates wires',
+                f"{sxpatconfig.VER_WIRE} {', '.join(self.__magraph.gates)};"
+            )) + '\n'
+
+        # 3. assignments
+        # 3.1 constants
+        constants = {True: "1'b1", False: "1'b0"}
+        ver_str += '\n'.join((
+            f'// constants assignments',
+            *(
+                f'{sxpatconfig.VER_ASSIGN} {name} = {constants[value]};'
+                for name, value in self.__magraph.constants
+            )
+        )) + '\n'
+        # 3.2 gates
+        cases = {
+            (1, sxpatconfig.NOT): lambda ps: f'{sxpatconfig.VER_NOT}{ps[0]}',
+            (2, sxpatconfig.AND): lambda ps: f'{ps[0]} {sxpatconfig.VER_AND} {ps[1]}',
+            (2, sxpatconfig.OR): lambda ps: f'{ps[0]} {sxpatconfig.VER_OR} {ps[1]}',
+        }
+        lines = []
+        for name in self.__magraph.gates:
+            preds = self.__magraph.predecessors(name)
+            case = (len(preds), self.__magraph.function_of(name))
+            if case not in cases:
+                pprint.e(f'ERROR! node {name} has an invalid value (#predecessors={case[0]}, function={case[1]})')
+                exit(1)
+            lines.append(f'{sxpatconfig.VER_ASSIGN} {name} = {cases[case](preds)};')
+        ver_str += '\n'.join((
+            f'// gates assignments',
+            *lines
+        )) + '\n'
+        # 3.3 outputs
+        ver_str += '\n'.join((
+            f'// output assigns',
+            *(
+                f'{sxpatconfig.VER_ASSIGN} {name} = {self.__magraph.predecessors(name)[0]};'
+                for name in self.__magraph.outputs
+            )
+        )) + '\n'
+
+        ver_str += f'{sxpatconfig.VER_ENDMODULE}'
+        return ver_str
+
     # =========================
 
     def estimate_area(self, this_path: str = None):
@@ -1093,7 +1171,7 @@ class Synthesis:
 
         process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
         if process.stderr:
-            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}'+Style.RESET_ALL)
+            raise Exception(color.error(f'Yosys ERROR!!!\n {process.stderr.decode()}'))
         else:
 
             if re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()):
@@ -1102,7 +1180,7 @@ class Synthesis:
             elif re.search(r"Don't call ABC as there is nothing to map", process.stdout.decode()):
                 area = 0
             else:
-                raise Exception(Fore.RED + 'Yosys ERROR!!!\nNo useful information in the stats log!'+Style.RESET_ALL)
+                raise Exception(color.error('Yosys ERROR!!!\nNo useful information in the stats log!'))
 
         return float(area)
 
@@ -1120,7 +1198,7 @@ class Synthesis:
                         f"write_verilog -noattr {design_out_path}"
         process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
         if process.stderr:
-            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
+            raise Exception(color.error(f'Yosys ERROR!!!\n {process.stderr.decode()}'))
 
     def estimate_delay(self, this_path: str = None):
         if this_path:
@@ -1146,14 +1224,14 @@ class Synthesis:
         # process = subprocess.run([sxpatconfig.OPENSTA, delay_script], stderr=PIPE)
         process = subprocess.run([sxpatconfig.OPENSTA, delay_script], stdout=PIPE, stderr=PIPE)
         if process.stderr:
-            raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
+            raise Exception(color.error(f'Yosys ERROR!!!\n {process.stderr.decode()}'))
         else:
             os.remove(delay_script)
             if re.search('(\d+.\d+).*data arrival time', process.stdout.decode()):
                 time = re.search('(\d+.\d+).*data arrival time', process.stdout.decode()).group(1)
                 return float(time)
             else:
-                print(Fore.LIGHTYELLOW_EX + f'OpenSTA Warning! Design has 0 delay!' + Style.RESET_ALL)
+                pprint.warning('OpenSTA Warning! Design has 0 delay!')
                 return -1
 
     def extract_module_name(self, this_path: str = None):
@@ -1195,7 +1273,7 @@ class Synthesis:
 
         process = subprocess.run([sxpatconfig.OPENSTA, power_script], stdout=PIPE, stderr=PIPE)
         if process.stderr:
-            raise Exception(Fore.RED + f'OpenSTA ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
+            raise Exception(color.error(f'OpenSTA ERROR!!!\n {process.stderr.decode()}'))
         else:
             os.remove(power_script)
             pattern = r"Total\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+[^0-9]*\d+)\s+"
@@ -1217,27 +1295,21 @@ class Synthesis:
                 return float(total_power)
 
             else:
-                print(Fore.LIGHTYELLOW_EX + f'OpenSTA Warning! Design has 0 power consumption!' + Style.RESET_ALL)
+                pprint.warning('OpenSTA Warning! Design has 0 power consumption!')
                 return -1
 
     # =========================
 
     def export_verilog(self, this_path: str = None, idx: int = -1):
-        # print(f'{self.ver_out_name = }')
-        if idx >= 0:
-            if this_path:
-                with open(f'{this_path}/{self.ver_out_name}', 'w') as f:
-                    f.writelines(self.verilog_string[idx])
-            else:
-                with open(self.ver_out_path, 'w') as f:
-                    f.writelines(self.verilog_string[idx])
+        if idx < 0:
+            idx = 0
+
+        if this_path:
+            with open(f'{this_path}/{self.ver_out_name}', 'w') as f:
+                f.writelines(self.verilog_string[idx])
         else:
-            if this_path:
-                with open(f'{this_path}/{self.ver_out_name}', 'w') as f:
-                    f.writelines(self.verilog_string[0])
-            else:
-                with open(self.ver_out_path, 'w') as f:
-                    f.writelines(self.verilog_string[0])
+            with open(self.ver_out_path, 'w') as f:
+                f.writelines(self.verilog_string[idx])
 
     def __repr__(self):
         return f'An object of class Synthesis:\n' \
