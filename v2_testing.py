@@ -49,21 +49,23 @@ circuits = [
     # ('input/ver/adder_i4_o3.v', 2**3),
     # ('input/ver/adder_i6_o4.v', 2**4),
     # ('input/ver/adder_i8_o5.v', 2**5),
-    # ('input/ver/adder_i12_o7.v', 2**7),
-    # ('input/ver/adder_i16_o9.v', 2**9),
-    # ('input/ver/adder_i20_o11.v', 2**11),
-    # ('input/ver/adder_i24_o13.v', 2**13),
-    # ('input/ver/adder_i28_o15.v', 2**15),
+    # ('input/ver/adder_i10_o6.v', 2**6),
+    ('input/ver/adder_i12_o7.v', 2**7),
+    ('input/ver/adder_i16_o9.v', 2**9),
+    ('input/ver/adder_i20_o11.v', 2**11),
+    ('input/ver/adder_i24_o13.v', 2**13),
+    ('input/ver/adder_i28_o15.v', 2**15),
     ('input/ver/adder_i32_o17.v', 2**17),
 
     # abs_diff
-    # ('input/ver/abs_diff_i8_o5.v', 2**4),
-    # ('input/ver/abs_diff_i12_o7.v', 2**6),
-    # ('input/ver/abs_diff_i16_o9.v', 2**8),
-    # ('input/ver/abs_diff_i20_o10.v', 2**10),
-    # ('input/ver/abs_diff_i24_o12.v', 2**12),
-    # ('input/ver/abs_diff_i28_o14.v', 2**14),
-    # ('input/ver/abs_diff_i32_o16.v', 2**16),
+    # ('input/ver/abs_diff_i8_o4.v', 2**4),
+    # ('input/ver/abs_diff_i10_o5.v', 2**4),
+    ('input/ver/abs_diff_i12_o6.v', 2**6),
+    ('input/ver/abs_diff_i16_o8.v', 2**8),
+    ('input/ver/abs_diff_i20_o10.v', 2**10),
+    ('input/ver/abs_diff_i24_o12.v', 2**12),
+    ('input/ver/abs_diff_i28_o14.v', 2**14),
+    ('input/ver/abs_diff_i32_o16.v', 2**16),
 ]
 
 ets_portions = [
@@ -76,7 +78,7 @@ ets_portions = [
 partitioning_omax = [
     (1, (10, 20)),
     (2, (10, 20)),
-    (3, (10, 20)),
+    # (3, (10, 20)),
 ]
 
 full_error_functions = [
@@ -88,59 +90,71 @@ sub_error_functions = [
     # 2,
 ]
 
-# specific single cases
-command = [
-    "python3", "temp_main6.py",
-    'input/ver/adder_i20_o11.v',
-    f"-lpp=2", f"-ppo=2",
-    f"-et=128",
-    f"--full_error_function=1",
-    f"--sub_error_function=1",
-
-    # partitioning
-    "--subxpat",
-    "--min_labeling",
-    "-mode=4",
-    f"-omax={2}",
+et_partitionings = [
+    'asc',
+    'desc'
 ]
-print("COMMAND", " ".join(command), flush=True)
-subprocess.run(command)
 
 
-exit()
+# # specific single cases
+# command = [
+#     "python3", "temp_main6.py",
+#     'input/ver/adder_i20_o11.v',
+#     f"-lpp=2", f"-ppo=2",
+#     f"-et=128",
+#     f"--full_error_function=1",
+#     f"--sub_error_function=1",
+
+#     # partitioning
+#     "--subxpat",
+#     "--min_labeling",
+#     "-mode=4",
+#     f"-omax={2}",
+# ]
+# print("COMMAND", " ".join(command), flush=True)
+# subprocess.run(command)
+
+
+# exit()
 
 ####
-for omax, (max_lpp, max_ppo) in partitioning_omax:
+for filename, max_error in circuits:
+    for omax, (max_lpp, max_ppo) in partitioning_omax:
 
-    for filename, max_error in circuits:
         for et_portion in ets_portions:
             et = et_portion(max_error)
 
-            for full_func in full_error_functions:
-                for sub_func in sub_error_functions:
+            for et_partit in et_partitionings:
 
-                    # grid exploration
-                    sat_cells = []
-                    for lpp, ppo in cell_iterator(max_lpp, max_ppo):
+                for full_func in full_error_functions:
+                    for sub_func in sub_error_functions:
 
-                        # skip dominated cells
-                        if is_dominated((lpp, ppo), sat_cells):
-                            print(f'skipping ({lpp}, {ppo})')
-                            continue
+                        # # grid exploration
+                        # sat_cells = []
+                        # for lpp, ppo in cell_iterator(max_lpp, max_ppo):
+
+                        #     # skip dominated cells
+                        #     if is_dominated((lpp, ppo), sat_cells):
+                        #         print(f'skipping ({lpp}, {ppo})')
+                        #         continue
 
                         command = [
-                            "python3", "temp_main6.py",
-                            filename,
-                            f"-lpp={lpp}", f"-ppo={ppo}",
-                            f"-et={et}",
+                            "python3", "main.py",
+                            filename, f"--app={filename}",
+                            #
+                            f"-lpp={max_lpp}", f"-ppo={max_ppo}",
+                            #
+                            f"-et={et}", f"--et-partitioning={et_partit}",
+                            #
                             f"--full_error_function={full_func}",
                             f"--sub_error_function={sub_func}",
 
+                            #
+                            "--subxpat", "--subxpat-v2", "--grid",
+
                             # partitioning
-                            "--subxpat",
                             "--min_labeling",
-                            "-mode=4",
-                            f"-omax={omax}",
+                            "-mode=4", f"-omax={omax}",
                         ]
                         print("COMMAND", " ".join(command), flush=True)
                         res = subprocess.run(command, stdout=subprocess.PIPE)
@@ -148,8 +162,8 @@ for omax, (max_lpp, max_ppo) in partitioning_omax:
                         out = res.stdout.decode()
                         print(out, end='', flush=True)
 
-                        if out.splitlines()[-1].startswith('area'):
-                            sat_cells.append((lpp, ppo))
+                        # if out.splitlines()[-1].startswith('area'):
+                        #     sat_cells.append((lpp, ppo))
                         # exit()
 
 
