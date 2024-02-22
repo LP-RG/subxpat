@@ -1,24 +1,13 @@
-# import shutil
-# import csv
-# from colorama import Fore, Style
-
-# from Z3Log.verilog import Verilog
-# from Z3Log.graph import Graph
-# from Z3Log.utils import *
 from Z3Log.utils import setup_folder_structure
-# from Z3Log.z3solver import Z3solver
 from Z3Log.config import path as z3logpath
 
-# from sxpat.templateCreator import Template_SOP1
 from sxpat.templateSpecs import TemplateSpecs
 from sxpat.config import paths as sxpatpaths
-# from sxpat.config import config as sxpatconfig
 
-# from sxpat.synthesis import Synthesis
 from sxpat.arguments import Arguments
 
-from sxpat.xplore import explore_grid  # , explore_grid_shared
-from sxpat.stats import Stats  # , Result
+from sxpat.xplore_ma import explore_grid
+from sxpat.stats import Stats
 
 from z_marco.utils import pprint
 from sxpat.utils.filesystem import FS
@@ -56,7 +45,8 @@ def main():
                                   literals_per_product=args.lpp, products_per_output=args.ppo,
                                   benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
                                   subxpat=args.subxpat, subxpat_v2=args.subxpat_v2,
-                                  et=args.et,
+                                  full_error_function=args.full_error_function, sub_error_function=args.sub_error_function,
+                                  et=args.et, et_partitioning=args.et_partitioning,
                                   partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
