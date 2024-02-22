@@ -5,6 +5,8 @@ from colorama import Fore, Style
 
 from tabulate import tabulate
 
+import math
+
 import Z3Log
 
 from Z3Log.verilog import Verilog
@@ -12,13 +14,17 @@ from Z3Log.graph import Graph
 from Z3Log.utils import *
 from Z3Log.z3solver import Z3solver
 from Z3Log.config import path as z3logpath
+
 from sxpat.templateCreator import Template_SOP1, Template_SOP1ShareLogic
+from sxpat.TempWrappers.subxpat_v2 import Template_V2
+
 from sxpat.templateSpecs import TemplateSpecs
 from sxpat.config.paths import *
 from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
 from sxpat.utils.filesystem import FS
-from sxpat.verification import erroreval_verification, erroreval_verification_explicit, erroreval_verification_buggy
+from sxpat.verification import erroreval_verification_explicit
+# from sxpat.verification import erroreval_verification, erroreval_verification_explicit, erroreval_verification_buggy
 from sxpat.stats import Stats
 from sxpat.stats import *
 
@@ -58,11 +64,12 @@ def explore_cell(specs_obj: TemplateSpecs):
         graph.extract_subgraph(specs_obj)
         print(f'subgraph_extraction_time = {time.time() - t_start}')
 
-        graph.export_graph("./aaaaa.gv")
-        print("./aaaaa.gv")
-        print(*graph.input_dict.items(), sep="\n")
-        exit()
+        # graph.export_graph("./aaaaa.gv")
+        # print("./aaaaa.gv")
+        # print(*graph.input_dict.items(), sep="\n")
+        # exit()
 
+        # export subgraph
         folder = 'output/gv/subgraphs'
         graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
         FS.mkdir(folder)
@@ -88,7 +95,7 @@ def explore_cell(specs_obj: TemplateSpecs):
                 [2 ** int(out_name.strip("out")) for out_name in full_graph.outputs]
             )
         else:
-            raise RuntimeError("Should not ever raise this")
+            raise RuntimeError("Should never raise this")
 
         # define distance/error function of subgraph
         if specs_obj.sub_error_function == 1:
@@ -147,9 +154,7 @@ def explore_cell(specs_obj: TemplateSpecs):
 
         synth_obj.export_verilog()
         synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
-        print(
-            f'area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})'
-        )
+        print(f'area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})')
 
         # remove the extension
         approximate_benchmark = synth_obj.ver_out_name[:-2]
@@ -168,6 +173,9 @@ def explore_cell(specs_obj: TemplateSpecs):
 def explore_grid(specs_obj: TemplateSpecs):
     print(f'{specs_obj = }')
 
+    # Select toolname
+    if specs_obj.subxpat_v2:
+        pprint.info2('SubXPAT-V2 started...')
     if specs_obj.subxpat and specs_obj.shared:
         pprint.info2('Shared SubXPAT started...')
         toolname = sxpatconfig.SHARED_SUBXPAT
@@ -181,25 +189,19 @@ def explore_grid(specs_obj: TemplateSpecs):
         pprint.info2('XPAT started...')
         toolname = sxpatconfig.XPAT
 
-    # i = 1
+    # initial setup
     total_iterations = specs_obj.iterations
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
     max_lpp = specs_obj.lpp
     max_ppo = specs_obj.pit if specs_obj.shared else specs_obj.ppo
-    # max_ppo = specs_obj.ppo
-    # max_pit = specs_obj.pit
-    # if specs_obj.shared:
-    #     max_ppo = specs_obj.pit
-    # else:
-    #     max_ppo = specs_obj.ppo
-    # cur_lpp = -1
-    # cur_ppo = -1
-
-    # pre_iter_same = False
     total_number_of_cells_per_iter = max_lpp * max_ppo + 1
+
+    # create stat and template object
     stats_obj = Stats(specs_obj)
     if specs_obj.shared:
         template_obj = Template_SOP1ShareLogic(specs_obj)
+    elif specs_obj.subxpat_v2:
+        template_obj = Template_V2(specs_obj)
     else:
         template_obj = Template_SOP1(specs_obj)
 
@@ -208,14 +210,26 @@ def explore_grid(specs_obj: TemplateSpecs):
     total: Dict[Dict] = {}
     pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
 
-    for i in range(1, total_iterations + 1):
-        if not specs_obj.subxpat:
-            pprint.with_color(Fore.LIGHTBLUE_EX)('Only one iteration')
-        else:
-            pprint.with_color(Fore.LIGHTBLUE_EX)(f'iteration {i}')
+    # define errors
+    if not specs_obj.subxpat_v2:
+        error_iterator = ((i+1, specs_obj.et) for i in range(total_iterations))
+    elif specs_obj.et_partitioning == 'asc':
+        log2 = int(math.log2(specs_obj.et))
+        error_iterator = ((i+1, 2**i) for i in range(log2))
+    elif specs_obj.et_partitioning == 'desc':
+        log2 = int(math.log2(specs_obj.et))
+        error_iterator = ((i+1, 2**(log2 - i - 1)) for i in range(log2))
+    else:
+        raise NotImplementedError('invalid status')
 
+    for i, et in error_iterator:
+        pprint.with_color(Fore.LIGHTBLUE_EX)(f'iteration {i} with et {et}'
+                                             if specs_obj.subxpat else
+                                             f'Only one iteration with et {et}')
+
+        # for all candidates
         for candidate in current_population:
-            # print(f'{pre_iter_unsats[candidate] = } {total_number_of_cells_per_iter = }')
+            # guard
             if pre_iter_unsats[candidate] == total_number_of_cells_per_iter:
                 continue
 
@@ -223,45 +237,109 @@ def explore_grid(specs_obj: TemplateSpecs):
             if candidate.endswith('.v'):
                 specs_obj.benchmark_name = candidate[:-2]
 
+            # > grid step settings
+
+            # initialize context
+            specs_obj.et = et
             template_obj.set_new_context(specs_obj)
+
+            # import the graph
             template_obj.current_graph = template_obj.import_graph()
 
+            # extract the subgraph
             if specs_obj.max_sensitivity > 0 or specs_obj.mode == 3 or specs_obj.mode == 4:
+                # label graph
+                t_start = time.time()
                 template_obj.label_graph(min_labeling=specs_obj.min_labeling)
+                print(f'labeling_time = {time.time() - t_start}')
+
+            # extract subgraph
+            t_start = time.time()
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
+            print(f'subgraph_extraction_time = {time.time() - t_start}')
 
-            if subgraph_is_available:
-                pprint.info2(f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...')
-                # ppo = 1
-                # lpp = 0
-                # found = False
+            # export subgraph
+            folder = 'output/gv/subgraphs'
+            graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
+            FS.mkdir(folder)
+            template_obj.current_graph.export_annotated_graph(graph_path)
+            print(f'subgraph exported at {graph_path}')
 
-                for lpp, ppo in cell_iterator(max_lpp, max_ppo):
-                    # while ppo <= max_ppo and not found:
-                    #     while lpp <= max_lpp and not found:
-                    # if lpp == 0 and ppo > 1:
-                    #     lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
-                    #     continue
+            # guard
+            if not subgraph_is_available:
+                break
 
-                    specs_obj = set_current_context(specs_obj, lpp, ppo, i)
-                    template_obj.set_new_context(specs_obj)
+            # run grid phase
+            if template_obj.is_two_phase_kind:
+                # todo:wip:marco
+                full_magraph, sub_magraph = template_obj.set_graph_and_update_functions(template_obj.current_graph)
+                template_obj.run_phase1([specs_obj.et, specs_obj.num_of_models, 1*60*60])
+
+            # explore the grid
+            pprint.info2(f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...')
+            for lpp, ppo in cell_iterator(max_lpp, max_ppo):
+                # > cell step settings
+
+                # update the context
+                specs_obj = set_current_context(specs_obj, lpp, ppo, i)
+                template_obj.set_new_context(specs_obj)
+
+                # run cell phase
+                if template_obj.is_two_phase_kind:
+                    # run script
+                    cur_status, model = template_obj.run_phase2()
+
+                    template_obj.import_json_model()
+                    print(f"{template_obj.json_in_path = }")
+                    print(f'{cur_status = }')
+                else:
+                    # run script
                     template_obj.z3_generate_z3pyscript()
                     template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=10800)
+
+                    # gather results
                     cur_status = get_status(template_obj)
 
-                    if cur_status in (UNSAT, UNKNOWN):
-                        pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()} ')
-                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                        this_iteration=i,
-                                                                        this_area=-1,
-                                                                        this_runtime=template_obj.get_json_runtime(),
-                                                                        this_status=cur_status.upper(),
-                                                                        this_cell=(lpp, ppo))
-                        pre_iter_unsats[candidate] += 1
-                        # lpp, ppo = next_cell(lpp, ppo, max_lpp, max_ppo)
-                        # print(f'{lpp}, {ppo}')
+                if cur_status in (UNSAT, UNKNOWN):
+                    pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()} ')
+                    # todo:hack: commented to prevent crash from second iteration
+                    # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                    #                                                 this_iteration=i,
+                    #                                                 this_area=-1,
+                    #                                                 this_runtime=template_obj.get_json_runtime(),
+                    #                                                 this_status=cur_status.upper(),
+                    #                                                 this_cell=(lpp, ppo))
+                    pre_iter_unsats[candidate] += 1
 
-                    elif cur_status == SAT:
+                elif cur_status == SAT:
+                    if specs_obj.subxpat_v2:
+                        model_graph = xpat_model_to_magraph(model, iter_id=i)
+                        merged_graph = insert_subgraph(full_magraph, model_graph)
+                        # print(merged_graph.inputs, merged_graph.outputs)
+                        # draw_gv(merged_graph, "banana.gv")
+                        # print('banana.gv')
+
+                        synth_obj = Synthesis(
+                            specs_obj,
+                            template_obj.current_graph,  # not needed but given for now
+                            template_obj.json_model,  # not needed but given for now
+                            merged_graph
+                        )
+
+                        # todo:marco: probabilmente da sistemare per la run
+                        cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
+                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
+                        print(f"{synth_obj.ver_out_path = }")
+                        synth_obj.export_verilog()
+                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
+                        cur_model_results[synth_obj.ver_out_name] = (
+                            synth_obj.estimate_area(),
+                            synth_obj.estimate_power(),
+                            synth_obj.estimate_delay(),
+                            (lpp, ppo)
+                        )
+
+                    else:
                         synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
                         cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
                         for idx in range(synth_obj.num_of_models):
@@ -275,49 +353,52 @@ def explore_grid(specs_obj: TemplateSpecs):
                                 (lpp, ppo)
                             )
 
-                        with open(f"{OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{toolname}.csv", 'w') as f:
-                            csvwriter = csv.writer(f)
+                    # TODO: should we refactor with pandas?
+                    with open(f"{OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
+                        csvwriter = csv.writer(f)
 
-                            header = list(range(len(cur_model_results)))
-                            all = list(cur_model_results.values())
-                            content = [f for f, _, _, _ in all]
-                            print(f'{content = }')
+                        header = list(range(len(cur_model_results)))
+                        all = list(cur_model_results.values())
+                        content = [f for (f, _, _, _) in all]
+                        print(f'{content = }')
 
-                            csvwriter.writerow(header)
-                            csvwriter.writerow(content)
+                        csvwriter.writerow(header)
+                        csvwriter.writerow(content)
 
-                        pprint.success('verifying all approximate circuits -> ', end='')
-                        for candidate in cur_model_results:
-                            approximate_benchmark = candidate[:-2]
+                    pprint.success('verifying all approximate circuits -> ', end='')
+                    for candidate in cur_model_results:
+                        approximate_benchmark = candidate[:-2]
 
-                            if not erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
-                                raise Exception(color.error('ErrorEval Verification: FAILED!'))
-                        pprint.success('ErrorEval PASS! ')
+                        # todo:now: update usage as soon as synthesis is updated
+                        # todo:now: recheck that model (and json file) of new system is in the correct format for the old system to use
+                        if not erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
+                            raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
-                        specs_obj.benchmark_name = approximate_benchmark
-                        template_obj.set_new_context(specs_obj)
+                    pprint.success('ErrorEval PASS! ')
 
-                        # cur_lpp = lpp
-                        # cur_ppo = ppo
-                        # runtime = template_obj.get_json_runtime()
-                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
+                    # todo:maybe: ho messo questo qui, controlliamo che funzioni
+                    specs_obj.exact_benchmark = approximate_benchmark
+                    specs_obj.benchmark_name = approximate_benchmark
+                    template_obj.set_new_context(specs_obj)
 
-                        pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)')
-                        exact_stats = [synth_obj.estimate_area(exact_file_path),
-                                       synth_obj.estimate_power(exact_file_path),
-                                       synth_obj.estimate_delay(exact_file_path)]
-                        print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
+                    synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
 
-                        # found = True
+                    pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)')
+                    exact_stats = [synth_obj.estimate_area(exact_file_path),
+                                   synth_obj.estimate_power(exact_file_path),
+                                   synth_obj.estimate_delay(exact_file_path)]
+                    print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
 
-                        for key in cur_model_results.keys():
-                            next_generation[key] = cur_model_results[key]
-                        pre_iter_unsats[candidate] = 0
-            else:
-                break
+                    for key in cur_model_results.keys():
+                        next_generation[key] = cur_model_results[key]
+                    pre_iter_unsats[candidate] = 0
+
+                    # SAT found, stop grid exploration
+                    break
 
         current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
         total[i] = current_population
+        print(current_population)
 
         next_generation = {}
         pre_iter_unsats = {}
@@ -328,6 +409,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             break
 
     for iteration in total.keys():
+        # todo:question: what is total[iteration]?
         if total[iteration]:
             sorted_candidates = sorted(total[iteration].items(), key=lambda x: x[1])
             # print(Fore.LIGHTGREEN_EX + f'iteration{iteration} = {sorted_candidates}' + Style.RESET_ALL)
@@ -337,14 +419,15 @@ def explore_grid(specs_obj: TemplateSpecs):
             this_delay = sorted_candidates[0][1][2]
             lpp, ppo = sorted_candidates[0][1][3]
 
-            stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                            this_iteration=this_iteration,
-                                                            this_area=this_area,
-                                                            this_total_power=this_power,
-                                                            this_delay=this_delay,
-                                                            this_runtime=-1,
-                                                            this_status='SAT',
-                                                            this_cell=(lpp, ppo))
+            # todo:hack: commented to prevent crash
+            # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+            #                                                 this_iteration=this_iteration,
+            #                                                 this_area=this_area,
+            #                                                 this_total_power=this_power,
+            #                                                 this_delay=this_delay,
+            #                                                 this_runtime=-1,
+            #                                                 this_status='SAT',
+            #                                                 this_cell=(lpp, ppo))
 
     display_the_tree(total)
 
@@ -378,10 +461,10 @@ def cell_iterator(max_lpp: int, max_ppo: int) -> Iterator[Tuple[int, int]]:
 
 def is_dominated(coords: Tuple[int, int], sats: Iterable[Tuple[int, int]]) -> bool:
     # NOTE: By Marco
-    # NOTE: Not used. We stop at the first sat, instead of exploring the entire grid
+    # NOTE: Not used. We are stopping at the first sat anyway, instead of exploring the entire grid.
 
-    lpp, ppo = coords
-    for sat_lpp, sat_ppo in sats:
+    (lpp, ppo) = coords
+    for (sat_lpp, sat_ppo) in sats:
         if lpp >= sat_lpp and ppo >= sat_ppo:
             return True
     return False
@@ -441,7 +524,7 @@ def get_status(template_obj: Union[Template_SOP1, Template_SOP1ShareLogic]) -> s
         :rtype: an str containing either of SAT, UNSAT, or UNKNOWN
     """
 
-    # NOTE: refactor by marco
+    # note:refactor:marco
     template_obj.import_json_model()
     assert template_obj.json_status in [SAT, UNSAT, UNKNOWN], "Invalid status"
     return template_obj.json_status
