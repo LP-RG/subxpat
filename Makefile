@@ -45,7 +45,7 @@ setup-all: sftw_dep folders_dep py_init py_dep
 
 rm_cache:
 	@echo "\n[[ removing all pycache folders ]]"
-	find . -name __pycache__ -prune -exec rm -rf {} \;
+	find . -name __pycache__ -prune -print -exec rm -rf {} \;
 
 rm_pyenv:
 	@echo "\n[[ removing the virtual python environment ]]"
