@@ -1,12 +1,17 @@
-venv/
-test/
-output/
+# IDE
+.vscode
+.idea
+
+# local
+./venv
+./input
+
+# generated
+./test
+./output/
+./experiments
+**/__pycache__
+yosys_graph.log
+
+# misc
 Laura/
-input/ver/*.v
-experiments/
-
-*__pycache__/
-
-# Exclusions!
-!requirements.txt
-!main.py
