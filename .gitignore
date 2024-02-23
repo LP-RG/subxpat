@@ -1,17 +1,19 @@
 # IDE
-.vscode
-.idea
+/.vscode
+/.idea
 
 # local
-./venv
-./input
+/test
+/output
+/experiments
 
 # generated
-./test
-./output/
-./experiments
-**/__pycache__
+/venv
+__pycache__
 yosys_graph.log
+
+input/*
+!input/ver.bak
 
 # misc
 Laura/
