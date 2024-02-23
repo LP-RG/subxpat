@@ -40,7 +40,12 @@ folders_dep:
 	@echo "\n[[ creating required folders ]]"
 	$(if $(strip $(EXTRA_FOLDERS)),mkdir -p $(EXTRA_FOLDERS),# nothing to create)
 
-setup: folders_dep py_init py_dep
+input_dep:
+	@echo "\n[[ copying inputs in input/ver/ ]]"
+	mkdir -p input/ver/
+	cp -r input/ver.bak/* input/ver/
+	
+setup: folders_dep py_init py_dep input_dep
 setup-all: sftw_dep folders_dep py_init py_dep
 
 rm_cache:
