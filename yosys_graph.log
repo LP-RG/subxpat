@@ -1,0 +1,104 @@
+
+ /----------------------------------------------------------------------------\
+ |                                                                            |
+ |  yosys -- Yosys Open SYnthesis Suite                                       |
+ |                                                                            |
+ |  Copyright (C) 2012 - 2020  Claire Xenia Wolf <claire@yosyshq.com>         |
+ |                                                                            |
+ |  Permission to use, copy, modify, and/or distribute this software for any  |
+ |  purpose with or without fee is hereby granted, provided that the above    |
+ |  copyright notice and this permission notice appear in all copies.         |
+ |                                                                            |
+ |  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES  |
+ |  WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF          |
+ |  MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR   |
+ |  ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES    |
+ |  WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN     |
+ |  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF   |
+ |  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.            |
+ |                                                                            |
+ \----------------------------------------------------------------------------/
+
+ Yosys 0.34+27 (git sha1 7d30f716e, clang 10.0.0-4ubuntu1 -fPIC -Os)
+
+
+-- Running command `
+        read_verilog output/ver/adder_i12_o7_et4_SOP1_id0_0.v
+        opt
+        clean
+        show -prefix output/gv/adder_i12_o7_et4_SOP1_id0_0 -format gv
+        ' --
+
+1. Executing Verilog-2005 frontend: output/ver/adder_i12_o7_et4_SOP1_id0_0.v
+Parsing Verilog input from `output/ver/adder_i12_o7_et4_SOP1_id0_0.v' to AST representation.
+Generating RTLIL representation for module `\adder_i12_o7_et4_SOP1_id0_0'.
+Successfully finished Verilog frontend.
+
+2. Executing OPT pass (performing simple optimizations).
+
+2.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module adder_i12_o7_et4_SOP1_id0_0.
+<suppressed ~13 debug messages>
+
+2.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\adder_i12_o7_et4_SOP1_id0_0'.
+Removed a total of 0 cells.
+
+2.3. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \adder_i12_o7_et4_SOP1_id0_0..
+  Creating internal representation of mux trees.
+  No muxes found in this module.
+Removed 0 multiplexer ports.
+
+2.4. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \adder_i12_o7_et4_SOP1_id0_0.
+Performed a total of 0 changes.
+
+2.5. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\adder_i12_o7_et4_SOP1_id0_0'.
+Removed a total of 0 cells.
+
+2.6. Executing OPT_DFF pass (perform DFF optimizations).
+
+2.7. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \adder_i12_o7_et4_SOP1_id0_0..
+Removed 5 unused cells and 69 unused wires.
+<suppressed ~6 debug messages>
+
+2.8. Executing OPT_EXPR pass (perform const folding).
+Optimizing module adder_i12_o7_et4_SOP1_id0_0.
+
+2.9. Rerunning OPT passes. (Maybe there is more to do..)
+
+2.10. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \adder_i12_o7_et4_SOP1_id0_0..
+  Creating internal representation of mux trees.
+  No muxes found in this module.
+Removed 0 multiplexer ports.
+
+2.11. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \adder_i12_o7_et4_SOP1_id0_0.
+Performed a total of 0 changes.
+
+2.12. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\adder_i12_o7_et4_SOP1_id0_0'.
+Removed a total of 0 cells.
+
+2.13. Executing OPT_DFF pass (perform DFF optimizations).
+
+2.14. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \adder_i12_o7_et4_SOP1_id0_0..
+
+2.15. Executing OPT_EXPR pass (perform const folding).
+Optimizing module adder_i12_o7_et4_SOP1_id0_0.
+
+2.16. Finished OPT passes. (There is nothing left to do.)
+
+3. Generating Graphviz representation of design.
+Writing dot description to `output/gv/adder_i12_o7_et4_SOP1_id0_0.dot'.
+Dumping module adder_i12_o7_et4_SOP1_id0_0 to page 1.
+Exec: dot -Tgv 'output/gv/adder_i12_o7_et4_SOP1_id0_0.dot' > 'output/gv/adder_i12_o7_et4_SOP1_id0_0.gv.new' && mv 'output/gv/adder_i12_o7_et4_SOP1_id0_0.gv.new' 'output/gv/adder_i12_o7_et4_SOP1_id0_0.gv'
+
+End of script. Logfile hash: 8c6960cbd3, CPU: user 0.02s system 0.00s, MEM: 119.75 MB peak
+Yosys 0.34+27 (git sha1 7d30f716e, clang 10.0.0-4ubuntu1 -fPIC -Os)
+Time spent: 75% 1x show (0 sec), 8% 3x opt_expr (0 sec), ...
