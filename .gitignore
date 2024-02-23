@@ -5,16 +5,17 @@
 # local
 /test
 /output
+/results
 /experiments
+**/*.local
 
 # generated
 /venv
-__pycache__
-yosys_graph.log
-yosys_log.txt
-
-input/*
-!input/ver.bak
+**/__pycache__
+**/yosys_graph.log
+**/yosys_log.txt
+/input/*
+!/input/ver.bak
 
 # misc
 Laura/
