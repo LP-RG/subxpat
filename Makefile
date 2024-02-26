@@ -52,11 +52,15 @@ rm_cache:
 	@echo "\n[[ removing all pycache folders ]]"
 	find . -name __pycache__ -prune -print -exec rm -rf {} \;
 
+rm_temp:
+	@echo "\n[[ removing generated temporary files ]]"
+	rm -f yosys_graph.log
+
 rm_pyenv:
 	@echo "\n[[ removing the virtual python environment ]]"
 	rm -rf $(ENV_NAME)
 
-clean: rm_cache rm_pyenv
+clean: rm_cache rm_temp rm_pyenv
 
 REQUIRED_OBJECTS := config input sxpat z_marco
 REQUIRED_OBJECTS += Makefile requirements.txt
