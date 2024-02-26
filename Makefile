@@ -60,7 +60,7 @@ clean: rm_cache rm_pyenv
 
 REQUIRED_OBJECTS := config input sxpat z_marco
 REQUIRED_OBJECTS += Makefile requirements.txt
-REQUIRED_OBJECTS += v2_testing.py temp_main6.py
+REQUIRED_OBJECTS += v2_testing.py main.py
 send_package:
 	scp -r $(REQUIRED_OBJECTS) $(user)@10.21.12.72:$(directory)
 
