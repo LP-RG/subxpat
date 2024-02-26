@@ -1,11 +1,18 @@
+from __future__ import annotations
+from typing import List
+
 import argparse
-import sys
-import typing
-from Z3Log.argument import Arguments
-from Z3Log.config.config import *
+
+from Z3Log.argument import Arguments as Z3Log_Arguments
+from Z3Log.config.config import WAE, MONOTONIC, SINGLE
 
 
-class Arguments(Arguments):
+class CommaSplitAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, [s.strip() for s in values.split(',')])
+
+
+class Arguments(Z3Log_Arguments):
     def __init__(self, tmp_args: argparse):
         super().__init__(tmp_args)
         self.__literal_per_product: int = tmp_args.lpp
@@ -18,20 +25,19 @@ class Arguments(Arguments):
         self.__grid: bool = tmp_args.grid
         self.__multiple: bool = tmp_args.multiple
         self.__plot: bool = tmp_args.plot
-        self.__imax:int = tmp_args.imax
+        self.__imax: int = tmp_args.imax
         self.__omax: int = tmp_args.omax
         self.__sensitivity: int = tmp_args.sensitivity
         self.__timeout: int = tmp_args.timeout
         self.__subgraph_size: int = tmp_args.subgraphsize
         self.__mode: int = tmp_args.mode
+        self.__manual_nodes: List[str] = tmp_args.manual_nodes
         self.__population: int = tmp_args.population
         self.__num_models: int = tmp_args.num_models
         self.__min_labeling: bool = tmp_args.min_labeling
         self.__shared: bool = tmp_args.shared
         self.__products_in_total: int = tmp_args.pit
         self.__parallel: bool = tmp_args.parallel
-
-
 
     @property
     def parallel(self):
@@ -64,6 +70,10 @@ class Arguments(Arguments):
     @property
     def mode(self):
         return self.__mode
+
+    @property
+    def manual_nodes(self):
+        return self.__manual_nodes
 
     @property
     def partitioning_percentage(self):
@@ -138,9 +148,8 @@ class Arguments(Arguments):
         return self.__clean
 
     @classmethod
-    def parse(cls):
+    def parse(cls) -> Arguments:
         my_parser = argparse.ArgumentParser(description='converts different formats to one another',
-                                            prog=sys.argv[0],
                                             usage='%(prog)s benchmark-name|benchmark-path')
 
         my_parser.add_argument('benchmark',
@@ -253,12 +262,15 @@ class Arguments(Arguments):
                                     [if 2=> imax,omax,min_size,sensitivity] \
                                     [if 3=>min_size,sensitivity]')
 
+        my_parser.add_argument('-manual-nodes',
+                               default=[],
+                               action=CommaSplitAction,
+                               help='Comma separated list of nodes that must be part of the subgraph')
 
         my_parser.add_argument('-population',
-                               type= int,
+                               type=int,
                                default=1,
                                help='selected-solutions-at-every-iteration')
-
 
         my_parser.add_argument('-num_models',
                                type=int,
@@ -317,6 +329,7 @@ class Arguments(Arguments):
                f'{self.timeout = }\n' \
                f'{self.subgraph_size = }\n' \
                f'{self.mode = }\n' \
+               f'{self.manual_nodes = }\n' \
                f'{self.population = }\n' \
                f'{self.num_models = }\n'\
                f'{self.min_labeling = }\n' \
