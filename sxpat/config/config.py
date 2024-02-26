@@ -2,8 +2,8 @@
 OPENSTA = 'sta'
 
 # Synthesis with Yosys
-LIB_PATH='config/gscl45nm.lib'
-ABC_SCRIPT_PATH='config/abc.script'
+LIB_PATH = 'config/gscl45nm.lib'
+ABC_SCRIPT_PATH = 'config/abc.script'
 
 # TemplateSpecs constants
 #   properties
@@ -24,6 +24,7 @@ SENSITIVITY = 'sensitivity'
 TIMEOUT = 'timeout'
 SUBGRAPHSIZE = 'subgraph_size'
 MODE = 'mode'
+MANUAL_NODES = 'manual_nodes'
 POPULATION = 'population'
 MIN_LABELING = 'min_labeling'
 PARALLEL = 'parallel'
@@ -53,7 +54,7 @@ Z3_AND = 'And'
 Z3_OR = 'Or'
 Z3_NOT = 'Not'
 SUM = 'Sum'
-INTVAL= 'IntVal'
+INTVAL = 'IntVal'
 SOLVER = 'Solver()'
 ADD = 'add'
 FORALL = 'ForAll'
@@ -152,7 +153,6 @@ VER_JSON_WIRE_PREFIX = 'j_'
 VER_INPUT_PREFIX = 'in'
 
 
-
 WEIGHT = 'weight'
 
 
@@ -177,8 +177,8 @@ COLOR_DICT = ['blue', 'red', 'black', 'green',
               'gray', 'pink', 'cyan']
 
 
-SUBXPAT_COLOR_DICT = {'i2_o1':'blue',
-                      'i2_o2':'purple',
+SUBXPAT_COLOR_DICT = {'i2_o1': 'blue',
+                      'i2_o2': 'purple',
                       'i3_o1': 'olive',
                       'i3_o2': 'orange',
                       'i3_o3': 'brown',

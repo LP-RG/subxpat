@@ -17,7 +17,7 @@ from sxpat.synthesis import Synthesis
 from sxpat.arguments import Arguments
 
 
-from sxpat.xplore import explore_grid#, explore_grid_shared
+from sxpat.xplore import explore_grid  # , explore_grid_shared
 from sxpat.stats import Stats, Result
 
 
@@ -40,10 +40,6 @@ def main():
     args = Arguments.parse()
     print(f'{args = }')
 
-
-
-
-
     if args.plot:
 
         print(Fore.BLUE + f'Plotting...' + Style.RESET_ALL)
@@ -55,12 +51,9 @@ def main():
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
                                   min_labeling=args.min_labeling,
-                                  shared= args.shared, products_in_total=args.pit, parallel=args.parallel)
+                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel)
         stats_obj = Stats(specs_obj)
         stats_obj.gather_results()
-
-
-
 
     else:
         if args.clean:
@@ -80,12 +73,11 @@ def main():
                                   partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
-                                  min_labeling=args.min_labeling,
-                                  shared= args.shared, products_in_total=args.pit, parallel=args.parallel)
+                                  min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
+                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel)
 
         if specs_obj.grid:
             stats_obj = explore_grid(specs_obj)
-
 
 
 if __name__ == "__main__":

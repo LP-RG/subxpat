@@ -22,12 +22,12 @@ class TemplateSpecs:
         self.__timeout = kwargs[TIMEOUT]
         self.__min_subgraph_size = kwargs[SUBGRAPHSIZE]
         self.__mode = kwargs[MODE]
+        self.__manual_nodes = kwargs[MANUAL_NODES]
         self.__population = kwargs[POPULATION]
         self.__min_labeling = kwargs[MIN_LABELING]
         self.__shared = kwargs[SHARED]
         self.__products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
         self.__parallel: bool = kwargs[PARALLEL]
-
 
     @property
     def parallel(self):
@@ -36,9 +36,11 @@ class TemplateSpecs:
     @property
     def shared(self):
         return self.__shared
+
     @property
     def min_labeling(self):
         return self.__min_labeling
+
     @property
     def population(self):
         return self.__population
@@ -46,6 +48,10 @@ class TemplateSpecs:
     @property
     def mode(self):
         return self.__mode
+
+    @property
+    def manual_nodes(self):
+        return self.__manual_nodes
 
     @property
     def partitioning_percentage(self):
@@ -146,6 +152,7 @@ class TemplateSpecs:
     @property
     def timeout(self):
         return self.__timeout
+
     @timeout.setter
     def timeout(self, this_timeout):
         self.__timeout = this_timeout
@@ -153,7 +160,6 @@ class TemplateSpecs:
     @property
     def num_of_models(self):
         return self.__num_of_models
-
 
     @property
     def et(self):
@@ -179,7 +185,6 @@ class TemplateSpecs:
     def pit(self, this_pit):
         self.__products_in_total = this_pit
 
-
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \
                f'{self.template_name = }\n' \
@@ -201,6 +206,7 @@ class TemplateSpecs:
                f'{self.timeout = }\n' \
                f'{self.min_subgraph_size = }\n' \
                f'{self.mode = }\n' \
+               f'{self.manual_nodes = }\n' \
                f'{self.population = }\n' \
                f'{self.shared = }\n'  \
                f'{self.parallel = }\n' \
