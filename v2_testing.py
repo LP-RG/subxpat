@@ -48,8 +48,8 @@ circuits = [
     # adder
     # ('input/ver/adder_i4_o3.v', 2**3),
     # ('input/ver/adder_i6_o4.v', 2**4),
-    # ('input/ver/adder_i8_o5.v', 2**5),
-    # ('input/ver/adder_i10_o6.v', 2**6),
+    ('input/ver/adder_i8_o5.v', 2**5),
+    ('input/ver/adder_i10_o6.v', 2**6),
     ('input/ver/adder_i12_o7.v', 2**7),
     ('input/ver/adder_i16_o9.v', 2**9),
     ('input/ver/adder_i20_o11.v', 2**11),
@@ -60,12 +60,12 @@ circuits = [
     # abs_diff
     # ('input/ver/abs_diff_i8_o4.v', 2**4),
     # ('input/ver/abs_diff_i10_o5.v', 2**4),
-    ('input/ver/abs_diff_i12_o6.v', 2**6),
-    ('input/ver/abs_diff_i16_o8.v', 2**8),
-    ('input/ver/abs_diff_i20_o10.v', 2**10),
-    ('input/ver/abs_diff_i24_o12.v', 2**12),
-    ('input/ver/abs_diff_i28_o14.v', 2**14),
-    ('input/ver/abs_diff_i32_o16.v', 2**16),
+    # ('input/ver/abs_diff_i12_o6.v', 2**6),
+    # ('input/ver/abs_diff_i16_o8.v', 2**8),
+    # ('input/ver/abs_diff_i20_o10.v', 2**10),
+    # ('input/ver/abs_diff_i24_o12.v', 2**12),
+    # ('input/ver/abs_diff_i28_o14.v', 2**14),
+    # ('input/ver/abs_diff_i32_o16.v', 2**16),
 ]
 
 ets_portions = [
@@ -78,7 +78,7 @@ ets_portions = [
 partitioning_omax = [
     (1, (10, 20)),
     (2, (10, 20)),
-    # (3, (10, 20)),
+    (3, (10, 20)),
 ]
 
 full_error_functions = [
@@ -118,8 +118,8 @@ et_partitionings = [
 # exit()
 
 ####
-for filename, max_error in circuits:
-    for omax, (max_lpp, max_ppo) in partitioning_omax:
+for omax, (max_lpp, max_ppo) in partitioning_omax:
+    for filename, max_error in circuits:
 
         for et_portion in ets_portions:
             et = et_portion(max_error)
