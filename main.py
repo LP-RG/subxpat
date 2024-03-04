@@ -6,6 +6,7 @@ from sxpat.config import paths as sxpatpaths
 
 from sxpat.arguments import Arguments
 
+# from sxpat.xplore import explore_grid
 from sxpat.xplore_ma import explore_grid
 from sxpat.stats import Stats
 
@@ -19,6 +20,7 @@ def main():
 
     if args.plot:
         pprint.info2('Plotting...')
+
         specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.benchmark_name, literals_per_product=args.lpp,
                                   products_per_output=args.ppo,
                                   benchmark_name=args.approximate_benchmark, num_of_models=args.num_models, subxpat=args.subxpat,
@@ -50,7 +52,7 @@ def main():
                                   partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
-                                  min_labeling=args.min_labeling,
+                                  min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
                                   shared=args.shared, products_in_total=args.pit, parallel=args.parallel)
 
         if specs_obj.grid:

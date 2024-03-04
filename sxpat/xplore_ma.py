@@ -38,145 +38,14 @@ from sxpat.distance_function import WeightedAbsoluteDifference, HammingDistance
 from z_marco.utils import pprint, color
 
 
-def explore_cell(specs_obj: TemplateSpecs):
-    pprint.info2(f'cell ({specs_obj.lpp}, {specs_obj.ppo}) et={specs_obj.et} exploration started')
-
-    exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.benchmark_name}.v"
-    total_iterations = specs_obj.iterations
-
-    for iteration in range(1, total_iterations + 1):
-        specs_obj.iterations = iteration
-
-        # create template object
-        template_obj = Template_SOP1(specs_obj)
-
-        # load graph
-        graph = template_obj.import_graph()
-        template_obj.current_graph = graph
-
-        # label graph
-        t_start = time.time()
-        template_obj.label_graph(specs_obj.min_labeling, parallel=True)
-        print(f'labeling_time = {time.time() - t_start}')
-
-        # extract subgraph
-        t_start = time.time()
-        graph.extract_subgraph(specs_obj)
-        print(f'subgraph_extraction_time = {time.time() - t_start}')
-
-        # graph.export_graph("./aaaaa.gv")
-        # print("./aaaaa.gv")
-        # print(*graph.input_dict.items(), sep="\n")
-        # exit()
-
-        # export subgraph
-        folder = 'output/gv/subgraphs'
-        graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
-        FS.mkdir(folder)
-        graph.export_annotated_graph(graph_path)
-        print(f'exported at {graph_path}')
-
-        # convert AnnotatedGraph to MaGraph(s)
-        full_graph = MaGraph.from_digraph(graph.subgraph)
-        sub_graph = extract_subgraph(graph)
-
-        # print(full_graph.inputs)
-        # print(full_graph.constants)
-        # exit()
-
-        # print(sub_graph)
-        # draw_gv(sub_graph, "subby.gv")
-        # exit(0)
-
-        # define distance/error function of graph
-        if specs_obj.full_error_function == 1:
-            circuit_distance_function = WeightedAbsoluteDifference(
-                full_graph.inputs,
-                [2 ** int(out_name.strip("out")) for out_name in full_graph.outputs]
-            )
-        else:
-            raise RuntimeError("Should never raise this")
-
-        # define distance/error function of subgraph
-        if specs_obj.sub_error_function == 1:
-            subcircuit_distance_function = WeightedAbsoluteDifference(
-                sub_graph.inputs,
-                [graph.subgraph.nodes[n][WEIGHT] for n in sub_graph.unaliased_outputs]
-            )
-        elif specs_obj.sub_error_function == 2:
-            subcircuit_distance_function = HammingDistance(
-                sub_graph.inputs
-            )
-        else:
-            raise RuntimeError("Should not ever raise this")
-
-        # log subgraph output info
-        print("out_weights =", [(n, graph.subgraph.nodes[n][WEIGHT]) for n in sub_graph.unaliased_outputs])
-
-        # create the executor object
-        executor = SubXPatV2Executor(
-            full_graph, sub_graph, specs_obj.exact_benchmark,
-            specs_obj.literals_per_product, specs_obj.products_per_output,
-            circuit_distance_function,
-            subcircuit_distance_function,
-            specs_obj.et
-        )
-
-        # run the executor, retrieving the status (sat, unsat, ...) and the model (only if sat)
-        status, model = executor.run()
-        if status != 'sat':
-            # no model was found
-            pprint.warning(f'Change the parameters!')
-            exit()
-
-        template_obj.json_model = model
-        # print(status, sorted(model.items()))
-
-        # convert the model to a graph
-        model_graph = xpat_model_to_magraph(model, iter_id=iteration)
-        # insert the model_graph in the full_graph, replacing the original sub_graph
-        merged_graph = insert_subgraph(full_graph, model_graph)
-        print(merged_graph.inputs, merged_graph.outputs)
-        # draw_gv(merged_graph, "banana.gv")
-
-        # create synthesis object
-        synth_obj = Synthesis(
-            specs_obj,
-            template_obj.current_graph,  # not needed but given for now
-            template_obj.json_model,  # not needed but given for now
-            merged_graph
-        )
-        # print(synth_obj.verilog_string)
-
-        if iteration > 1:
-            synth_obj.benchmark_name = specs_obj.exact_benchmark
-            synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
-
-        synth_obj.export_verilog()
-        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
-        print(f'area = {synth_obj.estimate_area()} (exact = {synth_obj.estimate_area(exact_file_path)})')
-
-        # remove the extension
-        approximate_benchmark = synth_obj.ver_out_name[:-2]
-
-        # error evaluation verification failed
-        if not erroreval_verification(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
-            print("VERIFICATION BUG")
-            raise Exception(color.error(f'ErrorEval Verification: FAILED!'))
-
-        exit()
-
-        # prepare for next interation
-        specs_obj.benchmark_name = approximate_benchmark
-
-
 def explore_grid(specs_obj: TemplateSpecs):
     print(f'{specs_obj = }')
 
     # Select toolname
     if specs_obj.subxpat_v2:
         pprint.info2('SubXPAT-V2 started...')
-    if specs_obj.subxpat and specs_obj.shared:
+        toolname = sxpatconfig.SUBXPAT_V2
+    elif specs_obj.subxpat and specs_obj.shared:
         pprint.info2('Shared SubXPAT started...')
         toolname = sxpatconfig.SHARED_SUBXPAT
     elif specs_obj.subxpat and not specs_obj.shared:
@@ -223,9 +92,9 @@ def explore_grid(specs_obj: TemplateSpecs):
         raise NotImplementedError('invalid status')
 
     for i, et in error_iterator:
-        pprint.with_color(Fore.LIGHTBLUE_EX)(f'iteration {i} with et {et}'
-                                             if specs_obj.subxpat else
-                                             f'Only one iteration with et {et}')
+        pprint.info1(f'iteration {i} with et {et}'
+                     if specs_obj.subxpat else
+                     f'Only one iteration with et {et}')
 
         # for all candidates
         for candidate in current_population:
@@ -233,7 +102,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             if pre_iter_unsats[candidate] == total_number_of_cells_per_iter:
                 continue
 
-            pprint.with_color(Fore.LIGHTBLUE_EX)(f'candidate {candidate}')
+            pprint.info1(f'candidate {candidate}')
             if candidate.endswith('.v'):
                 specs_obj.benchmark_name = candidate[:-2]
 
@@ -258,8 +127,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
             print(f'subgraph_extraction_time = {time.time() - t_start}')
 
-            # export subgraph
-            # todo:wip:marco
+            # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
             graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
             FS.mkdir(folder)
@@ -317,9 +185,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                     if specs_obj.subxpat_v2:
                         model_graph = xpat_model_to_magraph(model, iter_id=i)
                         merged_graph = insert_subgraph(full_magraph, model_graph)
-                        # print(merged_graph.inputs, merged_graph.outputs)
-                        # draw_gv(merged_graph, "banana.gv")
-                        # print('banana.gv')
 
                         synth_obj = Synthesis(
                             specs_obj,
@@ -355,7 +220,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                                 (lpp, ppo)
                             )
 
-                    # TODO: should we refactor with pandas?
+                    # todo: should we refactor with pandas?
                     with open(f"{OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
                         csvwriter = csv.writer(f)
 
@@ -371,8 +236,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                     for candidate in cur_model_results:
                         approximate_benchmark = candidate[:-2]
 
-                        # todo:now: update usage as soon as synthesis is updated
-                        # todo:now: recheck that model (and json file) of new system is in the correct format for the old system to use
                         if not erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
                             raise Exception(color.error('ErrorEval Verification: FAILED!'))
 

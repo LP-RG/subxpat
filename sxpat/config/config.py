@@ -27,9 +27,11 @@ SENSITIVITY = 'sensitivity'
 TIMEOUT = 'timeout'
 SUBGRAPHSIZE = 'subgraph_size'
 MODE = 'mode'
+MANUAL_NODES = 'manual_nodes'
 POPULATION = 'population'
 MIN_LABELING = 'min_labeling'
 PARALLEL = 'parallel'
+
 FULL_ERROR_FUNCTION = 'full_error_function'
 SUB_ERROR_FUNCTION = 'sub_error_function'
 ET_PARTITIONING = 'et_partitioning'
@@ -98,6 +100,7 @@ ERROR = 'error'
 # random constants
 GV = 'gv'
 JSON = 'json'
+
 LPP = 'lpp'
 PPO = 'ppo'
 PAP = 'pap'
@@ -109,6 +112,7 @@ DST = 'dst'
 class NameParameters(Enum):
     LPP = 'lpp'
     PPO = 'ppo'
+    PIT = 'pit'
     PAP = 'pap'
     ITER = 'iter'
     DST = 'dst'
@@ -191,6 +195,7 @@ XPAT = 'xpat'
 BLASYS = 'blasys'
 SHARED_SUBXPAT = 'shared_subxpat'
 SHARED_XPAT = 'shared_xpat'
+SUBXPAT_V2 = 'subxpat_v2'
 
 # for plotting
 BENCH_DICT = {'abs_diff_2': 'abs_diff_i4_o3', 'abs_diff_4': 'abs_diff_i8_o5', 'abs_diff_6': 'abs_diff_i12_o7',

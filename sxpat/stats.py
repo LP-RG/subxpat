@@ -381,8 +381,8 @@ class Result:
             self.__pareto_files = self.get_pareto_files()
             if len(self.verilog_files) == 0 and len(self.pareto_files) == 0:
                 self.__status: bool = False
-            elif len(self.pareto_files) != 0:
 
+            elif len(self.pareto_files) != 0:
                 self.__status: bool = True
                 self.__verilog_files = self.pareto_files.values()
                 self.__error_array: list = self.extract_error()
@@ -969,8 +969,7 @@ class Result:
                 ds.writelines(sta_command)
             process = subprocess.run([sxpatconfig.OPENSTA, delay_script], stdout=PIPE, stderr=PIPE)
             if process.stderr:
-                raise Exception(
-                    Fore.RED + f'Yosys ERROR!!! in file {ver_file} \n {process.stderr.decode()}' + Style.RESET_ALL)
+                raise Exception(Fore.RED + f'Yosys ERROR!!! in file {ver_file} \n {process.stderr.decode()}' + Style.RESET_ALL)
 
             else:
                 # print(f'{process.stdout.decode() = }')

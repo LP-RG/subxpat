@@ -23,6 +23,7 @@ class TemplateSpecs:
         self.__timeout = kwargs[TIMEOUT]
         self.__min_subgraph_size = kwargs[SUBGRAPHSIZE]
         self.__mode = kwargs[MODE]
+        self.__manual_nodes = kwargs[MANUAL_NODES]
         self.__population = kwargs[POPULATION]
         self.__min_labeling = kwargs[MIN_LABELING]
         self.__shared = kwargs[SHARED]
@@ -53,6 +54,10 @@ class TemplateSpecs:
     @property
     def mode(self):
         return self.__mode
+
+    @property
+    def manual_nodes(self):
+        return self.__manual_nodes
 
     @property
     def partitioning_percentage(self):
@@ -228,11 +233,11 @@ class TemplateSpecs:
                f'{self.timeout = }\n' \
                f'{self.min_subgraph_size = }\n' \
                f'{self.mode = }\n' \
+               f'{self.manual_nodes = }\n' \
                f'{self.population = }\n' \
                f'{self.shared = }\n'  \
                f'{self.parallel = }\n' \
                f'{self.min_labeling = }\n' \
                f'{self.full_error_function = }\n' \
                f'{self.sub_error_function = }\n' \
-               f'{self.et_partitioning = }\n' \
-               f''
+               f'{self.et_partitioning = }'
