@@ -3,12 +3,14 @@
 /.idea
 
 #> local
+local.mk
 /test
 /output
 /results
 /experiments
 /scripts
 **/*.local
+**/*.bak
 
 #> generated
 /venv

@@ -14,6 +14,9 @@ EXTRA_FOLDERS += output/aig output/area output/delay output/figure output/gv out
 ACTIV_ENV := . $(ENV_NAME)/bin/activate
 IN_ENV := $(ACTIV_ENV) &&
 
+# includes
+-include *.mk
+
 # actions
 
 run:
@@ -40,12 +43,12 @@ folders_dep:
 	@echo "\n[[ creating required folders ]]"
 	$(if $(strip $(EXTRA_FOLDERS)),mkdir -p $(EXTRA_FOLDERS),# nothing to create)
 
-input_dep:
-	@echo "\n[[ copying inputs in input/ver/ ]]"
-	mkdir -p input/ver/
-	cp -r input/ver.bak/* input/ver/
-	
-setup: folders_dep py_init py_dep input_dep
+local_dep:
+	@echo "\n[[ generating local files ]]"
+	mkdir -p input/ver/ && cp -r input/ver.bak/* input/ver/
+	touch -a local.mk
+
+setup: folders_dep py_init py_dep local_dep
 setup-all: sftw_dep folders_dep py_init py_dep
 
 rm_cache:
