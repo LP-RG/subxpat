@@ -1,15 +1,18 @@
 from __future__ import annotations
-from typing import Dict, Any
+from typing import List
 
 import argparse
-import sys
-from Z3Log.argument import Arguments
-from Z3Log.config.config import *
+
+from Z3Log.argument import Arguments as Z3Log_Arguments
+from Z3Log.config.config import WAE, MONOTONIC, SINGLE
 
 
-import dataclasses as dc
+class CommaSplitAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, [s.strip() for s in values.split(',')])
 
 
+# import dataclasses as dc
 # @dc.dataclass
 # class Arguments:
 #     """Missing the ones from Z3Log"""
@@ -71,7 +74,7 @@ import dataclasses as dc
 #         )
 
 
-class Arguments(Arguments):
+class Arguments(Z3Log_Arguments):
     def __init__(self, tmp_args: argparse):
         super().__init__(tmp_args)
         self.__literal_per_product: int = tmp_args.lpp
@@ -91,6 +94,7 @@ class Arguments(Arguments):
         self.__timeout: int = tmp_args.timeout
         self.__subgraph_size: int = tmp_args.subgraphsize
         self.__mode: int = tmp_args.mode
+        self.__manual_nodes: List[str] = tmp_args.manual_nodes
         self.__population: int = tmp_args.population
         self.__num_models: int = tmp_args.num_models
         self.__min_labeling: bool = tmp_args.min_labeling
@@ -99,7 +103,7 @@ class Arguments(Arguments):
         self.__parallel: bool = tmp_args.parallel
         self.__full_error_function: int = tmp_args.full_error_function
         self.__sub_error_function: int = tmp_args.sub_error_function
-        self.et_partitioning: int = tmp_args.et_partitioning
+        self.__et_partitioning: int = tmp_args.et_partitioning
 
     @property
     def parallel(self):
@@ -132,6 +136,10 @@ class Arguments(Arguments):
     @property
     def mode(self):
         return self.__mode
+
+    @property
+    def manual_nodes(self):
+        return self.__manual_nodes
 
     @property
     def partitioning_percentage(self):
@@ -217,10 +225,13 @@ class Arguments(Arguments):
     def sub_error_function(self):
         return self.__sub_error_function
 
+    @property
+    def et_partitioning(self):
+        return self.__et_partitioning
+
     @classmethod
-    def parse(cls):
+    def parse(cls) -> Arguments:
         my_parser = argparse.ArgumentParser(description='converts different formats to one another',
-                                            prog=sys.argv[0],
                                             usage='%(prog)s benchmark-name|benchmark-path')
 
         my_parser.add_argument('benchmark',
@@ -336,6 +347,11 @@ class Arguments(Arguments):
                                     [if 2=> imax,omax,min_size,sensitivity] \
                                     [if 3=>min_size,sensitivity]')
 
+        my_parser.add_argument('-manual-nodes',
+                               default=[],
+                               action=CommaSplitAction,
+                               help='Comma separated list of nodes that must be part of the subgraph')
+
         my_parser.add_argument('-population',
                                type=int,
                                default=1,
@@ -398,6 +414,7 @@ class Arguments(Arguments):
                f'{self.products_per_output = }\n' \
                f'{self.products_in_total = }\n' \
                f'{self.subxpat = }\n' \
+               f'{self.subxpat_v2 = }\n' \
                f'{self.et = }\n' \
                f'{self.clean = }\n' \
                f'{self.partitioning_percentage = }\n' \
@@ -411,9 +428,13 @@ class Arguments(Arguments):
                f'{self.timeout = }\n' \
                f'{self.subgraph_size = }\n' \
                f'{self.mode = }\n' \
+               f'{self.manual_nodes = }\n' \
                f'{self.population = }\n' \
                f'{self.num_models = }\n'\
                f'{self.min_labeling = }\n' \
                f'{self.shared = }\n' \
                f'{self.parallel = }\n' \
+               f'{self.full_error_function = }\n' \
+               f'{self.sub_error_function = }\n' \
+               f'{self.et_partitioning = }\n' \
                f'{self.clean = }'

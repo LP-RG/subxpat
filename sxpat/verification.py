@@ -9,13 +9,11 @@ from Z3Log.utils import *
 from Z3Log.z3solver import Z3solver
 from Z3Log.config import path as z3logpath
 
-
 def erroreval_verification_buggy(exact_benchmark_name: str, approximate_benchmark: str, et: int) -> bool:
     # print(f'{approximate_benchmark = }')
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()
     #
-
     verilog_obj_approx = Verilog(approximate_benchmark)
     verilog_obj_approx.export_circuit()
     #

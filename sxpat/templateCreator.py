@@ -235,7 +235,7 @@ class Template_SOP1(TemplateCreator):
     @et.setter
     def et(self, value):
         self.__error_threshold = value
-        
+
     @property
     def iterations(self):
         return self.__iterations
@@ -1553,7 +1553,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
         self.__json_in_path = this_path
 
     def label_graph(self, min_labeling: bool = False, parallel: bool = True):
-
         labels = labeling(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
 
         for n in self.current_graph.graph.nodes:
@@ -1639,7 +1638,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
                         self.json_status.append(UNKNOWN)
 
     def get_json_runtime(self, this_id: int = 0):
-
         with open(self.json_in_path, 'r') as f:
             data = json.load(f)
 
@@ -1799,7 +1797,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
         return utility_variables
 
     # NM
-
     def z3_generate_o_subxpat_shared(self):
         temp_o = ''
         for idx in range(self.graph.subgraph_num_outputs):
@@ -2000,7 +1997,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
         return list(self.exact_graph.graph.predecessors(node))
 
     # NM
-
     def get_logical_function(self, node: str) -> str:
         return self.graph.graph.nodes[node][LABEL]
 
@@ -2356,8 +2352,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
             else:
                 exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints_subxpat(output_label)} +\n"
         return exact_integer_outputs
-        # NM
 
+    # NM
     def z3_generate_approximate_circuit_constraints_shared(self):
         approximate_circuit_constraints = ''
         approximate_circuit_constraints += f'# Approximate circuit\n'
@@ -2803,9 +2799,9 @@ class Template_SOP1ShareLogic(TemplateCreator):
         """
         We have to generate something like this:
         # 		Implies(Not(p_o0), Not(Or(p_pr0_o0, p_pr1_o0, ..., p_prk_o0))),
-                # 		Implies(Not(p_o1), Not(Or(p_pr0_o1, p_pr1_o1, ..., p_prk_o1)))
-                # 			...
-                # 		Implies(Not(p_om), Not(Or(p_pr0_om, p_pr1_om, ..., p_prk_om)))
+        # 		Implies(Not(p_o1), Not(Or(p_pr0_o1, p_pr1_o1, ..., p_prk_o1)))
+        # 			...
+        # 		Implies(Not(p_om), Not(Or(p_pr0_om, p_pr1_om, ..., p_prk_om)))
         """
         const_zero_perm = ''
         const_zero_perm += f'{TAB}{TAB}# remove constant 0 parameters permutations\n'
@@ -2878,9 +2874,9 @@ class Template_SOP1ShareLogic(TemplateCreator):
         """
         sth like this (if pit equals k+1):
         Implies(Not(Or(p_pr0_o0, p_pr0_o1, ..., p_pr0_om)), Not(Or(p_pr0_i0_l, p_pr0_i0_s, ..., p_pr0_in_l, p_pr0_in_s))),
-                Implies(Not(Or(p_pr1_o0, p_pr1_o1, ..., p_pr1_om)), Not(Or(p_pr1_i0_l, p_pr1_i0_s, ..., p_pr1_in_l, p_pr1_in_s))),
-                ...
-                Implies(Not(Or(p_prk_o0, p_prk_o1, ..., p_prk_om)), Not(Or(p_prk_i0_l, p_prk_i0_s, ..., p_prk_in_l, p_prk_in_s))),
+        Implies(Not(Or(p_pr1_o0, p_pr1_o1, ..., p_pr1_om)), Not(Or(p_pr1_i0_l, p_pr1_i0_s, ..., p_pr1_in_l, p_pr1_in_s))),
+        ...
+        Implies(Not(Or(p_prk_o0, p_prk_o1, ..., p_prk_om)), Not(Or(p_prk_i0_l, p_prk_i0_s, ..., p_prk_in_l, p_prk_in_s))),
         """
         unused_products = f'{TAB}{TAB}# remove unused products\n'
         for pit_idx in range(self.pit):

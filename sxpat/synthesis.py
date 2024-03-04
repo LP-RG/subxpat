@@ -2,7 +2,6 @@ from typing import List, Dict, Optional, Tuple, AnyStr
 
 import json
 import re
-
 import subprocess
 from subprocess import PIPE
 import os
@@ -66,15 +65,25 @@ class Synthesis:
             self.__ver_out_path: str = self.set_path(OUTPUT_PATH['ver'])
 
             self.__verilog_string: List[str] = self.convert_to_verilog()
-            # print(self.__verilog_string)
 
     @property
-    def partitioning_percentage(self):
-        return self.__partitioning_percentage
+    def products_in_total(self):
+        return self.__products_in_total
 
     @property
-    def pp(self):
-        return self.__partitioning_percentage
+    def pit(self):
+        return self.__products_in_total
+
+    @property
+    def subxpat(self):
+        return self.__subxpat
+
+    @property
+    def shared(self):
+        return self.__shared
+    @property
+    def num_of_models(self):
+        return self.__num_models
 
     @property
     def products_in_total(self):
@@ -194,6 +203,7 @@ class Synthesis:
 
     def get_num_models_from_json(self, json_obj: List[Dict]):
         # todo:refactor
+        # return sum(1 for i in range(len(json_obj)) if json_obj[i])
 
         num_models = 0
         for idx in range(len(json_obj)):
@@ -244,7 +254,7 @@ class Synthesis:
 
         return verilog_str
 
-    def __json_input_wire_declarations(self):
+    def __json_input_wire_declarations(self, idx: int = 0):
         graph_input_list = list(self.graph.subgraph_input_dict.values())
 
         input_wire_list = f'//json input wires\n'
@@ -975,9 +985,9 @@ class Synthesis:
             output_assigns = self.__output_assigns()
 
             ver_str += module_signature + io_declaration + intact_wires + annotated_graph_input_wires + json_input_wires + \
-                annotated_graph_input_wires + annotated_graph_output_wires + json_output_wires + json_model_wires
+                       annotated_graph_input_wires + annotated_graph_output_wires + json_output_wires + json_model_wires
             ver_str += json_input_assign + subgraph_to_json_input_mapping + intact_assigns + \
-                json_model_and_subgraph_outputs_assigns + shared_assigns + output_assigns
+                       json_model_and_subgraph_outputs_assigns + shared_assigns + output_assigns
 
             # print(f'{ver_str = }')
             ver_string.append(ver_str)
