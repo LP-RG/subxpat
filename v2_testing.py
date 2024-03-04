@@ -1,24 +1,9 @@
-from typing import Iterator, List, Tuple
+from typing import Iterable, Iterator, List, Tuple
 import dataclasses as dc
 
-import os
-import sys
 import subprocess
-from multiprocessing.pool import Pool
-
-from z_marco.utils import pprint
-
-
-@dc.dataclass
-class Task:
-    verilog_file: str
-    error_threshold: int
-    max_lpp: int
-    max_ppo: int
-    full_error_func: int
-    sub_error_func: int
-    extraction: int
-    extraction_param: int
+import datetime
+import itertools as it
 
 
 def cell_iterator(max_lpp: int, max_ppo: int) -> Iterator[Tuple[int, int]]:
@@ -37,6 +22,17 @@ def is_dominated(coords: Tuple[int, int], sats: List[Tuple[int, int]]) -> bool:
         if lpp >= d_lpp and ppo >= d_ppo:
             return True
     return False
+
+
+def run_command(command: Iterable[str]):
+    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    with open(logfile, 'ab') as f:
+        for line in proc.stdout:
+            print(line.decode(), end='', sep='', )
+            f.write(line)
+
+    proc.wait()
 
 
 circuits = [
@@ -76,13 +72,21 @@ ets_portions = [
 ]
 
 partitioning_omax = [
-    (1, (10, 20)),
+    # (1, (10, 20)),
     (2, (10, 20)),
     (3, (10, 20)),
 ]
 
+extraction_modes = [
+    # 1,
+    # 2,
+    # 3,
+    # 4,
+    5,
+]
+
 full_error_functions = [
-    1
+    1,
 ]
 
 sub_error_functions = [
@@ -96,86 +100,46 @@ et_partitionings = [
 ]
 
 
-# # specific single cases
-# command = [
-#     "python3", "temp_main6.py",
-#     'input/ver/adder_i20_o11.v',
-#     f"-lpp=2", f"-ppo=2",
-#     f"-et=128",
-#     f"--full_error_function=1",
-#     f"--sub_error_function=1",
+logfile = f"{datetime.datetime.now()}.log"
+print(f"{logfile = }")
 
-#     # partitioning
-#     "--subxpat",
-#     "--min_labeling",
-#     "-mode=4",
-#     f"-omax={2}",
-# ]
-# print("COMMAND", " ".join(command), flush=True)
-# subprocess.run(command)
+for (
+    (omax, (max_lpp, max_ppo)),
+    (extr_mode),
+    (filename, max_error),
+    (et_portion),
+    (et_partit),
+    (full_func),
+    (sub_func),
+) in it.product(
+    partitioning_omax,
+    extraction_modes,
+    circuits,
+    ets_portions,
+    et_partitionings,
+    full_error_functions,
+    sub_error_functions,
+):
+    et = et_portion(max_error)
 
+    command = [
+        "python3", "main.py",
+        filename, f"--app={filename}",
+        #
+        f"-lpp={max_lpp}", f"-ppo={max_ppo}",
+        #
+        f"-et={et}", f"--et-partitioning={et_partit}",
+        #
+        f"--full_error_function={full_func}",
+        f"--sub_error_function={sub_func}",
 
-# exit()
+        #
+        "--subxpat", "--subxpat-v2", "--grid",
 
-####
-for omax, (max_lpp, max_ppo) in partitioning_omax:
-    for filename, max_error in circuits:
+        # partitioning
+        "--min_labeling",
+        f"-mode={extr_mode}", f"-omax={omax}",
+    ]
 
-        for et_portion in ets_portions:
-            et = et_portion(max_error)
-
-            for et_partit in et_partitionings:
-
-                for full_func in full_error_functions:
-                    for sub_func in sub_error_functions:
-
-                        # # grid exploration
-                        # sat_cells = []
-                        # for lpp, ppo in cell_iterator(max_lpp, max_ppo):
-
-                        #     # skip dominated cells
-                        #     if is_dominated((lpp, ppo), sat_cells):
-                        #         print(f'skipping ({lpp}, {ppo})')
-                        #         continue
-
-                        command = [
-                            "python3", "main.py",
-                            filename, f"--app={filename}",
-                            #
-                            f"-lpp={max_lpp}", f"-ppo={max_ppo}",
-                            #
-                            f"-et={et}", f"--et-partitioning={et_partit}",
-                            #
-                            f"--full_error_function={full_func}",
-                            f"--sub_error_function={sub_func}",
-
-                            #
-                            "--subxpat", "--subxpat-v2", "--grid",
-
-                            # partitioning
-                            "--min_labeling",
-                            "-mode=4", f"-omax={omax}",
-                        ]
-                        print("COMMAND", " ".join(command), flush=True)
-                        res = subprocess.run(command, stdout=subprocess.PIPE)
-
-                        out = res.stdout.decode()
-                        print(out, end='', flush=True)
-
-                        # if out.splitlines()[-1].startswith('area'):
-                        #     sat_cells.append((lpp, ppo))
-                        # exit()
-
-
-# # if len(sys.argv) == 2:
-# #     tasks = [tasks[int(sys.argv[1])]]
-
-# for circuit, max_lpp, max_ppo, ets in tasks:
-#     for et in ets:
-#         for lpp, ppo in cell_iterator(max_lpp, max_ppo):
-#             command = f"python3 temp_main6.py {circuit} -lpp={lpp} -ppo={ppo} -et={et}"
-#             print("COMMAND", command, flush=True)
-#             res = subprocess.run(
-#                 command.split(" "),
-#                 # stdout=subprocess.PIPE
-#             )
+    print("COMMAND", " ".join(command))
+    run_command(command)
