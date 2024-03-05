@@ -49,7 +49,7 @@ local_dep:
 	touch -a local.mk
 
 setup: folders_dep py_init py_dep local_dep
-setup-all: sftw_dep folders_dep py_init py_dep
+setup-all: sftw_dep setup
 
 rm_cache:
 	@echo "\n[[ removing all pycache folders ]]"
