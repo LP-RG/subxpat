@@ -25,9 +25,13 @@ def is_dominated(coords: Tuple[int, int], sats: List[Tuple[int, int]]) -> bool:
 
 
 def run_command(command: Iterable[str]):
-    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     with open(logfile, 'ab') as f:
+        print(f'COMMAND {" ".join(command)}')
+        f.write(f'COMMAND {" ".join(command)}')
+
+        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
         for line in proc.stdout:
             print(line.decode(), end='', sep='', )
             f.write(line)
@@ -122,7 +126,7 @@ for (
 ):
     et = et_portion(max_error)
 
-    command = [
+    run_command([
         "python3", "main.py",
         filename, f"--app={filename}",
         #
@@ -139,7 +143,4 @@ for (
         # partitioning
         "--min_labeling",
         f"-mode={extr_mode}", f"-omax={omax}",
-    ]
-
-    print("COMMAND", " ".join(command))
-    run_command(command)
+    ])
