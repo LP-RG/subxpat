@@ -1396,44 +1396,27 @@ class Stats:
                   'w') as f:
             csvwriter = csv.writer(f)
 
+            header = ('cell', 'iteration', 'model_id', 'status', 'runtime', 'area', 'delay', 'total_power')
+            csvwriter.writerow(header)
             # iterate over cells (lppXppo)
             for ppo in range(self.ppo + 1):
                 for lpp in range(self.lpp + 1):
                     cell = f'({lpp}X{ppo})'
                     #ToDo: for a given cell, iterate through all the models retrieved and find the best one
                     #For now: for each given cell, report the first one
-
-            header = ['iterations']
-            subheader = ['cell']
-            for i in iteration_range:
-                header.append(str(i))
-                subheader.append(('status', 'runtime', 'area', 'delay', 'total_power', 'cell'))
-            csvwriter.writerow(header)
-            csvwriter.writerow(subheader)
-
-            for ppo in range(self.ppo + 1):
-                for lpp in range(self.lpp + 1):
-                    cell = f'({lpp}X{ppo})'
-                    this_row = []
-                    for i in range(self.iterations):
-                        if ppo == 0 or (lpp == 0 and ppo > 1):
-                            continue
-                        else:
-                            this_area = self.grid.cells[lpp][ppo].models[i][0].area
-                            this_status = self.grid.cells[lpp][ppo].models[i][0].status
-                            this_runtime = self.grid.cells[lpp][ppo].models[i][0].runtime
-                            this_cell = self.grid.cells[lpp][ppo].models[i][0].cell
-                            this_delay = self.grid.cells[lpp][ppo].models[i][0].delay
-                            this_total_power = self.grid.cells[lpp][ppo].models[i][0].total_power
-                            this_row.append((this_status, this_runtime, this_area, this_delay, this_total_power, this_cell))
-
-                    if this_row:
-                        row = [cell]
-                        for field in this_row:
-                            row.append(field)
-
-                        csvwriter.writerow(row)
-
+                    for iteration in self.grid.cells[lpp][ppo].models.keys():
+                        for m_id in self.grid.cells[lpp][ppo].models[iteration].keys():
+                            this_cell = self.grid.cells[lpp][ppo].models[iteration][m_id].cell
+                            this_iteration = iteration
+                            this_id = m_id
+                            this_status = self.grid.cells[lpp][ppo].models[iteration][m_id].status
+                            this_runtime = self.grid.cells[lpp][ppo].models[iteration][m_id].runtime
+                            this_area = self.grid.cells[lpp][ppo].models[iteration][m_id].area
+                            this_delay = self.grid.cells[lpp][ppo].models[iteration][m_id].delay
+                            this_total_power = self.grid.cells[lpp][ppo].models[iteration][m_id].total_power
+                            row = (this_cell, this_iteration, this_id, this_status,
+                                   this_runtime, this_area, this_delay, this_total_power)
+                            csvwriter.writerow(row)
     def gather_results(self):
         mecals = Result(self.exact_name, sxpatconfig.MECALS)
 
