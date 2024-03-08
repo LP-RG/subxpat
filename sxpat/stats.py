@@ -2,7 +2,7 @@ import csv
 import re
 import os
 from matplotlib import pyplot as plt
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Mapping
 from colorama import Fore, Style
 import subprocess
 from subprocess import PIPE
@@ -44,11 +44,13 @@ class Model:
                  area: float = None,
                  delay: float = None,
                  total_power: float = None,
-                 id: int = None,
+                 id: int = 0,
                  status: str = 'Unexplored',
                  cell: Tuple[int, int] = (-1, -1)):
         self.__runtime = runtime
         self.__area = area
+        # id is for the cases in which we have multiple models per cell
+        # if single model per cell is selected, then let's give it id = 0 for consistency
         self.__id = id
         self.__status = status
         self.__cell = cell
@@ -131,12 +133,24 @@ class Cell:
         else:
             self.__ppo: int = spec_obj.ppo
 
-        self.__coordinates: Tuple[int, int] = (spec_obj.lpp, spec_obj.ppo)
+        # Todo: coordinates is deprecated
+        # self.__coordinates: Tuple[int, int] = (spec_obj.lpp, spec_obj.ppo)
+
         self.__et: int = spec_obj.et
-        self.__pap: int = spec_obj.partitioning_percentage
-        self.__iterations: int = spec_obj.iterations
-        self.__num_of_models: int = spec_obj.num_of_models
-        self.__models = [[Model() for n in range(self.num_of_models)] for i in range(self.iterations)]
+
+        # Todo: pap is deprecated
+        # self.__pap: int = spec_obj.partitioning_percentage
+
+        # Todo: We're gonna make the code agnostic of iterations which is the root cause of all the bugs
+        # self.__iterations: int = spec_obj.iterations
+
+        # Todo: We're gonna make the code agnostic of num_of_models which is the root cause of all the bugs
+        # self.__num_of_models: int = spec_obj.num_of_models
+
+        # Todo: I'm changing this to nested Dicts type instead of being List
+        # self.__models = [[Model() for n in range(self.num_of_models)] for i in range(self.iterations)]
+
+        self.__models: Dict[int, Dict[int, Model]] = {}
 
     @property
     def exact_name(self):
@@ -154,46 +168,60 @@ class Cell:
     def ppo(self):
         return self.__ppo
 
-    @property
-    def coordinates(self):
-        return self.__coordinates
+    # @property
+    # def coordinates(self):
+    #     return self.__coordinates
 
     @property
     def et(self):
         return self.__et
 
-    @property
-    def pap(self):
-        return self.__pap
+    # @property
+    # def pap(self):
+    #     return self.__pap
 
-    @property
-    def iterations(self):
-        return self.__iterations
+    # @property
+    # def iterations(self):
+    #     return self.__iterations
+    #
+    # @iterations.setter
+    # def iterations(self, this_iterations):
+    #     self.__iterations = this_iterations
 
-    @iterations.setter
-    def iterations(self, this_iterations):
-        self.__iterations = this_iterations
-
-    @property
-    def num_of_models(self):
-        return self.__num_of_models
+    # @property
+    # def num_of_models(self):
+    #     return self.__num_of_models
 
     @property
     def models(self):
         return self.__models
 
+    # Todo: this version only works for subxpat v1 in which the iteration variable is given
+    # def store_model_info(self, this_model_id: int = 0, this_iteration: int = 0,
+    #                      this_area: float = None, this_delay: float = -1, this_total_power: float = -1,
+    #                      this_runtime: float = None,
+    #                      this_status: str = 'SAT',
+    #                      this_cell: Tuple[int, int] = (-1, -1)):
+    #     self.models[this_iteration - 1][this_model_id] = Model(this_runtime, this_area, this_delay, this_total_power,
+    #                                                            this_model_id, this_status, this_cell)
+
+    # Todo: this version is compatible with subxpat v2
     def store_model_info(self, this_model_id: int = 0, this_iteration: int = 0,
                          this_area: float = None, this_delay: float = -1, this_total_power: float = -1,
                          this_runtime: float = None,
                          this_status: str = 'SAT',
                          this_cell: Tuple[int, int] = (-1, -1)):
-        self.models[this_iteration - 1][this_model_id] = Model(this_runtime, this_area, this_delay, this_total_power,
-                                                               this_model_id, this_status, this_cell)
+        temp_dict = {
+            this_model_id: Model(this_runtime, this_area, this_delay, this_total_power, this_model_id, this_status,
+                                 this_cell)}
+
+        self.models[this_iteration] = temp_dict
+
+
 
     def __repr__(self):
         return f"An object of class Cell:\n" \
                f"{self.exact_name = }\n" \
-               f"{self.coordinates = }\n" \
                f"{self.et = }\n" \
                f"{self.models = }"
 
@@ -208,9 +236,13 @@ class Grid:
         else:
             self.__ppo: int = spec_obj.ppo
         self.__et: int = spec_obj.et
-        self.__pap: int = spec_obj.partitioning_percentage
-        self.__iterations: int = spec_obj.iterations
 
+        # Todo: pap is deprecated
+        # self.__pap: int = spec_obj.partitioning_percentage
+        # Todo: trying to stay agnostic of interactions
+        # self.__iterations: int = spec_obj.iterations
+
+        # Since the rows and cols are predefined as lpp, and ppo (pit) then we're gonna use 2DList instead of a nested Dict
         self.__cells: List[List[Cell]] = [[Cell(spec_obj) for _ in range(self.ppo + 1)] for _ in range(self.lpp + 1)]
 
     @property
@@ -233,17 +265,17 @@ class Grid:
     def et(self):
         return self.__et
 
-    @property
-    def pap(self):
-        return self.__pap
+    # @property
+    # def pap(self):
+    #     return self.__pap
 
-    @property
-    def iterations(self):
-        return self.__iterations
-
-    @iterations.setter
-    def iterations(self, this_iterations):
-        self.__iterations = this_iterations
+    # @property
+    # def iterations(self):
+    #     return self.__iterations
+    #
+    # @iterations.setter
+    # def iterations(self, this_iterations):
+    #     self.__iterations = this_iterations
 
     @property
     def cells(self):
@@ -1154,8 +1186,11 @@ class Stats:
         self.__et: int = spec_obj.et
         self.__shared: bool = spec_obj.shared
         self.__subxpat: bool = spec_obj.subxpat
+        self.__subxpat_v2: bool = spec_obj.subxpat_v2
 
-        if self.subxpat and self.shared:
+        if self.subxpat_v2:
+            self.__tool_name = sxpatconfig.SUBXPAT_V2
+        elif self.subxpat and self.shared:
             self.__tool_name = sxpatconfig.SHARED_SUBXPAT
         elif self.subxpat and not self.shared:
             self.__tool_name = sxpatconfig.SUBXPAT
@@ -1166,8 +1201,11 @@ class Stats:
 
         self.__max_sensitivity: int = spec_obj.max_sensitivity
         self.__min_subgraph_size: int = spec_obj.min_subgraph_size
-        self.__iterations: int = spec_obj.iterations
-        self.__number_of_models: int = spec_obj.num_of_models
+
+        # Todo: We're gonna make the code agnostic of iterations and num_of_models which is the root cause of all the bugs
+        # self.__iterations: int = spec_obj.iterations
+        # self.__number_of_models: int = spec_obj.num_of_models
+
         self.__imax: int = spec_obj.imax
         self.__omax: int = spec_obj.omax
         self.__mode: int = spec_obj.mode
@@ -1196,6 +1234,11 @@ class Stats:
     @property
     def subxpat(self):
         return self.__subxpat
+
+
+    @property
+    def subxpat_v2(self):
+        return self.__subxpat_v2
 
     @property
     def specs(self):
@@ -1249,13 +1292,13 @@ class Stats:
     def et(self):
         return self.__et
 
-    @property
-    def iterations(self):
-        return self.__iterations
-
-    @iterations.setter
-    def iterations(self, this_iterations):
-        self.__iterations = this_iterations
+    # @property
+    # def iterations(self):
+    #     return self.__iterations
+    #
+    # @iterations.setter
+    # def iterations(self, this_iterations):
+    #     self.__iterations = this_iterations
 
     @property
     def grid(self):
@@ -1269,13 +1312,13 @@ class Stats:
     def status(self, this_status):
         self.__status = this_status
 
-    @property
-    def num_models(self):
-        return self.__number_of_models
-
-    @num_models.setter
-    def num_models(self, this_num_models):
-        self.__number_of_models = this_num_models
+    # @property
+    # def num_models(self):
+    #     return self.__number_of_models
+    #
+    # @num_models.setter
+    # def num_models(self, this_num_models):
+    #     self.__number_of_models = this_num_models
 
     @property
     def areas(self):
@@ -1318,46 +1361,47 @@ class Stats:
         self.__verilog_paths = this_verilog_paths
 
     def get_grid_name(self):
+        """
+        returns: a unique grid file name for this experiment (that is determined by specs_obj)
+        """
         _, extension = OUTPUT_PATH['report']
 
-        name = f''
         name = f'grid_{self.exact_name}_'\
-               f'{self.lpp}' \
-               f'X{self.pit if (self.tool_name==sxpatconfig.SHARED_SUBXPAT or self.tool_name==sxpatconfig.SHARED_XPAT) else self.ppo}_' \
-               f'et{self.et}_{self.template_name}_{self.tool_name}'
+               f'{self.lpp}X' \
+               f'{self.ppo}_' \
+               f'et{self.et}_' \
+               f'{self.tool_name}_' \
+               f'mode{self.mode}_' \
+               f'{self.template_name}' \
 
-        if self.tool_name == sxpatconfig.SUBXPAT or self.tool_name == sxpatconfig.SHARED_SUBXPAT:
-            name += f'_mode{self.mode}_'
-            if self.mode == 1:
-                name += f'imax{self.imax}_omax{self.omax}_largest.{extension}'
-                return name
-            if self.mode == 2:
-                name += f'imax{self.imax}_omax{self.omax}_subgraphsize{self.min_subgraph_size}.{extension}'
-                return name
-            elif self.mode == 3:
 
-                name += f'subgraphsize{self.min_subgraph_size}.{extension}'
-                return name
-            else:
-                # print(Fore.RED +f"ERROR!!! In ({__name__}): something is wrong for grid file names!"+ Style.RESET_ALL)
-                # exit()
-                return name
-        else:
-            name += f'.{extension}'
-            return name
+        return f'{name}.{extension}'
 
     def get_grid_path(self):
+        """
+        returns: the path where the grid .csv file should be stored
+        """
         folder, _ = OUTPUT_PATH['report']
         path = f'{folder}/{self.grid_name}'
+        print(f'{path = }')
         return path
 
     def store_grid(self):
-        folder, extension = OUTPUT_PATH['report']
+        """
+        dumps the contents of grid object while preserving its structure, onto .csv file with the name self.grid_name and at the address self.grid_path
+        returns: None
+        """
 
         with open(f'{self.grid_path}',
                   'w') as f:
             csvwriter = csv.writer(f)
-            iteration_range = list(range(1, self.iterations + 1))
+
+            # iterate over cells (lppXppo)
+            for ppo in range(self.ppo + 1):
+                for lpp in range(self.lpp + 1):
+                    cell = f'({lpp}X{ppo})'
+                    #ToDo: for a given cell, iterate through all the models retrieved and find the best one
+                    #For now: for each given cell, report the first one
 
             header = ['iterations']
             subheader = ['cell']
