@@ -173,12 +173,12 @@ def explore_grid(specs_obj: TemplateSpecs):
                 if cur_status in (UNSAT, UNKNOWN):
                     pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()} ')
                     # todo:hack: commented to prevent crash from second iteration
-                    # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                    #                                                 this_iteration=i,
-                    #                                                 this_area=-1,
-                    #                                                 this_runtime=template_obj.get_json_runtime(),
-                    #                                                 this_status=cur_status.upper(),
-                    #                                                 this_cell=(lpp, ppo))
+                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                                                                    this_iteration=i,
+                                                                    this_area=-1,
+                                                                    this_runtime=template_obj.get_json_runtime(),
+                                                                    this_status=cur_status.upper(),
+                                                                    this_cell=(lpp, ppo))
                     pre_iter_unsats[candidate] += 1
 
                 elif cur_status == SAT:
@@ -206,6 +206,13 @@ def explore_grid(specs_obj: TemplateSpecs):
                             (lpp, ppo)
                         )
 
+                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                                                                        this_iteration=i,
+                                                                        this_area=-1,
+                                                                        this_runtime=template_obj.get_json_runtime(),
+                                                                        this_status=cur_status.upper(),
+                                                                        this_cell=(lpp, ppo))
+
                     else:
                         synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
                         cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
@@ -219,6 +226,13 @@ def explore_grid(specs_obj: TemplateSpecs):
                                 synth_obj.estimate_delay(),
                                 (lpp, ppo)
                             )
+
+                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                                                                    this_iteration=i,
+                                                                    this_area=-1,
+                                                                    this_runtime=template_obj.get_json_runtime(),
+                                                                    this_status=cur_status.upper(),
+                                                                    this_cell=(lpp, ppo))
 
                     # todo: should we refactor with pandas?
                     with open(f"{OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
@@ -285,14 +299,14 @@ def explore_grid(specs_obj: TemplateSpecs):
             lpp, ppo = sorted_candidates[0][1][3]
 
             # todo:hack: commented to prevent crash
-            # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-            #                                                 this_iteration=this_iteration,
-            #                                                 this_area=this_area,
-            #                                                 this_total_power=this_power,
-            #                                                 this_delay=this_delay,
-            #                                                 this_runtime=-1,
-            #                                                 this_status='SAT',
-            #                                                 this_cell=(lpp, ppo))
+            stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                                                            this_iteration=this_iteration,
+                                                            this_area=this_area,
+                                                            this_total_power=this_power,
+                                                            this_delay=this_delay,
+                                                            this_runtime=-1,
+                                                            this_status='SAT',
+                                                            this_cell=(lpp, ppo))
 
     display_the_tree(total)
 
