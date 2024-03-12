@@ -393,7 +393,7 @@ def get_status(template_obj: Union[Template_SOP1, Template_SOP1ShareLogic]) -> s
     # note:refactor:marco
     template_obj.import_json_model()
     assert all(res in (SAT, UNSAT, UNKNOWN) for res in template_obj.json_status), f'Invalid status ({template_obj.json_status})'
-    # todo:question: why do we return only the 0th element? doesn't the json model
+    # todo:question: why do we return only the 0th element? doesn't the json model include many models?
     return template_obj.json_status[0]
 
     # original
