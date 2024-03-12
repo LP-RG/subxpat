@@ -392,15 +392,16 @@ def get_status(template_obj: Union[Template_SOP1, Template_SOP1ShareLogic]) -> s
 
     # note:refactor:marco
     template_obj.import_json_model()
-    assert template_obj.json_status in [SAT, UNSAT, UNKNOWN], "Invalid status"
+    assert all(res in [SAT, UNSAT, UNKNOWN] for res in template_obj.json_status), f'Invalid status ({template_obj.json_status})'
     return template_obj.json_status
 
     # original
-    # if template_obj.json_status == SAT:
+    # template_obj.import_json_model()
+    # if template_obj.json_status[0] == SAT:
     #     return SAT
-    # elif template_obj.json_status == UNSAT:
+    # elif template_obj.json_status[0] == UNSAT:
     #     return UNSAT
-    # elif template_obj.json_status == UNKNOWN:
+    # elif template_obj.json_status[0] == UNKNOWN:
     #     return UNKNOWN
 
 
