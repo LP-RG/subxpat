@@ -1172,7 +1172,7 @@ class Synthesis:
         else:
             design_path = self.ver_out_path
 
-        yosys_command = f"read_verilog {design_path};\n" \
+        yosys_command = f"read_verilog \"{design_path}\";\n" \
                         f"synth -flatten;\n" \
                         f"opt;\n" \
                         f"opt_clean -purge;\n" \
