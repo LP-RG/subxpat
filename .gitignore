@@ -25,9 +25,16 @@ local.mk
 Laura/
 *.xlsx
 .DS_Store
+*.sh
+*.py
+*.csv
 
 #> exclusions
 # (WE SHOULD NEVER COMMIT RESULTS, THEY SHOULD BE KEPT LOCALLY AND SHARED BY OTHER MEANS)
 # !experiments/xpat/pareto_ver
 # !experiments/muscat/pareto_ver
 # !experiments/mecals/pareto_ver
+
+!v2_testing.py
+!main.py
+!verify_mecals.py
