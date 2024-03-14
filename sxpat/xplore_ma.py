@@ -74,7 +74,10 @@ def explore_grid(specs_obj: TemplateSpecs):
     else:
         template_obj = Template_SOP1(specs_obj)
 
-    current_population: Dict = {specs_obj.benchmark_name: -1}
+    #This line would cause a problem,
+    # current_population: Dict = {specs_obj.benchmark_name: -1}
+    # So I changed it into the following:
+    current_population: Dict = {specs_obj.benchmark_name: ('Area', 'Delay', 'Power', ('LPP', 'PPO'))}
     next_generation: Dict = {}
     total: Dict[Dict] = {}
     pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
@@ -99,8 +102,10 @@ def explore_grid(specs_obj: TemplateSpecs):
         # for all candidates
         for candidate in current_population:
             # guard
-            if pre_iter_unsats[candidate] == total_number_of_cells_per_iter:
+            if pre_iter_unsats[candidate] == total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
+                pprint.info1(f'Number of UNSATs reached!')
                 continue
+
 
             pprint.info1(f'candidate {candidate}')
             if candidate.endswith('.v'):
@@ -259,18 +264,19 @@ def explore_grid(specs_obj: TemplateSpecs):
                         next_generation[key] = cur_model_results[key]
                     pre_iter_unsats[candidate] = 0
 
+
+
+                    current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
+                    total[i] = current_population
+
+
+                    next_generation = {}
+                    pre_iter_unsats = {}
+                    for key in current_population.keys():
+                        pre_iter_unsats[key] = 0
+
                     # SAT found, stop grid exploration
                     break
-
-        current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
-        total[i] = current_population
-        print(current_population)
-
-        next_generation = {}
-        pre_iter_unsats = {}
-        for key in current_population.keys():
-            pre_iter_unsats[key] = 0
-
         if exists_an_area_zero(current_population):
             break
 
@@ -447,6 +453,7 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
 
 
 def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
+    print(f'{candidates = }')
     for key in candidates.keys():
         if candidates[key][0] == 0:
             pprint.with_color(Fore.LIGHTMAGENTA_EX)('Area zero found!\nTerminated.')
