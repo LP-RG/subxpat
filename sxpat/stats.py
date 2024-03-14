@@ -46,16 +46,45 @@ class Model:
                  total_power: float = None,
                  id: int = 0,
                  status: str = 'Unexplored',
-                 cell: Tuple[int, int] = (-1, -1)):
-        self.__runtime = runtime
+                 cell: Tuple[int, int] = (-1, -1),
+                 et: int = -1,
+                 labeling_time: float = -1,
+                 subgraph_extraction_time: float = -1,
+                 subxpat_phase1_time: float = -1,
+                 subxpat_phase2_time: float = -1
+                 ):
+        self.__cell = cell
+        self.__id = id
+        self.__status = status
         self.__area = area
         # id is for the cases in which we have multiple models per cell
         # if single model per cell is selected, then let's give it id = 0 for consistency
-        self.__id = id
-        self.__status = status
-        self.__cell = cell
         self.__delay = delay
         self.__total_power = total_power
+        self.__et = et
+        self.__labeling_time = labeling_time
+        self.__subgraph_extraction_time = subgraph_extraction_time
+        self.__subxpat_phase1_time = subxpat_phase1_time
+        self.__subxpat_phase2_time = subxpat_phase2_time
+        self.__runtime = runtime
+
+
+
+    @property
+    def labeling_time(self):
+        return self.__labeling_time
+
+    @property
+    def subgraph_extraction_time(self):
+        return self.__subgraph_extraction_time
+
+    @property
+    def subxpat_phase1_time(self):
+        return self.__subxpat_phase1_time
+
+    @property
+    def subxpat_phase2_time(self):
+        return self.__subxpat_phase2_time
 
     @property
     def runtime(self):
@@ -1396,7 +1425,14 @@ class Stats:
                   'w') as f:
             csvwriter = csv.writer(f)
 
-            header = ('cell', 'iteration', 'model_id', 'status', 'runtime', 'area', 'delay', 'total_power')
+            #TODO: iterate through all the fields with something like the the command below:
+            # header = []
+            # for attr in Model.__dict__.keys():
+            #     header.append(f"{attr.replace('_Model__', '')}")
+            # header = tuple(header)
+
+            header = ('cell', 'iteration', 'model_id', 'status', 'runtime', 'area', 'delay', 'total_power', 'et',
+                      'labeling_time', 'subgraph_extraction', 'subxpat_phase1', 'subxpat_phase2')
             csvwriter.writerow(header)
             # iterate over cells (lppXppo)
             for ppo in range(self.ppo + 1):

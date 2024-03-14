@@ -39,18 +39,25 @@ from z_marco.utils import pprint, color
 
 
 def explore_grid(specs_obj: TemplateSpecs):
+
     print(f'{specs_obj = }')
 
     # Select toolname
     if specs_obj.subxpat_v2:
         pprint.info2('SubXPAT-V2 started...')
         toolname = sxpatconfig.SUBXPAT_V2
+        labeling_time: float = -1
+        subgraph_extraction_time: float = -1
+        subxpat_phase1_time: float = -1
+        subxpat_phase2_time: float = -1
     elif specs_obj.subxpat and specs_obj.shared:
         pprint.info2('Shared SubXPAT started...')
         toolname = sxpatconfig.SHARED_SUBXPAT
     elif specs_obj.subxpat and not specs_obj.shared:
         pprint.info2('SubXPAT started...')
         toolname = sxpatconfig.SUBXPAT
+        labeling_time: float = -1
+        subgraph_extraction_time: float = -1
     elif not specs_obj.subxpat and specs_obj.shared:
         pprint.info2('Shared XPAT started...')
         toolname = sxpatconfig.SHARED_XPAT
@@ -120,12 +127,16 @@ def explore_grid(specs_obj: TemplateSpecs):
                 # label graph
                 t_start = time.time()
                 template_obj.label_graph(min_labeling=specs_obj.min_labeling)
-                print(f'labeling_time = {time.time() - t_start}')
+                # Modified by Morteza
+                labeling_time = time.time() - t_start
+                print(f'labeling_time = {labeling_time}')
 
             # extract subgraph
             t_start = time.time()
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
-            print(f'subgraph_extraction_time = {time.time() - t_start}')
+            # Modified by Morteza
+            subgraph_extraction_time = time.time() - t_start
+            print(f'subgraph_extraction_time = {subgraph_extraction_time}')
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
@@ -143,8 +154,12 @@ def explore_grid(specs_obj: TemplateSpecs):
             if template_obj.is_two_phase_kind:
                 # todo:wip:marco
                 full_magraph, sub_magraph = template_obj.set_graph_and_update_functions(template_obj.current_graph)
+                # Modified by Morteza
+                phase1_start = time.time()
                 template_obj.run_phase1([specs_obj.et, specs_obj.num_of_models, 1*60*60])
-
+                phase1_end = time.time()
+                subxpat_phase1_time  = phase1_end - phase1_start
+                print(f'subxpat phase1 time = {subxpat_phase1_time}')
             # explore the grid
             pprint.info2(f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...')
             for lpp, ppo in cell_iterator(max_lpp, max_ppo):
@@ -157,11 +172,13 @@ def explore_grid(specs_obj: TemplateSpecs):
                 # run cell phase
                 if template_obj.is_two_phase_kind:
                     # run script
+                    phase2_start = time.time()
                     cur_status, model = template_obj.run_phase2()
-
+                    phase2_end = time.time()
+                    subxpat_phase2_time = phase2_end - phase1_end
+                    print(f'subxpat phase2 time = {subxpat_phase2_time}')
                     template_obj.import_json_model()
-                    print(f"{template_obj.json_in_path = }")
-                    print(f'{cur_status = }')
+
                 else:
                     # run script
                     template_obj.z3_generate_z3pyscript()
