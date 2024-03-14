@@ -81,7 +81,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     else:
         template_obj = Template_SOP1(specs_obj)
 
-    current_population: Dict = {specs_obj.benchmark_name: -1}
+    current_population: Dict = {specs_obj.benchmark_name: ('Area', 'Power', 'Delay', ('LPP', 'PPO'))}
     next_generation: Dict = {}
     total: Dict[Dict] = {}
     pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
@@ -106,7 +106,7 @@ def explore_grid(specs_obj: TemplateSpecs):
         # for all candidates
         for candidate in current_population:
             # guard
-            if pre_iter_unsats[candidate] == total_number_of_cells_per_iter:
+            if pre_iter_unsats[candidate] == total_number_of_cells_per_iter and not specs_obj.subxpat_v2:
                 continue
 
             pprint.info1(f'candidate {candidate}')
@@ -190,12 +190,13 @@ def explore_grid(specs_obj: TemplateSpecs):
                 if cur_status in (UNSAT, UNKNOWN):
                     pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()} ')
                     # todo:hack: commented to prevent crash from second iteration
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                    this_iteration=i,
-                                                                    this_area=-1,
-                                                                    this_runtime=template_obj.get_json_runtime(),
-                                                                    this_status=cur_status.upper(),
-                                                                    this_cell=(lpp, ppo))
+                    # Morteza: Here we create a Model object and then save it
+                    this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
+                                       labeling_time=labeling_time,
+                                       subgraph_extraction_time=subgraph_extraction_time,
+                                       subxpat_phase1_time=subxpat_phase1_time,
+                                       subxpat_phase2_time=subxpat_phase2_time)
+                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
                     pre_iter_unsats[candidate] += 1
 
                 elif cur_status == SAT:
@@ -223,13 +224,16 @@ def explore_grid(specs_obj: TemplateSpecs):
                             (lpp, ppo)
                         )
 
-                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                        this_iteration=i,
-                                                                        this_area=-1,
-                                                                        this_runtime=template_obj.get_json_runtime(),
-                                                                        this_status=cur_status.upper(),
-                                                                        this_cell=(lpp, ppo))
-
+                        # Morteza: Here we create a Model object and then save it
+                        this_model = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
+                                           area=cur_model_results[synth_obj.ver_out_name][0],
+                                           total_power=cur_model_results[synth_obj.ver_out_name][1],
+                                           delay=cur_model_results[synth_obj.ver_out_name][2],
+                                           labeling_time=labeling_time,
+                                           subgraph_extraction_time=subgraph_extraction_time,
+                                           subxpat_phase1_time=subxpat_phase1_time,
+                                           subxpat_phase2_time=subxpat_phase2_time)
+                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
                     else:
                         synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
                         cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
@@ -244,12 +248,12 @@ def explore_grid(specs_obj: TemplateSpecs):
                                 (lpp, ppo)
                             )
 
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                                    this_iteration=i,
-                                                                    this_area=-1,
-                                                                    this_runtime=template_obj.get_json_runtime(),
-                                                                    this_status=cur_status.upper(),
-                                                                    this_cell=(lpp, ppo))
+                    # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+                    #                                                 this_iteration=i,
+                    #                                                 this_area=-1,
+                    #                                                 this_runtime=template_obj.get_json_runtime(),
+                    #                                                 this_status=cur_status.upper(),
+                    #                                                 this_cell=(lpp, ppo))
 
                     # todo: should we refactor with pandas?
                     with open(f"{OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
@@ -289,20 +293,21 @@ def explore_grid(specs_obj: TemplateSpecs):
                         next_generation[key] = cur_model_results[key]
                     pre_iter_unsats[candidate] = 0
 
+
+
+                    current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
+                    total[i] = current_population
+                    print(current_population)
+
+                    next_generation = {}
+                    pre_iter_unsats = {}
+                    for key in current_population.keys():
+                        pre_iter_unsats[key] = 0
+
                     # SAT found, stop grid exploration
                     break
-
-        current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
-        total[i] = current_population
-        print(current_population)
-
-        next_generation = {}
-        pre_iter_unsats = {}
-        for key in current_population.keys():
-            pre_iter_unsats[key] = 0
-
         if exists_an_area_zero(current_population):
-            break
+                break
 
     for iteration in total.keys():
         # todo:question: what is total[iteration]?
@@ -316,14 +321,14 @@ def explore_grid(specs_obj: TemplateSpecs):
             lpp, ppo = sorted_candidates[0][1][3]
 
             # todo:hack: commented to prevent crash
-            stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                                                            this_iteration=this_iteration,
-                                                            this_area=this_area,
-                                                            this_total_power=this_power,
-                                                            this_delay=this_delay,
-                                                            this_runtime=-1,
-                                                            this_status='SAT',
-                                                            this_cell=(lpp, ppo))
+            # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
+            #                                                 this_iteration=this_iteration,
+            #                                                 this_area=this_area,
+            #                                                 this_total_power=this_power,
+            #                                                 this_delay=this_delay,
+            #                                                 this_runtime=-1,
+            #                                                 this_status='SAT',
+            #                                                 this_cell=(lpp, ppo))
 
     display_the_tree(total)
 
