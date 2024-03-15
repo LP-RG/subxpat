@@ -131,14 +131,12 @@ def explore_grid(specs_obj: TemplateSpecs):
                 # label graph
                 t_start = time.time()
                 template_obj.label_graph(min_labeling=specs_obj.min_labeling)
-                # Modified by Morteza
                 labeling_time = time.time() - t_start
                 print(f'labeling_time = {labeling_time}')
 
             # extract subgraph
             t_start = time.time()
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
-            # Modified by Morteza
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
 
