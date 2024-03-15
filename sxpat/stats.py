@@ -1,8 +1,10 @@
+from __future__ import annotations
+from typing import Tuple, List, Dict
+
 import csv
 import re
 import os
 from matplotlib import pyplot as plt
-from typing import Tuple, List, Dict, Mapping
 from colorama import Fore, Style
 import subprocess
 from subprocess import PIPE
