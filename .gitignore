@@ -3,15 +3,18 @@
 /.idea
 
 #> local
-local.mk
-/test
-/output
-/results
-/experiments
-/scripts
+/local.mk
 **/*.local
 **/local.*
-**/*.bak
+/test
+/experiments
+/output
+# data
+/results
+/*.csv
+# scripts
+/scripts
+/*.sh
 
 #> generated
 /venv
@@ -26,9 +29,3 @@ local.mk
 Laura/
 *.xlsx
 .DS_Store
-
-#> exclusions
-# (WE SHOULD NEVER COMMIT RESULTS, THEY SHOULD BE KEPT LOCALLY AND SHARED BY OTHER MEANS)
-# !experiments/xpat/pareto_ver
-# !experiments/muscat/pareto_ver
-# !experiments/mecals/pareto_ver
