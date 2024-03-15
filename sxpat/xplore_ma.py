@@ -81,7 +81,10 @@ def explore_grid(specs_obj: TemplateSpecs):
     else:
         template_obj = Template_SOP1(specs_obj)
 
-    current_population: Dict = {specs_obj.benchmark_name: ('Area', 'Power', 'Delay', ('LPP', 'PPO'))}
+    # This line would cause a problem,
+    # current_population: Dict = {specs_obj.benchmark_name: -1}
+    # So I changed it into the following:
+    current_population: Dict = {specs_obj.benchmark_name: ('Area', 'Delay', 'Power', ('LPP', 'PPO'))}
     next_generation: Dict = {}
     total: Dict[Dict] = {}
     pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
@@ -106,7 +109,8 @@ def explore_grid(specs_obj: TemplateSpecs):
         # for all candidates
         for candidate in current_population:
             # guard
-            if pre_iter_unsats[candidate] == total_number_of_cells_per_iter and not specs_obj.subxpat_v2:
+            if pre_iter_unsats[candidate] == total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
+                pprint.info1(f'Number of UNSATs reached!')
                 continue
 
             pprint.info1(f'candidate {candidate}')
@@ -127,14 +131,12 @@ def explore_grid(specs_obj: TemplateSpecs):
                 # label graph
                 t_start = time.time()
                 template_obj.label_graph(min_labeling=specs_obj.min_labeling)
-                # Modified by Morteza
                 labeling_time = time.time() - t_start
                 print(f'labeling_time = {labeling_time}')
 
             # extract subgraph
             t_start = time.time()
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
-            # Modified by Morteza
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
 
@@ -158,7 +160,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                 p1_start = time.time()
                 phase1_success = template_obj.run_phase1([specs_obj.et, specs_obj.num_of_models, 1*60*60])
                 assert phase1_success, "phase 1 failed"
-                print(f"p1_time = {(time.time() - p1_start):.6f}")
+                subxpat_phase1_time = time.time() - p1_start
+                print(f"p1_time = {subxpat_phase1_time:.6f}")
 
             # explore the grid
             pprint.info2(f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...')
@@ -174,7 +177,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                     # run script
                     p2_start = time.time()
                     cur_status, model = template_obj.run_phase2()
-                    print(f"p2_time = {(time.time() - p2_start):.6f}")
+                    subxpat_phase2_time = time.time() - p2_start
+                    print(f"p2_time = {subxpat_phase2_time:.6f}")
                     template_obj.import_json_model()
 
                 else:
@@ -190,10 +194,10 @@ def explore_grid(specs_obj: TemplateSpecs):
                     # todo:hack: commented to prevent crash from second iteration
                     # Morteza: Here we create a Model object and then save it
                     this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
-                                       labeling_time=labeling_time,
-                                       subgraph_extraction_time=subgraph_extraction_time,
-                                       subxpat_phase1_time=subxpat_phase1_time,
-                                       subxpat_phase2_time=subxpat_phase2_time)
+                                            labeling_time=labeling_time,
+                                            subgraph_extraction_time=subgraph_extraction_time,
+                                            subxpat_phase1_time=subxpat_phase1_time,
+                                            subxpat_phase2_time=subxpat_phase2_time)
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
                     pre_iter_unsats[candidate] += 1
 
@@ -291,12 +295,13 @@ def explore_grid(specs_obj: TemplateSpecs):
                         next_generation[key] = cur_model_results[key]
                     pre_iter_unsats[candidate] = 0
 
-
-
                     current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
                     total[i] = current_population
-                    print(current_population)
 
+                    next_generation = {}
+                    pre_iter_unsats = {}
+                    for key in current_population.keys():
+                        pre_iter_unsats[key] = 0
                     next_generation = {}
                     pre_iter_unsats = {}
                     for key in current_population.keys():
@@ -304,8 +309,9 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                     # SAT found, stop grid exploration
                     break
+
         if exists_an_area_zero(current_population):
-                break
+            break
 
     for iteration in total.keys():
         # todo:question: what is total[iteration]?
@@ -480,6 +486,7 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
 
 
 def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
+    print(f'{candidates = }')
     for key in candidates.keys():
         if candidates[key][0] == 0:
             pprint.with_color(Fore.LIGHTMAGENTA_EX)('Area zero found!\nTerminated.')
