@@ -78,17 +78,13 @@ class Template_V2(Template_SOP1):
         return full_graph, sub_graph
 
     def run_phase1(self, arguments: Tuple):
-        p1_start = time_now()
         self.max_sub_distance = self.executor._phase1(arguments)
         print(f"D = {self.max_sub_distance}")
-        print(f"p1_time = {(time_now() - p1_start):.6f}")
         
         return self.max_sub_distance > 0
 
     def run_phase2(self):
-        p2_start = time_now()
         status, model = self.executor._phase2(self.max_sub_distance)
-        print(f"p2_time = {(time_now() - p2_start):.6f}")
 
         return status, model
 

@@ -35,6 +35,12 @@ class TemplateSpecs:
 
         self.et_partitioning: str = kwargs[ET_PARTITIONING]
 
+        self.__keep_unsat_candidate: bool = self.__subxpat_v2
+
+    @property
+    def keep_unsat_candidate(self):
+        return self.__keep_unsat_candidate
+
     @property
     def parallel(self):
         return self.__parallel
@@ -240,4 +246,5 @@ class TemplateSpecs:
                f'{self.min_labeling = }\n' \
                f'{self.full_error_function = }\n' \
                f'{self.sub_error_function = }\n' \
-               f'{self.et_partitioning = }'
+               f'{self.et_partitioning = }\n' \
+               f'{self.keep_unsat_candidate = }\n'
