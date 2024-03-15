@@ -162,7 +162,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                 p1_start = time.time()
                 phase1_success = template_obj.run_phase1([specs_obj.et, specs_obj.num_of_models, 1*60*60])
                 assert phase1_success, "phase 1 failed"
-                print(f"p1_time = {(time.time() - p1_start):.6f}")
+                subxpat_phase1_time = time.time() - p1_start
+                print(f"p1_time = {subxpat_phase1_time:.6f}")
 
             # explore the grid
             pprint.info2(f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...')
@@ -178,7 +179,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                     # run script
                     p2_start = time.time()
                     cur_status, model = template_obj.run_phase2()
-                    print(f"p2_time = {(time.time() - p2_start):.6f}")
+                    subxpat_phase2_time = time.time() - p2_start
+                    print(f"p2_time = {subxpat_phase2_time:.6f}")
                     template_obj.import_json_model()
 
                 else:
