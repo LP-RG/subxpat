@@ -154,12 +154,12 @@ def explore_grid(specs_obj: TemplateSpecs):
             if template_obj.is_two_phase_kind:
                 # todo:wip:marco
                 full_magraph, sub_magraph = template_obj.set_graph_and_update_functions(template_obj.current_graph)
-                # Modified by Morteza
-                phase1_start = time.time()
-                template_obj.run_phase1([specs_obj.et, specs_obj.num_of_models, 1*60*60])
-                phase1_end = time.time()
-                subxpat_phase1_time  = phase1_end - phase1_start
-                print(f'subxpat phase1 time = {subxpat_phase1_time}')
+
+                p1_start = time.time()
+                phase1_success = template_obj.run_phase1([specs_obj.et, specs_obj.num_of_models, 1*60*60])
+                assert phase1_success, "phase 1 failed"
+                print(f"p1_time = {(time.time() - p1_start):.6f}")
+
             # explore the grid
             pprint.info2(f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...')
             for lpp, ppo in cell_iterator(max_lpp, max_ppo):
@@ -172,11 +172,9 @@ def explore_grid(specs_obj: TemplateSpecs):
                 # run cell phase
                 if template_obj.is_two_phase_kind:
                     # run script
-                    phase2_start = time.time()
+                    p2_start = time.time()
                     cur_status, model = template_obj.run_phase2()
-                    phase2_end = time.time()
-                    subxpat_phase2_time = phase2_end - phase1_end
-                    print(f'subxpat phase2 time = {subxpat_phase2_time}')
+                    print(f"p2_time = {(time.time() - p2_start):.6f}")
                     template_obj.import_json_model()
 
                 else:
@@ -427,15 +425,17 @@ def get_status(template_obj: Union[Template_SOP1, Template_SOP1ShareLogic]) -> s
 
     # note:refactor:marco
     template_obj.import_json_model()
-    assert template_obj.json_status in [SAT, UNSAT, UNKNOWN], "Invalid status"
-    return template_obj.json_status
+    assert all(res in (SAT, UNSAT, UNKNOWN) for res in template_obj.json_status), f'Invalid status ({template_obj.json_status})'
+    # todo:question: why do we return only the 0th element? doesn't the json model include many models?
+    return template_obj.json_status[0]
 
     # original
-    # if template_obj.json_status == SAT:
+    # template_obj.import_json_model()
+    # if template_obj.json_status[0] == SAT:
     #     return SAT
-    # elif template_obj.json_status == UNSAT:
+    # elif template_obj.json_status[0] == UNSAT:
     #     return UNSAT
-    # elif template_obj.json_status == UNKNOWN:
+    # elif template_obj.json_status[0] == UNKNOWN:
     #     return UNKNOWN
 
 
