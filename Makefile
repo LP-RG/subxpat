@@ -19,7 +19,7 @@ IN_ENV := $(ACTIV_ENV) &&
 
 # actions
 
-run:
+help:
 	$(PY) main.py -h
 
 activate:
