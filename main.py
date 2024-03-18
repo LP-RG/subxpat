@@ -6,8 +6,7 @@ from sxpat.config import paths as sxpatpaths
 
 from sxpat.arguments import Arguments
 
-# from sxpat.xplore import explore_grid
-from sxpat.xplore_ma import explore_grid
+from sxpat.xplore import explore_grid
 from sxpat.stats import Stats
 
 from z_marco.utils import pprint
