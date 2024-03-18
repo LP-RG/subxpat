@@ -11,8 +11,11 @@ from Z3Log.z3solver import Z3solver
 from Z3Log.config import path as z3logpath
 
 
-
-def labeling(exact_benchmark_name: str, approximate_benchmark: str, min_labeling: bool = False, parallel: bool = True) -> Dict:
+def labeling(exact_benchmark_name: str,
+             approximate_benchmark: str,
+             min_labeling: bool = False,
+             parallel: bool = True
+             ) -> Dict:
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()
 
@@ -45,11 +48,11 @@ def labeling(exact_benchmark_name: str, approximate_benchmark: str, min_labeling
         if key.startswith('app_'):
             key = key.replace('app_', "")
         labels[key] = weight
+
     return labels
 
 
-#TODO: Deprecated
-def labeling_old(exact_benchmark_name: str, approximate_benchmark: str, constant_value: 0, min_labeling: bool) -> Dict:
+def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str, constant_value: 0, min_labeling: bool) -> Dict:
     # 1) create a clean verilog out of exact and approximate circuits
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()
@@ -89,7 +92,6 @@ def labeling_old(exact_benchmark_name: str, approximate_benchmark: str, constant
             if os.path.isdir(f'{report_folder}/{dir}') and re.search('labeling', dir):
                 shutil.rmtree(f'{report_folder}/{dir}')
 
-
         return labels_false, labels_false
     elif constant_value == 1:
         labels_true = z3py_obj.label_circuit(True)
@@ -110,12 +112,3 @@ def labeling_old(exact_benchmark_name: str, approximate_benchmark: str, constant
             if os.path.isdir(f'{folder}/{dir}') and re.search('labeling', dir):
                 shutil.rmtree(f'{folder}/{dir}')
         return labels_true, labels_false
-
-
-
-
-
-if __name__ == "__main__":
-    pass
-else:
-    pass

@@ -12,16 +12,79 @@ class CommaSplitAction(argparse.Action):
         setattr(namespace, self.dest, [s.strip() for s in values.split(',')])
 
 
+# import dataclasses as dc
+# @dc.dataclass
+# class Arguments:
+#     """Missing the ones from Z3Log"""
+
+#     literal_per_product: int
+#     product_per_output: int
+#     subxpat: bool
+#     subxpat_v2: bool
+#     error_threshold: int
+#     clean: bool
+#     partitioning_percentage: int
+#     iterations: int
+#     grid: bool
+#     multiple: bool
+#     plot: bool
+#     imax: int
+#     omax: int
+#     sensitivity: int
+#     timeout: int
+#     subgraph_size: int
+#     mode: int
+#     population: int
+#     num_models: int
+#     min_labeling: bool
+#     shared: bool
+#     products_in_total: int
+#     parallel: bool
+#     full_error_function: int
+#     sub_error_function: int
+
+#     @classmethod
+#     def from_dict(cls, o: Dict[str, Any]) -> Arguments:
+#         return cls(
+#             o.lpp,
+#             o.ppo,
+#             o.subxpat,
+#             o.subxpat_v2,
+#             o.et,
+#             o.clean,
+#             o.partitioning_percentage,
+#             o.iterations,
+#             o.grid,
+#             o.multiple,
+#             o.plot,
+#             o.imax,
+#             o.omax,
+#             o.sensitivity,
+#             o.timeout,
+#             o.subgraphsize,
+#             o.mode,
+#             o.population,
+#             o.num_models,
+#             o.min_labeling,
+#             o.shared,
+#             o.pit,
+#             o.parallel,
+#             o.full_error_function,
+#             o.sub_error_function,
+#         )
+
+
 class Arguments(Z3Log_Arguments):
     def __init__(self, tmp_args: argparse):
         super().__init__(tmp_args)
         self.__literal_per_product: int = tmp_args.lpp
         self.__product_per_output: int = tmp_args.ppo
         self.__subxpat: bool = tmp_args.subxpat
+        self.__subxpat_v2: bool = tmp_args.subxpat_v2
         self.__error_threshold: int = tmp_args.et
         self.__clean: bool = tmp_args.clean
-        self.__partitioning_percentage = tmp_args.partitioning_percentage
-        self.__iterations = tmp_args.iterations
+        self.__partitioning_percentage: int = tmp_args.partitioning_percentage
+        self.__iterations: int = tmp_args.iterations
         self.__grid: bool = tmp_args.grid
         self.__multiple: bool = tmp_args.multiple
         self.__plot: bool = tmp_args.plot
@@ -38,6 +101,9 @@ class Arguments(Z3Log_Arguments):
         self.__shared: bool = tmp_args.shared
         self.__products_in_total: int = tmp_args.pit
         self.__parallel: bool = tmp_args.parallel
+        self.__full_error_function: int = tmp_args.full_error_function
+        self.__sub_error_function: int = tmp_args.sub_error_function
+        self.__et_partitioning: int = tmp_args.et_partitioning
 
     @property
     def parallel(self):
@@ -100,6 +166,10 @@ class Arguments(Z3Log_Arguments):
         return self.__subxpat
 
     @property
+    def subxpat_v2(self):
+        return self.__subxpat_v2
+
+    @property
     def error_threshold(self):
         return self.__error_threshold
 
@@ -147,6 +217,18 @@ class Arguments(Z3Log_Arguments):
     def clean(self):
         return self.__clean
 
+    @property
+    def full_error_function(self):
+        return self.__full_error_function
+
+    @property
+    def sub_error_function(self):
+        return self.__sub_error_function
+
+    @property
+    def et_partitioning(self):
+        return self.__et_partitioning
+
     @classmethod
     def parse(cls) -> Arguments:
         my_parser = argparse.ArgumentParser(description='converts different formats to one another',
@@ -179,6 +261,9 @@ class Arguments(Z3Log_Arguments):
         my_parser.add_argument('--subxpat',
                                action='store_true',
                                help='activate-subxpat')
+        my_parser.add_argument('--subxpat-v2',
+                               action='store_true',
+                               help='activate v2 of subxpat')
 
         my_parser.add_argument('--approximate_benchmark', '-app',
                                type=str,
@@ -306,6 +391,19 @@ class Arguments(Z3Log_Arguments):
                                action="store_true",
                                default=False)
 
+        # error functions
+        my_parser.add_argument('--full_error_function',
+                               choices=['1'],
+                               default=1)
+        my_parser.add_argument('--sub_error_function',
+                               choices=['1', '2'],
+                               default=1)
+
+        #
+        my_parser.add_argument('--et-partitioning',
+                               choices=['asc', 'desc'],
+                               default='asc')
+
         tmp_args = my_parser.parse_args()
 
         return Arguments(tmp_args)
@@ -316,6 +414,7 @@ class Arguments(Z3Log_Arguments):
                f'{self.products_per_output = }\n' \
                f'{self.products_in_total = }\n' \
                f'{self.subxpat = }\n' \
+               f'{self.subxpat_v2 = }\n' \
                f'{self.et = }\n' \
                f'{self.clean = }\n' \
                f'{self.partitioning_percentage = }\n' \
@@ -335,4 +434,7 @@ class Arguments(Z3Log_Arguments):
                f'{self.min_labeling = }\n' \
                f'{self.shared = }\n' \
                f'{self.parallel = }\n' \
+               f'{self.full_error_function = }\n' \
+               f'{self.sub_error_function = }\n' \
+               f'{self.et_partitioning = }\n' \
                f'{self.clean = }'

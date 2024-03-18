@@ -1,15 +1,31 @@
-venv/
-test/
-output/
-Laura/
-input/ver/*.v
-experiments/
-*.xlsx
-*__pycache__/
+#> ide
+/.vscode
+/.idea
 
-# Exclusions!
-!requirements.txt
-!main.py
-!experiments/xpat/pareto_ver
-!experiments/muscat/pareto_ver
-!experiments/mecals/pareto_ver
+#> local
+/local.mk
+**/*.local
+**/local.*
+/test
+/experiments
+/output
+# data
+/results
+/*.csv
+# scripts
+/scripts
+/*.sh
+
+#> generated
+/venv
+**/__pycache__
+**/yosys_graph.log
+**/yosys_log.txt
+# input
+/input/*
+!/input/ver.bak
+
+#> misc
+Laura/
+*.xlsx
+.DS_Store
