@@ -38,11 +38,5 @@ To prepare the system for execution you will need to follow a few steps:
 
 
 ## Known problems
-- On Apple devices running M# architecture, you will have problems with some packages. No support is given at the moment for this situation.
-
-## The Team (in alphabetical order by surname)
-- [Marco Biasion](marco.biasion@usi.ch) 
-- [Laura Pozzi](laura.pozzi@usi.ch) 
-- [Morteza Rezaalipour](morteza.rezaalipour@usi.ch) 
-- [Cristian Tirelli](cristian.tirelli@usi.ch)
-
+- On Apple devices running M# architecture, you will have problems with some packages. \
+    No support is given at the moment for this situation.
