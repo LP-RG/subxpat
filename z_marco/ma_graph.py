@@ -128,6 +128,7 @@ class MaGraph:
         # return cls(inputs, gates, outputs, [], info, edges)
 
     def successors(self, node_name: str) -> Tuple[str]:
+        # used only in insert_subgraph
         return tuple(
             dst
             for src, dst in self.edges
@@ -135,6 +136,7 @@ class MaGraph:
         )
 
     def predecessors(self, node_name: str) -> Tuple[str]:
+        # used in phase1_creator and xpat_creator_function
         return tuple(
             src
             for src, dst in self.edges
@@ -143,12 +145,14 @@ class MaGraph:
 
     @property
     def unaliased_outputs(self) -> Sequence[str]:
+        # used in insert_subgraph
         if not all(n.startswith(f'{ALIAS_PREFIX}_') for n in self.outputs):
             raise RuntimeError('trying to unaliasing not alias')
 
         return tuple(n[len(ALIAS_PREFIX)+1:] for n in self.outputs)
 
     def function_of(self, node_name: str) -> Optional[str]:
+        # used in xpat_creator_function
         return self._info[node_name]['function']
 
 
@@ -400,8 +404,14 @@ def insert_subgraph(full_graph: MaGraph, sub_graph: MaGraph) -> MaGraph:
 
     # replaces edges out->succs with out.pred->succs
     for sub_out, full_out in zip(sub_graph.outputs, sub_graph.unaliased_outputs):
+        print(sub_out, full_out)
         sub_pred = sub_graph.predecessors(sub_out)[0]
         full_succs = full_graph.successors(full_out)
+        provina = [n for n in full_succs if n not in gates]
+        if len(provina) > 0:
+            print(sub_pred, full_succs, provina)
+            raise RuntimeError("MISSING NODE, BUG FOUND <><><><><><><><><><><><><><>")
+
         for suc in full_succs:
             i = edges.index((full_out, suc))
             edges[i] = (sub_pred, suc)

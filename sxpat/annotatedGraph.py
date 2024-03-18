@@ -297,7 +297,7 @@ class AnnotatedGraph(Graph):
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         # print(f'Extracting subgraph...')
 
-        tmp_graph = self.graph.copy(as_view=False)
+        tmp_graph: nx.DiGraph = self.graph.copy(as_view=False)
         # print(f'{tmp_graph.nodes = }')
         # Data structures containing the literals
         input_literals = {}  # literals associated to the input nodes

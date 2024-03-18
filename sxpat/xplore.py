@@ -203,14 +203,18 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                 elif cur_status == SAT:
                     if specs_obj.subxpat_v2:
+                        # MARCO->MORTEZA
+                        # comment these 2 lines
                         model_graph = xpat_model_to_magraph(model, iter_id=i)
                         merged_graph = insert_subgraph(full_magraph, model_graph)
 
+                        print(template_obj.json_model)
+
                         synth_obj = Synthesis(
                             specs_obj,
-                            template_obj.current_graph,  # not needed but given for now
-                            template_obj.json_model,  # not needed but given for now
-                            merged_graph
+                            template_obj.current_graph,
+                            template_obj.json_model,
+                            merged_graph # comment this
                         )
 
                         # todo:marco: probabilmente da sistemare per la run
