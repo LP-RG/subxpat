@@ -20,6 +20,8 @@ from .annotatedGraph import AnnotatedGraph
 
 
 class TemplateCreator:
+    is_two_phase_kind = False
+
     def __init__(self, template_specs: TemplateSpecs):
         self.__template_name = template_specs.template_name
         self.__benchmark_name = template_specs.benchmark_name
@@ -32,7 +34,6 @@ class TemplateCreator:
         self.__subxpat: bool = template_specs.subxpat
         self.__shared: bool = template_specs.shared
 
-
         self.__current_graph = self.import_graph()
         self.__exact_graph = self.import_exact_graph()
         self.__z3pyscript_out_path = None
@@ -43,6 +44,7 @@ class TemplateCreator:
     @property
     def subxpat(self):
         return self.__subxpat
+
     @property
     def shared(self):
         return self.__shared
@@ -58,6 +60,7 @@ class TemplateCreator:
     @property
     def template_name(self):
         return self.__template_name
+
     @template_name.setter
     def template_name(self, this_template_name):
         self.__template_name = this_template_name
@@ -65,6 +68,7 @@ class TemplateCreator:
     @property
     def benchmark_name(self):
         return self.__benchmark_name
+
     @benchmark_name.setter
     def benchmark_name(self, this_benchmark_name):
         self.__benchmark_name = this_benchmark_name
@@ -72,6 +76,7 @@ class TemplateCreator:
     @property
     def exact_benchmark(self):
         return self.__exact_benchmark_name
+
     @exact_benchmark.setter
     def exact_benchmark(self, this_exact_benchmark):
         self.__exact_benchmark_name = this_exact_benchmark
@@ -79,6 +84,7 @@ class TemplateCreator:
     @property
     def current_graph(self):
         return self.__current_graph
+
     @current_graph.setter
     def current_graph(self, this_current_graph):
         self.__current_graph = this_current_graph
@@ -86,6 +92,7 @@ class TemplateCreator:
     @property
     def exact_graph(self):
         return self.__exact_graph
+
     @exact_graph.setter
     def exact_graph(self, this_exact_graph):
         self.__exact_graph = this_exact_graph
@@ -130,6 +137,12 @@ class TemplateCreator:
 
         return temp_graph_obj
 
+    def run_phase1(self, arguments: Tuple):
+        raise NotImplementedError(f"{self.__class__.__name__}.run_phase1(...) is not yet implemented.")
+
+    def run_phase2(self):
+        raise NotImplementedError(f"{self.__class__.__name__}.run_phase2(...) is not yet implemented.")
+
     def __repr__(self):
         return f'An object of Class TemplateCreator:\n' \
                f'{self.__template_name = }\n' \
@@ -147,7 +160,6 @@ class Template_SOP1(TemplateCreator):
         self.__iterations = template_specs.iterations
         self.__num_models = template_specs.num_of_models
 
-
         self.__z3pyscript = None
         self.__z3_out_path = None
 
@@ -155,7 +167,6 @@ class Template_SOP1(TemplateCreator):
         self.__json_in_path = None
         self.__json_model: List = []
         self.__json_status: List = []
-
 
     @property
     def num_models(self):
@@ -221,6 +232,10 @@ class Template_SOP1(TemplateCreator):
     def et(self):
         return self.__error_threshold
 
+    @et.setter
+    def et(self, value):
+        self.__error_threshold = value
+
     @property
     def iterations(self):
         return self.__iterations
@@ -232,6 +247,7 @@ class Template_SOP1(TemplateCreator):
     @property
     def z3_out_path(self):
         return self.__z3_out_path
+
     @z3_out_path.setter
     def z3_out_path(self, this_z3_out_path):
         self.__z3_out_path = this_z3_out_path
@@ -239,6 +255,7 @@ class Template_SOP1(TemplateCreator):
     @property
     def json_out_path(self):
         return self.__json_out_path
+
     @json_out_path.setter
     def json_out_path(self, this_json_out_path):
         self.__json_out_path = this_json_out_path
@@ -252,17 +269,18 @@ class Template_SOP1(TemplateCreator):
         self.__json_in_path = this_json_path
 
     def label_graph(self, min_labeling: bool = False, parallel: bool = True):
-
-        labels = labeling(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
+        # labels = labeling(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
+        labels, _ = labeling_explicit(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
 
         for n in self.current_graph.graph.nodes:
             if n in labels:
                 self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
 
-    #TODO: Deprecated
-    def label_graph_old(self, constant_value = 2, min_labeling: bool = False):
+    # TODO: Deprecated
+    def label_graph_old(self, constant_value=2, min_labeling: bool = False):
+        """ ~ DEPRECATED ~ """
         print(Fore.BLUE + f'labeling...' + Style.RESET_ALL)
-        labels1, labels0 = labeling_old(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling)
+        labels1, labels0 = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling)
         for n in self.current_graph.graph.nodes:
             if n in labels0 and n in labels1:
                 if constant_value == 0:
@@ -271,7 +289,6 @@ class Template_SOP1(TemplateCreator):
                     self.current_graph.graph.nodes[n][WEIGHT] = int(labels1[n])
                 else:
                     self.current_graph.graph.nodes[n][WEIGHT] = max(int(labels0[n]), int(labels1[n]))
-
 
     def set_new_context(self, specs_obj: TemplateSpecs):
         self.lpp = specs_obj.lpp
@@ -283,10 +300,6 @@ class Template_SOP1(TemplateCreator):
         self.json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
         self.z3_out_path = self.set_path(OUTPUT_PATH['z3'])
 
-
-
-
-
     def set_path(self, this_path: Tuple[str, str]):
         folder, extension = this_path
         # print(f'setting json out path...')
@@ -297,6 +310,7 @@ class Template_SOP1(TemplateCreator):
             path = f'{folder}/{self.benchmark_name}_{TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{ITER}{self.iterations}.{extension}'
         # print(f'{path = }')
         return path
+
     def export_z3pyscript(self):
         # print(f'Storing in {self.z3_out_path}')
         with open(self.z3_out_path, 'w') as z:
@@ -325,10 +339,7 @@ class Template_SOP1(TemplateCreator):
                         self.json_model.append(None)
                         self.json_status.append(UNKNOWN)
 
-
-
     def get_json_runtime(self, this_id: int = 0):
-
         with open(self.json_in_path, 'r') as f:
             data = json.load(f)
 
@@ -370,13 +381,13 @@ class Template_SOP1(TemplateCreator):
             find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
             store_data = self.z3_generate_store_data()
             self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
-                              + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
-                              + approximate_circuit_wires_declaration \
-                              + exact_circuit_outputs_declaration \
-                              + approximate_circuit_outputs_declaration \
-                              + exact_circuit_constraints + approximate_circuit_constraints_subxpat \
-                              + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
-                              + store_data
+                + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
+                + approximate_circuit_wires_declaration \
+                + exact_circuit_outputs_declaration \
+                + approximate_circuit_outputs_declaration \
+                + exact_circuit_constraints + approximate_circuit_constraints_subxpat \
+                + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
+                + store_data
         self.export_z3pyscript()
 
     def z3_generate_imports(self):
@@ -509,7 +520,6 @@ class Template_SOP1(TemplateCreator):
         # TODO:
         # Fix when PIs are not the subgrpah's inputs
 
-
         gate_key_list = list(self.current_graph.gate_dict.keys())
         constant_key_list = list(self.current_graph.constant_dict.keys())
         # gates
@@ -598,7 +608,7 @@ class Template_SOP1(TemplateCreator):
     def z3_express_node_as_wire_constraints(self, node: str):
         # print(f'{self.exact_graph.graph.nodes = }')
         assert node in list(self.exact_graph.input_dict.values()) or node in list(self.exact_graph.gate_dict.values()) \
-               or node in list(self.exact_graph.output_dict.values()) or node in list(self.exact_graph.constant_dict.values())
+            or node in list(self.exact_graph.output_dict.values()) or node in list(self.exact_graph.constant_dict.values())
 
         if node in list(self.exact_graph.input_dict.values()):
             return node
@@ -668,9 +678,9 @@ class Template_SOP1(TemplateCreator):
         # print(f'{self.current_graph.output_dict.values() = }')
         assert node in list(self.current_graph.input_dict.values()) or node in list(
             self.current_graph.gate_dict.values()) \
-               or node in list(self.current_graph.output_dict.values()) or node in list(
+            or node in list(self.current_graph.output_dict.values()) or node in list(
             self.current_graph.constant_dict.values()) \
-               or node.startswith(APPROXIMATE_WIRE_PREFIX)
+            or node.startswith(APPROXIMATE_WIRE_PREFIX)
 
         if node in list(self.current_graph.input_dict.values()):
             return node
@@ -704,7 +714,6 @@ class Template_SOP1(TemplateCreator):
         exact_wire_constraints += f'# exact circuit constraints\n'
         exact_wire_constraints += f'{EXACT_CIRCUIT} = And(\n'
         exact_wire_constraints += f'{TAB}# wires\n'
-
 
         for g_idx in self.exact_graph.gate_dict:
 
@@ -1422,6 +1431,7 @@ class Template_SOP1(TemplateCreator):
                    f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
         return results
 
+
 class Template_SOP1ShareLogic(TemplateCreator):
     def __init__(self, template_specs: TemplateSpecs):
         super().__init__(template_specs)
@@ -1437,7 +1447,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
         self.__json_model: List = []
         self.__json_status: List = []
 
-        
         # TODO
         # Create a __json_model propery
 
@@ -1460,7 +1469,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
     @property
     def graph(self):
         return self.current_graph
-    
+
     @property
     def literals_per_product(self):
         return self.__literal_per_product
@@ -1544,18 +1553,16 @@ class Template_SOP1ShareLogic(TemplateCreator):
         self.__json_in_path = this_path
 
     def label_graph(self, min_labeling: bool = False, parallel: bool = True):
-
-        
         labels = labeling(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
 
         for n in self.current_graph.graph.nodes:
             if n in labels:
                 self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
 
-    #TODO: Deprecated
-    def label_graph_old(self, constant_value = 2, min_labeling: bool = False):
+    # TODO: Deprecated
+    def label_graph_old(self, constant_value=2, min_labeling: bool = False):
         print(Fore.BLUE + f'labeling...' + Style.RESET_ALL)
-        labels1, labels0 = labeling_old(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling)
+        labels1, labels0 = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling)
         for n in self.current_graph.graph.nodes:
             if n in labels0 and n in labels1:
                 if constant_value == 0:
@@ -1564,7 +1571,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     self.current_graph.graph.nodes[n][WEIGHT] = int(labels1[n])
                 else:
                     self.current_graph.graph.nodes[n][WEIGHT] = max(int(labels0[n]), int(labels1[n]))
-
 
     def set_new_context(self, specs_obj: TemplateSpecs):
         self.lpp = specs_obj.lpp
@@ -1631,9 +1637,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
                         self.json_model.append(None)
                         self.json_status.append(UNKNOWN)
 
-
     def get_json_runtime(self, this_id: int = 0):
-
         with open(self.json_in_path, 'r') as f:
             data = json.load(f)
 
@@ -1644,7 +1648,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
     def z3_generate_z3pyscript(self):
         if self.subxpat:
-            if self.shared: # Shared Subxpat (The best)
+            if self.shared:  # Shared Subxpat (The best)
                 imports = self.z3_generate_imports()  # parent
                 config = self.z3_generate_config()
                 z3_abs_function = self.z3_generate_z3_abs_function()  # parent
@@ -1670,14 +1674,14 @@ class Template_SOP1ShareLogic(TemplateCreator):
                 store_data = self.z3_generate_store_data()
 
                 self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
-                                  + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
-                                  + approximate_circuit_wires_declaration \
-                                  + exact_circuit_outputs_declaration \
-                                  + approximate_circuit_outputs_declaration \
-                                  + exact_circuit_constraints \
-                                  + approximate_circuit_constraints_shared \
-                                  + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
-                                  + store_data
+                    + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
+                    + approximate_circuit_wires_declaration \
+                    + exact_circuit_outputs_declaration \
+                    + approximate_circuit_outputs_declaration \
+                    + exact_circuit_constraints \
+                    + approximate_circuit_constraints_shared \
+                    + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
+                    + store_data
             elif not self.shared:
                 print(Fore.RED + f'For this functionality, please run the code with --subxpat flag alone!' + Style.RESET_ALL)
                 exit()
@@ -1686,7 +1690,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         # ===========================================================================================
         # ===========================================================================================
         elif not self.subxpat:
-            if self.shared: # Shared XPAT (Cata's work)
+            if self.shared:  # Shared XPAT (Cata's work)
                 # print(Fore.LIGHTCYAN_EX + f'Shared XPAT runner generation!' + Style.RESET_ALL)
                 imports = self.z3_generate_imports()  # parent
                 config = self.z3_generate_config()
@@ -1707,11 +1711,11 @@ class Template_SOP1ShareLogic(TemplateCreator):
                 find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
                 store_data = self.z3_generate_store_data()
                 self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
-                                  + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
-                                  + exact_circuit_outputs_declaration + exact_circuit_constraints + approximate_circuit_constraints \
-                                  + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
-                                  + store_data
-            elif not self.shared: # Vanilla XPAT
+                    + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
+                    + exact_circuit_outputs_declaration + exact_circuit_constraints + approximate_circuit_constraints \
+                    + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
+                    + store_data
+            elif not self.shared:  # Vanilla XPAT
                 imports = self.z3_generate_imports()  # parent
                 config = self.z3_generate_config()
                 z3_abs_function = self.z3_generate_z3_abs_function()  # parent
@@ -1730,13 +1734,13 @@ class Template_SOP1ShareLogic(TemplateCreator):
                 find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
                 store_data = self.z3_generate_store_data()
                 self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
-                                  + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
-                                  + exact_circuit_outputs_declaration + exact_circuit_constraints + approximate_circuit_constraints \
-                                  + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
-                                  + store_data
+                    + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
+                    + exact_circuit_outputs_declaration + exact_circuit_constraints + approximate_circuit_constraints \
+                    + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
+                    + store_data
         self.export_z3pyscript()
 
-    ## NM
+    # NM
     def z3_generate_imports(self):
         imports = f'from z3 import *\n' \
                   f'import sys\n' \
@@ -1753,7 +1757,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
         return z3_abs_function
 
-    ## NM
+    # NM
     def declare_gate(self, this_key: str, this_dict: dict = None):
         if this_dict is None:
             declaration = f"{this_key} = {Z3BOOL}('{this_key}')\n"
@@ -1761,7 +1765,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
             declaration = f"{this_dict[this_key]} = {Z3BOOL}('{this_dict[this_key]}')\n"
         return declaration
 
-    ## NM
+    # NM
     def z3_generate_declare_input_variables(self):
         input_variables = ''
         input_variables += f'# Inputs variables declaration\n'
@@ -1770,7 +1774,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         input_variables += '\n'
         return input_variables
 
-    ## NM
+    # NM
     def z3_generate_declare_integer_function(self, function_name):
         integer_function = ''
         integer_function += f'# Integer function declaration\n'
@@ -1779,7 +1783,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         integer_function += f"{function_name} = {FUNCTION}('{function_name}', {temp_arg_list})\n"
         return integer_function
 
-    ## NM
+    # NM
     def z3_generate_utility_variables(self):
         utility_variables = ''
         utility_variables += f'# utility variables'
@@ -1792,21 +1796,20 @@ class Template_SOP1ShareLogic(TemplateCreator):
         utility_variables += '\n'
         return utility_variables
 
-    ## NM
-
+    # NM
     def z3_generate_o_subxpat_shared(self):
         temp_o = ''
         for idx in range(self.graph.subgraph_num_outputs):
             temp_name = f'{PRODUCT_PREFIX}{idx}'
             temp_o += self.declare_gate(temp_name)
         return temp_o
+
     def z3_generate_o(self):
         temp_o = ''
         for idx in range(self.graph.num_outputs):
             temp_name = f'{PRODUCT_PREFIX}{idx}'
             temp_o += self.declare_gate(temp_name)
         return temp_o
-
 
     def z3_generate_oti_subxpat_shared(self):
         temp_oti = ''
@@ -1818,6 +1821,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     temp_oti += self.declare_gate(p_s)
                     temp_oti += self.declare_gate(p_l)
         return temp_oti
+
     def z3_generate_oti(self):
         temp_oti = ''
         for o_idx in range(self.graph.num_outputs):
@@ -1829,7 +1833,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     temp_oti += self.declare_gate(p_l)
         return temp_oti
 
-
     def z3_generate_ti_subxpat_shared(self):
         temp_ti = ''
         for pit_idx in range(self.pit):
@@ -1839,6 +1842,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
                 temp_ti += self.declare_gate(p_s)
                 temp_ti += self.declare_gate(p_l)
         return temp_ti
+
     def z3_generate_ti(self):
         temp_ti = ''
         for pit_idx in range(self.pit):
@@ -1859,6 +1863,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
                 temp_pto += self.declare_gate(name)
 
         return temp_pto
+
     def z3_generate_pto(self):
         temp_pto = f''
 
@@ -1870,7 +1875,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
         return temp_pto
 
-    ## New --> ti added
+    # New --> ti added
 
     def z3_generate_declare_implicit_parameters_subxpat_shared(self):
         implicit_parameters = ''
@@ -1880,6 +1885,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         implicit_parameters += self.z3_generate_pto_subxpat_shared()
         implicit_parameters += '\n'
         return implicit_parameters
+
     def z3_generate_declare_implicit_parameters_shared(self):
         implicit_parameters = ''
         implicit_parameters += f'# Parameters variables declaration\n'
@@ -1990,7 +1996,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def get_predecessors_exact(self, node: str) -> List[str]:
         return list(self.exact_graph.graph.predecessors(node))
 
-
     # NM
     def get_logical_function(self, node: str) -> str:
         return self.graph.graph.nodes[node][LABEL]
@@ -2000,8 +2005,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
     def z3_express_node_as_wire_constraints_subxpat_shared_exact_circuit(self, node: str):
         assert node in list(self.exact_graph.input_dict.values()) or node in list(self.exact_graph.gate_dict.values()) \
-               or node in list(self.exact_graph.output_dict.values()) or node in list(self.exact_graph.constant_dict.values()) \
-               or node.startswith(APPROXIMATE_WIRE_PREFIX)
+            or node in list(self.exact_graph.output_dict.values()) or node in list(self.exact_graph.constant_dict.values()) \
+            or node.startswith(APPROXIMATE_WIRE_PREFIX)
         if node in list(self.exact_graph.input_dict.values()):
             return node
         elif node in list(self.exact_graph.gate_dict.values()):
@@ -2020,8 +2025,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
     def z3_express_node_as_wire_constraints(self, node: str):
         assert node in list(self.graph.input_dict.values()) or node in list(self.graph.gate_dict.values()) \
-               or node in list(self.graph.output_dict.values()) or node in list(self.graph.constant_dict.values()) \
-               or node.startswith(APPROXIMATE_WIRE_PREFIX)
+            or node in list(self.graph.output_dict.values()) or node in list(self.graph.constant_dict.values()) \
+            or node.startswith(APPROXIMATE_WIRE_PREFIX)
         if node in list(self.graph.input_dict.values()):
             return node
         elif node in list(self.graph.gate_dict.values()):
@@ -2208,9 +2213,9 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def z3_express_node_as_wire_constraints_subxpat(self, node: str):
         assert node in list(self.current_graph.input_dict.values()) or node in list(
             self.current_graph.gate_dict.values()) \
-               or node in list(self.current_graph.output_dict.values()) or node in list(
+            or node in list(self.current_graph.output_dict.values()) or node in list(
             self.current_graph.constant_dict.values()) \
-               or node.startswith(APPROXIMATE_WIRE_PREFIX)
+            or node.startswith(APPROXIMATE_WIRE_PREFIX)
 
         if node in list(self.current_graph.input_dict.values()):
             return node
@@ -2305,8 +2310,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
                         approximate_circuit_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {subgraph_input_list[input_idx]})'
 
-
-
                         if loop_1_last_iter_flg and loop_2_last_iter_flg and loop_3_last_iter_flg:
                             approximate_circuit_constraints += '))),\n'
                         elif loop_3_last_iter_flg and loop_2_last_iter_flg:
@@ -2349,7 +2352,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
             else:
                 exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints_subxpat(output_label)} +\n"
         return exact_integer_outputs
-        # NM
+
+    # NM
     def z3_generate_approximate_circuit_constraints_shared(self):
         approximate_circuit_constraints = ''
         approximate_circuit_constraints += f'# Approximate circuit\n'
@@ -2388,6 +2392,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
         # exit()
         return approximate_circuit_constraints
+
     def z3_generate_approximate_circuit_constraints_subxpat_shared(self):
         wires = self.z3_generate_approximate_circuit_wire_constraints_shared()
         outputs = self.z3_generate_approximate_circuit_output_constraints_shared()
@@ -2434,9 +2439,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
         # exit()
         return approximate_circuit_constraints_shared
 
-
-
-
     def z3_generate_forall_solver_preperation(self):
         prep = ''
         prep += '# forall solver\n'
@@ -2460,7 +2462,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
         circuits += f'{TAB}{TAB}{EXACT_CIRCUIT},\n' \
                     f'{TAB}{TAB}{APPROXIMATE_CIRCUIT},\n'
         return circuits
-
 
     def z3_generate_forall_solver_atmost_constraints_subxpat_shared(self):
         atmost = ''
@@ -2571,7 +2572,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
         end = f"{TAB})\n))\n"
         redundancy += double_no_care + remove_constant_zero_permutation + set_ppo_order + end
         return redundancy
-
 
     def z3_generate_forall_solver_redundancy_constraints_set_pit_order_subxpat_shared(self):
         """
@@ -2770,7 +2770,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
         return double
 
-
     def z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_subxpat_shared(self):
         """
         We have to generate something like this:
@@ -2796,14 +2795,13 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
         return const_zero_perm
 
-
     def z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_shared(self):
         """
         We have to generate something like this:
         # 		Implies(Not(p_o0), Not(Or(p_pr0_o0, p_pr1_o0, ..., p_prk_o0))),
-		# 		Implies(Not(p_o1), Not(Or(p_pr0_o1, p_pr1_o1, ..., p_prk_o1)))
-		# 			...
-		# 		Implies(Not(p_om), Not(Or(p_pr0_om, p_pr1_om, ..., p_prk_om)))
+        # 		Implies(Not(p_o1), Not(Or(p_pr0_o1, p_pr1_o1, ..., p_prk_o1)))
+        # 			...
+        # 		Implies(Not(p_om), Not(Or(p_pr0_om, p_pr1_om, ..., p_prk_om)))
         """
         const_zero_perm = ''
         const_zero_perm += f'{TAB}{TAB}# remove constant 0 parameters permutations\n'
@@ -2876,9 +2874,9 @@ class Template_SOP1ShareLogic(TemplateCreator):
         """
         sth like this (if pit equals k+1):
         Implies(Not(Or(p_pr0_o0, p_pr0_o1, ..., p_pr0_om)), Not(Or(p_pr0_i0_l, p_pr0_i0_s, ..., p_pr0_in_l, p_pr0_in_s))),
-		Implies(Not(Or(p_pr1_o0, p_pr1_o1, ..., p_pr1_om)), Not(Or(p_pr1_i0_l, p_pr1_i0_s, ..., p_pr1_in_l, p_pr1_in_s))),
-		...
-		Implies(Not(Or(p_prk_o0, p_prk_o1, ..., p_prk_om)), Not(Or(p_prk_i0_l, p_prk_i0_s, ..., p_prk_in_l, p_prk_in_s))),
+        Implies(Not(Or(p_pr1_o0, p_pr1_o1, ..., p_pr1_om)), Not(Or(p_pr1_i0_l, p_pr1_i0_s, ..., p_pr1_in_l, p_pr1_in_s))),
+        ...
+        Implies(Not(Or(p_prk_o0, p_prk_o1, ..., p_prk_om)), Not(Or(p_prk_i0_l, p_prk_i0_s, ..., p_prk_in_l, p_prk_in_s))),
         """
         unused_products = f'{TAB}{TAB}# remove unused products\n'
         for pit_idx in range(self.pit):
@@ -2902,7 +2900,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     unused_products += f', '
 
         return unused_products
-
 
     def z3_generate_forall_solver_subxpat_shared(self):
         prep = self.z3_generate_forall_solver_preperation()
@@ -3170,6 +3167,3 @@ class Template_SOP1ShareLogic(TemplateCreator):
         results += f"with open('{self.json_out_path}', 'w') as ofile:\n" \
                    f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
         return results
-
-
-

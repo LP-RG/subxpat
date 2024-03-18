@@ -7,13 +7,16 @@ import networkx as nx
 from Z3Log.graph import Graph
 from Z3Log.verilog import Verilog
 from Z3Log.utils import *
+
 from .config.config import *
 from .config import paths as sxpatpaths
 from Z3Log.z3solver import Z3solver
 from z3 import *
 
-
 from .templateSpecs import TemplateSpecs
+
+from z_marco.utils import pprint
+
 
 class AnnotatedGraph(Graph):
     def __init__(self, benchmark_name: str, is_clean: bool = False, partitioning_percentage: int = 50) -> None:
@@ -25,15 +28,9 @@ class AnnotatedGraph(Graph):
         super().__init__(benchmark_name, is_clean)
         folder, extension = INPUT_PATH['ver']
 
-
-
-
         self.set_output_dict(self.sort_dict(self.output_dict))
 
-
         self.__partitioning_percentage = partitioning_percentage
-
-
 
         self.__subgraph = None
         self.__subgraph_input_dict = None
@@ -49,7 +46,6 @@ class AnnotatedGraph(Graph):
         self.__subgraph_num_fanin = None
         self.__subgraph_num_fanout = None
         self.__graph_num_intact_gates = None
-
 
         self.__add_weights()
 
@@ -79,6 +75,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_input_dict(self):
         return self.__subgraph_input_dict
+
     @subgraph_input_dict.setter
     def subgraph_input_dict(self, this_subgraph_input_dict):
         self.__subgraph_input_dict = this_subgraph_input_dict
@@ -86,6 +83,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_output_dict(self):
         return self.__subgraph_output_dict
+
     @subgraph_output_dict.setter
     def subgraph_output_dict(self, this_subgraph_output_dict):
         self.__subgraph_output_dict = this_subgraph_output_dict
@@ -93,6 +91,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_gate_dict(self):
         return self.__subgraph_gate_dict
+
     @subgraph_gate_dict.setter
     def subgraph_gate_dict(self, this_subgraph_gate_dict):
         self.__subgraph_gate_dict = this_subgraph_gate_dict
@@ -100,6 +99,7 @@ class AnnotatedGraph(Graph):
     @property
     def graph_intact_gate_dict(self):
         return self.__graph_intact_gate_dict
+
     @graph_intact_gate_dict.setter
     def graph_intact_gate_dict(self, this_graph_intact_gate_dict):
         self.__graph_intact_gate_dict = this_graph_intact_gate_dict
@@ -107,6 +107,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_fanin_dict(self):
         return self.__subgraph_fanin_dict
+
     @subgraph_fanin_dict.setter
     def subgraph_fanin_dict(self, this_subgraph_fanin_dict):
         self.__subgraph_fanin_dict = this_subgraph_fanin_dict
@@ -114,6 +115,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_fanout_dict(self):
         return self.__subgraph_fanout_dict
+
     @subgraph_fanout_dict.setter
     def subgraph_fanout_dict(self, this_subgraph_fanout_dict):
         self.__subgraph_fanout_dict = this_subgraph_fanout_dict
@@ -121,6 +123,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_num_inputs(self):
         return self.__subgraph_num_inputs
+
     @subgraph_num_inputs.setter
     def subgraph_num_inputs(self, this_subgraph_num_inputs):
         self.__subgraph_num_inputs = this_subgraph_num_inputs
@@ -128,6 +131,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_num_outputs(self):
         return self.__subgraph_num_outputs
+
     @subgraph_num_outputs.setter
     def subgraph_num_outputs(self, this_subgraph_num_outputs):
         self.__subgraph_num_outputs = this_subgraph_num_outputs
@@ -135,6 +139,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_num_gates(self):
         return self.__subgraph_num_gates
+
     @subgraph_num_gates.setter
     def subgraph_num_gates(self, this_subgraph_num_gates):
         self.__subgraph_num_gates = this_subgraph_num_gates
@@ -142,6 +147,7 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_num_fanin(self):
         return self.__subgraph_num_fanin
+
     @subgraph_num_fanin.setter
     def subgraph_num_fanin(self, this_subgraph_num_fanin):
         self.__subgraph_num_fanin = this_subgraph_num_fanin
@@ -149,14 +155,13 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_num_fanout(self):
         return self.__subgraph_num_fanout
+
     @subgraph_num_fanout.setter
     def subgraph_num_fanout(self, this_subgraph_num_fanout):
         self.__subgraph_num_fanout = this_subgraph_num_fanout
 
     def sort_dict(self, this_dict: Dict) -> Dict:
-        sorted_dict: type(this_dict) = {}
-        sorted_dict = dict(sorted(this_dict.items(), key=lambda x:x[0]))
-        return sorted_dict
+        return dict(sorted(this_dict.items(), key=lambda x: x[0]))
 
     def __add_weights(self):
         for n in self.graph.nodes:
@@ -166,8 +171,6 @@ class AnnotatedGraph(Graph):
         #     print(f'{n = }')
         #
         # exit()
-
-
 
     def __repr__(self):
         return f'An object of class AnnotatedGraph:\n' \
@@ -180,24 +183,23 @@ class AnnotatedGraph(Graph):
     def extract_subgraph(self, specs_obj: TemplateSpecs):
 
         if self.num_gates == 0:
-            print(
-                Fore.LIGHTYELLOW_EX + f'No gates are found in the graph! Skipping the subgraph extraction' + Style.RESET_ALL)
+            pprint.with_color(Fore.LIGHTYELLOW_EX)(f'No gates are found in the graph! Skipping the subgraph extraction')
             return False
         else:
             if specs_obj.subxpat:
                 mode = specs_obj.mode
                 if mode == 1:
-                    print(Fore.BLUE + f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition" + Style.RESET_ALL)
+                    pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
                     self.subgraph = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
 
-                    print(Fore.GREEN + f" (#ofNodes={cnt_nodes})" + Style.RESET_ALL)
+                    pprint.success(f" (#ofNodes={cnt_nodes})")
                 elif mode == 2:
-                    print(Fore.BLUE + f"Partition with sensitivity start... Using imax={specs_obj.imax}, omax={specs_obj.omax}," \
-                                      f"and min_subgraph_size={specs_obj.min_subgraph_size}" + Style.RESET_ALL)
+                    pprint.info2(f"Partition with sensitivity start... Using imax={specs_obj.imax}, omax={specs_obj.omax},"
+                                 f"and min_subgraph_size={specs_obj.min_subgraph_size}")
                     iteration = 1
                     cnt_nodes = 0
                     specs_obj.sensitivity = 1
@@ -205,7 +207,7 @@ class AnnotatedGraph(Graph):
 
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                         # specs_obj.sensitivity = iteration
-                        print(Fore.LIGHTBLUE_EX + f"Sugraph iteration {iteration} " + Style.RESET_ALL)
+                        pprint.with_color(Fore.LIGHTBLUE_EX)(f"Sugraph iteration {iteration} ")
                         self.subgraph = self.find_subgraph_sensitivity(specs_obj)
 
                         # Count how many nodes are in the subgraph
@@ -214,12 +216,12 @@ class AnnotatedGraph(Graph):
                             if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                                 cnt_nodes += 1
 
-                        print(Fore.GREEN + f" (#ofNodes={cnt_nodes})" + Style.RESET_ALL)
+                        pprint.success(f" (#ofNodes={cnt_nodes})")
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
                 elif mode == 3:
-                    print(Fore.BLUE + f"Partition with sensitivity start... Using only min_subgraph_size={specs_obj.min_subgraph_size} parameter" + Style.RESET_ALL)
+                    pprint.info2(f"Partition with sensitivity start... Using only min_subgraph_size={specs_obj.min_subgraph_size} parameter")
                     iteration = 1
                     cnt_nodes = 0
                     specs_obj.sensitivity = 1
@@ -227,7 +229,7 @@ class AnnotatedGraph(Graph):
 
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                         # specs_obj.sensitivity = iteration
-                        print(Fore.BLUE + f"Sugraph iteration {iteration}" + Style.RESET_ALL)
+                        pprint.info2(f"Sugraph iteration {iteration}")
                         self.subgraph = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
 
                         # Count how many nodes are in the subgraph
@@ -236,29 +238,28 @@ class AnnotatedGraph(Graph):
                             if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                                 cnt_nodes += 1
 
-
-                        print(Fore.GREEN + f" (#ofNodes={cnt_nodes})" +Style.RESET_ALL)
+                        pprint.success(f" (#ofNodes={cnt_nodes})")
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
                 elif mode == 4:
-                    print(Fore.BLUE + f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition" + Style.RESET_ALL)
+                    pprint.info2(f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition")
                     self.subgraph = self.find_subgraph_feasible(specs_obj)  # Critian's subgraph extraction
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
 
-                    print(Fore.GREEN + f" (#ofNodes={cnt_nodes})" + Style.RESET_ALL)
+                    pprint.success(f" (#ofNodes={cnt_nodes})")
                 elif mode == 5:
-                    print(Fore.BLUE + f"Partition with omax={specs_obj.omax} and hard feasibility constraints. Looking for largest partition" + Style.RESET_ALL)
+                    pprint.info2(f"Partition with omax={specs_obj.omax} and hard feasibility constraints. Looking for largest partition")
                     self.subgraph = self.find_subgraph_feasible_hard(specs_obj)  # Critian's subgraph extraction
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
 
-                    print(Fore.GREEN + f" (#ofNodes={cnt_nodes})" + Style.RESET_ALL)
+                    pprint.success(f" (#ofNodes={cnt_nodes})")
             else:
                 self.subgraph = self.entire_graph()
 
@@ -277,7 +278,11 @@ class AnnotatedGraph(Graph):
             self.subgraph_num_fanin = len(self.subgraph_fanin_dict)
             self.subgraph_num_fanout = len(self.subgraph_fanout_dict)
             self.graph_num_intact_gates = len(self.__graph_intact_gate_dict)
-            return True
+
+            if self.subgraph_num_gates == 0:
+                return False
+            else:
+                return True
 
     def find_subgraph_feasible(self, specs_obj: TemplateSpecs):
         """
@@ -288,14 +293,11 @@ class AnnotatedGraph(Graph):
         feasibility_treshold = specs_obj.et
         # print(f'{feasibility_treshold = }')
 
-
-
-        # print(Fore.BLUE + f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ' + Style.RESET_ALL)
+        # pprint.info2(f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         # print(f'Extracting subgraph...')
-
 
         tmp_graph = self.graph.copy(as_view=False)
         # print(f'{tmp_graph.nodes = }')
@@ -508,7 +510,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            print(Fore.GREEN + "subgraph found -> SAT" + Style.RESET_ALL, end='')
+            pprint.success("subgraph found -> SAT", end='')
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -518,7 +520,7 @@ class AnnotatedGraph(Graph):
                     gate_id = int(str(t)[2:])
                     node_partition.append(gate_id)  # Gates inside the partition
         else:
-            print(Fore.YELLOW + "subgraph not found -> UNSAT" + Style.RESET_ALL)
+            pprint.warning("subgraph not found -> UNSAT")
 
         # Check partition convexity
         for i in range(len(node_partition) - 1):
@@ -547,7 +549,7 @@ class AnnotatedGraph(Graph):
                 except nx.exception.NetworkXNoPath:
                     # print('Here')
                     # except:
-                    # print(Fore.RED + f'Node {u} or {v} do not belong to the graph G {G.nodes}' + Style.RESET_ALL)
+                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
                     # raise nx.exception.NetworkXNoPath
                     # No path between u and v
 
@@ -574,14 +576,11 @@ class AnnotatedGraph(Graph):
         feasibility_treshold = specs_obj.et
         # print(f'{feasibility_treshold = }')
 
-
-
-        # print(Fore.BLUE + f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ' + Style.RESET_ALL)
+        # pprint.info2(f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         # print(f'Extracting subgraph...')
-
 
         tmp_graph = self.graph.copy(as_view=False)
         # print(f'{tmp_graph.nodes = }')
@@ -794,7 +793,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            print(Fore.GREEN + "subgraph found -> SAT" + Style.RESET_ALL, end='')
+            pprint.success("subgraph found -> SAT", end='')
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -804,7 +803,7 @@ class AnnotatedGraph(Graph):
                     gate_id = int(str(t)[2:])
                     node_partition.append(gate_id)  # Gates inside the partition
         else:
-            print(Fore.YELLOW + "subgraph not found -> UNSAT" + Style.RESET_ALL)
+            pprint.warning("subgraph not found -> UNSAT")
 
         # Check partition convexity
         for i in range(len(node_partition) - 1):
@@ -833,7 +832,7 @@ class AnnotatedGraph(Graph):
                 except nx.exception.NetworkXNoPath:
                     # print('Here')
                     # except:
-                    # print(Fore.RED + f'Node {u} or {v} do not belong to the graph G {G.nodes}' + Style.RESET_ALL)
+                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
                     # raise nx.exception.NetworkXNoPath
                     # No path between u and v
 
@@ -851,7 +850,6 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-
     def find_subgraph_sensitivity(self, specs_obj: TemplateSpecs):
         """
         extracts a colored subgraph from the original non-partitioned graph object
@@ -861,7 +859,7 @@ class AnnotatedGraph(Graph):
         omax = specs_obj.omax
         sensitivity_t = specs_obj.sensitivity
 
-        # print(Fore.BLUE + f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ' + Style.RESET_ALL)
+        # pprint.info2( f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
@@ -1082,7 +1080,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            print(Fore.GREEN + "subgraph found -> SAT" + Style.RESET_ALL, end='')
+            pprint.success("subgraph found -> SAT", end='')
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -1092,7 +1090,7 @@ class AnnotatedGraph(Graph):
                     gate_id = int(str(t)[2:])
                     node_partition.append(gate_id)  # Gates inside the partition
         else:
-            print(Fore.YELLOW + "subgraph not found -> UNSAT" + Style.RESET_ALL)
+            pprint.warning("subgraph not found -> UNSAT")
 
         # Check partition convexity
         for i in range(len(node_partition) - 1):
@@ -1121,7 +1119,7 @@ class AnnotatedGraph(Graph):
                 except nx.exception.NetworkXNoPath:
                     # print('Here')
                     # except:
-                    # print(Fore.RED + f'Node {u} or {v} do not belong to the graph G {G.nodes}' + Style.RESET_ALL)
+                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
                     # raise nx.exception.NetworkXNoPath
                     # No path between u and v
 
@@ -1146,7 +1144,7 @@ class AnnotatedGraph(Graph):
         """
         imax = specs_obj.imax
         omax = specs_obj.omax
-        # print(Fore.BLUE + f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ' + Style.RESET_ALL)
+        # pprint.info2( f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
@@ -1350,7 +1348,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            print(Fore.GREEN + "subgraph found -> SAT " + Style.RESET_ALL, end='')
+            pprint.success("subgraph found -> SAT ", end='')
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -1360,7 +1358,7 @@ class AnnotatedGraph(Graph):
                     gate_id = int(str(t)[2:])
                     node_partition.append(gate_id)  # Gates inside the partition
         else:
-            print(Fore.YELLOW + "subgraph not found -> UNSAT" + Style.RESET_ALL)
+            pprint.warning("subgraph not found -> UNSAT")
 
         # Check partition convexity
         for i in range(len(node_partition) - 1):
@@ -1389,7 +1387,7 @@ class AnnotatedGraph(Graph):
                 except nx.exception.NetworkXNoPath:
                     # print('Here')
                     # except:
-                    # print(Fore.RED + f'Node {u} or {v} do not belong to the graph G {G.nodes}' + Style.RESET_ALL)
+                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
                     # raise nx.exception.NetworkXNoPath
                     # No path between u and v
 
@@ -1415,7 +1413,6 @@ class AnnotatedGraph(Graph):
         imax = specs_obj.imax
         omax = specs_obj.omax
         sensitivity_t = specs_obj.sensitivity
-
 
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
@@ -1637,7 +1634,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            print(Fore.GREEN + "subgraph found -> SAT" + Style.RESET_ALL, end='')
+            pprint.success("subgraph found -> SAT", end='')
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -1647,7 +1644,7 @@ class AnnotatedGraph(Graph):
                     gate_id = int(str(t)[2:])
                     node_partition.append(gate_id)  # Gates inside the partition
         else:
-            print(Fore.YELLOW + "subgraph not found -> UNSAT" + Style.RESET_ALL)
+            pprint.warning("subgraph not found -> UNSAT")
 
         # Check partition convexity
         for i in range(len(node_partition) - 1):
@@ -1676,7 +1673,7 @@ class AnnotatedGraph(Graph):
                 except nx.exception.NetworkXNoPath:
                     # print('Here')
                     # except:
-                    # print(Fore.RED + f'Node {u} or {v} do not belong to the graph G {G.nodes}' + Style.RESET_ALL)
+                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
                     # raise nx.exception.NetworkXNoPath
                     # No path between u and v
 
@@ -1694,11 +1691,8 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-
-
     def entire_graph(self):
         tmp_graph = self.graph.copy()
-
 
         for gate_idx in self.gate_dict:
 
@@ -1706,14 +1700,15 @@ class AnnotatedGraph(Graph):
             tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
 
         return tmp_graph
-    def export_annotated_graph(self):
+
+    def export_annotated_graph(self, filename: str = None):
         """
         exports the subgraph (annotated graph) to a GV (GraphViz) file
         :return:
         """
         # print(f'exporting the annotated subgraph!')
         # print(f'{self.subgraph_out_path = }')
-        with open(self.subgraph_out_path, 'w') as f:
+        with open(filename or self.subgraph_out_path, 'w') as f:
             f.write(f"{STRICT} {DIGRAPH} \"{self.name}\" {{\n")
             f.write(f"{NODE} [{STYLE} = {FILLED}, {FILLCOLOR} = {WHITE}]\n")
             for n in self.subgraph.nodes:
@@ -1725,9 +1720,6 @@ class AnnotatedGraph(Graph):
         # print(f'{self.subgraph_out_path = }')
         # print(f'{self.name = }')
         subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
-
-
-
 
     # TODO:for external modifications
     def evaluate_subgraph_error(self) -> float:
@@ -1742,7 +1734,7 @@ class AnnotatedGraph(Graph):
 
     # TODO: fix checks!
     # The checks are done on the original graph instead of the annotated graph!
-    def export_node(self, n, file_handler: 'class _io.TextIOWrapper'):
+    def export_node(self, n, file_handler: io.TextIOBase):
         """
         exports node n as a line of file that is identified by file_hanlder
         :param n: the label of node n
@@ -1789,7 +1781,7 @@ class AnnotatedGraph(Graph):
             else:
                 weight = f'{WEIGHT} = -1'
         else:
-            print(Fore.RED + f'ERROR!!! a problem occurred while exporting an annotated graph {self.__out_annotated_graph_path}')
+            pprint.error(f'ERROR!!! a problem occurred while exporting an annotated graph {self.__out_annotated_graph_path}')
             exit()
         line = f"{n} [{label}, {shape}, {color}, {weight}];\n"
         file_handler.write(line)
@@ -1859,10 +1851,10 @@ class AnnotatedGraph(Graph):
                     return True
         return False
 
-
     # TODO:
     # This part should generate a comment in verilog expressing:
     # Annotated subgraph inputs
+
     def is_subgraph_input(self, n):
         """
         checks whether node n is an input node of the subgraph; an input node is a (non-member) node that has an ingoing edge
@@ -1935,7 +1927,7 @@ class AnnotatedGraph(Graph):
         # print(f'{tmp_output_dict = }')
         return tmp_output_dict
 
-    #TODO
+    # TODO
     # Deprecated
     def extract_subgraph_fanin(self):
         tmp_fanin_dict: Dict[int, str] = {}
@@ -1958,8 +1950,3 @@ class AnnotatedGraph(Graph):
                 idx += 1
                 self.color_subgraph_node(n, WHITE)
         return tmp_fanout_dict
-
-
-
-
-

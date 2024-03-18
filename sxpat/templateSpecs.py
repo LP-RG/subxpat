@@ -9,6 +9,7 @@ class TemplateSpecs:
         self.__literals_per_product: int = int(kwargs[LITERALS_PER_PRODUCT])
         self.__products_per_output: int = int(kwargs[PRODUCTS_PER_OUTPUT])
         self.__subxpat: bool = kwargs[SUBXPAT]
+        self.__subxpat_v2: bool = kwargs[SUBXPAT_V2]
         self.__num_of_models = kwargs[NUM_OF_MODELS]
         self.__error_threshold = kwargs[TEMPLATE_SPEC_ET]
         self.__partitioning_percentage = kwargs[PARTITIONING_PERCENTAGE]
@@ -28,6 +29,17 @@ class TemplateSpecs:
         self.__shared = kwargs[SHARED]
         self.__products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
         self.__parallel: bool = kwargs[PARALLEL]
+
+        self.__full_error_function: int = int(kwargs[FULL_ERROR_FUNCTION])
+        self.__sub_error_function: int = int(kwargs[SUB_ERROR_FUNCTION])
+
+        self.et_partitioning: str = kwargs[ET_PARTITIONING]
+
+        self.__keep_unsat_candidate: bool = self.__subxpat_v2
+
+    @property
+    def keep_unsat_candidate(self):
+        return self.__keep_unsat_candidate
 
     @property
     def parallel(self):
@@ -69,6 +81,10 @@ class TemplateSpecs:
     def exact_benchmark(self):
         return self.__exact_benchamrk_name
 
+    @exact_benchmark.setter
+    def exact_benchmark(self, value):
+        self.__exact_benchamrk_name = value
+
     @property
     def benchmark_name(self):
         return self.__benchamrk_name
@@ -104,6 +120,10 @@ class TemplateSpecs:
     @property
     def subxpat(self):
         return self.__subxpat
+
+    @property
+    def subxpat_v2(self):
+        return self.__subxpat_v2
 
     @property
     def iterations(self):
@@ -165,6 +185,10 @@ class TemplateSpecs:
     def et(self):
         return self.__error_threshold
 
+    @et.setter
+    def et(self, value):
+        self.__error_threshold = value
+
     @property
     def min_subgraph_size(self):
         return self.__min_subgraph_size
@@ -185,6 +209,14 @@ class TemplateSpecs:
     def pit(self, this_pit):
         self.__products_in_total = this_pit
 
+    @property
+    def full_error_function(self):
+        return self.__full_error_function
+
+    @property
+    def sub_error_function(self):
+        return self.__sub_error_function
+
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \
                f'{self.template_name = }\n' \
@@ -194,6 +226,7 @@ class TemplateSpecs:
                f'{self.ppo = }\n' \
                f'{self.pit = }\n' \
                f'{self.subxpat = }\n' \
+               f'{self.subxpat_v2 = }\n' \
                f'{self.num_of_models = }\n' \
                f'{self.et = }\n' \
                f'{self.partitioning_percentage = }\n' \
@@ -210,4 +243,8 @@ class TemplateSpecs:
                f'{self.population = }\n' \
                f'{self.shared = }\n'  \
                f'{self.parallel = }\n' \
-               f'{self.min_labeling = }'
+               f'{self.min_labeling = }\n' \
+               f'{self.full_error_function = }\n' \
+               f'{self.sub_error_function = }\n' \
+               f'{self.et_partitioning = }\n' \
+               f'{self.keep_unsat_candidate = }\n'
