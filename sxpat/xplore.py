@@ -127,7 +127,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             template_obj.current_graph = template_obj.import_graph()
 
             # extract the subgraph
-            if specs_obj.max_sensitivity > 0 or specs_obj.mode in [3, 4, 5]:
+            if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
                 # label graph
                 t_start = time.time()
                 template_obj.label_graph(min_labeling=specs_obj.min_labeling)
