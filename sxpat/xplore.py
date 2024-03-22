@@ -250,7 +250,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     #                                                 this_cell=(lpp, ppo))
 
                     # todo: should we refactor with pandas?
-                    with open(f"{OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
+                    with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
                         csvwriter = csv.writer(f)
 
                         header = list(range(len(cur_model_results)))
