@@ -1,18 +1,13 @@
 import csv
 import time
-from typing import Iterable, Iterator, Union
-from colorama import Fore, Style
+from typing import Iterable, Iterator, List, Union
+from colorama import Fore
 
 from tabulate import tabulate
 
 import math
 
-import Z3Log
-
-from Z3Log.verilog import Verilog
-from Z3Log.graph import Graph
 from Z3Log.utils import *
-from Z3Log.z3solver import Z3solver
 from Z3Log.config import path as z3logpath
 
 from sxpat.templateCreator import Template_SOP1, Template_SOP1ShareLogic
@@ -24,16 +19,9 @@ from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
 from sxpat.utils.filesystem import FS
 from sxpat.verification import erroreval_verification_explicit
-# from sxpat.verification import erroreval_verification, erroreval_verification_explicit, erroreval_verification_buggy
-from sxpat.stats import Stats
-from sxpat.stats import *
+from sxpat.stats import Stats, sxpatconfig, Model
 
-# executor
-from sxpat.executor.subxpat2_executor import SubXPatV2Executor
-# graph
-from z_marco.ma_graph import MaGraph, draw_gv, insert_subgraph, extract_subgraph, xpat_model_to_magraph
-# distance function
-from sxpat.distance_function import WeightedAbsoluteDifference, HammingDistance
+from z_marco.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subgraph
 
 from z_marco.utils import pprint, color
 
@@ -203,18 +191,18 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                 elif cur_status == SAT:
                     if specs_obj.subxpat_v2:
-                        # MARCO->MORTEZA
-                        # comment these 2 lines
-                        model_graph = xpat_model_to_magraph(model, iter_id=i)
-                        merged_graph = insert_subgraph(full_magraph, model_graph)
-
-                        print(template_obj.json_model)
+                        # remove sub-graph from the full-graph
+                        hole_magraph = remove_subgraph(full_magraph, sub_magraph)
+                        # convert the model to a circuit
+                        model_magraph = xpat_model_to_magraph(model, iter_id=i)
+                        # insert the subgraph into the hole-graph
+                        merged_magraph = insert_subgraph(hole_magraph, model_magraph)
 
                         synth_obj = Synthesis(
                             specs_obj,
                             template_obj.current_graph,
                             template_obj.json_model,
-                            merged_graph # comment this
+                            merged_magraph  # comment this
                         )
 
                         # todo:marco: probabilmente da sistemare per la run
@@ -473,7 +461,7 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
             this_power = sorted_candidates[idx][1][1]
             this_delay = sorted_candidates[idx][1][2]
             data.append([this_id, this_area, this_power, this_delay])
-        pprint.with_color(Fore.LIGHTGREEN_EX)(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
+        pprint.success(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
 
     else:
         #
@@ -485,7 +473,7 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
         best_power = sorted_candidates[0][1][1]
         best_delay = sorted_candidates[0][1][2]
         data.append([best_id, best_area, best_power, best_delay])
-        pprint.with_color(Fore.LIGHTGREEN_EX)(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
+        pprint.success(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
         # print the best model for now
 
 

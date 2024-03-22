@@ -16,7 +16,7 @@ import networkx.drawing as nx_draw
 from Z3Log.graph import Graph
 from sxpat.annotatedGraph import AnnotatedGraph
 
-from z_marco.utils import static, static
+from z_marco.utils import static, pprint
 
 
 # class Operation(Enum):
@@ -371,66 +371,71 @@ def extract_subgraph(graph: AnnotatedGraph) -> MaGraph:
     return MaGraph.from_digraph(new_graph)
 
 
-def insert_subgraph(full_graph: MaGraph, sub_graph: MaGraph) -> MaGraph:
-    gates = list(full_graph.gates)
-    edges = list(full_graph.edges)
-    constants = list(chain(full_graph.constants, sub_graph.constants))
-    info = dict(chain(full_graph._info.items(), sub_graph._info.items()))
+def remove_subgraph(full_graph: MaGraph, sub_graph: MaGraph) -> MaGraph:
+    """
+    Removes the given `sub_graph` from the `full_graph`. \\
+    The `sub_graph` must me derived from the `full_graph`.
+    """
 
-    # remove edges and gates of the full_graph where the sub_graph should be
-    # we start from the subgraph outputs and iterate back, stopping at the subgraph inputs
-    discarded_dst = list(sub_graph.unaliased_outputs)
-    for d_dst in discarded_dst:
-        for src, dst in edges[:]:
-            # edge ends on a destination to discard
-            if dst == d_dst:
-                # remove edge
-                edges.remove((src, dst))
-
-                # if src is not a subgraph_inputs (it is an inner gate)
-                if src not in sub_graph.inputs and src not in discarded_dst:
-                    discarded_dst.append(src)
-                    gates.remove(src)
-
-    # add inner edges of the subgraph
-    for src, dst in sub_graph.edges:
-        if dst not in sub_graph.outputs:
-            edges.append((src, dst))
-    # add inner gates of the subgraph
-    gates.extend(sub_graph.gates)
-    # remove sub_output gates
-    for sub_out in sub_graph.unaliased_outputs:
-        gates.remove(sub_out)
-
-    # replaces edges out->succs with out.pred->succs
-    for sub_out, full_out in zip(sub_graph.outputs, sub_graph.unaliased_outputs):
-        print(sub_out, full_out)
-        sub_pred = sub_graph.predecessors(sub_out)[0]
-        full_succs = full_graph.successors(full_out)
-        provina = [n for n in full_succs if n not in gates]
-        if len(provina) > 0:
-            print(sub_pred, full_succs, provina)
-            raise RuntimeError("MISSING NODE, BUG FOUND <><><><><><><><><><><><><><>")
-
-        for suc in full_succs:
-            i = edges.index((full_out, suc))
-            edges[i] = (sub_pred, suc)
-
-    # reorder gates and edges in topological order
-    nx_graph = nx.DiGraph()
-    nx_graph.add_nodes_from(chain(full_graph.inputs, gates, full_graph.outputs, constants))
-    nx_graph.add_edges_from(edges)
-    # gates
-    topological_nodes = nx.topological_sort(nx_graph)
-    gates = [n for n in topological_nodes if n in gates]
-    # edges
-    edges = list(nx.topological_sort(nx.line_graph(nx_graph)))
+    # keep only inner gates (remove single predecessors of outputs)
+    sub_graph_inner_gates = [g for g in sub_graph.gates if g not in sub_graph.unaliased_outputs]
+    # full_graph.gates - sub_graph_inner_gates
+    new_gates = [g for g in full_graph.gates if g not in sub_graph_inner_gates]
+    # full_graph.edges - sub_graph.edges
+    new_edges = [e for e in full_graph.edges if e not in sub_graph.edges]
+    # full_graph._info - sub_graph._info
+    new_info = {k: v for (k, v) in full_graph._info.items() if k not in sub_graph_inner_gates}
 
     return MaGraph(
         full_graph.inputs,
-        gates,
+        new_gates,
         full_graph.outputs,
-        constants,
-        info,
-        edges
+        full_graph.constants,
+        new_info,
+        new_edges
+    )
+
+
+def insert_subgraph(hole_graph: MaGraph, sub_graph: MaGraph) -> MaGraph:
+    """
+    Insert the `sub_graph` in the `hole_graph`.
+    """
+
+    # new_constants = hole_graph.constants + sub_graph.constants
+    new_constants = [*hole_graph.constants, *sub_graph.constants]
+    # new_info = hole_graph._info + sub_graph._info
+    new_info = dict((*hole_graph._info.items(), *sub_graph._info.items()))
+
+    # all gates in hole_graph expect the sub_graph.unaliased_outputs
+    kept_gates = [g for g in hole_graph.gates if g not in sub_graph.unaliased_outputs]
+    # new_gates = kept_gates + sub_graph.gates
+    new_gates = [*kept_gates, *sub_graph.gates]
+
+    # all edges except the ones to the outputs
+    sub_graph_inner_edges = [(s, d) for (s, d) in sub_graph.edges if d not in sub_graph.outputs]
+    # new_edges = hole_graph.edges + inner_edges
+    new_edges = [*hole_graph.edges, *sub_graph_inner_edges]
+    # replaces edges hole_graph.out->succs with sub_graph.out.pred->succs
+    for sub_out, full_out in zip(sub_graph.outputs, sub_graph.unaliased_outputs):
+        sub_pred = sub_graph.predecessors(sub_out)[0]
+        full_succs = hole_graph.successors(full_out)
+
+        for suc in full_succs:
+            i = new_edges.index((full_out, suc))
+            new_edges[i] = (sub_pred, suc)
+
+    # reorder gates and edges in topological order
+    nx_graph = nx.DiGraph()
+    nx_graph.add_nodes_from(chain(hole_graph.inputs, new_gates, hole_graph.outputs, new_constants))
+    nx_graph.add_edges_from(new_edges)
+    new_gates = [n for n in nx.topological_sort(nx_graph) if n in new_gates]
+    new_edges = list(nx.topological_sort(nx.line_graph(nx_graph)))
+
+    return MaGraph(
+        hole_graph.inputs,
+        new_gates,
+        hole_graph.outputs,
+        new_constants,
+        new_info,
+        new_edges
     )
