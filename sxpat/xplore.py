@@ -30,22 +30,21 @@ def explore_grid(specs_obj: TemplateSpecs):
 
     print(f'{specs_obj = }')
 
+    labeling_time: float = -1
+    subgraph_extraction_time: float = -1
+    subxpat_phase1_time: float = -1
+    subxpat_phase2_time: float = -1
+
     # Select toolname
     if specs_obj.subxpat_v2:
         pprint.info2('SubXPAT-V2 started...')
         toolname = sxpatconfig.SUBXPAT_V2
-        labeling_time: float = -1
-        subgraph_extraction_time: float = -1
-        subxpat_phase1_time: float = -1
-        subxpat_phase2_time: float = -1
     elif specs_obj.subxpat and specs_obj.shared:
         pprint.info2('Shared SubXPAT started...')
         toolname = sxpatconfig.SHARED_SUBXPAT
     elif specs_obj.subxpat and not specs_obj.shared:
         pprint.info2('SubXPAT started...')
         toolname = sxpatconfig.SUBXPAT
-        labeling_time: float = -1
-        subgraph_extraction_time: float = -1
     elif not specs_obj.subxpat and specs_obj.shared:
         pprint.info2('Shared XPAT started...')
         toolname = sxpatconfig.SHARED_XPAT
@@ -179,7 +178,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                 if cur_status in (UNSAT, UNKNOWN):
                     pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()} ')
-                    # todo:hack: commented to prevent crash from second iteration
                     # Morteza: Here we create a Model object and then save it
                     this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
                                             labeling_time=labeling_time,
@@ -200,12 +198,12 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                         synth_obj = Synthesis(
                             specs_obj,
-                            template_obj.current_graph,
-                            template_obj.json_model,
-                            merged_magraph  # comment this
+                            template_obj.current_graph,  # not used if magraph is given
+                            template_obj.json_model,  # not used if magraph is given
+                            merged_magraph
                         )
 
-                        # todo:marco: probabilmente da sistemare per la run
+                        # todo:marco: this seems to be working, lets make sure
                         cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
                         synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
                         print(f"{synth_obj.ver_out_path = }")
@@ -242,13 +240,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                                 (lpp, ppo)
                             )
 
-                    # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                    #                                                 this_iteration=i,
-                    #                                                 this_area=-1,
-                    #                                                 this_runtime=template_obj.get_json_runtime(),
-                    #                                                 this_status=cur_status.upper(),
-                    #                                                 this_cell=(lpp, ppo))
-
                     # todo: should we refactor with pandas?
                     with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
                         csvwriter = csv.writer(f)
@@ -270,7 +261,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                     pprint.success('ErrorEval PASS! ')
 
-                    # todo:maybe: ho messo questo qui, controlliamo che funzioni
+                    # todo:check: this seems to be working, lets make sure
                     specs_obj.exact_benchmark = approximate_benchmark
                     specs_obj.benchmark_name = approximate_benchmark
                     template_obj.set_new_context(specs_obj)
@@ -304,27 +295,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if exists_an_area_zero(current_population):
             break
-
-    for iteration in total.keys():
-        # todo:question: what is total[iteration]?
-        if total[iteration]:
-            sorted_candidates = sorted(total[iteration].items(), key=lambda x: x[1])
-            # print(Fore.LIGHTGREEN_EX + f'iteration{iteration} = {sorted_candidates}' + Style.RESET_ALL)
-            this_iteration = iteration
-            this_area = sorted_candidates[0][1][0]
-            this_power = sorted_candidates[0][1][1]
-            this_delay = sorted_candidates[0][1][2]
-            lpp, ppo = sorted_candidates[0][1][3]
-
-            # todo:hack: commented to prevent crash
-            # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-            #                                                 this_iteration=this_iteration,
-            #                                                 this_area=this_area,
-            #                                                 this_total_power=this_power,
-            #                                                 this_delay=this_delay,
-            #                                                 this_runtime=-1,
-            #                                                 this_status='SAT',
-            #                                                 this_cell=(lpp, ppo))
 
     display_the_tree(total)
 
