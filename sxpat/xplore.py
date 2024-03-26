@@ -450,7 +450,7 @@ def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
     print(f'{candidates = }')
     for key in candidates.keys():
         if candidates[key][0] == 0:
-            pprint.i3('Area zero found!\nTerminated.')
+            pprint.info3('Area zero found!\nTerminated.')
             return True
     return False
 
