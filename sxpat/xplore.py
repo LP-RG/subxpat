@@ -1,18 +1,12 @@
 import csv
 import time
-from typing import Iterable, Iterator, Union
-from colorama import Fore, Style
+from typing import Iterable, Iterator, List, Union
 
 from tabulate import tabulate
 
 import math
 
-import Z3Log
-
-from Z3Log.verilog import Verilog
-from Z3Log.graph import Graph
 from Z3Log.utils import *
-from Z3Log.z3solver import Z3solver
 from Z3Log.config import path as z3logpath
 
 from sxpat.templateCreator import Template_SOP1, Template_SOP1ShareLogic
@@ -24,16 +18,9 @@ from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
 from sxpat.utils.filesystem import FS
 from sxpat.verification import erroreval_verification_explicit
-# from sxpat.verification import erroreval_verification, erroreval_verification_explicit, erroreval_verification_buggy
-from sxpat.stats import Stats
-from sxpat.stats import *
+from sxpat.stats import Stats, sxpatconfig, Model
 
-# executor
-from sxpat.executor.subxpat2_executor import SubXPatV2Executor
-# graph
-from z_marco.ma_graph import MaGraph, draw_gv, insert_subgraph, extract_subgraph, xpat_model_to_magraph
-# distance function
-from sxpat.distance_function import WeightedAbsoluteDifference, HammingDistance
+from z_marco.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subgraph
 
 from z_marco.utils import pprint, color
 
@@ -42,22 +29,21 @@ def explore_grid(specs_obj: TemplateSpecs):
 
     print(f'{specs_obj = }')
 
+    labeling_time: float = -1
+    subgraph_extraction_time: float = -1
+    subxpat_phase1_time: float = -1
+    subxpat_phase2_time: float = -1
+
     # Select toolname
     if specs_obj.subxpat_v2:
         pprint.info2('SubXPAT-V2 started...')
         toolname = sxpatconfig.SUBXPAT_V2
-        labeling_time: float = -1
-        subgraph_extraction_time: float = -1
-        subxpat_phase1_time: float = -1
-        subxpat_phase2_time: float = -1
     elif specs_obj.subxpat and specs_obj.shared:
         pprint.info2('Shared SubXPAT started...')
         toolname = sxpatconfig.SHARED_SUBXPAT
     elif specs_obj.subxpat and not specs_obj.shared:
         pprint.info2('SubXPAT started...')
         toolname = sxpatconfig.SUBXPAT
-        labeling_time: float = -1
-        subgraph_extraction_time: float = -1
     elif not specs_obj.subxpat and specs_obj.shared:
         pprint.info2('Shared XPAT started...')
         toolname = sxpatconfig.SHARED_XPAT
@@ -191,7 +177,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                 if cur_status in (UNSAT, UNKNOWN):
                     pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()} ')
-                    # todo:hack: commented to prevent crash from second iteration
                     # Morteza: Here we create a Model object and then save it
                     this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
                                             labeling_time=labeling_time,
@@ -203,17 +188,21 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                 elif cur_status == SAT:
                     if specs_obj.subxpat_v2:
-                        model_graph = xpat_model_to_magraph(model, iter_id=i)
-                        merged_graph = insert_subgraph(full_magraph, model_graph)
+                        # remove sub-graph from the full-graph
+                        hole_magraph = remove_subgraph(full_magraph, sub_magraph)
+                        # convert the model to a circuit
+                        model_magraph = xpat_model_to_magraph(model, iter_id=i)
+                        # insert the subgraph into the hole-graph
+                        merged_magraph = insert_subgraph(hole_magraph, model_magraph)
 
                         synth_obj = Synthesis(
                             specs_obj,
-                            template_obj.current_graph,  # not needed but given for now
-                            template_obj.json_model,  # not needed but given for now
-                            merged_graph
+                            template_obj.current_graph,  # not used if magraph is given
+                            template_obj.json_model,  # not used if magraph is given
+                            merged_magraph
                         )
 
-                        # todo:marco: probabilmente da sistemare per la run
+                        # todo:marco: this seems to be working, lets make sure
                         cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
                         synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
                         print(f"{synth_obj.ver_out_path = }")
@@ -250,15 +239,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                                 (lpp, ppo)
                             )
 
-                    # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-                    #                                                 this_iteration=i,
-                    #                                                 this_area=-1,
-                    #                                                 this_runtime=template_obj.get_json_runtime(),
-                    #                                                 this_status=cur_status.upper(),
-                    #                                                 this_cell=(lpp, ppo))
-
                     # todo: should we refactor with pandas?
-                    with open(f"{OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
+                    with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
                         csvwriter = csv.writer(f)
 
                         header = list(range(len(cur_model_results)))
@@ -278,7 +260,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                     pprint.success('ErrorEval PASS! ')
 
-                    # todo:maybe: ho messo questo qui, controlliamo che funzioni
+                    # todo:check: this seems to be working, lets make sure
                     specs_obj.exact_benchmark = approximate_benchmark
                     specs_obj.benchmark_name = approximate_benchmark
                     template_obj.set_new_context(specs_obj)
@@ -312,27 +294,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if exists_an_area_zero(current_population):
             break
-
-    for iteration in total.keys():
-        # todo:question: what is total[iteration]?
-        if total[iteration]:
-            sorted_candidates = sorted(total[iteration].items(), key=lambda x: x[1])
-            # print(Fore.LIGHTGREEN_EX + f'iteration{iteration} = {sorted_candidates}' + Style.RESET_ALL)
-            this_iteration = iteration
-            this_area = sorted_candidates[0][1][0]
-            this_power = sorted_candidates[0][1][1]
-            this_delay = sorted_candidates[0][1][2]
-            lpp, ppo = sorted_candidates[0][1][3]
-
-            # todo:hack: commented to prevent crash
-            # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_id=0,
-            #                                                 this_iteration=this_iteration,
-            #                                                 this_area=this_area,
-            #                                                 this_total_power=this_power,
-            #                                                 this_delay=this_delay,
-            #                                                 this_runtime=-1,
-            #                                                 this_status='SAT',
-            #                                                 this_cell=(lpp, ppo))
 
     display_the_tree(total)
 
@@ -469,7 +430,7 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
             this_power = sorted_candidates[idx][1][1]
             this_delay = sorted_candidates[idx][1][2]
             data.append([this_id, this_area, this_power, this_delay])
-        pprint.with_color(Fore.LIGHTGREEN_EX)(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
+        pprint.success(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
 
     else:
         #
@@ -481,7 +442,7 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
         best_power = sorted_candidates[0][1][1]
         best_delay = sorted_candidates[0][1][2]
         data.append([best_id, best_area, best_power, best_delay])
-        pprint.with_color(Fore.LIGHTGREEN_EX)(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
+        pprint.success(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
         # print the best model for now
 
 
@@ -489,7 +450,7 @@ def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
     print(f'{candidates = }')
     for key in candidates.keys():
         if candidates[key][0] == 0:
-            pprint.with_color(Fore.LIGHTMAGENTA_EX)('Area zero found!\nTerminated.')
+            pprint.info3('Area zero found!\nTerminated.')
             return True
     return False
 
