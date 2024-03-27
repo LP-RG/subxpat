@@ -262,14 +262,14 @@ class AnnotatedGraph(Graph):
                     pprint.success(f" (#ofNodes={cnt_nodes})")
                 elif mode == 6:
                     pprint.info2(f"Partition with omax={specs_obj.omax}, hard feasibility constraints and unique weights. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible_hard_unique_weights(specs_obj)
+                    self.subgraph = self.find_subgraph_different_output_weights(specs_obj)
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
                 elif mode == 7:
                     pprint.info2(f"Partition with omax={specs_obj.omax}, hard feasibility constraints and node exclusions. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_node_exclusions(specs_obj)
+                    self.subgraph = self.find_subgraph_cnf_exclusion_inclusion(specs_obj)
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
@@ -1710,7 +1710,7 @@ class AnnotatedGraph(Graph):
 
     #To fix: it finds subgraphs with all nodes weights different,
     #it should find subgraphs with all OUTPUT nodes weights different
-    def find_subgraph_feasible_hard_unique_weights(self, specs_obj: TemplateSpecs):
+    def find_subgraph_different_output_weights(self, specs_obj: TemplateSpecs):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -2225,21 +2225,38 @@ class AnnotatedGraph(Graph):
 
         #if True, exclude at least one node per list; otherwise include at least one node per list
         exclude = False
-        #cnf_nodes_id = []
-        cnf_nodes_id = [[1], [0, 3]]
+        #if True, exclude/include outputs, otherwise all nodes
+        output = True
 
-        if exclude:
-            for nodes_id_set in cnf_nodes_id:
+        excluded_nodes_id = [[132, 133]]
+        included_nodes_id = [[58, 81], [41, 21, 38]]
+        excluded_outputs_id = [[90]]
+        included_outputs_id = [[136]]
+
+        if exclude and not output:
+            for nodes_id_set in excluded_nodes_id:
                 #take actual nodes from IDs
                 nodes = [gate_literals[node_id] for node_id in nodes_id_set]
                 #check that at least one node is excluded from subgraph
                 opt.add(Or([Not(node_var) for node_var in nodes]))
-        else:
-            for nodes_id_set in cnf_nodes_id:
+        elif not exclude and not output:
+            for nodes_id_set in included_nodes_id:
                 #take actual nodes from IDs
                 nodes = [gate_literals[node_id] for node_id in nodes_id_set]
                 #check that at least one node is excluded from subgraph
                 opt.add(Or([node_var for node_var in nodes]))
+        elif exclude and output:
+            for outputs_id_set in excluded_outputs_id:
+                #take actual output nodes from IDs
+                outputs = [edge_constraint[output_id] for output_id in outputs_id_set]
+                #check that at least one output node is excluded from subgraph
+                opt.add(Or([Not(output_var) for output_var in outputs]))
+        else:
+            for outputs_id_set in included_outputs_id:
+                #take actual output nodes from IDs
+                outputs = [edge_constraint[output_id] for output_id in outputs_id_set]
+                #check that at least one output node is excluded from subgraph
+                opt.add(Or([output_var for output_var in outputs]))
 
 
         # Generate function to maximize
