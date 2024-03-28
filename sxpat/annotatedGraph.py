@@ -263,13 +263,16 @@ class AnnotatedGraph(Graph):
                 elif mode == 6:
                     pprint.info2(f"Partition with omax={specs_obj.omax}, hard feasibility constraints and unique weights. Looking for largest partition")
                     self.subgraph = self.find_subgraph_different_output_weights(specs_obj)
+                    
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
+
                 elif mode == 7:
                     pprint.info2(f"Partition with omax={specs_obj.omax}, hard feasibility constraints and node exclusions. Looking for largest partition")
                     self.subgraph = self.find_subgraph_cnf_exclusion_inclusion(specs_obj)
+
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
@@ -511,7 +514,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            pprint.success("subgraph found -> SAT ", end='')
+            pprint.success("subgraph found -> SAT")
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -798,7 +801,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            pprint.success("subgraph found -> SAT", end='')
+            pprint.success("subgraph found -> SAT")
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -1084,7 +1087,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            pprint.success("subgraph found -> SAT", end='')
+            pprint.success("subgraph found -> SAT")
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -1367,7 +1370,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            pprint.success("subgraph found -> SAT", end='')
+            pprint.success("subgraph found -> SAT")
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -1650,7 +1653,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            pprint.success("subgraph found -> SAT", end='')
+            pprint.success("subgraph found -> SAT")
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -1945,7 +1948,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            pprint.success("subgraph found -> SAT", end='')
+            pprint.success("subgraph found -> SAT")
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -2003,7 +2006,7 @@ class AnnotatedGraph(Graph):
         return tmp_graph
 
 
-    def find_subgraph_cnf_exclusion_inclusion(self,specs_obj: TemplateSpecs):
+    def find_subgraph_cnf_exclusion_inclusion(self,specs_obj: TemplateSpecs, excluded_outputs_id = []):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -2221,42 +2224,33 @@ class AnnotatedGraph(Graph):
 
         opt.add(Sum(feasibility_constraints) == Sum(partition_output_edges))
 
-        #TODO: change with actual parameters when available
+        excluded_nodes_id = []
+        included_nodes_id = []
+        included_outputs_id = []
 
-        #if True, exclude at least one node per list; otherwise include at least one node per list
-        exclude = False
-        #if True, exclude/include outputs, otherwise all nodes
-        output = True
+        for nodes_id_set in excluded_nodes_id:
+            #take actual nodes from IDs
+            nodes = [gate_literals[node_id] for node_id in nodes_id_set]
+            #check that at least one node is excluded from subgraph
+            opt.add(Or([Not(node_var) for node_var in nodes]))
 
-        excluded_nodes_id = [[132, 133]]
-        included_nodes_id = [[58, 81], [41, 21, 38]]
-        excluded_outputs_id = [[90]]
-        included_outputs_id = [[136]]
+        for nodes_id_set in included_nodes_id:
+            #take actual nodes from IDs
+            nodes = [gate_literals[node_id] for node_id in nodes_id_set]
+            #check that at least one node is excluded from subgraph
+            opt.add(Or([node_var for node_var in nodes]))
 
-        if exclude and not output:
-            for nodes_id_set in excluded_nodes_id:
-                #take actual nodes from IDs
-                nodes = [gate_literals[node_id] for node_id in nodes_id_set]
-                #check that at least one node is excluded from subgraph
-                opt.add(Or([Not(node_var) for node_var in nodes]))
-        elif not exclude and not output:
-            for nodes_id_set in included_nodes_id:
-                #take actual nodes from IDs
-                nodes = [gate_literals[node_id] for node_id in nodes_id_set]
-                #check that at least one node is excluded from subgraph
-                opt.add(Or([node_var for node_var in nodes]))
-        elif exclude and output:
-            for outputs_id_set in excluded_outputs_id:
-                #take actual output nodes from IDs
-                outputs = [edge_constraint[output_id] for output_id in outputs_id_set]
-                #check that at least one output node is excluded from subgraph
-                opt.add(Or([Not(output_var) for output_var in outputs]))
-        else:
-            for outputs_id_set in included_outputs_id:
-                #take actual output nodes from IDs
-                outputs = [edge_constraint[output_id] for output_id in outputs_id_set]
-                #check that at least one output node is excluded from subgraph
-                opt.add(Or([output_var for output_var in outputs]))
+        for outputs_id_set in excluded_outputs_id:
+            #take actual output nodes from IDs
+            outputs = [edge_constraint[output_id] for output_id in outputs_id_set]
+            #check that at least one output node is excluded from subgraph
+            opt.add(Or([Not(output_var) for output_var in outputs]))
+            
+        for outputs_id_set in included_outputs_id:
+            #take actual output nodes from IDs
+            outputs = [edge_constraint[output_id] for output_id in outputs_id_set]
+            #check that at least one output node is excluded from subgraph
+            opt.add(Or([output_var for output_var in outputs]))
 
 
         # Generate function to maximize
@@ -2268,7 +2262,7 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            pprint.success("subgraph found -> SAT", end='')
+            pprint.success("subgraph found -> SAT")
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -2314,16 +2308,42 @@ class AnnotatedGraph(Graph):
                     # print("No path", u, v)
                     pass
 
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
+        excluded_outputs_size = len(excluded_outputs_id)
+        # check if output nodes with same weight are present, in which case
+        # add nodes IDs to excluded output list and re-iterate
+        for output_node1 in node_partition:
+            for output_node2 in node_partition:
+                #check if they have same weights
+                if output_node2 > output_node1 and gate_weight[output_node1] == gate_weight[output_node2]:
+                    
+                    #TODO fix
+                    # output nodes: 139, 90, 140
+                    is_output1 = m.eval(edge_constraint[output_node1])
+                    is_output2 = m.eval(edge_constraint[output_node2])
+                    # print(output_node1, output_node2, is_output1, is_output2)
+
+                    #check if both nodes are in the subgraph
+                    if is_true(is_output1) and is_true(is_output2):
+                        #print(output_node1)
+                        excluded_outputs_id.append([output_node1, output_node2])
+                        print(excluded_outputs_id)
+    
+
+        #if nodes have been added to excluded list, re-iterate
+        if len(excluded_outputs_id) > excluded_outputs_size:
+            pprint.info2("\nOutput nodes with equal weight have been found. Excluding and re-iterating")
+            return self.find_subgraph_cnf_exclusion_inclusion(specs_obj, excluded_outputs_id)
+        else:
+            for gate_idx in self.gate_dict:
+                # print(f'{gate_idx = }')
+                if gate_idx in node_partition:
+                    # print(f'{gate_idx} is in the node_partition')
+                    tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
+                    tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
+                else:
+                    tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
+                    tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
+            return tmp_graph
 
 
     def entire_graph(self):
