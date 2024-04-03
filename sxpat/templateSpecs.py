@@ -37,6 +37,8 @@ class TemplateSpecs:
 
         self.__keep_unsat_candidate: bool = self.__subxpat_v2
 
+        self._encoding: bool = kwargs[ENCODING]
+
     @property
     def keep_unsat_candidate(self):
         return self.__keep_unsat_candidate
@@ -216,6 +218,10 @@ class TemplateSpecs:
     @property
     def sub_error_function(self):
         return self.__sub_error_function
+
+    @property
+    def encoding(self):
+        return self._encoding
 
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \

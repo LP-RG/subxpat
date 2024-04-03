@@ -178,12 +178,12 @@ def explore_grid(specs_obj: TemplateSpecs):
                 if cur_status in (UNSAT, UNKNOWN):
                     pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()} ')
                     # Morteza: Here we create a Model object and then save it
-                    this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
-                                            labeling_time=labeling_time,
-                                            subgraph_extraction_time=subgraph_extraction_time,
-                                            subxpat_phase1_time=subxpat_phase1_time,
-                                            subxpat_phase2_time=subxpat_phase2_time)
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
+                    # this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
+                    #                         labeling_time=labeling_time,
+                    #                         subgraph_extraction_time=subgraph_extraction_time,
+                    #                         subxpat_phase1_time=subxpat_phase1_time,
+                    #                         subxpat_phase2_time=subxpat_phase2_time)
+                    # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
                     pre_iter_unsats[candidate] += 1
 
                 elif cur_status == SAT:

@@ -52,7 +52,7 @@ def main():
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
                                   min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
-                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel)
+                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel, encoding=args.encoding)
 
         if specs_obj.grid:
             stats_obj = explore_grid(specs_obj)
