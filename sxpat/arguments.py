@@ -104,6 +104,7 @@ class Arguments(Z3Log_Arguments):
         self.__full_error_function: int = tmp_args.full_error_function
         self.__sub_error_function: int = tmp_args.sub_error_function
         self.__et_partitioning: int = tmp_args.et_partitioning
+        self._encoding: int = tmp_args.encoding
 
     @property
     def parallel(self):
@@ -228,6 +229,10 @@ class Arguments(Z3Log_Arguments):
     @property
     def et_partitioning(self):
         return self.__et_partitioning
+
+    @property
+    def encoding(self):
+        return self._encoding
 
     @classmethod
     def parse(cls) -> Arguments:
@@ -404,6 +409,10 @@ class Arguments(Z3Log_Arguments):
                                choices=['asc', 'desc'],
                                default='asc')
 
+        my_parser.add_argument('-encoding',
+                               type=int,
+                               default=1)
+
         tmp_args = my_parser.parse_args()
 
         return Arguments(tmp_args)
@@ -437,4 +446,5 @@ class Arguments(Z3Log_Arguments):
                f'{self.full_error_function = }\n' \
                f'{self.sub_error_function = }\n' \
                f'{self.et_partitioning = }\n' \
-               f'{self.clean = }'
+               f'{self.clean = }\n' \
+               f'{self.encoding = }'
