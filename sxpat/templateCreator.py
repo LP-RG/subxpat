@@ -401,7 +401,7 @@ class Template_SOP1(TemplateCreator):
 
             elif (self.encoding == 2):
                 config = self.z3_generate_config_bitvec()
-                z3_abs_function = self.z3_generate_z3_abs_difference_bitvec_function()  # parent
+                z3_abs_function = self.z3_generate_z3_abs_difference_bitvec_function() 
                 input_variables_declaration = self.z3_generate_declare_input_variables()
                 exact_integer_function_declaration = self.z3_generate_declare_bitvec_function(F_EXACT)
                 approximate_integer_function_declaration = self.z3_generate_declare_bitvec_function(F_APPROXIMATE)
@@ -1133,7 +1133,7 @@ class Template_SOP1(TemplateCreator):
         prep = self.z3_generate_forall_solver_preperation_bitvec()
         error = self.z3_generate_forall_solver_error_constraint_bitvec()
         circuits = self.z3_generate_forall_solver_circuits()
-        atmost_constraints = self.z3_generate_forall_solver_atmost_constraints_subxpat()
+        atmost_constraints = self.z3_generate_forall_solver_atmost_constraints_subxpat_bitvec()
         redundancy_constraints = self.z3_generate_forall_solver_redundancy_constraints_subxpat()
         prep += '\n'
         error += '\n'
@@ -1156,7 +1156,7 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_forall_solver_preperation_bitvec(self):
         prep = ''
         prep += '# forall solver\n'
-        prep += f'{FORALL_SOLVER} = SolverFor("QF_BV")\n' \
+        prep += f'{FORALL_SOLVER} = SolverFor("BV")\n' \
                 f'{FORALL_SOLVER}.{ADD}({FORALL}(\n' \
                 f"{TAB}[{','.join(list(self.current_graph.input_dict.values()))}],\n" \
                 f"{TAB}{Z3_AND}(\n"
@@ -1221,6 +1221,28 @@ class Template_SOP1(TemplateCreator):
 
                     if loop_3_last_iter_flg:
                         atmost += f') <= {self.lpp},\n'
+                    else:
+                        atmost += f' + '
+        atmost += '\n'
+
+        return atmost
+
+    def z3_generate_forall_solver_atmost_constraints_subxpat_bitvec(self):
+        atmost = ''
+        atmost += f'{TAB}{TAB}# AtMost constraints\n'
+
+        for output_idx in range(self.current_graph.subgraph_num_outputs):
+            for ppo_idx in range(self.ppo):
+                atmost += f"{TAB}{TAB}ULE(("
+                for input_idx in range(self.current_graph.subgraph_num_inputs):
+                    loop_1_last_iter_flg = output_idx == self.current_graph.subgraph_num_outputs - 1
+                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1
+                    loop_3_last_iter_flg = input_idx == self.current_graph.subgraph_num_inputs - 1
+                    p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                    atmost += f"{IF}({p_s}, BitVecVal(1, {self.current_graph.subgraph_num_inputs}), BitVecVal(0, {self.current_graph.subgraph_num_inputs}))"
+
+                    if loop_3_last_iter_flg:
+                        atmost += f'), BitVecVal({self.lpp}, {self.current_graph.subgraph_num_inputs})),\n'
                     else:
                         atmost += f' + '
         atmost += '\n'
@@ -1475,6 +1497,16 @@ class Template_SOP1(TemplateCreator):
                                f')\n'
         return verficiation_solver
 
+    def z3_generate_verification_solver_bitvec(self):
+        verficiation_solver = ''
+        verficiation_solver += f'{VERIFICATION_SOLVER} = SolverFor("BV")\n' \
+                               f'{VERIFICATION_SOLVER}.{ADD}(\n' \
+                               f'{TAB}{ERROR} == {DIFFERENCE},\n' \
+                               f'{TAB}{EXACT_CIRCUIT},\n' \
+                               f'{TAB}{APPROXIMATE_CIRCUIT},\n' \
+                               f')\n'
+        return verficiation_solver
+
     def z3_generate_parameter_constraint_list(self):
         parameter_list = ''
         parameter_list += f'parameters_constraints: List[Tuple[BoolRef, bool]] = []\n'
@@ -1542,6 +1574,45 @@ class Template_SOP1(TemplateCreator):
 
         return find_valid_model
 
+    def z3_generate_find_wanted_number_of_models_prep_loop2(self):
+        find_valid_model = ''
+        find_valid_model += f'{TAB}while result != sat:\n' \
+                            f'{TAB}{TAB}time_attempt_start = time()\n' \
+                            f'{TAB}{TAB}time_parameters_start = time_attempt_start\n'
+
+        find_valid_model += f'{TAB}{TAB}# add constrain to prevent the same parameters to happen\n' \
+                            f'{TAB}{TAB}if parameters_constraints:\n' \
+                            f'{TAB}{TAB}{TAB}forall_solver.add(Or(*map(lambda x: x[0] != x[1], parameters_constraints)))\n'
+
+        find_valid_model += f'{TAB}{TAB}parameters_constraints = []\n'
+        find_valid_model += f"{TAB}{TAB}forall_solver.set(\"timeout\", int(timeout * 1000))\n" \
+                            f"{TAB}{TAB}result = forall_solver.check()\n" \
+                            f"{TAB}{TAB}time_parameters = time() - time_attempt_start\n" \
+                            f"{TAB}{TAB}time_attempt = time() - time_attempt_start\n" \
+                            f"{TAB}{TAB}timeout -= time_parameters # removed the time used from the timeout\n"
+        find_valid_model += f'{TAB}{TAB}if result != sat:\n' \
+                            f'{TAB}{TAB}{TAB}attempts_times.append((time_attempt, time_parameters, None))\n' \
+                            f'{TAB}{TAB}{TAB}break\n'
+        find_valid_model += f'{TAB}{TAB}m = forall_solver.model()\n' \
+                            f'{TAB}{TAB}parameters_constraints = []\n' \
+                            f'{TAB}{TAB}for k, v in map(lambda k: (k, m[k]), m):\n' \
+                            f'{TAB}{TAB}{TAB}if str(k)[0] == "p":\n' \
+                            f'{TAB}{TAB}{TAB}{TAB}parameters_constraints.append((Bool(str(k)), v))\n'
+
+        find_valid_model += f'{TAB}{TAB}# verify parameters\n' \
+                            f'{TAB}{TAB}WCE: int = None\n' \
+                            f'{TAB}{TAB}verification_ET: int = 0\n' \
+                            f'{TAB}{TAB}verification_ET_BV = BitVecVal(verification_ET, {self.current_graph.num_outputs})\n' \
+                            f'{TAB}{TAB}time_verification_start = time()\n' \
+                            f'{TAB}{TAB}# save state\n' \
+                            f'{TAB}{TAB}verification_solver.push()\n' \
+                            f'{TAB}{TAB}# parameters constraints\n' \
+                            f'{TAB}{TAB}verification_solver.add(\n' \
+                            f'{TAB}{TAB}{TAB}*map(lambda x: x[0] == x[1], parameters_constraints),\n' \
+                            f'{TAB}{TAB})\n'
+
+        return find_valid_model
+
     def z3_generate_find_wanted_number_of_models_prep_loop3(self):
         prep_loop3 = f'{TAB}{TAB}while verification_ET < max_possible_ET:\n' \
                      f'{TAB}{TAB}{TAB}# add constraint\n' \
@@ -1559,6 +1630,31 @@ class Template_SOP1(TemplateCreator):
                       f'{TAB}{TAB}{TAB}{TAB}# sat, need to search again\n' \
                       f'{TAB}{TAB}{TAB}{TAB}m = verification_solver.model()\n' \
                       f'{TAB}{TAB}{TAB}{TAB}verification_ET = m[error].as_long()\n' \
+                      f'{TAB}{TAB}{TAB}else:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB} # unknown (probably a timeout)\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}WCE = -1\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}break\n'
+
+        return prep_loop3
+
+    def z3_generate_find_wanted_number_of_models_prep_loop3_bitvec(self):
+        prep_loop3 = f'{TAB}{TAB}while verification_ET < max_possible_ET:\n' \
+                     f'{TAB}{TAB}{TAB}# add constraint\n' \
+                     f'{TAB}{TAB}{TAB}verification_solver.add(UGT(difference, verification_ET_BV))\n' \
+                     f'{TAB}{TAB}{TAB}# run solver\n' \
+                     f'{TAB}{TAB}{TAB}verification_solver.set("timeout", int(timeout * 1000))\n' \
+                     f'{TAB}{TAB}{TAB}v_result = verification_solver.check()\n'
+
+        prep_loop3 += f'{TAB}{TAB}{TAB}if v_result == unsat:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}# unsat, WCE found\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}WCE = verification_ET\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}break\n'
+
+        prep_loop3 += f'{TAB}{TAB}{TAB}elif v_result == sat:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}# sat, need to search again\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}m = verification_solver.model()\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}verification_ET = m[error].as_long()\n' \
+                      f'{TAB}{TAB}verification_ET_BV = BitVecVal(verification_ET, {self.current_graph.num_outputs})\n' \
                       f'{TAB}{TAB}{TAB}else:\n' \
                       f'{TAB}{TAB}{TAB}{TAB} # unknown (probably a timeout)\n' \
                       f'{TAB}{TAB}{TAB}{TAB}WCE = -1\n' \
