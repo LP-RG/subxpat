@@ -9,15 +9,18 @@ class DistanceFunction:
     def __init__(self) -> None:
         raise NotImplementedError(f"Class `{self.__class__.__name__}` is an abstract class.")
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def name(self):
         raise NotImplementedError(f"Property `{self.__class__.__name__}.name` is an abstract property.")
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def abbreviation(self):
         raise NotImplementedError(f"Property `{self.__class__.__name__}.abbreviation` is an abstract property.")
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def min_distance(self) -> int:
         """The minimum value above 0 this function can be."""
         raise NotImplementedError(f"Property `{self.__class__.__name__}.min_distance` is an abstract property.")
