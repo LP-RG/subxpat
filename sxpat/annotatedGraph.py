@@ -1350,6 +1350,13 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
+        # Set high weight nodes to False (speed-up)
+        no_large_weight_constraints = []
+        for gate_id in gate_literals:
+            if edge_w[gate_id] >= 2 * feasibility_treshold:
+                no_large_weight_constraints.append(gate_literals[gate_id] == False)
+        opt.add(no_large_weight_constraints)
+
         # Add constraints on the number of input/output edges
         if imax is not None:
             opt.add(Sum(partition_input_edges) <= imax)
@@ -1636,6 +1643,13 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
+        # Set high weight nodes to False (speed-up)
+        no_large_weight_constraints = []
+        for gate_id in gate_literals:
+            if edge_w[gate_id] >= 2 * feasibility_treshold:
+                no_large_weight_constraints.append(gate_literals[gate_id] == False)
+        opt.add(no_large_weight_constraints)
+
         # Add constraints on the number of input/output edges
         if imax is not None:
             opt.add(Sum(partition_input_edges) <= imax)
@@ -1644,7 +1658,6 @@ class AnnotatedGraph(Graph):
 
         feasibility_constraints = []
         for s in edge_w:
-
             if gate_weight[s] <= feasibility_treshold:
                 # print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
@@ -1926,6 +1939,13 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
+        # Set high weight nodes to False (speed-up)
+        no_large_weight_constraints = []
+        for gate_id in gate_literals:
+            if edge_w[gate_id] >= 2 * feasibility_treshold:
+                no_large_weight_constraints.append(gate_literals[gate_id] == False)
+        opt.add(no_large_weight_constraints)
+
         # Add constraints on the number of input/output edges
         if imax is not None:
             opt.add(Sum(partition_input_edges) <= imax)
@@ -1934,7 +1954,6 @@ class AnnotatedGraph(Graph):
 
         feasibility_constraints = []
         for s in edge_w:
-
             if gate_weight[s] <= feasibility_treshold:
                 # print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
@@ -2229,7 +2248,6 @@ class AnnotatedGraph(Graph):
 
         feasibility_constraints = []
         for s in edge_w:
-
             if gate_weight[s] <= feasibility_treshold:
                 # print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
