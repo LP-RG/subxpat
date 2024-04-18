@@ -36,6 +36,7 @@ class Template_V2(Template_SOP1):
     def set_new_context(self, template_specs: TemplateSpecs):
         super().set_new_context(template_specs)
         self.et = template_specs.et
+        self.timeout = template_specs.timeout
 
         self.executor.set_context(self.exact_benchmark, self.et, self.lpp, self.ppo, self.iterations)
 
@@ -90,7 +91,7 @@ class Template_V2(Template_SOP1):
         return (True, None)
 
     def run_phase2(self):
-        status, model = self.executor._phase2(self.max_sub_distance)
+        status, model = self.executor._phase2(self.max_sub_distance, self.timeout)
 
         return status, model
 
