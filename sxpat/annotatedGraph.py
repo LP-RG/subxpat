@@ -263,7 +263,7 @@ class AnnotatedGraph(Graph):
                 elif mode == 6:
                     pprint.info2(f"Partition with omax={specs_obj.omax}, hard feasibility constraints and unique weights. Looking for largest partition")
                     self.subgraph = self.find_subgraph_different_output_weights(specs_obj)
-                    
+
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
@@ -1149,6 +1149,7 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
         # print(f'{feasibility_treshold = }')
@@ -1349,12 +1350,14 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         feasibility_constraints = []
         for s in edge_w:
-
             if gate_weight[s] <= feasibility_treshold:
                 # print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
@@ -1432,6 +1435,7 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
         # print(f'{feasibility_treshold = }')
@@ -1632,8 +1636,11 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         feasibility_constraints = []
         for s in edge_w:
@@ -1710,14 +1717,15 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
+    # To fix: it finds subgraphs with all nodes weights different,
+    # it should find subgraphs with all OUTPUT nodes weights different
 
-    #To fix: it finds subgraphs with all nodes weights different,
-    #it should find subgraphs with all OUTPUT nodes weights different
     def find_subgraph_different_output_weights(self, specs_obj: TemplateSpecs):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
         # print(f'{feasibility_treshold = }')
@@ -1884,7 +1892,7 @@ class AnnotatedGraph(Graph):
 
             if gate_idx not in gate_weight:
                 gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
-            #print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
 
         descendants = {}
         ancestors = {}
@@ -1918,8 +1926,11 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         feasibility_constraints = []
         for s in edge_w:
@@ -1937,8 +1948,6 @@ class AnnotatedGraph(Graph):
 
                     opt.add(weights_condition)
 
-
-
         # Generate function to maximize
         for gate_id in gate_literals:
             max_func.append(gate_literals[gate_id])
@@ -2005,15 +2014,15 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-
-    def find_subgraph_cnf_exclusion_inclusion(self,specs_obj: TemplateSpecs, excluded_outputs_id = []):
+    def find_subgraph_cnf_exclusion_inclusion(self, specs_obj: TemplateSpecs, excluded_outputs_id=[]):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
-        
+
         # print(f'{feasibility_treshold = }')
 
         # pprint.info2(f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
@@ -2212,8 +2221,11 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         feasibility_constraints = []
         for s in edge_w:
@@ -2229,29 +2241,28 @@ class AnnotatedGraph(Graph):
         included_outputs_id = []
 
         for nodes_id_set in excluded_nodes_id:
-            #take actual nodes from IDs
+            # take actual nodes from IDs
             nodes = [gate_literals[node_id] for node_id in nodes_id_set]
-            #check that at least one node is excluded from subgraph
+            # check that at least one node is excluded from subgraph
             opt.add(Or([Not(node_var) for node_var in nodes]))
 
         for nodes_id_set in included_nodes_id:
-            #take actual nodes from IDs
+            # take actual nodes from IDs
             nodes = [gate_literals[node_id] for node_id in nodes_id_set]
-            #check that at least one node is excluded from subgraph
+            # check that at least one node is excluded from subgraph
             opt.add(Or([node_var for node_var in nodes]))
 
         for outputs_id_set in excluded_outputs_id:
-            #take actual output nodes from IDs
+            # take actual output nodes from IDs
             outputs = [edge_constraint[output_id] for output_id in outputs_id_set]
-            #check that at least one output node is excluded from subgraph
+            # check that at least one output node is excluded from subgraph
             opt.add(Or([Not(output_var) for output_var in outputs]))
-            
-        for outputs_id_set in included_outputs_id:
-            #take actual output nodes from IDs
-            outputs = [edge_constraint[output_id] for output_id in outputs_id_set]
-            #check that at least one output node is excluded from subgraph
-            opt.add(Or([output_var for output_var in outputs]))
 
+        for outputs_id_set in included_outputs_id:
+            # take actual output nodes from IDs
+            outputs = [edge_constraint[output_id] for output_id in outputs_id_set]
+            # check that at least one output node is excluded from subgraph
+            opt.add(Or([output_var for output_var in outputs]))
 
         # Generate function to maximize
         for gate_id in gate_literals:
@@ -2313,23 +2324,22 @@ class AnnotatedGraph(Graph):
         # add nodes IDs to excluded output list and re-iterate
         for output_node1 in node_partition:
             for output_node2 in node_partition:
-                #check if they have same weights
+                # check if they have same weights
                 if output_node2 > output_node1 and gate_weight[output_node1] == gate_weight[output_node2]:
-                    
-                    #TODO fix
+
+                    # TODO fix
                     # output nodes: 139, 90, 140
                     is_output1 = m.eval(edge_constraint[output_node1])
                     is_output2 = m.eval(edge_constraint[output_node2])
                     # print(output_node1, output_node2, is_output1, is_output2)
 
-                    #check if both nodes are in the subgraph
+                    # check if both nodes are in the subgraph
                     if is_true(is_output1) and is_true(is_output2):
-                        #print(output_node1)
+                        # print(output_node1)
                         excluded_outputs_id.append([output_node1, output_node2])
                         print(excluded_outputs_id)
-    
 
-        #if nodes have been added to excluded list, re-iterate
+        # if nodes have been added to excluded list, re-iterate
         if len(excluded_outputs_id) > excluded_outputs_size:
             pprint.info2("\nOutput nodes with equal weight have been found. Excluding and re-iterating")
             return self.find_subgraph_cnf_exclusion_inclusion(specs_obj, excluded_outputs_id)
@@ -2344,7 +2354,6 @@ class AnnotatedGraph(Graph):
                     tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
                     tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
             return tmp_graph
-
 
     def entire_graph(self):
         tmp_graph = self.graph.copy()
