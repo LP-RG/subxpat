@@ -317,12 +317,12 @@ class Arguments(Z3Log_Arguments):
 
         my_parser.add_argument('-imax',
                                type=int,
-                               default=3,
+                               default=None,
                                help='maximum-inputs-for-subgraph')
 
         my_parser.add_argument('-omax',
                                type=int,
-                               default=2,
+                               default=None,
                                help='maximum-outputs-for-subgraph')
 
         my_parser.add_argument('-sensitivity',
@@ -345,7 +345,8 @@ class Arguments(Z3Log_Arguments):
                                default=3,
                                help='selects-partitioning-algorithm [if 1=> imax,omax] \
                                     [if 2=> imax,omax,min_size,sensitivity] \
-                                    [if 3=>min_size,sensitivity]')
+                                    [if 3=>min_size,sensitivity] \
+                                    [many other missing, work in progress]')
 
         my_parser.add_argument('-manual-nodes',
                                default=[],
