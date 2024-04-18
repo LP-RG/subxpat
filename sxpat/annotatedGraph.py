@@ -260,6 +260,8 @@ class AnnotatedGraph(Graph):
                             cnt_nodes += 1
 
                     pprint.success(f" (#ofNodes={cnt_nodes})")
+                else:
+                    raise Exception('invalid mode!')
             else:
                 self.subgraph = self.entire_graph()
 
