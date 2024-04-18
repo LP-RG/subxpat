@@ -110,7 +110,7 @@ class SubXPatV2Executor:
 
         return max_sub_distance
 
-    def _phase2(self, max_sub_distance: int):
+    def _phase2(self, max_sub_distance: int, timeout: float):
         # create creator object
         self.phase2_creator = XPatRunnerCreator(
             self.sub_graph, self.exact_name,
@@ -136,8 +136,8 @@ class SubXPatV2Executor:
             [
                 PYTHON3,
                 script_path,
-                # todo:hack: temporarily set 1 model max and 1 hour timeout
-                str(max_sub_distance - 1), str(1), str(1 * 60 * 60)
+                # todo:hack: temporarily set 1 model max
+                str(max_sub_distance - 1), str(1), str(timeout)
             ],
             stderr=subprocess.PIPE, stdout=subprocess.PIPE
         )

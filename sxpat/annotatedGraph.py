@@ -277,8 +277,8 @@ class AnnotatedGraph(Graph):
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
-
-
+                else:
+                    raise Exception('invalid mode!')
             else:
                 self.subgraph = self.entire_graph()
 
