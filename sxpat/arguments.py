@@ -91,7 +91,7 @@ class Arguments(Z3Log_Arguments):
         self.__imax: int = tmp_args.imax
         self.__omax: int = tmp_args.omax
         self.__sensitivity: int = tmp_args.sensitivity
-        self.__timeout: int = tmp_args.timeout
+        self.__timeout: float = tmp_args.timeout
         self.__subgraph_size: int = tmp_args.subgraphsize
         self.__mode: int = tmp_args.mode
         self.__manual_nodes: List[str] = tmp_args.manual_nodes
@@ -335,8 +335,8 @@ class Arguments(Z3Log_Arguments):
                                default=10,
                                help='minimum-size-for-subgraphs')
 
-        my_parser.add_argument('-timeout',
-                               type=int,
+        my_parser.add_argument('--timeout',
+                               type=float,
                                default=10800,
                                help='the-timeout-for-every-cell-in-seconds(default 3 hours)')
 
