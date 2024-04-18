@@ -147,14 +147,19 @@ def explore_grid(specs_obj: TemplateSpecs):
                 success, message = template_obj.run_phase1([specs_obj.et, specs_obj.num_of_models, 1*60*60])
                 subxpat_phase1_time = time.time() - p1_start
                 print(f"p1_time = {subxpat_phase1_time:.6f}")
-                
+
                 if not success:
                     pprint.warning(f'phase 1 failed with message: {message}')
                     continue
 
             # explore the grid
             pprint.info2(f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...')
+            dominant_cells = []
             for lpp, ppo in cell_iterator(max_lpp, max_ppo):
+                if is_dominated((lpp, ppo), dominant_cells):
+                    pprint.info1(f'Cell({lpp},{ppo}) at iteration {i} -> DOMINATED')
+                    continue
+
                 # > cell step settings
 
                 # update the context
@@ -179,8 +184,9 @@ def explore_grid(specs_obj: TemplateSpecs):
                     cur_status = get_status(template_obj)
 
                 if cur_status in (UNSAT, UNKNOWN):
-                    pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()} ')
-                    # Morteza: Here we create a Model object and then save it
+                    pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()}')
+
+                    # store model
                     this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
                                             labeling_time=labeling_time,
                                             subgraph_extraction_time=subgraph_extraction_time,
@@ -188,6 +194,10 @@ def explore_grid(specs_obj: TemplateSpecs):
                                             subxpat_phase2_time=subxpat_phase2_time)
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
                     pre_iter_unsats[candidate] += 1
+
+                    if cur_status == UNKNOWN:
+                        # store cell as dominant (to skip dominated subgrid)
+                        dominant_cells.append((lpp, ppo))
 
                 elif cur_status == SAT:
                     if specs_obj.subxpat_v2:
@@ -304,21 +314,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     return stats_obj
 
 
-# def is_last_cell(cur_lpp, cur_ppo, max_lpp, max_ppo) -> bool:
-#     return cur_lpp == max_lpp and cur_ppo == max_ppo
-# def next_cell(cur_lpp, cur_ppo, max_lpp, max_ppo) -> Tuple[int, int]:
-#     if is_last_cell(cur_lpp, cur_ppo, max_lpp, max_ppo):
-#         return cur_lpp + 1, cur_lpp + 1
-#     else:
-#         if cur_lpp < max_lpp:
-#             return cur_lpp + 1, cur_ppo
-#         else:
-#             return 0, cur_ppo + 1
-
-
 def cell_iterator(max_lpp: int, max_ppo: int) -> Iterator[Tuple[int, int]]:
-    # NOTE: By Marco
-
     # special cell
     yield (0, 1)
 
@@ -328,15 +324,12 @@ def cell_iterator(max_lpp: int, max_ppo: int) -> Iterator[Tuple[int, int]]:
             yield (lpp, ppo)
 
 
-def is_dominated(coords: Tuple[int, int], sats: Iterable[Tuple[int, int]]) -> bool:
-    # NOTE: By Marco
-    # NOTE: Not used. We are stopping at the first sat anyway, instead of exploring the entire grid.
-
+def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, int]]) -> bool:
     (lpp, ppo) = coords
-    for (sat_lpp, sat_ppo) in sats:
-        if lpp >= sat_lpp and ppo >= sat_ppo:
-            return True
-    return False
+    return any(
+        lpp >= dom_lpp and ppo >= dom_ppo
+        for (dom_lpp, dom_ppo) in dominant_cells
+    )
 
 
 def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int) -> TemplateSpecs:
