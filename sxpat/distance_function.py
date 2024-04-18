@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
-from abc import abstractmethod, abstractproperty
+from typing import List, Optional, Sequence, Tuple
+from abc import abstractmethod
 
 from sxpat.utils.utils import call_z3_function, declare_z3_function, declare_z3_gate
 
