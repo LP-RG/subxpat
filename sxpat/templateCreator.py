@@ -322,8 +322,8 @@ class Template_SOP1(TemplateCreator):
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
 
-        with open(self.z3_out_path + '_test', 'a') as z:
-            z.writelines(self.z3pyscript)
+        # with open(self.z3_out_path + '_test', 'a') as z:
+        #     z.writelines(self.z3pyscript)
 
     def import_json_model(self, this_path=None):
         self.json_model = []
@@ -437,6 +437,7 @@ class Template_SOP1(TemplateCreator):
                   f'from time import time\n' \
                   f'from typing import Tuple, List, Callable, Any, Union\n' \
                   f'import json\n' \
+                  f'import csv\n' \
                   f'\n'
         return imports
 
@@ -1524,6 +1525,18 @@ class Template_SOP1(TemplateCreator):
         find_wanted_number_of_models = prep_loop1 + prep_loop2 + prep_loop3 + final_prep
         return find_wanted_number_of_models
 
+    def z3_generate_find_wanted_number_of_models_bitvec(self):
+        prep_loop1 = self.z3_generate_find_wanted_number_of_models_prep_loop1()
+        prep_loop2 = self.z3_generate_find_wanted_number_of_models_prep_loop2_bitvec()
+        prep_loop3 = self.z3_generate_find_wanted_number_of_models_prep_loop3_bitvec()
+        final_prep = self.z3_generate_find_wanted_number_of_models_final_prep()
+        prep_loop1 += '\n'
+        prep_loop2 += '\n'
+        prep_loop3 += '\n'
+        final_prep += '\n'
+        find_wanted_number_of_models = prep_loop1 + prep_loop2 + prep_loop3 + final_prep
+        return find_wanted_number_of_models
+
     def z3_generate_find_wanted_number_of_models_prep_loop1(self):
         prep_loop1 = ''
         prep_loop1 += f'found_data = []\n' \
@@ -1574,7 +1587,7 @@ class Template_SOP1(TemplateCreator):
 
         return find_valid_model
 
-    def z3_generate_find_wanted_number_of_models_prep_loop2(self):
+    def z3_generate_find_wanted_number_of_models_prep_loop2_bitvec(self):
         find_valid_model = ''
         find_valid_model += f'{TAB}while result != sat:\n' \
                             f'{TAB}{TAB}time_attempt_start = time()\n' \
@@ -1693,11 +1706,12 @@ class Template_SOP1(TemplateCreator):
         key_function = self.z3_generate_sotre_data_define_extract_key_function()
         stats = self.z3_generate_stats()
         results = self.z3_dump_results_onto_json()
+        results_csv = self.z3_add_results_to_csv()
         extract_info += '\n'
         key_function += '\n'
         stats += '\n'
         results += '\n'
-        store_data += extract_info + key_function + stats + results
+        store_data += extract_info + key_function + stats + results + results_csv
         return store_data
 
     def z3_generate_sotre_data_define_extract_info_function(self):
@@ -1736,6 +1750,9 @@ class Template_SOP1(TemplateCreator):
         stats = ''
         stats += f'{TAB}time_total = time() - time_total_start\n'
         stats += f'{TAB}data_object = {{\n' \
+                 f"{TAB}{TAB}'benchmark_name': '{self.benchmark_name}',\n" \
+                 f"{TAB}{TAB}'encoding': '{self.encoding}',\n" \
+                 f"{TAB}{TAB}'cell': '({self.lpp}, {self.ppo})',\n" \
                  f"{TAB}{TAB}'result': str(result),\n" \
                  f"{TAB}{TAB}'total_time': time_total,\n" \
                  f"{TAB}{TAB}'attempts': attempts,\n" \
@@ -1781,8 +1798,22 @@ class Template_SOP1(TemplateCreator):
 
         results += f"with open(f'{self.json_out_path}', 'w') as ofile:\n" \
                    f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
-        results += f"with open(f'{self.json_out_path}_test', 'a') as ofile:\n" \
-                   f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
+        return results
+
+    def z3_add_results_to_csv(self):
+        results = ''
+
+        results += f"with open('./output/report/all_results.csv', 'a') as f:\n" \
+                   f"{TAB}csvwriter = csv.writer(f)\n" \
+	               f"{TAB}row = []\n" \
+                   f"{TAB}row.append('{self.benchmark_name}')\n" \
+                   f"{TAB}row.append('{self.encoding}')\n" \
+                   f"{TAB}row.append(str(result))\n" \
+                   f"{TAB}row.append('({self.lpp}, {self.ppo})')\n" \
+                   f"{TAB}row.append(time_total)\n" \
+                   f"{TAB}row.append(attempts)\n" \
+                   f"{TAB}row = tuple(row)\n" \
+                   f"{TAB}csvwriter.writerow(row)\n"
         return results
 
 
