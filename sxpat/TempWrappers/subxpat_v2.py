@@ -2,7 +2,7 @@ import json
 from time import time as time_now
 from typing import Optional, Text, Tuple
 
-from sxpat.distance_function import WeightedAbsoluteDifference, HammingDistance
+from sxpat.distance_function import WeightedAbsoluteDifference, HammingDistance, WeightedHammingDistance
 from sxpat.executor.subxpat2_executor import SubXPatV2Executor
 
 from sxpat.annotatedGraph import AnnotatedGraph
@@ -69,6 +69,11 @@ class Template_V2(Template_SOP1):
         elif self.sub_error_function == 2:
             subcircuit_distance_function = HammingDistance(
                 sub_graph.inputs
+            )
+        elif self.sub_error_function == 3:
+            subcircuit_distance_function = WeightedHammingDistance(
+                sub_graph.inputs,
+                [annotated_graph.subgraph.nodes[n][sxpat_config.WEIGHT] for n in sub_graph.unaliased_outputs]
             )
         else:
             raise RuntimeError("Should not ever raise this")
