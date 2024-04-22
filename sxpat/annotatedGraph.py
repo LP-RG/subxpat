@@ -1,4 +1,4 @@
-from typing import Dict, List, Callable
+from typing import Dict, Iterator, List, Callable, Tuple
 from sklearn.cluster import SpectralClustering
 from colorama import Fore, Style
 import time
@@ -1952,3 +1952,19 @@ class AnnotatedGraph(Graph):
                 idx += 1
                 self.color_subgraph_node(n, WHITE)
         return tmp_fanout_dict
+
+    def least_significant_available_output(self) -> Tuple[str, int]:
+        """
+        :return: a tuple containing the name and weight of the predecessor of the least significant available output
+        """
+        outputs: List[str] = list(self.output_dict.values())
+        constants: List[str] = list(self.constant_dict.values())
+        graph: nx.DiGraph = self.graph
+
+        predecessors = (
+            (pred_name, graph.nodes[pred_name][WEIGHT])
+            for output in outputs
+            if (pred_name := next(graph.predecessors(output))) not in constants
+        )
+
+        return min(predecessors, key=lambda t: t[1])
