@@ -260,6 +260,15 @@ class AnnotatedGraph(Graph):
                             cnt_nodes += 1
 
                     pprint.success(f" (#ofNodes={cnt_nodes})")
+                elif mode == 10:
+                    pprint.info2(f"Partition with hard feasibility and forced truncation")
+                    self.subgraph = self.find_subgraph_with_forced_truncation(specs_obj)
+
+                    cnt_nodes = sum(
+                        self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1
+                        for gate_idx in self.gate_dict
+                    )
+                    pprint.success(f" (#ofNodes={cnt_nodes})")
                 else:
                     raise Exception('invalid mode!')
             else:
@@ -1693,6 +1702,303 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
+    def find_subgraph_with_forced_truncation(self, specs_obj: TemplateSpecs):
+        """
+        extracts a colored subgraph from the original non-partitioned graph object
+        :return: an annotated graph in which the extracted subgraph is colored
+        """
+        omax = specs_obj.omax
+        imax = specs_obj.imax
+        feasibility_treshold = specs_obj.et
+        # print(f'{feasibility_treshold = }')
+
+        # pprint.info2(f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
+        # Todo:
+        # 1) First, the number of outputs or outgoing edges of the subgraph
+        # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
+        # print(f'Extracting subgraph...')
+
+        tmp_graph = self.graph.copy(as_view=False)
+        # print(f'{tmp_graph.nodes = }')
+        # Data structures containing the literals
+        input_literals = {}  # literals associated to the input nodes
+        gate_literals = {}  # literals associated to the gates in the circuit
+        output_literals = {}  # literals associated to the output nodes
+
+        # Data structures containing the edges
+        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
+        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+
+        # Optimizer
+        opt = Optimize()
+
+        # Function to maximize
+        max_func = []
+
+        # List of all the partition edges
+        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+
+        # print(tmp_graph.nodes)
+        # exit(1)
+
+        # Generate all literals
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Generate literal for each input node
+                in_id = int(e[0][2:])
+                if in_id not in input_literals:
+                    input_literals[in_id] = Bool("in_%s" % str(in_id))
+            if 'g' in e[0]:  # Generate literal for each gate in the circuit
+                g_id = int(e[0][1:])
+                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                    gate_literals[g_id] = Bool("g_%s" % str(g_id))
+            if 'out' in e[1]:  # Generate literal for each output node
+                out_id = int(e[1][3:])
+                if out_id not in output_literals:
+                    output_literals[out_id] = Bool("out_%s" % str(out_id))
+
+        # Generate structures holding edge information
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Populate input_edges structure
+                in_id = int(e[0][2:])
+
+                if in_id not in input_edges:
+                    input_edges[in_id] = []
+                # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
+                # Morteza added ==============
+                try:
+                    input_edges[in_id].append(int(e[1][1:]))
+                except:
+                    if re.search('g(\d+)', e[1]):
+                        my_id = int(re.search('g(\d+)', e[1]).group(1))
+                        input_edges[in_id].append(my_id)
+                # =============================
+
+            if 'g' in e[0] and 'g' in e[1]:  # Populate gate_edges structure
+                ns_id = int(e[0][1:])
+                nd_id = int(e[1][1:])
+
+                if ns_id in self.constant_dict:
+                    print("ERROR: Constants should only be connected to output nodes")
+                    exit(0)
+                if ns_id not in gate_edges:
+                    gate_edges[ns_id] = []
+                # try:
+                gate_edges[ns_id].append(nd_id)
+
+            if 'out' in e[1]:  # Populate output_edges structure
+                out_id = int(e[1][3:])
+                if out_id not in output_edges:
+                    output_edges[out_id] = []
+                # output_edges[out_id].append(int(e[0][1:]))
+                # Morteza added ==============
+                try:
+                    output_edges[out_id].append(int(e[0][1:]))
+                except:
+                    my_id = int(re.search('(\d+)', e[0]).group(1))
+                    output_edges[out_id].append(my_id)
+
+                # =============================
+
+        # Define input edges
+        for source in input_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in input_edges[source]:
+                e_in = And(Not(input_literals[source]), gate_literals[destination])
+
+                edge_in_holder.append(e_in)
+
+            partition_input_edges.append(Or(edge_in_holder))
+
+        # Define gate edges and data structures containing the edge weights
+        edge_w = {}
+        edge_constraint = {}
+
+        for source in gate_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in gate_edges[source]:
+                e_in = And(Not(gate_literals[source]), gate_literals[destination])
+                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+
+                edge_in_holder.append(e_in)
+                edge_out_holder.append(e_out)
+
+            partition_input_edges.append(Or(edge_in_holder))
+            if source not in edge_w:
+                edge_w[source] = tmp_graph.nodes[self.gate_dict[source]][WEIGHT]
+
+            if source not in edge_constraint:
+                edge_constraint[source] = Or(edge_out_holder)
+            partition_output_edges.append(Or(edge_out_holder))
+
+        # Define output edges
+        for output_id in output_edges:
+            predecessor = output_edges[output_id][0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
+            if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
+                continue
+            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            if predecessor not in edge_w:
+                edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
+            if predecessor not in edge_constraint:
+                edge_constraint[predecessor] = e_out
+            partition_output_edges.append(e_out)
+
+        # Create graph of the cicuit without input and output nodes
+        G = nx.DiGraph()
+        # print(f'{tmp_graph.edges = }')
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]) and 'g' in str(e[1]):
+                source = int(e[0][1:])
+                destination = int(e[1][1:])
+
+                G.add_edge(source, destination)
+        # Morteza added =====================
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]):
+                source = int(e[0][1:])
+                if source in self.constant_dict:
+                    continue
+                G.add_node(source)
+        # ===================================
+
+        # Generate structure with gate weights
+        # for n in self.graph.nodes:
+        #     print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
+        # print(f'{self.gate_dict = }')
+        gate_weight = {}
+        for gate_idx in G.nodes:
+
+            if gate_idx not in gate_weight:
+                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+
+        descendants = {}
+        ancestors = {}
+        for n in G:
+            if n not in descendants:
+                descendants[n] = list(nx.descendants(G, n))
+            if n not in ancestors:
+                ancestors[n] = list(nx.ancestors(G, n))
+
+        # Generate convexity constraints
+        for source in gate_edges:
+            for destination in gate_edges[source]:
+                if len(descendants[destination]) > 0:  # Constraints on output edges
+                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants.append(Not(gate_literals[destination]))
+                    descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
+                                                  And(not_descendants))
+                    opt.add(descendat_condition)
+                if len(ancestors[source]) > 0:  # Constraints on input edges
+                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors.append(Not(gate_literals[source]))
+                    ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
+                                                 And(not_ancestors))
+                    opt.add(ancestor_condition)
+
+        # Set input nodes to False
+        for input_node_id in input_literals:
+            opt.add(input_literals[input_node_id] == False)
+
+        # Set output nodes to False
+        for output_node_id in output_literals:
+            opt.add(output_literals[output_node_id] == False)
+
+        # Set high weight nodes to False (speed-up)
+        no_large_weight_constraints = []
+        for gate_id in gate_literals:
+            if edge_w[gate_id] >= 2 * feasibility_treshold:
+                no_large_weight_constraints.append(gate_literals[gate_id] == False)
+        opt.add(no_large_weight_constraints)
+
+        # Add constraints on the number of input/output edges
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+
+        # feasibility constraints: number of outputs that must be feasible
+        feasibility_constraints = [edge_constraint[s] for s in edge_w if gate_weight[s] <= feasibility_treshold]
+        required_number = Sum(partition_output_edges)
+        # required_number = If(Sum(partition_output_edges) < 'NUMBER OF minimum number of outputs that must be feasible', Sum(partition_output_edges), 'NUMBER OF minimum number of outputs that must be feasible')
+        opt.add(Sum(feasibility_constraints) >= required_number)
+
+        # Forced truncation
+        out_gate, out_weight = self.least_significant_available_output()
+        out_gate = int(out_gate[1:])
+        if out_weight <= feasibility_treshold:
+            opt.add(gate_literals[out_gate] == True)
+
+        # Miximization objective
+        for gate_id in gate_literals:
+            max_func.append(gate_literals[gate_id])
+        opt.maximize(Sum(max_func))
+        # opt.maximize(Sum(gate_literals[gate_id] for gate_id in gate_literals)
+
+        node_partition = []
+        if opt.check() == sat:
+            pprint.success("subgraph found -> SAT", end='')
+            # print(opt.model())
+            m = opt.model()
+            for t in m.decls():
+                if 'g' not in str(t):  # Look only the literals associate to the gates
+                    continue
+                if is_true(m[t]):
+                    gate_id = int(str(t)[2:])
+                    node_partition.append(gate_id)  # Gates inside the partition
+        else:
+            pprint.warning("subgraph not found -> UNSAT")
+
+        # Check partition convexity
+        for i in range(len(node_partition) - 1):
+            for j in range(i + 1, len(node_partition)):
+                u = node_partition[i]
+                v = node_partition[j]
+                try:
+                    # print(f'{u = }')
+                    # print(f'{v = }')
+                    # print(f'{G.nodes = }')
+                    # print(f'{G.edges = }')
+                    # print(f'{gate_literals = }')
+                    # print(f'{node_partition = }')
+                    path = nx.shortest_path(G, source=u, target=v)
+                    all_nodes_in_partition = True
+
+                    # Check that all the nodes in the shortest path are in the partition
+                    for n in path:
+                        if n not in node_partition:
+                            all_nodes_in_partition = False
+
+                    if not all_nodes_in_partition:
+                        print("Partition is not convex")
+                        exit(0)
+
+                except nx.exception.NetworkXNoPath:
+                    # print('Here')
+                    # except:
+                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
+                    # raise nx.exception.NetworkXNoPath
+                    # No path between u and v
+
+                    # print("No path", u, v)
+                    pass
+
+        for gate_idx in self.gate_dict:
+            # print(f'{gate_idx = }')
+            if gate_idx in node_partition:
+                # print(f'{gate_idx} is in the node_partition')
+                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
+                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
+            else:
+                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
+                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
+        return tmp_graph
+
     def entire_graph(self):
         tmp_graph = self.graph.copy()
 
@@ -1958,13 +2264,13 @@ class AnnotatedGraph(Graph):
         :return: a tuple containing the name and weight of the predecessor of the least significant available output
         """
         outputs: List[str] = list(self.output_dict.values())
-        constants: List[str] = list(self.constant_dict.values())
+        gates: List[str] = set(self.gate_dict.values())
         graph: nx.DiGraph = self.graph
 
         predecessors = (
             (pred_name, graph.nodes[pred_name][WEIGHT])
             for output in outputs
-            if (pred_name := next(graph.predecessors(output))) not in constants
+            if (pred_name := next(graph.predecessors(output))) in gates
         )
 
         return min(predecessors, key=lambda t: t[1])
