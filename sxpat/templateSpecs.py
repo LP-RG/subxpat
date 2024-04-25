@@ -37,7 +37,7 @@ class TemplateSpecs:
 
         self.__keep_unsat_candidate: bool = self.__subxpat_v2
 
-        self._encoding: bool = kwargs[ENCODING]
+        self._encoding: int = kwargs[ENCODING]
 
     @property
     def keep_unsat_candidate(self):
