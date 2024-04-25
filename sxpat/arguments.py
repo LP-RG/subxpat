@@ -317,12 +317,12 @@ class Arguments(Z3Log_Arguments):
 
         my_parser.add_argument('-imax',
                                type=int,
-                               default=3,
+                               default=None,
                                help='maximum-inputs-for-subgraph')
 
         my_parser.add_argument('-omax',
                                type=int,
-                               default=2,
+                               default=None,
                                help='maximum-outputs-for-subgraph')
 
         my_parser.add_argument('-sensitivity',
