@@ -1812,6 +1812,7 @@ class Template_SOP1(TemplateCreator):
                    f"{TAB}row.append('({self.lpp}, {self.ppo})')\n" \
                    f"{TAB}row.append(time_total)\n" \
                    f"{TAB}row.append(attempts)\n" \
+                   f"{TAB}row.append(ET)\n" \
                    f"{TAB}row = tuple(row)\n" \
                    f"{TAB}csvwriter.writerow(row)\n"
         return results
