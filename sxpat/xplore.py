@@ -124,8 +124,8 @@ def explore_grid(specs_obj: TemplateSpecs):
             t_start = time.time()
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
             subgraph_extraction_time = time.time() - t_start
-            subgraph_number_inputs = template_obj.current_graph.num_inputs
-            subgraph_number_outputs = template_obj.current_graph.num_outputs
+            subgraph_number_inputs = template_obj.current_graph.subgraph_num_inputs
+            subgraph_number_outputs = template_obj.current_graph.subgraph_num_outputs
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
             print(f'subgraph_number_inputs = {subgraph_number_inputs}')
             print(f'subgraph_number_outputs = {subgraph_number_outputs}')
