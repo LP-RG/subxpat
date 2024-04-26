@@ -605,7 +605,7 @@ class Stats:
             # header = tuple(header)
 
             header = ('cell', 'iteration', 'model_id', 'status', 'runtime', 'area', 'delay', 'total_power', 'et',
-                      'labeling_time', 'subgraph_extraction', 'subxpat_phase1', 'subxpat_phase2')
+                      'labeling_time', 'subgraph_extraction', 'subgraph_inputs','subgraph_outputs', 'subxpat_phase1', 'subxpat_phase2')
             csvwriter.writerow(header)
             # iterate over cells (lppXppo)
             for ppo in range(self.ppo + 1):
@@ -627,6 +627,8 @@ class Stats:
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].et)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].labeling_time)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subgraph_extraction_time)
+                            row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subgraph_number_inputs)
+                            row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subgraph_number_outputs)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subxpat_phase1_time)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subxpat_phase2_time)
                             row = tuple(row)
