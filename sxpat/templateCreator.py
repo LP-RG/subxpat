@@ -274,9 +274,8 @@ class Template_SOP1(TemplateCreator):
     def json_in_path(self, this_json_path):
         self.__json_in_path = this_json_path
 
-    def label_graph(self, min_labeling: bool = False, parallel: bool = True):
-        # labels = labeling(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
-        labels, _ = labeling_explicit(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
+    def label_graph(self, min_labeling: bool):
+        labels, _ = labeling_explicit(self.exact_benchmark, self.benchmark_name, 1, min_labeling)
 
         for n in self.current_graph.graph.nodes:
             if n in labels:
