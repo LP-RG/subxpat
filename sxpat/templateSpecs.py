@@ -20,7 +20,7 @@ class TemplateSpecs:
         self.__omax = kwargs[OMAX]
         self.__max_sensitivity = kwargs[SENSITIVITY]
         self.__sensitivity = 0
-        self.__timeout = kwargs[TIMEOUT]
+        self.__timeout = float(kwargs[TIMEOUT])
         self.__min_subgraph_size = kwargs[SUBGRAPHSIZE]
         self.__mode = kwargs[MODE]
         self.__manual_nodes = kwargs[MANUAL_NODES]
@@ -176,8 +176,8 @@ class TemplateSpecs:
         return self.__timeout
 
     @timeout.setter
-    def timeout(self, this_timeout):
-        self.__timeout = this_timeout
+    def timeout(self, this_timeout: float):
+        self.__timeout = float(this_timeout)
 
     @property
     def num_of_models(self):

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Tuple, List, Dict
-
+import datetime # precautionary measure
 import csv
 import re
 import os
@@ -373,9 +373,12 @@ class Stats:
         self.__omax: int = spec_obj.omax
         self.__mode: int = spec_obj.mode
 
+        # This property should be assigned before calling the funciton "self.get_grid_name()"
+        self.__specs_obj: TemplateSpecs = spec_obj
+
         self.__grid_name: str = self.get_grid_name()
         self.__grid_path: str = self.get_grid_path()
-        self.__specs_obj: TemplateSpecs = spec_obj
+
         self.__grid = Grid(spec_obj)
 
     @property
@@ -528,14 +531,38 @@ class Stats:
         returns: a unique grid file name for this experiment (that is determined by specs_obj)
         """
         _, extension = OUTPUT_PATH['report']
+        print(f'{self.specs = }')
+        # TODO: Morteza: this naming convention is not generic enough,
+        # I will try to add every type of specification of the experiment into the name so it wouldn't get overwritten
+        # new fields that are added:
+        # for subxpat_v2 => et_partitioning, fef: full_error_function, sef: sub_error_function,
+        # for all num_of_models, omax, imax, kuc: keep_unsat_candidates
+        # as a precautionary measure, we also add the time stamp at the end of every generated file
 
-        name = f'grid_{self.exact_name}_'\
-               f'{self.lpp}X' \
-               f'{self.ppo}_' \
-               f'et{self.et}_' \
-               f'{self.tool_name}_' \
-               f'mode{self.mode}_' \
-               f'{self.template_name}' \
+        # So we change the names from "grid_adder_i6_o4_10X20_et10_subxpat_v2_mode4_SOP1" to
+        # 'grid_adder_i6_o4_10X20_et10_subxpat_v2_desc_fef1_sef1_mode4_omax1_imax3_kucTrue_SOP1_time20240403:214107'
+
+        # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
+
+
+        head = f'grid_{self.exact_name}_{self.lpp}X{self.pit if self.specs.shared else self.ppo}_et{self.et}_'
+
+        technique_specific = f'{self.tool_name}_{self.specs.et_partitioning if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}_'
+        technique_specific += f'fef{self.specs.full_error_function if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}_'
+        technique_specific += f'sef{self.specs.sub_error_function if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}_'
+
+
+        tail = f'mode{self.specs.mode}_omax{self.specs.omax}_imax{self.specs.imax}_'
+        tail += f'kuc{self.specs.keep_unsat_candidate}_'
+        tail += f'{self.template_name}_time'
+
+        # Get the current date and time
+        current_time = datetime.datetime.now()
+        # Format the date and time to create a unique identifier
+        time_stamp = current_time.strftime("%Y%m%d:%H%M%S")
+
+        name = head + technique_specific + tail + time_stamp
+
 
 
         return f'{name}.{extension}'

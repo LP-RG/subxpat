@@ -1,8 +1,8 @@
 import json
 from time import time as time_now
-from typing import Tuple
+from typing import Optional, Text, Tuple
 
-from sxpat.distance_function import WeightedAbsoluteDifference, HammingDistance
+from sxpat.distance_function import WeightedAbsoluteDifference, HammingDistance, WeightedHammingDistance
 from sxpat.executor.subxpat2_executor import SubXPatV2Executor
 
 from sxpat.annotatedGraph import AnnotatedGraph
@@ -36,7 +36,7 @@ class Template_V2(Template_SOP1):
     def set_new_context(self, template_specs: TemplateSpecs):
         super().set_new_context(template_specs)
         self.et = template_specs.et
-        
+        self.timeout = template_specs.timeout
 
         self.executor.set_context(self.exact_benchmark, self.et, self.lpp, self.ppo, self.iterations)
 
@@ -70,6 +70,11 @@ class Template_V2(Template_SOP1):
             subcircuit_distance_function = HammingDistance(
                 sub_graph.inputs
             )
+        elif self.sub_error_function == 3:
+            subcircuit_distance_function = WeightedHammingDistance(
+                sub_graph.inputs,
+                [annotated_graph.subgraph.nodes[n][sxpat_config.WEIGHT] for n in sub_graph.unaliased_outputs]
+            )
         else:
             raise RuntimeError("Should not ever raise this")
 
@@ -77,14 +82,21 @@ class Template_V2(Template_SOP1):
 
         return full_graph, sub_graph
 
-    def run_phase1(self, arguments: Tuple):
+    def run_phase1(self, arguments: Tuple) -> Tuple[bool, Optional[Text]]:
         self.max_sub_distance = self.executor._phase1(arguments)
         print(f"D = {self.max_sub_distance}")
-        
-        return self.max_sub_distance > 0
+
+        # fail conditions
+        if self.max_sub_distance <= 0:
+            return (False, f'invalid subcircuit distance: {self.max_sub_distance}')
+        if self.max_sub_distance == self.executor.subcircuit_error_function.min_distance:
+            return (False, f'subcircuit distance equals minimum possible distance')
+
+        # success
+        return (True, None)
 
     def run_phase2(self):
-        status, model = self.executor._phase2(self.max_sub_distance)
+        status, model = self.executor._phase2(self.max_sub_distance, self.timeout)
 
         return status, model
 
