@@ -46,7 +46,6 @@ folders_dep:
 local_dep:
 	@echo "\n[[ generating local files ]]"
 	mkdir -p input/ver/ && cp -r input/ver.bak/* input/ver/
-	touch -a local.mk
 
 setup: folders_dep py_init py_dep local_dep
 setup-all: sftw_dep setup
