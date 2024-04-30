@@ -178,7 +178,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 else:
                     # run script
                     template_obj.z3_generate_z3pyscript()
-                    template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=10800)
+                    template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=specs_obj.timeout)
 
                     # gather results
                     cur_status = get_status(template_obj)
