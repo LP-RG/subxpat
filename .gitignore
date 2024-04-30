@@ -30,4 +30,6 @@ Laura/
 *.xlsx
 .DS_Store
 
-mvs_algorithm
+build/
+mvs_algorithm/input_graph.txt
+mvs_algorithm/output_graph.txt

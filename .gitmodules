@@ -1,0 +1,3 @@
+[submodule "mvs_algorithm/mvs"]
+	path = mvs_algorithm/mvs
+	url = https://github.com/exg/mvs
