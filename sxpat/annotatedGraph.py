@@ -187,14 +187,17 @@ class AnnotatedGraph(Graph):
     def extract_subgraph(self, specs_obj: TemplateSpecs):
 
         if self.num_gates == 0:
-            pprint.with_color(Fore.LIGHTYELLOW_EX)(f'No gates are found in the graph! Skipping the subgraph extraction')
+            pprint.with_color(Fore.LIGHTYELLOW_EX)(
+                f'No gates are found in the graph! Skipping the subgraph extraction')
             return False
         else:
             if specs_obj.subxpat:
                 mode = specs_obj.mode
                 if mode == 1:
-                    pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
-                    self.subgraph = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
+                    pprint.info2(
+                        f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
+                    self.subgraph = self.find_subgraph(
+                        specs_obj)  # Critian's subgraph extraction
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
@@ -211,8 +214,10 @@ class AnnotatedGraph(Graph):
 
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                         # specs_obj.sensitivity = iteration
-                        pprint.with_color(Fore.LIGHTBLUE_EX)(f"Sugraph iteration {iteration} ")
-                        self.subgraph = self.find_subgraph_sensitivity(specs_obj)
+                        pprint.with_color(Fore.LIGHTBLUE_EX)(
+                            f"Sugraph iteration {iteration} ")
+                        self.subgraph = self.find_subgraph_sensitivity(
+                            specs_obj)
 
                         # Count how many nodes are in the subgraph
                         cnt_nodes = 0
@@ -225,7 +230,8 @@ class AnnotatedGraph(Graph):
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
                 elif mode == 3:
-                    pprint.info2(f"Partition with sensitivity start... Using only min_subgraph_size={specs_obj.min_subgraph_size} parameter")
+                    pprint.info2(
+                        f"Partition with sensitivity start... Using only min_subgraph_size={specs_obj.min_subgraph_size} parameter")
                     iteration = 1
                     cnt_nodes = 0
                     specs_obj.sensitivity = 1
@@ -234,7 +240,8 @@ class AnnotatedGraph(Graph):
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                         # specs_obj.sensitivity = iteration
                         pprint.info2(f"Sugraph iteration {iteration}")
-                        self.subgraph = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
+                        self.subgraph = self.find_subgraph_sensitivity_no_io_constraints(
+                            specs_obj)
 
                         # Count how many nodes are in the subgraph
                         cnt_nodes = 0
@@ -247,8 +254,10 @@ class AnnotatedGraph(Graph):
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
                 elif mode == 4:
-                    pprint.info2(f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible(specs_obj)  # Critian's subgraph extraction
+                    pprint.info2(
+                        f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition")
+                    self.subgraph = self.find_subgraph_feasible(
+                        specs_obj)  # Critian's subgraph extraction
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
@@ -256,8 +265,10 @@ class AnnotatedGraph(Graph):
 
                     pprint.success(f" (#ofNodes={cnt_nodes})")
                 elif mode == 5:
-                    pprint.info2(f"Partition with omax={specs_obj.omax} and hard feasibility constraints. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible_hard(specs_obj)  # Critian's subgraph extraction
+                    pprint.info2(
+                        f"Partition with omax={specs_obj.omax} and hard feasibility constraints. Looking for largest partition")
+                    self.subgraph = self.find_subgraph_feasible_hard(
+                        specs_obj)  # Critian's subgraph extraction
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
@@ -265,17 +276,21 @@ class AnnotatedGraph(Graph):
 
                     pprint.success(f" (#ofNodes={cnt_nodes})")
                 elif mode == 6:
-                    pprint.info2(f"Partition with omax={specs_obj.omax}, hard feasibility constraints and unique weights. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_different_output_weights(specs_obj)
-                    
+                    pprint.info2(
+                        f"Partition with omax={specs_obj.omax}, hard feasibility constraints and unique weights. Looking for largest partition")
+                    self.subgraph = self.find_subgraph_different_output_weights(
+                        specs_obj)
+
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
 
                 elif mode == 7:
-                    pprint.info2(f"Partition with omax={specs_obj.omax}, hard feasibility constraints and node exclusions. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_cnf_exclusion_inclusion(specs_obj)
+                    pprint.info2(
+                        f"Partition with omax={specs_obj.omax}, hard feasibility constraints and node exclusions. Looking for largest partition")
+                    self.subgraph = self.find_subgraph_cnf_exclusion_inclusion(
+                        specs_obj)
 
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
@@ -283,7 +298,8 @@ class AnnotatedGraph(Graph):
                             cnt_nodes += 1
 
                 elif mode == 8:
-                    pprint.info2(f"Partition with omax={specs_obj.omax} and imax{specs_obj.imax}")
+                    pprint.info2(
+                        f"Partition with omax={specs_obj.omax} and imax{specs_obj.imax}")
                     self.subgraph = self.run_with_mvs(specs_obj)
 
                     cnt_nodes = 0
@@ -291,7 +307,8 @@ class AnnotatedGraph(Graph):
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
 
-
+                else:
+                    raise Exception('invalid mode!')
             else:
                 self.subgraph = self.entire_graph()
 
@@ -337,9 +354,12 @@ class AnnotatedGraph(Graph):
         output_literals = {}  # literals associated to the output nodes
 
         # Data structures containing the edges
-        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
-        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
-        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        input_edges = {}
+        # key = gate id, value = array of id. Contains the successors gate (childs)
+        gate_edges = {}
+        # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        output_edges = {}
 
         # Optimizer
         opt = Optimize()
@@ -348,8 +368,10 @@ class AnnotatedGraph(Graph):
         max_func = []
 
         # List of all the partition edges
-        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
-        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_input_edges = []
+        # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        partition_output_edges = []
 
         # Generate all literals
         for e in tmp_graph.edges:
@@ -359,7 +381,8 @@ class AnnotatedGraph(Graph):
                     input_literals[in_id] = Bool("in_%s" % str(in_id))
             if 'g' in e[0]:  # Generate literal for each gate in the circuit
                 g_id = int(e[0][1:])
-                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                # Not in constant_dict since we don't care about constants
+                if g_id not in gate_literals and g_id not in self.constant_dict:
                     gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
             if 'out' in e[1]:  # Generate literal for each output node
@@ -416,7 +439,8 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in input_edges[source]:
-                e_in = And(Not(input_literals[source]), gate_literals[destination])
+                e_in = And(Not(input_literals[source]),
+                           gate_literals[destination])
 
                 edge_in_holder.append(e_in)
 
@@ -428,8 +452,10 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in gate_edges[source]:
-                e_in = And(Not(gate_literals[source]), gate_literals[destination])
-                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+                e_in = And(Not(gate_literals[source]),
+                           gate_literals[destination])
+                e_out = And(gate_literals[source], Not(
+                    gate_literals[destination]))
 
                 edge_in_holder.append(e_in)
                 edge_out_holder.append(e_out)
@@ -443,7 +469,8 @@ class AnnotatedGraph(Graph):
                 0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
             if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
                 continue
-            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            e_out = And(gate_literals[predecessor],
+                        Not(output_literals[output_id]))
 
             partition_output_edges.append(e_out)
 
@@ -494,13 +521,15 @@ class AnnotatedGraph(Graph):
         for source in gate_edges:
             for destination in gate_edges[source]:
                 if len(descendants[destination]) > 0:  # Constraints on output edges
-                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants = [Not(gate_literals[l])
+                                       for l in descendants[destination]]
                     not_descendants.append(Not(gate_literals[destination]))
                     descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
                                                   And(not_descendants))
                     opt.add(descendat_condition)
                 if len(ancestors[source]) > 0:  # Constraints on input edges
-                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors = [Not(gate_literals[l])
+                                     for l in ancestors[source]]
                     not_ancestors.append(Not(gate_literals[source]))
                     ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
                                                  And(not_ancestors))
@@ -535,7 +564,8 @@ class AnnotatedGraph(Graph):
                     continue
                 if is_true(m[t]):
                     gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
+                    # Gates inside the partition
+                    node_partition.append(gate_id)
         else:
             pprint.warning("subgraph not found -> UNSAT")
 
@@ -607,9 +637,12 @@ class AnnotatedGraph(Graph):
         output_literals = {}  # literals associated to the output nodes
 
         # Data structures containing the edges
-        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
-        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
-        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        input_edges = {}
+        # key = gate id, value = array of id. Contains the successors gate (childs)
+        gate_edges = {}
+        # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        output_edges = {}
 
         # Optimizer
         opt = Optimize()
@@ -618,8 +651,10 @@ class AnnotatedGraph(Graph):
         max_func = []
 
         # List of all the partition edges
-        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
-        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_input_edges = []
+        # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        partition_output_edges = []
 
         # Generate all literals
         for e in tmp_graph.edges:
@@ -629,7 +664,8 @@ class AnnotatedGraph(Graph):
                     input_literals[in_id] = Bool("in_%s" % str(in_id))
             if 'g' in e[0]:  # Generate literal for each gate in the circuit
                 g_id = int(e[0][1:])
-                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                # Not in constant_dict since we don't care about constants
+                if g_id not in gate_literals and g_id not in self.constant_dict:
                     gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
             if 'out' in e[1]:  # Generate literal for each output node
@@ -686,7 +722,8 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in input_edges[source]:
-                e_in = And(Not(input_literals[source]), gate_literals[destination])
+                e_in = And(Not(input_literals[source]),
+                           gate_literals[destination])
 
                 edge_in_holder.append(e_in)
 
@@ -701,8 +738,10 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in gate_edges[source]:
-                e_in = And(Not(gate_literals[source]), gate_literals[destination])
-                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+                e_in = And(Not(gate_literals[source]),
+                           gate_literals[destination])
+                e_out = And(gate_literals[source], Not(
+                    gate_literals[destination]))
 
                 edge_in_holder.append(e_in)
                 edge_out_holder.append(e_out)
@@ -721,7 +760,8 @@ class AnnotatedGraph(Graph):
                 0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
             if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
                 continue
-            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            e_out = And(gate_literals[predecessor],
+                        Not(output_literals[output_id]))
             if predecessor not in edge_w:
                 edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
             if predecessor not in edge_constraint:
@@ -775,13 +815,15 @@ class AnnotatedGraph(Graph):
         for source in gate_edges:
             for destination in gate_edges[source]:
                 if len(descendants[destination]) > 0:  # Constraints on output edges
-                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants = [Not(gate_literals[l])
+                                       for l in descendants[destination]]
                     not_descendants.append(Not(gate_literals[destination]))
                     descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
                                                   And(not_descendants))
                     opt.add(descendat_condition)
                 if len(ancestors[source]) > 0:  # Constraints on input edges
-                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors = [Not(gate_literals[l])
+                                     for l in ancestors[source]]
                     not_ancestors.append(Not(gate_literals[source]))
                     ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
                                                  And(not_ancestors))
@@ -822,7 +864,8 @@ class AnnotatedGraph(Graph):
                     continue
                 if is_true(m[t]):
                     gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
+                    # Gates inside the partition
+                    node_partition.append(gate_id)
         else:
             pprint.warning("subgraph not found -> UNSAT")
 
@@ -893,9 +936,12 @@ class AnnotatedGraph(Graph):
         output_literals = {}  # literals associated to the output nodes
 
         # Data structures containing the edges
-        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
-        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
-        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        input_edges = {}
+        # key = gate id, value = array of id. Contains the successors gate (childs)
+        gate_edges = {}
+        # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        output_edges = {}
 
         # Optimizer
         opt = Optimize()
@@ -904,8 +950,10 @@ class AnnotatedGraph(Graph):
         max_func = []
 
         # List of all the partition edges
-        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
-        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_input_edges = []
+        # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        partition_output_edges = []
 
         # Generate all literals
         for e in tmp_graph.edges:
@@ -915,7 +963,8 @@ class AnnotatedGraph(Graph):
                     input_literals[in_id] = Bool("in_%s" % str(in_id))
             if 'g' in e[0]:  # Generate literal for each gate in the circuit
                 g_id = int(e[0][1:])
-                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                # Not in constant_dict since we don't care about constants
+                if g_id not in gate_literals and g_id not in self.constant_dict:
                     gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
             if 'out' in e[1]:  # Generate literal for each output node
@@ -972,7 +1021,8 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in input_edges[source]:
-                e_in = And(Not(input_literals[source]), gate_literals[destination])
+                e_in = And(Not(input_literals[source]),
+                           gate_literals[destination])
 
                 edge_in_holder.append(e_in)
 
@@ -987,8 +1037,10 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in gate_edges[source]:
-                e_in = And(Not(gate_literals[source]), gate_literals[destination])
-                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+                e_in = And(Not(gate_literals[source]),
+                           gate_literals[destination])
+                e_out = And(gate_literals[source], Not(
+                    gate_literals[destination]))
 
                 edge_in_holder.append(e_in)
                 edge_out_holder.append(e_out)
@@ -1007,7 +1059,8 @@ class AnnotatedGraph(Graph):
                 0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
             if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
                 continue
-            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            e_out = And(gate_literals[predecessor],
+                        Not(output_literals[output_id]))
             if predecessor not in edge_w:
                 edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
             if predecessor not in edge_constraint:
@@ -1061,13 +1114,15 @@ class AnnotatedGraph(Graph):
         for source in gate_edges:
             for destination in gate_edges[source]:
                 if len(descendants[destination]) > 0:  # Constraints on output edges
-                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants = [Not(gate_literals[l])
+                                       for l in descendants[destination]]
                     not_descendants.append(Not(gate_literals[destination]))
                     descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
                                                   And(not_descendants))
                     opt.add(descendat_condition)
                 if len(ancestors[source]) > 0:  # Constraints on input edges
-                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors = [Not(gate_literals[l])
+                                     for l in ancestors[source]]
                     not_ancestors.append(Not(gate_literals[source]))
                     ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
                                                  And(not_ancestors))
@@ -1108,7 +1163,8 @@ class AnnotatedGraph(Graph):
                     continue
                 if is_true(m[t]):
                     gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
+                    # Gates inside the partition
+                    node_partition.append(gate_id)
         else:
             pprint.warning("subgraph not found -> UNSAT")
 
@@ -1162,6 +1218,7 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
         # print(f'{feasibility_treshold = }')
@@ -1180,9 +1237,12 @@ class AnnotatedGraph(Graph):
         output_literals = {}  # literals associated to the output nodes
 
         # Data structures containing the edges
-        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
-        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
-        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        input_edges = {}
+        # key = gate id, value = array of id. Contains the successors gate (childs)
+        gate_edges = {}
+        # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        output_edges = {}
 
         # Optimizer
         opt = Optimize()
@@ -1191,8 +1251,10 @@ class AnnotatedGraph(Graph):
         max_func = []
 
         # List of all the partition edges
-        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
-        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_input_edges = []
+        # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        partition_output_edges = []
 
         # Generate all literals
         for e in tmp_graph.edges:
@@ -1202,7 +1264,8 @@ class AnnotatedGraph(Graph):
                     input_literals[in_id] = Bool("in_%s" % str(in_id))
             if 'g' in e[0]:  # Generate literal for each gate in the circuit
                 g_id = int(e[0][1:])
-                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                # Not in constant_dict since we don't care about constants
+                if g_id not in gate_literals and g_id not in self.constant_dict:
                     gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
             if 'out' in e[1]:  # Generate literal for each output node
@@ -1259,7 +1322,8 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in input_edges[source]:
-                e_in = And(Not(input_literals[source]), gate_literals[destination])
+                e_in = And(Not(input_literals[source]),
+                           gate_literals[destination])
 
                 edge_in_holder.append(e_in)
 
@@ -1274,8 +1338,10 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in gate_edges[source]:
-                e_in = And(Not(gate_literals[source]), gate_literals[destination])
-                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+                e_in = And(Not(gate_literals[source]),
+                           gate_literals[destination])
+                e_out = And(gate_literals[source], Not(
+                    gate_literals[destination]))
 
                 edge_in_holder.append(e_in)
                 edge_out_holder.append(e_out)
@@ -1294,7 +1360,8 @@ class AnnotatedGraph(Graph):
                 0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
             if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
                 continue
-            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            e_out = And(gate_literals[predecessor],
+                        Not(output_literals[output_id]))
             if predecessor not in edge_w:
                 edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
             if predecessor not in edge_constraint:
@@ -1342,13 +1409,15 @@ class AnnotatedGraph(Graph):
         for source in gate_edges:
             for destination in gate_edges[source]:
                 if len(descendants[destination]) > 0:  # Constraints on output edges
-                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants = [Not(gate_literals[l])
+                                       for l in descendants[destination]]
                     not_descendants.append(Not(gate_literals[destination]))
                     descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
                                                   And(not_descendants))
                     opt.add(descendat_condition)
                 if len(ancestors[source]) > 0:  # Constraints on input edges
-                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors = [Not(gate_literals[l])
+                                     for l in ancestors[source]]
                     not_ancestors.append(Not(gate_literals[source]))
                     ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
                                                  And(not_ancestors))
@@ -1362,12 +1431,22 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Set high weight nodes to False (speed-up)
+        no_large_weight_constraints = []
+        for gate_id in gate_literals:
+            if edge_w[gate_id] >= 2 * feasibility_treshold:
+                no_large_weight_constraints.append(
+                    gate_literals[gate_id] == False)
+        opt.add(no_large_weight_constraints)
+
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         feasibility_constraints = []
         for s in edge_w:
-
             if gate_weight[s] <= feasibility_treshold:
                 # print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
@@ -1391,7 +1470,8 @@ class AnnotatedGraph(Graph):
                     continue
                 if is_true(m[t]):
                     gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
+                    # Gates inside the partition
+                    node_partition.append(gate_id)
         else:
             pprint.warning("subgraph not found -> UNSAT")
 
@@ -1445,6 +1525,7 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
         # print(f'{feasibility_treshold = }')
@@ -1463,9 +1544,12 @@ class AnnotatedGraph(Graph):
         output_literals = {}  # literals associated to the output nodes
 
         # Data structures containing the edges
-        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
-        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
-        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        input_edges = {}
+        # key = gate id, value = array of id. Contains the successors gate (childs)
+        gate_edges = {}
+        # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        output_edges = {}
 
         # Optimizer
         opt = Optimize()
@@ -1474,8 +1558,10 @@ class AnnotatedGraph(Graph):
         max_func = []
 
         # List of all the partition edges
-        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
-        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_input_edges = []
+        # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        partition_output_edges = []
 
         # Generate all literals
         for e in tmp_graph.edges:
@@ -1485,7 +1571,8 @@ class AnnotatedGraph(Graph):
                     input_literals[in_id] = Bool("in_%s" % str(in_id))
             if 'g' in e[0]:  # Generate literal for each gate in the circuit
                 g_id = int(e[0][1:])
-                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                # Not in constant_dict since we don't care about constants
+                if g_id not in gate_literals and g_id not in self.constant_dict:
                     gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
             if 'out' in e[1]:  # Generate literal for each output node
@@ -1542,7 +1629,8 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in input_edges[source]:
-                e_in = And(Not(input_literals[source]), gate_literals[destination])
+                e_in = And(Not(input_literals[source]),
+                           gate_literals[destination])
 
                 edge_in_holder.append(e_in)
 
@@ -1557,8 +1645,10 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in gate_edges[source]:
-                e_in = And(Not(gate_literals[source]), gate_literals[destination])
-                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+                e_in = And(Not(gate_literals[source]),
+                           gate_literals[destination])
+                e_out = And(gate_literals[source], Not(
+                    gate_literals[destination]))
 
                 edge_in_holder.append(e_in)
                 edge_out_holder.append(e_out)
@@ -1577,7 +1667,8 @@ class AnnotatedGraph(Graph):
                 0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
             if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
                 continue
-            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            e_out = And(gate_literals[predecessor],
+                        Not(output_literals[output_id]))
             if predecessor not in edge_w:
                 edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
             if predecessor not in edge_constraint:
@@ -1625,13 +1716,15 @@ class AnnotatedGraph(Graph):
         for source in gate_edges:
             for destination in gate_edges[source]:
                 if len(descendants[destination]) > 0:  # Constraints on output edges
-                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants = [Not(gate_literals[l])
+                                       for l in descendants[destination]]
                     not_descendants.append(Not(gate_literals[destination]))
                     descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
                                                   And(not_descendants))
                     opt.add(descendat_condition)
                 if len(ancestors[source]) > 0:  # Constraints on input edges
-                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors = [Not(gate_literals[l])
+                                     for l in ancestors[source]]
                     not_ancestors.append(Not(gate_literals[source]))
                     ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
                                                  And(not_ancestors))
@@ -1645,12 +1738,22 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Set high weight nodes to False (speed-up)
+        no_large_weight_constraints = []
+        for gate_id in gate_literals:
+            if edge_w[gate_id] >= 2 * feasibility_treshold:
+                no_large_weight_constraints.append(
+                    gate_literals[gate_id] == False)
+        opt.add(no_large_weight_constraints)
+
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         feasibility_constraints = []
         for s in edge_w:
-
             if gate_weight[s] <= feasibility_treshold:
                 # print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
@@ -1674,7 +1777,8 @@ class AnnotatedGraph(Graph):
                     continue
                 if is_true(m[t]):
                     gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
+                    # Gates inside the partition
+                    node_partition.append(gate_id)
         else:
             pprint.warning("subgraph not found -> UNSAT")
 
@@ -1723,14 +1827,15 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
+    # To fix: it finds subgraphs with all nodes weights different,
+    # it should find subgraphs with all OUTPUT nodes weights different
 
-    #To fix: it finds subgraphs with all nodes weights different,
-    #it should find subgraphs with all OUTPUT nodes weights different
     def find_subgraph_different_output_weights(self, specs_obj: TemplateSpecs):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
         # print(f'{feasibility_treshold = }')
@@ -1749,9 +1854,12 @@ class AnnotatedGraph(Graph):
         output_literals = {}  # literals associated to the output nodes
 
         # Data structures containing the edges
-        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
-        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
-        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        input_edges = {}
+        # key = gate id, value = array of id. Contains the successors gate (childs)
+        gate_edges = {}
+        # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        output_edges = {}
 
         # Optimizer
         opt = Optimize()
@@ -1760,8 +1868,10 @@ class AnnotatedGraph(Graph):
         max_func = []
 
         # List of all the partition edges
-        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
-        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_input_edges = []
+        # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        partition_output_edges = []
 
         # Generate all literals
         for e in tmp_graph.edges:
@@ -1771,7 +1881,8 @@ class AnnotatedGraph(Graph):
                     input_literals[in_id] = Bool("in_%s" % str(in_id))
             if 'g' in e[0]:  # Generate literal for each gate in the circuit
                 g_id = int(e[0][1:])
-                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                # Not in constant_dict since we don't care about constants
+                if g_id not in gate_literals and g_id not in self.constant_dict:
                     gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
             if 'out' in e[1]:  # Generate literal for each output node
@@ -1828,7 +1939,8 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in input_edges[source]:
-                e_in = And(Not(input_literals[source]), gate_literals[destination])
+                e_in = And(Not(input_literals[source]),
+                           gate_literals[destination])
 
                 edge_in_holder.append(e_in)
 
@@ -1843,8 +1955,10 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in gate_edges[source]:
-                e_in = And(Not(gate_literals[source]), gate_literals[destination])
-                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+                e_in = And(Not(gate_literals[source]),
+                           gate_literals[destination])
+                e_out = And(gate_literals[source], Not(
+                    gate_literals[destination]))
 
                 edge_in_holder.append(e_in)
                 edge_out_holder.append(e_out)
@@ -1863,7 +1977,8 @@ class AnnotatedGraph(Graph):
                 0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
             if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
                 continue
-            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            e_out = And(gate_literals[predecessor],
+                        Not(output_literals[output_id]))
             if predecessor not in edge_w:
                 edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
             if predecessor not in edge_constraint:
@@ -1897,7 +2012,7 @@ class AnnotatedGraph(Graph):
 
             if gate_idx not in gate_weight:
                 gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
-            #print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
 
         descendants = {}
         ancestors = {}
@@ -1911,13 +2026,15 @@ class AnnotatedGraph(Graph):
         for source in gate_edges:
             for destination in gate_edges[source]:
                 if len(descendants[destination]) > 0:  # Constraints on output edges
-                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants = [Not(gate_literals[l])
+                                       for l in descendants[destination]]
                     not_descendants.append(Not(gate_literals[destination]))
                     descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
                                                   And(not_descendants))
                     opt.add(descendat_condition)
                 if len(ancestors[source]) > 0:  # Constraints on input edges
-                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors = [Not(gate_literals[l])
+                                     for l in ancestors[source]]
                     not_ancestors.append(Not(gate_literals[source]))
                     ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
                                                  And(not_ancestors))
@@ -1931,12 +2048,22 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Set high weight nodes to False (speed-up)
+        no_large_weight_constraints = []
+        for gate_id in gate_literals:
+            if edge_w[gate_id] >= 2 * feasibility_treshold:
+                no_large_weight_constraints.append(
+                    gate_literals[gate_id] == False)
+        opt.add(no_large_weight_constraints)
+
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         feasibility_constraints = []
         for s in edge_w:
-
             if gate_weight[s] <= feasibility_treshold:
                 # print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
@@ -1946,11 +2073,10 @@ class AnnotatedGraph(Graph):
         for output_node1 in edge_constraint:
             for output_node2 in edge_constraint:
                 if output_node2 > output_node1 and gate_weight[output_node1] == gate_weight[output_node2]:
-                    weights_condition = Or(edge_constraint[output_node1] == False, edge_constraint[output_node2] == False)
+                    weights_condition = Or(
+                        edge_constraint[output_node1] == False, edge_constraint[output_node2] == False)
 
                     opt.add(weights_condition)
-
-
 
         # Generate function to maximize
         for gate_id in gate_literals:
@@ -1969,7 +2095,8 @@ class AnnotatedGraph(Graph):
                     continue
                 if is_true(m[t]):
                     gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
+                    # Gates inside the partition
+                    node_partition.append(gate_id)
         else:
             pprint.warning("subgraph not found -> UNSAT")
 
@@ -2018,15 +2145,15 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-
-    def find_subgraph_cnf_exclusion_inclusion(self,specs_obj: TemplateSpecs, excluded_outputs_id = []):
+    def find_subgraph_cnf_exclusion_inclusion(self, specs_obj: TemplateSpecs, excluded_outputs_id=[]):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
-        
+
         # print(f'{feasibility_treshold = }')
 
         # pprint.info2(f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
@@ -2043,9 +2170,12 @@ class AnnotatedGraph(Graph):
         output_literals = {}  # literals associated to the output nodes
 
         # Data structures containing the edges
-        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
-        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
-        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        input_edges = {}
+        # key = gate id, value = array of id. Contains the successors gate (childs)
+        gate_edges = {}
+        # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        output_edges = {}
 
         # Optimizer
         opt = Optimize()
@@ -2054,8 +2184,10 @@ class AnnotatedGraph(Graph):
         max_func = []
 
         # List of all the partition edges
-        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
-        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_input_edges = []
+        # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        partition_output_edges = []
 
         # Generate all literals
         for e in tmp_graph.edges:
@@ -2065,7 +2197,8 @@ class AnnotatedGraph(Graph):
                     input_literals[in_id] = Bool("in_%s" % str(in_id))
             if 'g' in e[0]:  # Generate literal for each gate in the circuit
                 g_id = int(e[0][1:])
-                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                # Not in constant_dict since we don't care about constants
+                if g_id not in gate_literals and g_id not in self.constant_dict:
                     gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
             if 'out' in e[1]:  # Generate literal for each output node
@@ -2122,7 +2255,8 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in input_edges[source]:
-                e_in = And(Not(input_literals[source]), gate_literals[destination])
+                e_in = And(Not(input_literals[source]),
+                           gate_literals[destination])
 
                 edge_in_holder.append(e_in)
 
@@ -2137,8 +2271,10 @@ class AnnotatedGraph(Graph):
             edge_out_holder = []
 
             for destination in gate_edges[source]:
-                e_in = And(Not(gate_literals[source]), gate_literals[destination])
-                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+                e_in = And(Not(gate_literals[source]),
+                           gate_literals[destination])
+                e_out = And(gate_literals[source], Not(
+                    gate_literals[destination]))
 
                 edge_in_holder.append(e_in)
                 edge_out_holder.append(e_out)
@@ -2157,7 +2293,8 @@ class AnnotatedGraph(Graph):
                 0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
             if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
                 continue
-            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            e_out = And(gate_literals[predecessor],
+                        Not(output_literals[output_id]))
             if predecessor not in edge_w:
                 edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
             if predecessor not in edge_constraint:
@@ -2205,13 +2342,15 @@ class AnnotatedGraph(Graph):
         for source in gate_edges:
             for destination in gate_edges[source]:
                 if len(descendants[destination]) > 0:  # Constraints on output edges
-                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants = [Not(gate_literals[l])
+                                       for l in descendants[destination]]
                     not_descendants.append(Not(gate_literals[destination]))
                     descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
                                                   And(not_descendants))
                     opt.add(descendat_condition)
                 if len(ancestors[source]) > 0:  # Constraints on input edges
-                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors = [Not(gate_literals[l])
+                                     for l in ancestors[source]]
                     not_ancestors.append(Not(gate_literals[source]))
                     ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
                                                  And(not_ancestors))
@@ -2225,12 +2364,14 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         feasibility_constraints = []
         for s in edge_w:
-
             if gate_weight[s] <= feasibility_treshold:
                 # print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
@@ -2242,29 +2383,30 @@ class AnnotatedGraph(Graph):
         included_outputs_id = []
 
         for nodes_id_set in excluded_nodes_id:
-            #take actual nodes from IDs
+            # take actual nodes from IDs
             nodes = [gate_literals[node_id] for node_id in nodes_id_set]
-            #check that at least one node is excluded from subgraph
+            # check that at least one node is excluded from subgraph
             opt.add(Or([Not(node_var) for node_var in nodes]))
 
         for nodes_id_set in included_nodes_id:
-            #take actual nodes from IDs
+            # take actual nodes from IDs
             nodes = [gate_literals[node_id] for node_id in nodes_id_set]
-            #check that at least one node is included from subgraph
+            # check that at least one node is excluded from subgraph
             opt.add(Or([node_var for node_var in nodes]))
 
         for outputs_id_set in excluded_outputs_id:
-            #take actual output nodes from IDs
-            outputs = [edge_constraint[output_id] for output_id in outputs_id_set]
-            #check that at least one output node is excluded from subgraph
+            # take actual output nodes from IDs
+            outputs = [edge_constraint[output_id]
+                       for output_id in outputs_id_set]
+            # check that at least one output node is excluded from subgraph
             opt.add(Or([Not(output_var) for output_var in outputs]))
-            
-        for outputs_id_set in included_outputs_id:
-            #take actual output nodes from IDs
-            outputs = [edge_constraint[output_id] for output_id in outputs_id_set]
-            #check that at least one output node is included from subgraph
-            opt.add(Or([output_var for output_var in outputs]))
 
+        for outputs_id_set in included_outputs_id:
+            # take actual output nodes from IDs
+            outputs = [edge_constraint[output_id]
+                       for output_id in outputs_id_set]
+            # check that at least one output node is excluded from subgraph
+            opt.add(Or([output_var for output_var in outputs]))
 
         # Generate function to maximize
         for gate_id in gate_literals:
@@ -2283,7 +2425,8 @@ class AnnotatedGraph(Graph):
                     continue
                 if is_true(m[t]):
                     gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
+                    # Gates inside the partition
+                    node_partition.append(gate_id)
         else:
             pprint.warning("subgraph not found -> UNSAT")
 
@@ -2326,18 +2469,20 @@ class AnnotatedGraph(Graph):
         # add nodes IDs to excluded output list and re-iterate
         for output_node1 in node_partition:
             for output_node2 in node_partition:
-                #check if they have same weights
+                # check if they have same weights
                 if output_node2 > output_node1 and gate_weight[output_node1] == gate_weight[output_node2]:
                     is_output1 = m.eval(edge_constraint[output_node1])
                     is_output2 = m.eval(edge_constraint[output_node2])
-                    
-                    #check if both nodes are in the subgraph
+
+                    # check if both nodes are in the subgraph
                     if is_true(is_output1) and is_true(is_output2):
-                        excluded_outputs_id.append([output_node1, output_node2])
-    
-        #if nodes have been added to excluded list, re-iterate
+                        excluded_outputs_id.append(
+                            [output_node1, output_node2])
+
+        # if nodes have been added to excluded list, re-iterate
         if len(excluded_outputs_id) > excluded_outputs_size:
-            pprint.info2("Output nodes with equal weight have been found. Excluding and re-iterating")
+            pprint.info2(
+                "Output nodes with equal weight have been found. Excluding and re-iterating")
             return self.find_subgraph_cnf_exclusion_inclusion(specs_obj, excluded_outputs_id)
         else:
             for gate_idx in self.gate_dict:
@@ -2349,8 +2494,8 @@ class AnnotatedGraph(Graph):
                     tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
             return tmp_graph
 
-    
-    #return the mvs output in JSON format
+    # return the mvs output in JSON format
+
     def run_with_mvs(self, specs_obj: TemplateSpecs):
         imax = specs_obj.imax
         omax = specs_obj.omax
@@ -2359,23 +2504,20 @@ class AnnotatedGraph(Graph):
 
         tmp_graph = self.graph.copy(as_view=False)
 
-
-        #define nodes
+        # define nodes
         gates_id_dict = {}
         gate_id = 0
         for node in nodes:
             if 'g' in node:
                 gate_id += 1
                 gates_id_dict[node] = gate_id
-        
+
         total_nodes = gate_id
-        print(f"gates_id_dict:\n{gates_id_dict}" )
-
-
+        print(f"gates_id_dict:\n{gates_id_dict}")
 
         input_graph_edges = ""
         total_edges = 0
-        #define edges
+        # define edges
         for edge in edges:
             if 'g' in edge[0] and 'g' in edge[1]:
                 print("'g' in both edges found")
@@ -2388,17 +2530,15 @@ class AnnotatedGraph(Graph):
                     input_graph_edges += e
                     total_edges += 1
 
-        input_graph = f"p convex {total_nodes} {total_edges} test 0\n" + input_graph_edges
+        input_graph = f"p convex {total_nodes} {total_edges} test 0\n" + \
+            input_graph_edges
 
-    
-        #define weights
+        # define weights
         for gate_idx in self.gate_dict:
             w = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
             node_id = gates_id_dict[self.gate_dict[gate_idx]]
             n = f"n {node_id} {w} 0\n"
             input_graph += n
-
-
 
         pprint.info1("writing input graph...")
         with open('./mvs_algorithm/input_graph.txt', 'w') as graph:
@@ -2408,14 +2548,15 @@ class AnnotatedGraph(Graph):
         command = ["./mvs_algorithm/build/mvs", str(imax), str(omax)]
         pprint.info1("running subprocess...")
         with open("mvs_algorithm/input_graph.txt", "r") as input_file:
-            completed_process = subprocess.run(command, stdin=input_file, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            completed_process = subprocess.run(
+                command, stdin=input_file, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         print("done")
 
         if completed_process.returncode != 0:
             pprint.error("mvs command failed! Error message:")
             print(completed_process.stderr)
             return
-        
+
         pprint.info1("subprocess executed successfully!")
 
         with open('./mvs_algorithm/output_graph.txt', 'w') as output:
@@ -2465,7 +2606,8 @@ class AnnotatedGraph(Graph):
         folder, extension = OUTPUT_PATH[GV]
         # print(f'{self.subgraph_out_path = }')
         # print(f'{self.name = }')
-        subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
+        subprocess.run(
+            f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
 
     # TODO:for external modifications
     def evaluate_subgraph_error(self) -> float:
@@ -2527,7 +2669,8 @@ class AnnotatedGraph(Graph):
             else:
                 weight = f'{WEIGHT} = -1'
         else:
-            pprint.error(f'ERROR!!! a problem occurred while exporting an annotated graph {self.__out_annotated_graph_path}')
+            pprint.error(
+                f'ERROR!!! a problem occurred while exporting an annotated graph {self.__out_annotated_graph_path}')
             exit()
         line = f"{n} [{label}, {shape}, {color}, {weight}];\n"
         file_handler.write(line)
@@ -2675,6 +2818,7 @@ class AnnotatedGraph(Graph):
 
     # TODO
     # Deprecated
+
     def extract_subgraph_fanin(self):
         tmp_fanin_dict: Dict[int, str] = {}
         graph_gate_list: List[str] = list(self.gate_dict.values())
