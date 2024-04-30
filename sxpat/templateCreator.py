@@ -1134,7 +1134,7 @@ class Template_SOP1(TemplateCreator):
         error = self.z3_generate_forall_solver_error_constraint_bitvec()
         circuits = self.z3_generate_forall_solver_circuits()
         atmost_constraints = self.z3_generate_forall_solver_atmost_constraints_subxpat_bitvec()
-        redundancy_constraints = self.z3_generate_forall_solver_redundancy_constraints_subxpat()
+        redundancy_constraints = self.z3_generate_forall_solver_redundancy_constraints_subxpat_bitvec()
         prep += '\n'
         error += '\n'
         circuits += '\n'
@@ -1254,10 +1254,21 @@ class Template_SOP1(TemplateCreator):
         redundancy += f'{TAB}{TAB}# Redundancy constraints\n'
         double_no_care = self.z3_generate_forall_solver_redundancy_constraints_double_no_care_subxpat()
         remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_subxpat()
-        if (self.encoding == 1):
-            set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat()
-        elif (self.encoding == 2):
-            set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat_bitvec()
+        set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat()
+
+        double_no_care += '\n'
+        remove_constant_zero_permutation += '\n'
+        set_ppo_order += '\n'
+        end = f"{TAB})\n))\n"
+        redundancy += double_no_care + remove_constant_zero_permutation + set_ppo_order + end
+        return redundancy
+
+    def z3_generate_forall_solver_redundancy_constraints_subxpat_bitvec(self):
+        redundancy = ''
+        redundancy += f'{TAB}{TAB}# Redundancy constraints\n'
+        double_no_care = self.z3_generate_forall_solver_redundancy_constraints_double_no_care_subxpat()
+        remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_subxpat()
+        set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat_bitvec()
 
         double_no_care += '\n'
         remove_constant_zero_permutation += '\n'
@@ -1369,7 +1380,6 @@ class Template_SOP1(TemplateCreator):
                     current_product = f'{TAB}{TAB}('
                     next_product = f'('
                     for input_idx in range(self.current_graph.subgraph_num_inputs):
-
                         loop_1_last_iter_flg = output_idx == self.current_graph.num_outputs - 1
                         loop_2_last_iter_flg = ppo_idx == self.ppo - 2
                         loop_3_last_iter_flg = input_idx == self.current_graph.num_inputs - 1
@@ -1387,8 +1397,8 @@ class Template_SOP1(TemplateCreator):
                             next_product += '),\n'
                             ppo_order += f'{current_product} >= {next_product}'
                         else:
-                            current_product += f' + '
-                            next_product += f' + '
+                            current_product += f' + \n'
+                            next_product += f' + \n'
             # for output_idx in range(self.graph.subgraph_num_outputs):
             #     ppo_order += f"{TAB}{TAB}"
             #     for ppo_idx in range(self.ppo):
@@ -1446,7 +1456,7 @@ class Template_SOP1(TemplateCreator):
                         else:
                             current_product += f' + '
                             next_product += f' + '
-
+                            
         return ppo_order        
 
     def z3_generate_forall_solver_redundancy_constraints_set_ppo_order(self):
