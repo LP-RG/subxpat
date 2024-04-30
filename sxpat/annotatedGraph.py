@@ -17,6 +17,10 @@ from .templateSpecs import TemplateSpecs
 
 from z_marco.utils import pprint
 
+import subprocess
+
+import json
+
 
 class AnnotatedGraph(Graph):
     def __init__(self, benchmark_name: str, is_clean: bool = False, partitioning_percentage: int = 50) -> None:
@@ -272,6 +276,15 @@ class AnnotatedGraph(Graph):
                 elif mode == 7:
                     pprint.info2(f"Partition with omax={specs_obj.omax}, hard feasibility constraints and node exclusions. Looking for largest partition")
                     self.subgraph = self.find_subgraph_cnf_exclusion_inclusion(specs_obj)
+
+                    cnt_nodes = 0
+                    for gate_idx in self.gate_dict:
+                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
+                            cnt_nodes += 1
+
+                elif mode == 8:
+                    pprint.info2(f"Partition with omax={specs_obj.omax} and imax{specs_obj.imax}")
+                    self.subgraph = self.run_with_mvs(specs_obj)
 
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
@@ -2178,7 +2191,7 @@ class AnnotatedGraph(Graph):
 
             if gate_idx not in gate_weight:
                 gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
-            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+            print("Gate", gate_idx, " value ", gate_weight[gate_idx])
 
         descendants = {}
         ancestors = {}
@@ -2237,7 +2250,7 @@ class AnnotatedGraph(Graph):
         for nodes_id_set in included_nodes_id:
             #take actual nodes from IDs
             nodes = [gate_literals[node_id] for node_id in nodes_id_set]
-            #check that at least one node is excluded from subgraph
+            #check that at least one node is included from subgraph
             opt.add(Or([node_var for node_var in nodes]))
 
         for outputs_id_set in excluded_outputs_id:
@@ -2249,7 +2262,7 @@ class AnnotatedGraph(Graph):
         for outputs_id_set in included_outputs_id:
             #take actual output nodes from IDs
             outputs = [edge_constraint[output_id] for output_id in outputs_id_set]
-            #check that at least one output node is excluded from subgraph
+            #check that at least one output node is included from subgraph
             opt.add(Or([output_var for output_var in outputs]))
 
 
@@ -2315,29 +2328,20 @@ class AnnotatedGraph(Graph):
             for output_node2 in node_partition:
                 #check if they have same weights
                 if output_node2 > output_node1 and gate_weight[output_node1] == gate_weight[output_node2]:
-                    
-                    #TODO fix
-                    # output nodes: 139, 90, 140
                     is_output1 = m.eval(edge_constraint[output_node1])
                     is_output2 = m.eval(edge_constraint[output_node2])
-                    # print(output_node1, output_node2, is_output1, is_output2)
-
+                    
                     #check if both nodes are in the subgraph
                     if is_true(is_output1) and is_true(is_output2):
-                        #print(output_node1)
                         excluded_outputs_id.append([output_node1, output_node2])
-                        print(excluded_outputs_id)
     
-
         #if nodes have been added to excluded list, re-iterate
         if len(excluded_outputs_id) > excluded_outputs_size:
-            pprint.info2("\nOutput nodes with equal weight have been found. Excluding and re-iterating")
+            pprint.info2("Output nodes with equal weight have been found. Excluding and re-iterating")
             return self.find_subgraph_cnf_exclusion_inclusion(specs_obj, excluded_outputs_id)
         else:
             for gate_idx in self.gate_dict:
-                # print(f'{gate_idx = }')
                 if gate_idx in node_partition:
-                    # print(f'{gate_idx} is in the node_partition')
                     tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
                     tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
                 else:
@@ -2345,6 +2349,93 @@ class AnnotatedGraph(Graph):
                     tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
             return tmp_graph
 
+    
+    #return the mvs output in JSON format
+    def run_with_mvs(self, specs_obj: TemplateSpecs):
+        imax = specs_obj.imax
+        omax = specs_obj.omax
+        nodes = self.graph.nodes()
+        edges = self.graph.edges()
+
+        tmp_graph = self.graph.copy(as_view=False)
+
+
+        #define nodes
+        gates_id_dict = {}
+        gate_id = 0
+        for node in nodes:
+            if 'g' in node:
+                gate_id += 1
+                gates_id_dict[node] = gate_id
+        
+        total_nodes = gate_id
+        print(f"gates_id_dict:\n{gates_id_dict}" )
+
+
+
+        input_graph_edges = ""
+        total_edges = 0
+        #define edges
+        for edge in edges:
+            if 'g' in edge[0] and 'g' in edge[1]:
+                print("'g' in both edges found")
+                node1 = gates_id_dict[edge[0]]
+                node2 = gates_id_dict[edge[1]]
+                print(f"node1: {node1}")
+                if node1 in gates_id_dict.values() and node2 in gates_id_dict.values():
+                    print("condition entered")
+                    e = f"e {node1} {node2}\n"
+                    input_graph_edges += e
+                    total_edges += 1
+
+        input_graph = f"p convex {total_nodes} {total_edges} test 0\n" + input_graph_edges
+
+    
+        #define weights
+        for gate_idx in self.gate_dict:
+            w = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
+            node_id = gates_id_dict[self.gate_dict[gate_idx]]
+            n = f"n {node_id} {w} 0\n"
+            input_graph += n
+
+
+
+        pprint.info1("writing input graph...")
+        with open('./mvs_algorithm/input_graph.txt', 'w') as graph:
+            graph.write(input_graph)
+        print("done")
+
+        command = ["./mvs_algorithm/build/mvs", str(imax), str(omax)]
+        pprint.info1("running subprocess...")
+        with open("mvs_algorithm/input_graph.txt", "r") as input_file:
+            completed_process = subprocess.run(command, stdin=input_file, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        print("done")
+
+        if completed_process.returncode != 0:
+            pprint.error("mvs command failed! Error message:")
+            print(completed_process.stderr)
+            return
+        
+        pprint.info1("subprocess executed successfully!")
+
+        with open('./mvs_algorithm/output_graph.txt', 'w') as output:
+            output.write(completed_process.stdout)
+            output.write(str(gates_id_dict))
+
+        data = json.loads(completed_process.stdout)
+        subgraphs = data["subgraphs"]
+        partition_nodes = subgraphs[0]["nodes"]
+
+        for gate_idx in self.gate_dict:
+            if gates_id_dict[self.gate_dict[gate_idx]] in partition_nodes:
+
+                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
+                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
+            else:
+                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
+                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
+
+        return tmp_graph
 
     def entire_graph(self):
         tmp_graph = self.graph.copy()
