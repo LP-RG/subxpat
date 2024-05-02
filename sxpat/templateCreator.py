@@ -418,7 +418,7 @@ class Template_SOP1(TemplateCreator):
                 for_all_solver = self.z3_generate_forall_solver_subxpat_bitvec()
                 verification_solver = self.z3_generate_verification_solver()
                 parameter_constraint_list = self.z3_generate_parameter_constraint_list()
-                find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
+                find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models_bitvec()
                 store_data = self.z3_generate_store_data()
                 self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
                     + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
@@ -1456,7 +1456,7 @@ class Template_SOP1(TemplateCreator):
                         else:
                             current_product += f' + '
                             next_product += f' + '
-                            
+
         return ppo_order        
 
     def z3_generate_forall_solver_redundancy_constraints_set_ppo_order(self):
@@ -1676,7 +1676,7 @@ class Template_SOP1(TemplateCreator):
                       f'{TAB}{TAB}{TAB}{TAB}# sat, need to search again\n' \
                       f'{TAB}{TAB}{TAB}{TAB}m = verification_solver.model()\n' \
                       f'{TAB}{TAB}{TAB}{TAB}verification_ET = m[error].as_long()\n' \
-                      f'{TAB}{TAB}verification_ET_BV = BitVecVal(verification_ET, {self.current_graph.num_outputs})\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}verification_ET_BV = BitVecVal(verification_ET, {self.current_graph.num_outputs})\n' \
                       f'{TAB}{TAB}{TAB}else:\n' \
                       f'{TAB}{TAB}{TAB}{TAB} # unknown (probably a timeout)\n' \
                       f'{TAB}{TAB}{TAB}{TAB}WCE = -1\n' \

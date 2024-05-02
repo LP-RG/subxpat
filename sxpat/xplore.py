@@ -288,7 +288,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                                    synth_obj.estimate_delay(exact_file_path)]
                     print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
 
-                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=benchmark_name, et=specs_obj.et, encoding=specs_obj.encoding)
+                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=benchmark_name, et=specs_obj.et, encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
 
                     for key in cur_model_results.keys():
                         next_generation[key] = cur_model_results[key]
@@ -445,12 +445,12 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
         pprint.success(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
         # print the best model for now
 
-def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, encoding: int, exact_stats: List = None) -> None:
+def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, encoding: int, subgraph_extraction_time: float, labeling_time: float, exact_stats: List = None) -> None:
     with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_power_delay.csv", 'a') as f:
         csvwriter = csv.writer(f)
 
         # to avoid duplicate data 
-        if encoding == 1:
+        if encoding == 2:
             exact_data = []
             if exact_stats:
                 exact_area = exact_stats[0]
@@ -463,6 +463,8 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
                 exact_data.append(exact_delay)
                 exact_data.append(et)
                 exact_data.append(encoding)
+                exact_data.append(labeling_time)
+                exact_data.append(subgraph_extraction_time)
                 exact_data = tuple(exact_data)
 
             csvwriter.writerow(exact_data)
@@ -480,6 +482,8 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         approx_data.append(best_delay)
         approx_data.append(et)
         approx_data.append(encoding)
+        approx_data.append(labeling_time)
+        approx_data.append(subgraph_extraction_time)
         approx_data = tuple(approx_data)
 
         csvwriter.writerow(approx_data)
