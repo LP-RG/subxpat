@@ -1,7 +1,8 @@
 from enum import Enum
 
 # OpenSTA for power and delay analysis
-OPENSTA = 'sta'
+# OPENSTA = 'sta'
+OPENSTA = '/home/ma/Desktop/OpenSTA/app/sta'
 
 # Synthesis with Yosys
 LIB_PATH = 'config/gscl45nm.lib'
@@ -12,6 +13,7 @@ ABC_SCRIPT_PATH = 'config/abc.script'
 NAME = 'name'
 LITERALS_PER_PRODUCT = 'literals_per_product'
 PRODUCTS_PER_OUTPUT = 'products_per_output'
+SELECTORS_PER_OUTPUT = 'selectors_per_output'
 BENCHMARK = 'benchmark_name'
 NUM_OF_MODELS = 'num_of_models'
 SUBXPAT = 'subxpat'
@@ -46,6 +48,12 @@ SHARED_SELECT_PREFIX = 's'
 SHARED_LITERAL_PREFIX = 'l'
 SHARED_INPUT_LITERAL_PREFIX = 'i'
 
+#  lut
+# multiplexer
+INPUT_LIST = 'inputs_list'
+MUX_INPUT_LIST= 'mux_inputs'
+LUT = 'lut'
+
 
 #   NetworkX
 NOT = 'not'
@@ -67,6 +75,9 @@ ADD = 'add'
 FORALL = 'ForAll'
 IF = 'If'
 IMPLIES = 'Implies'
+STORE = 'Store'
+ARRAY = 'Array'
+SELECT = "Select"
 
 #       variable names
 F_EXACT = 'fe'
@@ -82,6 +93,8 @@ APPROXIMATE_WIRE_PREFIX = 'a'
 APPROXIMATE_OUTPUT_PREFIX = 'a'
 OUT = 'out'
 PRODUCT_PREFIX = 'p_o'
+
+
 
 TO_Z3_GATE_DICT = {
     NOT: Z3_NOT,

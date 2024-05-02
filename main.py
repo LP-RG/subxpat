@@ -20,7 +20,7 @@ def main():
     if args.plot:
         pprint.info2('Plotting...')
 
-        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.benchmark_name, literals_per_product=args.lpp,
+        specs_obj = TemplateSpecs(name='Sop1' if not args.shared and not args.lut else 'SharedLogic' if not args.lut else 'Lut', exact=args.benchmark_name, literals_per_product=args.lpp,
                                   products_per_output=args.ppo,
                                   benchmark_name=args.approximate_benchmark, num_of_models=args.num_models, subxpat=args.subxpat,
                                   et=args.et,
@@ -28,7 +28,8 @@ def main():
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
                                   min_labeling=args.min_labeling,
-                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel)
+                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel, lut=args.lut,
+                                  selectors_per_output=args.selectors_per_output)
         stats_obj = Stats(specs_obj)
         stats_obj.gather_results()
 
@@ -42,7 +43,7 @@ def main():
             FS.mkdir(directory)
 
         # todo:later: update how we create the templatespecs (more than 2 names, ecc.)
-        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.benchmark_name,
+        specs_obj = TemplateSpecs(name='Sop1' if not args.shared and not args.lut else 'SharedLogic' if not args.lut else 'Lut', exact=args.benchmark_name,
                                   literals_per_product=args.lpp, products_per_output=args.ppo,
                                   benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
                                   subxpat=args.subxpat, subxpat_v2=args.subxpat_v2,
@@ -52,7 +53,8 @@ def main():
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
                                   min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
-                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel)
+                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel, lut=args.lut,
+                                  selectors_per_output=args.selectors_per_output)
 
         if specs_obj.grid:
             stats_obj = explore_grid(specs_obj)

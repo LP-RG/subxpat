@@ -91,7 +91,7 @@ class Arguments(Z3Log_Arguments):
         self.__imax: int = tmp_args.imax
         self.__omax: int = tmp_args.omax
         self.__sensitivity: int = tmp_args.sensitivity
-        self.__timeout: float = tmp_args.timeout
+        self.__timeout: int = tmp_args.timeout
         self.__subgraph_size: int = tmp_args.subgraphsize
         self.__mode: int = tmp_args.mode
         self.__manual_nodes: List[str] = tmp_args.manual_nodes
@@ -104,6 +104,8 @@ class Arguments(Z3Log_Arguments):
         self.__full_error_function: int = tmp_args.full_error_function
         self.__sub_error_function: int = tmp_args.sub_error_function
         self.__et_partitioning: int = tmp_args.et_partitioning
+        self.__lut: bool = tmp_args.lut
+        self.__selectors_per_output: int = tmp_args.selectors_per_output
 
     @property
     def parallel(self):
@@ -160,6 +162,14 @@ class Arguments(Z3Log_Arguments):
     @property
     def ppo(self):
         return self.__product_per_output
+
+    @property
+    def selectors_per_output(self):
+        return self.__selectors_per_output
+
+    @property
+    def spo(self):
+        return self.__selectors_per_output
 
     @property
     def subxpat(self):
@@ -229,6 +239,11 @@ class Arguments(Z3Log_Arguments):
     def et_partitioning(self):
         return self.__et_partitioning
 
+    @property
+    def lut(self):
+        return self.__lut
+
+
     @classmethod
     def parse(cls) -> Arguments:
         my_parser = argparse.ArgumentParser(description='converts different formats to one another',
@@ -247,6 +262,11 @@ class Arguments(Z3Log_Arguments):
                                type=int,
                                default=2,
                                help='products-per-output')
+
+        my_parser.add_argument('--spo', '-spo',
+                               type=int,
+                               default=2,
+                               help='selectors-per-output')
 
         my_parser.add_argument('--et', '-et',
                                type=int,
@@ -335,8 +355,8 @@ class Arguments(Z3Log_Arguments):
                                default=10,
                                help='minimum-size-for-subgraphs')
 
-        my_parser.add_argument('--timeout',
-                               type=float,
+        my_parser.add_argument('-timeout',
+                               type=int,
                                default=10800,
                                help='the-timeout-for-every-cell-in-seconds(default 3 hours)')
 
@@ -399,10 +419,14 @@ class Arguments(Z3Log_Arguments):
                                choices=['1', '2'],
                                default=1)
 
-        #
         my_parser.add_argument('--et-partitioning',
                                choices=['asc', 'desc'],
                                default='asc')
+
+        my_parser.add_argument('--lut',
+                               action="store_true",
+                               default=False)
+
 
         tmp_args = my_parser.parse_args()
 
@@ -437,4 +461,6 @@ class Arguments(Z3Log_Arguments):
                f'{self.full_error_function = }\n' \
                f'{self.sub_error_function = }\n' \
                f'{self.et_partitioning = }\n' \
-               f'{self.clean = }'
+               f'{self.clean = }\n'\
+               f'{self.spo = }\n'\
+               f'{self.lut = }'

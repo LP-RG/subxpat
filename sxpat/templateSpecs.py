@@ -20,7 +20,7 @@ class TemplateSpecs:
         self.__omax = kwargs[OMAX]
         self.__max_sensitivity = kwargs[SENSITIVITY]
         self.__sensitivity = 0
-        self.__timeout = float(kwargs[TIMEOUT])
+        self.__timeout = kwargs[TIMEOUT]
         self.__min_subgraph_size = kwargs[SUBGRAPHSIZE]
         self.__mode = kwargs[MODE]
         self.__manual_nodes = kwargs[MANUAL_NODES]
@@ -36,7 +36,9 @@ class TemplateSpecs:
         self.et_partitioning: str = kwargs[ET_PARTITIONING]
 
         self.__keep_unsat_candidate: bool = self.__subxpat_v2
+        self.__lut: bool = kwargs[LUT]
 
+        self.__selectors_per_output: int = int(kwargs[SELECTORS_PER_OUTPUT])
     @property
     def keep_unsat_candidate(self):
         return self.__keep_unsat_candidate
@@ -48,6 +50,10 @@ class TemplateSpecs:
     @property
     def shared(self):
         return self.__shared
+
+    @property
+    def lut(self):
+        return self.__lut
 
     @property
     def min_labeling(self):
@@ -117,6 +123,20 @@ class TemplateSpecs:
     def ppo(self, this_ppo):
         self.__products_per_output = this_ppo
 
+
+    @property
+    def selectors_per_output(self):
+        return self.__selectors_per_output
+
+    @property
+    def spo(self):
+        return self.__selectors_per_output
+
+    @spo.setter
+    def spo(self, this_spo):
+        self.__selectors_per_output = this_spo
+
+
     @property
     def subxpat(self):
         return self.__subxpat
@@ -174,8 +194,8 @@ class TemplateSpecs:
         return self.__timeout
 
     @timeout.setter
-    def timeout(self, this_timeout: float):
-        self.__timeout = float(this_timeout)
+    def timeout(self, this_timeout):
+        self.__timeout = this_timeout
 
     @property
     def num_of_models(self):
