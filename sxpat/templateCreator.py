@@ -3459,8 +3459,8 @@ class Template_LUT(TemplateCreator):
         temp_multiplexer_implicit_parameters = ''
         for idx_o in range(self.current_graph.num_outputs):
             for idx_sel in range(self.__selectors_per_output):
-                for idx_in in range(self.current_graph.subgraph_num_inputs):
-                    temp_multiplexer_implicit_parameters += f"mux0_o{idx_o}_sel{idx_sel}_p{idx_in} = {Z3BOOL}('mux0_o{idx_o}_sel{idx_sel}_p{idx_in}')"
+                for idx_in in range(int(math.log2(self.current_graph.subgraph_num_inputs))):
+                    temp_multiplexer_implicit_parameters += f"mux0_o{idx_o}_sel{idx_sel}_p{idx_in} = {Z3BOOL}('mux0_o{idx_o}_sel{idx_sel}_p{idx_in}')\n"
                 temp_multiplexer_implicit_parameters += '\n'
 
         temp_multiplexer_implicit_parameters += '\n'
@@ -3481,28 +3481,6 @@ class Template_LUT(TemplateCreator):
         implicit_parameters += self.z3_generate_selectors_implicit_parameters()
         implicit_parameters += '\n'
         return implicit_parameters
-
-
-    def z3_generate_inputs_lists(self):
-        subgraph_input_list = self.__z3_get_subgraph_input_list()
-        temp_inputs_lists = f'{INPUT_LIST}={ARRAY}("{INPUT_LIST}",{INTSORT},{BOOLSORT})\n'
-
-        for sub_in in range(len(subgraph_input_list)):
-            temp_inputs_lists += f'{STORE}({INPUT_LIST},{sub_in},{subgraph_input_list[sub_in]})\n'
-
-        temp_inputs_lists += '\n'
-        temp_inputs_lists += f'{MUX_INPUT_LIST}={ARRAY}("{MUX_INPUT_LIST}",{INTSORT},{BOOLSORT})\n'
-
-        for sub_in in range(len(subgraph_input_list)):
-            temp_inputs_lists += f'{STORE}({MUX_INPUT_LIST},{sub_in},{subgraph_input_list[sub_in]})\n'
-            temp_inputs_lists += f'{STORE}({MUX_INPUT_LIST},{len(subgraph_input_list) + sub_in},Not({subgraph_input_list[sub_in]}))\n'
-
-        temp_inputs_lists += f'{STORE}({MUX_INPUT_LIST},{len(subgraph_input_list) * 2},False)\n'
-        temp_inputs_lists += f'{STORE}({MUX_INPUT_LIST},{len(subgraph_input_list) * 2 + 1},True)\n'
-        temp_inputs_lists += '\n'
-
-        return temp_inputs_lists
-
 
 
     def z3_generate_exact_circuit_wires_declaration(self):
@@ -3789,8 +3767,7 @@ class Template_LUT(TemplateCreator):
 
     def z3_generate_approximate_circuit_wire_constraints_subxpat(self):
 
-
-        exact_wire_constraints = ''
+        exact_wire_constraints = ""
         exact_wire_constraints += f'# approximate circuit constraints\n'
         exact_wire_constraints += f'{APPROXIMATE_CIRCUIT} = And(\n'
         exact_wire_constraints += f'{TAB}# wires\n'
@@ -3842,11 +3819,11 @@ class Template_LUT(TemplateCreator):
 
                     selectors = []
                     for sel_idx in range(len(binary_combinations[sel_combination])):
-                        selector = f'{SELECT}({INPUT_LIST}, mux0_o{output_idx}_sels[{sel_idx}])'
+                        selector = f'mux0_o{output_idx}_sel{sel_idx}'
                         selectors.append(f'{Z3_NOT}({selector})' if not binary_combinations[sel_combination][sel_idx] else selector)
                     selectors_string = ", ".join(selectors)
 
-                    mux_in = f'{SELECT}({MUX_INPUT_LIST},mux0_o{output_idx}_ins[{sel_combination}]), {selectors_string}'
+                    mux_in = f'mux0_o{output_idx}_in{sel_combination}, {selectors_string}'
                     exact_wire_constraints += mux_in + '),\n' if sel_combination != len(binary_combinations) - 1 else mux_in + ')),\n'
 
         return exact_wire_constraints
@@ -3922,14 +3899,42 @@ class Template_LUT(TemplateCreator):
                         approximate_circuit_constraints += ','
         return approximate_circuit_constraints
 
+    def z3_generate_selectors_constraints(self):
+
+        selectors_constraints = ''
+        subgraph_input_list = self.__z3_get_subgraph_input_list()
+        binary_combinations = list(itertools.product([0, 1], repeat=int(math.log2(len(subgraph_input_list)))))
+        selectors_parameters = []
+        for idx_o in range(self.current_graph.subgraph_num_outputs):
+            for idx_s in range(self.spo):
+                selectors_constraints += f'mux0_o{idx_o}_sel{idx_s} = {Z3_OR}('
+                for sel_combination in range(len(binary_combinations)):
+                    selectors_constraints += f'{Z3_AND}('
+                    for idx_p in range(int(math.log2(len(subgraph_input_list)))):
+                        selector = f'mux0_o{idx_o}_sel{idx_s}_p{idx_p}'
+                        if not binary_combinations[sel_combination][idx_p]:
+                            selectors_parameters.append(f'{Z3_NOT}({selector})')
+                        else:
+                            selectors_parameters.append(f'{selector}')
+                    selectors_parameters.append(subgraph_input_list[sel_combination])
+                    selectors_constraints += ", ".join(selectors_parameters) + ")"
+                    selectors_parameters = []
+                    if sel_combination == len(binary_combinations) -1:
+                        selectors_constraints += ")\n"
+                    else:
+                        selectors_constraints += ","
+                    selectors_constraints += "\n"
+        return selectors_constraints
+
     def z3_generate_approximate_circuit_constraints_subxpat(self):
+        selectors = self.z3_generate_selectors_constraints()
         wires = self.z3_generate_approximate_circuit_wire_constraints_subxpat()
         outputs = self.z3_generate_approximate_circuit_output_constraints_subxpat()
         integer_outputs = self.z3_generate_exact_circuit_integer_output_constraints_subxpat()
         wires += '\n'
         outputs += '\n'
         integer_outputs += '\n'
-        approximate_circuit_constraints = wires + outputs + integer_outputs + ')\n'
+        approximate_circuit_constraints = selectors + wires + outputs + integer_outputs + ')\n'
 
         return approximate_circuit_constraints
 

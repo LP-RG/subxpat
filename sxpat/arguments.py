@@ -105,7 +105,7 @@ class Arguments(Z3Log_Arguments):
         self.__sub_error_function: int = tmp_args.sub_error_function
         self.__et_partitioning: int = tmp_args.et_partitioning
         self.__lut: bool = tmp_args.lut
-        self.__selectors_per_output: int = tmp_args.selectors_per_output
+        self.__selectors_per_output: int = tmp_args.spo
 
     @property
     def parallel(self):
@@ -426,6 +426,7 @@ class Arguments(Z3Log_Arguments):
         my_parser.add_argument('--lut',
                                action="store_true",
                                default=False)
+
 
 
         tmp_args = my_parser.parse_args()
