@@ -248,6 +248,11 @@ class Synthesis:
             verilog_str = self.__json_model_to_verilog_shared()  # Shared XPAT
         elif not self.subxpat and not self.shared:
             verilog_str = self.__annotated_graph_to_verilog()  # XPAT (Vanilla)
+        elif self.subxpat:
+            #TODO: Mohamed, please put your own synthesis funciton here! with the correct flags!
+            # which means, whenever we choose subxpat and lut (create this one if it does not exist)
+            # you should run this function right here!
+            pass
         else:
             pprint.error('ERROR!!! the graph or json model cannot be converted into a Verilog script!')
             exit(1)

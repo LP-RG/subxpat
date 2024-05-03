@@ -4293,7 +4293,7 @@ class Template_LUT(TemplateCreator):
         find_valid_model += f'{TAB}{TAB}m = forall_solver.model()\n' \
                             f'{TAB}{TAB}parameters_constraints = []\n' \
                             f'{TAB}{TAB}for k, v in map(lambda k: (k, m[k]), m):\n' \
-                            f'{TAB}{TAB}{TAB}if str(k)[0] == "p":\n' \
+                            f'{TAB}{TAB}{TAB}if str(k)[0:3] == "mux":\n' \
                             f'{TAB}{TAB}{TAB}{TAB}parameters_constraints.append((Bool(str(k)), v))\n'
 
         find_valid_model += f'{TAB}{TAB}# verify parameters\n' \
