@@ -42,7 +42,8 @@ def explore_grid(specs_obj: TemplateSpecs):
         pprint.info2('Shared SubXPAT started...')
         toolname = sxpatconfig.SHARED_SUBXPAT
     elif specs_obj.subxpat and specs_obj.lut:
-        pprint.info2('Lut XPAT started...')
+        pprint.info2('Lut SubXPAT started...')
+        toolname = sxpatconfig.SUBXPAT_LUT
     elif specs_obj.subxpat and not specs_obj.shared:
         pprint.info2('SubXPAT started...')
         toolname = sxpatconfig.SUBXPAT
@@ -52,6 +53,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     elif not specs_obj.subxpat and not specs_obj.shared:
         pprint.info2('XPAT started...')
         toolname = sxpatconfig.XPAT
+
 
     # initial setup
     total_iterations = specs_obj.iterations
