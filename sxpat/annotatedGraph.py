@@ -2505,38 +2505,33 @@ class AnnotatedGraph(Graph):
         tmp_graph = self.graph.copy(as_view=False)
 
         # define nodes
-        gates_id_dict = {}
-        gate_id = 0
+        nodes_ids_mapping = {}
+        node_id = 0
         for node in nodes:
-            if 'g' in node:
-                gate_id += 1
-                gates_id_dict[node] = gate_id
+            node_id += 1
+            nodes_ids_mapping[node] = node_id
 
-        total_nodes = gate_id
-        print(f"gates_id_dict:\n{gates_id_dict}")
+        total_nodes = node_id
 
         input_graph_edges = ""
         total_edges = 0
         # define edges
         for edge in edges:
-            if 'g' in edge[0] and 'g' in edge[1]:
-                print("'g' in both edges found")
-                node1 = gates_id_dict[edge[0]]
-                node2 = gates_id_dict[edge[1]]
-                print(f"node1: {node1}")
-                if node1 in gates_id_dict.values() and node2 in gates_id_dict.values():
-                    print("condition entered")
-                    e = f"e {node1} {node2}\n"
-                    input_graph_edges += e
-                    total_edges += 1
+            node1 = nodes_ids_mapping[edge[0]]
+            node2 = nodes_ids_mapping[edge[1]]
+            print(f"node1: {node1}")
+            e = f"e {node1} {node2}\n"
+            input_graph_edges += e
+            total_edges += 1
 
         input_graph = f"p convex {total_nodes} {total_edges} test 0\n" + \
             input_graph_edges
 
         # define weights
         for gate_idx in self.gate_dict:
-            w = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
-            node_id = gates_id_dict[self.gate_dict[gate_idx]]
+            node = self.gate_dict[gate_idx]
+            w = tmp_graph.nodes[node][WEIGHT]
+            node_id = nodes_ids_mapping[node]
             n = f"n {node_id} {w} 0\n"
             input_graph += n
 
@@ -2561,20 +2556,20 @@ class AnnotatedGraph(Graph):
 
         with open('./mvs_algorithm/output_graph.txt', 'w') as output:
             output.write(completed_process.stdout)
-            output.write(str(gates_id_dict))
 
         data = json.loads(completed_process.stdout)
         subgraphs = data["subgraphs"]
         partition_nodes = subgraphs[0]["nodes"]
 
         for gate_idx in self.gate_dict:
-            if gates_id_dict[self.gate_dict[gate_idx]] in partition_nodes:
+            gate_name = self.gate_dict[gate_idx]
+            if nodes_ids_mapping[gate_name] - 1 in partition_nodes:
 
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
+                tmp_graph.nodes[gate_name][SUBGRAPH] = 1
+                tmp_graph.nodes[gate_name][COLOR] = RED
             else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
+                tmp_graph.nodes[gate_name][SUBGRAPH] = 0
+                tmp_graph.nodes[gate_name][COLOR] = WHITE
 
         return tmp_graph
 
