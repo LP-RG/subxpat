@@ -104,6 +104,7 @@ class Arguments(Z3Log_Arguments):
         self.__full_error_function: int = tmp_args.full_error_function
         self.__sub_error_function: int = tmp_args.sub_error_function
         self.__et_partitioning: int = tmp_args.et_partitioning
+        self.__manual: bool = tmp_args.manual
 
     @property
     def parallel(self):
@@ -229,6 +230,10 @@ class Arguments(Z3Log_Arguments):
     def et_partitioning(self):
         return self.__et_partitioning
 
+    @property
+    def manual(self):
+        return self.__manual
+
     @classmethod
     def parse(cls) -> Arguments:
         my_parser = argparse.ArgumentParser(description='converts different formats to one another',
@@ -236,21 +241,17 @@ class Arguments(Z3Log_Arguments):
 
         my_parser.add_argument('benchmark',
                                type=str,
-                               default=None,
                                help='benchmark-name')
         my_parser.add_argument('--lpp', '-lpp',
                                type=int,
-                               default=3,
                                help='literals-per-product')
 
         my_parser.add_argument('--ppo', '-ppo',
                                type=int,
-                               default=2,
                                help='products-per-output')
 
         my_parser.add_argument('--et', '-et',
                                type=int,
-                               default=3,
                                help='error-threshold')
 
         my_parser.add_argument('--samples', '-s',
@@ -267,7 +268,6 @@ class Arguments(Z3Log_Arguments):
 
         my_parser.add_argument('--approximate_benchmark', '-app',
                                type=str,
-                               default=None,
                                help='approximate-benchmark-name in gv/verilog format')
         my_parser.add_argument('--metric', '-metric',
                                type=str,
@@ -283,12 +283,11 @@ class Arguments(Z3Log_Arguments):
                                help='the-solver-strategy-to-find-metric')
         my_parser.add_argument('--optimization', '-opt',
                                type=str,
-                               default=None,
                                help='the-solver-optimization (Solver, Optimize, Maximize)')
         my_parser.add_argument('--experiment', '-e',
                                type=str,
                                default=SINGLE,
-                               help="the-experiment-name [SINGLE|QOR|RANDOM]")
+                               help='the-experiment-name [SINGLE|QOR|RANDOM]')
         my_parser.add_argument('--pruning_percentage', '-pp',
                                type=int,
                                default=10,
@@ -304,25 +303,20 @@ class Arguments(Z3Log_Arguments):
                                default=1)
 
         my_parser.add_argument('--grid',
-                               action="store_true",
-                               default=False)
+                               action='store_true')
 
         my_parser.add_argument('--multiple',
-                               action="store_true",
-                               default=False)
+                               action='store_true')
 
         my_parser.add_argument('--plot',
-                               action="store_true",
-                               default=False)
+                               action='store_true')
 
         my_parser.add_argument('-imax',
                                type=int,
-                               default=3,
                                help='maximum-inputs-for-subgraph')
 
         my_parser.add_argument('-omax',
                                type=int,
-                               default=2,
                                help='maximum-outputs-for-subgraph')
 
         my_parser.add_argument('-sensitivity',
@@ -337,7 +331,7 @@ class Arguments(Z3Log_Arguments):
 
         my_parser.add_argument('--timeout',
                                type=float,
-                               default=10800,
+                               default=3 * 60 * 60,
                                help='the-timeout-for-every-cell-in-seconds(default 3 hours)')
 
         my_parser.add_argument('-mode',
@@ -363,19 +357,16 @@ class Arguments(Z3Log_Arguments):
                                help='number-of-models')
 
         my_parser.add_argument('--clean',
-                               action="store_true",
-                               default=False,
+                               action='store_true',
                                help='cleans-output-directory-and-its-contents')
 
         my_parser.add_argument('--min_labeling',
-                               action="store_true",
-                               default=False,
+                               action='store_true',
                                help='[if true labels-gates-with-min-error] \
                                      [if false max-error]')
 
         my_parser.add_argument('--shared',
-                               action="store_true",
-                               default=False,
+                               action='store_true',
                                help='activates-logic-sharing')
 
         my_parser.add_argument('--pit', '-pit',
@@ -384,12 +375,10 @@ class Arguments(Z3Log_Arguments):
                                help='products-in-total')
 
         my_parser.add_argument('--parallel',
-                               action="store_true",
-                               default=False)
+                               action='store_true')
 
         my_parser.add_argument('--evaluate',
-                               action="store_true",
-                               default=False)
+                               action='store_true')
 
         # error functions
         my_parser.add_argument('--full_error_function',
@@ -403,6 +392,11 @@ class Arguments(Z3Log_Arguments):
         my_parser.add_argument('--et-partitioning',
                                choices=['asc', 'desc'],
                                default='asc')
+
+        #
+        my_parser.add_argument('--manual',
+                               action='store_true',
+                               help='when active, the system ask for user instructions before performing some tasks')
 
         tmp_args = my_parser.parse_args()
 
@@ -437,4 +431,5 @@ class Arguments(Z3Log_Arguments):
                f'{self.full_error_function = }\n' \
                f'{self.sub_error_function = }\n' \
                f'{self.et_partitioning = }\n' \
-               f'{self.clean = }'
+               f'{self.clean = }\n' \
+               f'{self.manual = }\n'

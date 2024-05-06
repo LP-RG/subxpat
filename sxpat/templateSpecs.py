@@ -37,6 +37,8 @@ class TemplateSpecs:
 
         self.__keep_unsat_candidate: bool = self.__subxpat_v2
 
+        self.__manual: bool = kwargs[MANUAL]
+
     @property
     def keep_unsat_candidate(self):
         return self.__keep_unsat_candidate
@@ -217,6 +219,10 @@ class TemplateSpecs:
     def sub_error_function(self):
         return self.__sub_error_function
 
+    @property
+    def manual(self):
+        return self.__manual
+
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \
                f'{self.template_name = }\n' \
@@ -247,4 +253,5 @@ class TemplateSpecs:
                f'{self.full_error_function = }\n' \
                f'{self.sub_error_function = }\n' \
                f'{self.et_partitioning = }\n' \
-               f'{self.keep_unsat_candidate = }\n'
+               f'{self.keep_unsat_candidate = }\n' \
+               f'{self.manual = }\n'
