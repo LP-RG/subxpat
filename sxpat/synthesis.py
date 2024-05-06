@@ -5,6 +5,8 @@ import re
 import subprocess
 from subprocess import PIPE
 import os
+import math
+import itertools
 
 from Z3Log.graph import Graph
 from Z3Log.config.config import *
@@ -30,15 +32,16 @@ class Synthesis:
 
         self.__subxpat: bool = template_specs.subxpat
         self.__shared: bool = template_specs.shared
+        self.__lut: bool = template_specs.lut
 
         self.__iterations = template_specs.iterations
         self.__literal_per_product = template_specs.literals_per_product
         self.__product_per_output = template_specs.products_per_output
+        self.__selectors_per_output = template_specs.selectors_per_output
         self.__error_threshold = template_specs.et
         self.__graph: AnnotatedGraph = graph_obj
         self.__magraph: Optional[MaGraph] = magraph
         self.__partitioning_percentage = template_specs.partitioning_percentage
-
         self.__num_models: int = template_specs.num_of_models
         print(f'{self.__num_models = }')
 
@@ -81,6 +84,9 @@ class Synthesis:
     @property
     def shared(self):
         return self.__shared
+    @property
+    def lut(self):
+        return self.__lut
     @property
     def num_of_models(self):
         return self.__num_models
@@ -148,6 +154,14 @@ class Synthesis:
     @property
     def ppo(self):
         return self.__product_per_output
+
+    @property
+    def selectors_per_output(self):
+        return self.__selectors_per_output
+
+    @property
+    def spo(self):
+        return self.__selectors_per_output
 
     @property
     def template_name(self):
@@ -242,13 +256,14 @@ class Synthesis:
             verilog_str = [self.__magraph_to_verilog()]
         elif self.subxpat and self.shared:
             verilog_str = self.__annotated_graph_to_verilog_shared()  # Shared SubXPAT
+        elif self.subxpat and self.lut:
+            verilog_str = self.__json_model_to_verilog_lut()
         elif self.subxpat and not self.shared:
             verilog_str = self.__annotated_graph_to_verilog()  # SubXPAT
         elif not self.subxpat and self.shared:
             verilog_str = self.__json_model_to_verilog_shared()  # Shared XPAT
         elif not self.subxpat and not self.shared:
             verilog_str = self.__annotated_graph_to_verilog()  # XPAT (Vanilla)
-        elif self.subxpat:
             #TODO: Mohamed, please put your own synthesis funciton here! with the correct flags!
             # which means, whenever we choose subxpat and lut (create this one if it does not exist)
             # you should run this function right here!
@@ -887,6 +902,133 @@ class Synthesis:
 
         output_assigns += f'{sxpatconfig.VER_ENDMODULE}'
         return output_assigns
+
+    def __json_model_to_verilog_lut(self) -> List[AnyStr]:
+        ver_string = []
+        for idx in range(self.num_of_models):
+
+            self.set_path(this_path=OUTPUT_PATH['ver'], id=idx)
+
+            ver_str = f''
+            # 1. module signature
+            module_signature = self.__get_module_signature(idx)
+
+            # 2. declarations
+            # input/output declarations
+            io_declaration = self.__declare_inputs_outputs()
+
+            # 3. wire declarations
+            intact_wires = self.__intact_gate_wires()
+
+            # 4. subgraph input wires
+            annotated_graph_input_wires = self.__get_subgraph_input_wires()
+
+            # 5. subgraph output wires
+            annotated_graph_output_wires = self.__get_subgraph_output_wires()
+
+            # 6. json model input wires
+            json_input_wires = self.__json_input_wire_declarations()
+
+            # 7. json model wires
+            json_model_wires = f'//json model\n'
+
+            if self.graph.subgraph_num_outputs:
+                json_model_wires += f'wire '
+
+                for o_idx in range(self.graph.subgraph_num_outputs):
+                    for mux_in_idx in range(2**self.spo):
+                        json_model_wires += f'{sxpatconfig.LUT_MUX_PREFIX}0_{sxpatconfig.LUT_OUTPUT_PREFIX}{o_idx}_{sxpatconfig.LUT_INPUT_PREFIX}{mux_in_idx}'
+                        if mux_in_idx == 2**self.spo - 1 and self.spo == 0 and o_idx == self.graph.subgraph_num_outputs - 1:
+                            json_model_wires += ";\n"
+                        else:
+                            json_model_wires += ", "
+
+                for o_idx in range(self.graph.subgraph_num_outputs):
+                    for spo_idx in range(self.spo):
+                        json_model_wires += f'{sxpatconfig.LUT_MUX_PREFIX}0_{sxpatconfig.LUT_OUTPUT_PREFIX}{o_idx}_{sxpatconfig.LUT_SELECTOR_PREFIX}{spo_idx}'
+                        if spo_idx == self.spo - 1 and o_idx == self.graph.subgraph_num_outputs - 1:
+                            json_model_wires += ';\n'
+                        else:
+                            json_model_wires += ', '
+            else:
+                json_model_wires += f'// No wires detected!'
+
+
+
+
+            wire_declarations = intact_wires + annotated_graph_input_wires + annotated_graph_output_wires + json_input_wires + json_model_wires
+
+            # 8. assigns
+            # subgraph_inputs_assigns
+            subgraph_inputs_assigns = self.__subgraph_inputs_assigns()
+
+            # 9. map subgraph inputs to json inputs
+            subgraph_to_json_input_mapping = self.__subgraph_to_json_input_mapping()
+
+            # 10. json_model_and_subgraph_outputs_assigns
+
+            json_model_and_subgraph_outputs_assigns = f'//json model assigns (approximated/XPATed part)\n'
+            annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
+
+            json_model_and_subgraph_outputs_assigns += f''
+            for o_idx in range(self.graph.subgraph_num_outputs):
+                for mux_in_idx in range(2**self.spo):
+                    mux_in = f'{sxpatconfig.LUT_MUX_PREFIX}{0}_{sxpatconfig.LUT_OUTPUT_PREFIX}{o_idx}_{sxpatconfig.LUT_INPUT_PREFIX}{mux_in_idx}'
+                    data_input = f'{sxpatconfig.VER_ASSIGN} {mux_in}'
+                    value = "1'b1" if self.json_model[idx][mux_in] == True else "1'b0"
+                    json_model_and_subgraph_outputs_assigns += f'{data_input} = {value};\n'
+
+            number_of_parameters_per_selector = int(math.log2(self.graph.subgraph_num_inputs))
+
+            for o_idx in range(self.graph.subgraph_num_outputs):
+                for spo_idx in range(self.spo):
+                    selector = f'{sxpatconfig.LUT_MUX_PREFIX}{0}_{sxpatconfig.LUT_OUTPUT_PREFIX}{o_idx}_{sxpatconfig.LUT_SELECTOR_PREFIX}{spo_idx}'
+                    selector_value = ""
+                    for i in range(self.graph.subgraph_num_inputs):
+                        selector_value += "0"
+                    for p_idx in range(number_of_parameters_per_selector):
+                        if self.json_model[idx][selector + f'_{sxpatconfig.LUT_PARAMETER_PREFIX}{p_idx}'] == True:
+                            selector_value = selector_value[:p_idx] + "1" + selector_value[p_idx+1:]
+                    selector_value = selector_value[::-1]
+                    json_model_and_subgraph_outputs_assigns += f'{sxpatconfig.VER_ASSIGN} {selector} = {sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{int(selector_value,2)};\n'
+
+            binary_combinations = list(itertools.product([0, 1], repeat=self.spo))
+
+            for o_idx in range(self.graph.subgraph_num_outputs):
+                json_model_and_subgraph_outputs_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{self.graph.subgraph_output_dict[o_idx]} = '
+                for sel_combination in range(len(binary_combinations)):
+                    # json_model_and_subgraph_outputs_assigns += f"{TAB}{TAB}{Z3_AND}(" if sel_combination != 0 else f"{Z3_AND}("
+
+                    selectors = []
+                    for sel_idx in range(len(binary_combinations[sel_combination])):
+                        selector = f'mux0_o{o_idx}_sel{sel_idx}'
+                        selectors.append(
+                            f'{sxpatconfig.VER_NOT}({selector})' if not binary_combinations[sel_combination][sel_idx] else selector)
+                    selectors_string = f' {sxpatconfig.VER_AND} '.join(selectors)
+
+                    mux_in = f'mux0_o{o_idx}_in{sel_combination} {sxpatconfig.VER_AND} {selectors_string}'
+                    json_model_and_subgraph_outputs_assigns += mux_in + ';\n' if sel_combination == len(
+                        binary_combinations) - 1 else mux_in + ' | '
+
+
+
+            # 11. the intact assigns
+            intact_assigns = self.__intact_part_assigns()
+
+            # 12. output assigns
+            output_assigns = self.__output_assigns()
+
+            assigns = subgraph_inputs_assigns + subgraph_to_json_input_mapping + json_model_and_subgraph_outputs_assigns + intact_assigns + output_assigns
+
+            # assignments
+
+            # endmodule
+            ver_str = module_signature + io_declaration + wire_declarations + assigns
+
+            ver_string.append(ver_str)
+
+        return ver_string
+
 
     def __json_model_to_verilog_shared(self) -> List[AnyStr]:
         # print(Fore.CYAN + f'XPAT WITH sharing synthesis' + Style.RESET_ALL)

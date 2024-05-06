@@ -50,10 +50,13 @@ SHARED_INPUT_LITERAL_PREFIX = 'i'
 
 #  lut
 # multiplexer
-INPUT_LIST = 'inputs_list'
-MUX_INPUT_LIST= 'mux_inputs'
-LUT = 'lut'
 
+LUT = 'lut'
+LUT_MUX_PREFIX = "mux"
+LUT_OUTPUT_PREFIX = "o"
+LUT_SELECTOR_PREFIX = "sel"
+LUT_INPUT_PREFIX = "in"
+LUT_PARAMETER_PREFIX = "p"
 
 #   NetworkX
 NOT = 'not'
