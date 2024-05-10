@@ -401,7 +401,7 @@ class Arguments(Z3Log_Arguments):
 
         #
         my_parser.add_argument('--et-partitioning',
-                               choices=['asc', 'desc'],
+                               choices=['asc', 'desc', 'smart_asc', 'smart_desc'],
                                default='asc')
 
         tmp_args = my_parser.parse_args()
