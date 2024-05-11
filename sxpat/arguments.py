@@ -416,7 +416,7 @@ class Arguments(Z3Log_Arguments):
                                choices=['1'],
                                default=1)
         my_parser.add_argument('--sub_error_function',
-                               choices=['1', '2'],
+                               choices=['1', '2', '3'],
                                default=1)
 
         my_parser.add_argument('--et-partitioning',

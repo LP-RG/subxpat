@@ -94,6 +94,60 @@ class HammingDistance(DistanceFunction):
         )
 
 
+class WeightedHammingDistance(DistanceFunction):
+    def __init__(self, inputs: Sequence[str], weights: Sequence[int]) -> None:
+        self._inputs: Tuple[str] = tuple(inputs)
+        self._weights: Tuple[int] = tuple(weights)
+
+    name = property(lambda s: "Weighted Hamming Distance")
+    abbreviation = property(lambda s: "WHamD")
+
+    min_distance = property(lambda s: min(s._weights))
+
+    def with_no_input(self):
+        return type(self)([], self._weights)
+
+    @classmethod
+    def _declare(cls, inputs: Sequence[str], prefix: str) -> List[str]:
+        return [
+            declare_z3_function(
+                f"{prefix}val", len(inputs),
+                "z3.BoolSort()", "z3.IntSort()"
+            ),
+            (
+                f"{prefix}out_dist = "
+                + call_z3_function(f"{prefix}val", inputs)
+            )
+        ]
+
+    @classmethod
+    def _assign(cls,
+                inputs: Sequence[str],
+                vars_1: Sequence[str], vars_2: Sequence[str],
+                weights: Sequence[int], prefix: str):
+        parts = [
+            f"z3.If({call_z3_function(v1, inputs)} != {call_z3_function(v2, inputs)}, {w}, 0)"
+            for v1, v2, w in zip(vars_1, vars_2, weights)
+        ]
+        return [
+            "# Function: weighted hamming distance",
+            call_z3_function(f"{prefix}val", inputs) + f" == z3.Sum({', '.join(parts)}),"
+        ]
+
+    def declare(self, prefix: str = None) -> List[str]:
+        return self._declare(self._inputs, self._prefix(prefix))
+
+    def assign(self,
+               vars_1: Sequence[str], vars_2: Sequence[str],
+               prefix: str = None) -> List[str]:
+        return self._assign(
+            self._inputs,
+            vars_1, vars_2,
+            self._weights,
+            self._prefix(prefix),
+        )
+
+
 class WeightedAbsoluteDifference(DistanceFunction):
     def __init__(self,
                  inputs: Sequence[str], weights: Sequence[int]
