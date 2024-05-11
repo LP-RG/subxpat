@@ -3393,14 +3393,6 @@ class Template_LUT(TemplateCreator):
                 + exact_circuit_constraints + approximate_circuit_constraints_subxpat + for_all_solver\
                 + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
                 + store_data
-            # self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
-            #     + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
-            #     + approximate_circuit_wires_declaration \
-            #     + exact_circuit_outputs_declaration \
-            #     + approximate_circuit_outputs_declaration \
-            #     + exact_circuit_constraints + approximate_circuit_constraints_subxpat \
-            #     + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
-            #     + store_data
 
         self.export_z3pyscript()
 
