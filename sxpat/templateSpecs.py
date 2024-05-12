@@ -112,6 +112,13 @@ class TemplateSpecs:
         self.__literals_per_product = this_lpp
 
     @property
+    def spo(self):
+        return self.__selectors_per_output
+
+    @spo.setter
+    def spo(self, this_spo):
+        self.__selectors_per_output = this_spo
+    @property
     def products_per_output(self):
         return self.__products_per_output
 
@@ -128,13 +135,6 @@ class TemplateSpecs:
     def selectors_per_output(self):
         return self.__selectors_per_output
 
-    @property
-    def spo(self):
-        return self.__selectors_per_output
-
-    @spo.setter
-    def spo(self, this_spo):
-        self.__selectors_per_output = this_spo
 
 
     @property

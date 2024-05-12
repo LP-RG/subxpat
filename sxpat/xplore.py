@@ -60,6 +60,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
     max_lpp = specs_obj.lpp
     max_ppo = specs_obj.pit if specs_obj.shared else specs_obj.ppo
+    max_spo = specs_obj.spo
     total_number_of_cells_per_iter = max_lpp * max_ppo + 1
 
     # create stat and template object
@@ -134,7 +135,11 @@ def explore_grid(specs_obj: TemplateSpecs):
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
-            graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
+            if not specs_obj.lut:
+                graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
+            else:
+                graph_path = f'{folder}/{specs_obj.benchmark_name}_spo{specs_obj.spo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
+
             FS.mkdir(folder)
             template_obj.current_graph.export_annotated_graph(graph_path)
             print(f'subgraph exported at {graph_path}')
@@ -155,89 +160,220 @@ def explore_grid(specs_obj: TemplateSpecs):
                 subxpat_phase1_time = time.time() - p1_start
                 print(f"p1_time = {subxpat_phase1_time:.6f}")
 
-            # explore the grid
-            pprint.info2(f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...')
-            for lpp, ppo in cell_iterator(max_lpp, max_ppo):
-                # > cell step settings
+            if specs_obj.lut:
 
-                # update the context
-                specs_obj = set_current_context(specs_obj, lpp, ppo, i)
-                template_obj.set_new_context(specs_obj)
+                # explore
+                pprint.info2(f'max selectors per output {specs_obj.spo} and et={specs_obj.et} exploration started...')
 
-                # run cell phase
-                if template_obj.is_two_phase_kind:
-                    # run script
-                    p2_start = time.time()
-                    cur_status, model = template_obj.run_phase2()
-                    subxpat_phase2_time = time.time() - p2_start
-                    print(f"p2_time = {subxpat_phase2_time:.6f}")
-                    template_obj.import_json_model()
+                for spo in range(max_spo+1):
+                    # > cell step settings
 
-                else:
-                    # run script
-                    template_obj.z3_generate_z3pyscript()
-                    template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=10800)
+                    # update the context
+                    specs_obj = set_current_context(specs_obj, max_lpp, max_ppo, i, spo)
+                    template_obj.set_new_context(specs_obj)
 
-                    # gather results
-                    cur_status = get_status(template_obj)
+                    # run cell phase
+                    if template_obj.is_two_phase_kind:
+                        # run script
+                        p2_start = time.time()
+                        cur_status, model = template_obj.run_phase2()
+                        subxpat_phase2_time = time.time() - p2_start
+                        print(f"p2_time = {subxpat_phase2_time:.6f}")
+                        template_obj.import_json_model()
 
-                if cur_status in (UNSAT, UNKNOWN):
-                    pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()} ')
-                    # Morteza: Here we create a Model object and then save it
-                    this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
-                                            labeling_time=labeling_time,
-                                            subgraph_extraction_time=subgraph_extraction_time,
-                                            subxpat_phase1_time=subxpat_phase1_time,
-                                            subxpat_phase2_time=subxpat_phase2_time)
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
-                    pre_iter_unsats[candidate] += 1
-
-                elif cur_status == SAT:
-                    if specs_obj.subxpat_v2:
-                        # remove sub-graph from the full-graph
-                        hole_magraph = remove_subgraph(full_magraph, sub_magraph)
-                        # convert the model to a circuit
-                        model_magraph = xpat_model_to_magraph(model, iter_id=i)
-                        # insert the subgraph into the hole-graph
-                        merged_magraph = insert_subgraph(hole_magraph, model_magraph)
-
-                        synth_obj = Synthesis(
-                            specs_obj,
-                            template_obj.current_graph,  # not used if magraph is given
-                            template_obj.json_model,  # not used if magraph is given
-                            merged_magraph
-                        )
-
-                        # todo:marco: this seems to be working, lets make sure
-                        cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
-                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
-                        print(f"{synth_obj.ver_out_path = }")
-                        synth_obj.export_verilog()
-                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
-                        cur_model_results[synth_obj.ver_out_name] = (
-                            synth_obj.estimate_area(),
-                            synth_obj.estimate_power(),
-                            synth_obj.estimate_delay(),
-                            (lpp, ppo)
-                        )
-
-                        # Morteza: Here we create a Model object and then save it
-                        this_model = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
-                                           area=cur_model_results[synth_obj.ver_out_name][0],
-                                           total_power=cur_model_results[synth_obj.ver_out_name][1],
-                                           delay=cur_model_results[synth_obj.ver_out_name][2],
-                                           labeling_time=labeling_time,
-                                           subgraph_extraction_time=subgraph_extraction_time,
-                                           subxpat_phase1_time=subxpat_phase1_time,
-                                           subxpat_phase2_time=subxpat_phase2_time)
-                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
                     else:
-                        synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
-                        cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
-                        for idx in range(synth_obj.num_of_models):
-                            synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
-                            synth_obj.export_verilog(idx=idx)
-                            synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
+                        # run script
+                        template_obj.z3_generate_z3pyscript()
+                        template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=10800)
+
+                        # gather results
+                        cur_status = get_status(template_obj)
+
+                    if cur_status in (UNSAT, UNKNOWN):
+                        pprint.warning(f'selectors per output {spo} at iteration {i} -> {cur_status.upper()} ')
+                        # Morteza: Here we create a Model object and then save it
+                        this_model_info = Model(id=0, status=cur_status.upper(), spo = spo, et=et, iteration=i,
+                                                labeling_time=labeling_time,
+                                                subgraph_extraction_time=subgraph_extraction_time,
+                                                subxpat_phase1_time=subxpat_phase1_time,
+                                                subxpat_phase2_time=subxpat_phase2_time)
+                        # stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
+                        stats_obj.spo_array.cells_spo[spo].store_model_info(this_model_info)
+                        pre_iter_unsats[candidate] += 1
+
+                    elif cur_status == SAT:
+                        if specs_obj.subxpat_v2:
+                            # remove sub-graph from the full-graph
+                            hole_magraph = remove_subgraph(full_magraph, sub_magraph)
+                            # convert the model to a circuit
+                            model_magraph = xpat_model_to_magraph(model, iter_id=i)
+                            # insert the subgraph into the hole-graph
+                            merged_magraph = insert_subgraph(hole_magraph, model_magraph)
+
+                            synth_obj = Synthesis(
+                                specs_obj,
+                                template_obj.current_graph,  # not used if magraph is given
+                                template_obj.json_model,  # not used if magraph is given
+                                merged_magraph
+                            )
+
+                            # todo:marco: this seems to be working, lets make sure
+                            cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
+                            synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
+                            print(f"{synth_obj.ver_out_path = }")
+                            synth_obj.export_verilog()
+                            synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
+                            cur_model_results[synth_obj.ver_out_name] = (
+                                synth_obj.estimate_area(),
+                                synth_obj.estimate_power(),
+                                synth_obj.estimate_delay(),
+                                spo
+                            )
+
+                            # Morteza: Here we create a Model object and then save it
+                            this_model = Model(id=0, status=cur_status.upper(), spo= spo, et=et, iteration=i,
+                                               area=cur_model_results[synth_obj.ver_out_name][0],
+                                               total_power=cur_model_results[synth_obj.ver_out_name][1],
+                                               delay=cur_model_results[synth_obj.ver_out_name][2],
+                                               labeling_time=labeling_time,
+                                               subgraph_extraction_time=subgraph_extraction_time,
+                                               subxpat_phase1_time=subxpat_phase1_time,
+                                               subxpat_phase2_time=subxpat_phase2_time)
+                            stats_obj.spo_array_name.cells[spo].store_model_info(this_model)
+                        else:
+                            synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
+                            cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
+                            for idx in range(synth_obj.num_of_models):
+                                synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
+                                synth_obj.export_verilog(idx=idx)
+                                synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
+                                cur_model_results[synth_obj.ver_out_name] = (
+                                    synth_obj.estimate_area(),
+                                    synth_obj.estimate_power(),
+                                    synth_obj.estimate_delay(),
+                                    spo
+                                )
+
+                        # todo: should we refactor with pandas?
+                        with open(
+                                f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv",
+                                'w') as f:
+                            csvwriter = csv.writer(f)
+
+                            header = list(range(len(cur_model_results)))
+                            all = list(cur_model_results.values())
+                            content = [f for (f, _, _, _) in all]
+                            print(f'{content = }')
+
+                            csvwriter.writerow(header)
+                            csvwriter.writerow(content)
+
+                        pprint.success('verifying all approximate circuits -> ', end='')
+                        for candidate in cur_model_results:
+                            approximate_benchmark = candidate[:-2]
+
+                            if not erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark,
+                                                                   template_obj.et):
+                                raise Exception(color.error('ErrorEval Verification: FAILED!'))
+
+                        pprint.success('ErrorEval PASS! ')
+
+                        # todo:check: this seems to be working, lets make sure
+                        specs_obj.exact_benchmark = approximate_benchmark
+                        specs_obj.benchmark_name = approximate_benchmark
+                        template_obj.set_new_context(specs_obj)
+
+                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
+
+                        pprint.success(
+                            f'Cell = selectors per output = {spo} iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)')
+                        exact_stats = [synth_obj.estimate_area(exact_file_path),
+                                       synth_obj.estimate_power(exact_file_path),
+                                       synth_obj.estimate_delay(exact_file_path)]
+                        print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
+
+                        for key in cur_model_results.keys():
+                            next_generation[key] = cur_model_results[key]
+                        pre_iter_unsats[candidate] = 0
+
+                        current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
+                        total[i] = current_population
+
+                        next_generation = {}
+                        pre_iter_unsats = {}
+                        for key in current_population.keys():
+                            pre_iter_unsats[key] = 0
+                        next_generation = {}
+                        pre_iter_unsats = {}
+                        for key in current_population.keys():
+                            pre_iter_unsats[key] = 0
+
+                        # SAT found, stop grid exploration
+                        break
+
+
+            else:
+
+                # explore the grid
+                pprint.info2(f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...')
+
+                for lpp, ppo in cell_iterator(max_lpp, max_ppo):
+                    # > cell step settings
+
+                    # update the context
+                    specs_obj = set_current_context(specs_obj, lpp, ppo, i)
+                    template_obj.set_new_context(specs_obj)
+
+                    # run cell phase
+                    if template_obj.is_two_phase_kind:
+                        # run script
+                        p2_start = time.time()
+                        cur_status, model = template_obj.run_phase2()
+                        subxpat_phase2_time = time.time() - p2_start
+                        print(f"p2_time = {subxpat_phase2_time:.6f}")
+                        template_obj.import_json_model()
+
+                    else:
+                        # run script
+                        template_obj.z3_generate_z3pyscript()
+                        template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=10800)
+
+                        # gather results
+                        cur_status = get_status(template_obj)
+
+                    if cur_status in (UNSAT, UNKNOWN):
+                        pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()} ')
+                        # Morteza: Here we create a Model object and then save it
+                        this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
+                                                labeling_time=labeling_time,
+                                                subgraph_extraction_time=subgraph_extraction_time,
+                                                subxpat_phase1_time=subxpat_phase1_time,
+                                                subxpat_phase2_time=subxpat_phase2_time)
+                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
+                        pre_iter_unsats[candidate] += 1
+
+                    elif cur_status == SAT:
+                        if specs_obj.subxpat_v2:
+                            # remove sub-graph from the full-graph
+                            hole_magraph = remove_subgraph(full_magraph, sub_magraph)
+                            # convert the model to a circuit
+                            model_magraph = xpat_model_to_magraph(model, iter_id=i)
+                            # insert the subgraph into the hole-graph
+                            merged_magraph = insert_subgraph(hole_magraph, model_magraph)
+
+                            synth_obj = Synthesis(
+                                specs_obj,
+                                template_obj.current_graph,  # not used if magraph is given
+                                template_obj.json_model,  # not used if magraph is given
+                                merged_magraph
+                            )
+
+                            # todo:marco: this seems to be working, lets make sure
+                            cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
+                            synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
+                            print(f"{synth_obj.ver_out_path = }")
+                            synth_obj.export_verilog()
+                            synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
                             cur_model_results[synth_obj.ver_out_name] = (
                                 synth_obj.estimate_area(),
                                 synth_obj.estimate_power(),
@@ -245,65 +381,92 @@ def explore_grid(specs_obj: TemplateSpecs):
                                 (lpp, ppo)
                             )
 
-                    # todo: should we refactor with pandas?
-                    with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
-                        csvwriter = csv.writer(f)
+                            # Morteza: Here we create a Model object and then save it
+                            this_model = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
+                                               area=cur_model_results[synth_obj.ver_out_name][0],
+                                               total_power=cur_model_results[synth_obj.ver_out_name][1],
+                                               delay=cur_model_results[synth_obj.ver_out_name][2],
+                                               labeling_time=labeling_time,
+                                               subgraph_extraction_time=subgraph_extraction_time,
+                                               subxpat_phase1_time=subxpat_phase1_time,
+                                               subxpat_phase2_time=subxpat_phase2_time)
+                            stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
+                        else:
+                            synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
+                            cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
+                            for idx in range(synth_obj.num_of_models):
+                                synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
+                                synth_obj.export_verilog(idx=idx)
+                                synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
+                                cur_model_results[synth_obj.ver_out_name] = (
+                                    synth_obj.estimate_area(),
+                                    synth_obj.estimate_power(),
+                                    synth_obj.estimate_delay(),
+                                    (lpp, ppo)
+                                )
 
-                        header = list(range(len(cur_model_results)))
-                        all = list(cur_model_results.values())
-                        content = [f for (f, _, _, _) in all]
-                        print(f'{content = }')
+                        # todo: should we refactor with pandas?
+                        with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
+                            csvwriter = csv.writer(f)
 
-                        csvwriter.writerow(header)
-                        csvwriter.writerow(content)
+                            header = list(range(len(cur_model_results)))
+                            all = list(cur_model_results.values())
+                            content = [f for (f, _, _, _) in all]
+                            print(f'{content = }')
 
-                    pprint.success('verifying all approximate circuits -> ', end='')
-                    for candidate in cur_model_results:
-                        approximate_benchmark = candidate[:-2]
+                            csvwriter.writerow(header)
+                            csvwriter.writerow(content)
 
-                        if not erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
-                            raise Exception(color.error('ErrorEval Verification: FAILED!'))
+                        pprint.success('verifying all approximate circuits -> ', end='')
+                        for candidate in cur_model_results:
+                            approximate_benchmark = candidate[:-2]
 
-                    pprint.success('ErrorEval PASS! ')
+                            if not erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
+                                raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
-                    # todo:check: this seems to be working, lets make sure
-                    specs_obj.exact_benchmark = approximate_benchmark
-                    specs_obj.benchmark_name = approximate_benchmark
-                    template_obj.set_new_context(specs_obj)
+                        pprint.success('ErrorEval PASS! ')
 
-                    synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
+                        # todo:check: this seems to be working, lets make sure
+                        specs_obj.exact_benchmark = approximate_benchmark
+                        specs_obj.benchmark_name = approximate_benchmark
+                        template_obj.set_new_context(specs_obj)
 
-                    pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)')
-                    exact_stats = [synth_obj.estimate_area(exact_file_path),
-                                   synth_obj.estimate_power(exact_file_path),
-                                   synth_obj.estimate_delay(exact_file_path)]
-                    print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
+                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
 
-                    for key in cur_model_results.keys():
-                        next_generation[key] = cur_model_results[key]
-                    pre_iter_unsats[candidate] = 0
+                        pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)')
+                        exact_stats = [synth_obj.estimate_area(exact_file_path),
+                                       synth_obj.estimate_power(exact_file_path),
+                                       synth_obj.estimate_delay(exact_file_path)]
+                        print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
 
-                    current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
-                    total[i] = current_population
+                        for key in cur_model_results.keys():
+                            next_generation[key] = cur_model_results[key]
+                        pre_iter_unsats[candidate] = 0
 
-                    next_generation = {}
-                    pre_iter_unsats = {}
-                    for key in current_population.keys():
-                        pre_iter_unsats[key] = 0
-                    next_generation = {}
-                    pre_iter_unsats = {}
-                    for key in current_population.keys():
-                        pre_iter_unsats[key] = 0
+                        current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
+                        total[i] = current_population
 
-                    # SAT found, stop grid exploration
-                    break
+                        next_generation = {}
+                        pre_iter_unsats = {}
+                        for key in current_population.keys():
+                            pre_iter_unsats[key] = 0
+                        next_generation = {}
+                        pre_iter_unsats = {}
+                        for key in current_population.keys():
+                            pre_iter_unsats[key] = 0
+
+                        # SAT found, stop grid exploration
+                        break
 
         if exists_an_area_zero(current_population):
             break
 
     display_the_tree(total)
 
-    stats_obj.store_grid()
+    if not specs_obj.lut:
+        stats_obj.store_grid()
+    else:
+        stats_obj.store_spo_array()
     return stats_obj
 
 
@@ -342,9 +505,11 @@ def is_dominated(coords: Tuple[int, int], sats: Iterable[Tuple[int, int]]) -> bo
     return False
 
 
-def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int) -> TemplateSpecs:
+def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int, spo: Union[int, None]) -> TemplateSpecs:
     specs_obj.lpp = lpp
     specs_obj.ppo = ppo
+    if spo is not None:
+        specs_obj.spo = spo
     specs_obj.iterations = iteration
     return specs_obj
 

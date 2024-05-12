@@ -1006,7 +1006,7 @@ class Synthesis:
                             f'{sxpatconfig.VER_NOT}({selector})' if not binary_combinations[sel_combination][sel_idx] else selector)
                     selectors_string = f' {sxpatconfig.VER_AND} '.join(selectors)
 
-                    mux_in = f'mux0_o{o_idx}_in{sel_combination} {sxpatconfig.VER_AND} {selectors_string}'
+                    mux_in = f'mux0_o{o_idx}_in{sel_combination} {sxpatconfig.VER_AND} {selectors_string}' if selectors else f'mux0_o{o_idx}_in{sel_combination}'
                     json_model_and_subgraph_outputs_assigns += mux_in + ';\n' if sel_combination == len(
                         binary_combinations) - 1 else mux_in + ' | '
 

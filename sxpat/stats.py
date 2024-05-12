@@ -54,8 +54,10 @@ class Model:
                  labeling_time: float = -1,
                  subgraph_extraction_time: float = -1,
                  subxpat_phase1_time: float = -1,
-                 subxpat_phase2_time: float = -1):
+                 subxpat_phase2_time: float = -1,
+                 spo: int = -1):
         self.__cell = cell
+        self.spo = spo
         self.__id = id
         self.__iteration = iteration
         self.__status = status
@@ -256,12 +258,51 @@ class Cell:
     #     self.models[this_iteration] = temp_dict
 
     def store_model_info(self, model_info_obj: Model):
-        self.models[model_info_obj.iteration] = {model_info_obj.id : model_info_obj}
-
-
+        self.models[model_info_obj.iteration] = {model_info_obj.id: model_info_obj}
 
     def __repr__(self):
         return f"An object of class Cell:\n" \
+               f"{self.exact_name = }\n" \
+               f"{self.et = }\n" \
+               f"{self.models = }"
+
+class CellSpo:
+    def __init__(self, spec_obj: TemplateSpecs):
+        self.__exact_name: str = spec_obj.exact_benchmark
+        self.__approximate_name: str = spec_obj.benchmark_name
+        self.__lpp: int = spec_obj.lpp
+
+        self.__spo: int = spec_obj.spo
+
+        self.__et: int = spec_obj.et
+
+        self.__models: Dict[int, Dict[int, Model]] = {}
+
+    @property
+    def exact_name(self):
+        return self.__exact_name
+
+    @property
+    def approximate_name(self):
+        return self.__approximate_name
+
+    @property
+    def spo(self):
+        return self.__spo
+
+    @property
+    def et(self):
+        return self.__et
+
+    @property
+    def models(self):
+        return self.__models
+
+    def store_model_info(self, model_info_obj: Model):
+        self.models[model_info_obj.iteration] = {model_info_obj.id : model_info_obj}
+
+    def __repr__(self):
+        return f"An object of class CellSpo:\n" \
                f"{self.exact_name = }\n" \
                f"{self.et = }\n" \
                f"{self.models = }"
@@ -331,6 +372,44 @@ class Grid:
 
 
 
+class SpoArray:
+    def __init__(self, spec_obj: TemplateSpecs):
+        self.__exact_name: str = spec_obj.exact_benchmark
+        self.__approximate_name: str = spec_obj.benchmark_name
+        self.__spo: int = spec_obj.spo
+        self.__et: int = spec_obj.et
+
+        self.__cells_spo: List[CellSpo] = [CellSpo(spec_obj) for _ in range(self.spo + 1)]
+
+    @property
+    def exact_name(self):
+        return self.__exact_name
+
+    @property
+    def approximate_name(self):
+        return self.__approximate_name
+
+    @property
+    def spo(self):
+        return self.__spo
+
+    @property
+    def et(self):
+        return self.__et
+
+    @property
+    def cells_spo(self):
+        return self.__cells_spo
+
+    def store_cell(self, this_cell: CellSpo, i: int):
+        self.cells_spo[i] = this_cell
+
+    def __repr__(self):
+        return f'An object of class SpoArray: \n' \
+               f'{self.cells = }\n'
+
+
+
 class Stats:
     def __init__(self, spec_obj: TemplateSpecs):
         """
@@ -339,13 +418,19 @@ class Stats:
         self.__template_name = spec_obj.template_name
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
-        self.__lpp: int = spec_obj.lpp
+
 
         self.__pit: int = spec_obj.pit
+
+
+        self.__lpp: int = spec_obj.lpp
         if spec_obj.shared:
             self.__ppo: int = spec_obj.pit
         else:
             self.__ppo: int = spec_obj.ppo
+
+        self.__spo: int = spec_obj.spo
+
         self.__et: int = spec_obj.et
         self.__shared: bool = spec_obj.shared
         self.__subxpat: bool = spec_obj.subxpat
@@ -376,10 +461,16 @@ class Stats:
         # This property should be assigned before calling the funciton "self.get_grid_name()"
         self.__specs_obj: TemplateSpecs = spec_obj
 
-        self.__grid_name: str = self.get_grid_name()
-        self.__grid_path: str = self.get_grid_path()
+        if not spec_obj.lut:
+            self.__grid_name: str = self.get_grid_name()
+            self.__grid_path: str = self.get_grid_path()
+            self.__grid = Grid(spec_obj)
+        else:
+            self.__spo_array_name: str = self.get_grid_name()
+            self.__spo_array_path: str = self.get_grid_path()
+            self.__spo_array = SpoArray(spec_obj)
 
-        self.__grid = Grid(spec_obj)
+
 
     @property
     def tool_name(self):
@@ -427,8 +518,16 @@ class Stats:
         return self.__grid_path
 
     @property
+    def spo_array_path(self):
+        return self.__spo_array_path
+
+    @property
     def grid_name(self):
         return self.__grid_name
+
+    @property
+    def spo_array_name(self):
+        return self.__spo_array_name
 
     @property
     def max_sensitivity(self):
@@ -455,6 +554,10 @@ class Stats:
         return self.__ppo
 
     @property
+    def spo(self):
+        return self.__spo
+
+    @property
     def et(self):
         return self.__et
 
@@ -469,6 +572,11 @@ class Stats:
     @property
     def grid(self):
         return self.__grid
+
+    @property
+    def spo_array(self):
+        return self.__spo_array
+
 
     @property
     def status(self):
@@ -544,8 +652,10 @@ class Stats:
 
         # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
 
-
-        head = f'grid_{self.exact_name}_{self.lpp}X{self.pit if self.specs.shared else self.ppo}_et{self.et}_'
+        if not self.specs.lut:
+            head = f'grid_{self.exact_name}_{self.lpp}X{self.pit if self.specs.shared else self.ppo}_et{self.et}_'
+        else:
+            head = f'spo_array_{self.exact_name}_{self.spo}_et{self.et}_'
 
         technique_specific = f'{self.tool_name}_{self.specs.et_partitioning if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}_'
         technique_specific += f'fef{self.specs.full_error_function if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}_'
@@ -572,7 +682,10 @@ class Stats:
         returns: the path where the grid .csv file should be stored
         """
         folder, _ = OUTPUT_PATH['report']
-        path = f'{folder}/{self.grid_name}'
+        if not self.specs.lut:
+            path = f'{folder}/{self.grid_name}'
+        else:
+            path = f'{folder}/{self.spo_array_name}'
         print(f'{path = }')
         return path
 
@@ -619,6 +732,42 @@ class Stats:
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subxpat_phase2_time)
                             row = tuple(row)
                             csvwriter.writerow(row)
+
+    def store_spo_array(self):
+        """
+        dumps the contents of the spo_array object while preserving its structure, onto .csv file with the name self.grid_name and at the address self.grid_path
+        returns: None
+        """
+
+        with open(f'{self.spo_array_path}',
+                  'w') as f:
+            csvwriter = csv.writer(f)
+
+            header = ('cell', 'iteration', 'model_id', 'status', 'runtime', 'area', 'delay', 'total_power', 'et',
+                      'labeling_time', 'subgraph_extraction', 'subxpat_phase1', 'subxpat_phase2')
+            csvwriter.writerow(header)
+            # iterate over the number of selectors (spo)
+            for spo in range(self.spo + 1):
+                #For now: for each given cell, report the first one
+                for iteration in self.spo_array.cells_spo[spo].models.keys():
+                    for m_id in self.spo_array.cells_spo[spo].models[iteration].keys():
+                        row = []
+                        row.append(self.spo_array.cells_spo[spo].models[iteration][m_id].spo)
+                        row.append(iteration)
+                        row.append(m_id)
+                        row.append(self.spo_array.cells_spo[spo].models[iteration][m_id].status)
+                        row.append(self.spo_array.cells_spo[spo].models[iteration][m_id].runtime)
+                        row.append(self.spo_array.cells_spo[spo].models[iteration][m_id].area)
+                        row.append(self.spo_array.cells_spo[spo].models[iteration][m_id].delay)
+                        row.append(self.spo_array.cells_spo[spo].models[iteration][m_id].total_power)
+                        row.append(self.spo_array.cells_spo[spo].models[iteration][m_id].et)
+                        row.append(self.spo_array.cells_spo[spo].models[iteration][m_id].labeling_time)
+                        row.append(self.spo_array.cells_spo[spo].models[iteration][m_id].subgraph_extraction_time)
+                        row.append(self.spo_array.cells_spo[spo].models[iteration][m_id].subxpat_phase1_time)
+                        row.append(self.spo_array.cells_spo[spo].models[iteration][m_id].subxpat_phase2_time)
+                        row = tuple(row)
+                        csvwriter.writerow(row)
+
     def gather_results(self):
         mecals = Result(self.exact_name, sxpatconfig.MECALS)
 

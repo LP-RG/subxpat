@@ -3296,6 +3296,7 @@ class Template_LUT(TemplateCreator):
         # self.lpp = specs_obj.lpp
         # self.ppo = specs_obj.ppo
         self.iterations = specs_obj.iterations
+        self.spo = specs_obj.spo
         self.template_name = specs_obj.template_name
         self.benchmark_name = specs_obj.benchmark_name
         self.exact_benchmark = specs_obj.exact_benchmark
