@@ -35,6 +35,7 @@ PARALLEL = 'parallel'
 FULL_ERROR_FUNCTION = 'full_error_function'
 SUB_ERROR_FUNCTION = 'sub_error_function'
 ET_PARTITIONING = 'et_partitioning'
+PARTIAL_LABELING = 'partial_labeling'
 
 # shared
 SHARED = 'shared'
