@@ -37,8 +37,10 @@ class TemplateSpecs:
 
         self.__keep_unsat_candidate: bool = self.__subxpat_v2
         self.__partial_labeling: bool = kwargs[PARTIAL_LABELING]
-
-
+        self.__num_subgraphs: int = kwargs[NUM_SUBGRAPHS]
+    @property
+    def num_subgraphs(self):
+        return self.__num_subgraphs
     @property
     def partial_labeling(self):
         return self.__partial_labeling
