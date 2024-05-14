@@ -29,7 +29,7 @@ def main():
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
                                   min_labeling=args.min_labeling,
                                   shared=args.shared, products_in_total=args.pit, parallel=args.parallel,
-                                  partial_labeling=args.partial_labeling)
+                                  partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs)
         stats_obj = Stats(specs_obj)
         stats_obj.gather_results()
 
@@ -54,7 +54,7 @@ def main():
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
                                   min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
                                   shared=args.shared, products_in_total=args.pit, parallel=args.parallel,
-                                  partial_labeling=args.partial_labeling)
+                                  partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs)
 
         if specs_obj.grid:
             stats_obj = explore_grid(specs_obj)
@@ -71,7 +71,7 @@ def clean_all():
         z3logpath.OUTPUT_PATH['z3'],
         z3logpath.OUTPUT_PATH['report'],
         z3logpath.OUTPUT_PATH['figure'],
-        z3logpath.LOG_PATH['yosys'],
+        # z3logpath.LOG_PATH['yosys'],
         z3logpath.TEST_PATH['tb'],
         sxpatpaths.OUTPUT_PATH['area'],
         sxpatpaths.OUTPUT_PATH['power'],
