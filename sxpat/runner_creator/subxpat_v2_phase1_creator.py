@@ -192,7 +192,7 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
             for gate_name in self.graph.gates:
                 left_side = call_z3_function(f"{circuit_name}_{gate_name}", self.graph.inputs)
 
-                if gate_name in subout_preds:
+                if gate_name in subout_preds and circuit_name == 'c2':
                     gates.append(f"{left_side} == {circuit_name}_{subout_preds[gate_name]},")
                     continue
 
