@@ -24,6 +24,7 @@ class Synthesis:
     # we assign wires to both inputs and outputs of an annotated subgraph
     # follow, inputs, red, white, outputs notation in the Verilog generation
     def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj: List[Dict] = None, magraph: MaGraph = None):
+        self.__template_specs = template_specs
         self.__benchmark_name = template_specs.benchmark_name
         self.__exact_benchmark_name = template_specs.exact_benchmark
         self.__template_name = template_specs.template_name
@@ -40,7 +41,7 @@ class Synthesis:
         self.__partitioning_percentage = template_specs.partitioning_percentage
 
         self.__num_models: int = template_specs.num_of_models
-        print(f'{self.__num_models = }')
+
 
         if self.shared:
             self.__products_in_total: int = template_specs.products_in_total
@@ -66,6 +67,9 @@ class Synthesis:
 
             self.__verilog_string: List[str] = self.convert_to_verilog()
 
+    @property
+    def specs(self):
+        return self.__template_specs
     @property
     def products_in_total(self):
         return self.__products_in_total
@@ -222,10 +226,10 @@ class Synthesis:
             self.ver_out_name = f'{self.benchmark_name}_{id}.{extenstion}'
 
         elif self.num_of_models == 1:
-            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_id0.{extenstion}'
+            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_enc{self.specs.encoding}_id0.{extenstion}'
 
         elif self.num_of_models > 1:
-            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_id{id}.{extenstion}'
+            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_enc{self.specs.encoding}_id{id}.{extenstion}'
 
         self.ver_out_path = f'{folder}/{self.ver_out_name}'
         return self.ver_out_path
