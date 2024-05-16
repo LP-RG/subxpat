@@ -178,7 +178,7 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
         ]
 
     def gen_circuits_assignments(self):
-        def _gen_assignments(circuit_name: str):
+        def _gen_assignments(circuit_name: str, free: bool):
             subout_preds = {self.subgraph.predecessors(n)[0]: n for n in self.subgraph.outputs}
 
             # => constants
@@ -192,9 +192,10 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
             for gate_name in self.graph.gates:
                 left_side = call_z3_function(f"{circuit_name}_{gate_name}", self.graph.inputs)
 
-                if gate_name in subout_preds and circuit_name == 'c2':
+                if gate_name in subout_preds:
                     gates.append(f"{left_side} == {circuit_name}_{subout_preds[gate_name]},")
-                    continue
+                    if free:
+                        continue
 
                 gate_preds = [
                     (
@@ -238,9 +239,9 @@ class SubXPatV2Phase1RunnerCreator(RunnerCreator):
             ]
 
         return [
-            *_gen_assignments(self.c1_name),
+            *_gen_assignments(self.c1_name, False),
             "",
-            *_gen_assignments(self.c2_name),
+            *_gen_assignments(self.c2_name, True),
         ]
 
     # end: << CIRCUIT >>
