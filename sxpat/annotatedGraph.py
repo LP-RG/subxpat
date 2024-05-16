@@ -504,6 +504,24 @@ class AnnotatedGraph(Graph):
         # Add function to maximize to the solver
         opt.maximize(Sum(max_func))
 
+        # =========================== Skipping the nodes that are not labeled ================================
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
+                else:
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
+        # ====================================================================================================
+
         node_partition = []
         if opt.check() == sat:
             pprint.success("subgraph found -> SAT ", end='')
@@ -790,7 +808,23 @@ class AnnotatedGraph(Graph):
 
         # Add function to maximize to the solver
         opt.maximize(Sum(max_func))
-
+        # =========================== Skipping the nodes that are not labeled ================================
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
+                else:
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
+        # ====================================================================================================
         node_partition = []
         if opt.check() == sat:
             pprint.success("subgraph found -> SAT", end='')
@@ -1077,6 +1111,24 @@ class AnnotatedGraph(Graph):
         # Add function to maximize to the solver
         opt.maximize(Sum(max_func))
 
+        # =========================== Skipping the nodes that are not labeled ================================
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
+                else:
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
+        # ====================================================================================================
+
         node_partition = []
         if opt.check() == sat:
             pprint.success("subgraph found -> SAT", end='')
@@ -1359,7 +1411,23 @@ class AnnotatedGraph(Graph):
 
         # Add function to maximize to the solver
         opt.maximize(Sum(max_func))
-
+        # =========================== Skipping the nodes that are not labeled ================================
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
+                else:
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
+        # ====================================================================================================
         node_partition = []
         if opt.check() == sat:
             pprint.success("subgraph found -> SAT", end='')
@@ -1643,6 +1711,24 @@ class AnnotatedGraph(Graph):
         # Add function to maximize to the solver
         opt.maximize(Sum(max_func))
 
+        # =========================== Skipping the nodes that are not labeled ================================
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
+                else:
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
+        # ====================================================================================================
+
         node_partition = []
         if opt.check() == sat:
             pprint.success("subgraph found -> SAT", end='')
@@ -1910,8 +1996,8 @@ class AnnotatedGraph(Graph):
         feasibility_constraints = []
         for s in edge_w:
 
-            if gate_weight[s] <= feasibility_treshold:
-                # print(s, "is feasible", gate_weight[s])
+            if gate_weight[s] <= feasibility_treshold and gate_weight[s] != -1:
+                print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
 
         opt.add(Sum(feasibility_constraints) >= 1)
@@ -1920,7 +2006,9 @@ class AnnotatedGraph(Graph):
         for gate_id in gate_literals:
             max_func.append(gate_literals[gate_id])
         # Add function to maximize to the solver
+
         opt.maximize(Sum(max_func))
+
         # =========================== Skipping the nodes that are not labeled ================================
         skipped_nodes = []
         for node in self.graph.nodes:
@@ -1942,19 +2030,20 @@ class AnnotatedGraph(Graph):
 
         # =========================== Coming up with a penalty for each subgraph =============================
         penalty = Int('penalty')
+
         output_individual_penalty = []
         penalty_coefficient = 1
         for s in edge_w:
-            output_individual_penalty.append(If(gate_weight[s] > feasibility_treshold,
-                                                penalty_coefficient * (gate_weight[s] - feasibility_treshold),
-                                                0))
+            if gate_weight[s] > feasibility_treshold:
+                output_individual_penalty.append(If(gate_literals[s],
+                                                    penalty_coefficient * (gate_weight[s] - feasibility_treshold),
+                                                    0))
         opt.add(penalty == Sum(output_individual_penalty))
-        opt.add_soft(Sum(output_individual_penalty) <= omax * feasibility_treshold, weight=1)
+        opt.add_soft(Sum(output_individual_penalty) <= 2 * feasibility_treshold, weight=1)
 
         # ========================================================
 
-
-
+        # opt.add(Sum(max_func) > 1)
         # ======================== Check for multiple subgraphs =======================================
         all_partitions = {}
         count = specs_obj.num_subgraphs
@@ -2007,8 +2096,8 @@ class AnnotatedGraph(Graph):
             if c == sat:
                 block_clause = [d() == True if m[d] else d() == False for d in m.decls() if 'g' in d.name()]
                 opt.add(Not(And(block_clause)))
-                current_penalty = m[penalty]
-
+                current_penalty = m[penalty].as_long()
+                print(f'{current_penalty}, {node_partition}')
                 all_partitions[count] = (current_penalty, node_partition)
             count -= 1
         # ================================================================
@@ -2017,11 +2106,12 @@ class AnnotatedGraph(Graph):
             sorted_partitions = dict(
                 sorted(
                     all_partitions.items(),
-                    key=lambda item: (item[1][0], -len(item[1][1]))
+                    key=lambda item: (-len(item[1][1]), item[1][0])
                 )
             )
 
-
+            for par in sorted_partitions:
+                print(f'{sorted_partitions[par] = }')
             penalty, node_partition = next(iter(sorted_partitions.values()))
             print(f'{penalty, node_partition}')
 

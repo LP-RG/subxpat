@@ -78,7 +78,7 @@ def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str, con
         z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, parallel=True)
 
     if constant_value == 0:
-
+        print(f'{et = }')
         labels_false = z3py_obj.label_circuit(False, partial=partial, et=et)
         z3_folder, _ = OUTPUT_PATH['z3']
         report_folder, _ = OUTPUT_PATH['report']
