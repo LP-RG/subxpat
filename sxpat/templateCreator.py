@@ -307,12 +307,11 @@ class Template_SOP1(TemplateCreator):
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extension = this_path
-        # print(f'setting json out path...')
-        # print(f'{self.benchmark_name = }')
+
         if re.search('id', self.benchmark_name):
-            path = f'{folder}/{self.benchmark_name}_{ITER}{self.iterations}.{extension}'
+            path = f'{folder}/{self.benchmark_name}_{TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_encoding{self.encoding}_{ITER}{self.iterations}.{extension}'
         else:
-            path = f'{folder}/{self.benchmark_name}_{TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{ITER}{self.iterations}.{extension}'
+            path = f'{folder}/{self.benchmark_name}_{TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_encoding{self.encoding}_{ITER}{self.iterations}.{extension}'
         # print(f'{path = }')
         return path
 

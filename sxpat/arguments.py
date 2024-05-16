@@ -106,6 +106,8 @@ class Arguments(Z3Log_Arguments):
         self.__et_partitioning: int = tmp_args.et_partitioning
         self._encoding: int = tmp_args.encoding
 
+
+
     @property
     def parallel(self):
         return self.__parallel

@@ -531,7 +531,7 @@ class Stats:
         returns: a unique grid file name for this experiment (that is determined by specs_obj)
         """
         _, extension = OUTPUT_PATH['report']
-        print(f'{self.specs = }')
+
         # TODO: Morteza: this naming convention is not generic enough,
         # I will try to add every type of specification of the experiment into the name so it wouldn't get overwritten
         # new fields that are added:
@@ -548,8 +548,9 @@ class Stats:
         head = f'grid_{self.exact_name}_{self.lpp}X{self.pit if self.specs.shared else self.ppo}_et{self.et}_'
 
         technique_specific = f'{self.tool_name}_{self.specs.et_partitioning if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}_'
-        technique_specific += f'fef{self.specs.full_error_function if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}_'
-        technique_specific += f'sef{self.specs.sub_error_function if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}_'
+        technique_specific += f'enc{self.specs.encoding}_'
+        technique_specific += f'fef_{self.specs.full_error_function if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}'
+        technique_specific += f'sef_{self.specs.sub_error_function if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}'
 
 
         tail = f'mode{self.specs.mode}_omax{self.specs.omax}_imax{self.specs.imax}_'
