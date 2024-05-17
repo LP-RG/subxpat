@@ -95,8 +95,8 @@ def explore_grid(specs_obj: TemplateSpecs):
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
-    while(actual_exact <= available_error ):
-    # for i, et in error_iterator:
+    while (actual_exact <= available_error):
+        # for i, et in error_iterator:
         i += 1
         if specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
@@ -116,7 +116,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             prev_given_error = et
         else:
             raise NotImplementedError('invalid status')
-        
+
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if specs_obj.subxpat else
                      f'Only one iteration with et {et}')
@@ -156,9 +156,6 @@ def explore_grid(specs_obj: TemplateSpecs):
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
 
-
-
-
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
             graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
@@ -166,7 +163,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             template_obj.current_graph.export_annotated_graph(graph_path)
             print(f'subgraph exported at {graph_path}')
 
-            # guard
+            # guard     
             if not subgraph_is_available:
                 pprint.warning(f'No subgraph available.')
                 prev_actual_error = 0
@@ -187,6 +184,9 @@ def explore_grid(specs_obj: TemplateSpecs):
                 if not success:
                     # TODO: Look into this in v2
                     pprint.warning(f'phase 1 failed with message: {message}')
+                    prev_actual_error = 0
+                    if et == available_error:
+                        available_error = 0
                     continue
 
             # explore the grid
@@ -307,15 +307,18 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                         obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, template_obj.et)
                         actual_exact = obtained_wce_exact
-
-                        obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et)
-                        prev_actual_error = obtained_wce_prev
+                        if specs_obj.subxpat_v2:
+                            obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et)
+                            prev_actual_error = obtained_wce_prev
 
                         if not erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
                             raise Exception(color.error('ErrorEval Verification: FAILED!'))
-                        
-                    sum_wce_actual += obtained_wce_prev
-                    pprint.success(f'ErrorEval PASS! with total wce = {obtained_wce_exact} and prev_wce = {obtained_wce_prev} with sum of prevs wce = {sum_wce_actual}')
+
+                    prev_string = ''
+                    if specs_obj.subxpat_v2:
+                        sum_wce_actual += obtained_wce_prev
+                        prev_string = f' and prev_wce = {obtained_wce_prev} with sum of prevs wce = {sum_wce_actual}'
+                    pprint.success(f'ErrorEval PASS! with total wce = {obtained_wce_exact}' + prev_string)
 
                     # todo:check: this seems to be working, lets make sure
                     specs_obj.exact_benchmark = approximate_benchmark
