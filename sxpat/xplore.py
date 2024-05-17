@@ -54,6 +54,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     # initial setup
     total_iterations = specs_obj.iterations
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
+    pure_exact_file_name = specs_obj.exact_benchmark
     max_lpp = specs_obj.lpp
     max_ppo = specs_obj.pit if specs_obj.shared else specs_obj.ppo
     total_number_of_cells_per_iter = max_lpp * max_ppo + 1
@@ -179,6 +180,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                     # run script
                     template_obj.z3_generate_z3pyscript()
                     template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=specs_obj.timeout)
+                    # at this point the internal verification using verification solver is already passed!
+
 
                     # gather results
                     cur_status = get_status(template_obj)
@@ -268,7 +271,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     for candidate in cur_model_results:
                         approximate_benchmark = candidate[:-2]
 
-                        if not erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
+                        if not erroreval_verification_explicit(pure_exact_file_name, approximate_benchmark, template_obj.et):
                             raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
                     pprint.success('ErrorEval PASS! ')
