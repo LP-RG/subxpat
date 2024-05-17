@@ -89,7 +89,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     # else:
     #     raise NotImplementedError('invalid status')
 
-    available_error = specs_obj.et * 5 if not specs_obj.subxpat_v2 else specs_obj.et
+    available_error = specs_obj.et
     total_error = available_error
     actual_exact = 0
     i = 0
@@ -98,9 +98,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     while(actual_exact <= available_error ):
     # for i, et in error_iterator:
         i += 1
-        if not specs_obj.subxpat_v2:
-            et = specs_obj.et
-        elif specs_obj.et_partitioning == 'asc':
+        if specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
             et = 2**(i-1)
         elif specs_obj.et_partitioning == 'desc':
@@ -147,7 +145,8 @@ def explore_grid(specs_obj: TemplateSpecs):
             if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
                 # label graph
                 t_start = time.time()
-                template_obj.label_graph(min_labeling=specs_obj.min_labeling)
+                print(f'{et = }')
+                template_obj.label_graph(min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling, et=8*et)
                 labeling_time = time.time() - t_start
                 print(f'labeling_time = {labeling_time}')
 
@@ -156,6 +155,9 @@ def explore_grid(specs_obj: TemplateSpecs):
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
+
+
+
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
@@ -183,6 +185,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 print(f"p1_time = {subxpat_phase1_time:.6f}")
 
                 if not success:
+                    # TODO: Look into this in v2
                     pprint.warning(f'phase 1 failed with message: {message}')
                     continue
 
@@ -304,6 +307,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                         obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, template_obj.et)
                         actual_exact = obtained_wce_exact
+
                         obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et)
                         prev_actual_error = obtained_wce_prev
 
