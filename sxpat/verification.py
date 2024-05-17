@@ -130,5 +130,12 @@ def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark:
                     if row[0] == WCE:
                         obtained_wce = int(row[1])
                         os.remove(report_file)
+                        if obtained_wce > et:  
+                            print(Fore.RED + f'ERROR!!! The obtained WCE does not match the given error threshold!')
+                            print(f'{obtained_wce = } > ET = {et}' + Style.RESET_ALL)
+                            with open(
+                                    f'output/report/FAILED_{approximate_benchmark}.txt',
+                                    'w') as f:
+                                pass
 
     return obtained_wce

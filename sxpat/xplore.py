@@ -78,11 +78,11 @@ def explore_grid(specs_obj: TemplateSpecs):
     pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
 
     available_error = specs_obj.et
-    actual_exact = 0
+    obtained_wce_exact = 0
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
-    while (actual_exact <= available_error):
+    while (obtained_wce_exact <= available_error):
         # for i, et in error_iterator:
         i += 1
         if specs_obj.et_partitioning == 'asc':
@@ -301,12 +301,11 @@ def explore_grid(specs_obj: TemplateSpecs):
                         approximate_benchmark = candidate[:-2]
 
                         obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, template_obj.et)
-                        actual_exact = obtained_wce_exact
                         if specs_obj.subxpat_v2:
                             obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et)
                             prev_actual_error = obtained_wce_prev
 
-                        if not erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
+                        if obtained_wce_exact > template_obj.et:
                             raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
                     prev_string = ''
@@ -349,7 +348,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if exists_an_area_zero(current_population):
             break
-        # available_error = total_error - obtained_wce_total
     display_the_tree(total)
 
     stats_obj.store_grid()
