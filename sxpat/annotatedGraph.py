@@ -1992,7 +1992,6 @@ class AnnotatedGraph(Graph):
 
         # Add constraints on the number of output edges
         opt.add(Sum(partition_output_edges) <= omax)
-
         feasibility_constraints = []
         for s in edge_w:
 
