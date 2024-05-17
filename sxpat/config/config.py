@@ -1,8 +1,8 @@
 from enum import Enum
 
 # OpenSTA for power and delay analysis
-# OPENSTA = 'sta'
-OPENSTA = '/home/ma/Desktop/OpenSTA/app/sta'
+OPENSTA = 'sta'
+# OPENSTA = '/home/ma/Desktop/OpenSTA/app/sta'
 
 # Synthesis with Yosys
 LIB_PATH = 'config/gscl45nm.lib'

@@ -1,5 +1,7 @@
 import csv
 import os
+from typing import Tuple
+
 from colorama import Style, Fore
 
 
@@ -43,7 +45,7 @@ def erroreval_verification_buggy(exact_benchmark_name: str, approximate_benchmar
         return False
 
 
-def erroreval_verification_explicit(exact_benchmark_name: str, approximate_benchmark: str, et: int) -> bool:
+def erroreval_verification_explicit(exact_benchmark_name: str, approximate_benchmark: str, et: int) -> Tuple[bool, int]:
     """TODO: Deprecated"""
 
     # print(f'{approximate_benchmark = }')
@@ -83,7 +85,7 @@ def erroreval_verification_explicit(exact_benchmark_name: str, approximate_bench
                         if obtained_wce <= et:
                             os.remove(report_file)
 
-                            return True
+                            return True, obtained_wce
 
                         else:
                             print(Fore.RED + f'ERROR!!! The obtained WCE does not match the given error threshold!')
@@ -92,4 +94,4 @@ def erroreval_verification_explicit(exact_benchmark_name: str, approximate_bench
                                     f'output/report/FAILED_{approximate_benchmark}.txt',
                                     'w') as f:
                                 pass
-                            return False
+                            return False, obtained_wce

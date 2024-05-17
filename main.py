@@ -81,7 +81,7 @@ def clean_all():
         z3logpath.OUTPUT_PATH['z3'],
         z3logpath.OUTPUT_PATH['report'],
         z3logpath.OUTPUT_PATH['figure'],
-        z3logpath.LOG_PATH['yosys'],
+        # z3logpath.LOG_PATH['yosys'],
         z3logpath.TEST_PATH['tb'],
         sxpatpaths.OUTPUT_PATH['area'],
         sxpatpaths.OUTPUT_PATH['power'],

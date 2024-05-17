@@ -61,6 +61,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     # initial setup
     total_iterations = specs_obj.iterations
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
+    original_exact_circuit = specs_obj.exact_benchmark
     max_lpp = specs_obj.lpp
     max_ppo = specs_obj.pit if specs_obj.shared else specs_obj.ppo
     max_spo = specs_obj.spo
@@ -278,9 +279,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                         pprint.success('verifying all approximate circuits -> ', end='')
                         for candidate in cur_model_results:
                             approximate_benchmark = candidate[:-2]
-
-                            if not erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark,
-                                                                   template_obj.et):
+                            check, obtained_wce = erroreval_verification_explicit(original_exact_circuit, approximate_benchmark, template_obj.et)
+                            if not check:
                                 raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
                         pprint.success('ErrorEval PASS! ')
@@ -512,7 +512,7 @@ def is_dominated(coords: Tuple[int, int], sats: Iterable[Tuple[int, int]]) -> bo
     return False
 
 
-def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int, spo: Union[int, None]) -> TemplateSpecs:
+def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int, spo: int = None) -> TemplateSpecs:
     specs_obj.lpp = lpp
     specs_obj.ppo = ppo
     if spo is not None:
