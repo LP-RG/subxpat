@@ -245,7 +245,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                                                subgraph_extraction_time=subgraph_extraction_time,
                                                subxpat_phase1_time=subxpat_phase1_time,
                                                subxpat_phase2_time=subxpat_phase2_time)
-                            stats_obj.spo_array_name.cells[spo].store_model_info(this_model)
+                            stats_obj.spo_array.cells_spo[spo].store_model_info(this_model)
                         else:
                             synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
                             cur_model_results: Dict[str: List[float, float, float, int]] = {}
@@ -259,7 +259,16 @@ def explore_grid(specs_obj: TemplateSpecs):
                                     synth_obj.estimate_delay(),
                                     spo
                                 )
-
+                                # Morteza: Here we create a Model object and then save it
+                                this_model = Model(id=0, status=cur_status.upper(), spo=spo, et=et, iteration=i,
+                                                   area=cur_model_results[synth_obj.ver_out_name][0],
+                                                   total_power=cur_model_results[synth_obj.ver_out_name][1],
+                                                   delay=cur_model_results[synth_obj.ver_out_name][2],
+                                                   labeling_time=labeling_time,
+                                                   subgraph_extraction_time=subgraph_extraction_time,
+                                                   subxpat_phase1_time=subxpat_phase1_time,
+                                                   subxpat_phase2_time=subxpat_phase2_time)
+                                stats_obj.spo_array.cells_spo[spo].store_model_info(this_model)
                         # todo: should we refactor with pandas?
                         with open(
                                 f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_iteration{i}_{specs_obj.benchmark_name}_et{specs_obj.et}_spo{specs_obj.spo}_{toolname}.csv",

@@ -72,9 +72,9 @@ def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str, con
 
     # convert gv to z3 expression
     if min_labeling:
-        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, style='min')
+        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, style='min', parallel=True)
     else:
-        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE)
+        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, parallel=True)
 
     if constant_value == 0:
         labels_false = z3py_obj.label_circuit(False)
