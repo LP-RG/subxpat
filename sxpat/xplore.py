@@ -308,6 +308,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                         obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, template_obj.et)
                         actual_exact = obtained_wce_exact
+
                         obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et)
                         prev_actual_error = obtained_wce_prev
 
