@@ -77,20 +77,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     total: Dict[Dict] = {}
     pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
 
-    # # define errors
-    # if not specs_obj.subxpat_v2:
-    #     error_iterator = ((i+1, specs_obj.et) for i in range(total_iterations))
-    # elif specs_obj.et_partitioning == 'asc':
-    #     log2 = int(math.log2(specs_obj.et))
-    #     error_iterator = ((i+1, 2**i) for i in range(log2))
-    # elif specs_obj.et_partitioning == 'desc':
-    #     log2 = int(math.log2(specs_obj.et))
-    #     error_iterator = ((i+1, 2**(log2 - i - 1)) for i in range(log2))
-    # else:
-    #     raise NotImplementedError('invalid status')
-
     available_error = specs_obj.et
-    total_error = available_error
     actual_exact = 0
     i = 0
     prev_actual_error = 0
@@ -118,7 +105,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             raise NotImplementedError('invalid status')
 
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
-                     if specs_obj.subxpat else
+                     if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
 
         # for all candidates
@@ -163,7 +150,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             template_obj.current_graph.export_annotated_graph(graph_path)
             print(f'subgraph exported at {graph_path}')
 
-            # guard     
+            # guard
             if not subgraph_is_available:
                 pprint.warning(f'No subgraph available.')
                 prev_actual_error = 0
