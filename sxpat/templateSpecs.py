@@ -37,6 +37,7 @@ class TemplateSpecs:
 
         self.__keep_unsat_candidate: bool = self.__subxpat_v2
         self.__lut: bool = kwargs[LUT]
+        self.__lut_MP: bool = kwargs[LUT_MP]
 
         self.__selectors_per_output: int = int(kwargs[SELECTORS_PER_OUTPUT])
     @property
@@ -54,6 +55,10 @@ class TemplateSpecs:
     @property
     def lut(self):
         return self.__lut
+
+    @property
+    def lut_MP(self):
+        return self.__lut_MP
 
     @property
     def min_labeling(self):
@@ -267,4 +272,7 @@ class TemplateSpecs:
                f'{self.full_error_function = }\n' \
                f'{self.sub_error_function = }\n' \
                f'{self.et_partitioning = }\n' \
-               f'{self.keep_unsat_candidate = }\n'
+               f'{self.keep_unsat_candidate = }\n' \
+               f'{self.lut = }\n' \
+               f'{self.lut_MP = }\n' \
+               f'{self.spo = }\n'

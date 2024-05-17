@@ -105,6 +105,7 @@ class Arguments(Z3Log_Arguments):
         self.__sub_error_function: int = tmp_args.sub_error_function
         self.__et_partitioning: int = tmp_args.et_partitioning
         self.__lut: bool = tmp_args.lut
+        self.__lut_MP: bool = tmp_args.lut_MP
         self.__selectors_per_output: int = tmp_args.spo
 
     @property
@@ -242,6 +243,10 @@ class Arguments(Z3Log_Arguments):
     @property
     def lut(self):
         return self.__lut
+
+    @property
+    def lut_MP(self):
+        return self.__lut_MP
 
 
     @classmethod
@@ -426,8 +431,9 @@ class Arguments(Z3Log_Arguments):
         my_parser.add_argument('--lut',
                                action="store_true",
                                default=False)
-
-
+        my_parser.add_argument('--lut_MP',
+                               action="store_true",
+                               default=False)
 
         tmp_args = my_parser.parse_args()
 
@@ -464,4 +470,5 @@ class Arguments(Z3Log_Arguments):
                f'{self.et_partitioning = }\n' \
                f'{self.clean = }\n'\
                f'{self.spo = }\n'\
-               f'{self.lut = }'
+               f'{self.lut = }\n'\
+               f'{self.lut_MP = }'

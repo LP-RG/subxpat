@@ -4198,4 +4198,2080 @@ class Template_LUT(TemplateCreator):
 
 
 
+class Template_LUT(TemplateCreator):
+    def __init__(self, template_specs: TemplateSpecs):
+        super().__init__(template_specs)
+        # self.__literal_per_product = template_specs.literals_per_product
+        # self.__product_per_output = template_specs.products_per_output
+        # self.__subxpat: bool = template_specs.subxpat
+        self.__error_threshold = template_specs.et
+        self.__iterations = template_specs.iterations
+        self.__num_models = template_specs.num_of_models
+
+        self.__z3pyscript = None
+        self.__z3_out_path = None
+
+        self.__selectors_per_output = template_specs.selectors_per_output
+
+        self.__json_out_path = None
+        self.__json_in_path = None
+        self.__json_model: List = []
+        self.__json_status: List = []
+
+    @property
+    def num_models(self):
+        return self.__num_models
+
+    @num_models.setter
+    def num_models(self, this_num_models):
+        self.__num_models = this_num_models
+
+
+    @property
+    def selectors_per_output(self):
+        return self.__selectors_per_output
+
+    @property
+    def spo(self):
+        return self.__selectors_per_output
+
+    @spo.setter
+    def spo(self, this_spo):
+        self.__selectors_per_output = this_spo
+
+
+    @property
+    def json_model(self):
+        return self.__json_model
+
+    @json_model.setter
+    def json_model(self, this_json_model):
+        self.__json_model = this_json_model
+
+
+    @property
+    def z3pyscript(self):
+        return self.__z3pyscript
+
+    @z3pyscript.setter
+    def z3pyscript(self, input_z3pyscript):
+        self.__z3pyscript = input_z3pyscript
+
+
+    @property
+    def json_status(self):
+        return self.__json_status
+
+    @json_status.setter
+    def json_status(self, this_status):
+        self.__json_status = this_status
+
+    @property
+    def et(self):
+        return self.__error_threshold
+
+    @et.setter
+    def et(self, value):
+        self.__error_threshold = value
+
+    @property
+    def iterations(self):
+        return self.__iterations
+
+    @iterations.setter
+    def iterations(self, this_iteration: int):
+        self.__iterations = this_iteration
+
+    @property
+    def z3_out_path(self):
+        return self.__z3_out_path
+
+    @z3_out_path.setter
+    def z3_out_path(self, this_z3_out_path):
+        self.__z3_out_path = this_z3_out_path
+
+    @property
+    def json_out_path(self):
+        return self.__json_out_path
+
+    @json_out_path.setter
+    def json_out_path(self, this_json_out_path):
+        self.__json_out_path = this_json_out_path
+
+    @property
+    def json_in_path(self):
+        return self.__json_in_path
+
+    @json_in_path.setter
+    def json_in_path(self, this_json_path):
+        self.__json_in_path = this_json_path
+
+    def label_graph(self, min_labeling: bool = False, parallel: bool = True):
+        # labels = labeling(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
+        labels, _ = labeling_explicit(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
+        for n in self.current_graph.graph.nodes:
+            if n in labels:
+                self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
+
+    def set_new_context(self, specs_obj: TemplateSpecs):
+        # self.lpp = specs_obj.lpp
+        # self.ppo = specs_obj.ppo
+        self.iterations = specs_obj.iterations
+        self.spo = specs_obj.spo
+        self.template_name = specs_obj.template_name
+        self.benchmark_name = specs_obj.benchmark_name
+        self.exact_benchmark = specs_obj.exact_benchmark
+        self.json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
+        self.z3_out_path = self.set_path(OUTPUT_PATH['z3'])
+
+    def set_path(self, this_path: Tuple[str, str]):
+        folder, extension = this_path
+        # print(f'setting json out path...')
+        # print(f'{self.benchmark_name = }')
+        if re.search('id', self.benchmark_name):
+            path = f'{folder}/{self.benchmark_name}_{ITER}{self.iterations}.{extension}'
+        else:
+            path = f'{folder}/{self.benchmark_name}_{TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{ITER}{self.iterations}.{extension}'
+        # print(f'{path = }')
+        return path
+
+    def export_z3pyscript(self):
+        # print(f'Storing in {self.z3_out_path}')
+        with open(self.z3_out_path, 'w') as z:
+            z.writelines(self.z3pyscript)
+
+    def import_json_model(self, this_path=None):
+        self.json_model = []
+        self.json_status = []
+        if this_path:
+            self.json_in_path(this_path)
+        else:
+            self.json_in_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
+
+        with open(self.json_in_path, 'r') as f:
+            data = json.load(f)
+        for d in data:
+            for key in d.keys():
+                if key == RESULT:
+                    if d[key] == SAT:
+                        self.json_model.append(d[MODEL])
+                        self.json_status.append(SAT)
+                    elif d[key] == UNSAT:
+                        self.json_model.append(None)
+                        self.json_status.append(UNSAT)
+                    else:
+                        self.json_model.append(None)
+                        self.json_status.append(UNKNOWN)
+
+    def get_json_runtime(self, this_id: int = 0):
+        with open(self.json_in_path, 'r') as f:
+            data = json.load(f)
+
+        for d in data:
+            for key in d.keys():
+                if key == "total_time":
+                    return float(d[key])
+
+    def run_z3pyscript(self, ET=2, num_models=1, timeout=10800):
+        # print(f'{self.z3_out_path = }')
+        # print(f'{ET = }')
+        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}', f'{num_models}', f'{timeout}'], stderr=PIPE, stdout=PIPE)
+        if process.stderr:
+            print(Fore.RED + f"{process.stderr.decode()}" + Style.RESET_ALL)
+            raise Exception(Fore.RED + f'ERROR!!! Cannot run file {self.z3_out_path}' + Style.RESET_ALL)
+
+    def z3_generate_z3pyscript(self):
+        if self.subxpat or (not self.subxpat and not self.shared):
+            imports = self.z3_generate_imports()  # parent
+            config = self.z3_generate_config()
+            z3_abs_function = self.z3_generate_z3_abs_function()  # parent
+            input_variables_declaration = self.z3_generate_declare_input_variables()
+            exact_integer_function_declaration = self.z3_generate_declare_integer_function(F_EXACT)
+            approximate_integer_function_declaration = self.z3_generate_declare_integer_function(F_APPROXIMATE)
+            utility_variables = self.z3_generate_utility_variables()
+            implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters_subxpat()
+            exact_circuit_wires_declaration = self.z3_generate_exact_circuit_wires_declaration()
+            approximate_circuit_wires_declaration = self.z3_generate_approximate_circuit_wires_declaration_subxpat()
+
+
+            exact_circuit_outputs_declaration = self.z3_generate_exact_circuit_outputs_declaration()
+            approximate_circuit_outputs_declaration = self.z3_generate_approximate_circuit_outputs_declaration()
+
+            # approximate_inputs_lists = self.z3_generate_inputs_lists()
+
+            exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()
+            approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_subxpat()
+
+            for_all_solver = self.z3_generate_forall_solver_subxpat()
+            verification_solver = self.z3_generate_verification_solver()
+            parameter_constraint_list = self.z3_generate_parameter_constraint_list()
+            find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
+            store_data = self.z3_generate_store_data()
+            self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
+                + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
+                +  approximate_circuit_wires_declaration + exact_circuit_outputs_declaration \
+                + approximate_circuit_outputs_declaration \
+                + exact_circuit_constraints + approximate_circuit_constraints_subxpat + for_all_solver\
+                + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
+                + store_data
+
+        self.export_z3pyscript()
+
+    def z3_generate_imports(self):
+        imports = f'from z3 import *\n' \
+                  f'import sys\n' \
+                  f'from time import time\n' \
+                  f'from typing import Tuple, List, Callable, Any, Union\n' \
+                  f'import json\n' \
+                  f'\n'
+        return imports
+
+    def z3_generate_z3_abs_function(self):
+        z3_abs_function = f'def z3_abs(x: ArithRef) -> ArithRef:\n' \
+                          f'{TAB}return If(x >= 0, x, -x)\n' \
+                          f'\n'
+
+        return z3_abs_function
+
+    def declare_gate(self, this_key: str, this_dict: dict = None):
+        if this_dict is None:
+            declaration = f"{this_key} = {Z3BOOL}('{this_key}')\n"
+        else:
+            declaration = f"{this_dict[this_key]} = {Z3BOOL}('{this_dict[this_key]}')\n"
+        return declaration
+
+    def z3_generate_declare_input_variables(self):
+        input_variables = ''
+        input_variables += f'# Inputs variables declaration\n'
+        for inp_key in self.exact_graph.input_dict.keys():
+            input_variables += self.declare_gate(inp_key, self.exact_graph.input_dict)
+        input_variables += '\n'
+        return input_variables
+
+    def z3_generate_declare_integer_function(self, function_name):
+        integer_function = ''
+        integer_function += f'# Integer function declaration\n'
+        temp_arg_list = ', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))
+        temp_arg_list += ', ' + INTSORT
+        integer_function += f"{function_name} = {FUNCTION}('{function_name}', {temp_arg_list})\n"
+        return integer_function
+
+    def z3_generate_utility_variables(self):
+        utility_variables = ''
+        utility_variables += f'# utility variables'
+        utility_variables += f"\n" \
+                             f"difference = z3_abs({F_EXACT}({', '.join(self.exact_graph.input_dict.values())}) - " \
+                             f"{F_APPROXIMATE}({', '.join(self.exact_graph.input_dict.values())})" \
+                             f")\n" \
+                             f"error = {Z3INT}('error')\n"
+
+        utility_variables += '\n'
+        return utility_variables
+
+    def z3_generate_selectors_implicit_parameters(self):
+        temp_multiplexer_implicit_parameters = ''
+        for idx_o in range(self.current_graph.subgraph_num_outputs):
+            for idx_sel in range(self.__selectors_per_output):
+                for idx_in in range(int(math.log2(self.current_graph.subgraph_num_inputs))):
+                    temp_multiplexer_implicit_parameters += f"mux0_o{idx_o}_sel{idx_sel}_p{idx_in} = {Z3BOOL}('mux0_o{idx_o}_sel{idx_sel}_p{idx_in}')\n"
+                temp_multiplexer_implicit_parameters += '\n'
+
+        temp_multiplexer_implicit_parameters += '\n'
+        return temp_multiplexer_implicit_parameters
+
+    def z3_generate_multiplexer_implicit_parameters(self):
+        temp_multiplexer_implicit_parameters = ''
+        for idx_o in range(self.current_graph.subgraph_num_outputs):
+            for idx_in in range(2**self.spo):
+                temp_multiplexer_implicit_parameters += f"mux0_o{idx_o}_in{idx_in} = {Z3BOOL}('mux0_o{idx_o}_in{idx_in}') \n"
+
+        return temp_multiplexer_implicit_parameters
+
+    def z3_generate_declare_implicit_parameters_subxpat(self):
+        implicit_parameters = ''
+        implicit_parameters += f'# Parameters variables declaration\n'
+        implicit_parameters += self.z3_generate_multiplexer_implicit_parameters()
+        implicit_parameters += self.z3_generate_selectors_implicit_parameters()
+        implicit_parameters += '\n'
+        return implicit_parameters
+
+
+    def z3_generate_exact_circuit_wires_declaration(self):
+        exact_wires_declaration = ''
+        exact_wires_declaration += f'# wires functions declaration for exact circuit\n'
+
+        for g_idx in self.exact_graph.gate_dict:
+            exact_wires_declaration += f"{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx} = " \
+                                       f"{FUNCTION}('{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}', " \
+                                       f"{', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))}" \
+                                       f", {BOOLSORT}" \
+                                       f")\n"
+
+        for g_idx in self.exact_graph.constant_dict:
+            # print(f'{g_idx = }')
+            exact_wires_declaration += f"{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx} = " \
+                                       f"{FUNCTION}('{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}', " \
+                                       f"{', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))}" \
+                                       f", {BOOLSORT}" \
+                                       f")\n"
+        exact_wires_declaration += '\n'
+        return exact_wires_declaration
+
+    def z3_generate_approximate_circuit_wires_declaration_subxpat(self):
+        approximate_wires_declaration = ''
+        approximate_wires_declaration += f'# wires functions declaration for approximate circuit\n'
+        # TODO:
+        # Fix when PIs are not the subgrpah's inputs
+
+        gate_key_list = list(self.current_graph.gate_dict.keys())
+        constant_key_list = list(self.current_graph.constant_dict.keys())
+        # gates
+        for g_idx in gate_key_list:
+            g_label = self.current_graph.gate_dict[g_idx]
+            if self.current_graph.is_subgraph_member(g_label):
+                approximate_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
+                                                 f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}', " \
+                                                 f"{', '.join(repeat(BOOLSORT, self.current_graph.subgraph_num_inputs))}" \
+                                                 f", {BOOLSORT}" \
+                                                 f")\n"
+            else:
+                approximate_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
+                                                 f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}', " \
+                                                 f"{', '.join(repeat(BOOLSORT, self.current_graph.num_inputs))}" \
+                                                 f", {BOOLSORT}" \
+                                                 f")\n"
+        # constants
+        for g_idx in constant_key_list:
+            g_label = self.current_graph.constant_dict[g_idx]
+            if self.current_graph.is_subgraph_member(g_label):
+                approximate_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
+                                                 f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}', " \
+                                                 f"{', '.join(repeat(BOOLSORT, self.current_graph.subgraph_num_inputs))}" \
+                                                 f", {BOOLSORT}" \
+                                                 f")\n"
+            else:
+                approximate_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
+                                                 f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}', " \
+                                                 f"{', '.join(repeat(BOOLSORT, self.current_graph.num_inputs))}" \
+                                                 f", {BOOLSORT}" \
+                                                 f")\n"
+        approximate_wires_declaration += '\n'
+        return approximate_wires_declaration
+
+    def z3_generate_approximate_circuit_wires_declaration(self):
+        exact_wires_declaration = ''
+        exact_wires_declaration += f'# wires functions declaration for approximate circuit\n'
+        # TODO:
+        # Fix when PIs are not the subgrpah's inputs
+        for g_idx in range(self.current_graph.num_gates):
+            exact_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
+                                       f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.current_graph.subgraph_num_inputs + g_idx}', " \
+                                       f"{', '.join(repeat(BOOLSORT, self.current_graph.subgraph_num_inputs))}" \
+                                       f", {BOOLSORT}" \
+                                       f")\n"
+        exact_wires_declaration += '\n'
+        return exact_wires_declaration
+
+    def z3_generate_exact_circuit_outputs_declaration(self):
+        exact_circuit_output_declaration = ''
+        exact_circuit_output_declaration += f'# outputs functions declaration for exact circuit\n'
+        for output_idx in range(self.current_graph.num_outputs):
+            exact_circuit_output_declaration += f"{EXACT_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{EXACT_OUTPUT_PREFIX}{OUT}{output_idx}', " \
+                                                f"{', '.join(repeat(BOOLSORT, self.current_graph.num_inputs + 1))}" \
+                                                f")\n"
+        exact_circuit_output_declaration += '\n'
+        return exact_circuit_output_declaration
+
+    def z3_generate_approximate_circuit_outputs_declaration(self):
+        approximate_circuit_output_declaration = ''
+        approximate_circuit_output_declaration = f'# outputs functions declaration for approximate circuit\n'
+        # for output_idx in range(self.graph.subgraph_num_outputs):
+        for output_idx in range(self.current_graph.num_outputs):
+            approximate_circuit_output_declaration += f"{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx}', " \
+                                                      f"{', '.join(repeat(BOOLSORT, self.current_graph.num_inputs + 1))}" \
+                                                      f")\n"
+            # approximate_circuit_output_declaration += f"{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx}', " \
+            #                                           f"{', '.join(repeat(BOOLSORT, self.graph.num_inputs + 1))}" \
+            #                                           f")\n"
+        approximate_circuit_output_declaration += '\n'
+        return approximate_circuit_output_declaration
+
+    def get_predecessors(self, node: str) -> List[str]:
+        return list(self.exact_graph.graph.predecessors(node))
+
+    def get_logical_function(self, node: str) -> str:
+        return self.exact_graph.graph.nodes[node][LABEL]
+
+    def get_predecessors_xpat(self, node: str) -> List[str]:
+        return list(self.current_graph.subgraph.predecessors(node))
+
+    def get_logical_function_xpat(self, node: str) -> str:
+        return self.current_graph.subgraph.nodes[node][LABEL]
+
+    def z3_express_node_as_wire_constraints(self, node: str):
+        # print(f'{self.exact_graph.graph.nodes = }')
+        assert node in list(self.exact_graph.input_dict.values()) or node in list(self.exact_graph.gate_dict.values()) \
+            or node in list(self.exact_graph.output_dict.values()) or node in list(self.exact_graph.constant_dict.values())
+
+        if node in list(self.exact_graph.input_dict.values()):
+            return node
+        elif node in list(self.exact_graph.gate_dict.values()):
+            node_id = -1
+            for key in self.exact_graph.gate_dict.keys():
+                if self.exact_graph.gate_dict[key] == node:
+                    node_id = key
+            return f"{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + node_id}({','.join(list(self.exact_graph.input_dict.values()))})"
+        elif node in list(self.exact_graph.output_dict.values()):
+            for key in self.exact_graph.output_dict.keys():
+                if self.exact_graph.output_dict[key] == node:
+                    node_id = key
+            return f"{EXACT_WIRES_PREFIX}{OUT}{node_id}({','.join(list(self.exact_graph.input_dict.values()))})"
+        elif node in list(self.exact_graph.constant_dict.values()):
+            # print(f'{self.current_graph.graph.nodes[node] = }')
+            return Z3_GATES_DICTIONARY[self.exact_graph.graph.nodes[node][LABEL]]
+
+    def __z3_get_approximate_label(self, node: str):
+        graph_gates = list(self.current_graph.gate_dict.values())
+
+        if node in list(self.current_graph.gate_dict.values()):
+            for gate_idx in self.current_graph.gate_dict.keys():
+                if self.current_graph.gate_dict[gate_idx] == node:
+                    return f'{APPROXIMATE_WIRE_PREFIX}{gate_idx + self.current_graph.num_inputs}'
+        else:
+            return node
+
+    def __z3_get_subgraph_input_list(self):
+        input_list = list(self.current_graph.subgraph_input_dict.values())
+        input_list_tmp = list(self.current_graph.subgraph_input_dict.values())
+
+        input_list_tmp = self.__fix_order()
+        for idx, inp in enumerate(input_list):
+            if inp in self.current_graph.gate_dict.values():
+                input_list_tmp[
+                    idx] = f"{self.__z3_get_approximate_label(inp)}({', '.join(list(self.current_graph.input_dict.values()))})"
+        return input_list_tmp
+
+    def __fix_order(self):
+        subpgraph_input_list = list(self.current_graph.subgraph_input_dict.values())
+        subpgraph_input_list_ordered = []
+        pi_list = []
+        g_list = []
+
+        for node in subpgraph_input_list:
+            if re.search('in(\d+)', node):
+                idx = int(re.search('in(\d+)', node).group(1))
+                pi_list.append(node)
+            else:
+                g_list.append(node)
+
+        pi_list.sort(key=lambda x: re.search('\d+', x).group())
+
+        for el in pi_list:
+            subpgraph_input_list_ordered.append(el)
+        for el in g_list:
+            subpgraph_input_list_ordered.append(el)
+
+        return subpgraph_input_list_ordered
+
+    def z3_express_node_as_wire_constraints_subxpat(self, node: str):
+        # print(f'We are checking this node!')
+
+        # print(f'{self.current_graph.input_dict.values() = }')
+        # print(f'{self.current_graph.gate_dict.values() = }')
+        # print(f'{self.current_graph.output_dict.values() = }')
+        assert node in list(self.current_graph.input_dict.values()) or node in list(
+            self.current_graph.gate_dict.values()) \
+            or node in list(self.current_graph.output_dict.values()) or node in list(
+            self.current_graph.constant_dict.values()) \
+            or node.startswith(APPROXIMATE_WIRE_PREFIX)
+
+        if node in list(self.current_graph.input_dict.values()):
+            return node
+        elif node in list(self.current_graph.gate_dict.values()):
+            if self.current_graph.is_subgraph_member(node):
+                node_id = -1
+                for key in self.current_graph.gate_dict.keys():
+                    if self.current_graph.gate_dict[key] == node:
+                        node_id = key
+
+                input_list = self.__z3_get_subgraph_input_list()
+                # print(f'for the subgraph = {input_list}')
+                return f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + node_id}({','.join(input_list)})"
+            else:
+                node_id = -1
+                for key in self.current_graph.gate_dict.keys():
+                    if self.current_graph.gate_dict[key] == node:
+                        node_id = key
+                return f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + node_id}({','.join(list(self.current_graph.input_dict.values()))})"
+        elif node in list(self.current_graph.output_dict.values()):
+            for key in self.current_graph.output_dict.keys():
+                if self.current_graph.output_dict[key] == node:
+                    node_id = key
+            return f"{APPROXIMATE_WIRE_PREFIX}{OUT}{node_id}({','.join(list(self.current_graph.input_dict.values()))})"
+        elif node in list(self.current_graph.constant_dict.values()):
+            # print(f'{self.current_graph.graph.nodes[node] = }')
+            return Z3_GATES_DICTIONARY[self.current_graph.graph.nodes[node][LABEL]]
+
+    def z3_generate_exact_circuit_wire_constraints(self):
+        exact_wire_constraints = ''
+        exact_wire_constraints += f'# exact circuit constraints\n'
+        exact_wire_constraints += f'{EXACT_CIRCUIT} = And(\n'
+        exact_wire_constraints += f'{TAB}# wires\n'
+
+        for g_idx in self.exact_graph.gate_dict:
+
+            g_label = self.exact_graph.gate_dict[g_idx]
+            g_predecessors = self.get_predecessors(g_label)
+            g_function = self.get_logical_function(g_label)
+
+            assert len(g_predecessors) == 1 or len(g_predecessors) == 2
+            assert g_function == NOT or g_function == AND or g_function == OR
+            if len(g_predecessors) == 1:
+                if g_predecessors[0] in list(self.exact_graph.input_dict.values()):
+                    pred_1 = g_predecessors[0]
+                else:
+
+                    pred_1 = self.z3_express_node_as_wire_constraints(g_predecessors[0])
+                exact_wire_constraints += f"{TAB}{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}(" \
+                                          f"{','.join(list(self.exact_graph.input_dict.values()))}) == "
+
+                exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
+            else:
+                exact_wire_constraints += f"{TAB}{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}(" \
+                                          f"{','.join(list(self.exact_graph.input_dict.values()))}) == "
+
+                if g_predecessors[0] in list(self.exact_graph.input_dict.values()):
+                    pred_1 = g_predecessors[0]
+                else:
+                    pred_1 = self.z3_express_node_as_wire_constraints(g_predecessors[0])
+                if g_predecessors[1] in list(self.exact_graph.input_dict.values()):
+                    pred_2 = g_predecessors[1]
+                else:
+                    pred_2 = self.z3_express_node_as_wire_constraints(g_predecessors[1])
+
+                exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
+        return exact_wire_constraints
+
+    def z3_generate_exact_circuit_output_constraints(self):
+        exact_output_constraints = ''
+        exact_output_constraints += f'{TAB}# boolean outputs (from the least significant)\n'
+        for output_idx in self.exact_graph.output_dict.keys():
+            output_label = self.exact_graph.output_dict[output_idx]
+            output_predecessors = list(self.exact_graph.graph.predecessors(output_label))
+            assert len(output_predecessors) == 1
+
+            pred = self.z3_express_node_as_wire_constraints(output_predecessors[0])
+            output = self.z3_express_node_as_wire_constraints(output_label)
+            exact_output_constraints += f'{TAB}{output} == {pred},\n'
+        return exact_output_constraints
+
+    def z3_generate_exact_circuit_integer_output_constraints(self):
+        exact_integer_outputs = ''
+        exact_integer_outputs += f'{TAB}# exact_integer_outputs\n'
+        exact_integer_outputs += f"{TAB}{F_EXACT}({','.join(self.current_graph.input_dict.values())}) == \n"
+
+        for idx in range(self.current_graph.num_outputs):
+            output_label = self.current_graph.output_dict[idx]
+            if idx == self.current_graph.num_outputs - 1:
+                exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints(output_label)},\n"
+            else:
+                exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints(output_label)} +\n"
+        return exact_integer_outputs
+
+    def z3_generate_approximate_circuit_wire_constraints_subxpat(self):
+
+        exact_wire_constraints = ""
+        exact_wire_constraints += f'# approximate circuit constraints\n'
+        exact_wire_constraints += f'{APPROXIMATE_CIRCUIT} = And(\n'
+        exact_wire_constraints += f'{TAB}# wires\n'
+        subgraph_input_list = self.__z3_get_subgraph_input_list()
+        binary_combinations = list(itertools.product([0, 1], repeat=self.spo))
+
+        gate_key_list = list(self.current_graph.gate_dict.keys())
+        for g_idx in gate_key_list:
+            g_label = self.current_graph.gate_dict[g_idx]
+            # print(f'{g_label = }')
+            if not self.current_graph.is_subgraph_member(g_label):
+                g_predecessors = self.get_predecessors_xpat(g_label)
+                # print(f'{g_predecessors = }')
+                g_function = self.get_logical_function_xpat(g_label)
+                assert len(g_predecessors) == 1 or len(g_predecessors) == 2
+                assert g_function == NOT or g_function == AND or g_function == OR
+                if len(g_predecessors) == 1:
+                    if g_predecessors[0] in list(self.current_graph.input_dict.values()):
+                        pred_1 = g_predecessors[0]
+                    else:
+                        pred_1 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[0])
+
+                    exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
+                                              f"{','.join(list(self.current_graph.input_dict.values()))}) == "
+                    exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
+                else:
+                    exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
+                                              f"{','.join(list(self.current_graph.input_dict.values()))}) == "
+                    if g_predecessors[0] in list(self.current_graph.input_dict.values()):
+                        pred_1 = g_predecessors[0]
+                    else:
+                        pred_1 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[0])
+                    if g_predecessors[1] in list(self.current_graph.input_dict.values()):
+                        pred_2 = g_predecessors[1]
+                    else:
+                        pred_2 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[1])
+                    exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
+            # if the gate is an output node of the annotated graph (subgraph)
+            elif self.current_graph.is_subgraph_member(g_label) and self.current_graph.is_subgraph_output(g_label):
+
+                output_list = list(self.current_graph.subgraph_output_dict.values())
+                output_idx = output_list.index(g_label)
+
+                exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
+                                          f"{','.join(subgraph_input_list)}) == "
+                exact_wire_constraints += f"{Z3_OR}("
+                for sel_combination in range(len(binary_combinations)):
+                    exact_wire_constraints += f"{TAB}{TAB}{Z3_AND}(" if sel_combination != 0 else f"{Z3_AND}("
+
+                    selectors = []
+                    for sel_idx in range(len(binary_combinations[sel_combination])):
+                        selector = f'mux0_o{output_idx}_sel{sel_idx}'
+                        selectors.append(f'{Z3_NOT}({selector})' if not binary_combinations[sel_combination][sel_idx] else selector)
+                    selectors_string = ", ".join(selectors)
+
+                    mux_in = f'mux0_o{output_idx}_in{sel_combination}, {selectors_string}'
+                    exact_wire_constraints += mux_in + '),\n' if sel_combination != len(binary_combinations) - 1 else mux_in + ')),\n'
+
+        return exact_wire_constraints
+
+    def z3_generate_approximate_circuit_output_constraints_subxpat(self):
+        approximate_output_constraints = ''
+        approximate_output_constraints += f'{TAB}# boolean outputs (from the least significant)\n'
+
+        for output_idx in self.current_graph.output_dict.keys():
+            output_label = self.current_graph.output_dict[output_idx]
+            output_predecessors = list(self.current_graph.graph.predecessors(output_label))
+
+            assert len(output_predecessors) == 1
+            # print(f'{self.current_graph.subgraph_gate_dict = }')
+            # print(f'{self.current_graph.graph.nodes = }')
+            # print(f'{output_predecessors = }')
+            pred = self.z3_express_node_as_wire_constraints_subxpat(output_predecessors[0])
+            output = self.z3_express_node_as_wire_constraints_subxpat(output_label)
+            approximate_output_constraints += f'{TAB}{output} == {pred},\n'
+        return approximate_output_constraints
+
+    def z3_generate_exact_circuit_integer_output_constraints_subxpat(self):
+        exact_integer_outputs = ''
+        exact_integer_outputs += f'{TAB}# approximate_integer_outputs\n'
+        exact_integer_outputs += f"{TAB}{F_APPROXIMATE}({','.join(self.current_graph.input_dict.values())}) == \n"
+
+        for idx in range(self.current_graph.num_outputs):
+            output_label = self.current_graph.output_dict[idx]
+            if idx == self.current_graph.num_outputs - 1:
+                exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints_subxpat(output_label)},\n"
+            else:
+                exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints_subxpat(output_label)} +\n"
+        return exact_integer_outputs
+
+    def z3_generate_exact_circuit_constraints(self):
+        wires = self.z3_generate_exact_circuit_wire_constraints()
+        outputs = self.z3_generate_exact_circuit_output_constraints()
+        integer_outputs = self.z3_generate_exact_circuit_integer_output_constraints()
+        wires += '\n'
+        outputs += '\n'
+        integer_outputs += '\n'
+        exact_circuit_constraints = wires + outputs + integer_outputs + ')\n'
+
+        return exact_circuit_constraints
+
+    def z3_generate_approximate_circuit_constraints(self):
+        approximate_circuit_constraints = ''
+        approximate_circuit_constraints += f'# Approximate circuit\n'
+        approximate_circuit_constraints += f'# constraints\n'
+        approximate_circuit_constraints += f'{APPROXIMATE_CIRCUIT} = {Z3_AND}(\n'
+        approximate_circuit_constraints += f"{TAB}{F_APPROXIMATE}({','.join(self.current_graph.input_dict.values())}) == \n"
+        approximate_circuit_constraints += f"{TAB}{SUM}("
+        for o_idx in range(self.current_graph.num_outputs):
+            if o_idx > 0:
+                approximate_circuit_constraints += f"{TAB}{TAB}"  # fixing the indentations
+            approximate_circuit_constraints += f"{INTVAL}({2 ** o_idx}) * {Z3_AND} ( {PRODUCT_PREFIX}{o_idx}, {Z3_OR}({Z3_AND}("
+            for ppo_idx in range(self.ppo):
+                for input_idx in range(self.current_graph.num_inputs):
+                    p_s = f'{PRODUCT_PREFIX}{o_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                    p_l = f'{PRODUCT_PREFIX}{o_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+
+                    loop_1_last_iter_flg = o_idx == self.current_graph.num_outputs - 1
+                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1
+                    loop_3_last_iter_flg = input_idx == self.current_graph.num_inputs - 1
+
+                    approximate_circuit_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {self.current_graph.input_dict[input_idx]})'
+
+                    if loop_1_last_iter_flg and loop_2_last_iter_flg and loop_3_last_iter_flg:
+                        approximate_circuit_constraints += '))))\n)\n'
+                    elif loop_3_last_iter_flg and loop_2_last_iter_flg:
+                        approximate_circuit_constraints += '))),\n'
+                    else:
+                        approximate_circuit_constraints += ','
+        return approximate_circuit_constraints
+
+    def z3_generate_selectors_constraints(self):
+
+        selectors_constraints = ''
+        subgraph_input_list = self.__z3_get_subgraph_input_list()
+        binary_combinations = list(itertools.product([0, 1], repeat=int(math.log2(len(subgraph_input_list)))))
+        selectors_parameters = []
+        for idx_o in range(self.current_graph.subgraph_num_outputs):
+            for idx_s in range(self.spo):
+                selectors_constraints += f'{LUT_MUX_PREFIX}0_{LUT_OUTPUT_PREFIX}{idx_o}_{LUT_SELECTOR_PREFIX}{idx_s} = {Z3_OR}('
+                for sel_combination in range(len(binary_combinations)):
+                    selectors_constraints += f'{Z3_AND}('
+                    for idx_p in range(int(math.log2(len(subgraph_input_list)))):
+                        selector = f'{LUT_MUX_PREFIX}0_{LUT_OUTPUT_PREFIX}{idx_o}_{LUT_SELECTOR_PREFIX}{idx_s}_{LUT_PARAMETER_PREFIX}{idx_p}'
+                        if not binary_combinations[sel_combination][::-1][idx_p]:
+                            selectors_parameters.append(f'{Z3_NOT}({selector})')
+                        else:
+                            selectors_parameters.append(f'{selector}')
+                    selectors_parameters.append(subgraph_input_list[sel_combination])
+                    selectors_constraints += ", ".join(selectors_parameters) + ")"
+                    selectors_parameters = []
+                    if sel_combination == len(binary_combinations) -1:
+                        selectors_constraints += ")\n"
+                    else:
+                        selectors_constraints += ","
+                    selectors_constraints += "\n"
+        return selectors_constraints
+
+    def z3_generate_approximate_circuit_constraints_subxpat(self):
+        selectors = self.z3_generate_selectors_constraints()
+        wires = self.z3_generate_approximate_circuit_wire_constraints_subxpat()
+        outputs = self.z3_generate_approximate_circuit_output_constraints_subxpat()
+        integer_outputs = self.z3_generate_exact_circuit_integer_output_constraints_subxpat()
+        wires += '\n'
+        outputs += '\n'
+        integer_outputs += '\n'
+        approximate_circuit_constraints = selectors + wires + outputs + integer_outputs + ')\n'
+
+        return approximate_circuit_constraints
+
+    def z3_generate_forall_solver(self):
+        prep = self.z3_generate_forall_solver_preperation()
+        error = self.z3_generate_forall_solver_error_constraint()
+        circuits = self.z3_generate_forall_solver_circuits()
+        # atmost_constraints = self.z3_generate_forall_solver_atmost_constraints()
+        # redundancy_constraints = self.z3_generate_forall_solver_redundancy_constraints()
+        prep += '\n'
+        error += '\n'
+        circuits += '\n'
+        # atmost_constraints += '\n'
+        # redundancy_constraints += '\n'
+        forall_solver = prep + error + circuits + ')))\n'
+
+        return forall_solver
+
+    def z3_generate_forall_solver_subxpat(self):
+        prep = self.z3_generate_forall_solver_preperation()
+        error = self.z3_generate_forall_solver_error_constraint()
+        circuits = self.z3_generate_forall_solver_circuits()
+        # atmost_constraints = self.z3_generate_forall_solver_atmost_constraints_subxpat()
+        # redundancy_constraints = self.z3_generate_forall_solver_redundancy_constraints_subxpat()
+        prep += '\n'
+        error += '\n'
+        circuits += '\n'
+        # atmost_constraints += '\n'
+        # redundancy_constraints += '\n'
+        forall_solver = prep + error + circuits + ')))\n'
+
+        return forall_solver
+
+    def z3_generate_forall_solver_preperation(self):
+        prep = ''
+        prep += '# forall solver\n'
+        prep += f'{FORALL_SOLVER} = {SOLVER}\n' \
+                f'{FORALL_SOLVER}.{ADD}({FORALL}(\n' \
+                f"{TAB}[{','.join(list(self.current_graph.input_dict.values()))}],\n" \
+                f"{TAB}{Z3_AND}(\n"
+        return prep
+
+    def z3_generate_forall_solver_error_constraint(self):
+        error = ''
+        error += f'{TAB}{TAB}# error constraints\n'
+        error += f'{TAB}{TAB}{DIFFERENCE} <= {ET},\n'
+        return error
+
+    def z3_generate_forall_solver_circuits(self):
+        circuits = ''
+        circuits += f'{TAB}{TAB}# circuits\n'
+        circuits += f'{TAB}{TAB}{EXACT_CIRCUIT},\n' \
+                    f'{TAB}{TAB}{APPROXIMATE_CIRCUIT}\n'
+        return circuits
+
+    def z3_generate_verification_solver(self):
+        verficiation_solver = ''
+        verficiation_solver += f'{VERIFICATION_SOLVER} = {SOLVER}\n' \
+                               f'{VERIFICATION_SOLVER}.{ADD}(\n' \
+                               f'{TAB}{ERROR} == {DIFFERENCE},\n' \
+                               f'{TAB}{EXACT_CIRCUIT},\n' \
+                               f'{TAB}{APPROXIMATE_CIRCUIT},\n' \
+                               f')\n'
+        return verficiation_solver
+
+    def z3_generate_parameter_constraint_list(self):
+        parameter_list = ''
+        parameter_list += f'parameters_constraints: List[Tuple[BoolRef, bool]] = []\n'
+        return parameter_list
+
+    def z3_generate_find_wanted_number_of_models(self):
+        prep_loop1 = self.z3_generate_find_wanted_number_of_models_prep_loop1()
+        prep_loop2 = self.z3_generate_find_wanted_number_of_models_prep_loop2()
+        prep_loop3 = self.z3_generate_find_wanted_number_of_models_prep_loop3()
+        final_prep = self.z3_generate_find_wanted_number_of_models_final_prep()
+        prep_loop1 += '\n'
+        prep_loop2 += '\n'
+        prep_loop3 += '\n'
+        final_prep += '\n'
+        find_wanted_number_of_models = prep_loop1 + prep_loop2 + prep_loop3 + final_prep
+        return find_wanted_number_of_models
+
+    def z3_generate_find_wanted_number_of_models_prep_loop1(self):
+        prep_loop1 = ''
+        prep_loop1 += f'found_data = []\n' \
+                      f'while(len(found_data) < wanted_models and timeout > 0):\n' \
+                      f'{TAB}time_total_start = time()\n' \
+                      f'{TAB}\n' \
+                      f'{TAB}attempts = 1\n' \
+                      f'{TAB}result: CheckSatResult = None\n' \
+                      f'{TAB}attempts_times: List[Tuple[float, float, float]] = []\n'
+
+        return prep_loop1
+
+    def z3_generate_find_wanted_number_of_models_prep_loop2(self):
+        find_valid_model = ''
+        find_valid_model += f'{TAB}while result != sat:\n' \
+                            f'{TAB}{TAB}time_attempt_start = time()\n' \
+                            f'{TAB}{TAB}time_parameters_start = time_attempt_start\n'
+
+        find_valid_model += f'{TAB}{TAB}# add constrain to prevent the same parameters to happen\n' \
+                            f'{TAB}{TAB}if parameters_constraints:\n' \
+                            f'{TAB}{TAB}{TAB}forall_solver.add(Or(*map(lambda x: x[0] != x[1], parameters_constraints)))\n'
+
+        find_valid_model += f'{TAB}{TAB}parameters_constraints = []\n'
+        find_valid_model += f"{TAB}{TAB}forall_solver.set(\"timeout\", int(timeout * 1000))\n" \
+                            f"{TAB}{TAB}result = forall_solver.check()\n" \
+                            f"{TAB}{TAB}time_parameters = time() - time_attempt_start\n" \
+                            f"{TAB}{TAB}time_attempt = time() - time_attempt_start\n" \
+                            f"{TAB}{TAB}timeout -= time_parameters # removed the time used from the timeout\n"
+        find_valid_model += f'{TAB}{TAB}if result != sat:\n' \
+                            f'{TAB}{TAB}{TAB}attempts_times.append((time_attempt, time_parameters, None))\n' \
+                            f'{TAB}{TAB}{TAB}break\n'
+        find_valid_model += f'{TAB}{TAB}m = forall_solver.model()\n' \
+                            f'{TAB}{TAB}parameters_constraints = []\n' \
+                            f'{TAB}{TAB}for k, v in map(lambda k: (k, m[k]), m):\n' \
+                            f'{TAB}{TAB}{TAB}if str(k)[0:3] == "mux":\n' \
+                            f'{TAB}{TAB}{TAB}{TAB}parameters_constraints.append((Bool(str(k)), v))\n'
+
+        find_valid_model += f'{TAB}{TAB}# verify parameters\n' \
+                            f'{TAB}{TAB}WCE: int = None\n' \
+                            f'{TAB}{TAB}verification_ET: int = 0\n' \
+                            f'{TAB}{TAB}time_verification_start = time()\n' \
+                            f'{TAB}{TAB}# save state\n' \
+                            f'{TAB}{TAB}verification_solver.push()\n' \
+                            f'{TAB}{TAB}# parameters constraints\n' \
+                            f'{TAB}{TAB}verification_solver.add(\n' \
+                            f'{TAB}{TAB}{TAB}*map(lambda x: x[0] == x[1], parameters_constraints),\n' \
+                            f'{TAB}{TAB})\n'
+
+        return find_valid_model
+
+    def z3_generate_find_wanted_number_of_models_prep_loop3(self):
+        prep_loop3 = f'{TAB}{TAB}while verification_ET < max_possible_ET:\n' \
+                     f'{TAB}{TAB}{TAB}# add constraint\n' \
+                     f'{TAB}{TAB}{TAB}verification_solver.add(difference > verification_ET)\n' \
+                     f'{TAB}{TAB}{TAB}# run solver\n' \
+                     f'{TAB}{TAB}{TAB}verification_solver.set("timeout", int(timeout * 1000))\n' \
+                     f'{TAB}{TAB}{TAB}v_result = verification_solver.check()\n'
+
+        prep_loop3 += f'{TAB}{TAB}{TAB}if v_result == unsat:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}# unsat, WCE found\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}WCE = verification_ET\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}break\n'
+
+        prep_loop3 += f'{TAB}{TAB}{TAB}elif v_result == sat:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}# sat, need to search again\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}m = verification_solver.model()\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}verification_ET = m[error].as_long()\n' \
+                      f'{TAB}{TAB}{TAB}else:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB} # unknown (probably a timeout)\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}WCE = -1\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}break\n'
+
+        return prep_loop3
+
+    def z3_generate_find_wanted_number_of_models_final_prep(self):
+        final_prep = ''
+        final_prep += f'{TAB}{TAB}if WCE is None:\n' \
+                      f'{TAB}{TAB}{TAB}WCE = max_possible_ET\n'
+
+        final_prep += f'{TAB}{TAB}# revert state\n' \
+                      f'{TAB}{TAB}verification_solver.pop()\n' \
+                      f'{TAB}{TAB}time_verification = time() - time_verification_start\n' \
+                      f'{TAB}{TAB}time_attempt = time() - time_attempt_start\n' \
+                      f'{TAB}{TAB}timeout -= time_verification  # remove the time used from the timeout\n' \
+                      f'{TAB}{TAB}attempts_times.append((time_attempt, time_parameters, time_verification))\n' \
+                      f'{TAB}{TAB}\n'
+
+        final_prep += f'{TAB}{TAB}# ==== continue or exit\n' \
+                      f'{TAB}{TAB}if WCE > ET:\n' \
+                      f"{TAB}{TAB}{TAB}# Z3 hates us and decided it doesn't like being appreciated\n" \
+                      f'{TAB}{TAB}{TAB}result = None\n' \
+                      f'{TAB}{TAB}{TAB}attempts += 1\n' \
+                      f'{TAB}{TAB}{TAB}invalid_parameters = parameters_constraints\n' \
+                      f'{TAB}{TAB}elif WCE < 0:  # caused by unknown\n' \
+                      f'{TAB}{TAB}{TAB}break\n'
+
+        return final_prep
+
+    def z3_generate_store_data(self):
+        store_data = ''
+        store_data += f'{TAB}# store data\n'
+        extract_info = self.z3_generate_sotre_data_define_extract_info_function()
+        key_function = self.z3_generate_sotre_data_define_extract_key_function()
+        stats = self.z3_generate_stats()
+        results = self.z3_dump_results_onto_json()
+        extract_info += '\n'
+        key_function += '\n'
+        stats += '\n'
+        results += '\n'
+        store_data += extract_info + key_function + stats + results
+        return store_data
+
+    def z3_generate_sotre_data_define_extract_info_function(self):
+        extract_info = ''
+        extract_info += f'{TAB}def extract_info(pattern: Union[Pattern, str], string: str,\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}parser: Callable[[Any], Any] = lambda x: x,\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}default: Union[Callable[[], None], Any] = None) -> Any:\n' \
+                        f'{TAB}{TAB}import re\n' \
+                        f'{TAB}{TAB}return (parser(match[1]) if (match := re.search(pattern, string))\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}else (default() if callable(default) else default))\n'
+
+        return extract_info
+
+    def z3_generate_sotre_data_define_extract_key_function(self):
+        """
+        Blah Blah Blah
+        :return:
+        """
+        key_function = ''
+        key_function += f"{TAB}def key_function(parameter_constraint):\n" \
+                        f'{TAB}{TAB}p = str(parameter_constraint[0])\n' \
+                        f"{TAB}{TAB}mux_id = extract_info(r'_mux(\d+)', p, int, -1)\n" \
+                        f"{TAB}{TAB}o_id = extract_info(r'_o(\d+)', p, int, 0)\n" \
+                        f"{TAB}{TAB}in_id = extract_info(r'_in(\d+)', p, int, 0)\n" \
+                        f"{TAB}{TAB}sel_id = extract_info(r'_sel(\d+)', p, int, 0)\n" \
+                        f'{TAB}{TAB}if o_id < 0:\n' \
+                        f'{TAB}{TAB}{TAB}return 0\n' \
+                        f'{TAB}{TAB}return (o_id * 100000\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}+ mux_id * 10000\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}+ in_id * 100\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}+ sel_id * 10)\n' \
+
+        return key_function
+
+    def z3_generate_stats(self):
+        stats = ''
+        stats += f'{TAB}time_total = time() - time_total_start\n'
+        stats += f'{TAB}data_object = {{\n' \
+                 f"{TAB}{TAB}'result': str(result),\n" \
+                 f"{TAB}{TAB}'total_time': time_total,\n" \
+                 f"{TAB}{TAB}'attempts': attempts,\n" \
+                 f"{TAB}{TAB}'attempts_times': [list(map(lambda tup: [*tup], attempts_times))]\n" \
+                 f"{TAB}}}\n"
+
+        stats += f'{TAB}if result == sat:\n' \
+                 f"{TAB}{TAB}data_object['model'] = dict(map(lambda item: (str(item[0]), is_true(item[1])),\n" \
+                 f"{TAB}{TAB}{TAB}sorted(parameters_constraints,\n" \
+                 f"{TAB}{TAB}{TAB}key=key_function)))\n"
+
+        stats += f'{TAB}found_data.append(data_object)\n' \
+                 f'{TAB}if result != sat:\n' \
+                 f'{TAB}{TAB}break\n'
+
+        stats += f'print(json.dumps(found_data, separators=(",", ":"),))\n'
+
+        return stats
+
+    def z3_generate_config(self):
+        config = ''
+        config += f'ET = int(sys.argv[1])\n' \
+                  f'wanted_models: int = 1 if len(sys.argv) < 3 else int(sys.argv[2])\n' \
+                  f'timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])\n' \
+                  f'max_possible_ET: int = 2 ** 3 - 1\n' \
+                  f'\n'
+
+
+        return config
+
+    def z3_dump_results_onto_json(self):
+        results = ''
+        folder, extension = sxpatpaths.OUTPUT_PATH[JSON]
+
+        results += f"with open(f'{self.json_out_path}', 'w') as ofile:\n" \
+                   f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
+        return results
+
+
+
+class Template_LUT_MP(TemplateCreator):
+    def __init__(self, template_specs: TemplateSpecs):
+        super().__init__(template_specs)
+        # self.__literal_per_product = template_specs.literals_per_product
+        # self.__product_per_output = template_specs.products_per_output
+        # self.__subxpat: bool = template_specs.subxpat
+        self.__error_threshold = template_specs.et
+        self.__iterations = template_specs.iterations
+        self.__num_models = template_specs.num_of_models
+
+        self.__z3pyscript = None
+        self.__z3_out_path = None
+
+        self.__selectors_per_output = template_specs.selectors_per_output
+
+        self.__json_out_path = None
+        self.__json_in_path = None
+        self.__json_model: List = []
+        self.__json_status: List = []
+
+    @property
+    def num_models(self):
+        return self.__num_models
+
+    @num_models.setter
+    def num_models(self, this_num_models):
+        self.__num_models = this_num_models
+
+
+    @property
+    def selectors_per_output(self):
+        return self.__selectors_per_output
+
+    @property
+    def spo(self):
+        return self.__selectors_per_output
+
+    @spo.setter
+    def spo(self, this_spo):
+        self.__selectors_per_output = this_spo
+
+
+    @property
+    def json_model(self):
+        return self.__json_model
+
+    @json_model.setter
+    def json_model(self, this_json_model):
+        self.__json_model = this_json_model
+
+
+    @property
+    def z3pyscript(self):
+        return self.__z3pyscript
+
+    @z3pyscript.setter
+    def z3pyscript(self, input_z3pyscript):
+        self.__z3pyscript = input_z3pyscript
+
+
+    @property
+    def json_status(self):
+        return self.__json_status
+
+    @json_status.setter
+    def json_status(self, this_status):
+        self.__json_status = this_status
+
+    @property
+    def et(self):
+        return self.__error_threshold
+
+    @et.setter
+    def et(self, value):
+        self.__error_threshold = value
+
+    @property
+    def iterations(self):
+        return self.__iterations
+
+    @iterations.setter
+    def iterations(self, this_iteration: int):
+        self.__iterations = this_iteration
+
+    @property
+    def z3_out_path(self):
+        return self.__z3_out_path
+
+    @z3_out_path.setter
+    def z3_out_path(self, this_z3_out_path):
+        self.__z3_out_path = this_z3_out_path
+
+    @property
+    def json_out_path(self):
+        return self.__json_out_path
+
+    @json_out_path.setter
+    def json_out_path(self, this_json_out_path):
+        self.__json_out_path = this_json_out_path
+
+    @property
+    def json_in_path(self):
+        return self.__json_in_path
+
+    @json_in_path.setter
+    def json_in_path(self, this_json_path):
+        self.__json_in_path = this_json_path
+
+    def label_graph(self, min_labeling: bool = False, parallel: bool = True):
+        # labels = labeling(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
+        labels, _ = labeling_explicit(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
+        for n in self.current_graph.graph.nodes:
+            if n in labels:
+                self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
+
+    def set_new_context(self, specs_obj: TemplateSpecs):
+        # self.lpp = specs_obj.lpp
+        # self.ppo = specs_obj.ppo
+        self.iterations = specs_obj.iterations
+        self.spo = specs_obj.spo
+        self.template_name = specs_obj.template_name
+        self.benchmark_name = specs_obj.benchmark_name
+        self.exact_benchmark = specs_obj.exact_benchmark
+        self.json_out_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
+        self.z3_out_path = self.set_path(OUTPUT_PATH['z3'])
+
+    def set_path(self, this_path: Tuple[str, str]):
+        folder, extension = this_path
+        # print(f'setting json out path...')
+        # print(f'{self.benchmark_name = }')
+        if re.search('id', self.benchmark_name):
+            path = f'{folder}/{self.benchmark_name}_{ITER}{self.iterations}.{extension}'
+        else:
+            path = f'{folder}/{self.benchmark_name}_{TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{ITER}{self.iterations}.{extension}'
+        # print(f'{path = }')
+        return path
+
+    def export_z3pyscript(self):
+        # print(f'Storing in {self.z3_out_path}')
+        with open(self.z3_out_path, 'w') as z:
+            z.writelines(self.z3pyscript)
+
+    def import_json_model(self, this_path=None):
+        self.json_model = []
+        self.json_status = []
+        if this_path:
+            self.json_in_path(this_path)
+        else:
+            self.json_in_path = self.set_path(sxpatpaths.OUTPUT_PATH[JSON])
+
+        with open(self.json_in_path, 'r') as f:
+            data = json.load(f)
+        for d in data:
+            for key in d.keys():
+                if key == RESULT:
+                    if d[key] == SAT:
+                        self.json_model.append(d[MODEL])
+                        self.json_status.append(SAT)
+                    elif d[key] == UNSAT:
+                        self.json_model.append(None)
+                        self.json_status.append(UNSAT)
+                    else:
+                        self.json_model.append(None)
+                        self.json_status.append(UNKNOWN)
+
+    def get_json_runtime(self, this_id: int = 0):
+        with open(self.json_in_path, 'r') as f:
+            data = json.load(f)
+
+        for d in data:
+            for key in d.keys():
+                if key == "total_time":
+                    return float(d[key])
+
+    def run_z3pyscript(self, ET=2, num_models=1, timeout=10800):
+        # print(f'{self.z3_out_path = }')
+        # print(f'{ET = }')
+        process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}', f'{num_models}', f'{timeout}'], stderr=PIPE, stdout=PIPE)
+        if process.stderr:
+            print(Fore.RED + f"{process.stderr.decode()}" + Style.RESET_ALL)
+            raise Exception(Fore.RED + f'ERROR!!! Cannot run file {self.z3_out_path}' + Style.RESET_ALL)
+
+    def z3_generate_z3pyscript(self):
+        if self.subxpat or (not self.subxpat and not self.shared):
+            imports = self.z3_generate_imports()  # parent
+            config = self.z3_generate_config()
+            z3_abs_function = self.z3_generate_z3_abs_function()  # parent
+            input_variables_declaration = self.z3_generate_declare_input_variables()
+            exact_integer_function_declaration = self.z3_generate_declare_integer_function(F_EXACT)
+            approximate_integer_function_declaration = self.z3_generate_declare_integer_function(F_APPROXIMATE)
+            utility_variables = self.z3_generate_utility_variables()
+            implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters_subxpat()
+            exact_circuit_wires_declaration = self.z3_generate_exact_circuit_wires_declaration()
+            approximate_circuit_wires_declaration = self.z3_generate_approximate_circuit_wires_declaration_subxpat()
+
+
+            exact_circuit_outputs_declaration = self.z3_generate_exact_circuit_outputs_declaration()
+            approximate_circuit_outputs_declaration = self.z3_generate_approximate_circuit_outputs_declaration()
+
+            # approximate_inputs_lists = self.z3_generate_inputs_lists()
+
+            exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()
+            approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_subxpat()
+
+            for_all_solver = self.z3_generate_forall_solver_subxpat()
+            verification_solver = self.z3_generate_verification_solver()
+            parameter_constraint_list = self.z3_generate_parameter_constraint_list()
+            find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
+            store_data = self.z3_generate_store_data()
+            self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
+                + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
+                +  approximate_circuit_wires_declaration + exact_circuit_outputs_declaration \
+                + approximate_circuit_outputs_declaration \
+                + exact_circuit_constraints + approximate_circuit_constraints_subxpat + for_all_solver\
+                + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
+                + store_data
+
+        self.export_z3pyscript()
+
+    def z3_generate_imports(self):
+        imports = f'from z3 import *\n' \
+                  f'import sys\n' \
+                  f'from time import time\n' \
+                  f'from typing import Tuple, List, Callable, Any, Union\n' \
+                  f'import json\n' \
+                  f'\n'
+        return imports
+
+    def z3_generate_z3_abs_function(self):
+        z3_abs_function = f'def z3_abs(x: ArithRef) -> ArithRef:\n' \
+                          f'{TAB}return If(x >= 0, x, -x)\n' \
+                          f'\n'
+
+        return z3_abs_function
+
+    def declare_gate(self, this_key: str, this_dict: dict = None):
+        if this_dict is None:
+            declaration = f"{this_key} = {Z3BOOL}('{this_key}')\n"
+        else:
+            declaration = f"{this_dict[this_key]} = {Z3BOOL}('{this_dict[this_key]}')\n"
+        return declaration
+
+    def z3_generate_declare_input_variables(self):
+        input_variables = ''
+        input_variables += f'# Inputs variables declaration\n'
+        for inp_key in self.exact_graph.input_dict.keys():
+            input_variables += self.declare_gate(inp_key, self.exact_graph.input_dict)
+        input_variables += '\n'
+        return input_variables
+
+    def z3_generate_declare_integer_function(self, function_name):
+        integer_function = ''
+        integer_function += f'# Integer function declaration\n'
+        temp_arg_list = ', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))
+        temp_arg_list += ', ' + INTSORT
+        integer_function += f"{function_name} = {FUNCTION}('{function_name}', {temp_arg_list})\n"
+        return integer_function
+
+    def z3_generate_utility_variables(self):
+        utility_variables = ''
+        utility_variables += f'# utility variables'
+        utility_variables += f"\n" \
+                             f"difference = z3_abs({F_EXACT}({', '.join(self.exact_graph.input_dict.values())}) - " \
+                             f"{F_APPROXIMATE}({', '.join(self.exact_graph.input_dict.values())})" \
+                             f")\n" \
+                             f"error = {Z3INT}('error')\n"
+
+        utility_variables += '\n'
+        return utility_variables
+
+    def z3_generate_selectors_implicit_parameters(self):
+        temp_multiplexer_implicit_parameters = ''
+        for idx_o in range(self.current_graph.subgraph_num_outputs):
+            for idx_sel in range(self.__selectors_per_output):
+                for idx_in in range(int(math.log2(self.current_graph.subgraph_num_inputs))):
+                    temp_multiplexer_implicit_parameters += f"mux0_o{idx_o}_sel{idx_sel}_p{idx_in} = {Z3BOOL}('mux0_o{idx_o}_sel{idx_sel}_p{idx_in}')\n"
+                temp_multiplexer_implicit_parameters += '\n'
+
+        temp_multiplexer_implicit_parameters += '\n'
+        return temp_multiplexer_implicit_parameters
+
+    def z3_generate_multiplexer_implicit_parameters(self):
+        temp_multiplexer_implicit_parameters = ''
+        for idx_o in range(self.current_graph.subgraph_num_outputs):
+            for idx_in in range(2**self.spo):
+                for idx_p in range ((self.current_graph.subgraph_num_inputs*2)+2):
+                    temp_multiplexer_implicit_parameters += f"mux0_o{idx_o}_in{idx_in}_p{idx_p} = {Z3BOOL}('mux0_o{idx_o}_in{idx_in}_p{idx_p}') \n"
+
+        return temp_multiplexer_implicit_parameters
+
+    def z3_generate_declare_implicit_parameters_subxpat(self):
+        implicit_parameters = ''
+        implicit_parameters += f'# Parameters variables declaration\n'
+        implicit_parameters += self.z3_generate_multiplexer_implicit_parameters()
+        implicit_parameters += self.z3_generate_selectors_implicit_parameters()
+        implicit_parameters += '\n'
+        return implicit_parameters
+
+
+    def z3_generate_exact_circuit_wires_declaration(self):
+        exact_wires_declaration = ''
+        exact_wires_declaration += f'# wires functions declaration for exact circuit\n'
+
+        for g_idx in self.exact_graph.gate_dict:
+            exact_wires_declaration += f"{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx} = " \
+                                       f"{FUNCTION}('{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}', " \
+                                       f"{', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))}" \
+                                       f", {BOOLSORT}" \
+                                       f")\n"
+
+        for g_idx in self.exact_graph.constant_dict:
+            # print(f'{g_idx = }')
+            exact_wires_declaration += f"{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx} = " \
+                                       f"{FUNCTION}('{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}', " \
+                                       f"{', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))}" \
+                                       f", {BOOLSORT}" \
+                                       f")\n"
+        exact_wires_declaration += '\n'
+        return exact_wires_declaration
+
+    def z3_generate_approximate_circuit_wires_declaration_subxpat(self):
+        approximate_wires_declaration = ''
+        approximate_wires_declaration += f'# wires functions declaration for approximate circuit\n'
+        # TODO:
+        # Fix when PIs are not the subgrpah's inputs
+
+        gate_key_list = list(self.current_graph.gate_dict.keys())
+        constant_key_list = list(self.current_graph.constant_dict.keys())
+        # gates
+        for g_idx in gate_key_list:
+            g_label = self.current_graph.gate_dict[g_idx]
+            if self.current_graph.is_subgraph_member(g_label):
+                approximate_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
+                                                 f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}', " \
+                                                 f"{', '.join(repeat(BOOLSORT, self.current_graph.subgraph_num_inputs))}" \
+                                                 f", {BOOLSORT}" \
+                                                 f")\n"
+            else:
+                approximate_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
+                                                 f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}', " \
+                                                 f"{', '.join(repeat(BOOLSORT, self.current_graph.num_inputs))}" \
+                                                 f", {BOOLSORT}" \
+                                                 f")\n"
+        # constants
+        for g_idx in constant_key_list:
+            g_label = self.current_graph.constant_dict[g_idx]
+            if self.current_graph.is_subgraph_member(g_label):
+                approximate_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
+                                                 f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}', " \
+                                                 f"{', '.join(repeat(BOOLSORT, self.current_graph.subgraph_num_inputs))}" \
+                                                 f", {BOOLSORT}" \
+                                                 f")\n"
+            else:
+                approximate_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
+                                                 f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}', " \
+                                                 f"{', '.join(repeat(BOOLSORT, self.current_graph.num_inputs))}" \
+                                                 f", {BOOLSORT}" \
+                                                 f")\n"
+        approximate_wires_declaration += '\n'
+        return approximate_wires_declaration
+
+    def z3_generate_approximate_circuit_wires_declaration(self):
+        exact_wires_declaration = ''
+        exact_wires_declaration += f'# wires functions declaration for approximate circuit\n'
+        # TODO:
+        # Fix when PIs are not the subgrpah's inputs
+        for g_idx in range(self.current_graph.num_gates):
+            exact_wires_declaration += f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx} = " \
+                                       f"{FUNCTION}('{APPROXIMATE_WIRE_PREFIX}{self.current_graph.subgraph_num_inputs + g_idx}', " \
+                                       f"{', '.join(repeat(BOOLSORT, self.current_graph.subgraph_num_inputs))}" \
+                                       f", {BOOLSORT}" \
+                                       f")\n"
+        exact_wires_declaration += '\n'
+        return exact_wires_declaration
+
+    def z3_generate_exact_circuit_outputs_declaration(self):
+        exact_circuit_output_declaration = ''
+        exact_circuit_output_declaration += f'# outputs functions declaration for exact circuit\n'
+        for output_idx in range(self.current_graph.num_outputs):
+            exact_circuit_output_declaration += f"{EXACT_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{EXACT_OUTPUT_PREFIX}{OUT}{output_idx}', " \
+                                                f"{', '.join(repeat(BOOLSORT, self.current_graph.num_inputs + 1))}" \
+                                                f")\n"
+        exact_circuit_output_declaration += '\n'
+        return exact_circuit_output_declaration
+
+    def z3_generate_approximate_circuit_outputs_declaration(self):
+        approximate_circuit_output_declaration = ''
+        approximate_circuit_output_declaration = f'# outputs functions declaration for approximate circuit\n'
+        # for output_idx in range(self.graph.subgraph_num_outputs):
+        for output_idx in range(self.current_graph.num_outputs):
+            approximate_circuit_output_declaration += f"{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx}', " \
+                                                      f"{', '.join(repeat(BOOLSORT, self.current_graph.num_inputs + 1))}" \
+                                                      f")\n"
+            # approximate_circuit_output_declaration += f"{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx}', " \
+            #                                           f"{', '.join(repeat(BOOLSORT, self.graph.num_inputs + 1))}" \
+            #                                           f")\n"
+        approximate_circuit_output_declaration += '\n'
+        return approximate_circuit_output_declaration
+
+    def get_predecessors(self, node: str) -> List[str]:
+        return list(self.exact_graph.graph.predecessors(node))
+
+    def get_logical_function(self, node: str) -> str:
+        return self.exact_graph.graph.nodes[node][LABEL]
+
+    def get_predecessors_xpat(self, node: str) -> List[str]:
+        return list(self.current_graph.subgraph.predecessors(node))
+
+    def get_logical_function_xpat(self, node: str) -> str:
+        return self.current_graph.subgraph.nodes[node][LABEL]
+
+    def z3_express_node_as_wire_constraints(self, node: str):
+        # print(f'{self.exact_graph.graph.nodes = }')
+        assert node in list(self.exact_graph.input_dict.values()) or node in list(self.exact_graph.gate_dict.values()) \
+            or node in list(self.exact_graph.output_dict.values()) or node in list(self.exact_graph.constant_dict.values())
+
+        if node in list(self.exact_graph.input_dict.values()):
+            return node
+        elif node in list(self.exact_graph.gate_dict.values()):
+            node_id = -1
+            for key in self.exact_graph.gate_dict.keys():
+                if self.exact_graph.gate_dict[key] == node:
+                    node_id = key
+            return f"{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + node_id}({','.join(list(self.exact_graph.input_dict.values()))})"
+        elif node in list(self.exact_graph.output_dict.values()):
+            for key in self.exact_graph.output_dict.keys():
+                if self.exact_graph.output_dict[key] == node:
+                    node_id = key
+            return f"{EXACT_WIRES_PREFIX}{OUT}{node_id}({','.join(list(self.exact_graph.input_dict.values()))})"
+        elif node in list(self.exact_graph.constant_dict.values()):
+            # print(f'{self.current_graph.graph.nodes[node] = }')
+            return Z3_GATES_DICTIONARY[self.exact_graph.graph.nodes[node][LABEL]]
+
+    def __z3_get_approximate_label(self, node: str):
+        graph_gates = list(self.current_graph.gate_dict.values())
+
+        if node in list(self.current_graph.gate_dict.values()):
+            for gate_idx in self.current_graph.gate_dict.keys():
+                if self.current_graph.gate_dict[gate_idx] == node:
+                    return f'{APPROXIMATE_WIRE_PREFIX}{gate_idx + self.current_graph.num_inputs}'
+        else:
+            return node
+
+    def __z3_get_subgraph_input_list(self):
+        input_list = list(self.current_graph.subgraph_input_dict.values())
+        input_list_tmp = list(self.current_graph.subgraph_input_dict.values())
+
+        input_list_tmp = self.__fix_order()
+        for idx, inp in enumerate(input_list):
+            if inp in self.current_graph.gate_dict.values():
+                input_list_tmp[
+                    idx] = f"{self.__z3_get_approximate_label(inp)}({', '.join(list(self.current_graph.input_dict.values()))})"
+        return input_list_tmp
+
+    def __fix_order(self):
+        subpgraph_input_list = list(self.current_graph.subgraph_input_dict.values())
+        subpgraph_input_list_ordered = []
+        pi_list = []
+        g_list = []
+
+        for node in subpgraph_input_list:
+            if re.search('in(\d+)', node):
+                idx = int(re.search('in(\d+)', node).group(1))
+                pi_list.append(node)
+            else:
+                g_list.append(node)
+
+        pi_list.sort(key=lambda x: re.search('\d+', x).group())
+
+        for el in pi_list:
+            subpgraph_input_list_ordered.append(el)
+        for el in g_list:
+            subpgraph_input_list_ordered.append(el)
+
+        return subpgraph_input_list_ordered
+
+    def z3_express_node_as_wire_constraints_subxpat(self, node: str):
+        # print(f'We are checking this node!')
+
+        # print(f'{self.current_graph.input_dict.values() = }')
+        # print(f'{self.current_graph.gate_dict.values() = }')
+        # print(f'{self.current_graph.output_dict.values() = }')
+        assert node in list(self.current_graph.input_dict.values()) or node in list(
+            self.current_graph.gate_dict.values()) \
+            or node in list(self.current_graph.output_dict.values()) or node in list(
+            self.current_graph.constant_dict.values()) \
+            or node.startswith(APPROXIMATE_WIRE_PREFIX)
+
+        if node in list(self.current_graph.input_dict.values()):
+            return node
+        elif node in list(self.current_graph.gate_dict.values()):
+            if self.current_graph.is_subgraph_member(node):
+                node_id = -1
+                for key in self.current_graph.gate_dict.keys():
+                    if self.current_graph.gate_dict[key] == node:
+                        node_id = key
+
+                input_list = self.__z3_get_subgraph_input_list()
+                # print(f'for the subgraph = {input_list}')
+                return f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + node_id}({','.join(input_list)})"
+            else:
+                node_id = -1
+                for key in self.current_graph.gate_dict.keys():
+                    if self.current_graph.gate_dict[key] == node:
+                        node_id = key
+                return f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + node_id}({','.join(list(self.current_graph.input_dict.values()))})"
+        elif node in list(self.current_graph.output_dict.values()):
+            for key in self.current_graph.output_dict.keys():
+                if self.current_graph.output_dict[key] == node:
+                    node_id = key
+            return f"{APPROXIMATE_WIRE_PREFIX}{OUT}{node_id}({','.join(list(self.current_graph.input_dict.values()))})"
+        elif node in list(self.current_graph.constant_dict.values()):
+            # print(f'{self.current_graph.graph.nodes[node] = }')
+            return Z3_GATES_DICTIONARY[self.current_graph.graph.nodes[node][LABEL]]
+
+    def z3_generate_exact_circuit_wire_constraints(self):
+        exact_wire_constraints = ''
+        exact_wire_constraints += f'# exact circuit constraints\n'
+        exact_wire_constraints += f'{EXACT_CIRCUIT} = And(\n'
+        exact_wire_constraints += f'{TAB}# wires\n'
+
+        for g_idx in self.exact_graph.gate_dict:
+
+            g_label = self.exact_graph.gate_dict[g_idx]
+            g_predecessors = self.get_predecessors(g_label)
+            g_function = self.get_logical_function(g_label)
+
+            assert len(g_predecessors) == 1 or len(g_predecessors) == 2
+            assert g_function == NOT or g_function == AND or g_function == OR
+            if len(g_predecessors) == 1:
+                if g_predecessors[0] in list(self.exact_graph.input_dict.values()):
+                    pred_1 = g_predecessors[0]
+                else:
+
+                    pred_1 = self.z3_express_node_as_wire_constraints(g_predecessors[0])
+                exact_wire_constraints += f"{TAB}{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}(" \
+                                          f"{','.join(list(self.exact_graph.input_dict.values()))}) == "
+
+                exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
+            else:
+                exact_wire_constraints += f"{TAB}{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}(" \
+                                          f"{','.join(list(self.exact_graph.input_dict.values()))}) == "
+
+                if g_predecessors[0] in list(self.exact_graph.input_dict.values()):
+                    pred_1 = g_predecessors[0]
+                else:
+                    pred_1 = self.z3_express_node_as_wire_constraints(g_predecessors[0])
+                if g_predecessors[1] in list(self.exact_graph.input_dict.values()):
+                    pred_2 = g_predecessors[1]
+                else:
+                    pred_2 = self.z3_express_node_as_wire_constraints(g_predecessors[1])
+
+                exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
+        return exact_wire_constraints
+
+    def z3_generate_exact_circuit_output_constraints(self):
+        exact_output_constraints = ''
+        exact_output_constraints += f'{TAB}# boolean outputs (from the least significant)\n'
+        for output_idx in self.exact_graph.output_dict.keys():
+            output_label = self.exact_graph.output_dict[output_idx]
+            output_predecessors = list(self.exact_graph.graph.predecessors(output_label))
+            assert len(output_predecessors) == 1
+
+            pred = self.z3_express_node_as_wire_constraints(output_predecessors[0])
+            output = self.z3_express_node_as_wire_constraints(output_label)
+            exact_output_constraints += f'{TAB}{output} == {pred},\n'
+        return exact_output_constraints
+
+    def z3_generate_exact_circuit_integer_output_constraints(self):
+        exact_integer_outputs = ''
+        exact_integer_outputs += f'{TAB}# exact_integer_outputs\n'
+        exact_integer_outputs += f"{TAB}{F_EXACT}({','.join(self.current_graph.input_dict.values())}) == \n"
+
+        for idx in range(self.current_graph.num_outputs):
+            output_label = self.current_graph.output_dict[idx]
+            if idx == self.current_graph.num_outputs - 1:
+                exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints(output_label)},\n"
+            else:
+                exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints(output_label)} +\n"
+        return exact_integer_outputs
+
+    def z3_generate_approximate_circuit_wire_constraints_subxpat(self):
+
+        exact_wire_constraints = ""
+        exact_wire_constraints += f'# approximate circuit constraints\n'
+        exact_wire_constraints += f'{APPROXIMATE_CIRCUIT} = And(\n'
+        exact_wire_constraints += f'{TAB}# wires\n'
+        subgraph_input_list = self.__z3_get_subgraph_input_list()
+        binary_combinations = list(itertools.product([0, 1], repeat=self.spo))
+
+        gate_key_list = list(self.current_graph.gate_dict.keys())
+        for g_idx in gate_key_list:
+            g_label = self.current_graph.gate_dict[g_idx]
+            # print(f'{g_label = }')
+            if not self.current_graph.is_subgraph_member(g_label):
+                g_predecessors = self.get_predecessors_xpat(g_label)
+                # print(f'{g_predecessors = }')
+                g_function = self.get_logical_function_xpat(g_label)
+                assert len(g_predecessors) == 1 or len(g_predecessors) == 2
+                assert g_function == NOT or g_function == AND or g_function == OR
+                if len(g_predecessors) == 1:
+                    if g_predecessors[0] in list(self.current_graph.input_dict.values()):
+                        pred_1 = g_predecessors[0]
+                    else:
+                        pred_1 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[0])
+
+                    exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
+                                              f"{','.join(list(self.current_graph.input_dict.values()))}) == "
+                    exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
+                else:
+                    exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
+                                              f"{','.join(list(self.current_graph.input_dict.values()))}) == "
+                    if g_predecessors[0] in list(self.current_graph.input_dict.values()):
+                        pred_1 = g_predecessors[0]
+                    else:
+                        pred_1 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[0])
+                    if g_predecessors[1] in list(self.current_graph.input_dict.values()):
+                        pred_2 = g_predecessors[1]
+                    else:
+                        pred_2 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[1])
+                    exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
+            # if the gate is an output node of the annotated graph (subgraph)
+            elif self.current_graph.is_subgraph_member(g_label) and self.current_graph.is_subgraph_output(g_label):
+
+                output_list = list(self.current_graph.subgraph_output_dict.values())
+                output_idx = output_list.index(g_label)
+
+                exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
+                                          f"{','.join(subgraph_input_list)}) == "
+                exact_wire_constraints += f"{Z3_OR}("
+                for sel_combination in range(len(binary_combinations)):
+                    exact_wire_constraints += f"{TAB}{TAB}{Z3_AND}(" if sel_combination != 0 else f"{Z3_AND}("
+
+                    selectors = []
+                    for sel_idx in range(len(binary_combinations[sel_combination])):
+                        selector = f'mux0_o{output_idx}_sel{sel_idx}'
+                        selectors.append(f'{Z3_NOT}({selector})' if not binary_combinations[sel_combination][sel_idx] else selector)
+                    selectors_string = ", ".join(selectors)
+
+                    mux_in = f'mux0_o{output_idx}_in{sel_combination}, {selectors_string}'
+                    exact_wire_constraints += mux_in + '),\n' if sel_combination != len(binary_combinations) - 1 else mux_in + ')),\n'
+
+        return exact_wire_constraints
+
+    def z3_generate_approximate_circuit_output_constraints_subxpat(self):
+        approximate_output_constraints = ''
+        approximate_output_constraints += f'{TAB}# boolean outputs (from the least significant)\n'
+
+        for output_idx in self.current_graph.output_dict.keys():
+            output_label = self.current_graph.output_dict[output_idx]
+            output_predecessors = list(self.current_graph.graph.predecessors(output_label))
+
+            assert len(output_predecessors) == 1
+            # print(f'{self.current_graph.subgraph_gate_dict = }')
+            # print(f'{self.current_graph.graph.nodes = }')
+            # print(f'{output_predecessors = }')
+            pred = self.z3_express_node_as_wire_constraints_subxpat(output_predecessors[0])
+            output = self.z3_express_node_as_wire_constraints_subxpat(output_label)
+            approximate_output_constraints += f'{TAB}{output} == {pred},\n'
+        return approximate_output_constraints
+
+    def z3_generate_exact_circuit_integer_output_constraints_subxpat(self):
+        exact_integer_outputs = ''
+        exact_integer_outputs += f'{TAB}# approximate_integer_outputs\n'
+        exact_integer_outputs += f"{TAB}{F_APPROXIMATE}({','.join(self.current_graph.input_dict.values())}) == \n"
+
+        for idx in range(self.current_graph.num_outputs):
+            output_label = self.current_graph.output_dict[idx]
+            if idx == self.current_graph.num_outputs - 1:
+                exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints_subxpat(output_label)},\n"
+            else:
+                exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints_subxpat(output_label)} +\n"
+        return exact_integer_outputs
+
+    def z3_generate_exact_circuit_constraints(self):
+        wires = self.z3_generate_exact_circuit_wire_constraints()
+        outputs = self.z3_generate_exact_circuit_output_constraints()
+        integer_outputs = self.z3_generate_exact_circuit_integer_output_constraints()
+        wires += '\n'
+        outputs += '\n'
+        integer_outputs += '\n'
+        exact_circuit_constraints = wires + outputs + integer_outputs + ')\n'
+
+        return exact_circuit_constraints
+
+    def z3_generate_approximate_circuit_constraints(self):
+        approximate_circuit_constraints = ''
+        approximate_circuit_constraints += f'# Approximate circuit\n'
+        approximate_circuit_constraints += f'# constraints\n'
+        approximate_circuit_constraints += f'{APPROXIMATE_CIRCUIT} = {Z3_AND}(\n'
+        approximate_circuit_constraints += f"{TAB}{F_APPROXIMATE}({','.join(self.current_graph.input_dict.values())}) == \n"
+        approximate_circuit_constraints += f"{TAB}{SUM}("
+        for o_idx in range(self.current_graph.num_outputs):
+            if o_idx > 0:
+                approximate_circuit_constraints += f"{TAB}{TAB}"  # fixing the indentations
+            approximate_circuit_constraints += f"{INTVAL}({2 ** o_idx}) * {Z3_AND} ( {PRODUCT_PREFIX}{o_idx}, {Z3_OR}({Z3_AND}("
+            for ppo_idx in range(self.ppo):
+                for input_idx in range(self.current_graph.num_inputs):
+                    p_s = f'{PRODUCT_PREFIX}{o_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                    p_l = f'{PRODUCT_PREFIX}{o_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+
+                    loop_1_last_iter_flg = o_idx == self.current_graph.num_outputs - 1
+                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1
+                    loop_3_last_iter_flg = input_idx == self.current_graph.num_inputs - 1
+
+                    approximate_circuit_constraints += f'{Z3_OR}({Z3_NOT}({p_s}), {p_l} == {self.current_graph.input_dict[input_idx]})'
+
+                    if loop_1_last_iter_flg and loop_2_last_iter_flg and loop_3_last_iter_flg:
+                        approximate_circuit_constraints += '))))\n)\n'
+                    elif loop_3_last_iter_flg and loop_2_last_iter_flg:
+                        approximate_circuit_constraints += '))),\n'
+                    else:
+                        approximate_circuit_constraints += ','
+        return approximate_circuit_constraints
+
+
+    def z3_generate_data_inputs_constraints(self):
+
+        inputs_constraints = ''
+        subgraph_input_list = self.__z3_get_subgraph_input_list()
+        # binary_combinations = list(itertools.product([0, 1], repeat=int(math.log2(len(subgraph_input_list)))))
+        inputs_parameters = []
+        for idx_o in range(self.current_graph.subgraph_num_outputs):
+            for idx_in in range(2**self.spo):
+                inputs_constraints += f'{LUT_MUX_PREFIX}0_{LUT_OUTPUT_PREFIX}{idx_o}_{LUT_INPUT_PREFIX}{idx_in} = {Z3_OR}('
+                for in_option in range(len(subgraph_input_list)*2 + 2):
+                    inputs_constraints += f'{Z3_AND}('
+                    for in_p in range(len(subgraph_input_list) * 2 + 2):
+                        if not in_p == in_option:
+                            in_p = f'{Z3_NOT}({LUT_MUX_PREFIX}0_{LUT_OUTPUT_PREFIX}{idx_o}_{LUT_INPUT_PREFIX}{idx_in}_{LUT_PARAMETER_PREFIX}{in_p})'
+                        else:
+                            in_p = f'{LUT_MUX_PREFIX}0_{LUT_OUTPUT_PREFIX}{idx_o}_{LUT_INPUT_PREFIX}{idx_in}_{LUT_PARAMETER_PREFIX}{in_p}'
+                        inputs_parameters.append(f'{in_p}')
+
+                    if in_option < len(subgraph_input_list):
+                        inputs_parameters.append(subgraph_input_list[in_option])
+                    elif in_option < len(subgraph_input_list) * 2:
+                        inputs_parameters.append(f"{Z3_NOT}({subgraph_input_list[in_option - len(subgraph_input_list)]})")
+                    elif in_option == len(subgraph_input_list) * 2:
+                        inputs_parameters.append("True")
+                    else:
+                        inputs_parameters.append("False")
+                    inputs_constraints += ", ".join(inputs_parameters) + ")"
+                    inputs_parameters = []
+                    if in_option == len(subgraph_input_list) - 1:
+                        inputs_constraints += ")\n"
+                    else:
+                        inputs_constraints += ","
+                    inputs_constraints += "\n"
+        return inputs_constraints
+
+    def z3_generate_selectors_constraints(self):
+
+        selectors_constraints = ''
+        subgraph_input_list = self.__z3_get_subgraph_input_list()
+        binary_combinations = list(itertools.product([0, 1], repeat=int(math.log2(len(subgraph_input_list)))))
+        selectors_parameters = []
+        for idx_o in range(self.current_graph.subgraph_num_outputs):
+            for idx_s in range(self.spo):
+                selectors_constraints += f'{LUT_MUX_PREFIX}0_{LUT_OUTPUT_PREFIX}{idx_o}_{LUT_SELECTOR_PREFIX}{idx_s} = {Z3_OR}('
+                for sel_combination in range(len(binary_combinations)):
+                    selectors_constraints += f'{Z3_AND}('
+                    for idx_p in range(int(math.log2(len(subgraph_input_list)))):
+                        selector = f'{LUT_MUX_PREFIX}0_{LUT_OUTPUT_PREFIX}{idx_o}_{LUT_SELECTOR_PREFIX}{idx_s}_{LUT_PARAMETER_PREFIX}{idx_p}'
+                        if not binary_combinations[sel_combination][::-1][idx_p]:
+                            selectors_parameters.append(f'{Z3_NOT}({selector})')
+                        else:
+                            selectors_parameters.append(f'{selector}')
+                    selectors_parameters.append(subgraph_input_list[sel_combination])
+                    selectors_constraints += ", ".join(selectors_parameters) + ")"
+                    selectors_parameters = []
+                    if sel_combination == len(binary_combinations) -1:
+                        selectors_constraints += ")\n"
+                    else:
+                        selectors_constraints += ","
+                    selectors_constraints += "\n"
+        return selectors_constraints
+
+    def z3_generate_approximate_circuit_constraints_subxpat(self):
+        selectors = self.z3_generate_selectors_constraints()
+        data_inputs = self.z3_generate_data_inputs_constraints()
+        wires = self.z3_generate_approximate_circuit_wire_constraints_subxpat()
+        outputs = self.z3_generate_approximate_circuit_output_constraints_subxpat()
+        integer_outputs = self.z3_generate_exact_circuit_integer_output_constraints_subxpat()
+        wires += '\n'
+        outputs += '\n'
+        integer_outputs += '\n'
+        approximate_circuit_constraints = selectors + data_inputs + wires + outputs + integer_outputs + ')\n'
+
+        return approximate_circuit_constraints
+
+    def z3_generate_forall_solver(self):
+        prep = self.z3_generate_forall_solver_preperation()
+        error = self.z3_generate_forall_solver_error_constraint()
+        circuits = self.z3_generate_forall_solver_circuits()
+        # atmost_constraints = self.z3_generate_forall_solver_atmost_constraints()
+        # redundancy_constraints = self.z3_generate_forall_solver_redundancy_constraints()
+        prep += '\n'
+        error += '\n'
+        circuits += '\n'
+        # atmost_constraints += '\n'
+        # redundancy_constraints += '\n'
+        forall_solver = prep + error + circuits + ')))\n'
+
+        return forall_solver
+
+    def z3_generate_forall_solver_subxpat(self):
+        prep = self.z3_generate_forall_solver_preperation()
+        error = self.z3_generate_forall_solver_error_constraint()
+        circuits = self.z3_generate_forall_solver_circuits()
+        # atmost_constraints = self.z3_generate_forall_solver_atmost_constraints_subxpat()
+        # redundancy_constraints = self.z3_generate_forall_solver_redundancy_constraints_subxpat()
+        prep += '\n'
+        error += '\n'
+        circuits += '\n'
+        # atmost_constraints += '\n'
+        # redundancy_constraints += '\n'
+        forall_solver = prep + error + circuits + ')))\n'
+
+        return forall_solver
+
+    def z3_generate_forall_solver_preperation(self):
+        prep = ''
+        prep += '# forall solver\n'
+        prep += f'{FORALL_SOLVER} = {SOLVER}\n' \
+                f'{FORALL_SOLVER}.{ADD}({FORALL}(\n' \
+                f"{TAB}[{','.join(list(self.current_graph.input_dict.values()))}],\n" \
+                f"{TAB}{Z3_AND}(\n"
+        return prep
+
+    def z3_generate_forall_solver_error_constraint(self):
+        error = ''
+        error += f'{TAB}{TAB}# error constraints\n'
+        error += f'{TAB}{TAB}{DIFFERENCE} <= {ET},\n'
+        return error
+
+    def z3_generate_forall_solver_circuits(self):
+        circuits = ''
+        circuits += f'{TAB}{TAB}# circuits\n'
+        circuits += f'{TAB}{TAB}{EXACT_CIRCUIT},\n' \
+                    f'{TAB}{TAB}{APPROXIMATE_CIRCUIT}\n'
+        return circuits
+
+    def z3_generate_verification_solver(self):
+        verficiation_solver = ''
+        verficiation_solver += f'{VERIFICATION_SOLVER} = {SOLVER}\n' \
+                               f'{VERIFICATION_SOLVER}.{ADD}(\n' \
+                               f'{TAB}{ERROR} == {DIFFERENCE},\n' \
+                               f'{TAB}{EXACT_CIRCUIT},\n' \
+                               f'{TAB}{APPROXIMATE_CIRCUIT},\n' \
+                               f')\n'
+        return verficiation_solver
+
+    def z3_generate_parameter_constraint_list(self):
+        parameter_list = ''
+        parameter_list += f'parameters_constraints: List[Tuple[BoolRef, bool]] = []\n'
+        return parameter_list
+
+    def z3_generate_find_wanted_number_of_models(self):
+        prep_loop1 = self.z3_generate_find_wanted_number_of_models_prep_loop1()
+        prep_loop2 = self.z3_generate_find_wanted_number_of_models_prep_loop2()
+        prep_loop3 = self.z3_generate_find_wanted_number_of_models_prep_loop3()
+        final_prep = self.z3_generate_find_wanted_number_of_models_final_prep()
+        prep_loop1 += '\n'
+        prep_loop2 += '\n'
+        prep_loop3 += '\n'
+        final_prep += '\n'
+        find_wanted_number_of_models = prep_loop1 + prep_loop2 + prep_loop3 + final_prep
+        return find_wanted_number_of_models
+
+    def z3_generate_find_wanted_number_of_models_prep_loop1(self):
+        prep_loop1 = ''
+        prep_loop1 += f'found_data = []\n' \
+                      f'while(len(found_data) < wanted_models and timeout > 0):\n' \
+                      f'{TAB}time_total_start = time()\n' \
+                      f'{TAB}\n' \
+                      f'{TAB}attempts = 1\n' \
+                      f'{TAB}result: CheckSatResult = None\n' \
+                      f'{TAB}attempts_times: List[Tuple[float, float, float]] = []\n'
+
+        return prep_loop1
+
+    def z3_generate_find_wanted_number_of_models_prep_loop2(self):
+        find_valid_model = ''
+        find_valid_model += f'{TAB}while result != sat:\n' \
+                            f'{TAB}{TAB}time_attempt_start = time()\n' \
+                            f'{TAB}{TAB}time_parameters_start = time_attempt_start\n'
+
+        find_valid_model += f'{TAB}{TAB}# add constrain to prevent the same parameters to happen\n' \
+                            f'{TAB}{TAB}if parameters_constraints:\n' \
+                            f'{TAB}{TAB}{TAB}forall_solver.add(Or(*map(lambda x: x[0] != x[1], parameters_constraints)))\n'
+
+        find_valid_model += f'{TAB}{TAB}parameters_constraints = []\n'
+        find_valid_model += f"{TAB}{TAB}forall_solver.set(\"timeout\", int(timeout * 1000))\n" \
+                            f"{TAB}{TAB}result = forall_solver.check()\n" \
+                            f"{TAB}{TAB}time_parameters = time() - time_attempt_start\n" \
+                            f"{TAB}{TAB}time_attempt = time() - time_attempt_start\n" \
+                            f"{TAB}{TAB}timeout -= time_parameters # removed the time used from the timeout\n"
+        find_valid_model += f'{TAB}{TAB}if result != sat:\n' \
+                            f'{TAB}{TAB}{TAB}attempts_times.append((time_attempt, time_parameters, None))\n' \
+                            f'{TAB}{TAB}{TAB}break\n'
+        find_valid_model += f'{TAB}{TAB}m = forall_solver.model()\n' \
+                            f'{TAB}{TAB}parameters_constraints = []\n' \
+                            f'{TAB}{TAB}for k, v in map(lambda k: (k, m[k]), m):\n' \
+                            f'{TAB}{TAB}{TAB}if str(k)[0:3] == "mux":\n' \
+                            f'{TAB}{TAB}{TAB}{TAB}parameters_constraints.append((Bool(str(k)), v))\n'
+
+        find_valid_model += f'{TAB}{TAB}# verify parameters\n' \
+                            f'{TAB}{TAB}WCE: int = None\n' \
+                            f'{TAB}{TAB}verification_ET: int = 0\n' \
+                            f'{TAB}{TAB}time_verification_start = time()\n' \
+                            f'{TAB}{TAB}# save state\n' \
+                            f'{TAB}{TAB}verification_solver.push()\n' \
+                            f'{TAB}{TAB}# parameters constraints\n' \
+                            f'{TAB}{TAB}verification_solver.add(\n' \
+                            f'{TAB}{TAB}{TAB}*map(lambda x: x[0] == x[1], parameters_constraints),\n' \
+                            f'{TAB}{TAB})\n'
+
+        return find_valid_model
+
+    def z3_generate_find_wanted_number_of_models_prep_loop3(self):
+        prep_loop3 = f'{TAB}{TAB}while verification_ET < max_possible_ET:\n' \
+                     f'{TAB}{TAB}{TAB}# add constraint\n' \
+                     f'{TAB}{TAB}{TAB}verification_solver.add(difference > verification_ET)\n' \
+                     f'{TAB}{TAB}{TAB}# run solver\n' \
+                     f'{TAB}{TAB}{TAB}verification_solver.set("timeout", int(timeout * 1000))\n' \
+                     f'{TAB}{TAB}{TAB}v_result = verification_solver.check()\n'
+
+        prep_loop3 += f'{TAB}{TAB}{TAB}if v_result == unsat:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}# unsat, WCE found\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}WCE = verification_ET\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}break\n'
+
+        prep_loop3 += f'{TAB}{TAB}{TAB}elif v_result == sat:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}# sat, need to search again\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}m = verification_solver.model()\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}verification_ET = m[error].as_long()\n' \
+                      f'{TAB}{TAB}{TAB}else:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB} # unknown (probably a timeout)\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}WCE = -1\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}break\n'
+
+        return prep_loop3
+
+    def z3_generate_find_wanted_number_of_models_final_prep(self):
+        final_prep = ''
+        final_prep += f'{TAB}{TAB}if WCE is None:\n' \
+                      f'{TAB}{TAB}{TAB}WCE = max_possible_ET\n'
+
+        final_prep += f'{TAB}{TAB}# revert state\n' \
+                      f'{TAB}{TAB}verification_solver.pop()\n' \
+                      f'{TAB}{TAB}time_verification = time() - time_verification_start\n' \
+                      f'{TAB}{TAB}time_attempt = time() - time_attempt_start\n' \
+                      f'{TAB}{TAB}timeout -= time_verification  # remove the time used from the timeout\n' \
+                      f'{TAB}{TAB}attempts_times.append((time_attempt, time_parameters, time_verification))\n' \
+                      f'{TAB}{TAB}\n'
+
+        final_prep += f'{TAB}{TAB}# ==== continue or exit\n' \
+                      f'{TAB}{TAB}if WCE > ET:\n' \
+                      f"{TAB}{TAB}{TAB}# Z3 hates us and decided it doesn't like being appreciated\n" \
+                      f'{TAB}{TAB}{TAB}result = None\n' \
+                      f'{TAB}{TAB}{TAB}attempts += 1\n' \
+                      f'{TAB}{TAB}{TAB}invalid_parameters = parameters_constraints\n' \
+                      f'{TAB}{TAB}elif WCE < 0:  # caused by unknown\n' \
+                      f'{TAB}{TAB}{TAB}break\n'
+
+        return final_prep
+
+    def z3_generate_store_data(self):
+        store_data = ''
+        store_data += f'{TAB}# store data\n'
+        extract_info = self.z3_generate_sotre_data_define_extract_info_function()
+        key_function = self.z3_generate_sotre_data_define_extract_key_function()
+        stats = self.z3_generate_stats()
+        results = self.z3_dump_results_onto_json()
+        extract_info += '\n'
+        key_function += '\n'
+        stats += '\n'
+        results += '\n'
+        store_data += extract_info + key_function + stats + results
+        return store_data
+
+    def z3_generate_sotre_data_define_extract_info_function(self):
+        extract_info = ''
+        extract_info += f'{TAB}def extract_info(pattern: Union[Pattern, str], string: str,\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}parser: Callable[[Any], Any] = lambda x: x,\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}default: Union[Callable[[], None], Any] = None) -> Any:\n' \
+                        f'{TAB}{TAB}import re\n' \
+                        f'{TAB}{TAB}return (parser(match[1]) if (match := re.search(pattern, string))\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}else (default() if callable(default) else default))\n'
+
+        return extract_info
+
+    def z3_generate_sotre_data_define_extract_key_function(self):
+        """
+        Blah Blah Blah
+        :return:
+        """
+        key_function = ''
+        key_function += f"{TAB}def key_function(parameter_constraint):\n" \
+                        f'{TAB}{TAB}p = str(parameter_constraint[0])\n' \
+                        f"{TAB}{TAB}mux_id = extract_info(r'_mux(\d+)', p, int, -1)\n" \
+                        f"{TAB}{TAB}o_id = extract_info(r'_o(\d+)', p, int, 0)\n" \
+                        f"{TAB}{TAB}in_id = extract_info(r'_in(\d+)', p, int, 0)\n" \
+                        f"{TAB}{TAB}sel_id = extract_info(r'_sel(\d+)', p, int, 0)\n" \
+                        f'{TAB}{TAB}if o_id < 0:\n' \
+                        f'{TAB}{TAB}{TAB}return 0\n' \
+                        f'{TAB}{TAB}return (o_id * 100000\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}+ mux_id * 10000\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}+ in_id * 100\n' \
+                        f'{TAB}{TAB}{TAB}{TAB}+ sel_id * 10)\n' \
+
+        return key_function
+
+    def z3_generate_stats(self):
+        stats = ''
+        stats += f'{TAB}time_total = time() - time_total_start\n'
+        stats += f'{TAB}data_object = {{\n' \
+                 f"{TAB}{TAB}'result': str(result),\n" \
+                 f"{TAB}{TAB}'total_time': time_total,\n" \
+                 f"{TAB}{TAB}'attempts': attempts,\n" \
+                 f"{TAB}{TAB}'attempts_times': [list(map(lambda tup: [*tup], attempts_times))]\n" \
+                 f"{TAB}}}\n"
+
+        stats += f'{TAB}if result == sat:\n' \
+                 f"{TAB}{TAB}data_object['model'] = dict(map(lambda item: (str(item[0]), is_true(item[1])),\n" \
+                 f"{TAB}{TAB}{TAB}sorted(parameters_constraints,\n" \
+                 f"{TAB}{TAB}{TAB}key=key_function)))\n"
+
+        stats += f'{TAB}found_data.append(data_object)\n' \
+                 f'{TAB}if result != sat:\n' \
+                 f'{TAB}{TAB}break\n'
+
+        stats += f'print(json.dumps(found_data, separators=(",", ":"),))\n'
+
+        return stats
+
+    def z3_generate_config(self):
+        config = ''
+        config += f'ET = int(sys.argv[1])\n' \
+                  f'wanted_models: int = 1 if len(sys.argv) < 3 else int(sys.argv[2])\n' \
+                  f'timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])\n' \
+                  f'max_possible_ET: int = 2 ** 3 - 1\n' \
+                  f'\n'
+
+
+        return config
+
+    def z3_dump_results_onto_json(self):
+        results = ''
+        folder, extension = sxpatpaths.OUTPUT_PATH[JSON]
+
+        results += f"with open(f'{self.json_out_path}', 'w') as ofile:\n" \
+                   f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
+        return results
+
 

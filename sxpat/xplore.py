@@ -9,7 +9,7 @@ import math
 from Z3Log.utils import *
 from Z3Log.config import path as z3logpath
 
-from sxpat.templateCreator import Template_SOP1, Template_SOP1ShareLogic, Template_LUT
+from sxpat.templateCreator import Template_SOP1, Template_SOP1ShareLogic, Template_LUT, Template_LUT_MP
 from sxpat.TempWrappers.subxpat_v2 import Template_V2
 
 from sxpat.templateSpecs import TemplateSpecs
@@ -44,6 +44,9 @@ def explore_grid(specs_obj: TemplateSpecs):
     elif specs_obj.subxpat and specs_obj.lut:
         pprint.info2('Lut SubXPAT started...')
         toolname = sxpatconfig.SUBXPAT_LUT
+    elif specs_obj.subxpat and specs_obj.lut_MP:
+        pprint.info2('Lut_MP SubXPAT started...')
+        toolname = sxpatconfig.SUBXPAT_LUT_MP
     elif specs_obj.subxpat and not specs_obj.shared:
         pprint.info2('SubXPAT started...')
         toolname = sxpatconfig.SUBXPAT
@@ -71,6 +74,8 @@ def explore_grid(specs_obj: TemplateSpecs):
         template_obj = Template_V2(specs_obj)
     elif specs_obj.lut:
         template_obj = Template_LUT(specs_obj)
+    elif specs_obj.lut_MP:
+        template_obj = Template_LUT_MP(specs_obj)
     else:
         template_obj = Template_SOP1(specs_obj)
 
@@ -135,7 +140,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
-            if not specs_obj.lut:
+            if not specs_obj.lut and not specs_obj.lut_MP:
                 graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
             else:
                 graph_path = f'{folder}/{specs_obj.benchmark_name}_spo{specs_obj.spo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
@@ -160,7 +165,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 subxpat_phase1_time = time.time() - p1_start
                 print(f"p1_time = {subxpat_phase1_time:.6f}")
 
-            if specs_obj.lut:
+            if specs_obj.lut or specs_obj.lut_MP:
 
                 # explore
                 pprint.info2(f'max selectors per output {specs_obj.spo} and et={specs_obj.et} exploration started...')
@@ -242,7 +247,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                             stats_obj.spo_array_name.cells[spo].store_model_info(this_model)
                         else:
                             synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
-                            cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
+                            cur_model_results: Dict[str: List[float, float, float, int]] = {}
                             for idx in range(synth_obj.num_of_models):
                                 synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
                                 synth_obj.export_verilog(idx=idx)
@@ -256,17 +261,19 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                         # todo: should we refactor with pandas?
                         with open(
-                                f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv",
+                                f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_iteration{i}_{specs_obj.benchmark_name}_et{specs_obj.et}_spo{specs_obj.spo}_{toolname}.csv",
                                 'w') as f:
                             csvwriter = csv.writer(f)
 
                             header = list(range(len(cur_model_results)))
                             all = list(cur_model_results.values())
-                            content = [f for (f, _, _, _) in all]
-                            print(f'{content = }')
+                            # content = [f for f in all]
+                            # content = all
+                            # print(f'{content = }')
 
                             csvwriter.writerow(header)
-                            csvwriter.writerow(content)
+                            for model in all:
+                                csvwriter.writerow(model)
 
                         pprint.success('verifying all approximate circuits -> ', end='')
                         for candidate in cur_model_results:
@@ -463,7 +470,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
     display_the_tree(total)
 
-    if not specs_obj.lut:
+    if not specs_obj.lut and not specs_obj.lut_MP:
         stats_obj.store_grid()
     else:
         stats_obj.store_spo_array()

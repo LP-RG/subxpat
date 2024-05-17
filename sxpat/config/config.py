@@ -58,6 +58,10 @@ LUT_SELECTOR_PREFIX = "sel"
 LUT_INPUT_PREFIX = "in"
 LUT_PARAMETER_PREFIX = "p"
 
+# lut_MP
+LUT_MP = 'lut_MP'
+
+
 #   NetworkX
 NOT = 'not'
 AND = 'and'
@@ -213,6 +217,7 @@ SHARED_SUBXPAT = 'shared_subxpat'
 SHARED_XPAT = 'shared_xpat'
 SUBXPAT_V2 = 'subxpat_v2'
 SUBXPAT_LUT = 'subxpat_lut'
+SUBXPAT_LUT_MP = 'subxpat_lut_MP'
 
 # for plotting
 BENCH_DICT = {'abs_diff_2': 'abs_diff_i4_o3', 'abs_diff_4': 'abs_diff_i8_o5', 'abs_diff_6': 'abs_diff_i12_o7',

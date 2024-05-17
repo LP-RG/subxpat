@@ -461,7 +461,7 @@ class Stats:
         # This property should be assigned before calling the funciton "self.get_grid_name()"
         self.__specs_obj: TemplateSpecs = spec_obj
 
-        if not spec_obj.lut:
+        if not spec_obj.lut and not spec_obj.lut_MP:
             self.__grid_name: str = self.get_grid_name()
             self.__grid_path: str = self.get_grid_path()
             self.__grid = Grid(spec_obj)
@@ -652,7 +652,7 @@ class Stats:
 
         # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
 
-        if not self.specs.lut:
+        if not self.specs.lut and not self.specs.lut_MP:
             head = f'grid_{self.exact_name}_{self.lpp}X{self.pit if self.specs.shared else self.ppo}_et{self.et}_'
         else:
             head = f'spo_array_{self.exact_name}_{self.spo}_et{self.et}_'
@@ -682,7 +682,7 @@ class Stats:
         returns: the path where the grid .csv file should be stored
         """
         folder, _ = OUTPUT_PATH['report']
-        if not self.specs.lut:
+        if not self.specs.lut and not self.specs.lut_MP:
             path = f'{folder}/{self.grid_name}'
         else:
             path = f'{folder}/{self.spo_array_name}'
