@@ -104,6 +104,10 @@ class Arguments(Z3Log_Arguments):
         self.__full_error_function: int = tmp_args.full_error_function
         self.__sub_error_function: int = tmp_args.sub_error_function
         self.__et_partitioning: int = tmp_args.et_partitioning
+        self.__partial_labeling: bool = tmp_args.partial_labeling
+        self.__num_subgraphs: int = tmp_args.num_subgraphs
+
+
 
     @property
     def parallel(self):
@@ -228,6 +232,14 @@ class Arguments(Z3Log_Arguments):
     @property
     def et_partitioning(self):
         return self.__et_partitioning
+
+    @property
+    def partial_labeling(self):
+        return self.__partial_labeling
+
+    @property
+    def num_subgraphs(self):
+        return self.__num_subgraphs
 
     @classmethod
     def parse(cls) -> Arguments:
@@ -404,6 +416,15 @@ class Arguments(Z3Log_Arguments):
                                choices=['asc', 'desc', 'smart_asc', 'smart_desc'],
                                default='asc')
 
+        my_parser.add_argument('--partial-labeling',
+                               action="store_true",
+                               default=False)
+
+        my_parser.add_argument('-num-subgraphs',
+                               type=int,
+                               default=3,
+                               help='the-number-of-attempts-for-subgraph-extractions')
+
         tmp_args = my_parser.parse_args()
 
         return Arguments(tmp_args)
@@ -437,4 +458,6 @@ class Arguments(Z3Log_Arguments):
                f'{self.full_error_function = }\n' \
                f'{self.sub_error_function = }\n' \
                f'{self.et_partitioning = }\n' \
+               f'{self.partial_labeling = }\n' \
+               f'{self.num_subgraphs = }\n' \
                f'{self.clean = }'
