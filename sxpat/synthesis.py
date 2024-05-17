@@ -555,7 +555,7 @@ class Synthesis:
         input_declarations = f"//input/output declarations\n"
         input_declarations += f"{sxpatconfig.VER_INPUT} {', '.join(input_list)};\n"
         output_declarations = f"{sxpatconfig.VER_OUTPUT} {', '.join(output_list)};\n"
-
+        
         return input_declarations + output_declarations
 
     def __get_subgraph_input_wires(self):
