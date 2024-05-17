@@ -260,7 +260,7 @@ class AnnotatedGraph(Graph):
                             cnt_nodes += 1
 
                     pprint.success(f" (#ofNodes={cnt_nodes})")
-                elif mode == 6:
+                elif mode == 11:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints. Looking for largest partition")
                     self.subgraph = self.find_subgraph_feasible_soft(specs_obj)  # Critian's subgraph extraction
                     cnt_nodes = 0
