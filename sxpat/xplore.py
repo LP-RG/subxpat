@@ -124,7 +124,11 @@ def explore_grid(specs_obj: TemplateSpecs):
             t_start = time.time()
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
             subgraph_extraction_time = time.time() - t_start
+            subgraph_number_inputs = template_obj.current_graph.subgraph_num_inputs
+            subgraph_number_outputs = template_obj.current_graph.subgraph_num_outputs
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
+            print(f'subgraph_number_inputs = {subgraph_number_inputs}')
+            print(f'subgraph_number_outputs = {subgraph_number_outputs}')
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
@@ -190,6 +194,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                     this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
                                             labeling_time=labeling_time,
                                             subgraph_extraction_time=subgraph_extraction_time,
+                                            subgraph_number_inputs=subgraph_number_inputs,
+                                            subgraph_number_outputs=subgraph_number_outputs,
                                             subxpat_phase1_time=subxpat_phase1_time,
                                             subxpat_phase2_time=subxpat_phase2_time)
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
@@ -235,6 +241,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                                            delay=cur_model_results[synth_obj.ver_out_name][2],
                                            labeling_time=labeling_time,
                                            subgraph_extraction_time=subgraph_extraction_time,
+                                           subgraph_number_inputs=subgraph_number_inputs,
+                                           subgraph_number_outputs=subgraph_number_outputs,
                                            subxpat_phase1_time=subxpat_phase1_time,
                                            subxpat_phase2_time=subxpat_phase2_time)
                         stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
