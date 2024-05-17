@@ -89,7 +89,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     # else:
     #     raise NotImplementedError('invalid status')
 
-    available_error = specs_obj.et * 5 if not specs_obj.subxpat_v2 else specs_obj.et
+    available_error = specs_obj.et
     total_error = available_error
     actual_exact = 0
     i = 0
@@ -98,9 +98,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     while(actual_exact <= available_error ):
     # for i, et in error_iterator:
         i += 1
-        if not specs_obj.subxpat_v2:
-            et = specs_obj.et
-        elif specs_obj.et_partitioning == 'asc':
+        if specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
             et = 2**(i-1)
         elif specs_obj.et_partitioning == 'desc':
@@ -183,6 +181,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 print(f"p1_time = {subxpat_phase1_time:.6f}")
 
                 if not success:
+                    # TODO: Look into this in v2
                     pprint.warning(f'phase 1 failed with message: {message}')
                     continue
 
