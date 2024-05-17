@@ -186,7 +186,7 @@ class AnnotatedGraph(Graph):
             pprint.with_color(Fore.LIGHTYELLOW_EX)(f'No gates are found in the graph! Skipping the subgraph extraction')
             return False
         else:
-            if specs_obj.subxpat:
+            if specs_obj.requires_subgraph_extraction:
                 mode = specs_obj.mode
                 if mode == 1:
                     pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
@@ -1788,7 +1788,6 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-
     def find_subgraph_feasible_soft(self, specs_obj: TemplateSpecs):
         """
         extracts a colored subgraph from the original non-partitioned graph object
@@ -1796,7 +1795,6 @@ class AnnotatedGraph(Graph):
         """
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
-
 
         tmp_graph = self.graph.copy(as_view=False)
 
@@ -1877,9 +1875,6 @@ class AnnotatedGraph(Graph):
                     output_edges[out_id].append(my_id)
 
                 # =============================
-
-
-
 
         # Define input edges
         for source in input_edges:
@@ -2064,7 +2059,6 @@ class AnnotatedGraph(Graph):
                         gate_id = int(str(t)[2:])
                         node_partition.append(gate_id)  # Gates inside the partition
 
-
             else:
                 pprint.warning("subgraph not found -> UNSAT")
                 count = 0
@@ -2088,8 +2082,6 @@ class AnnotatedGraph(Graph):
 
                     except nx.exception.NetworkXNoPath:
                         pass
-
-
 
             # ========================================================================
             if c == sat:
