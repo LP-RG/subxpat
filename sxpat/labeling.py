@@ -83,15 +83,15 @@ def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str, con
         z3_folder, _ = OUTPUT_PATH['z3']
         report_folder, _ = OUTPUT_PATH['report']
         all_files = [f for f in os.listdir(z3_folder)]
-        # print(f'{all_files = }')
-        # for dir in all_files:
-        #     if os.path.isdir(f'{z3_folder}/{dir}') and re.search('labeling', dir):
-        #         shutil.rmtree(f'{z3_folder}/{dir}')
-        #
-        # all_files = [f for f in os.listdir(report_folder)]
-        # for dir in all_files:
-        #     if os.path.isdir(f'{report_folder}/{dir}') and re.search('labeling', dir):
-        #         shutil.rmtree(f'{report_folder}/{dir}')
+        print(f'{all_files = }')
+        for dir in all_files:
+            if os.path.isdir(f'{z3_folder}/{dir}') and re.search('labeling', dir):
+                shutil.rmtree(f'{z3_folder}/{dir}')
+
+        all_files = [f for f in os.listdir(report_folder)]
+        for dir in all_files:
+            if os.path.isdir(f'{report_folder}/{dir}') and re.search('labeling', dir):
+                shutil.rmtree(f'{report_folder}/{dir}')
 
         return labels_false, labels_false
     elif constant_value == 1:
