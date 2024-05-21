@@ -422,7 +422,7 @@ class Arguments(Z3Log_Arguments):
 
         my_parser.add_argument('-num-subgraphs',
                                type=int,
-                               default=3,
+                               default=1,
                                help='the-number-of-attempts-for-subgraph-extractions')
 
         tmp_args = my_parser.parse_args()

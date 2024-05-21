@@ -53,7 +53,7 @@ def labeling(exact_benchmark_name: str,
 
 
 def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str, constant_value: 0, min_labeling: bool,
-                      partial: bool = False, et: int = -1) -> Dict:
+                      partial: bool = False, et: int = -1, parallel: bool = False) -> Dict:
     # 1) create a clean verilog out of exact and approximate circuits
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()
@@ -73,24 +73,28 @@ def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str, con
 
     # convert gv to z3 expression
     if min_labeling:
-        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, style='min', parallel=True)
+        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, style='min', parallel=parallel)
     else:
-        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, parallel=True)
+        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, parallel=parallel)
 
     if constant_value == 0:
-
         labels_false = z3py_obj.label_circuit(False, partial=partial, et=et)
-        z3_folder, _ = OUTPUT_PATH['report']
+
+        # cleanup (folder report/)
+        report_folder, _ = OUTPUT_PATH['report']
+        all_files = [f for f in os.listdir(report_folder)]
+        print(f'{all_files= }')
+        for dir in all_files:
+            if re.search('labeling', dir) and os.path.isdir(f'{report_folder}/{dir}'):
+                shutil.rmtree(f'{report_folder}/{dir}')
+
+        # cleanup (folder z3/)
+        z3_folder, _ = OUTPUT_PATH['z3']
         all_files = [f for f in os.listdir(z3_folder)]
         print(f'{all_files= }')
         for dir in all_files:
-            if os.path.isdir(f'{z3_folder}/{dir}') and re.search('labeling', dir):
+            if re.search('labeling', dir) and os.path.isdir(f'{z3_folder}/{dir}'):
                 shutil.rmtree(f'{z3_folder}/{dir}')
-
-        # all_files = [f for f in os.listdir(report_folder)]
-        # for dir in all_files:
-        #     if os.path.isdir(f'{report_folder}/{dir}') and re.search('labeling', dir):
-        #         shutil.rmtree(f'{report_folder}/{dir}')
 
         return labels_false, labels_false
 
