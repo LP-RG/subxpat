@@ -268,18 +268,23 @@ class Template_SOP1(TemplateCreator):
     def json_in_path(self, this_json_path):
         self.__json_in_path = this_json_path
 
-    def label_graph(self, min_labeling: bool):
-        labels, _ = labeling_explicit(self.exact_benchmark, self.benchmark_name, 1, min_labeling)
+    def label_graph(self, min_labeling: bool = False,  partial: bool = False, et: int = -1, parallel: bool = False):
+        print(f'{et = } for partial labeling!')
+        # labels = labeling(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
+        labels, _ = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value=0, min_labeling=min_labeling,
+                                      partial=partial, et=et, parallel=parallel)
 
         for n in self.current_graph.graph.nodes:
             if n in labels:
                 self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
+            else:
+                self.current_graph.graph.nodes[n][WEIGHT] = int(-1)
 
     # TODO: Deprecated
-    def label_graph_old(self, constant_value=2, min_labeling: bool = False):
+    def label_graph_old(self, constant_value=2, min_labeling: bool = False, parallel: bool = False):
         """ ~ DEPRECATED ~ """
         print(Fore.BLUE + f'labeling...' + Style.RESET_ALL)
-        labels1, labels0 = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling)
+        labels1, labels0 = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling, parallel=parallel)
         for n in self.current_graph.graph.nodes:
             if n in labels0 and n in labels1:
                 if constant_value == 0:
@@ -1559,9 +1564,10 @@ class Template_SOP1ShareLogic(TemplateCreator):
                 self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
 
     # TODO: Deprecated
-    def label_graph_old(self, constant_value=2, min_labeling: bool = False):
+    def label_graph_old(self, constant_value=2, min_labeling: bool = False, parallel: bool = False):
+        
         print(Fore.BLUE + f'labeling...' + Style.RESET_ALL)
-        labels1, labels0 = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling)
+        labels1, labels0 = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling, parallel=parallel)
         for n in self.current_graph.graph.nodes:
             if n in labels0 and n in labels1:
                 if constant_value == 0:
