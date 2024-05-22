@@ -694,9 +694,14 @@ class Stats:
         dumps the contents of grid object while preserving its structure, onto .csv file with the name self.grid_name and at the address self.grid_path
         returns: None
         """
+        if not os.path.exists(self.grid_path) or self.specs.iterations == 1:
+            append_iteration = False
+        else:
+            append_iteration = True
 
         with open(f'{self.grid_path}',
-                  'w') as f:
+                  'a' if append_iteration else 'w') as f:
+
             csvwriter = csv.writer(f)
 
             #TODO: iterate through all the fields with something like the the command below:
@@ -707,7 +712,9 @@ class Stats:
 
             header = ('cell', 'iteration', 'model_id', 'status', 'runtime', 'area', 'delay', 'total_power', 'et',
                       'labeling_time', 'subgraph_extraction', 'subxpat_phase1', 'subxpat_phase2')
-            csvwriter.writerow(header)
+
+            if not append_iteration:
+                csvwriter.writerow(header)
             # iterate over cells (lppXppo)
             for ppo in range(self.ppo + 1):
                 for lpp in range(self.lpp + 1):
@@ -739,13 +746,22 @@ class Stats:
         returns: None
         """
 
+        if not os.path.exists(self.spo_array_path) or self.specs.iterations == 1:
+            append_iteration = False
+        else:
+            append_iteration = True
+
         with open(f'{self.spo_array_path}',
-                  'w') as f:
+                  'a' if append_iteration else 'w') as f:
+
+
             csvwriter = csv.writer(f)
 
             header = ('cell', 'iteration', 'model_id', 'status', 'runtime', 'area', 'delay', 'total_power', 'et',
                       'labeling_time', 'subgraph_extraction', 'subxpat_phase1', 'subxpat_phase2')
-            csvwriter.writerow(header)
+
+            if not append_iteration:
+                csvwriter.writerow(header)
             # iterate over the number of selectors (spo)
             for spo in range(self.spo + 1):
                 #For now: for each given cell, report the first one

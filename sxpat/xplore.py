@@ -269,21 +269,21 @@ def explore_grid(specs_obj: TemplateSpecs):
                                                    subxpat_phase1_time=subxpat_phase1_time,
                                                    subxpat_phase2_time=subxpat_phase2_time)
                                 stats_obj.spo_array.cells_spo[spo].store_model_info(this_model)
-                        # todo: should we refactor with pandas?
-                        with open(
-                                f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_iteration{i}_{specs_obj.benchmark_name}_et{specs_obj.et}_spo{specs_obj.spo}_{toolname}.csv",
-                                'w') as f:
-                            csvwriter = csv.writer(f)
-
-                            header = list(range(len(cur_model_results)))
-                            all = list(cur_model_results.values())
-                            # content = [f for f in all]
-                            # content = all
-                            # print(f'{content = }')
-
-                            csvwriter.writerow(header)
-                            for model in all:
-                                csvwriter.writerow(model)
+                        # # todo: should we refactor with pandas?
+                        # with open(
+                        #         f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_iteration{i}_{specs_obj.benchmark_name}_et{specs_obj.et}_spo{specs_obj.spo}_{toolname}.csv",
+                        #         'w') as f:
+                        #     csvwriter = csv.writer(f)
+                        #
+                        #     header = list(range(len(cur_model_results)))
+                        #     all = list(cur_model_results.values())
+                        #     # content = [f for f in all]
+                        #     # content = all
+                        #     # print(f'{content = }')
+                        #
+                        #     csvwriter.writerow(header)
+                        #     for model in all:
+                        #         csvwriter.writerow(model)
 
                         pprint.success('verifying all approximate circuits -> ', end='')
                         for candidate in cur_model_results:
@@ -421,17 +421,27 @@ def explore_grid(specs_obj: TemplateSpecs):
                                     (lpp, ppo)
                                 )
 
-                        # todo: should we refactor with pandas?
-                        with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
-                            csvwriter = csv.writer(f)
+                            this_model = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
+                                               area=cur_model_results[synth_obj.ver_out_name][0],
+                                               total_power=cur_model_results[synth_obj.ver_out_name][1],
+                                               delay=cur_model_results[synth_obj.ver_out_name][2],
+                                               labeling_time=labeling_time,
+                                               subgraph_extraction_time=subgraph_extraction_time,
+                                               subxpat_phase1_time=subxpat_phase1_time,
+                                               subxpat_phase2_time=subxpat_phase2_time)
+                            stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
 
-                            header = list(range(len(cur_model_results)))
-                            all = list(cur_model_results.values())
-                            content = [f for (f, _, _, _) in all]
-                            print(f'{content = }')
-
-                            csvwriter.writerow(header)
-                            csvwriter.writerow(content)
+                        # # todo: should we refactor with pandas?
+                        # with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
+                        #     csvwriter = csv.writer(f)
+                        #
+                        #     header = list(range(len(cur_model_results)))
+                        #     all = list(cur_model_results.values())
+                        #     content = [f for (f, _, _, _) in all]
+                        #     print(f'{content = }')
+                        #
+                        #     csvwriter.writerow(header)
+                        #     csvwriter.writerow(content)
 
                         pprint.success('verifying all approximate circuits -> ', end='')
                         for candidate in cur_model_results:

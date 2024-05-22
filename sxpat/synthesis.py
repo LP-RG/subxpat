@@ -1107,17 +1107,23 @@ class Synthesis:
             json_model_and_subgraph_outputs_assigns += f''
             for o_idx in range(self.graph.subgraph_num_outputs):
                 for mux_in_idx in range(2**self.spo):
+                    # in case all the parameters for the given data input are set to false,
+                    # set the data input to false.
+                    value_assigned = False
                     mux_in = f'{sxpatconfig.LUT_MUX_PREFIX}{0}_{sxpatconfig.LUT_OUTPUT_PREFIX}{o_idx}_{sxpatconfig.LUT_INPUT_PREFIX}{mux_in_idx}'
-                    for mux_in_p in range(self.graph.subgraph_num_inputs):
+                    for mux_in_p in range(self.graph.subgraph_num_inputs*2+2):
                         if self.json_model[idx][mux_in + f'_{sxpatconfig.LUT_PARAMETER_PREFIX}{mux_in_p}'] == True:
+                            value_assigned = True
                             if mux_in_p < self.graph.subgraph_num_inputs:
-                                json_model_and_subgraph_outputs_assigns += f'{sxpatconfig.VER_ASSIGN} {mux_in} = {sxpatconfig.VER_INPUT_PREFIX}{mux_in_p};\n'
+                                json_model_and_subgraph_outputs_assigns += f'{sxpatconfig.VER_ASSIGN} {mux_in} =  {sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{mux_in_p};\n'
                             elif mux_in_p < 2*self.graph.subgraph_num_inputs:
-                                json_model_and_subgraph_outputs_assigns += f'{sxpatconfig.VER_ASSIGN} {mux_in} = {sxpatconfig.VER_INPUT_PREFIX}{mux_in_p - self.graph.num_inputs};\n'
+                                json_model_and_subgraph_outputs_assigns += f'{sxpatconfig.VER_ASSIGN} {mux_in} =  {sxpatconfig.VER_NOT}{sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{mux_in_p - self.graph.subgraph_num_inputs};\n'
                             elif mux_in_p == 2*self.graph.subgraph_num_inputs:
                                 json_model_and_subgraph_outputs_assigns += f"{sxpatconfig.VER_ASSIGN} {mux_in} = 1'b1;\n"
                             else:
                                 json_model_and_subgraph_outputs_assigns += f"{sxpatconfig.VER_ASSIGN} {mux_in} = 1'b0;\n"
+                    if not value_assigned:
+                        json_model_and_subgraph_outputs_assigns += f"{sxpatconfig.VER_ASSIGN} {mux_in} = 1'b0;\n"
 
             number_of_parameters_per_selector = int(math.log2(self.graph.subgraph_num_inputs))
 
