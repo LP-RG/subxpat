@@ -914,44 +914,29 @@ class Template_SOP1(TemplateCreator):
         return approximate_circuit_constraints
 
     def z3_generate_approximate_circuit_constraints_subxpat(self):
-        wires = self.z3_generate_approximate_circuit_wire_constraints_subxpat()
-        outputs = self.z3_generate_approximate_circuit_output_constraints_subxpat()
-        integer_outputs = self.z3_generate_exact_circuit_integer_output_constraints_subxpat()
-        wires += '\n'
-        outputs += '\n'
-        integer_outputs += '\n'
+        wires = self.z3_generate_approximate_circuit_wire_constraints_subxpat() + '\n'
+        outputs = self.z3_generate_approximate_circuit_output_constraints_subxpat() + '\n'
+        integer_outputs = self.z3_generate_exact_circuit_integer_output_constraints_subxpat() + '\n'
         approximate_circuit_constraints = wires + outputs + integer_outputs + ')\n'
 
         return approximate_circuit_constraints
 
     def z3_generate_forall_solver(self):
-        prep = self.z3_generate_forall_solver_preperation()
-        error = self.z3_generate_forall_solver_error_constraint()
-        circuits = self.z3_generate_forall_solver_circuits()
-        atmost_constraints = self.z3_generate_forall_solver_atmost_constraints()
-        redundancy_constraints = self.z3_generate_forall_solver_redundancy_constraints()
-        prep += '\n'
-        error += '\n'
-        circuits += '\n'
-        atmost_constraints += '\n'
-        redundancy_constraints += '\n'
+        prep = self.z3_generate_forall_solver_preperation() + '\n'
+        error = self.z3_generate_forall_solver_error_constraint() + '\n'
+        circuits = self.z3_generate_forall_solver_circuits() + '\n'
+        atmost_constraints = self.z3_generate_forall_solver_atmost_constraints() + '\n'
+        redundancy_constraints = self.z3_generate_forall_solver_redundancy_constraints() + '\n'
         forall_solver = prep + error + circuits + atmost_constraints + redundancy_constraints
-
         return forall_solver
 
     def z3_generate_forall_solver_subxpat(self):
-        prep = self.z3_generate_forall_solver_preperation()
-        error = self.z3_generate_forall_solver_error_constraint()
-        circuits = self.z3_generate_forall_solver_circuits()
-        atmost_constraints = self.z3_generate_forall_solver_atmost_constraints_subxpat()
-        redundancy_constraints = self.z3_generate_forall_solver_redundancy_constraints_subxpat()
-        prep += '\n'
-        error += '\n'
-        circuits += '\n'
-        atmost_constraints += '\n'
-        redundancy_constraints += '\n'
+        prep = self.z3_generate_forall_solver_preperation() + '\n'
+        error = self.z3_generate_forall_solver_error_constraint() + '\n'
+        circuits = self.z3_generate_forall_solver_circuits() + '\n'
+        atmost_constraints = self.z3_generate_forall_solver_atmost_constraints_subxpat() + '\n'
+        redundancy_constraints = self.z3_generate_forall_solver_redundancy_constraints_subxpat() + '\n'
         forall_solver = prep + error + circuits + atmost_constraints + redundancy_constraints
-
         return forall_solver
 
     def z3_generate_forall_solver_preperation(self):
@@ -976,21 +961,24 @@ class Template_SOP1(TemplateCreator):
                     f'{TAB}{TAB}{APPROXIMATE_CIRCUIT},\n'
         return circuits
 
-    def z3_generate_forall_solver_atmost_constraints(self):
+    def z3_generate_forall_solver_atmost_constraints(self, *, relevant_inputs_num: int = None, relevant_outputs_num: int = None):
+        relevant_inputs_num = self.current_graph.num_inputs if relevant_inputs_num is None else relevant_inputs_num
+        relevant_outputs_num = self.current_graph.num_outputs if relevant_outputs_num is None else relevant_outputs_num
+
         atmost = ''
         atmost += f'{TAB}{TAB}# AtMost constraints\n'
 
-        for output_idx in range(self.current_graph.num_outputs):
+        for output_idx in range(relevant_outputs_num):
             for ppo_idx in range(self.ppo):
                 atmost += f"{TAB}{TAB}("
-                for input_idx in range(self.current_graph.num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.current_graph.num_outputs - 1
+                for input_idx in range(relevant_inputs_num):
+
+                    loop_1_last_iter_flg = output_idx == relevant_outputs_num - 1
                     loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.current_graph.num_inputs - 1
+                    loop_3_last_iter_flg = input_idx == relevant_inputs_num - 1
+
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     atmost += f"{IF}({p_s}, 1, 0)"
-
-                    # print(f'{atmost = }')
 
                     if loop_3_last_iter_flg:
                         atmost += f') <= {self.lpp},\n'
@@ -1001,37 +989,18 @@ class Template_SOP1(TemplateCreator):
         return atmost
 
     def z3_generate_forall_solver_atmost_constraints_subxpat(self):
-        atmost = ''
-        atmost += f'{TAB}{TAB}# AtMost constraints\n'
-
-        for output_idx in range(self.current_graph.subgraph_num_outputs):
-            for ppo_idx in range(self.ppo):
-                atmost += f"{TAB}{TAB}("
-                for input_idx in range(self.current_graph.subgraph_num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.current_graph.subgraph_num_outputs - 1
-                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.current_graph.subgraph_num_inputs - 1
-                    p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                    atmost += f"{IF}({p_s}, 1, 0)"
-
-                    if loop_3_last_iter_flg:
-                        atmost += f') <= {self.lpp},\n'
-                    else:
-                        atmost += f' + '
-        atmost += '\n'
-
-        return atmost
+        return self.z3_generate_forall_solver_atmost_constraints(
+            relevant_inputs_num=self.current_graph.subgraph_num_inputs,
+            relevant_outputs_num=self.current_graph.subgraph_num_outputs,
+        )
 
     def z3_generate_forall_solver_redundancy_constraints_subxpat(self):
         redundancy = ''
         redundancy += f'{TAB}{TAB}# Redundancy constraints\n'
-        double_no_care = self.z3_generate_forall_solver_redundancy_constraints_double_no_care_subxpat()
-        remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_subxpat()
-        set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat()
+        double_no_care = self.z3_generate_forall_solver_redundancy_constraints_double_no_care_subxpat() + '\n'
+        remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_subxpat() + '\n'
+        set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat() + '\n'
 
-        double_no_care += '\n'
-        remove_constant_zero_permutation += '\n'
-        set_ppo_order += '\n'
         end = f"{TAB})\n))\n"
         redundancy += double_no_care + remove_constant_zero_permutation + set_ppo_order + end
         return redundancy
@@ -1039,46 +1008,35 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_forall_solver_redundancy_constraints(self):
         redundancy = ''
         redundancy += f'{TAB}{TAB}# Redundancy constraints\n'
-        double_no_care = self.z3_generate_forall_solver_redundancy_constraints_double_no_care()
-        remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation()
-        set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order()
+        double_no_care = self.z3_generate_forall_solver_redundancy_constraints_double_no_care() + '\n'
+        remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation() + '\n'
+        set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order() + '\n'
 
-        double_no_care += '\n'
-        remove_constant_zero_permutation += '\n'
-        set_ppo_order += '\n'
         end = f"{TAB})\n))\n"
         redundancy += double_no_care + remove_constant_zero_permutation + set_ppo_order + end
         return redundancy
 
     def z3_generate_forall_solver_redundancy_constraints_double_no_care_subxpat(self):
+        return self.z3_generate_forall_solver_redundancy_constraints_double_no_care(
+            relevant_inputs_num=self.current_graph.subgraph_num_inputs,
+            relevant_outputs_num=self.current_graph.subgraph_num_outputs,
+        )
+
+    def z3_generate_forall_solver_redundancy_constraints_double_no_care(self, *, relevant_inputs_num: int = None, relevant_outputs_num: int = None):
+        relevant_inputs_num = self.current_graph.num_inputs if relevant_inputs_num is None else relevant_inputs_num
+        relevant_outputs_num = self.current_graph.num_outputs if relevant_outputs_num is None else relevant_outputs_num
+
         double = ''
         double += f'{TAB}{TAB}# remove double no-care\n'
-        for output_idx in range(self.current_graph.subgraph_num_outputs):
+        for output_idx in range(relevant_outputs_num):
             double += f"{TAB}{TAB}"
             for ppo_idx in range(self.ppo):
-                for input_idx in range(self.current_graph.subgraph_num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.current_graph.subgraph_num_outputs - 1
+                for input_idx in range(relevant_inputs_num):
+
+                    loop_1_last_iter_flg = output_idx == relevant_outputs_num - 1
                     loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.current_graph.subgraph_num_inputs - 1
-                    p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
-                    p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                    double += f'{IMPLIES}({p_l}, {p_s}), '
+                    loop_3_last_iter_flg = input_idx == relevant_inputs_num - 1
 
-                    if loop_2_last_iter_flg and loop_3_last_iter_flg:
-                        double += f'\n'
-
-        return double
-
-    def z3_generate_forall_solver_redundancy_constraints_double_no_care(self):
-        double = ''
-        double += f'{TAB}{TAB}# remove double no-care\n'
-        for output_idx in range(self.current_graph.num_outputs):
-            double += f"{TAB}{TAB}"
-            for ppo_idx in range(self.ppo):
-                for input_idx in range(self.current_graph.num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.current_graph.num_outputs - 1
-                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.current_graph.num_inputs - 1
                     p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     double += f'{IMPLIES}({p_l}, {p_s}), '
@@ -1089,98 +1047,47 @@ class Template_SOP1(TemplateCreator):
         return double
 
     def z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_subxpat(self):
-        const_zero_perm = ''
-        const_zero_perm += f'{TAB}{TAB}# remove constant 0 parameters permutations\n'
-        for output_idx in range(self.current_graph.subgraph_num_outputs):
-            const_zero_perm += f"{TAB}{TAB}{IMPLIES}({Z3_NOT}({PRODUCT_PREFIX}{output_idx}), {Z3_NOT}({Z3_OR}("
-            for ppo_idx in range(self.ppo):
-                for input_idx in range(self.current_graph.subgraph_num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.current_graph.subgraph_num_outputs - 1
-                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.current_graph.subgraph_num_inputs - 1
-                    p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
-                    p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-                    const_zero_perm += f'{p_s}, {p_l}'
-                    if loop_2_last_iter_flg and loop_3_last_iter_flg:
-                        const_zero_perm += f'))),\n'
-                    else:
-                        const_zero_perm += f', '
-        return const_zero_perm
+        return self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation(
+            relevant_inputs_num=self.current_graph.subgraph_num_inputs,
+            relevant_outputs_num=self.current_graph.subgraph_num_outputs,
+        )
 
-    def z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation(self):
+    def z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation(self, *, relevant_inputs_num: int = None, relevant_outputs_num: int = None):
+        relevant_inputs_num = self.current_graph.num_inputs if relevant_inputs_num is None else relevant_inputs_num
+        relevant_outputs_num = self.current_graph.num_outputs if relevant_outputs_num is None else relevant_outputs_num
+
         const_zero_perm = ''
         const_zero_perm += f'{TAB}{TAB}# remove constant 0 parameters permutations\n'
-        for output_idx in range(self.current_graph.num_outputs):
+        for output_idx in range(relevant_outputs_num):
             const_zero_perm += f"{TAB}{TAB}{IMPLIES}({Z3_NOT}({PRODUCT_PREFIX}{output_idx}), {Z3_NOT}({Z3_OR}("
             for ppo_idx in range(self.ppo):
-                for input_idx in range(self.current_graph.num_inputs):
-                    loop_1_last_iter_flg = output_idx == self.current_graph.num_outputs - 1
+                for input_idx in range(relevant_inputs_num):
+
+                    loop_1_last_iter_flg = output_idx == relevant_outputs_num - 1
                     loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-                    loop_3_last_iter_flg = input_idx == self.current_graph.num_inputs - 1
+                    loop_3_last_iter_flg = input_idx == relevant_inputs_num - 1
+
                     p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+
                     const_zero_perm += f'{p_s}, {p_l}'
                     if loop_2_last_iter_flg and loop_3_last_iter_flg:
                         const_zero_perm += f'))),\n'
                     else:
                         const_zero_perm += f', '
+
         return const_zero_perm
 
     def z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat(self):
-        ppo_order = ''
-        ppo_order += f'{TAB}{TAB}# set order of trees\n'
-        if self.ppo == 1:
-            # print(f'No need for ordering the PPOs!')
-            ppo_order += f'{TAB}{TAB}True, \n'
-        else:
-            for output_idx in range(self.current_graph.subgraph_num_outputs):
-                for ppo_idx in range(self.ppo - 1):
+        return self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order(
+            relevant_inputs_num=self.current_graph.subgraph_num_inputs,
+            relevant_outputs_num=self.current_graph.subgraph_num_outputs,
+        )
 
-                    current_product = f'{TAB}{TAB}('
-                    next_product = f'('
-                    for input_idx in range(self.current_graph.subgraph_num_inputs):
+    def z3_generate_forall_solver_redundancy_constraints_set_ppo_order(self, *, relevant_inputs_num: int = None, relevant_outputs_num: int = None):
+        relevant_inputs_num = self.current_graph.num_inputs if relevant_inputs_num is None else relevant_inputs_num
+        relevant_outputs_num = self.current_graph.num_outputs if relevant_outputs_num is None else relevant_outputs_num
 
-                        loop_1_last_iter_flg = output_idx == self.current_graph.num_outputs - 1
-                        loop_2_last_iter_flg = ppo_idx == self.ppo - 2
-                        loop_3_last_iter_flg = input_idx == self.current_graph.num_inputs - 1
-                        p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
-                        p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-
-                        p_l_next = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx + 1}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
-                        p_s_next = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx + 1}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-
-                        current_product += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s} + {INTVAL}({2 ** (2 * input_idx + 1)}) * {p_l}'
-                        next_product += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s_next} + {INTVAL}({2 ** (2 * input_idx + 1)}) * {p_l_next}'
-
-                        if loop_3_last_iter_flg:
-                            current_product += ')'
-                            next_product += '),\n'
-                            ppo_order += f'{current_product} >= {next_product}'
-                        else:
-                            current_product += f' + '
-                            next_product += f' + '
-            # for output_idx in range(self.graph.subgraph_num_outputs):
-            #     ppo_order += f"{TAB}{TAB}"
-            #     for ppo_idx in range(self.ppo):
-            #         ppo_order += '('
-            #         for input_idx in range(self.graph.subgraph_num_inputs):
-            #             loop_1_last_iter_flg = output_idx == self.graph.subgraph_num_outputs - 1
-            #             loop_2_last_iter_flg = ppo_idx == self.ppo - 1
-            #             loop_3_last_iter_flg = input_idx == self.graph.subgraph_num_inputs - 1
-            #             p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
-            #             p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
-            #             ppo_order += f'{INTVAL}({2 ** (2 * input_idx)}) * {p_s} + {INTVAL}({2 ** (2 * input_idx + 1)}) * {p_l}'
-            #
-            #             if loop_2_last_iter_flg and loop_3_last_iter_flg:
-            #                 ppo_order += '),\n'
-            #             elif loop_3_last_iter_flg:
-            #                 ppo_order += ') >= '
-            #             else:
-            #                 ppo_order += ' + '
-
-        return ppo_order
-
-    def z3_generate_forall_solver_redundancy_constraints_set_ppo_order(self):
         ppo_order = ''
         ppo_order += f'{TAB}{TAB}# set order of trees\n'
 
@@ -1188,16 +1095,17 @@ class Template_SOP1(TemplateCreator):
             # print(f'No need for ordering the PPOs!')
             ppo_order += f'{TAB}{TAB}True, \n'
         else:
-            for output_idx in range(self.current_graph.num_outputs):
+            for output_idx in range(relevant_outputs_num):
                 for ppo_idx in range(self.ppo - 1):
 
                     current_product = f'{TAB}{TAB}('
                     next_product = f'('
-                    for input_idx in range(self.current_graph.num_inputs):
+                    for input_idx in range(relevant_inputs_num):
 
                         loop_1_last_iter_flg = output_idx == self.current_graph.num_outputs - 1
                         loop_2_last_iter_flg = ppo_idx == self.ppo - 2
                         loop_3_last_iter_flg = input_idx == self.current_graph.num_inputs - 1
+
                         p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
                         p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
 
@@ -1215,7 +1123,6 @@ class Template_SOP1(TemplateCreator):
                             current_product += f' + '
                             next_product += f' + '
 
-        # exit()
         return ppo_order
 
     def z3_generate_verification_solver(self):
@@ -1234,14 +1141,10 @@ class Template_SOP1(TemplateCreator):
         return parameter_list
 
     def z3_generate_find_wanted_number_of_models(self):
-        prep_loop1 = self.z3_generate_find_wanted_number_of_models_prep_loop1()
-        prep_loop2 = self.z3_generate_find_wanted_number_of_models_prep_loop2()
-        prep_loop3 = self.z3_generate_find_wanted_number_of_models_prep_loop3()
-        final_prep = self.z3_generate_find_wanted_number_of_models_final_prep()
-        prep_loop1 += '\n'
-        prep_loop2 += '\n'
-        prep_loop3 += '\n'
-        final_prep += '\n'
+        prep_loop1 = self.z3_generate_find_wanted_number_of_models_prep_loop1() + '\n'
+        prep_loop2 = self.z3_generate_find_wanted_number_of_models_prep_loop2() + '\n'
+        prep_loop3 = self.z3_generate_find_wanted_number_of_models_prep_loop3() + '\n'
+        final_prep = self.z3_generate_find_wanted_number_of_models_final_prep() + '\n'
         find_wanted_number_of_models = prep_loop1 + prep_loop2 + prep_loop3 + final_prep
         return find_wanted_number_of_models
 
