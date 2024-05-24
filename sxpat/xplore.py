@@ -82,7 +82,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
-    while (obtained_wce_exact <= available_error):
+    while (obtained_wce_exact < available_error):
         # for i, et in error_iterator:
         i += 1
         if specs_obj.et_partitioning == 'asc':
@@ -303,7 +303,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     for candidate in cur_model_results:
                         approximate_benchmark = candidate[:-2]
 
-                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, original_et)
+                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, template_obj.et)
                         if specs_obj.subxpat_v2:
                             obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et)
                             prev_actual_error = obtained_wce_prev
