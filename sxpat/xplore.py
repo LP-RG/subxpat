@@ -121,7 +121,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             # initialize context
             specs_obj.et = et
             template_obj.set_new_context(specs_obj)
-
+            print(f'{specs_obj.et = }')
             # import the graph
             template_obj.current_graph = template_obj.import_graph()
 
@@ -446,8 +446,9 @@ def explore_grid(specs_obj: TemplateSpecs):
                         pprint.success('verifying all approximate circuits -> ', end='')
                         for candidate in cur_model_results:
                             approximate_benchmark = candidate[:-2]
-
-                            if not erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et):
+                            check, obtained_wce = erroreval_verification_explicit(specs_obj.exact_benchmark, approximate_benchmark,
+                                                            template_obj.et)
+                            if not check:
                                 raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
                         pprint.success('ErrorEval PASS! ')
