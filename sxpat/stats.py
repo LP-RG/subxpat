@@ -53,6 +53,8 @@ class Model:
                  et: int = -1,
                  labeling_time: float = -1,
                  subgraph_extraction_time: float = -1,
+                 subgraph_number_inputs: int = -1,
+                 subgraph_number_outputs: int = -1, 
                  subxpat_phase1_time: float = -1,
                  subxpat_phase2_time: float = -1):
         self.__cell = cell
@@ -67,6 +69,8 @@ class Model:
         self.__et = et
         self.__labeling_time = labeling_time
         self.__subgraph_extraction_time = subgraph_extraction_time
+        self.__subgraph_number_inputs = subgraph_number_inputs
+        self.__subgraph_number_outputs = subgraph_number_outputs
         self.__subxpat_phase1_time = subxpat_phase1_time
         self.__subxpat_phase2_time = subxpat_phase2_time
         self.__runtime = runtime
@@ -86,6 +90,14 @@ class Model:
     @property
     def subgraph_extraction_time(self):
         return self.__subgraph_extraction_time
+    
+    @property
+    def subgraph_number_inputs(self):
+        return self.__subgraph_number_inputs
+    
+    @property
+    def subgraph_number_outputs(self):
+        return self.__subgraph_number_outputs
 
     @property
     def subxpat_phase1_time(self):
@@ -593,7 +605,7 @@ class Stats:
             # header = tuple(header)
 
             header = ('cell', 'iteration', 'model_id', 'status', 'runtime', 'area', 'delay', 'total_power', 'et',
-                      'labeling_time', 'subgraph_extraction', 'subxpat_phase1', 'subxpat_phase2')
+                      'labeling_time', 'subgraph_extraction', 'subgraph_inputs','subgraph_outputs', 'subxpat_phase1', 'subxpat_phase2')
             csvwriter.writerow(header)
             # iterate over cells (lppXppo)
             for ppo in range(self.ppo + 1):
@@ -615,6 +627,8 @@ class Stats:
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].et)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].labeling_time)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subgraph_extraction_time)
+                            row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subgraph_number_inputs)
+                            row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subgraph_number_outputs)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subxpat_phase1_time)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subxpat_phase2_time)
                             row = tuple(row)
