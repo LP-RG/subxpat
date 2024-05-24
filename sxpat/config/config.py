@@ -36,6 +36,8 @@ ENCODING = 'encoding'
 FULL_ERROR_FUNCTION = 'full_error_function'
 SUB_ERROR_FUNCTION = 'sub_error_function'
 ET_PARTITIONING = 'et_partitioning'
+PARTIAL_LABELING = 'partial_labeling'
+NUM_SUBGRAPHS = 'num_subgraphs'
 
 # shared
 SHARED = 'shared'
