@@ -1249,8 +1249,8 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_store_data(self):
         store_data = ''
         store_data += f'{TAB}# store data\n'
-        extract_info = self.z3_generate_sotre_data_define_extract_info_function()
-        key_function = self.z3_generate_sotre_data_define_extract_key_function()
+        extract_info = self.z3_generate_store_data_define_extract_info_function()
+        key_function = self.z3_generate_store_data_define_extract_key_function()
         stats = self.z3_generate_stats()
         results = self.z3_dump_results_onto_json()
         extract_info += '\n'
@@ -1260,7 +1260,7 @@ class Template_SOP1(TemplateCreator):
         store_data += extract_info + key_function + stats + results
         return store_data
 
-    def z3_generate_sotre_data_define_extract_info_function(self):
+    def z3_generate_store_data_define_extract_info_function(self):
         extract_info = ''
         extract_info += f'{TAB}def extract_info(pattern: Union[Pattern, str], string: str,\n' \
                         f'{TAB}{TAB}{TAB}{TAB}parser: Callable[[Any], Any] = lambda x: x,\n' \
@@ -1271,7 +1271,7 @@ class Template_SOP1(TemplateCreator):
 
         return extract_info
 
-    def z3_generate_sotre_data_define_extract_key_function(self):
+    def z3_generate_store_data_define_extract_key_function(self):
         """
         Blah Blah Blah
         :return:
@@ -2983,8 +2983,8 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def z3_generate_store_data(self):
         store_data = ''
         store_data += f'{TAB}# store data\n'
-        extract_info = self.z3_generate_sotre_data_define_extract_info_function()
-        key_function = self.z3_generate_sotre_data_define_extract_key_function()
+        extract_info = self.z3_generate_store_data_define_extract_info_function()
+        key_function = self.z3_generate_store_data_define_extract_key_function()
         stats = self.z3_generate_stats()
         results = self.z3_dump_results_onto_json()
         extract_info += '\n'
@@ -2995,7 +2995,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         return store_data
 
     # NM
-    def z3_generate_sotre_data_define_extract_info_function(self):
+    def z3_generate_store_data_define_extract_info_function(self):
         extract_info = ''
         extract_info += f'{TAB}def extract_info(pattern: Union[Pattern, str], string: str,\n' \
                         f'{TAB}{TAB}{TAB}{TAB}parser: Callable[[Any], Any] = lambda x: x,\n' \
@@ -3007,7 +3007,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         return extract_info
 
     # NM
-    def z3_generate_sotre_data_define_extract_key_function(self):
+    def z3_generate_store_data_define_extract_key_function(self):
         """
         :return:
         """
