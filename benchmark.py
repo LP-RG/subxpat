@@ -20,7 +20,7 @@ def run_benchmark(benchmarks = None, metric_cols = None):
 
 
     if not benchmarks:
-        benchmarks = ["abs_diff_i6_o3","mul_i6_o6", "adder_i6_o4","abs_diff_i4_o2", "mul_i4_o4", "adder_i4_o3"]
+        benchmarks = ["abs_diff_i6_o3","mul_i6_o6", "adder_i6_o4"]
     else:
         benchmarks = sys.argv[1]
 
@@ -64,24 +64,24 @@ def run_benchmark(benchmarks = None, metric_cols = None):
         spo = num_inputs
         ppo = num_inputs * 2
         lpp = num_inputs
-
-        for et in ET_points:
-            subprocess.run(
-                ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
-                 f"-et={et}", "--lut",
-                 f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
-                ])
-
-            subprocess.run(
-                ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
-                  f"-et={et}", "--lut_MP",
-                 f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}",
-                 ])
-
-            subprocess.run(
-                ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
-                 f"-et={et}", f"--ppo={ppo}", f"--lpp={lpp}",
-                 f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"])
+        #
+        # for et in ET_points:
+        #     subprocess.run(
+        #         ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
+        #          f"-et={et}", "--lut",
+        #          f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
+        #         ])
+        #
+        #     subprocess.run(
+        #         ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
+        #           f"-et={et}", "--lut_MP",
+        #          f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}",
+        #          ])
+        #
+        #     subprocess.run(
+        #         ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
+        #          f"-et={et}", f"--ppo={ppo}", f"--lpp={lpp}",
+        #          f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"])
 
     for benchmark in benchmarks:
         # best_models_area_lut = []
@@ -159,7 +159,10 @@ def plot_results(results, legend, benchmark_name, labels):
     # ax.set(xlim=(0, 8), xticks=np.arange(1, 8),
     #        ylim=(0, 8), yticks=np.arange(1, 8))
 
-    plt.show()
+    # plt.show()
+    figure_name = f"{benchmark_name}"
+    plt.savefig(figure_name + ".png")
+
 
 
 

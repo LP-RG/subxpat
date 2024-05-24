@@ -101,6 +101,7 @@ def explore_grid(specs_obj: TemplateSpecs):
         raise NotImplementedError('invalid status')
 
     for i, et in error_iterator:
+        print(f'{list(error_iterator) = }')
         pprint.info1(f'iteration {i} with et {et}'
                      if specs_obj.subxpat else
                      f'Only one iteration with et {et}')
@@ -269,21 +270,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                                                    subxpat_phase1_time=subxpat_phase1_time,
                                                    subxpat_phase2_time=subxpat_phase2_time)
                                 stats_obj.spo_array.cells_spo[spo].store_model_info(this_model)
-                        # # todo: should we refactor with pandas?
-                        # with open(
-                        #         f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_iteration{i}_{specs_obj.benchmark_name}_et{specs_obj.et}_spo{specs_obj.spo}_{toolname}.csv",
-                        #         'w') as f:
-                        #     csvwriter = csv.writer(f)
-                        #
-                        #     header = list(range(len(cur_model_results)))
-                        #     all = list(cur_model_results.values())
-                        #     # content = [f for f in all]
-                        #     # content = all
-                        #     # print(f'{content = }')
-                        #
-                        #     csvwriter.writerow(header)
-                        #     for model in all:
-                        #         csvwriter.writerow(model)
 
                         pprint.success('verifying all approximate circuits -> ', end='')
                         for candidate in cur_model_results:
