@@ -6,29 +6,33 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import subprocess
-# import signal
-# import functools
+import signal
+import functools
 import datetime
 
-# def timeout(seconds=5, default=None):
-#     def decorator(func):
-#         @functools.wraps(func)
-#         def wrapper(*args, **kwargs):
-#             def handle_timeout(signum, frame):
-#                 raise TimeoutError()
-#             signal.signal(signal.SIGALRM, handle_timeout)
-#             signal.alarm(seconds)
-#             result = func(*args, **kwargs)
-#             signal.alarm(0)
-#             return result
-#         return wrapper
-#     return decorator
+def timeout(seconds=5, default=None):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            def handle_timeout(signum, frame):
+                raise TimeoutError()
+            signal.signal(signal.SIGALRM, handle_timeout)
+            signal.alarm(seconds)
+            result = func(*args, **kwargs)
+            signal.alarm(0)
+            return result
+        return wrapper
+    return decorator
 
 path = 'input/ver/'
 
-args = '--grid --subxpat --subxpat-v2 -lpp=10 -ppo=20 --timeout==1800'
+imax=4
+omax=2
+
+args = f'--grid --subxpat -lpp=10 -ppo=10 --timeout=1800 -mode=5 --min_labeling -imax={imax} -omax={omax}'
 
 benchmarks_type = sys.argv[1]
+encoding = sys.argv[2]
 
 # benchmarks to be tested (adder)
 benchmarks_adder = [
@@ -40,7 +44,12 @@ benchmarks_adder = [
     'adder_i16_o9',  
     'adder_i20_o11',  
     'adder_i24_o13',  
-    'adder_i28_o15',   
+    'adder_i32_o17',   
+    'adder_i36_o19',   
+    'adder_i40_o21',   
+    'adder_i44_o23',   
+    'adder_i48_o25',   
+    'adder_i52_o27',    
 ]
 
 # benchmarks to be tested (abs_diff)
@@ -54,6 +63,11 @@ benchmarks_abs_diff = [
     'abs_diff_i20_o10',
     'abs_diff_i24_o12',
     'abs_diff_i28_o14',
+    'abs_diff_i32_o16',
+    'abs_diff_i36_o18',
+    'abs_diff_i40_o20',
+    'abs_diff_i44_o22',
+    'abs_diff_i48_o24',
 ]
 
 # benchmarks to be tested (mul)
@@ -106,7 +120,7 @@ with open(f'./output/report/all_results.csv','w') as f:
 with open(f'./output/report/area_power_delay.csv','w') as f:
     csvwriter = csv.writer(f)
 
-    header = ('benchmark_name', 'Design ID', 'Area', 'Power', 'Delay','et', 'encoding')
+    header = ('benchmark_name', 'Design ID', 'Area', 'Power', 'Delay','et', 'encoding', 'labeling_time', 'subgraph_extraction_time')
     csvwriter.writerow(header)
 
 
@@ -121,102 +135,29 @@ with open(f'./output/report/area_power_delay.csv','w') as f:
 
 #     proc.wait()
 
-# run main for all benchmarks for both encodings
-for benchmark in benchmarks:
-    output = int(benchmark.split('_')[-1][1:])
-    et = output // 2
-    while et >= 1:
-        # command1 = ['python3', 'main.py', f'{path}{benchmark}.v', f'-app', f'{path}{benchmark}.v', '--grid', '--subxpat', '-lpp=10', '-ppo=20', f'-et={et}', '-encoding=1']
-        # command2 = ['python3', 'main.py', f'{path}{benchmark}.v', f'-app', f'{path}{benchmark}.v', '--grid', '--subxpat', '-lpp=10', '-ppo=20', f'-et={et}', '-encoding=2']
-        # run_command(command1)
-        # run_command(command2)
+@timeout(seconds=1800)
+def run_benchmark(benchmark, et, encoding):
+    subprocess.run(f'python3 main.py {path}{benchmark}.v -app {path}{benchmark}.v {args} -et={et} -encoding={encoding}', shell=True)
 
-        subprocess.run(f'python3 main.py {path}{benchmark}.v -app {path}{benchmark}.v --grid --subxpat -lpp=10 -ppo=20 --timeout=1800 -et={et} -encoding=1',shell=True)
-        subprocess.run(f'python3 main.py {path}{benchmark}.v -app {path}{benchmark}.v --grid --subxpat -lpp=10 -ppo=20 --timeout=1800 -et={et} -encoding=2',shell=True)
-        et = et // 2
+try:
 
-# create dataframe from all time data
-df_all = pd.read_csv(f'./output/report/all_results.csv')
-df_all['benchmark_name'] = df_all['benchmark_name'].astype('string')
+    # run main for all benchmarks for encoding 2
+    for benchmark in benchmarks:
+        output = int(benchmark.split('_')[-1][1:])
+        et = output // 2
+        while et >= 1 and et >= output // 8:    
+            # command1 = ['python3', 'main.py', f'{path}{benchmark}.v', f'-app', f'{path}{benchmark}.v', '--grid', '--subxpat', '-lpp=10', '-ppo=20', f'-et={et}', '-encoding=1']
+            # command2 = ['python3', 'main.py', f'{path}{benchmark}.v', f'-app', f'{path}{benchmark}.v', '--grid', '--subxpat', '-lpp=10', '-ppo=20', f'-et={et}', '-encoding=2']
+            # run_command(command1)
+            # run_command(command2)
 
-# create dataframe from all resulting area data
-df_area = pd.read_csv('./output/report/area_power_delay.csv')
+            # subprocess.run(f'python3 main.py {path}{benchmark}.v -app {path}{benchmark}.v --grid --subxpat -lpp=10 -ppo=10 --timeout=900 -et={et} -encoding=1',shell=True)
+            # subprocess.run(f'python3 main.py {path}{benchmark}.v -app {path}{benchmark}.v --grid --subxpat -lpp=10 -ppo=10 --timeout=900 -et={et} -encoding=2',shell=True)
 
-# create dataframe to store the sum of times for each benchmark
-total_times_sum_df = pd.DataFrame(columns = ['benchmark_name', 'time_arithm_encoding', 'time_bitvec_encoding'])
+            run_benchmark(benchmark, et, encoding)
 
-# create dataframe to store the area difference for each benchmark
-area_diff_df = pd.DataFrame(columns = ['benchmark_name', 'area_exact','approx_area_arithm_encoding', 'approx_area_bitvec_encoding'])
+            et = et // 2
 
-# gather data for plotting
-for benchmark in benchmarks:
 
-    output = int(benchmark.split('_')[-1][1:])
-    et = output // 2
-    while et >= 1:
-        # add the time sums to total_times_sum_df
-        time1 = df_all.loc[(df_all['benchmark_name'] == benchmark) & (df_all['encoding'] == 1) & (df_all['et'] == et), 'total_time'].sum()
-        time2 = df_all.loc[(df_all['benchmark_name'] == benchmark) & (df_all['encoding'] == 2) & (df_all['et'] == et), 'total_time'].sum()
-
-        if time1 != 0 and time2 != 0:
-            col_time = [f'{benchmark}_et{et}', time1, time2]
-            total_times_sum_df.loc[len(total_times_sum_df.index)] = col_time
-
-        # gather exact and approximate circuits area data
-        area_exact = df_area.loc[(df_area['benchmark_name'] == benchmark) & (df_area['encoding'] == 1) & (df_area['et'] == et) & (df_area['Design ID'] == 'Exact'), 'Area'].sum()
-        area_approx_1 = df_area.loc[(df_area['benchmark_name'] == benchmark) & (df_area['encoding'] == 1) & (df_area['et'] == et) & (df_area['Design ID'] != 'Exact'), 'Area'].sum()
-        area_approx_2 = df_area.loc[(df_area['benchmark_name'] == benchmark) & (df_area['encoding'] == 2) & (df_area['et'] == et) & (df_area['Design ID'] != 'Exact'), 'Area'].sum()
-
-        if area_approx_1 != 0 and area_approx_2 != 0:
-            col_area = [f'{benchmark}_et{et}', area_exact, area_approx_1, area_approx_2]
-            area_diff_df.loc[len(area_diff_df.index)] = col_area
-
-        et = et // 2
-
-# create plot folder if it doesn't exist yet
-if not os.path.exists('./output/plot'):
-    os.makedirs('./output/plot')
-    
-# create and save times plot
-axis = plt.gca()
-axis.figure.set_size_inches(18,10)
-
-total_times_sum_df.plot(kind='line',
-        x='benchmark_name',
-        y='time_arithm_encoding',
-        color='blue', ax=axis)
-
-total_times_sum_df.plot(kind='line',
-        x='benchmark_name',
-        y='time_bitvec_encoding',
-        color='green', ax=axis)
-
-axis.tick_params(axis='x', rotation=90)
-axis.set_ylabel('Time')
-
-plt.savefig(f'./output/plot/encodings_test_times_plot_{benchmarks_type}.png', bbox_inches='tight')
-plt.close()
-
-# create and save area plot
-axis2 = plt.gca()
-axis2.figure.set_size_inches(18,10)
-
-area_diff_df.plot(kind='line',
-        x='benchmark_name',
-        y='area_exact',
-        color='red', ax=axis2)
-
-area_diff_df.plot(kind='line',
-        x='benchmark_name',
-        y='approx_area_arithm_encoding',
-        color='blue', ax=axis2)
-
-area_diff_df.plot(kind='line',
-        x='benchmark_name',
-        y='approx_area_bitvec_encoding',
-        color='green', ax=axis2)
-
-axis2.tick_params(axis='x', rotation=90)
-axis2.set_ylabel('Area')
-
-plt.savefig(f'./output/plot/encodings_test_area_plot_{benchmarks_type}.png', bbox_inches='tight')
+except TimeoutError:
+    print("Timeout")

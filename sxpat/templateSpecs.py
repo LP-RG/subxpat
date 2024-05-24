@@ -36,6 +36,8 @@ class TemplateSpecs:
         self.et_partitioning: str = kwargs[ET_PARTITIONING]
 
         self.__keep_unsat_candidate: bool = self.__subxpat_v2
+        self.__partial_labeling: bool = kwargs[PARTIAL_LABELING]
+        self.__num_subgraphs: int = kwargs[NUM_SUBGRAPHS]
 
         self._encoding: int = kwargs[ENCODING]
 
@@ -223,6 +225,14 @@ class TemplateSpecs:
     def encoding(self):
         return self._encoding
 
+    @property
+    def partial_labeling(self):
+        return self.__partial_labeling
+
+    @property
+    def requires_subgraph_extraction(self):
+        return self.__subxpat or self.__subxpat_v2
+
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \
                f'{self.template_name = }\n' \
@@ -253,4 +263,5 @@ class TemplateSpecs:
                f'{self.full_error_function = }\n' \
                f'{self.sub_error_function = }\n' \
                f'{self.et_partitioning = }\n' \
+               f'{self.partial_labeling = }\n' \
                f'{self.keep_unsat_candidate = }\n'

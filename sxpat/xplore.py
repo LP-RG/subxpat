@@ -17,7 +17,7 @@ from sxpat.config.paths import *
 from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
 from sxpat.utils.filesystem import FS
-from sxpat.verification import erroreval_verification_explicit
+from sxpat.verification import erroreval_verification_explicit, erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 
 from z_marco.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subgraph
@@ -54,7 +54,8 @@ def explore_grid(specs_obj: TemplateSpecs):
     # initial setup
     total_iterations = specs_obj.iterations
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
-    pure_exact_file_name = specs_obj.exact_benchmark
+    exact_file_name = specs_obj.exact_benchmark
+    sum_wce_actual = 0
     max_lpp = specs_obj.lpp
     max_ppo = specs_obj.pit if specs_obj.shared else specs_obj.ppo
     total_number_of_cells_per_iter = max_lpp * max_ppo + 1
@@ -75,22 +76,36 @@ def explore_grid(specs_obj: TemplateSpecs):
     next_generation: Dict = {}
     total: Dict[Dict] = {}
     pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
+    original_et = specs_obj.et
+    available_error = specs_obj.et
+    obtained_wce_exact = 0
+    i = 0
+    prev_actual_error = 0
+    prev_given_error = 0
+    while (obtained_wce_exact <= available_error):
+        # for i, et in error_iterator:
+        i += 1
+        if specs_obj.et_partitioning == 'asc':
+            log2 = int(math.log2(specs_obj.et))
+            et = 2**(i-1)
+        elif specs_obj.et_partitioning == 'desc':
+            log2 = int(math.log2(specs_obj.et))
+            et = 2**(log2 - i - 2)
+        elif specs_obj.et_partitioning == 'smart_asc':
+            et = 1 if i == 1 else prev_given_error + (1 if prev_actual_error == 0 else 0)
+            if available_error < et*2:
+                et = available_error
+            prev_given_error = et
+        elif specs_obj.et_partitioning == 'smart_desc':
+            et = available_error if i == 1 else prev_given_error - (1 if prev_actual_error == 0 else 0)
+            if et > available_error:
+                et = available_error
+            prev_given_error = et
+        else:
+            raise NotImplementedError('invalid status')
 
-    # define errors
-    if not specs_obj.subxpat_v2:
-        error_iterator = ((i+1, specs_obj.et) for i in range(total_iterations))
-    elif specs_obj.et_partitioning == 'asc':
-        log2 = int(math.log2(specs_obj.et))
-        error_iterator = ((i+1, 2**i) for i in range(log2))
-    elif specs_obj.et_partitioning == 'desc':
-        log2 = int(math.log2(specs_obj.et))
-        error_iterator = ((i+1, 2**(log2 - i - 1)) for i in range(log2))
-    else:
-        raise NotImplementedError('invalid status')
-
-    for i, et in error_iterator:
-        pprint.info1(f'iteration {i} with et {et}'
-                     if specs_obj.subxpat else
+        pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
+                     if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
 
         # for all candidates
@@ -117,7 +132,9 @@ def explore_grid(specs_obj: TemplateSpecs):
             if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
                 # label graph
                 t_start = time.time()
-                template_obj.label_graph(min_labeling=specs_obj.min_labeling)
+                print(f'{et = }')
+                et_coefficient = 8
+                template_obj.label_graph(min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling, et=et*et_coefficient, parallel=specs_obj.parallel)
                 labeling_time = time.time() - t_start
                 print(f'labeling_time = {labeling_time}')
 
@@ -125,7 +142,11 @@ def explore_grid(specs_obj: TemplateSpecs):
             t_start = time.time()
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
             subgraph_extraction_time = time.time() - t_start
+            subgraph_number_inputs = template_obj.current_graph.subgraph_num_inputs
+            subgraph_number_outputs = template_obj.current_graph.subgraph_num_outputs
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
+            print(f'subgraph_number_inputs = {subgraph_number_inputs}')
+            print(f'subgraph_number_outputs = {subgraph_number_outputs}')
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
@@ -137,6 +158,9 @@ def explore_grid(specs_obj: TemplateSpecs):
             # guard
             if not subgraph_is_available:
                 pprint.warning(f'No subgraph available.')
+                prev_actual_error = 0
+                if et == available_error:
+                    available_error = 0
                 continue
 
             # run grid phase
@@ -150,7 +174,11 @@ def explore_grid(specs_obj: TemplateSpecs):
                 print(f"p1_time = {subxpat_phase1_time:.6f}")
 
                 if not success:
+                    # TODO: Look into this in v2
                     pprint.warning(f'phase 1 failed with message: {message}')
+                    prev_actual_error = 0
+                    if et == available_error:
+                        available_error = 0
                     continue
 
             # explore the grid
@@ -193,6 +221,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                     this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
                                             labeling_time=labeling_time,
                                             subgraph_extraction_time=subgraph_extraction_time,
+                                            subgraph_number_inputs=subgraph_number_inputs,
+                                            subgraph_number_outputs=subgraph_number_outputs,
                                             subxpat_phase1_time=subxpat_phase1_time,
                                             subxpat_phase2_time=subxpat_phase2_time)
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
@@ -238,6 +268,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                                            delay=cur_model_results[synth_obj.ver_out_name][2],
                                            labeling_time=labeling_time,
                                            subgraph_extraction_time=subgraph_extraction_time,
+                                           subgraph_number_inputs=subgraph_number_inputs,
+                                           subgraph_number_outputs=subgraph_number_outputs,
                                            subxpat_phase1_time=subxpat_phase1_time,
                                            subxpat_phase2_time=subxpat_phase2_time)
                         stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
@@ -271,10 +303,19 @@ def explore_grid(specs_obj: TemplateSpecs):
                     for candidate in cur_model_results:
                         approximate_benchmark = candidate[:-2]
 
-                        if not erroreval_verification_explicit(pure_exact_file_name, approximate_benchmark, template_obj.et):
+                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, original_et)
+                        if specs_obj.subxpat_v2:
+                            obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et)
+                            prev_actual_error = obtained_wce_prev
+
+                        if obtained_wce_exact > original_et:
                             raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
-                    pprint.success('ErrorEval PASS! ')
+                    prev_string = ''
+                    if specs_obj.subxpat_v2:
+                        sum_wce_actual += obtained_wce_prev
+                        prev_string = f' and prev_wce = {obtained_wce_prev} with sum of prevs wce = {sum_wce_actual}'
+                    pprint.success(f'ErrorEval PASS! with total wce = {obtained_wce_exact}' + prev_string)
 
                     benchmark_name = specs_obj.benchmark_name
 
@@ -314,7 +355,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if exists_an_area_zero(current_population):
             break
-
     display_the_tree(total)
 
     stats_obj.store_grid()

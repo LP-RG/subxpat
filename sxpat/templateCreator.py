@@ -274,18 +274,23 @@ class Template_SOP1(TemplateCreator):
     def json_in_path(self, this_json_path):
         self.__json_in_path = this_json_path
 
-    def label_graph(self, min_labeling: bool):
-        labels, _ = labeling_explicit(self.exact_benchmark, self.benchmark_name, 1, min_labeling)
+    def label_graph(self, min_labeling: bool = False,  partial: bool = False, et: int = -1, parallel: bool = False):
+        print(f'{et = } for partial labeling!')
+        # labels = labeling(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
+        labels, _ = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value=0, min_labeling=min_labeling,
+                                      partial=partial, et=et, parallel=parallel)
 
         for n in self.current_graph.graph.nodes:
             if n in labels:
                 self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
+            else:
+                self.current_graph.graph.nodes[n][WEIGHT] = int(-1)
 
     # TODO: Deprecated
-    def label_graph_old(self, constant_value=2, min_labeling: bool = False):
+    def label_graph_old(self, constant_value=2, min_labeling: bool = False, parallel: bool = False):
         """ ~ DEPRECATED ~ """
         print(Fore.BLUE + f'labeling...' + Style.RESET_ALL)
-        labels1, labels0 = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling)
+        labels1, labels0 = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling, parallel=parallel)
         for n in self.current_graph.graph.nodes:
             if n in labels0 and n in labels1:
                 if constant_value == 0:
@@ -415,7 +420,7 @@ class Template_SOP1(TemplateCreator):
                 approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_subxpat_bitvec()
 
                 for_all_solver = self.z3_generate_forall_solver_subxpat_bitvec()
-                verification_solver = self.z3_generate_verification_solver()
+                verification_solver = self.z3_generate_verification_solver_bitvec()
                 parameter_constraint_list = self.z3_generate_parameter_constraint_list()
                 find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models_bitvec()
                 store_data = self.z3_generate_store_data()
@@ -480,7 +485,7 @@ class Template_SOP1(TemplateCreator):
         bv_function = ''
         bv_function += f'# Bitvector function declaration\n'
         temp_arg_list = ', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))
-        temp_arg_list += f", BitVecSort({self.current_graph.num_outputs})"
+        temp_arg_list += f", BitVecSort({self.exact_graph.num_outputs})"
         bv_function += f"{function_name} = {FUNCTION}('{function_name}', {temp_arg_list})\n"
         return bv_function
 
@@ -503,7 +508,7 @@ class Template_SOP1(TemplateCreator):
                              f"difference = z3_abs_diff_bitvec({F_EXACT}({', '.join(self.exact_graph.input_dict.values())}), " \
                              f"{F_APPROXIMATE}({', '.join(self.exact_graph.input_dict.values())})" \
                              f")\n" \
-                             f"error = BitVec('error', {self.current_graph.num_outputs})\n"
+                             f"error_BV = BitVec('error', {self.exact_graph.num_outputs})\n"
 
         utility_variables += '\n'
         return utility_variables
@@ -870,8 +875,8 @@ class Template_SOP1(TemplateCreator):
             pred = self.z3_express_node_as_wire_constraints(output_predecessors[0])
             output = self.z3_express_node_as_wire_constraints(output_label)
             exact_output_constraints += f'{TAB}{output} == If({pred}, '
-            exact_output_constraints += f'BitVecVal({self.get_binary(output_idx, 1, self.current_graph.num_outputs)}, {self.current_graph.num_outputs}), '
-            exact_output_constraints += f'BitVecVal({self.get_binary(0, 0, self.current_graph.num_outputs)}, {self.current_graph.num_outputs})),\n'
+            exact_output_constraints += f'BitVecVal({self.get_binary(output_idx, 1, self.exact_graph.num_outputs)}, {self.exact_graph.num_outputs}), '
+            exact_output_constraints += f'BitVecVal({self.get_binary(0, 0, self.exact_graph.num_outputs)}, {self.exact_graph.num_outputs})),\n'
         return exact_output_constraints
 
     def z3_generate_exact_circuit_integer_output_constraints(self):
@@ -1510,7 +1515,7 @@ class Template_SOP1(TemplateCreator):
         verficiation_solver = ''
         verficiation_solver += f'{VERIFICATION_SOLVER} = SolverFor("BV")\n' \
                                f'{VERIFICATION_SOLVER}.{ADD}(\n' \
-                               f'{TAB}{ERROR} == {DIFFERENCE},\n' \
+                               f'{TAB}{ERROR}_BV == {DIFFERENCE},\n' \
                                f'{TAB}{EXACT_CIRCUIT},\n' \
                                f'{TAB}{APPROXIMATE_CIRCUIT},\n' \
                                f')\n'
@@ -1623,7 +1628,6 @@ class Template_SOP1(TemplateCreator):
         find_valid_model += f'{TAB}{TAB}# verify parameters\n' \
                             f'{TAB}{TAB}WCE: int = None\n' \
                             f'{TAB}{TAB}verification_ET: int = 0\n' \
-                            f'{TAB}{TAB}verification_ET_BV = BitVecVal(verification_ET, {self.current_graph.num_outputs})\n' \
                             f'{TAB}{TAB}time_verification_start = time()\n' \
                             f'{TAB}{TAB}# save state\n' \
                             f'{TAB}{TAB}verification_solver.push()\n' \
@@ -1661,7 +1665,7 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_find_wanted_number_of_models_prep_loop3_bitvec(self):
         prep_loop3 = f'{TAB}{TAB}while verification_ET < max_possible_ET:\n' \
                      f'{TAB}{TAB}{TAB}# add constraint\n' \
-                     f'{TAB}{TAB}{TAB}verification_solver.add(UGT(difference, verification_ET_BV))\n' \
+                     f'{TAB}{TAB}{TAB}verification_solver.add(UGT(difference, BitVecVal(verification_ET,  {self.exact_graph.num_outputs})))\n' \
                      f'{TAB}{TAB}{TAB}# run solver\n' \
                      f'{TAB}{TAB}{TAB}verification_solver.set("timeout", int(timeout * 1000))\n' \
                      f'{TAB}{TAB}{TAB}v_result = verification_solver.check()\n'
@@ -1674,8 +1678,7 @@ class Template_SOP1(TemplateCreator):
         prep_loop3 += f'{TAB}{TAB}{TAB}elif v_result == sat:\n' \
                       f'{TAB}{TAB}{TAB}{TAB}# sat, need to search again\n' \
                       f'{TAB}{TAB}{TAB}{TAB}m = verification_solver.model()\n' \
-                      f'{TAB}{TAB}{TAB}{TAB}verification_ET = m[error].as_long()\n' \
-                      f'{TAB}{TAB}{TAB}{TAB}verification_ET_BV = BitVecVal(verification_ET, {self.current_graph.num_outputs})\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}verification_ET = m[error_BV].as_long()\n' \
                       f'{TAB}{TAB}{TAB}else:\n' \
                       f'{TAB}{TAB}{TAB}{TAB} # unknown (probably a timeout)\n' \
                       f'{TAB}{TAB}{TAB}{TAB}WCE = -1\n' \
@@ -1793,7 +1796,7 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_config_bitvec(self):
         config = ''
         config += f'ET = int(sys.argv[1])\n' \
-                  f'ET_BV = BitVecVal(ET, {self.current_graph.num_outputs})\n' \
+                  f'ET_BV = BitVecVal(ET, {self.exact_graph.num_outputs})\n' \
                   f'wanted_models: int = 1 if len(sys.argv) < 3 else int(sys.argv[2])\n' \
                   f'timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])\n' \
                   f'max_possible_ET: int = 2 ** 3 - 1\n' \
@@ -1954,9 +1957,10 @@ class Template_SOP1ShareLogic(TemplateCreator):
                 self.current_graph.graph.nodes[n][WEIGHT] = int(labels[n])
 
     # TODO: Deprecated
-    def label_graph_old(self, constant_value=2, min_labeling: bool = False):
+    def label_graph_old(self, constant_value=2, min_labeling: bool = False, parallel: bool = False):
+        
         print(Fore.BLUE + f'labeling...' + Style.RESET_ALL)
-        labels1, labels0 = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling)
+        labels1, labels0 = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling, parallel=parallel)
         for n in self.current_graph.graph.nodes:
             if n in labels0 and n in labels1:
                 if constant_value == 0:
