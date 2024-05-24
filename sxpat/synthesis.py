@@ -260,9 +260,9 @@ class Synthesis:
             verilog_str = [self.__magraph_to_verilog()]
         elif self.subxpat and self.shared:
             verilog_str = self.__annotated_graph_to_verilog_shared()  # Shared SubXPAT
-        elif self.subxpat and self.lut:
+        elif self.lut:
             verilog_str = self.__json_model_to_verilog_lut()
-        elif self.subxpat and self.lut_MP:
+        elif self.lut_MP:
             verilog_str = self.__json_model_to_verilog_lut_MP()
         elif self.subxpat and not self.shared:
             verilog_str = self.__annotated_graph_to_verilog()  # SubXPAT
