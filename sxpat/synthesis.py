@@ -50,7 +50,7 @@ class Synthesis:
         if json_obj == sxpatconfig.UNSAT or json_obj == sxpatconfig.UNKNOWN:
             pprint.error('ERROR!!! the json does not contain any models!')
         else:
-            self.__json_model: json = json_obj
+            self.__json_model: List[Dict] = json_obj
             self.__num_models = self.get_num_models_from_json(json_obj)
 
             self.__use_json_model: bool = None
@@ -81,6 +81,7 @@ class Synthesis:
     @property
     def shared(self):
         return self.__shared
+
     @property
     def num_of_models(self):
         return self.__num_models
@@ -413,25 +414,41 @@ class Synthesis:
 
         return lpp_assigns
 
+    def __json_model_output_constants_assign(self, idx: int = 0):
+        model = self.json_model[idx]
+
+        text = '//json model constants rewrites\n'
+        for out_id, out_name in self.graph.output_dict.items():
+            out_pred = next(self.graph.graph.predecessors(out_name))
+            out_parameter = f'{sxpatconfig.CONSTANT_PREFIX}{out_id}'
+
+            has_const = out_pred in self.graph.constant_dict.values()
+            has_parameter = out_parameter in model
+            assert has_const == has_parameter, f'Output `{out_name}` must be preceded by a constant if and only if it has a constant parameter'
+
+            if has_const:  # or has_parameter # they are equivalent
+                text += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{out_pred} = {self.verilog_bool_const(model[out_parameter])};\n'
+
+        return text
+
     def __intact_part_assigns(self):
         intact_part = f'// intact gates assigns\n'
-        for n_idx in self.graph.constant_dict.keys():
-            n = self.graph.constant_dict[n_idx]
 
-            sn = list(self.graph.graph.successors(n))
-            Value = self.graph.graph.nodes[n][LABEL]
+        # write constants that are not output constants
+        for n_idx, n_name in self.graph.constant_dict.items():
+            const_succs = list(self.graph.graph.successors(n_name))
+            if len(const_succs) == 1 and const_succs[0] in self.graph.output_dict.values():
+                # skip if it is a constant output
+                continue
 
-            if Value.upper() == 'FALSE':
-                Value = "1'b0"
-            else:
-                Value = "1'b1"
+            value: str = self.graph.graph.nodes[n_name][LABEL]
+            value = f"1'b{'0' if value.upper() == 'FALSE' else '1'}"
+            intact_part += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n_name} = {value};\n'
 
-            intact_part += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = {Value};\n'
-
-        for n_idx in self.graph.graph_intact_gate_dict.keys():
-            n = self.graph.graph_intact_gate_dict[n_idx]
-            pn = list(self.graph.graph.predecessors(n))
-            gate = self.graph.graph.nodes[n][LABEL]
+        #
+        for n_idx, n_name in self.graph.graph_intact_gate_dict.items():
+            pn = list(self.graph.graph.predecessors(n_name))
+            gate = self.graph.graph.nodes[n_name][LABEL]
             for idx, el in enumerate(pn):
                 if (
                     (el in list(self.graph.input_dict.values()) and el not in list(self.graph.subgraph_input_dict.values()))
@@ -441,22 +458,20 @@ class Synthesis:
                 else:
                     pn[idx] = f'{sxpatconfig.VER_WIRE_PREFIX}{el}'
 
-            # print(f'{pn = }')
-
             if len(pn) == 1:
-                intact_part += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = {sxpatconfig.VER_NOT}{pn[0]};\n'
+                intact_part += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n_name} = {sxpatconfig.VER_NOT}{pn[0]};\n'
             elif len(pn) == 2:
                 if gate == sxpatconfig.AND:
 
-                    intact_part += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = ' \
+                    intact_part += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n_name} = ' \
                                    f'{pn[0]} {sxpatconfig.VER_AND} ' \
                                    f'{pn[1]};\n'
                 elif gate == sxpatconfig.OR:
-                    intact_part += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = ' \
+                    intact_part += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n_name} = ' \
                                    f'{pn[0]} {sxpatconfig.VER_OR} ' \
                                    f'{pn[1]};\n'
             else:
-                pprint.error(f'ERROR!!! node {n} has more than two drivers!')
+                pprint.error(f'ERROR!!! node {n_name} has more than two drivers!')
                 exit()
 
         return intact_part
@@ -464,29 +479,34 @@ class Synthesis:
     def __output_assigns(self):
         output_assigns = f'// output assigns\n'
 
-        for n in self.graph.output_dict.values():
-            pn = list(self.graph.graph.predecessors(n))
-            gate = self.graph.graph.nodes[n][LABEL]
+        for out_name in self.graph.output_dict.values():
 
-            if len(pn) == 1:
+            preds = list(self.graph.graph.predecessors(out_name))
+            gate = self.graph.graph.nodes[out_name][LABEL]
+
+            # output is a rewritten expression
+            if len(preds) == 1:
                 if gate == sxpatconfig.NOT:
-                    output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}{pn[0]};\n'
+                    # NOTE: this block is reached when an output node is also a gate, but this should never be the case.
+                    raise Exception('The code entered a block that should never have reached. (synthesis.__output_assigns if1)')
+                    output_assigns += f'{sxpatconfig.VER_ASSIGN} {out_name} = {sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}{preds[0]};\n'
                 else:
-                    # print(f'{pn = }')
-                    if pn[0] in list(self.graph.input_dict.values()) and pn[0] not in list(self.graph.subgraph_input_dict.values()):
-                        # print(f'We are here=============')
-                        output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {pn[0]};\n'
+                    if preds[0] in list(self.graph.input_dict.values()) and preds[0] not in list(self.graph.subgraph_input_dict.values()):
+                        output_assigns += f'{sxpatconfig.VER_ASSIGN} {out_name} = {preds[0]};\n'
                     else:
-                        output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_WIRE_PREFIX}{pn[0]};\n'
-            elif len(pn) == 2:
+                        output_assigns += f'{sxpatconfig.VER_ASSIGN} {out_name} = {sxpatconfig.VER_WIRE_PREFIX}{preds[0]};\n'
+
+            elif len(preds) == 2:
+                # NOTE: this block is reached when an output node is also a gate, but this should never be the case.
+                raise Exception('The code entered a block that should never have reached. (synthesis.__output_assigns if2)')
                 if gate == sxpatconfig.AND:
-                    output_assigns += f'{sxpatconfig.VER_ASSIGN}  = ' \
-                                      f'{sxpatconfig.VER_WIRE_PREFIX}{pn[0]} {sxpatconfig.VER_AND} ' \
-                                      f'{sxpatconfig.VER_WIRE_PREFIX}{pn[1]};\n'
+                    output_assigns += f'{sxpatconfig.VER_ASSIGN} {out_name} = ' \
+                                      f'{sxpatconfig.VER_WIRE_PREFIX}{preds[0]} {sxpatconfig.VER_AND} ' \
+                                      f'{sxpatconfig.VER_WIRE_PREFIX}{preds[1]};\n'
                 elif gate == sxpatconfig.OR:
-                    output_assigns += f'{sxpatconfig.VER_ASSIGN}  = ' \
-                                      f'{sxpatconfig.VER_WIRE_PREFIX}{pn[0]} {sxpatconfig.VER_OR} ' \
-                                      f'{sxpatconfig.VER_WIRE_PREFIX}{pn[1]};\n'
+                    output_assigns += f'{sxpatconfig.VER_ASSIGN} {out_name} = ' \
+                                      f'{sxpatconfig.VER_WIRE_PREFIX}{preds[0]} {sxpatconfig.VER_OR} ' \
+                                      f'{sxpatconfig.VER_WIRE_PREFIX}{preds[1]};\n'
 
         output_assigns += f'{sxpatconfig.VER_ENDMODULE}'
         return output_assigns
@@ -517,7 +537,7 @@ class Synthesis:
             intact_wires += f'{sxpatconfig.VER_WIRE} '
             for gate_idx, gate in enumerate(constant_intact_gate_list):
                 if gate_idx == len(constant_intact_gate_list) - 1:
-                    intact_wires += f'{sxpatconfig.VER_WIRE_PREFIX}{gate};'
+                    intact_wires += f'{sxpatconfig.VER_WIRE_PREFIX}{gate};\n'
                 else:
                     intact_wires += f'{sxpatconfig.VER_WIRE_PREFIX}{gate}, '
 
@@ -985,9 +1005,9 @@ class Synthesis:
             output_assigns = self.__output_assigns()
 
             ver_str += module_signature + io_declaration + intact_wires + annotated_graph_input_wires + json_input_wires + \
-                       annotated_graph_input_wires + annotated_graph_output_wires + json_output_wires + json_model_wires
+                annotated_graph_input_wires + annotated_graph_output_wires + json_output_wires + json_model_wires
             ver_str += json_input_assign + subgraph_to_json_input_mapping + intact_assigns + \
-                       json_model_and_subgraph_outputs_assigns + shared_assigns + output_assigns
+                json_model_and_subgraph_outputs_assigns + shared_assigns + output_assigns
 
             # print(f'{ver_str = }')
             ver_string.append(ver_str)
@@ -995,6 +1015,7 @@ class Synthesis:
         return ver_string
 
     def __annotated_graph_to_verilog(self) -> List[AnyStr]:
+        # AAAAA
         # print(Fore.CYAN + f'subxpat without sharing synthesis' + Style.RESET_ALL)
         ver_string = []
         for idx in range(self.num_of_models):
@@ -1036,15 +1057,24 @@ class Synthesis:
             # 10. json_model_and_subgraph_outputs_assigns
             json_model_and_subgraph_outputs_assigns = self.__json_model_lpp_and_subgraph_output_assigns(idx)
 
+            #
+            json_model_constants_rewrite = self.__json_model_output_constants_assign(idx)
+
             # 11. the intact assigns
             intact_assigns = self.__intact_part_assigns()
 
             # 12. output assigns
             output_assigns = self.__output_assigns()
 
-            assigns = subgraph_inputs_assigns + subgraph_to_json_input_mapping + json_model_and_subgraph_outputs_assigns + intact_assigns + output_assigns
-
             # assignments
+            assigns = (
+                subgraph_inputs_assigns
+                + subgraph_to_json_input_mapping
+                + json_model_and_subgraph_outputs_assigns
+                + json_model_constants_rewrite
+                + intact_assigns
+                + output_assigns
+            )
 
             # endmodule
             ver_str = module_signature + io_declaration + wire_declarations + assigns
@@ -1163,6 +1193,13 @@ class Synthesis:
 
         ver_str += f'{sxpatconfig.VER_ENDMODULE}'
         return ver_str
+    
+    # =========================
+
+    @staticmethod
+    def verilog_bool_const(value: bool) -> str:
+        assert isinstance(value, bool), 'value must be boolean'
+        return f"1'b{int(value)}"
 
     # =========================
 
