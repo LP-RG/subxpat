@@ -76,14 +76,12 @@ def explore_grid(specs_obj: TemplateSpecs):
     next_generation: Dict = {}
     total: Dict[Dict] = {}
     pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
-
     available_error = specs_obj.et
     obtained_wce_exact = 0
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
-    while (obtained_wce_exact <= available_error):
-        # for i, et in error_iterator:
+    while (obtained_wce_exact < available_error):
         i += 1
         if specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
@@ -132,7 +130,6 @@ def explore_grid(specs_obj: TemplateSpecs):
             if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
                 # label graph
                 t_start = time.time()
-                print(f'{et = }')
                 et_coefficient = 8
                 template_obj.label_graph(min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling, et=et*et_coefficient, parallel=specs_obj.parallel)
                 labeling_time = time.time() - t_start
@@ -207,7 +204,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                 else:
                     # run script
                     template_obj.z3_generate_z3pyscript()
-                    template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=10800)
+                    template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=specs_obj.timeout)
+                    # at this point the internal verification using verification solver is already passed!
 
                     # gather results
                     cur_status = get_status(template_obj)
@@ -315,6 +313,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                         prev_string = f' and prev_wce = {obtained_wce_prev} with sum of prevs wce = {sum_wce_actual}'
                     pprint.success(f'ErrorEval PASS! with total wce = {obtained_wce_exact}' + prev_string)
 
+                    benchmark_name = specs_obj.benchmark_name
+
                     # todo:check: this seems to be working, lets make sure
                     specs_obj.exact_benchmark = approximate_benchmark
                     specs_obj.benchmark_name = approximate_benchmark
@@ -327,6 +327,9 @@ def explore_grid(specs_obj: TemplateSpecs):
                                    synth_obj.estimate_power(exact_file_path),
                                    synth_obj.estimate_delay(exact_file_path)]
                     print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
+
+                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=benchmark_name, et=specs_obj.et,
+                                        encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
 
                     for key in cur_model_results.keys():
                         next_generation[key] = cur_model_results[key]
@@ -457,11 +460,8 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
                 cur_model_result[key][2] = (cur_model_result[key][2] / exact_delay) * 100
 
     if len(cur_model_result) < 10:
-        #
-
         sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
         for idx, key in enumerate(sorted_candidates):
-            # print(f'{sorted_candidates[idx] = }')
             this_id = re.search('(id.*)', sorted_candidates[idx][0]).group(1).split('.')[0]
             this_area = sorted_candidates[idx][1][0]
             this_power = sorted_candidates[idx][1][1]
@@ -470,10 +470,7 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
         pprint.success(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
 
     else:
-        #
-
         sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
-        # print(sorted_candidates)
         best_id = re.search('(id.*)', sorted_candidates[0][0]).group(1).split('.')[0]
         best_area = sorted_candidates[0][1][0]
         best_power = sorted_candidates[0][1][1]
@@ -481,6 +478,50 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
         data.append([best_id, best_area, best_power, best_delay])
         pprint.success(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
         # print the best model for now
+
+
+def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, encoding: int, subgraph_extraction_time: float, labeling_time: float, exact_stats: List = None) -> None:
+    with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_power_delay.csv", 'a') as f:
+        csvwriter = csv.writer(f)
+
+        # to avoid duplicate data
+        if encoding == 2:
+            exact_data = []
+            if exact_stats:
+                exact_area = exact_stats[0]
+                exact_power = exact_stats[1]
+                exact_delay = exact_stats[2]
+                exact_data.append(f'{benchmark_name}')
+                exact_data.append('Exact')
+                exact_data.append(exact_area)
+                exact_data.append(exact_power)
+                exact_data.append(exact_delay)
+                exact_data.append(et)
+                exact_data.append(encoding)
+                exact_data.append(labeling_time)
+                exact_data.append(subgraph_extraction_time)
+                exact_data = tuple(exact_data)
+
+            csvwriter.writerow(exact_data)
+
+        approx_data = []
+        sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
+        best_id = re.search('(id.*)', sorted_candidates[0][0]).group(1).split('.')[0]
+        best_area = sorted_candidates[0][1][0]
+        best_power = sorted_candidates[0][1][1]
+        best_delay = sorted_candidates[0][1][2]
+        approx_data.append(f'{benchmark_name}')
+        approx_data.append(best_id)
+        approx_data.append(best_area)
+        approx_data.append(best_power)
+        approx_data.append(best_delay)
+        approx_data.append(et)
+        approx_data.append(encoding)
+        approx_data.append(labeling_time)
+        approx_data.append(subgraph_extraction_time)
+        approx_data = tuple(approx_data)
+
+        csvwriter.writerow(approx_data)
 
 
 def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
