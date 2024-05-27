@@ -104,10 +104,10 @@ class Arguments(Z3Log_Arguments):
         self.__full_error_function: int = tmp_args.full_error_function
         self.__sub_error_function: int = tmp_args.sub_error_function
         self.__et_partitioning: int = tmp_args.et_partitioning
+        self.__encoding: int = tmp_args.encoding
+
         self.__partial_labeling: bool = tmp_args.partial_labeling
         self.__num_subgraphs: int = tmp_args.num_subgraphs
-
-
 
     @property
     def parallel(self):
@@ -232,6 +232,10 @@ class Arguments(Z3Log_Arguments):
     @property
     def et_partitioning(self):
         return self.__et_partitioning
+
+    @property
+    def encoding(self):
+        return self.__encoding
 
     @property
     def partial_labeling(self):
@@ -416,6 +420,10 @@ class Arguments(Z3Log_Arguments):
                                choices=['asc', 'desc', 'smart_asc', 'smart_desc'],
                                default='asc')
 
+        my_parser.add_argument('-encoding',
+                               type=int,
+                               default=1)
+
         my_parser.add_argument('--partial-labeling',
                                action="store_true",
                                default=False)
@@ -460,4 +468,5 @@ class Arguments(Z3Log_Arguments):
                f'{self.et_partitioning = }\n' \
                f'{self.partial_labeling = }\n' \
                f'{self.num_subgraphs = }\n' \
-               f'{self.clean = }'
+               f'{self.clean = }\n' \
+               f'{self.encoding = }'

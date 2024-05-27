@@ -1,6 +1,5 @@
-from itertools import repeat, islice
-from typing import Tuple, List, Callable, Any, Union
-import networkx as nx
+from itertools import repeat
+from typing import Tuple, List
 import json
 import subprocess
 from subprocess import PIPE
@@ -40,6 +39,8 @@ class TemplateCreator:
 
         if self.current_graph.subgraph:
             self.current_graph.export_annotated_graph()
+
+        self._encoding = template_specs.encoding
 
     @property
     def subxpat(self):
@@ -113,6 +114,10 @@ class TemplateCreator:
     def omax(self, this_omax):
         self.__omax = this_omax
 
+    @property
+    def encoding(self):
+        return self._encoding
+
     def import_graph(self):
         """
         Reads the input Verilog benchmark located at "input/ver" and cleans it.
@@ -120,11 +125,10 @@ class TemplateCreator:
         Converts it into a GraphViz (.gv) file, cleans it, and stores it at "output/gv"
         :return: the cleaned GraphViz file as a NetworkX graph object
         """
-        # print(Fore.LIGHTMAGENTA_EX+ f'importing {self.benchmark_name}' + Style.RESET_ALL)
         temp_verilog_obj = Verilog(self.benchmark_name)
 
         convert_verilog_to_gv(self.benchmark_name)
-        # exit()
+
         temp_graph_obj = AnnotatedGraph(self.benchmark_name, is_clean=False, partitioning_percentage=1)
 
         return temp_graph_obj
@@ -269,7 +273,6 @@ class Template_SOP1(TemplateCreator):
         self.__json_in_path = this_json_path
 
     def label_graph(self, min_labeling: bool = False,  partial: bool = False, et: int = -1, parallel: bool = False):
-        print(f'{et = } for partial labeling!')
         # labels = labeling(self.exact_benchmark, self.benchmark_name, min_labeling, parallel)
         labels, _ = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value=0, min_labeling=min_labeling,
                                       partial=partial, et=et, parallel=parallel)
@@ -306,17 +309,13 @@ class Template_SOP1(TemplateCreator):
 
     def set_path(self, this_path: Tuple[str, str]):
         folder, extension = this_path
-        # print(f'setting json out path...')
-        # print(f'{self.benchmark_name = }')
         if re.search('id', self.benchmark_name):
-            path = f'{folder}/{self.benchmark_name}_{ITER}{self.iterations}.{extension}'
+            path = f'{folder}/{self.benchmark_name}_{TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_encoding{self.encoding}_{ITER}{self.iterations}.{extension}'
         else:
-            path = f'{folder}/{self.benchmark_name}_{TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{ITER}{self.iterations}.{extension}'
-        # print(f'{path = }')
+            path = f'{folder}/{self.benchmark_name}_{TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_encoding{self.encoding}_{ITER}{self.iterations}.{extension}'
         return path
 
     def export_z3pyscript(self):
-        # print(f'Storing in {self.z3_out_path}')
         with open(self.z3_out_path, 'w') as z:
             z.writelines(self.z3pyscript)
 
@@ -353,8 +352,6 @@ class Template_SOP1(TemplateCreator):
                     return float(d[key])
 
     def run_z3pyscript(self, ET=2, num_models=1, timeout=10800):
-        # print(f'{self.z3_out_path = }')
-        # print(f'{ET = }')
         process = subprocess.run([PYTHON3, self.z3_out_path, f'{ET}', f'{num_models}', f'{timeout}'], stderr=PIPE, stdout=PIPE)
         if process.stderr:
             print(Fore.RED + f"{process.stderr.decode()}" + Style.RESET_ALL)
@@ -363,35 +360,68 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_z3pyscript(self):
         if self.subxpat or (not self.subxpat and not self.shared):
             imports = self.z3_generate_imports()  # parent
-            config = self.z3_generate_config()
-            z3_abs_function = self.z3_generate_z3_abs_function()  # parent
-            input_variables_declaration = self.z3_generate_declare_input_variables()
-            exact_integer_function_declaration = self.z3_generate_declare_integer_function(F_EXACT)
-            approximate_integer_function_declaration = self.z3_generate_declare_integer_function(F_APPROXIMATE)
-            utility_variables = self.z3_generate_utility_variables()
-            implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters_subxpat()
-            exact_circuit_wires_declaration = self.z3_generate_exact_circuit_wires_declaration()
-            approximate_circuit_wires_declaration = self.z3_generate_approximate_circuit_wires_declaration_subxpat()
+            if (self.encoding == 1):
+                config = self.z3_generate_config()
+                z3_abs_function = self.z3_generate_z3_abs_function()  # parent
+                input_variables_declaration = self.z3_generate_declare_input_variables()
+                exact_integer_function_declaration = self.z3_generate_declare_integer_function(F_EXACT)
+                approximate_integer_function_declaration = self.z3_generate_declare_integer_function(F_APPROXIMATE)
+                utility_variables = self.z3_generate_utility_variables()
+                implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters_subxpat()
+                exact_circuit_wires_declaration = self.z3_generate_exact_circuit_wires_declaration()
+                approximate_circuit_wires_declaration = self.z3_generate_approximate_circuit_wires_declaration_subxpat()
 
-            exact_circuit_outputs_declaration = self.z3_generate_exact_circuit_outputs_declaration()
-            approximate_circuit_outputs_declaration = self.z3_generate_approximate_circuit_outputs_declaration()
+                exact_circuit_outputs_declaration = self.z3_generate_exact_circuit_outputs_declaration()
+                approximate_circuit_outputs_declaration = self.z3_generate_approximate_circuit_outputs_declaration()
 
-            exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()
-            approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_subxpat()
+                exact_circuit_constraints = self.z3_generate_exact_circuit_constraints()
+                approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_subxpat()
 
-            for_all_solver = self.z3_generate_forall_solver_subxpat()
-            verification_solver = self.z3_generate_verification_solver()
-            parameter_constraint_list = self.z3_generate_parameter_constraint_list()
-            find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
-            store_data = self.z3_generate_store_data()
-            self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
-                + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
-                + approximate_circuit_wires_declaration \
-                + exact_circuit_outputs_declaration \
-                + approximate_circuit_outputs_declaration \
-                + exact_circuit_constraints + approximate_circuit_constraints_subxpat \
-                + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
-                + store_data
+                for_all_solver = self.z3_generate_forall_solver_subxpat()
+                verification_solver = self.z3_generate_verification_solver()
+                parameter_constraint_list = self.z3_generate_parameter_constraint_list()
+                find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models()
+                store_data = self.z3_generate_store_data()
+                self.z3pyscript = imports + config + z3_abs_function + input_variables_declaration + exact_integer_function_declaration + approximate_integer_function_declaration \
+                    + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration \
+                    + approximate_circuit_wires_declaration \
+                    + exact_circuit_outputs_declaration \
+                    + approximate_circuit_outputs_declaration \
+                    + exact_circuit_constraints + approximate_circuit_constraints_subxpat \
+                    + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
+                    + store_data
+
+            elif (self.encoding == 2):
+                config = self.z3_generate_config_bitvec()
+                z3_abs_function = self.z3_generate_z3_abs_difference_bitvec_function()
+                input_variables_declaration = self.z3_generate_declare_input_variables()
+                exact_integer_function_declaration = self.z3_generate_declare_bitvec_function(F_EXACT)
+                approximate_integer_function_declaration = self.z3_generate_declare_bitvec_function(F_APPROXIMATE)
+                utility_variables = self.z3_generate_utility_variables_bitvec()
+                implicit_parameters_declaration = self.z3_generate_declare_implicit_parameters_subxpat()
+                exact_circuit_wires_declaration = self.z3_generate_exact_circuit_wires_declaration()
+                approximate_circuit_wires_declaration = self.z3_generate_approximate_circuit_wires_declaration_subxpat()
+
+                exact_circuit_outputs_declaration = self.z3_generate_exact_circuit_outputs_declaration_bitvec()
+                approximate_circuit_outputs_declaration = self.z3_generate_approximate_circuit_outputs_declaration_bitvec()
+
+                exact_circuit_constraints = self.z3_generate_exact_circuit_constraints_bitvec()
+                approximate_circuit_constraints_subxpat = self.z3_generate_approximate_circuit_constraints_subxpat_bitvec()
+
+                for_all_solver = self.z3_generate_forall_solver_subxpat_bitvec()
+                verification_solver = self.z3_generate_verification_solver_bitvec()
+                parameter_constraint_list = self.z3_generate_parameter_constraint_list()
+                find_wanted_number_of_models = self.z3_generate_find_wanted_number_of_models_bitvec()
+                store_data = self.z3_generate_store_data()
+                self.z3pyscript = (imports + config + z3_abs_function + input_variables_declaration
+                                   + exact_integer_function_declaration + approximate_integer_function_declaration
+                                   + utility_variables + implicit_parameters_declaration + exact_circuit_wires_declaration
+                                   + approximate_circuit_wires_declaration
+                                   + exact_circuit_outputs_declaration
+                                   + approximate_circuit_outputs_declaration
+                                   + exact_circuit_constraints + approximate_circuit_constraints_subxpat
+                                   + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models
+                                   + store_data)
         self.export_z3pyscript()
 
     def z3_generate_imports(self):
@@ -400,12 +430,22 @@ class Template_SOP1(TemplateCreator):
                   f'from time import time\n' \
                   f'from typing import Tuple, List, Callable, Any, Union\n' \
                   f'import json\n' \
+                  f'import csv\n' \
                   f'\n'
         return imports
 
     def z3_generate_z3_abs_function(self):
+        # Define absolute difference function for arithrefs
         z3_abs_function = f'def z3_abs(x: ArithRef) -> ArithRef:\n' \
                           f'{TAB}return If(x >= 0, x, -x)\n' \
+                          f'\n'
+
+        return z3_abs_function
+
+    def z3_generate_z3_abs_difference_bitvec_function(self):
+        # Define absolute difference function for bitvectors
+        z3_abs_function = f'def z3_abs_diff_bitvec(x: BitVecRef, y: BitVecRef) -> BitVecRef:\n' \
+                          f'{TAB}return If(UGE(x, y), x - y, y - x)\n' \
                           f'\n'
 
         return z3_abs_function
@@ -433,6 +473,14 @@ class Template_SOP1(TemplateCreator):
         integer_function += f"{function_name} = {FUNCTION}('{function_name}', {temp_arg_list})\n"
         return integer_function
 
+    def z3_generate_declare_bitvec_function(self, function_name):  # Declare bitvector function
+        bv_function = ''
+        bv_function += f'# Bitvector function declaration\n'
+        temp_arg_list = ', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))
+        temp_arg_list += f", BitVecSort({self.exact_graph.num_outputs})"
+        bv_function += f"{function_name} = {FUNCTION}('{function_name}', {temp_arg_list})\n"
+        return bv_function
+
     def z3_generate_utility_variables(self):
         utility_variables = ''
         utility_variables += f'# utility variables'
@@ -441,6 +489,18 @@ class Template_SOP1(TemplateCreator):
                              f"{F_APPROXIMATE}({', '.join(self.exact_graph.input_dict.values())})" \
                              f")\n" \
                              f"error = {Z3INT}('error')\n"
+
+        utility_variables += '\n'
+        return utility_variables
+
+    def z3_generate_utility_variables_bitvec(self):
+        utility_variables = ''
+        utility_variables += f'# utility variables'
+        utility_variables += f"\n" \
+                             f"difference = z3_abs_diff_bitvec({F_EXACT}({', '.join(self.exact_graph.input_dict.values())}), " \
+                             f"{F_APPROXIMATE}({', '.join(self.exact_graph.input_dict.values())})" \
+                             f")\n" \
+                             f"error_BV = BitVec('error', {self.exact_graph.num_outputs})\n"
 
         utility_variables += '\n'
         return utility_variables
@@ -509,7 +569,6 @@ class Template_SOP1(TemplateCreator):
                                        f")\n"
 
         for g_idx in self.exact_graph.constant_dict:
-            # print(f'{g_idx = }')
             exact_wires_declaration += f"{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx} = " \
                                        f"{FUNCTION}('{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}', " \
                                        f"{', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))}" \
@@ -583,6 +642,16 @@ class Template_SOP1(TemplateCreator):
         exact_circuit_output_declaration += '\n'
         return exact_circuit_output_declaration
 
+    def z3_generate_exact_circuit_outputs_declaration_bitvec(self):
+        exact_circuit_output_declaration = ''
+        exact_circuit_output_declaration += f'# outputs bitvectors declaration for exact circuit\n'
+        for output_idx in range(self.current_graph.num_outputs):
+            exact_circuit_output_declaration += f"{EXACT_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{EXACT_OUTPUT_PREFIX}{OUT}{output_idx}', " \
+                                                f"{', '.join(repeat(BOOLSORT, self.current_graph.num_inputs))}, BitVecSort({self.current_graph.num_outputs})" \
+                                                f")\n"
+        exact_circuit_output_declaration += '\n'
+        return exact_circuit_output_declaration
+
     def z3_generate_approximate_circuit_outputs_declaration(self):
         approximate_circuit_output_declaration = ''
         approximate_circuit_output_declaration = f'# outputs functions declaration for approximate circuit\n'
@@ -594,6 +663,16 @@ class Template_SOP1(TemplateCreator):
             # approximate_circuit_output_declaration += f"{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx}', " \
             #                                           f"{', '.join(repeat(BOOLSORT, self.graph.num_inputs + 1))}" \
             #                                           f")\n"
+        approximate_circuit_output_declaration += '\n'
+        return approximate_circuit_output_declaration
+
+    def z3_generate_approximate_circuit_outputs_declaration_bitvec(self):
+        approximate_circuit_output_declaration = ''
+        approximate_circuit_output_declaration = f'# outputs bitvectors declaration for approximate circuit\n'
+        for output_idx in range(self.current_graph.num_outputs):
+            approximate_circuit_output_declaration += f"{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx} = {FUNCTION} ('{APPROXIMATE_OUTPUT_PREFIX}{OUT}{output_idx}', " \
+                                                      f"{', '.join(repeat(BOOLSORT, self.current_graph.num_inputs))}, BitVecSort({self.current_graph.num_outputs})" \
+                                                      f")\n"
         approximate_circuit_output_declaration += '\n'
         return approximate_circuit_output_declaration
 
@@ -610,25 +689,28 @@ class Template_SOP1(TemplateCreator):
         return self.current_graph.subgraph.nodes[node][LABEL]
 
     def z3_express_node_as_wire_constraints(self, node: str):
-        # print(f'{self.exact_graph.graph.nodes = }')
-        assert node in list(self.exact_graph.input_dict.values()) or node in list(self.exact_graph.gate_dict.values()) \
-            or node in list(self.exact_graph.output_dict.values()) or node in list(self.exact_graph.constant_dict.values())
+        assert (node in list(self.exact_graph.input_dict.values())
+                or node in list(self.exact_graph.gate_dict.values())
+                or node in list(self.exact_graph.output_dict.values())
+                or node in list(self.exact_graph.constant_dict.values()))
 
         if node in list(self.exact_graph.input_dict.values()):
             return node
+
         elif node in list(self.exact_graph.gate_dict.values()):
             node_id = -1
             for key in self.exact_graph.gate_dict.keys():
                 if self.exact_graph.gate_dict[key] == node:
                     node_id = key
             return f"{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + node_id}({','.join(list(self.exact_graph.input_dict.values()))})"
+
         elif node in list(self.exact_graph.output_dict.values()):
             for key in self.exact_graph.output_dict.keys():
                 if self.exact_graph.output_dict[key] == node:
                     node_id = key
             return f"{EXACT_WIRES_PREFIX}{OUT}{node_id}({','.join(list(self.exact_graph.input_dict.values()))})"
+
         elif node in list(self.exact_graph.constant_dict.values()):
-            # print(f'{self.current_graph.graph.nodes[node] = }')
             return Z3_GATES_DICTIONARY[self.exact_graph.graph.nodes[node][LABEL]]
 
     def __z3_get_approximate_label(self, node: str):
@@ -675,19 +757,15 @@ class Template_SOP1(TemplateCreator):
         return subpgraph_input_list_ordered
 
     def z3_express_node_as_wire_constraints_subxpat(self, node: str):
-        # print(f'We are checking this node!')
-
-        # print(f'{self.current_graph.input_dict.values() = }')
-        # print(f'{self.current_graph.gate_dict.values() = }')
-        # print(f'{self.current_graph.output_dict.values() = }')
-        assert node in list(self.current_graph.input_dict.values()) or node in list(
-            self.current_graph.gate_dict.values()) \
-            or node in list(self.current_graph.output_dict.values()) or node in list(
-            self.current_graph.constant_dict.values()) \
-            or node.startswith(APPROXIMATE_WIRE_PREFIX)
+        assert (node in list(self.current_graph.input_dict.values())
+                or node in list(self.current_graph.gate_dict.values())
+                or node in list(self.current_graph.output_dict.values())
+                or node in list(self.current_graph.constant_dict.values())
+                or node.startswith(APPROXIMATE_WIRE_PREFIX))
 
         if node in list(self.current_graph.input_dict.values()):
             return node
+
         elif node in list(self.current_graph.gate_dict.values()):
             if self.current_graph.is_subgraph_member(node):
                 node_id = -1
@@ -696,21 +774,22 @@ class Template_SOP1(TemplateCreator):
                         node_id = key
 
                 input_list = self.__z3_get_subgraph_input_list()
-                # print(f'for the subgraph = {input_list}')
                 return f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + node_id}({','.join(input_list)})"
+
             else:
                 node_id = -1
                 for key in self.current_graph.gate_dict.keys():
                     if self.current_graph.gate_dict[key] == node:
                         node_id = key
                 return f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + node_id}({','.join(list(self.current_graph.input_dict.values()))})"
+
         elif node in list(self.current_graph.output_dict.values()):
             for key in self.current_graph.output_dict.keys():
                 if self.current_graph.output_dict[key] == node:
                     node_id = key
             return f"{APPROXIMATE_WIRE_PREFIX}{OUT}{node_id}({','.join(list(self.current_graph.input_dict.values()))})"
+
         elif node in list(self.current_graph.constant_dict.values()):
-            # print(f'{self.current_graph.graph.nodes[node] = }')
             return Z3_GATES_DICTIONARY[self.current_graph.graph.nodes[node][LABEL]]
 
     def z3_generate_exact_circuit_wire_constraints(self):
@@ -766,6 +845,29 @@ class Template_SOP1(TemplateCreator):
             exact_output_constraints += f'{TAB}{output} == {pred},\n'
         return exact_output_constraints
 
+    def get_binary(self, index, bit, size):
+        bin_out = '0b'
+        for i in range(size):
+            if size - index - 1 == i and bit:
+                bin_out += '1'
+            else:
+                bin_out += '0'
+        return bin_out
+
+    def z3_generate_exact_circuit_output_constraints_bitvec(self):
+        exact_output_constraints = ''
+        exact_output_constraints += f'{TAB}# boolean outputs (from the least significant) as bitvectors\n'
+        for output_idx in self.exact_graph.output_dict.keys():
+            output_label = self.exact_graph.output_dict[output_idx]
+            output_predecessors = list(self.exact_graph.graph.predecessors(output_label))
+            assert len(output_predecessors) == 1
+            pred = self.z3_express_node_as_wire_constraints(output_predecessors[0])
+            output = self.z3_express_node_as_wire_constraints(output_label)
+            exact_output_constraints += f'{TAB}{output} == If({pred}, '
+            exact_output_constraints += f'BitVecVal({self.get_binary(output_idx, 1, self.exact_graph.num_outputs)}, {self.exact_graph.num_outputs}), '
+            exact_output_constraints += f'BitVecVal({self.get_binary(0, 0, self.exact_graph.num_outputs)}, {self.exact_graph.num_outputs})),\n'
+        return exact_output_constraints
+
     def z3_generate_exact_circuit_integer_output_constraints(self):
         exact_integer_outputs = ''
         exact_integer_outputs += f'{TAB}# exact_integer_outputs\n'
@@ -779,23 +881,35 @@ class Template_SOP1(TemplateCreator):
                 exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints(output_label)} +\n"
         return exact_integer_outputs
 
+    def z3_generate_exact_circuit_bitvec_output_constraints(self):
+        exact_bitvector_outputs = ''
+        exact_bitvector_outputs += f'{TAB}# exact_bitvector_outputs\n'
+        exact_bitvector_outputs += f"{TAB}{F_EXACT}({','.join(self.current_graph.input_dict.values())}) == \n"
+
+        for idx in range(self.current_graph.num_outputs):
+            output_label = self.current_graph.output_dict[idx]
+            if idx == self.current_graph.num_outputs - 1:
+                exact_bitvector_outputs += f"{TAB}{self.z3_express_node_as_wire_constraints(output_label)},\n"
+            else:
+                exact_bitvector_outputs += f"{TAB}{self.z3_express_node_as_wire_constraints(output_label)} +\n"
+        return exact_bitvector_outputs
+
     def z3_generate_approximate_circuit_wire_constraints_subxpat(self):
         exact_wire_constraints = ''
         exact_wire_constraints += f'# approximate circuit constraints\n'
         exact_wire_constraints += f'{APPROXIMATE_CIRCUIT} = And(\n'
         exact_wire_constraints += f'{TAB}# wires\n'
         subgraph_input_list = self.__z3_get_subgraph_input_list()
-        # print(f'{subgraph_input_list = }')
+
         gate_key_list = list(self.current_graph.gate_dict.keys())
         for g_idx in gate_key_list:
             g_label = self.current_graph.gate_dict[g_idx]
-            # print(f'{g_label = }')
             if not self.current_graph.is_subgraph_member(g_label):
                 g_predecessors = self.get_predecessors_xpat(g_label)
-                # print(f'{g_predecessors = }')
                 g_function = self.get_logical_function_xpat(g_label)
                 assert len(g_predecessors) == 1 or len(g_predecessors) == 2
                 assert g_function == NOT or g_function == AND or g_function == OR
+
                 if len(g_predecessors) == 1:
                     if g_predecessors[0] in list(self.current_graph.input_dict.values()):
                         pred_1 = g_predecessors[0]
@@ -805,6 +919,7 @@ class Template_SOP1(TemplateCreator):
                     exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
                                               f"{','.join(list(self.current_graph.input_dict.values()))}) == "
                     exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
+
                 else:
                     exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
                                               f"{','.join(list(self.current_graph.input_dict.values()))}) == "
@@ -817,6 +932,7 @@ class Template_SOP1(TemplateCreator):
                     else:
                         pred_2 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[1])
                     exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
+
             # if the gate is an output node of the annotated graph (subgraph)
             elif self.current_graph.is_subgraph_member(g_label) and self.current_graph.is_subgraph_output(g_label):
 
@@ -856,15 +972,28 @@ class Template_SOP1(TemplateCreator):
             output_predecessors = list(self.current_graph.graph.predecessors(output_label))
 
             assert len(output_predecessors) == 1
-            # print(f'{self.current_graph.subgraph_gate_dict = }')
-            # print(f'{self.current_graph.graph.nodes = }')
-            # print(f'{output_predecessors = }')
             pred = self.z3_express_node_as_wire_constraints_subxpat(output_predecessors[0])
             output = self.z3_express_node_as_wire_constraints_subxpat(output_label)
             approximate_output_constraints += f'{TAB}{output} == {pred},\n'
         return approximate_output_constraints
 
-    def z3_generate_exact_circuit_integer_output_constraints_subxpat(self):
+    def z3_generate_approximate_circuit_output_constraints_subxpat_bitvec(self):
+        approximate_output_constraints = ''
+        approximate_output_constraints += f'{TAB}# boolean outputs (from the least significant) as bitvectors\n'
+
+        for output_idx in self.current_graph.output_dict.keys():
+            output_label = self.current_graph.output_dict[output_idx]
+            output_predecessors = list(self.current_graph.graph.predecessors(output_label))
+
+            assert len(output_predecessors) == 1
+            pred = self.z3_express_node_as_wire_constraints_subxpat(output_predecessors[0])
+            output = self.z3_express_node_as_wire_constraints_subxpat(output_label)
+            approximate_output_constraints += f'{TAB}{output} == If({pred}, '
+            approximate_output_constraints += f'BitVecVal({self.get_binary(output_idx, 1, self.current_graph.num_outputs)}, {self.current_graph.num_outputs}), '
+            approximate_output_constraints += f'BitVecVal({self.get_binary(0, 0, self.current_graph.num_outputs)}, {self.current_graph.num_outputs})),\n'
+        return approximate_output_constraints
+
+    def z3_generate_approximate_circuit_integer_output_constraints_subxpat(self):
         exact_integer_outputs = ''
         exact_integer_outputs += f'{TAB}# approximate_integer_outputs\n'
         exact_integer_outputs += f"{TAB}{F_APPROXIMATE}({','.join(self.current_graph.input_dict.values())}) == \n"
@@ -877,6 +1006,19 @@ class Template_SOP1(TemplateCreator):
                 exact_integer_outputs += f"{TAB}{2 ** idx} * {self.z3_express_node_as_wire_constraints_subxpat(output_label)} +\n"
         return exact_integer_outputs
 
+    def z3_generate_approximate_circuit_bitvec_output_constraints_subxpat(self):
+        exact_bitvec_outputs = ''
+        exact_bitvec_outputs += f'{TAB}# approximate_bitvec_outputs\n'
+        exact_bitvec_outputs += f"{TAB}{F_APPROXIMATE}({','.join(self.current_graph.input_dict.values())}) == \n"
+
+        for idx in range(self.current_graph.num_outputs):
+            output_label = self.current_graph.output_dict[idx]
+            if idx == self.current_graph.num_outputs - 1:
+                exact_bitvec_outputs += f"{TAB}{self.z3_express_node_as_wire_constraints_subxpat(output_label)},\n"
+            else:
+                exact_bitvec_outputs += f"{TAB}{self.z3_express_node_as_wire_constraints_subxpat(output_label)} +\n"
+        return exact_bitvec_outputs
+
     def z3_generate_exact_circuit_constraints(self):
         wires = self.z3_generate_exact_circuit_wire_constraints()
         outputs = self.z3_generate_exact_circuit_output_constraints()
@@ -885,6 +1027,17 @@ class Template_SOP1(TemplateCreator):
         outputs += '\n'
         integer_outputs += '\n'
         exact_circuit_constraints = wires + outputs + integer_outputs + ')\n'
+
+        return exact_circuit_constraints
+
+    def z3_generate_exact_circuit_constraints_bitvec(self):
+        wires = self.z3_generate_exact_circuit_wire_constraints()
+        outputs = self.z3_generate_exact_circuit_output_constraints_bitvec()
+        bitvec_outputs = self.z3_generate_exact_circuit_bitvec_output_constraints()
+        wires += '\n'
+        outputs += '\n'
+        bitvec_outputs += '\n'
+        exact_circuit_constraints = wires + outputs + bitvec_outputs + ')\n'
 
         return exact_circuit_constraints
 
@@ -921,11 +1074,22 @@ class Template_SOP1(TemplateCreator):
     def z3_generate_approximate_circuit_constraints_subxpat(self):
         wires = self.z3_generate_approximate_circuit_wire_constraints_subxpat()
         outputs = self.z3_generate_approximate_circuit_output_constraints_subxpat()
-        integer_outputs = self.z3_generate_exact_circuit_integer_output_constraints_subxpat()
+        integer_outputs = self.z3_generate_approximate_circuit_integer_output_constraints_subxpat()
         wires += '\n'
         outputs += '\n'
         integer_outputs += '\n'
         approximate_circuit_constraints = wires + outputs + integer_outputs + ')\n'
+
+        return approximate_circuit_constraints
+
+    def z3_generate_approximate_circuit_constraints_subxpat_bitvec(self):
+        wires = self.z3_generate_approximate_circuit_wire_constraints_subxpat()
+        outputs = self.z3_generate_approximate_circuit_output_constraints_subxpat_bitvec()
+        bitvec_outputs = self.z3_generate_approximate_circuit_bitvec_output_constraints_subxpat()
+        wires += '\n'
+        outputs += '\n'
+        bitvec_outputs += '\n'
+        approximate_circuit_constraints = wires + outputs + bitvec_outputs + ')\n'
 
         return approximate_circuit_constraints
 
@@ -959,6 +1123,21 @@ class Template_SOP1(TemplateCreator):
 
         return forall_solver
 
+    def z3_generate_forall_solver_subxpat_bitvec(self):
+        prep = self.z3_generate_forall_solver_preperation_bitvec()
+        error = self.z3_generate_forall_solver_error_constraint_bitvec()
+        circuits = self.z3_generate_forall_solver_circuits()
+        atmost_constraints = self.z3_generate_forall_solver_atmost_constraints_subxpat_bitvec()
+        redundancy_constraints = self.z3_generate_forall_solver_redundancy_constraints_subxpat_bitvec()
+        prep += '\n'
+        error += '\n'
+        circuits += '\n'
+        atmost_constraints += '\n'
+        redundancy_constraints += '\n'
+        forall_solver = prep + error + circuits + atmost_constraints + redundancy_constraints
+
+        return forall_solver
+
     def z3_generate_forall_solver_preperation(self):
         prep = ''
         prep += '# forall solver\n'
@@ -968,10 +1147,25 @@ class Template_SOP1(TemplateCreator):
                 f"{TAB}{Z3_AND}(\n"
         return prep
 
+    def z3_generate_forall_solver_preperation_bitvec(self):
+        prep = ''
+        prep += '# forall solver\n'
+        prep += f'{FORALL_SOLVER} = SolverFor("BV")\n' \
+                f'{FORALL_SOLVER}.{ADD}({FORALL}(\n' \
+                f"{TAB}[{','.join(list(self.current_graph.input_dict.values()))}],\n" \
+                f"{TAB}{Z3_AND}(\n"
+        return prep
+
     def z3_generate_forall_solver_error_constraint(self):
         error = ''
         error += f'{TAB}{TAB}# error constraints\n'
         error += f'{TAB}{TAB}{DIFFERENCE} <= {ET},\n'
+        return error
+
+    def z3_generate_forall_solver_error_constraint_bitvec(self):
+        error = ''
+        error += f'{TAB}{TAB}# error constraints\n'
+        error += f'{TAB}{TAB}ULE({DIFFERENCE}, {ET}_BV),\n'
         return error
 
     def z3_generate_forall_solver_circuits(self):
@@ -994,8 +1188,6 @@ class Template_SOP1(TemplateCreator):
                     loop_3_last_iter_flg = input_idx == self.current_graph.num_inputs - 1
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     atmost += f"{IF}({p_s}, 1, 0)"
-
-                    # print(f'{atmost = }')
 
                     if loop_3_last_iter_flg:
                         atmost += f') <= {self.lpp},\n'
@@ -1027,12 +1219,48 @@ class Template_SOP1(TemplateCreator):
 
         return atmost
 
+    def z3_generate_forall_solver_atmost_constraints_subxpat_bitvec(self):
+        atmost = ''
+        atmost += f'{TAB}{TAB}# AtMost constraints\n'
+
+        for output_idx in range(self.current_graph.subgraph_num_outputs):
+            for ppo_idx in range(self.ppo):
+                atmost += f"{TAB}{TAB}ULE(("
+                for input_idx in range(self.current_graph.subgraph_num_inputs):
+                    loop_1_last_iter_flg = output_idx == self.current_graph.subgraph_num_outputs - 1
+                    loop_2_last_iter_flg = ppo_idx == self.ppo - 1
+                    loop_3_last_iter_flg = input_idx == self.current_graph.subgraph_num_inputs - 1
+                    p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+                    atmost += f"{IF}({p_s}, BitVecVal(1, {self.current_graph.subgraph_num_inputs}), BitVecVal(0, {self.current_graph.subgraph_num_inputs}))"
+
+                    if loop_3_last_iter_flg:
+                        atmost += f'), BitVecVal({self.lpp}, {self.current_graph.subgraph_num_inputs})),\n'
+                    else:
+                        atmost += f' + '
+        atmost += '\n'
+
+        return atmost
+
     def z3_generate_forall_solver_redundancy_constraints_subxpat(self):
         redundancy = ''
         redundancy += f'{TAB}{TAB}# Redundancy constraints\n'
         double_no_care = self.z3_generate_forall_solver_redundancy_constraints_double_no_care_subxpat()
         remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_subxpat()
         set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat()
+
+        double_no_care += '\n'
+        remove_constant_zero_permutation += '\n'
+        set_ppo_order += '\n'
+        end = f"{TAB})\n))\n"
+        redundancy += double_no_care + remove_constant_zero_permutation + set_ppo_order + end
+        return redundancy
+
+    def z3_generate_forall_solver_redundancy_constraints_subxpat_bitvec(self):
+        redundancy = ''
+        redundancy += f'{TAB}{TAB}# Redundancy constraints\n'
+        double_no_care = self.z3_generate_forall_solver_redundancy_constraints_double_no_care_subxpat()
+        remove_constant_zero_permutation = self.z3_generate_forall_solver_redundancy_constraints_remove_constant_zero_permutation_subxpat()
+        set_ppo_order = self.z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat_bitvec()
 
         double_no_care += '\n'
         remove_constant_zero_permutation += '\n'
@@ -1135,7 +1363,6 @@ class Template_SOP1(TemplateCreator):
         ppo_order = ''
         ppo_order += f'{TAB}{TAB}# set order of trees\n'
         if self.ppo == 1:
-            # print(f'No need for ordering the PPOs!')
             ppo_order += f'{TAB}{TAB}True, \n'
         else:
             for output_idx in range(self.current_graph.subgraph_num_outputs):
@@ -1144,7 +1371,6 @@ class Template_SOP1(TemplateCreator):
                     current_product = f'{TAB}{TAB}('
                     next_product = f'('
                     for input_idx in range(self.current_graph.subgraph_num_inputs):
-
                         loop_1_last_iter_flg = output_idx == self.current_graph.num_outputs - 1
                         loop_2_last_iter_flg = ppo_idx == self.ppo - 2
                         loop_3_last_iter_flg = input_idx == self.current_graph.num_inputs - 1
@@ -1162,8 +1388,8 @@ class Template_SOP1(TemplateCreator):
                             next_product += '),\n'
                             ppo_order += f'{current_product} >= {next_product}'
                         else:
-                            current_product += f' + '
-                            next_product += f' + '
+                            current_product += f' + \n'
+                            next_product += f' + \n'
             # for output_idx in range(self.graph.subgraph_num_outputs):
             #     ppo_order += f"{TAB}{TAB}"
             #     for ppo_idx in range(self.ppo):
@@ -1185,12 +1411,49 @@ class Template_SOP1(TemplateCreator):
 
         return ppo_order
 
+    def z3_generate_forall_solver_redundancy_constraints_set_ppo_order_subxpat_bitvec(self):
+        ppo_order = ''
+        ppo_order += f'{TAB}{TAB}# set order of trees\n'
+        if self.ppo == 1:
+            ppo_order += f'{TAB}{TAB}True, \n'
+        else:
+            for output_idx in range(self.current_graph.subgraph_num_outputs):
+                for ppo_idx in range(self.ppo - 1):
+
+                    current_product = f'('
+                    next_product = f'('
+                    for input_idx in range(self.current_graph.subgraph_num_inputs):
+
+                        loop_1_last_iter_flg = output_idx == self.current_graph.num_outputs - 1
+                        loop_2_last_iter_flg = ppo_idx == self.ppo - 2
+                        loop_3_last_iter_flg = input_idx == self.current_graph.num_inputs - 1
+                        p_l = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+                        p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+
+                        p_l_next = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx + 1}_{INPUT_LITERAL_PREFIX}{input_idx}_{LITERAL_PREFIX}'
+                        p_s_next = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx + 1}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
+
+                        current_product += f'If({p_s}, BitVecVal({2 ** (2 * input_idx)}, {self.current_graph.subgraph_num_inputs * 2}), BitVecVal(0, {self.current_graph.subgraph_num_inputs * 2}))'
+                        current_product += f' + If({p_l}, BitVecVal({2 ** (2 * input_idx + 1)}, {self.current_graph.subgraph_num_inputs * 2}), BitVecVal(0, {self.current_graph.subgraph_num_inputs * 2}))'
+
+                        next_product += f'If({p_s_next}, BitVecVal({2 ** (2 * input_idx)}, {self.current_graph.subgraph_num_inputs * 2}), BitVecVal(0, {self.current_graph.subgraph_num_inputs * 2}))'
+                        next_product += f' + If({p_l_next}, BitVecVal({2 ** (2 * input_idx + 1)}, {self.current_graph.subgraph_num_inputs * 2}), BitVecVal(0, {self.current_graph.subgraph_num_inputs * 2}))'
+
+                        if loop_3_last_iter_flg:
+                            current_product += ')'
+                            next_product += ')'
+                            ppo_order += f'{TAB}{TAB}UGE({current_product}, {next_product}),\n'
+                        else:
+                            current_product += f' + '
+                            next_product += f' + '
+
+        return ppo_order
+
     def z3_generate_forall_solver_redundancy_constraints_set_ppo_order(self):
         ppo_order = ''
         ppo_order += f'{TAB}{TAB}# set order of trees\n'
 
         if self.ppo == 1:
-            # print(f'No need for ordering the PPOs!')
             ppo_order += f'{TAB}{TAB}True, \n'
         else:
             for output_idx in range(self.current_graph.num_outputs):
@@ -1220,7 +1483,6 @@ class Template_SOP1(TemplateCreator):
                             current_product += f' + '
                             next_product += f' + '
 
-        # exit()
         return ppo_order
 
     def z3_generate_verification_solver(self):
@@ -1228,6 +1490,16 @@ class Template_SOP1(TemplateCreator):
         verficiation_solver += f'{VERIFICATION_SOLVER} = {SOLVER}\n' \
                                f'{VERIFICATION_SOLVER}.{ADD}(\n' \
                                f'{TAB}{ERROR} == {DIFFERENCE},\n' \
+                               f'{TAB}{EXACT_CIRCUIT},\n' \
+                               f'{TAB}{APPROXIMATE_CIRCUIT},\n' \
+                               f')\n'
+        return verficiation_solver
+
+    def z3_generate_verification_solver_bitvec(self):
+        verficiation_solver = ''
+        verficiation_solver += f'{VERIFICATION_SOLVER} = SolverFor("BV")\n' \
+                               f'{VERIFICATION_SOLVER}.{ADD}(\n' \
+                               f'{TAB}{ERROR}_BV == {DIFFERENCE},\n' \
                                f'{TAB}{EXACT_CIRCUIT},\n' \
                                f'{TAB}{APPROXIMATE_CIRCUIT},\n' \
                                f')\n'
@@ -1250,6 +1522,18 @@ class Template_SOP1(TemplateCreator):
         find_wanted_number_of_models = prep_loop1 + prep_loop2 + prep_loop3 + final_prep
         return find_wanted_number_of_models
 
+    def z3_generate_find_wanted_number_of_models_bitvec(self):
+        prep_loop1 = self.z3_generate_find_wanted_number_of_models_prep_loop1()
+        prep_loop2 = self.z3_generate_find_wanted_number_of_models_prep_loop2_bitvec()
+        prep_loop3 = self.z3_generate_find_wanted_number_of_models_prep_loop3_bitvec()
+        final_prep = self.z3_generate_find_wanted_number_of_models_final_prep()
+        prep_loop1 += '\n'
+        prep_loop2 += '\n'
+        prep_loop3 += '\n'
+        final_prep += '\n'
+        find_wanted_number_of_models = prep_loop1 + prep_loop2 + prep_loop3 + final_prep
+        return find_wanted_number_of_models
+
     def z3_generate_find_wanted_number_of_models_prep_loop1(self):
         prep_loop1 = ''
         prep_loop1 += f'found_data = []\n' \
@@ -1263,6 +1547,44 @@ class Template_SOP1(TemplateCreator):
         return prep_loop1
 
     def z3_generate_find_wanted_number_of_models_prep_loop2(self):
+        find_valid_model = ''
+        find_valid_model += f'{TAB}while result != sat:\n' \
+                            f'{TAB}{TAB}time_attempt_start = time()\n' \
+                            f'{TAB}{TAB}time_parameters_start = time_attempt_start\n'
+
+        find_valid_model += f'{TAB}{TAB}# add constrain to prevent the same parameters to happen\n' \
+                            f'{TAB}{TAB}if parameters_constraints:\n' \
+                            f'{TAB}{TAB}{TAB}forall_solver.add(Or(*map(lambda x: x[0] != x[1], parameters_constraints)))\n'
+
+        find_valid_model += f'{TAB}{TAB}parameters_constraints = []\n'
+        find_valid_model += f"{TAB}{TAB}forall_solver.set(\"timeout\", int(timeout * 1000))\n" \
+                            f"{TAB}{TAB}result = forall_solver.check()\n" \
+                            f"{TAB}{TAB}time_parameters = time() - time_attempt_start\n" \
+                            f"{TAB}{TAB}time_attempt = time() - time_attempt_start\n" \
+                            f"{TAB}{TAB}timeout -= time_parameters # removed the time used from the timeout\n"
+        find_valid_model += f'{TAB}{TAB}if result != sat:\n' \
+                            f'{TAB}{TAB}{TAB}attempts_times.append((time_attempt, time_parameters, None))\n' \
+                            f'{TAB}{TAB}{TAB}break\n'
+        find_valid_model += f'{TAB}{TAB}m = forall_solver.model()\n' \
+                            f'{TAB}{TAB}parameters_constraints = []\n' \
+                            f'{TAB}{TAB}for k, v in map(lambda k: (k, m[k]), m):\n' \
+                            f'{TAB}{TAB}{TAB}if str(k)[0] == "p":\n' \
+                            f'{TAB}{TAB}{TAB}{TAB}parameters_constraints.append((Bool(str(k)), v))\n'
+
+        find_valid_model += f'{TAB}{TAB}# verify parameters\n' \
+                            f'{TAB}{TAB}WCE: int = None\n' \
+                            f'{TAB}{TAB}verification_ET: int = 0\n' \
+                            f'{TAB}{TAB}time_verification_start = time()\n' \
+                            f'{TAB}{TAB}# save state\n' \
+                            f'{TAB}{TAB}verification_solver.push()\n' \
+                            f'{TAB}{TAB}# parameters constraints\n' \
+                            f'{TAB}{TAB}verification_solver.add(\n' \
+                            f'{TAB}{TAB}{TAB}*map(lambda x: x[0] == x[1], parameters_constraints),\n' \
+                            f'{TAB}{TAB})\n'
+
+        return find_valid_model
+
+    def z3_generate_find_wanted_number_of_models_prep_loop2_bitvec(self):
         find_valid_model = ''
         find_valid_model += f'{TAB}while result != sat:\n' \
                             f'{TAB}{TAB}time_attempt_start = time()\n' \
@@ -1324,6 +1646,30 @@ class Template_SOP1(TemplateCreator):
 
         return prep_loop3
 
+    def z3_generate_find_wanted_number_of_models_prep_loop3_bitvec(self):
+        prep_loop3 = f'{TAB}{TAB}while verification_ET < max_possible_ET:\n' \
+                     f'{TAB}{TAB}{TAB}# add constraint\n' \
+                     f'{TAB}{TAB}{TAB}verification_solver.add(UGT(difference, BitVecVal(verification_ET,  {self.exact_graph.num_outputs})))\n' \
+                     f'{TAB}{TAB}{TAB}# run solver\n' \
+                     f'{TAB}{TAB}{TAB}verification_solver.set("timeout", int(timeout * 1000))\n' \
+                     f'{TAB}{TAB}{TAB}v_result = verification_solver.check()\n'
+
+        prep_loop3 += f'{TAB}{TAB}{TAB}if v_result == unsat:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}# unsat, WCE found\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}WCE = verification_ET\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}break\n'
+
+        prep_loop3 += f'{TAB}{TAB}{TAB}elif v_result == sat:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}# sat, need to search again\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}m = verification_solver.model()\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}verification_ET = m[error_BV].as_long()\n' \
+                      f'{TAB}{TAB}{TAB}else:\n' \
+                      f'{TAB}{TAB}{TAB}{TAB} # unknown (probably a timeout)\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}WCE = -1\n' \
+                      f'{TAB}{TAB}{TAB}{TAB}break\n'
+
+        return prep_loop3
+
     def z3_generate_find_wanted_number_of_models_final_prep(self):
         final_prep = ''
         final_prep += f'{TAB}{TAB}if WCE is None:\n' \
@@ -1355,11 +1701,12 @@ class Template_SOP1(TemplateCreator):
         key_function = self.z3_generate_sotre_data_define_extract_key_function()
         stats = self.z3_generate_stats()
         results = self.z3_dump_results_onto_json()
+        results_csv = self.z3_add_results_to_csv()
         extract_info += '\n'
         key_function += '\n'
         stats += '\n'
         results += '\n'
-        store_data += extract_info + key_function + stats + results
+        store_data += extract_info + key_function + stats + results + results_csv
         return store_data
 
     def z3_generate_sotre_data_define_extract_info_function(self):
@@ -1398,6 +1745,9 @@ class Template_SOP1(TemplateCreator):
         stats = ''
         stats += f'{TAB}time_total = time() - time_total_start\n'
         stats += f'{TAB}data_object = {{\n' \
+                 f"{TAB}{TAB}'benchmark_name': '{self.benchmark_name}',\n" \
+                 f"{TAB}{TAB}'encoding': '{self.encoding}',\n" \
+                 f"{TAB}{TAB}'cell': '({self.lpp}, {self.ppo})',\n" \
                  f"{TAB}{TAB}'result': str(result),\n" \
                  f"{TAB}{TAB}'total_time': time_total,\n" \
                  f"{TAB}{TAB}'attempts': attempts,\n" \
@@ -1427,12 +1777,39 @@ class Template_SOP1(TemplateCreator):
 
         return config
 
+    def z3_generate_config_bitvec(self):
+        config = ''
+        config += f'ET = int(sys.argv[1])\n' \
+                  f'ET_BV = BitVecVal(ET, {self.exact_graph.num_outputs})\n' \
+                  f'wanted_models: int = 1 if len(sys.argv) < 3 else int(sys.argv[2])\n' \
+                  f'timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])\n' \
+                  f'max_possible_ET: int = 2 ** 3 - 1\n' \
+                  f'\n'
+        return config
+
     def z3_dump_results_onto_json(self):
         results = ''
         folder, extension = sxpatpaths.OUTPUT_PATH[JSON]
 
         results += f"with open(f'{self.json_out_path}', 'w') as ofile:\n" \
                    f"{TAB}ofile.write(json.dumps(found_data, separators=(\",\", \":\"), indent=4))\n"
+        return results
+
+    def z3_add_results_to_csv(self):
+        results = ''
+
+        results += f"with open('./output/report/all_results.csv', 'a') as f:\n" \
+                   f"{TAB}csvwriter = csv.writer(f)\n" \
+            f"{TAB}row = []\n" \
+                   f"{TAB}row.append('{self.benchmark_name}')\n" \
+                   f"{TAB}row.append('{self.encoding}')\n" \
+                   f"{TAB}row.append(str(result))\n" \
+                   f"{TAB}row.append('({self.lpp}, {self.ppo})')\n" \
+                   f"{TAB}row.append(time_total)\n" \
+                   f"{TAB}row.append(attempts)\n" \
+                   f"{TAB}row.append(ET)\n" \
+                   f"{TAB}row = tuple(row)\n" \
+                   f"{TAB}csvwriter.writerow(row)\n"
         return results
 
 
@@ -1565,7 +1942,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
     # TODO: Deprecated
     def label_graph_old(self, constant_value=2, min_labeling: bool = False, parallel: bool = False):
-        
+
         print(Fore.BLUE + f'labeling...' + Style.RESET_ALL)
         labels1, labels0 = labeling_explicit(self.exact_benchmark, self.benchmark_name, constant_value, min_labeling, parallel=parallel)
         for n in self.current_graph.graph.nodes:
@@ -1600,7 +1977,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
             path = f'{folder}/{self.benchmark_name}_{ITER}{self.iterations}.{extension}'
         else:
             path = f'{folder}/{self.benchmark_name}_{TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_{ITER}{self.iterations}.{extension}'
-        # print(f'{path = }')
         return path
 
     def export_z3pyscript(self):
@@ -1615,7 +1991,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
         if process.stderr:
             print(Fore.RED + f'ERROR!!! Cannot run {self.z3_out_path}')
             print(f'{process.stderr.decode()}' + Style.RESET_ALL)
-            exit()
+            exit(1)
 
     # From this point on, all functions needed to create SharedXPAT
     def import_json_model(self, this_path=None):
@@ -1687,16 +2063,14 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     + approximate_circuit_constraints_shared \
                     + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
                     + store_data
+
             elif not self.shared:
                 print(Fore.RED + f'For this functionality, please run the code with --subxpat flag alone!' + Style.RESET_ALL)
-                exit()
+                exit(1)
+
         # ===========================CATA's Logic Sharing ===========================================
-        # ===========================================================================================
-        # ===========================================================================================
-        # ===========================================================================================
         elif not self.subxpat:
             if self.shared:  # Shared XPAT (Cata's work)
-                # print(Fore.LIGHTCYAN_EX + f'Shared XPAT runner generation!' + Style.RESET_ALL)
                 imports = self.z3_generate_imports()  # parent
                 config = self.z3_generate_config()
                 z3_abs_function = self.z3_generate_z3_abs_function()  # parent
@@ -1720,6 +2094,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     + exact_circuit_outputs_declaration + exact_circuit_constraints + approximate_circuit_constraints \
                     + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
                     + store_data
+
             elif not self.shared:  # Vanilla XPAT
                 imports = self.z3_generate_imports()  # parent
                 config = self.z3_generate_config()
@@ -1743,6 +2118,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     + exact_circuit_outputs_declaration + exact_circuit_constraints + approximate_circuit_constraints \
                     + for_all_solver + verification_solver + parameter_constraint_list + find_wanted_number_of_models \
                     + store_data
+
         self.export_z3pyscript()
 
     # NM
@@ -1921,12 +2297,12 @@ class Template_SOP1ShareLogic(TemplateCreator):
                                        f")\n"
 
         for g_idx in self.exact_graph.constant_dict:
-            # print(f'{g_idx = }')
             exact_wires_declaration += f"{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx} = " \
                                        f"{FUNCTION}('{EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + g_idx}', " \
                                        f"{', '.join(repeat(BOOLSORT, self.exact_graph.num_inputs))}" \
                                        f", {BOOLSORT}" \
                                        f")\n"
+
         exact_wires_declaration += '\n'
         return exact_wires_declaration
 
@@ -2009,9 +2385,12 @@ class Template_SOP1ShareLogic(TemplateCreator):
         return self.exact_graph.graph.nodes[node][LABEL]
 
     def z3_express_node_as_wire_constraints_subxpat_shared_exact_circuit(self, node: str):
-        assert node in list(self.exact_graph.input_dict.values()) or node in list(self.exact_graph.gate_dict.values()) \
-            or node in list(self.exact_graph.output_dict.values()) or node in list(self.exact_graph.constant_dict.values()) \
-            or node.startswith(APPROXIMATE_WIRE_PREFIX)
+        assert (node in list(self.exact_graph.input_dict.values())
+                or node in list(self.exact_graph.gate_dict.values())
+                or node in list(self.exact_graph.output_dict.values())
+                or node in list(self.exact_graph.constant_dict.values())
+                or node.startswith(APPROXIMATE_WIRE_PREFIX))
+
         if node in list(self.exact_graph.input_dict.values()):
             return node
         elif node in list(self.exact_graph.gate_dict.values()):
@@ -2029,9 +2408,12 @@ class Template_SOP1ShareLogic(TemplateCreator):
             return Z3_GATES_DICTIONARY[self.exact_graph.graph.nodes[node][LABEL]]
 
     def z3_express_node_as_wire_constraints(self, node: str):
-        assert node in list(self.graph.input_dict.values()) or node in list(self.graph.gate_dict.values()) \
-            or node in list(self.graph.output_dict.values()) or node in list(self.graph.constant_dict.values()) \
-            or node.startswith(APPROXIMATE_WIRE_PREFIX)
+        assert (node in list(self.graph.input_dict.values())
+                or node in list(self.graph.gate_dict.values())
+                or node in list(self.graph.output_dict.values())
+                or node in list(self.graph.constant_dict.values())
+                or node.startswith(APPROXIMATE_WIRE_PREFIX))
+
         if node in list(self.graph.input_dict.values()):
             return node
         elif node in list(self.graph.gate_dict.values()):
@@ -2216,14 +2598,15 @@ class Template_SOP1ShareLogic(TemplateCreator):
         return self.current_graph.subgraph.nodes[node][LABEL]
 
     def z3_express_node_as_wire_constraints_subxpat(self, node: str):
-        assert node in list(self.current_graph.input_dict.values()) or node in list(
-            self.current_graph.gate_dict.values()) \
-            or node in list(self.current_graph.output_dict.values()) or node in list(
-            self.current_graph.constant_dict.values()) \
-            or node.startswith(APPROXIMATE_WIRE_PREFIX)
+        assert (node in list(self.current_graph.input_dict.values())
+                or node in list(self.current_graph.gate_dict.values())
+                or node in list(self.current_graph.output_dict.values())
+                or node in list(self.current_graph.constant_dict.values())
+                or node.startswith(APPROXIMATE_WIRE_PREFIX))
 
         if node in list(self.current_graph.input_dict.values()):
             return node
+
         elif node in list(self.current_graph.gate_dict.values()):
             if self.current_graph.is_subgraph_member(node):
                 node_id = -1
@@ -2232,21 +2615,22 @@ class Template_SOP1ShareLogic(TemplateCreator):
                         node_id = key
 
                 input_list = self.__z3_get_subgraph_input_list()
-                # print(f'for the subgraph = {input_list}')
                 return f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + node_id}({','.join(input_list)})"
+
             else:
                 node_id = -1
                 for key in self.current_graph.gate_dict.keys():
                     if self.current_graph.gate_dict[key] == node:
                         node_id = key
                 return f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + node_id}({','.join(list(self.current_graph.input_dict.values()))})"
+
         elif node in list(self.current_graph.output_dict.values()):
             for key in self.current_graph.output_dict.keys():
                 if self.current_graph.output_dict[key] == node:
                     node_id = key
             return f"{APPROXIMATE_WIRE_PREFIX}{OUT}{node_id}({','.join(list(self.current_graph.input_dict.values()))})"
+
         elif node in list(self.current_graph.constant_dict.values()):
-            # print(f'{self.current_graph.graph.nodes[node] = }')
             return Z3_GATES_DICTIONARY[self.current_graph.graph.nodes[node][LABEL]]
 
     def z3_generate_approximate_circuit_wire_constraints_shared(self):
@@ -2258,13 +2642,12 @@ class Template_SOP1ShareLogic(TemplateCreator):
         gate_key_list = list(self.current_graph.gate_dict.keys())
         for g_idx in gate_key_list:
             g_label = self.current_graph.gate_dict[g_idx]
-            # print(f'{g_label = }')
             if not self.current_graph.is_subgraph_member(g_label):
                 g_predecessors = self.get_predecessors_xpat(g_label)
-                # print(f'{g_predecessors = }')
                 g_function = self.get_logical_function_xpat(g_label)
                 assert len(g_predecessors) == 1 or len(g_predecessors) == 2
                 assert g_function == NOT or g_function == AND or g_function == OR
+
                 if len(g_predecessors) == 1:
                     if g_predecessors[0] in list(self.current_graph.input_dict.values()):
                         pred_1 = g_predecessors[0]
@@ -2274,6 +2657,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
                                               f"{','.join(list(self.current_graph.input_dict.values()))}) == "
                     exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
+
                 else:
                     exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
                                               f"{','.join(list(self.current_graph.input_dict.values()))}) == "
@@ -2286,16 +2670,10 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     else:
                         pred_2 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[1])
                     exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
+
             elif self.current_graph.is_subgraph_member(g_label) and self.current_graph.is_subgraph_output(g_label):
-                # outputs are g10, g16, g20
-                # print(Fore.LIGHTCYAN_EX + f'{self.graph.subgraph_num_outputs = }')
                 output_list = list(self.current_graph.subgraph_output_dict.values())
-                # print(f'{self.current_graph.subgraph_output_dict = }')
                 o_idx = output_list.index(g_label)
-                # print(f'{self.graph.subgraph_input_dict = }')
-                # print(f'{g_label = } -> {o_idx = }')
-                # print(f'{subgraph_input_list= }')
-                # print(Style.RESET_ALL)
 
                 approximate_circuit_constraints = f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
                                                   f"{','.join(subgraph_input_list)}) == "
@@ -2337,9 +2715,7 @@ class Template_SOP1ShareLogic(TemplateCreator):
             output_predecessors = list(self.current_graph.graph.predecessors(output_label))
 
             assert len(output_predecessors) == 1
-            # print(f'{self.current_graph.subgraph_gate_dict = }')
-            # print(f'{self.current_graph.graph.nodes = }')
-            # print(f'{output_predecessors = }')
+
             pred = self.z3_express_node_as_wire_constraints_subxpat(output_predecessors[0])
             output = self.z3_express_node_as_wire_constraints_subxpat(output_label)
             approximate_output_constraints += f'{TAB}{output} == {pred},\n'
@@ -2395,7 +2771,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     else:
                         approximate_circuit_constraints += ','
 
-        # exit()
         return approximate_circuit_constraints
 
     def z3_generate_approximate_circuit_constraints_subxpat_shared(self):
@@ -2441,7 +2816,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
         #             else:
         #                 approximate_circuit_constraints += ','
 
-        # exit()
         return approximate_circuit_constraints_shared
 
     def z3_generate_forall_solver_preperation(self):
@@ -2471,7 +2845,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
     def z3_generate_forall_solver_atmost_constraints_subxpat_shared(self):
         atmost = ''
         atmost += f'{TAB}{TAB}# AtMost constraints\n'
-        # print(f'{self.graph.subgraph_num_inputs = }')
         for pit_idx in range(self.pit):
             atmost += f"{TAB}{TAB}("
             for input_idx in range(self.graph.subgraph_num_inputs):
@@ -2523,8 +2896,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
                     loop_3_last_iter_flg = input_idx == self.graph.num_inputs - 1
                     p_s = f'{PRODUCT_PREFIX}{output_idx}_{TREE_PREFIX}{ppo_idx}_{INPUT_LITERAL_PREFIX}{input_idx}_{SELECT_PREFIX}'
                     atmost += f"{IF}({p_s}, 1, 0)"
-
-                    # print(f'{atmost = }')
 
                     if loop_3_last_iter_flg:
                         atmost += f') <= {self.lpp},\n'
@@ -2673,7 +3044,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
         ppo_order += f'{TAB}{TAB}# set order of trees\n'
 
         if self.ppo == 1:
-            # print(f'No need for ordering the PPOs!')
             ppo_order += f'{TAB}{TAB}True, \n'
         else:
             for output_idx in range(self.graph.num_outputs):
@@ -2703,7 +3073,6 @@ class Template_SOP1ShareLogic(TemplateCreator):
                             current_product += f' + '
                             next_product += f' + '
 
-        # exit()
         return ppo_order
 
     def z3_generate_forall_solver_redundancy_constraints_double_no_care_subxpat_shared(self):
