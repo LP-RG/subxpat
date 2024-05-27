@@ -2,7 +2,7 @@ from typing import Dict, List, Callable
 from sklearn.cluster import SpectralClustering
 from colorama import Fore, Style
 import time
-
+import datetime  # precautionary measure
 import networkx as nx
 from Z3Log.graph import Graph
 from Z3Log.verilog import Verilog
@@ -80,6 +80,10 @@ class AnnotatedGraph(Graph):
     @property
     def subgraph_out_path(self):
         return self.__out_annotated_graph_path
+
+    @subgraph_out_path.setter
+    def subgraph_out_path(self, this_subgraph_out_path):
+        self.__out_annotated_graph_path = this_subgraph_out_path
 
     @property
     def subgraph_input_dict(self):
@@ -171,6 +175,62 @@ class AnnotatedGraph(Graph):
 
     def sort_dict(self, this_dict: Dict) -> Dict:
         return dict(sorted(this_dict.items(), key=lambda x: x[0]))
+
+    def get_subgraph_name(self, specs: TemplateSpecs):
+        """
+        returns: a unique gv file name for this experiment (that is determined by specs_obj)
+        """
+        _, extension = OUTPUT_PATH[GV]
+
+        # TODO: Morteza: this naming convention is not generic enough,
+        # I will try to add every type of specification of the experiment into the name so it wouldn't get overwritten
+        # new fields that are added:
+        # for subxpat_v2 => et_partitioning, fef: full_error_function, sef: sub_error_function,
+        # for all num_of_models, omax, imax, kuc: keep_unsat_candidates
+        # as a precautionary measure, we also add the time stamp at the end of every generated file
+
+        # So we change the names from "grid_adder_i6_o4_10X20_et10_subxpat_v2_mode4_SOP1" to
+        # 'grid_adder_i6_o4_10X20_et10_subxpat_v2_desc_fef1_sef1_mode4_omax1_imax3_kucTrue_SOP1_time20240403:214107'
+
+        # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
+
+        head = f'grid_{specs.benchmark_name}_{specs.lpp}X{specs.pit if specs.shared else specs.ppo}_et{specs.et}_'
+
+        if specs.subxpat_v2:
+            tool_name = SUBXPAT_V2
+        elif specs.subxpat and specs.shared:
+            tool_name = SHARED_SUBXPAT
+        elif specs.subxpat and not specs.shared:
+            tool_name = SUBXPAT
+        elif not specs.subxpat and specs.shared:
+            tool_name = SHARED_XPAT
+        elif not specs.subxpat and not specs.shared:
+            tool_name = XPAT
+
+        technique_specific = f'{tool_name}_{specs.et_partitioning if tool_name == SUBXPAT_V2 else ""}_'
+        technique_specific += f'fef{specs.full_error_function if tool_name == SUBXPAT_V2 else ""}_'
+        technique_specific += f'sef{specs.sub_error_function if tool_name == SUBXPAT_V2 else ""}_'
+
+        tail = f'mode{specs.mode}_omax{specs.omax}_imax{specs.imax}_'
+        tail += f'kuc{specs.keep_unsat_candidate}_'
+        tail += f'{specs.template_name}_time'
+
+        # Get the current date and time
+        current_time = datetime.datetime.now()
+        # Format the date and time to create a unique identifier
+        time_stamp = current_time.strftime("%Y%m%d:%H%M%S")
+
+        name = head + technique_specific + tail + time_stamp
+
+        return f'{name}.{extension}'
+
+    def get_subgraph_path(self, specs: TemplateSpecs):
+        """
+        returns: the path where the grid .gv file should be stored
+        """
+        folder, _ = OUTPUT_PATH[GV]
+        path = f'{folder}/{self.get_subgraph_name(specs)}'
+        return path
 
     def __add_weights(self):
         for n in self.graph.nodes:
