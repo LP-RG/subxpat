@@ -357,6 +357,8 @@ class AnnotatedGraph(Graph):
             else:
                 self.subgraph = self.entire_graph()
 
+            # Set new name for the subgraph
+            self.subgraph_out_path = self.get_subgraph_path(specs_obj)
             self.export_annotated_graph()
 
             self.subgraph_input_dict = self.extract_subgraph_inputs()
