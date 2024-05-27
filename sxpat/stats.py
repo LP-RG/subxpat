@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Tuple, List, Dict
-import datetime # precautionary measure
+import datetime  # precautionary measure
 import csv
 import re
 import os
@@ -54,7 +54,7 @@ class Model:
                  labeling_time: float = -1,
                  subgraph_extraction_time: float = -1,
                  subgraph_number_inputs: int = -1,
-                 subgraph_number_outputs: int = -1, 
+                 subgraph_number_outputs: int = -1,
                  subxpat_phase1_time: float = -1,
                  subxpat_phase2_time: float = -1):
         self.__cell = cell
@@ -90,11 +90,11 @@ class Model:
     @property
     def subgraph_extraction_time(self):
         return self.__subgraph_extraction_time
-    
+
     @property
     def subgraph_number_inputs(self):
         return self.__subgraph_number_inputs
-    
+
     @property
     def subgraph_number_outputs(self):
         return self.__subgraph_number_outputs
@@ -268,9 +268,7 @@ class Cell:
     #     self.models[this_iteration] = temp_dict
 
     def store_model_info(self, model_info_obj: Model):
-        self.models[model_info_obj.iteration] = {model_info_obj.id : model_info_obj}
-
-
+        self.models[model_info_obj.iteration] = {model_info_obj.id: model_info_obj}
 
     def __repr__(self):
         return f"An object of class Cell:\n" \
@@ -342,7 +340,6 @@ class Grid:
                f'{self.cells = }\n'
 
 
-
 class Stats:
     def __init__(self, spec_obj: TemplateSpecs):
         """
@@ -412,7 +409,6 @@ class Stats:
     @property
     def subxpat(self):
         return self.__subxpat
-
 
     @property
     def subxpat_v2(self):
@@ -556,14 +552,13 @@ class Stats:
 
         # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
 
-
         head = f'grid_{self.exact_name}_{self.lpp}X{self.pit if self.specs.shared else self.ppo}_et{self.et}_'
 
         technique_specific = f'{self.tool_name}_{self.specs.et_partitioning if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}_'
         technique_specific += f'enc{self.specs.encoding}_'
-        technique_specific += f'fef_{self.specs.full_error_function if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}'
-        technique_specific += f'sef_{self.specs.sub_error_function if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}'
-
+        if self.tool_name == sxpatconfig.SUBXPAT_V2:
+            technique_specific += f'fef{self.specs.full_error_function}_'
+            technique_specific += f'sef{self.specs.sub_error_function}_'
 
         tail = f'mode{self.specs.mode}_omax{self.specs.omax}_imax{self.specs.imax}_'
         tail += f'kuc{self.specs.keep_unsat_candidate}_'
@@ -575,8 +570,6 @@ class Stats:
         time_stamp = current_time.strftime("%Y%m%d:%H%M%S")
 
         name = head + technique_specific + tail + time_stamp
-
-
 
         return f'{name}.{extension}'
 
@@ -599,21 +592,21 @@ class Stats:
                   'w') as f:
             csvwriter = csv.writer(f)
 
-            #TODO: iterate through all the fields with something like the the command below:
+            # TODO: iterate through all the fields with something like the the command below:
             # header = []
             # for attr in Model.__dict__.keys():
             #     header.append(f"{attr.replace('_Model__', '')}")
             # header = tuple(header)
 
             header = ('cell', 'iteration', 'model_id', 'status', 'runtime', 'area', 'delay', 'total_power', 'et',
-                      'labeling_time', 'subgraph_extraction', 'subgraph_inputs','subgraph_outputs', 'subxpat_phase1', 'subxpat_phase2')
+                      'labeling_time', 'subgraph_extraction', 'subgraph_inputs', 'subgraph_outputs', 'subxpat_phase1', 'subxpat_phase2')
             csvwriter.writerow(header)
             # iterate over cells (lppXppo)
             for ppo in range(self.ppo + 1):
                 for lpp in range(self.lpp + 1):
                     cell = f'({lpp}X{ppo})'
-                    #ToDo: for a given cell, iterate through all the models retrieved and find the best one
-                    #For now: for each given cell, report the first one
+                    # ToDo: for a given cell, iterate through all the models retrieved and find the best one
+                    # For now: for each given cell, report the first one
                     for iteration in self.grid.cells[lpp][ppo].models.keys():
                         for m_id in self.grid.cells[lpp][ppo].models[iteration].keys():
                             row = []
@@ -634,6 +627,7 @@ class Stats:
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subxpat_phase2_time)
                             row = tuple(row)
                             csvwriter.writerow(row)
+
     def gather_results(self):
         mecals = Result(self.exact_name, sxpatconfig.MECALS)
 
@@ -1136,7 +1130,6 @@ class Stats:
         for error in subxpat.error_array:
             for grid_file in subxpat.grid_files.keys():
                 if re.search(f'et{error}', grid_file):
-                    # print(f'{grid_file = }')
                     cur_imax = int(re.search(f'imax(\d+)', grid_file).group(1))
                     cur_omax = int(re.search(f'omax(\d+)', grid_file).group(1))
                     cur_sensitivity = False if re.search(f'without', grid_file) else True
@@ -1148,7 +1141,6 @@ class Stats:
                         cur_min_subgraph_size = -1
                     self._get_iteration_characteristcs(subxpat, imax=cur_imax, omax=cur_omax, sensitivity=cur_sensitivity,
                                                        max_sensitivity=cur_max_sensitivity, min_subgraph_size=cur_min_subgraph_size)
-                    # print(f'{subxpat.area_iteration_dict = }')
 
         subxpat.partitioning_dict = partitioning_dict
 
@@ -1173,7 +1165,7 @@ class Stats:
         delay_iteration_dict = {}
         if iterations == -1:
             print(Fore.RED + f'ERROR!!! number of iterations is -1 for these results!' + Style.RESET_ALL)
-            exit()
+            exit(1)
 
         folder, _ = OUTPUT_PATH['report']
         for grid_file in subxpat.grid_files.keys():
@@ -1215,7 +1207,6 @@ class Stats:
                f'{self.ppo = }\n' \
                f'{self.et = }\n' \
                f'{self.grid = }\n'
-
 
 
 class Result:
@@ -1295,9 +1286,8 @@ class Result:
                 self.__area_dict: dict = self.extract_area()
 
                 self.__power_dict: dict = self.extract_power()
-                # print(f'{self.synthesized_files = }')
+
                 self.__delay_dict: dict = self.extract_delay()
-                # print(f'{self.synthesized_files = }')
 
                 self.__exact_area = float(-1)
                 self.__exact_power = float(-1)
@@ -1336,9 +1326,7 @@ class Result:
 
         elif self.tool_name == sxpatconfig.MUSCAT or self.tool_name == sxpatconfig.XPAT:
             self.__et_str = self.get_et_str()
-            # print(f'we are here 1')
             self.__verilog_files = self.get_verilog_files()
-            # print(f'we are here 2')
             self.__pareto_files = self.get_pareto_files()
             if len(self.verilog_files) == 0 and len(self.pareto_files) == 0:
                 self.__status: bool = False
@@ -1347,23 +1335,18 @@ class Result:
                 self.__status: bool = True
                 self.__verilog_files = self.pareto_files.values()
                 self.__error_array: list = self.extract_error()
-                # print(f'{self.pareto_files = }')
-                # print(f'{self.verilog_files = }')
                 self.__pareto_files: dict = {}
                 self.__synthesized_files: dict = {}
                 self.__area_dict: dict = self.extract_area()
-                # print(f'{self.area_dict = }')
 
                 self.__delay_dict: dict = self.extract_delay()
                 self.__power_dict: dict = self.extract_power()
-                # print(f'{self.delay_dict = }')
-                # print(f'{self.power_dict = }')
 
                 self.__exact_area = float(-1)
                 self.__exact_power = float(-1)
                 self.__exact_delay = float(-1)
                 self.clean()
-                # exit()
+
             elif len(self.pareto_files) == 0:
                 self.__status: bool = True
                 self.__error_array: list = self.extract_error()
@@ -1546,14 +1529,9 @@ class Result:
         folder = f'experiments/{self.tool_name}/pareto_ver/{self.benchmark}'
         if os.path.exists(folder):
             all_files = [f for f in os.listdir(folder)]
-            # print(f'{all_files = }')
-            # print(f'{self.et_str = }')
             for file in all_files:
                 if file.endswith('.v') and re.search(self.benchmark, file) and re.search(self.et_str, file):
                     pattern = f'{self.et_str}(\d+)'
-                    # print(f'{re.search(pattern, file).group(1) = }')
-                    # cur_et = re.search(pattern, file).group(1)
-                    # cur_et = int(cur_et)
                     cur_et = int(re.search(pattern, file).group(1))
 
                     pareto_files[cur_et] = file
@@ -1591,7 +1569,6 @@ class Result:
 
     def get_verilog_files(self):
         folder = f'experiments/{self.tool_name}/ver'
-        # print(f'we are here')
         all_folders = [f for f in os.listdir(folder)]
         benchmark_folder = None
         for fold in all_folders:
@@ -1653,7 +1630,6 @@ class Result:
                 raise Exception(Fore.RED + f'Yosys ERROR!!! in file {design_in_path}\n {process.stderr.decode()}' + Style.RESET_ALL)
 
             cur_et = int(re.search(f'{self.et_str}(\d+)', design_out_path).group(1))
-            # print(f'{cur_et = }')
             syn_files[cur_et] = design_out_path
 
         return syn_files
@@ -1733,8 +1709,6 @@ class Result:
                     if process.stderr:
                         raise Exception(Fore.RED + f'Yosys ERROR!!! in file {ver_file}\n {process.stderr.decode()}' + Style.RESET_ALL)
                     else:
-                        # print(f'--------------------------------------------')
-                        # print(process.stdout.decode())
                         if re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()):
                             area = re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()).group(1)
 
@@ -1774,17 +1748,12 @@ class Result:
     def _extract_power_mecals(self):
 
         power_dict: dict = {}
-        # print(f'{self.error_array = }')
         for error in self.error_array:
             for key in self.synthesized_files.keys():
-                # print(f'{key}')
                 if error == key:
-                    # print(f'{error} == {key}')
                     syn_file = self.synthesized_files[error]
-                    # print(f'{syn_file = }')
                     power_script = f'{syn_file[:-2]}_for_power.script'
                     module_name = self.extract_module_name(syn_file)
-                    # print(f'{module_name = }')
                     sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
                                   f"read_verilog {syn_file}\n" \
                                   f"link_design {module_name}\n" \
@@ -1800,7 +1769,6 @@ class Result:
                     if process.stderr:
                         raise Exception(Fore.RED + f'Yosys ERROR!!!\n {process.stderr.decode()}' + Style.RESET_ALL)
                     else:
-                        # print(f'{process.stdout.decode() = }')
                         pattern = r"Total\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+)[^0-9]*\d+\s+(\d+.\d+[^0-9]*\d+)\s+"
                         if re.search(pattern, process.stdout.decode()):
                             total_power_str = re.search(pattern, process.stdout.decode()).group(4)
@@ -1900,7 +1868,6 @@ class Result:
                         raise Exception(Fore.RED + f'Yosys ERROR!!! in file {syn_file} \n {process.stderr.decode()}' + Style.RESET_ALL)
 
                     else:
-                        # print(f'{process.stdout.decode() = }')
                         if re.search('(\d+.\d+).*data arrival time', process.stdout.decode()):
                             time = re.search('(\d+.\d+).*data arrival time', process.stdout.decode()).group(1)
                             delay_dict[error] = float(time)
@@ -1933,7 +1900,6 @@ class Result:
                 raise Exception(Fore.RED + f'Yosys ERROR!!! in file {ver_file} \n {process.stderr.decode()}' + Style.RESET_ALL)
 
             else:
-                # print(f'{process.stdout.decode() = }')
                 if re.search('(\d+.\d+).*data arrival time', process.stdout.decode()):
                     time = re.search('(\d+.\d+).*data arrival time', process.stdout.decode()).group(1)
                     delay_dict[error] = float(time)
@@ -1973,18 +1939,15 @@ class Result:
                         if self.mode == 1:
                             imax = f'imax{self.imax}'
                             omax = f'omax{self.omax}'
-                            if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark, csv_file) \
-                                    and re.search(imax, csv_file) and re.search(omax, csv_file):
-                                # print(f'{csv_file = }')
+                            if (csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark, csv_file)
+                                    and re.search(imax, csv_file) and re.search(omax, csv_file)):
                                 cur_et = int(re.search('et(\d+)', csv_file).group(1))
                                 if cur_et == et:
                                     grid_files[csv_file] = et
                         elif self.mode == 3:
                             subgraphsize = f'subgraphsize{self.subgraphsize}'
-                            if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark,
-                                                                                                        csv_file) \
-                                    and re.search(subgraphsize, csv_file):
-                                # print(f'{csv_file = }')
+                            if (csv_file.startswith('grid_') and csv_file.endswith('.csv')
+                                    and re.search(self.benchmark, csv_file) and re.search(subgraphsize, csv_file)):
                                 cur_et = int(re.search('et(\d+)', csv_file).group(1))
                                 if cur_et == et:
                                     grid_files[csv_file] = et
@@ -1992,19 +1955,15 @@ class Result:
                         if self.mode == 1:
                             imax = f'imax{self.imax}'
                             omax = f'omax{self.omax}'
-                            if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark,
-                                                                                                        csv_file) \
-                                    and re.search(imax, csv_file) and re.search(omax, csv_file) and not re.search(sxpatconfig.SHARED_SUBXPAT, csv_file):
-                                # print(f'{csv_file = }')
+                            if (csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark, csv_file)
+                                    and re.search(imax, csv_file) and re.search(omax, csv_file) and not re.search(sxpatconfig.SHARED_SUBXPAT, csv_file)):
                                 cur_et = int(re.search('et(\d+)', csv_file).group(1))
                                 if cur_et == et:
                                     grid_files[csv_file] = et
                         elif self.mode == 3:
                             subgraphsize = f'subgraphsize{self.subgraphsize}'
-                            if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark,
-                                                                                                        csv_file) \
-                                    and re.search(subgraphsize, csv_file):
-                                # print(f'{csv_file = }')
+                            if (csv_file.startswith('grid_') and csv_file.endswith('.csv')
+                                    and re.search(self.benchmark, csv_file) and re.search(subgraphsize, csv_file)):
                                 cur_et = int(re.search('et(\d+)', csv_file).group(1))
                                 if cur_et == et:
                                     grid_files[csv_file] = et
@@ -2014,8 +1973,8 @@ class Result:
                             if cur_et == et:
                                 grid_files[csv_file] = et
                     elif self.tool_name == sxpatconfig.XPAT:
-                        if csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark, csv_file) \
-                                and not re.search(sxpatconfig.SHARED_XPAT, csv_file):
+                        if (csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark, csv_file)
+                                and not re.search(sxpatconfig.SHARED_XPAT, csv_file)):
                             cur_et = int(re.search('et(\d+)', csv_file).group(1))
                             if cur_et == et:
                                 grid_files[csv_file] = et
@@ -2095,4 +2054,3 @@ class Result:
         self.area_dict = area_dict
         self.power_dict = power_dict
         self.delay_dict = delay_dict
-

@@ -39,12 +39,12 @@ class TemplateSpecs:
         self.__partial_labeling: bool = kwargs[PARTIAL_LABELING]
         self.__num_subgraphs: int = kwargs[NUM_SUBGRAPHS]
 
-        self._encoding: int = kwargs[ENCODING]
-
+        self.__encoding: int = kwargs[ENCODING]
 
     @property
     def num_subgraphs(self):
         return self.__num_subgraphs
+
     @property
     def keep_unsat_candidate(self):
         return self.__keep_unsat_candidate
@@ -227,7 +227,7 @@ class TemplateSpecs:
 
     @property
     def encoding(self):
-        return self._encoding
+        return self.__encoding
 
     @property
     def partial_labeling(self):

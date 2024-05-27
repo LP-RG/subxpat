@@ -42,7 +42,6 @@ class Synthesis:
 
         self.__num_models: int = template_specs.num_of_models
 
-
         if self.shared:
             self.__products_in_total: int = template_specs.products_in_total
         else:
@@ -70,6 +69,7 @@ class Synthesis:
     @property
     def specs(self):
         return self.__template_specs
+
     @property
     def products_in_total(self):
         return self.__products_in_total
@@ -85,6 +85,7 @@ class Synthesis:
     @property
     def shared(self):
         return self.__shared
+
     @property
     def num_of_models(self):
         return self.__num_models
@@ -302,12 +303,13 @@ class Synthesis:
                     assignment += self.__get_fanin_cone(s_n, visited)
 
         if len(succ_n_list) == 2:
-            gate_1 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}' if succ_n_list[
-                0] not in self.graph.input_dict.values() else \
-                succ_n_list[0]
-            gate_2 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[1]}' if succ_n_list[
-                1] not in self.graph.input_dict.values() else \
-                succ_n_list[1]
+            gate_1 = (f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}'
+                      if succ_n_list[0] not in self.graph.input_dict.values()
+                      else succ_n_list[0])
+            gate_2 = (f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[1]}'
+                      if succ_n_list[1] not in self.graph.input_dict.values()
+                      else succ_n_list[1])
+
             if self.graph.graph.nodes[n][LABEL] == sxpatconfig.AND:
                 operator = sxpatconfig.VER_AND
             elif self.graph.graph.nodes[n][LABEL] == sxpatconfig.OR:
@@ -316,9 +318,9 @@ class Synthesis:
             assignment += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = " \
                           f"{gate_1} {operator} {gate_2};\n"
         else:
-            gate_1 = f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}' if succ_n_list[
-                0] not in self.graph.input_dict.values() else \
-                succ_n_list[0]
+            gate_1 = (f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}'
+                      if succ_n_list[0] not in self.graph.input_dict.values()
+                      else succ_n_list[0])
             assignment += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = ~{gate_1};\n"
         return assignment
 
@@ -355,7 +357,6 @@ class Synthesis:
             else:
                 g_list.append(node)
 
-        # note:marco: bug found, was sorting by string and not by int
         pi_list.sort(key=lambda x: int(re.search('\d+', x).group()))
         for el in pi_list:
             subpgraph_input_list_ordered.append(el)
@@ -368,7 +369,6 @@ class Synthesis:
 
         subgraph_input_list = list(self.graph.subgraph_input_dict.values())
         subgraph_input_list = self.__fix_order()
-        # print(f'{subgraph_input_list = }')
 
         for idx in range(self.graph.subgraph_num_inputs):
             sub_to_json += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx} = ' \
@@ -413,8 +413,6 @@ class Synthesis:
             else:
                 lpp_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{self.graph.subgraph_output_dict[o_idx]} = 0;\n'
 
-        # print(f'{lpp_assigns = }')
-
         return lpp_assigns
 
     def __intact_part_assigns(self):
@@ -445,8 +443,6 @@ class Synthesis:
                 else:
                     pn[idx] = f'{sxpatconfig.VER_WIRE_PREFIX}{el}'
 
-            # print(f'{pn = }')
-
             if len(pn) == 1:
                 intact_part += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = {sxpatconfig.VER_NOT}{pn[0]};\n'
             elif len(pn) == 2:
@@ -461,7 +457,7 @@ class Synthesis:
                                    f'{pn[1]};\n'
             else:
                 pprint.error(f'ERROR!!! node {n} has more than two drivers!')
-                exit()
+                exit(1)
 
         return intact_part
 
@@ -476,9 +472,7 @@ class Synthesis:
                 if gate == sxpatconfig.NOT:
                     output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}{pn[0]};\n'
                 else:
-                    # print(f'{pn = }')
                     if pn[0] in list(self.graph.input_dict.values()) and pn[0] not in list(self.graph.subgraph_input_dict.values()):
-                        # print(f'We are here=============')
                         output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {pn[0]};\n'
                     else:
                         output_assigns += f'{sxpatconfig.VER_ASSIGN} {n} = {sxpatconfig.VER_WIRE_PREFIX}{pn[0]};\n'
@@ -529,13 +523,9 @@ class Synthesis:
 
     def __get_module_signature(self, idx: int = 0):
         input_list = list(self.graph.input_dict.values())
-
-        # note:marco: bug found, was sorting by string and not by int
         input_list.sort(key=lambda x: int(re.search('\d+', x).group()))
-        # input_list.sort(key=lambda x: re.search('\d+', x).group())
 
         output_list = list(self.graph.output_dict.values())
-        # Sort Dictionary
 
         module_name = self.ver_out_name[:-2]
         module_signature = f"{sxpatconfig.VER_MODULE} {module_name} ({', '.join(input_list)}, {', '.join(output_list)});\n"
@@ -544,11 +534,8 @@ class Synthesis:
 
     def __declare_inputs_outputs(self):
         input_list = list(self.graph.input_dict.values())
-        # note:marco: bug found, was sorting by string and not by int
         input_list.sort(key=lambda x: int(re.search('\d+', x).group()))
-        # input_list.sort(key=lambda x: re.search('\d+', x).group())
         # input_list.reverse()
-        # print(f'{input_list = }')
 
         output_list = list(self.graph.output_dict.values())
         input_declarations = f"//input/output declarations\n"
@@ -749,7 +736,6 @@ class Synthesis:
         # ==============================================================================================================
 
         output_quantity = 0
-        # print(Fore.LIGHTCYAN_EX + f'{sorted_annotated_graph_output_list}' + Style.RESET_ALL)
         for o_idx, item in enumerate(sorted_annotated_graph_output_list):
 
             shared_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.OUT}{o_idx} = '
@@ -769,7 +755,6 @@ class Synthesis:
         for o_idx, item in enumerate(sorted_annotated_graph_output_list):
             shared_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{item} =  {sxpatconfig.VER_WIRE_PREFIX}{sxpatconfig.OUT}{o_idx} {sxpatconfig.VER_AND} '
             json_output_p_o = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{o_idx}'
-            # print(f'{self.json_model[idx] = }')
             if self.json_model[idx][json_output_p_o]:
                 shared_assigns += f'1'
             else:
@@ -825,7 +810,6 @@ class Synthesis:
         # ==============================================================================================================
 
         output_quantity = 0
-        # print(f'')
         for item in sorted_annotated_graph_output_list:
             shared_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{item} = '
             pit_quantity = self.pit
@@ -848,9 +832,6 @@ class Synthesis:
             shared_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{pn[0]}_{sxpatconfig.SHARED_PRODUCT_PREFIX} = {sxpatconfig.VER_WIRE_PREFIX}{n} {sxpatconfig.VER_AND} '
             json_output_p_o = f'{sxpatconfig.SHARED_PARAM_PREFIX}_{sxpatconfig.SHARED_OUTPUT_PREFIX}{key}'
             o_idx += 1
-            # print(f'HEREEEE')
-            # print(f'{json_output_p_o}')
-            # print(f'{self.json_model[json_output_p_o]}')
             if self.json_model[idx][json_output_p_o]:
                 shared_assigns += f'1'
             else:
@@ -888,7 +869,6 @@ class Synthesis:
         return output_assigns
 
     def __json_model_to_verilog_shared(self) -> List[AnyStr]:
-        # print(Fore.CYAN + f'XPAT WITH sharing synthesis' + Style.RESET_ALL)
         ver_string = []
         for idx in range(self.num_of_models):
             self.set_path(this_path=OUTPUT_PATH['ver'], id=idx)
@@ -954,7 +934,6 @@ class Synthesis:
         return ver_string
 
     def __annotated_graph_to_verilog_shared(self):
-        # print(Fore.LIGHTCYAN_EX + f'Shared SubXPAT synthesis' + Style.RESET_ALL)
         ver_string = []
 
         for idx in range(self.num_of_models):
@@ -988,18 +967,16 @@ class Synthesis:
             shared_assigns = self.__shared_logic_assigns_subxpat_shared(idx=idx)
             output_assigns = self.__output_assigns()
 
-            ver_str += module_signature + io_declaration + intact_wires + annotated_graph_input_wires + json_input_wires + \
-                       annotated_graph_input_wires + annotated_graph_output_wires + json_output_wires + json_model_wires
-            ver_str += json_input_assign + subgraph_to_json_input_mapping + intact_assigns + \
-                       json_model_and_subgraph_outputs_assigns + shared_assigns + output_assigns
+            ver_str += (module_signature + io_declaration + intact_wires + annotated_graph_input_wires + json_input_wires
+                        + annotated_graph_input_wires + annotated_graph_output_wires + json_output_wires + json_model_wires)
+            ver_str += (json_input_assign + subgraph_to_json_input_mapping + intact_assigns
+                        + json_model_and_subgraph_outputs_assigns + shared_assigns + output_assigns)
 
-            # print(f'{ver_str = }')
             ver_string.append(ver_str)
 
         return ver_string
 
     def __annotated_graph_to_verilog(self) -> List[AnyStr]:
-        # print(Fore.CYAN + f'subxpat without sharing synthesis' + Style.RESET_ALL)
         ver_string = []
         for idx in range(self.num_of_models):
 

@@ -244,7 +244,7 @@ class AnnotatedGraph(Graph):
                         specs_obj.sensitivity = 2 ** iteration - 1
                 elif mode == 4:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible(specs_obj)  # Critian's subgraph extraction
+                    self.subgraph = self.find_subgraph_feasible(specs_obj)  # Cristian's subgraph extraction
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:

@@ -106,11 +106,8 @@ class Arguments(Z3Log_Arguments):
         self.__et_partitioning: int = tmp_args.et_partitioning
         self._encoding: int = tmp_args.encoding
 
-
         self.__partial_labeling: bool = tmp_args.partial_labeling
         self.__num_subgraphs: int = tmp_args.num_subgraphs
-
-
 
     @property
     def parallel(self):
