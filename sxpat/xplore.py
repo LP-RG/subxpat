@@ -76,14 +76,12 @@ def explore_grid(specs_obj: TemplateSpecs):
     next_generation: Dict = {}
     total: Dict[Dict] = {}
     pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
-    original_et = specs_obj.et
     available_error = specs_obj.et
     obtained_wce_exact = 0
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
     while (obtained_wce_exact < available_error):
-        # for i, et in error_iterator:
         i += 1
         if specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
@@ -132,7 +130,6 @@ def explore_grid(specs_obj: TemplateSpecs):
             if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
                 # label graph
                 t_start = time.time()
-                # print(f'{et = }')
                 et_coefficient = 8
                 template_obj.label_graph(min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling, et=et*et_coefficient, parallel=specs_obj.parallel)
                 labeling_time = time.time() - t_start
@@ -209,7 +206,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                     template_obj.z3_generate_z3pyscript()
                     template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=specs_obj.timeout)
                     # at this point the internal verification using verification solver is already passed!
-
 
                     # gather results
                     cur_status = get_status(template_obj)
@@ -308,7 +304,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                             obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et)
                             prev_actual_error = obtained_wce_prev
 
-                        if obtained_wce_exact > original_et:
+                        if obtained_wce_exact > template_obj.et:
                             raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
                     prev_string = ''
@@ -332,7 +328,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                                    synth_obj.estimate_delay(exact_file_path)]
                     print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
 
-                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=benchmark_name, et=specs_obj.et, encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
+                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=benchmark_name, et=specs_obj.et,
+                                        encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
 
                     for key in cur_model_results.keys():
                         next_generation[key] = cur_model_results[key]
@@ -463,11 +460,8 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
                 cur_model_result[key][2] = (cur_model_result[key][2] / exact_delay) * 100
 
     if len(cur_model_result) < 10:
-        #
-
         sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
         for idx, key in enumerate(sorted_candidates):
-            # print(f'{sorted_candidates[idx] = }')
             this_id = re.search('(id.*)', sorted_candidates[idx][0]).group(1).split('.')[0]
             this_area = sorted_candidates[idx][1][0]
             this_power = sorted_candidates[idx][1][1]
@@ -476,10 +470,7 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
         pprint.success(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
 
     else:
-        #
-
         sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
-        # print(sorted_candidates)
         best_id = re.search('(id.*)', sorted_candidates[0][0]).group(1).split('.')[0]
         best_area = sorted_candidates[0][1][0]
         best_power = sorted_candidates[0][1][1]
@@ -488,11 +479,12 @@ def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_st
         pprint.success(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
         # print the best model for now
 
+
 def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, encoding: int, subgraph_extraction_time: float, labeling_time: float, exact_stats: List = None) -> None:
     with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_power_delay.csv", 'a') as f:
         csvwriter = csv.writer(f)
 
-        # to avoid duplicate data 
+        # to avoid duplicate data
         if encoding == 2:
             exact_data = []
             if exact_stats:
@@ -530,8 +522,6 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         approx_data = tuple(approx_data)
 
         csvwriter.writerow(approx_data)
-
-
 
 
 def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
