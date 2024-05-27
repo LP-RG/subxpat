@@ -41,6 +41,10 @@ class TemplateSpecs:
 
         self._encoding: int = kwargs[ENCODING]
 
+
+    @property
+    def num_subgraphs(self):
+        return self.__num_subgraphs
     @property
     def keep_unsat_candidate(self):
         return self.__keep_unsat_candidate
