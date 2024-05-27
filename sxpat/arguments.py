@@ -104,7 +104,7 @@ class Arguments(Z3Log_Arguments):
         self.__full_error_function: int = tmp_args.full_error_function
         self.__sub_error_function: int = tmp_args.sub_error_function
         self.__et_partitioning: int = tmp_args.et_partitioning
-        self._encoding: int = tmp_args.encoding
+        self.__encoding: int = tmp_args.encoding
 
         self.__partial_labeling: bool = tmp_args.partial_labeling
         self.__num_subgraphs: int = tmp_args.num_subgraphs
@@ -235,7 +235,7 @@ class Arguments(Z3Log_Arguments):
 
     @property
     def encoding(self):
-        return self._encoding
+        return self.__encoding
 
     @property
     def partial_labeling(self):
