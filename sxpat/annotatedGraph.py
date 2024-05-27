@@ -2330,8 +2330,8 @@ class AnnotatedGraph(Graph):
             if tmp_graph.nodes[self.gate_dict[source]][WEIGHT] > feasibility_treshold:
                 this_output_penalty = tmp_graph.nodes[self.gate_dict[source]][WEIGHT] - feasibility_treshold
                 partition_output_edges_penalty.append(Or(edge_out_holder) * this_output_penalty)
-            else:
-                partition_output_edges_penalty.append(Or(edge_out_holder) * 0)
+            # else:
+            #     partition_output_edges_penalty.append(Or(edge_out_holder) * IntVal(0))
 
         # Define output edges
         for output_id in output_edges:
@@ -2351,8 +2351,8 @@ class AnnotatedGraph(Graph):
             if tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT] > feasibility_treshold:
                 this_output_penalty = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT] - feasibility_treshold
                 partition_output_edges_penalty.append(e_out * this_output_penalty)
-            else:
-                partition_output_edges_penalty.append(e_out * 0)
+            # else:
+            #     partition_output_edges_penalty.append(e_out * IntVal(0))
 
         # Create graph of the cicuit without input and output nodes
         G = nx.DiGraph()
@@ -2466,10 +2466,10 @@ class AnnotatedGraph(Graph):
                                                     0))
 
         opt.add(penalty_output == Sum(partition_output_edges_penalty))
-        opt.add_soft(Sum(partition_output_edges_penalty) <= omax * feasibility_treshold, weight=100)
-
+        # Why IntVal(1)? => Because sometimes the Sum results into an integer "Python number (e.g., int)", but we need a "Z3 number (e.g., ArithRef)"
+        opt.add_soft( IntVal(1)* Sum(partition_output_edges_penalty) <= omax * feasibility_treshold, weight = 100)
         opt.add(penalty_gate == Sum(output_individual_penalty))
-        opt.add_soft(Sum(output_individual_penalty) <= omax * feasibility_treshold, weight=1)
+        opt.add_soft(IntVal(1)* Sum(output_individual_penalty) <= omax * feasibility_treshold, weight=1)
 
         # ========================================================
         # ======================== Check for multiple subgraphs =======================================
