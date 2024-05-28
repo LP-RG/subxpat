@@ -417,18 +417,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                                                subxpat_phase2_time=subxpat_phase2_time)
                             stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
 
-                        # # todo: should we refactor with pandas?
-                        # with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
-                        #     csvwriter = csv.writer(f)
-                        #
-                        #     header = list(range(len(cur_model_results)))
-                        #     all = list(cur_model_results.values())
-                        #     content = [f for (f, _, _, _) in all]
-                        #     print(f'{content = }')
-                        #
-                        #     csvwriter.writerow(header)
-                        #     csvwriter.writerow(content)
-
                         pprint.success('verifying all approximate circuits -> ', end='')
                         for candidate in cur_model_results:
                             approximate_benchmark = candidate[:-2]
@@ -436,6 +424,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                                                             template_obj.et)
                             if not check:
                                 raise Exception(color.error('ErrorEval Verification: FAILED!'))
+
 
                         pprint.success('ErrorEval PASS! ')
 

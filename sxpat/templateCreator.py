@@ -5801,10 +5801,10 @@ class Template_LUT_MP(TemplateCreator):
 
     def z3_generate_approximate_circuit_wire_constraints_subxpat(self):
 
-        exact_wire_constraints = ""
-        exact_wire_constraints += f'# approximate circuit constraints\n'
-        exact_wire_constraints += f'{APPROXIMATE_CIRCUIT} = And(\n'
-        exact_wire_constraints += f'{TAB}# wires\n'
+        approximate_wire_constraints = ""
+        approximate_wire_constraints += f'# approximate circuit constraints\n'
+        approximate_wire_constraints += f'{APPROXIMATE_CIRCUIT} = And(\n'
+        approximate_wire_constraints += f'{TAB}# wires\n'
         subgraph_input_list = self.__z3_get_subgraph_input_list()
         binary_combinations = list(itertools.product([0, 1], repeat=self.spo))
 
@@ -5824,11 +5824,11 @@ class Template_LUT_MP(TemplateCreator):
                     else:
                         pred_1 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[0])
 
-                    exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
+                    approximate_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
                                               f"{','.join(list(self.current_graph.input_dict.values()))}) == "
-                    exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
+                    approximate_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}), \n"
                 else:
-                    exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
+                    approximate_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
                                               f"{','.join(list(self.current_graph.input_dict.values()))}) == "
                     if g_predecessors[0] in list(self.current_graph.input_dict.values()):
                         pred_1 = g_predecessors[0]
@@ -5838,18 +5838,18 @@ class Template_LUT_MP(TemplateCreator):
                         pred_2 = g_predecessors[1]
                     else:
                         pred_2 = self.z3_express_node_as_wire_constraints_subxpat(g_predecessors[1])
-                    exact_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
+                    approximate_wire_constraints += f"{TO_Z3_GATE_DICT[g_function]}({pred_1}, {pred_2}),\n"
             # if the gate is an output node of the annotated graph (subgraph)
             elif self.current_graph.is_subgraph_member(g_label) and self.current_graph.is_subgraph_output(g_label):
 
                 output_list = list(self.current_graph.subgraph_output_dict.values())
                 output_idx = output_list.index(g_label)
 
-                exact_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
+                approximate_wire_constraints += f"{TAB}{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + g_idx}(" \
                                           f"{','.join(subgraph_input_list)}) == "
-                exact_wire_constraints += f"{Z3_OR}("
+                approximate_wire_constraints += f"{Z3_OR}("
                 for sel_combination in range(len(binary_combinations)):
-                    exact_wire_constraints += f"{TAB}{TAB}{Z3_AND}(" if sel_combination != 0 else f"{Z3_AND}("
+                    approximate_wire_constraints += f"{TAB}{TAB}{Z3_AND}(" if sel_combination != 0 else f"{Z3_AND}("
 
                     selectors = []
                     for sel_idx in range(len(binary_combinations[sel_combination])):
@@ -5858,9 +5858,9 @@ class Template_LUT_MP(TemplateCreator):
                     selectors_string = ", ".join(selectors)
 
                     mux_in = f'mux0_o{output_idx}_in{sel_combination}, {selectors_string}'
-                    exact_wire_constraints += mux_in + '),\n' if sel_combination != len(binary_combinations) - 1 else mux_in + ')),\n'
+                    approximate_wire_constraints += mux_in + '),\n' if sel_combination != len(binary_combinations) - 1 else mux_in + ')),\n'
 
-        return exact_wire_constraints
+        return approximate_wire_constraints
 
     def z3_generate_approximate_circuit_output_constraints_subxpat(self):
         approximate_output_constraints = ''
@@ -5934,9 +5934,22 @@ class Template_LUT_MP(TemplateCreator):
                     inputs_parameters = []
                     if in_option == len(subgraph_input_list) * 2 + 2 - 1:
                         inputs_constraints += ")\n"
+
                     else:
                         inputs_constraints += ","
                     inputs_constraints += "\n"
+
+
+        # for idx_o in range(self.current_graph.subgraph_num_outputs):
+        #     for idx_in in range(2**self.spo):
+        #         inputs_constraints += f'{Z3_OR}('
+        #         for idx_p in range(len(subgraph_input_list) * 2 + 2):
+        #             p1 = f'{LUT_MUX_PREFIX}0_{LUT_OUTPUT_PREFIX}{idx_o}_{LUT_INPUT_PREFIX}{idx_in}_{LUT_PARAMETER_PREFIX}{idx_p}'
+        #             inputs_constraints += f'{p1}'
+        #             if idx_p == len(subgraph_input_list) * 2 + 1:
+        #                 inputs_constraints += ")\n"
+        #             else:
+        #                 inputs_constraints += ","
         return inputs_constraints
 
     def z3_generate_selectors_constraints(self):
@@ -5981,12 +5994,14 @@ class Template_LUT_MP(TemplateCreator):
                             parameters_constraints += "),\n"
                         else:
                             parameters_constraints += ","
+
         return parameters_constraints
 
     def z3_generate_approximate_circuit_constraints_subxpat(self):
         selectors = self.z3_generate_selectors_constraints()
         data_inputs = self.z3_generate_data_inputs_constraints()
         wires = self.z3_generate_approximate_circuit_wire_constraints_subxpat()
+        # data_inputs_parameters = ""
         data_inputs_parameters = self.z3_generate_data_inputs_parameters_constraints()
         outputs = self.z3_generate_approximate_circuit_output_constraints_subxpat()
         integer_outputs = self.z3_generate_exact_circuit_integer_output_constraints_subxpat()
