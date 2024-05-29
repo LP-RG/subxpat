@@ -206,7 +206,11 @@ def explore_grid(specs_obj: TemplateSpecs):
                 else:
                     # run script
                     template_obj.z3_generate_z3pyscript()
+                    v1_start = time.time()
                     template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=specs_obj.timeout)
+                    v1_end = time.time()
+                    subxpat_v1_time = v1_end - v1_start
+
                     # at this point the internal verification using verification solver is already passed!
 
                     # gather results
@@ -222,7 +226,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                                             subgraph_number_inputs=subgraph_number_inputs,
                                             subgraph_number_outputs=subgraph_number_outputs,
                                             subxpat_phase1_time=subxpat_phase1_time,
-                                            subxpat_phase2_time=subxpat_phase2_time)
+                                            subxpat_phase2_time=subxpat_phase2_time,
+                                            subxpat_v1_time=subxpat_v1_time)
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
                     pre_iter_unsats[candidate] += 1
 
@@ -249,7 +254,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                         # todo:marco: this seems to be working, lets make sure
                         cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
                         synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
-                        print(f"{synth_obj.ver_out_path = }")
+                        # print(f"{synth_obj.ver_out_path = }")
                         synth_obj.export_verilog()
                         synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
                         cur_model_results[synth_obj.ver_out_name] = (
@@ -292,7 +297,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                         header = list(range(len(cur_model_results)))
                         all = list(cur_model_results.values())
                         content = [f for (f, _, _, _) in all]
-                        print(f'{content = }')
+                        # print(f'{content = }')
 
                         csvwriter.writerow(header)
                         csvwriter.writerow(content)
@@ -309,6 +314,19 @@ def explore_grid(specs_obj: TemplateSpecs):
                         if obtained_wce_exact > template_obj.et:
                             raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
+                    this_model = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=obtained_wce_exact, iteration=i,
+                                       area=cur_model_results[synth_obj.ver_out_name][0],
+                                       total_power=cur_model_results[synth_obj.ver_out_name][1],
+                                       delay=cur_model_results[synth_obj.ver_out_name][2],
+                                       labeling_time=labeling_time,
+                                       subgraph_extraction_time=subgraph_extraction_time,
+                                       subgraph_number_inputs=subgraph_number_inputs,
+                                       subgraph_number_outputs=subgraph_number_outputs,
+                                       subxpat_phase1_time=subxpat_phase1_time,
+                                       subxpat_phase2_time=subxpat_phase2_time,
+                                       subxpat_v1_time=subxpat_v1_time)
+                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
+                    print(f'{subxpat_v1_time = }')
                     prev_string = ''
                     if specs_obj.subxpat_v2:
                         sum_wce_actual += obtained_wce_prev
