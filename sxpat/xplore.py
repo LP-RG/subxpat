@@ -130,10 +130,11 @@ def explore_grid(specs_obj: TemplateSpecs):
             if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
                 # label graph
                 t_start = time.time()
-                et_coefficient = 8
-                template_obj.label_graph(min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling, et=et*et_coefficient, parallel=specs_obj.parallel)
-                labeling_time = time.time() - t_start
-                print(f'labeling_time = {labeling_time}')
+
+            et_coefficient = 8
+            template_obj.label_graph(min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling, et=et*et_coefficient, parallel=specs_obj.parallel)
+            labeling_time = time.time() - t_start
+            print(f'labeling_time = {labeling_time}')
 
             # extract subgraph
             t_start = time.time()
