@@ -1,4 +1,4 @@
-import csv
+import re
 import os
 import shutil
 
@@ -8,7 +8,6 @@ from Z3Log.verilog import Verilog
 from Z3Log.graph import Graph
 from Z3Log.utils import *
 from Z3Log.z3solver import Z3solver
-from Z3Log.config import path as z3logpath
 
 
 def labeling(exact_benchmark_name: str,
