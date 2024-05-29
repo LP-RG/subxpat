@@ -82,6 +82,7 @@ def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str, con
         # cleanup (folder report/)
         report_folder, _ = OUTPUT_PATH['report']
         all_files = [f for f in os.listdir(report_folder)]
+
         for dir in all_files:
             if re.search('labeling', dir) and os.path.isdir(f'{report_folder}/{dir}'):
                 shutil.rmtree(f'{report_folder}/{dir}')
@@ -89,6 +90,7 @@ def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str, con
         # cleanup (folder z3/)
         z3_folder, _ = OUTPUT_PATH['z3']
         all_files = [f for f in os.listdir(z3_folder)]
+
         for dir in all_files:
             if re.search('labeling', dir) and os.path.isdir(f'{z3_folder}/{dir}'):
                 shutil.rmtree(f'{z3_folder}/{dir}')
