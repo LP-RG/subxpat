@@ -56,7 +56,8 @@ class Model:
                  subgraph_number_inputs: int = -1,
                  subgraph_number_outputs: int = -1,
                  subxpat_phase1_time: float = -1,
-                 subxpat_phase2_time: float = -1):
+                 subxpat_phase2_time: float = -1,
+                 subxpat_v1_time: float = -1):
         self.__cell = cell
         self.__id = id
         self.__iteration = iteration
@@ -73,6 +74,7 @@ class Model:
         self.__subgraph_number_outputs = subgraph_number_outputs
         self.__subxpat_phase1_time = subxpat_phase1_time
         self.__subxpat_phase2_time = subxpat_phase2_time
+        self.__subxpat_v1_time = subxpat_v1_time
         self.__runtime = runtime
 
     @property
@@ -114,6 +116,10 @@ class Model:
     @runtime.setter
     def runtime(self, this_runtime):
         self.__runtime = this_runtime
+
+    @property
+    def subxpat_v1_time(self):
+        return  self.__subxpat_v1_time
 
     @property
     def area(self):
@@ -625,6 +631,7 @@ class Stats:
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subgraph_number_outputs)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subxpat_phase1_time)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subxpat_phase2_time)
+                            row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subxpat_v1_time)
                             row = tuple(row)
                             csvwriter.writerow(row)
 
