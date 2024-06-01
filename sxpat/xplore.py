@@ -261,7 +261,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                                     spo
                                 )
                                 # Morteza: Here we create a Model object and then save it
-                                this_model = Model(id=0, status=cur_status.upper(), spo=spo, et=et, iteration=i,
+                                this_model = Model(id=idx, status=cur_status.upper(), spo=spo, et=et, iteration=i,
                                                    area=cur_model_results[synth_obj.ver_out_name][0],
                                                    total_power=cur_model_results[synth_obj.ver_out_name][1],
                                                    delay=cur_model_results[synth_obj.ver_out_name][2],
@@ -407,15 +407,15 @@ def explore_grid(specs_obj: TemplateSpecs):
                                     (lpp, ppo)
                                 )
 
-                            this_model = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
-                                               area=cur_model_results[synth_obj.ver_out_name][0],
-                                               total_power=cur_model_results[synth_obj.ver_out_name][1],
-                                               delay=cur_model_results[synth_obj.ver_out_name][2],
-                                               labeling_time=labeling_time,
-                                               subgraph_extraction_time=subgraph_extraction_time,
-                                               subxpat_phase1_time=subxpat_phase1_time,
-                                               subxpat_phase2_time=subxpat_phase2_time)
-                            stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
+                                this_model = Model(id=idx, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
+                                                   area=cur_model_results[synth_obj.ver_out_name][0],
+                                                   total_power=cur_model_results[synth_obj.ver_out_name][1],
+                                                   delay=cur_model_results[synth_obj.ver_out_name][2],
+                                                   labeling_time=labeling_time,
+                                                   subgraph_extraction_time=subgraph_extraction_time,
+                                                   subxpat_phase1_time=subxpat_phase1_time,
+                                                   subxpat_phase2_time=subxpat_phase2_time)
+                                stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
 
                         pprint.success('verifying all approximate circuits -> ', end='')
                         for candidate in cur_model_results:

@@ -4938,8 +4938,8 @@ class Template_LUT(TemplateCreator):
     def z3_generate_approximate_circuit_constraints_subxpat(self):
         selectors = self.z3_generate_selectors_constraints()
         wires = self.z3_generate_approximate_circuit_wire_constraints_subxpat()
-        redundancy = self.z3_generate_forall_solver_redundancy_constraints_subxpat()
-        # redundancy = ""
+        # redundancy = self.z3_generate_forall_solver_redundancy_constraints_subxpat()
+        redundancy = ""
         outputs = self.z3_generate_approximate_circuit_output_constraints_subxpat()
 
         integer_outputs = self.z3_generate_exact_circuit_integer_output_constraints_subxpat()
@@ -5502,7 +5502,6 @@ class Template_LUT_MP(TemplateCreator):
             for idx_in in range(2**self.spo):
                 for idx_p in range ((self.current_graph.subgraph_num_inputs*2)+2):
                     temp_multiplexer_implicit_parameters += f"mux0_o{idx_o}_in{idx_in}_p{idx_p} = {Z3BOOL}('mux0_o{idx_o}_in{idx_in}_p{idx_p}') \n"
-
         return temp_multiplexer_implicit_parameters
 
     def z3_generate_declare_implicit_parameters_subxpat(self):
@@ -5923,6 +5922,7 @@ class Template_LUT_MP(TemplateCreator):
                         inputs_parameters.append(subgraph_input_list[in_option])
                     elif in_option < len(subgraph_input_list) * 2:
                         inputs_parameters.append(f"{Z3_NOT}({subgraph_input_list[in_option - len(subgraph_input_list)]})")
+
                     elif in_option == len(subgraph_input_list) * 2:
                         inputs_parameters.append("True")
                     else:
@@ -6029,7 +6029,8 @@ class Template_LUT_MP(TemplateCreator):
         selectors = self.z3_generate_selectors_constraints()
         data_inputs = self.z3_generate_data_inputs_constraints()
         wires = self.z3_generate_approximate_circuit_wire_constraints_subxpat()
-        redundancy = self.z3_generate_forall_solver_redundancy_constraints_subxpat()
+        redundancy = ""
+        # redundancy = self.z3_generate_forall_solver_redundancy_constraints_subxpat()
         data_inputs_parameters = self.z3_generate_data_inputs_parameters_constraints()
         outputs = self.z3_generate_approximate_circuit_output_constraints_subxpat()
         integer_outputs = self.z3_generate_exact_circuit_integer_output_constraints_subxpat()

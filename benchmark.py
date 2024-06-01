@@ -44,7 +44,7 @@ def run_benchmark(benchmarks=["abs_diff_i4_o2"], metric_cols=[5]):
         num_outputs = int((benchmark.split("_")[-1].split("o")[-1]))
         num_inputs = int(benchmark.split("_")[-2].split("i")[-1])
         if num_outputs <= 3:
-            ET_points = [1]
+            ET_points = [1,2,3,4]
         else:
             total = 2 ** (num_outputs - 1)
             interval = total // num_et_points
@@ -68,10 +68,10 @@ def run_benchmark(benchmarks=["abs_diff_i4_o2"], metric_cols=[5]):
                  ])
 
 
-        #     subprocess.run(
-        #         ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
-        #          f"-et={et}", f"--ppo={ppo}", f"--lpp={lpp}",
-        #          f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"])
+            subprocess.run(
+                ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
+                 f"-et={et}", f"--ppo={ppo}", f"--lpp={lpp}",
+                 f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"])
 
     for benchmark in benchmarks:
         # best_models_area_lut = []
@@ -97,17 +97,17 @@ def run_benchmark(benchmarks=["abs_diff_i4_o2"], metric_cols=[5]):
             if best_area_for_et_lut is not None:
                 best_area_per_et_lut[et] = best_area_for_et_lut
 
-            # files = get_files_matching_regex(f"grid.*{benchmark}.*et{et}.*SOP1")
-            # best_area_for_et_sop = get_best_metric_for_et(files, metric_cols, et)
-            # if best_area_for_et_sop is not None:
-            #     best_area_per_et_sop[et] = best_area_for_et_sop
+            files = get_files_matching_regex(f"grid.*{benchmark}.*et{et}.*SOP1")
+            best_area_for_et_sop = get_best_metric_for_et(files, metric_cols, et)
+            if best_area_for_et_sop is not None:
+                best_area_per_et_sop[et] = best_area_for_et_sop
 
             files = get_files_matching_regex(f"spo_array.*{benchmark}.*et{et}.*LUTMP")
             best_area_for_et_lut_MP = get_best_metric_for_et(files, metric_cols, et)
             if best_area_for_et_lut_MP is not None:
                 best_area_per_et_lut_MP[et] = best_area_for_et_lut_MP
 
-        plot_results([best_area_per_et_lut, best_area_per_et_lut_MP, best_area_per_et_sop], ("LUT", "LUT MP", "SOP"),
+        plot_results([best_area_per_et_lut, best_area_per_et_lut_MP, best_area_per_et_sop], ("LUT", "SOP"),
                      benchmark, [x_label_name,y_label_name])
 
 

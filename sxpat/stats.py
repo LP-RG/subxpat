@@ -258,7 +258,11 @@ class Cell:
     #     self.models[this_iteration] = temp_dict
 
     def store_model_info(self, model_info_obj: Model):
-        self.models[model_info_obj.iteration] = {model_info_obj.id: model_info_obj}
+        if model_info_obj.iteration in self.models:
+            self.models[model_info_obj.iteration][model_info_obj.id] = model_info_obj
+        else:
+            self.models[model_info_obj.iteration] = {model_info_obj.id : model_info_obj}
+
 
     def __repr__(self):
         return f"An object of class Cell:\n" \
@@ -299,7 +303,10 @@ class CellSpo:
         return self.__models
 
     def store_model_info(self, model_info_obj: Model):
-        self.models[model_info_obj.iteration] = {model_info_obj.id : model_info_obj}
+        if model_info_obj.iteration in self.models:
+            self.models[model_info_obj.iteration][model_info_obj.id] = model_info_obj
+        else:
+            self.models[model_info_obj.iteration] = {model_info_obj.id : model_info_obj}
 
     def __repr__(self):
         return f"An object of class CellSpo:\n" \

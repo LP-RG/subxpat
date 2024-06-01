@@ -1116,8 +1116,10 @@ class Synthesis:
                             value_assigned = True
                             if mux_in_p < self.graph.subgraph_num_inputs:
                                 json_model_and_subgraph_outputs_assigns += f'{sxpatconfig.VER_ASSIGN} {mux_in} =  {sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{mux_in_p};\n'
+
                             elif mux_in_p < 2*self.graph.subgraph_num_inputs:
                                 json_model_and_subgraph_outputs_assigns += f'{sxpatconfig.VER_ASSIGN} {mux_in} =  {sxpatconfig.VER_NOT}{sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{mux_in_p - self.graph.subgraph_num_inputs};\n'
+
                             elif mux_in_p == 2*self.graph.subgraph_num_inputs:
                                 json_model_and_subgraph_outputs_assigns += f"{sxpatconfig.VER_ASSIGN} {mux_in} = 1'b1;\n"
                             else:
