@@ -984,7 +984,7 @@ class Synthesis:
                     value = "1'b1" if self.json_model[idx][mux_in] == True else "1'b0"
                     json_model_and_subgraph_outputs_assigns += f'{data_input} = {value};\n'
 
-            number_of_parameters_per_selector = int(math.log2(self.graph.subgraph_num_inputs))
+            number_of_parameters_per_selector = math.ceil(math.log2(self.graph.subgraph_num_inputs))
 
             for o_idx in range(self.graph.subgraph_num_outputs):
                 for spo_idx in range(self.spo):
@@ -1125,7 +1125,7 @@ class Synthesis:
                     if not value_assigned:
                         json_model_and_subgraph_outputs_assigns += f"{sxpatconfig.VER_ASSIGN} {mux_in} = 1'b0;\n"
 
-            number_of_parameters_per_selector = int(math.log2(self.graph.subgraph_num_inputs))
+            number_of_parameters_per_selector = math.ceil(math.log2(self.graph.subgraph_num_inputs))
 
             for o_idx in range(self.graph.subgraph_num_outputs):
                 for spo_idx in range(self.spo):

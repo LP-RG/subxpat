@@ -44,7 +44,7 @@ def run_benchmark(benchmarks=["abs_diff_i4_o2"], metric_cols=[5]):
         num_outputs = int((benchmark.split("_")[-1].split("o")[-1]))
         num_inputs = int(benchmark.split("_")[-2].split("i")[-1])
         if num_outputs <= 3:
-            ET_points = [1, 2, 3, 4]
+            ET_points = [1]
         else:
             total = 2 ** (num_outputs - 1)
             interval = total // num_et_points
@@ -53,21 +53,21 @@ def run_benchmark(benchmarks=["abs_diff_i4_o2"], metric_cols=[5]):
         spo = num_inputs
         ppo = num_inputs * 2
         lpp = num_inputs
-        #
-        # for et in ET_points:
-        #     subprocess.run(
-        #         ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
-        #          f"-et={et}", "--lut",
-        #          f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
-        #         ])
-        #
-        #     subprocess.run(
-        #         ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
-        #           f"-et={et}", "--lut_MP",
-        #          f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
-        #          ])
-        #
-        #
+
+        for et in ET_points:
+            subprocess.run(
+                ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
+                 f"-et={et}", "--lut",
+                 f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
+                ])
+
+            subprocess.run(
+                ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
+                  f"-et={et}", "--lut_MP",
+                 f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
+                 ])
+
+
         #     subprocess.run(
         #         ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
         #          f"-et={et}", f"--ppo={ppo}", f"--lpp={lpp}",
@@ -97,10 +97,10 @@ def run_benchmark(benchmarks=["abs_diff_i4_o2"], metric_cols=[5]):
             if best_area_for_et_lut is not None:
                 best_area_per_et_lut[et] = best_area_for_et_lut
 
-            files = get_files_matching_regex(f"grid.*{benchmark}.*et{et}.*SOP1")
-            best_area_for_et_sop = get_best_metric_for_et(files, metric_cols, et)
-            if best_area_for_et_sop is not None:
-                best_area_per_et_sop[et] = best_area_for_et_sop
+            # files = get_files_matching_regex(f"grid.*{benchmark}.*et{et}.*SOP1")
+            # best_area_for_et_sop = get_best_metric_for_et(files, metric_cols, et)
+            # if best_area_for_et_sop is not None:
+            #     best_area_per_et_sop[et] = best_area_for_et_sop
 
             files = get_files_matching_regex(f"spo_array.*{benchmark}.*et{et}.*LUTMP")
             best_area_for_et_lut_MP = get_best_metric_for_et(files, metric_cols, et)
@@ -119,7 +119,7 @@ def get_files_matching_regex(regex: str) -> List[str]:
 
 
 def get_best_metric_for_et(files: List[str], metric_cols: List[int], et:int) -> Union[List[str],None]:
-    metric_for_et = []
+    metric_for_et = {}
     for file in files:
         file = f"{z3logpath.OUTPUT_PATH['report'][0]}" + "/" + file
         with open(file, newline='') as f:
@@ -130,9 +130,10 @@ def get_best_metric_for_et(files: List[str], metric_cols: List[int], et:int) -> 
                     continue
 
                 if row[3] == "SAT":
-                    metric_for_et.append(sum([float(row[i]) for i in metric_cols]))
+                    metric_for_et[file] = (sum([float(row[i]) for i in metric_cols]))
     if metric_for_et:
-        return min(metric_for_et)
+        print(min(metric_for_et, key = metric_for_et.get))
+        return min(list(metric_for_et.values()))
     else:
         return None
 
@@ -175,4 +176,4 @@ def plot_results(results, legend, benchmark_name, labels):
     #
     # csvwriter.writerow(header)
     # csvwriter.writerow(content)
-run_benchmark(benchmarks=["abs_diff_i8_o4","adder_i8_o5","mul_i8_o8"],metric_cols=[6])
+run_benchmark(metric_cols=[5])
