@@ -22,7 +22,7 @@ def run_benchmark(benchmarks=["abs_diff_i4_o2"], metric_cols=[5]):
 
     num_et_points = 8
     num_iterations = 10
-    num_models = 100
+    num_models = 1000
     mode_num = 3
 
     ET_points = [1, 2, 3, 4]
@@ -54,24 +54,24 @@ def run_benchmark(benchmarks=["abs_diff_i4_o2"], metric_cols=[5]):
         ppo = num_inputs * 2
         lpp = num_inputs
 
-        for et in ET_points:
-            subprocess.run(
-                ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
-                 f"-et={et}", "--lut",
-                 f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
-                ])
+        # for et in ET_points:
+        #     subprocess.run(
+        #         ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
+        #          f"-et={et}", "--lut",
+        #          f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
+        #         ])
+        # 
+        #     subprocess.run(
+        #         ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
+        #           f"-et={et}", "--lut_MP",
+        #          f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
+        #          ])
 
-            subprocess.run(
-                ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
-                  f"-et={et}", "--lut_MP",
-                 f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
-                 ])
-
-
-            subprocess.run(
-                ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
-                 f"-et={et}", f"--ppo={ppo}", f"--lpp={lpp}",
-                 f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"])
+            #
+            # subprocess.run(
+            #     ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
+            #      f"-et={et}", f"--ppo={ppo}", f"--lpp={lpp}",
+            #      f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"])
 
     for benchmark in benchmarks:
         # best_models_area_lut = []
@@ -107,7 +107,7 @@ def run_benchmark(benchmarks=["abs_diff_i4_o2"], metric_cols=[5]):
             if best_area_for_et_lut_MP is not None:
                 best_area_per_et_lut_MP[et] = best_area_for_et_lut_MP
 
-        plot_results([best_area_per_et_lut, best_area_per_et_lut_MP, best_area_per_et_sop], ("LUT", "SOP"),
+        plot_results([best_area_per_et_lut, best_area_per_et_lut_MP], ("LUT","LUT MP"),
                      benchmark, [x_label_name,y_label_name])
 
 
@@ -119,7 +119,7 @@ def get_files_matching_regex(regex: str) -> List[str]:
 
 
 def get_best_metric_for_et(files: List[str], metric_cols: List[int], et:int) -> Union[List[str],None]:
-    metric_for_et = {}
+    metric_for_et = []
     for file in files:
         file = f"{z3logpath.OUTPUT_PATH['report'][0]}" + "/" + file
         with open(file, newline='') as f:
@@ -130,10 +130,11 @@ def get_best_metric_for_et(files: List[str], metric_cols: List[int], et:int) -> 
                     continue
 
                 if row[3] == "SAT":
-                    metric_for_et[file] = (sum([float(row[i]) for i in metric_cols]))
+                    metric_for_et.append(sum([float(row[i]) for i in metric_cols]))
     if metric_for_et:
-        print(min(metric_for_et, key = metric_for_et.get))
-        return min(list(metric_for_et.values()))
+        # print(min(metric_for_et, key = metric_for_et.get))
+        # print(min(list(metric_for_et.values())))
+        return min(metric_for_et)
     else:
         return None
 
