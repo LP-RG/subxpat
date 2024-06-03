@@ -1,7 +1,7 @@
 import csv
 import time
 from typing import Iterable, Iterator, List, Union
-
+import networkx as nx
 from tabulate import tabulate
 
 import math
@@ -26,7 +26,7 @@ from z_marco.utils import pprint, color
 
 
 def explore_grid(specs_obj: TemplateSpecs):
-
+    previous_subgraphs = []
     print(f'{specs_obj = }')
 
     labeling_time: float = -1
@@ -101,16 +101,19 @@ def explore_grid(specs_obj: TemplateSpecs):
             prev_given_error = et
         else:
             raise NotImplementedError('invalid status')
-
+        if i == 10:
+            exit()
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
+
 
         # for all candidates
         for candidate in current_population:
             # guard
             if pre_iter_unsats[candidate] == total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
                 pprint.info1(f'Number of UNSATs reached!')
+
                 continue
 
             pprint.info1(f'candidate {candidate}')
@@ -140,6 +143,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             # extract subgraph
             t_start = time.time()
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
+            previous_subgraphs.append(template_obj.current_graph.subgraph)
             subgraph_extraction_time = time.time() - t_start
             subgraph_number_inputs = template_obj.current_graph.subgraph_num_inputs
             subgraph_number_outputs = template_obj.current_graph.subgraph_num_outputs
@@ -372,6 +376,22 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if exists_an_area_zero(current_population):
             break
+
+        loop_detected = False
+        for idx, s in enumerate(previous_subgraphs):
+            if idx == len(previous_subgraphs) - 1 and idx > 1:
+                if nx.utils.graphs_equal(previous_subgraphs[idx - 2], previous_subgraphs[idx - 1]) and \
+                        nx.utils.graphs_equal(previous_subgraphs[idx - 2], previous_subgraphs[idx - 3]):
+                    print(f'The last three subgraphs are equal')
+                    pprint.info3(f'The last three subgraphs are equal!')
+                    pprint.info3(f'Terminating the exploration!')
+                    loop_detected = True
+                    break
+
+        if loop_detected:
+            break
+
+
     display_the_tree(total)
 
     stats_obj.store_grid()
