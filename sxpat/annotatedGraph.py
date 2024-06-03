@@ -286,6 +286,7 @@ class AnnotatedGraph(Graph):
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
 
+                    pprint.success(f" (#ofNodes={cnt_nodes})")
                 elif mode == 7:
                     pprint.info2(
                         f"Partition with omax={specs_obj.omax}, hard feasibility constraints and node exclusions. Looking for largest partition")
@@ -297,6 +298,7 @@ class AnnotatedGraph(Graph):
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
 
+                    pprint.success(f" (#ofNodes={cnt_nodes})")
                 elif mode == 8:
                     pprint.info2(
                         f"Partition with omax={specs_obj.omax} and imax{specs_obj.imax}")
@@ -307,6 +309,7 @@ class AnnotatedGraph(Graph):
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
 
+                    pprint.success(f" (#ofNodes={cnt_nodes})")
                 else:
                     raise Exception('invalid mode!')
             else:
@@ -2328,7 +2331,7 @@ class AnnotatedGraph(Graph):
 
             if gate_idx not in gate_weight:
                 gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
-            print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+            #print("Gate", gate_idx, " value ", gate_weight[gate_idx])
 
         descendants = {}
         ancestors = {}
@@ -2519,7 +2522,6 @@ class AnnotatedGraph(Graph):
         for edge in edges:
             node1 = nodes_ids_mapping[edge[0]]
             node2 = nodes_ids_mapping[edge[1]]
-            print(f"node1: {node1}")
             e = f"e {node1} {node2}\n"
             input_graph_edges += e
             total_edges += 1

@@ -88,6 +88,9 @@ def explore_grid(specs_obj: TemplateSpecs):
         raise NotImplementedError('invalid status')
 
     for i, et in error_iterator:
+        # todo:marco: hacky
+        #et = specs_obj.et
+        
         pprint.info1(f'iteration {i} with et {et}'
                      if specs_obj.subxpat else
                      f'Only one iteration with et {et}')
@@ -126,12 +129,18 @@ def explore_grid(specs_obj: TemplateSpecs):
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
 
+            with open(f'experiments/runtime/timing_mode{specs_obj.mode}_imax{specs_obj.imax}_omax{specs_obj.omax}_et{specs_obj.et}_{time.time()}.txt' , 'w') as f:
+                f.write(f'Graph: {specs_obj.benchmark_name}\n')
+                f.write(f'extraction time: {str(subgraph_extraction_time)}')
+
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
             graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
             FS.mkdir(folder)
             template_obj.current_graph.export_annotated_graph(graph_path)
             print(f'subgraph exported at {graph_path}')
+
+            #exit()
 
             # guard
             if not subgraph_is_available:
