@@ -4943,7 +4943,7 @@ class Template_LUT(TemplateCreator):
         if self.spo <= 1:
             return ""
         for idx_o in range(self.current_graph.subgraph_num_outputs):
-            for idx_s in range(self.spo - 1):
+            for idx_s in range(self.spo):
                 p_value = 0
                 selector_value = ""
                 for idx_p in range(math.ceil(math.log2(len(subgraph_input_list)))):
@@ -6056,7 +6056,7 @@ class Template_LUT_MP(TemplateCreator):
         if self.spo <= 1:
             return ""
         for idx_o in range(self.current_graph.subgraph_num_outputs):
-            for idx_s in range(self.spo - 1):
+            for idx_s in range(self.spo):
                 p_value = 0
                 selector_value = ""
                 for idx_p in range(math.ceil(math.log2(len(subgraph_input_list)))):
