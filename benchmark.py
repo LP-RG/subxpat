@@ -52,24 +52,24 @@ def run_benchmark(benchmarks=["abs_diff_i4_o2"], metric_cols=[5], scatter_plots=
         ppo = num_inputs * 2
         lpp = num_inputs
 
-        for et in ET_points:
-            subprocess.run(
-                ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
-                 f"-et={et}", "--lut",
-                 f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
-                ])
-
-            subprocess.run(
-                ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
-                  f"-et={et}", "--lut_MP",
-                 f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
-                 ])
-
-
-            subprocess.run(
-                ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
-                 f"-et={et}", f"--ppo={ppo}", f"--lpp={lpp}",
-                 f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"])
+        # for et in ET_points:
+        #     subprocess.run(
+        #         ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
+        #          f"-et={et}", "--lut",
+        #          f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
+        #         ])
+        #
+        #     subprocess.run(
+        #         ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
+        #           f"-et={et}", "--lut_MP",
+        #          f"-spo={spo}", f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"
+        #          ])
+        #
+        #
+        #     subprocess.run(
+        #         ["python3", "./main.py", f"./input/ver/{benchmark}.v", "-app", f"./input/ver/{benchmark}.v", "--grid",
+        #          f"-et={et}", f"--ppo={ppo}", f"--lpp={lpp}",
+        #          f"--iterations={num_iterations}", "--min_labeling", f"-num_models={num_models}"])
 
     for benchmark in benchmarks:
         # best_models_area_lut = []
@@ -116,6 +116,13 @@ def get_files_matching_regex(regex: str) -> List[str]:
              f.endswith(".csv") and re.match(lut_regx, f)]
     return files
 
+def rand_jitter(arr):
+    if not arr:
+        return []
+    stdev = .01 * (max(arr) - min(arr))
+    return arr + np.random.randn(len(arr)) * stdev
+
+
 
 def get_best_metric_for_et(files: List[str], metric_cols: List[int], scatter_plot: bool, sum_all: bool) -> Union[List[str],float,None]:
     metric_for_et = []
@@ -158,11 +165,13 @@ def plot_results(results, legend, benchmark_name, labels, scatter_plot = False):
             final_x = []
             final_y = []
             x = list(result.keys())
+            x = [float(i) for i in x]
             for et in x:
                 y = list(result[et])
+                y = [float(i) for i in y]
                 final_y += y
                 final_x += [et] * len(y)
-            plt.scatter(final_x,final_y, alpha=0.1)
+            plt.scatter(rand_jitter(final_x),rand_jitter(final_y), alpha=0.1)
         plt.title(benchmark_name)
 
     else:
@@ -190,4 +199,7 @@ def plot_results(results, legend, benchmark_name, labels, scatter_plot = False):
 
     plt.savefig(figure_name + ".png")
 
-run_benchmark(benchmarks=["abs_diff_i4_o2","abs_diff_i6_o3","adder_i4_o3","adder_i6_o4","mul_i4_o4","mul_i6_o6"], metric_cols=[5], scatter_plots=False)
+run_benchmark(benchmarks=["mul_i6_o6"], metric_cols=[5], scatter_plots=True)
+
+
+# ["abs_diff_i4_o2","abs_diff_i6_o3","adder_i4_o3","adder_i6_o4","mul_i4_o4","mul_i6_o6"]]
