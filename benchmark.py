@@ -183,7 +183,11 @@ def plot_results(results, legend, benchmark_name, labels, scatter_plot = False):
     plt.gca().legend(legend)
 
     plt.show()
-    figure_name = f"{benchmark_name}"
+    if scatter_plot:
+        figure_name = f"{benchmark_name}_scatter"
+    else:
+        figure_name = f"{benchmark_name}"
+
     plt.savefig(figure_name + ".png")
 
 run_benchmark(benchmarks=["abs_diff_i4_o2","abs_diff_i6_o3","adder_i4_o3","adder_i6_o4","mul_i4_o4","mul_i6_o6"], metric_cols=[5], scatter_plots=False)
