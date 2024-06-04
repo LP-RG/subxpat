@@ -4940,7 +4940,7 @@ class Template_LUT(TemplateCreator):
     def z3_generate_forall_solver_selectors_parameters_constraints_subxpat(self):
         constraint = ''
         subgraph_input_list = self.__z3_get_subgraph_input_list()
-        if self.spo <= 1:
+        if self.spo < 1:
             return ""
         for idx_o in range(self.current_graph.subgraph_num_outputs):
             for idx_s in range(self.spo):
@@ -6053,7 +6053,7 @@ class Template_LUT_MP(TemplateCreator):
     def z3_generate_forall_solver_selectors_parameters_constraints_subxpat(self):
         constraint = ''
         subgraph_input_list = self.__z3_get_subgraph_input_list()
-        if self.spo <= 1:
+        if self.spo < 1:
             return ""
         for idx_o in range(self.current_graph.subgraph_num_outputs):
             for idx_s in range(self.spo):
@@ -6087,7 +6087,7 @@ class Template_LUT_MP(TemplateCreator):
         wires += '\n'
         outputs += '\n'
         integer_outputs += '\n'
-        approximate_circuit_constraints = selectors + data_inputs + wires + redundancy +  data_inputs_parameters + outputs + integer_outputs + ')\n'
+        approximate_circuit_constraints = selectors + data_inputs + wires + redundancy + selectors_parameters_constraints+  data_inputs_parameters + outputs + integer_outputs + ')\n'
 
         return approximate_circuit_constraints
 
