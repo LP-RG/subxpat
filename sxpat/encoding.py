@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import abstractmethod
 from typing import Collection
 
@@ -6,6 +7,13 @@ class Encoding:
     def __init__(self, inputs_count: int, outputs_count: int) -> None:
         self._inputs_count = inputs_count
         self._outputs_count = outputs_count
+
+    @staticmethod
+    def factory(encoding_id: int, inputs_count: int, outputs_count: int) -> Encoding:
+        return {
+            1: IntegerEncoding,
+            2: BitVectorEncoding,
+        }[encoding_id](inputs_count, outputs_count)
 
     @abstractmethod
     def unsigned_greater_equal(self, a: str, b: str) -> str:
