@@ -138,12 +138,12 @@ def get_best_metric_for_et(files: List[str], metric_cols: List[int], scatter_plo
                     continue
 
                 if sum_all and len(metric_cols) > 1:
-                    sum_rows += sum([float(row[i]) for i in metric_cols])
+                    sum_rows.append(sum([float(row[i]) for i in metric_cols]))
 
                 if row[3] == "SAT":
                     if len(metric_cols) > 1 and not include_result:
                         include_result = True
-                        sum_rows += sum([float(row[i]) for i in metric_cols])
+                        sum_rows.append(sum([float(row[i]) for i in metric_cols]))
                     else:
                         metric_for_et.append(row[metric_cols[0]])
     if metric_for_et and len(metric_cols) == 1:
@@ -201,7 +201,7 @@ def plot_results(results, legend, benchmark_name, labels, scatter_plot = False):
     plt.clf()
     plt.cla()
 
-run_benchmark(benchmarks=["abs_diff_i4_o2","abs_diff_i6_o3","adder_i4_o3","adder_i6_o4","mul_i4_o4","mul_i6_o6"],metric_cols=[9,10], scatter_plots=False)
+run_benchmark(benchmarks= ["abs_diff_i4_o2","abs_diff_i6_o3","adder_i4_o3","adder_i6_o4","mul_i4_o4","mul_i6_o6"],metric_cols=[9,10], scatter_plots=False)
 
 
-# ["abs_diff_i4_o2","abs_diff_i6_o3","adder_i4_o3","adder_i6_o4","mul_i4_o4","mul_i6_o6"]]
+# ["abs_diff_i4_o2","abs_diff_i6_o3","adder_i4_o3","adder_i6_o4","mul_i4_o4","mul_i6_o6"]
