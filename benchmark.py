@@ -126,7 +126,7 @@ def rand_jitter(arr):
 
 def get_best_metric_for_et(files: List[str], metric_cols: List[int], scatter_plot: bool, sum_all: bool) -> Union[List[str],float,None]:
     metric_for_et = []
-    sum_rows = 0
+    sum_rows = []
     include_result = False
     for file in files:
         file = f"{z3logpath.OUTPUT_PATH['report'][0]}" + "/" + file
@@ -141,7 +141,7 @@ def get_best_metric_for_et(files: List[str], metric_cols: List[int], scatter_plo
                     sum_rows += sum([float(row[i]) for i in metric_cols])
 
                 if row[3] == "SAT":
-                    if len(metric_cols) > 1:
+                    if len(metric_cols) > 1 and not include_result:
                         include_result = True
                         sum_rows += sum([float(row[i]) for i in metric_cols])
                     else:
