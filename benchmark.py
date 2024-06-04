@@ -184,9 +184,9 @@ def plot_results(results, legend, benchmark_name, labels, scatter_plot = False):
 
     plt.show()
     if scatter_plot:
-        figure_name = f"{benchmark_name}_scatter"
+        figure_name = f"{benchmark_name}_{labels[1]}_scatter"
     else:
-        figure_name = f"{benchmark_name}"
+        figure_name = f"{benchmark_name}_{labels[1]}"
 
     plt.savefig(figure_name + ".png")
 
