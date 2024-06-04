@@ -4,7 +4,7 @@ import os
 import sys
 
 from typing import Dict, List, Union
-
+from datetime import datetime
 import main
 import subprocess
 from Z3Log.config import path as z3logpath
@@ -128,6 +128,16 @@ def get_best_metric_for_et(files: List[str], metric_cols: List[int], scatter_plo
     metric_for_et = []
     sum_rows = 0
     include_result = False
+    if len(metric_cols) > 1 and files:
+        dates = []
+        date_format = "%Y%m%d:%H%M%S"
+        for file in files:
+            date_str = file.split("time")[1].split(".")[0]
+            parsed_date = datetime.strptime(date_str, date_format)
+            dates.append(parsed_date)
+        files = [files[dates.index(max(dates))]]
+
+
     for file in files:
         file = f"{z3logpath.OUTPUT_PATH['report'][0]}" + "/" + file
         with open(file, newline='') as f:
