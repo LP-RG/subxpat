@@ -82,7 +82,7 @@ def run_benchmark(benchmarks=["abs_diff_i4_o2"], metric_cols=[5], scatter_plots=
         num_outputs = int((benchmark.split("_")[-1].split("o")[-1]))
 
         if num_outputs <= 3:
-            ET_points = [1, 2]
+            ET_points = [1, 2,3,4]
         else:
             total = 2 ** (num_outputs - 1)
             interval = total // num_et_points
@@ -198,8 +198,10 @@ def plot_results(results, legend, benchmark_name, labels, scatter_plot = False):
         figure_name = f"{benchmark_name}_{labels[1]}"
 
     plt.savefig(figure_name + ".png")
+    plt.clf()
+    plt.cla()
 
-run_benchmark(benchmarks=["mul_i6_o6"], metric_cols=[5], scatter_plots=True)
+run_benchmark(benchmarks=["abs_diff_i4_o2","abs_diff_i6_o3","adder_i4_o3","adder_i6_o4","mul_i4_o4","mul_i6_o6"],metric_cols=[9,10], scatter_plots=False)
 
 
 # ["abs_diff_i4_o2","abs_diff_i6_o3","adder_i4_o3","adder_i6_o4","mul_i4_o4","mul_i6_o6"]]
