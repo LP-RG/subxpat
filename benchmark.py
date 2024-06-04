@@ -147,13 +147,15 @@ def get_best_metric_for_et(files: List[str], metric_cols: List[int], scatter_plo
                 if reader.line_num == 1:
                     continue
 
-                if sum_all and len(metric_cols) > 1:
-                    sum_rows += sum([float(row[i]) for i in metric_cols])
+                if row[3] == "UNSAT":
+                    if sum_all and len(metric_cols) > 1:
+                        sum_rows += sum([float(row[i]) for i in metric_cols])
 
                 if row[3] == "SAT":
                     if len(metric_cols) > 1 and not include_result:
                         include_result = True
                         sum_rows += sum([float(row[i]) for i in metric_cols])
+                        break
                     else:
                         metric_for_et.append(row[metric_cols[0]])
     if metric_for_et and len(metric_cols) == 1:
