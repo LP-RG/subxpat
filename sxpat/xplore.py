@@ -81,6 +81,8 @@ def explore_grid(specs_obj: TemplateSpecs):
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
+    max_unsat_reached = False
+
     while (obtained_wce_exact < available_error):
         i += 1
         if specs_obj.et_partitioning == 'asc':
@@ -106,14 +108,18 @@ def explore_grid(specs_obj: TemplateSpecs):
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
-
+        # @rodrigo and @manuele
+        # This will fix the problem for now (at least for when num_models=1)
+        # Further exploration is needed to properly fix this infinite loop issue
+        if max_unsat_reached and not template_obj.is_two_phase_kind:
+            break
 
         # for all candidates
         for candidate in current_population:
             # guard
             if pre_iter_unsats[candidate] == total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
                 pprint.info1(f'Number of UNSATs reached!')
-
+                max_unsat_reached = True
                 continue
 
             pprint.info1(f'candidate {candidate}')
@@ -377,6 +383,11 @@ def explore_grid(specs_obj: TemplateSpecs):
         if exists_an_area_zero(current_population):
             break
 
+
+        # This is to fix another problem (also previously known as loop)
+        # This is where the exploration get stuck in a loop of creating the same approximate circuit over and over again
+        # Here, I check if the last three subgraphs are equal, if so, this means that the exploration needs to be
+        # terminated!
         loop_detected = False
         for idx, s in enumerate(previous_subgraphs):
             if idx == len(previous_subgraphs) - 1 and idx > 1:
