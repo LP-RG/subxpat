@@ -82,6 +82,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
+    max_unsat_reached = False
     while (obtained_wce_exact < available_error):
         i += 1
         if specs_obj.et_partitioning == 'asc':
@@ -107,11 +108,15 @@ def explore_grid(specs_obj: TemplateSpecs):
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
 
+        if max_unsat_reached and not template_obj.is_two_phase_kind:
+            break
+
         # for all candidates
         for candidate in current_population:
             # guard
             if pre_iter_unsats[candidate] == total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
                 pprint.info1(f'Number of UNSATs reached!')
+                max_unsat_reached = True
                 continue
 
             pprint.info1(f'candidate {candidate}')
