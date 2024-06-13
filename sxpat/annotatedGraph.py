@@ -34,9 +34,9 @@ class AnnotatedGraph(Graph):
         
         self.__subgraph_candidates = []
         self.__subgraph = None
-        self.__subgraph_input_dict = None
-        self.__subgraph_output_dict = None
-        self.__subgraph_gate_dict = None
+        self.__subgraph_input_dict: Dict[int, str] = None
+        self.__subgraph_output_dict: Dict[int, str] = None
+        self.__subgraph_gate_dict: Dict[int, str] = None
         self.__subgraph_fanin_dict = None
         self.__subgraph_fanout_dict = None
         self.__graph_intact_gate_dict = None

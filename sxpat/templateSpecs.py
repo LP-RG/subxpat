@@ -26,7 +26,7 @@ class TemplateSpecs:
         self.__manual_nodes = kwargs[MANUAL_NODES]
         self.__population = kwargs[POPULATION]
         self.__min_labeling = kwargs[MIN_LABELING]
-        self.__shared = kwargs[SHARED]
+        self.__shared: bool = bool(kwargs[SHARED])
         self.__products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
         self.__parallel: bool = kwargs[PARALLEL]
 
