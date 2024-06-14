@@ -6,7 +6,7 @@ import json
 import csv
 
 ET = int(sys.argv[1])
-{{{{ET_BV}}}}
+{{{{ET_ENC}}}}
 wanted_models: int = 1 if len(sys.argv) < 3 else int(sys.argv[2])
 timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])
 max_possible_ET: int = 2 ** 3 - 1
@@ -35,35 +35,40 @@ error = {{{{error}}}}
 
 # wires functions declaration for exact circuit
 # ei = Function('ei', BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort())
-{{{{wires_exact_declaration}}}}
+{{{{exact_wires_declaration}}}}
 
 # wires functions declaration for approximate circuit
 # ei = Function('ei', BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort())
-{{{{wires_approximate_declaration}}}}
+{{{{approximate_wires_declaration}}}}
 
 # outputs bitvectors declaration for exact circuit
 # eouti = Function ('eouti', BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BitVecSort(outputs))
-{{{{outputs_exact_declaration}}}}
+{{{{exact_outputs_declaration}}}}
 
 # outputs bitvectors declaration for approximate circuit
 # aouti = Function ('aouti', BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BitVecSort(outputs))
-{{{{outputs_approximate_declaration}}}}
+{{{{approximate_outputs_declaration}}}}
 
 # exact circuit constraints
-# exact_circuit = And(
+exact_circuit = And(
 	# wires
-	# boolean outputs (from the least significant) as bitvectors
-	# exact_bitvector_outputs
-# )
-{{{{exact_constraints}}}}
+{{{{exact_wires_constraints}}}}
+	
+	# output bits (from the least significant)
+{{{{exact_output_constraints}}}}
+	
+	# aggregated output
+{{{{exact_aggregated_output}}}}
+)
 
 # approximate circuit constraints
-# approximate_circuit = And(
+approximate_circuit = And(
 	# wires
+{{{{approximate_wires_constraints}}}}
 	# boolean outputs (from the least significant) as bitvectors
 	# exact_bitvector_outputs
-# )
-{{{{{approximate_constraints}}}}}
+)
+
 
 # boolean outputs (from the least significant) as bitvectors
 # aouti(ini) == If(a32(in0,in4,a20(in0, in1, in2, in3, in4, in5, in6, in7),a26(in0, in1, in2, in3, in4, in5, in6, in7),a31(in0, in1, in2, in3, in4, in5, in6, in7),a50(in0, in1, in2, in3, in4, in5, in6, in7),a53(in0, in1, in2, in3, in4, in5, in6, in7)), BitVecVal(0b00001, 5), BitVecVal(0b00000, 5)),
