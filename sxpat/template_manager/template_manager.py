@@ -95,12 +95,12 @@ class ProductTemplateManager(TemplateManager):
         # is gate
         if node_name in self._exact_graph.gate_dict.value():
             node_i = mapping_inv(self._exact_graph.gate_dict, node_name)
-            var_name = f'{sxpat_cfg.EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + node_i}'
+            var_name = f'{sxpat_cfg.EXACT_WIRES_PREFIX}{self._exact_graph.num_inputs + node_i}'
             args = ','.join(self._exact_graph.input_dict.values())
             return f'{var_name}({args})'
 
         # is output
-        if node_name in self.exact_graph.output_dict.values():
+        if node_name in self._exact_graph.output_dict.values():
             node_i = mapping_inv(self._exact_graph.output_dict, node_name)
             var_name = f'{sxpat_cfg.EXACT_WIRES_PREFIX}{sxpat_cfg.OUT}{node_i}'
             args = ','.join(self._exact_graph.input_dict.values())
@@ -114,54 +114,39 @@ class ProductTemplateManager(TemplateManager):
         if node_name in self._current_graph.constant_dict.values():
             return sxpat_cfg.Z3_GATES_DICTIONARY[self._current_graph.graph.nodes[node_name][sxpat_cfg.LABEL]]
 
-        if node_name in list(self._current_graph.gate_dict.values()):
-            if self._current_graph.is_subgraph_member(node_name):
-                node_i = mapping_inv(self._current_graph.gate_dict, node_name)
-
-                # input_list = self.__z3_get_subgraph_input_list()
-
-                # input_list_tmp = self.__fix_order()
-                subpgraph_inputs = self._current_graph.subgraph_input_dict.values()
-                inputs_list = sorted(
-                    node
-                    for node in subpgraph_inputs
-                    if re.search('in(\d+)', node)
-                )  
-
-
-                gate_i = mapping_inv(self._current_graph.gate_dict, node)
-                name =  f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{self._exact_graph.num_inputs + gate_i}'
-                args = self._gen_call_function(name, self._exact_graph.input_dict.values())
-                gates_list = list(
-                    f"{self.__z3_get_approximate_label(node)}({', '.join(list(self._exact_graph.input_dict.values()))})"
-                    for node in subpgraph_inputs
-                    if not re.search('in(\d+)', node)
-                )
-
-                subpgraph_inputs = list(itertools.chain(inputs_list, gates_list))
-
-                return subpgraph_inputs
-
-                var_name = f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{self._exact_graph.num_inputs + node_i}'
-                return f'{var_name}({arg})"
-
-            else:
-                node_i = -1
-                for key in self.current_graph.gate_dict.keys():
-                    if self.current_graph.gate_dict[key] == node_name:
-                        node_i = key
-                return f"{APPROXIMATE_WIRE_PREFIX}{self.current_graph.num_inputs + node_i}({','.join(list(self.current_graph.input_dict.values()))})"
-
         # is gate
-        if node_name in self._exact_graph.gate_dict.value():
-            node_i = mapping_inv(self._exact_graph.gate_dict, node_name)
-            var_name = f'{sxpat_cfg.EXACT_WIRES_PREFIX}{self.exact_graph.num_inputs + node_i}'
+        if node_name in list(self._current_graph.gate_dict.values()):
+            # is subgraph gate
+            if self._current_graph.is_subgraph_member(node_name):
+                # get subgraph inputs sorted, all graph-inputs first (sorted by id) followed by the gates (sorted by id)
+                subpgraph_inputs = list(self._current_graph.subgraph_input_dict.values())
+                def is_input(n): return n in self._exact_graph.input_dict.values()
+                for i, node in enumerate(subpgraph_inputs):
+                    if not is_input(node):
+                        gate_i = mapping_inv(self._current_graph.gate_dict, node)
+                        subpgraph_inputs[i] = self._gen_call_function(
+                            f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{self._exact_graph.num_inputs + gate_i}',
+                            self._exact_graph.input_dict.values()
+                        )
+                subpgraph_inputs.sort(key=lambda n: int(re.search(r'\d+', n).group()))
+
+                node_i = mapping_inv(self._current_graph.gate_dict, node_name)
+                var_name = f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{self._exact_graph.num_inputs + node_i}'
+                return self._gen_call_function(var_name, subpgraph_inputs)
+
+            # is not subgraph gate
+            else:
+                node_i = mapping_inv(self._current_graph.gate_dict, node_name)
+                var_name = f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{self._exact_graph.num_inputs + node_i}'
+                args = ','.join(self._exact_graph.input_dict.values())
+                return f'{var_name}({args})'
+
+        # is output
+        if node_name in self._exact_graph.output_dict.values():
+            node_i = mapping_inv(self._exact_graph.output_dict, node_name)
+            var_name = f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{sxpat_cfg.OUT}{node_i}'
             args = ','.join(self._exact_graph.input_dict.values())
             return f'{var_name}({args})'
-
-        inputs = self._current_graph.subgraph_input_dict.values() if node_name in self._current_graph.subgraph_input_dict.values() else self._exact_graph.input_dict.values()
-        args = ', '.join(self._use_approx_var(g) for g in inputs)
-        return f'{node_name}({args})'
 
     def _generate_product(self, parameter_pair_gen: Callable[[int], Tuple[str, str]]) -> str:
         multiplexers = []
@@ -182,6 +167,14 @@ class SOPManager(ProductTemplateManager):
         return f'{sxpat_cfg.PRODUCT_PREFIX}{output_i}'
 
     def _generate_script(self) -> None:
+        # utility references
+        input_dict = self._exact_graph.input_dict
+        output_dict = self._exact_graph.output_dict
+        exact_gates_dict = self._exact_graph.gate_dict
+        exact_const_dict = self._exact_graph.constant_dict
+        current_gates_dict = self._current_graph.gate_dict
+        current_const_dict = self._current_graph.constant_dict
+
         builder = Builder.from_file('./template.py')
 
         # ET_ENC
@@ -193,7 +186,7 @@ class SOPManager(ProductTemplateManager):
         # ini_defs
         builder.update(ini_defs='\n'.join(
             self._gen_declare_gate(input_name)
-            for input_name in self._exact_graph.input_dict.values()
+            for input_name in input_dict.values()
         ))
 
         # functions (function_exact, function_approximate)
@@ -210,52 +203,52 @@ class SOPManager(ProductTemplateManager):
         builder.update(params_declaration='\n'.join(itertools.chain(
             (
                 self._gen_declare_gate(self._output_parameter(output_i))
-                for output_i in self._exact_graph.output_dict.keys()
+                for output_i in output_dict.keys()
             ),
             itertools.chain.from_iterable(
                 (
                     self._gen_declare_gate((pars := self._input_parameters(output_i, product_i, input_i))[0]),
                     self._gen_declare_gate(pars[1])
                 )
-                for output_i in self._exact_graph.output_dict.keys()
+                for output_i in output_dict.keys()
                 for product_i in range(self._specs.ppo)
-                for input_i in self._exact_graph.input_dict.keys()
+                for input_i in input_dict.keys()
             ),
         )))
 
         # exact_wires_declaration
         builder.update(exact_wires_declaration='\n'.join(
-            self._gen_declare_bool_function(f'{sxpat_cfg.EXACT_WIRES_PREFIX}{len(self._exact_graph.input_dict) + gate_i}', len(self._exact_graph.input_dict))
-            for gate_i in itertools.chain(self._exact_graph.gate_dict.keys(), self._exact_graph.constant_dict.keys())
+            self._gen_declare_bool_function(f'{sxpat_cfg.EXACT_WIRES_PREFIX}{len(input_dict) + gate_i}', len(input_dict))
+            for gate_i in itertools.chain(exact_gates_dict.keys(), exact_const_dict.keys())
         ))
 
         # approximate_declaration
         builder.update(approximate_declaration='\n'.join(
             (
-                self._gen_declare_bool_function(f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(self._exact_graph.input_dict) + gate_i}', len(self._current_graph.subgraph_num_inputs))
+                self._gen_declare_bool_function(f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(input_dict) + gate_i}', len(self._current_graph.subgraph_num_inputs))
                 if self._current_graph.is_subgraph_member(gate_name) else
-                self._gen_declare_bool_function(f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(self._exact_graph.input_dict) + gate_i}', len(self._exact_graph.input_dict))
+                self._gen_declare_bool_function(f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(input_dict) + gate_i}', len(input_dict))
             )
-            for gate_i, gate_name in itertools.chain(self._exact_graph.gate_dict.items(), self._exact_graph.constant_dict.items())
+            for gate_i, gate_name in itertools.chain(exact_gates_dict.items(), exact_const_dict.items())
         ))
 
         # exact_outputs_declaration
         builder.update(exact_outputs_declaration='\n'.join(
             self._gen_declare_enc_function(f'{sxpat_cfg.EXACT_OUTPUT_PREFIX}{sxpat_cfg.OUT}{output_i}')
-            for output_i in self._exact_graph.output_dict.keys()
+            for output_i in output_dict.keys()
         ))
 
         # approximate_outputs_declaration
         builder.update(approximate_outputs_declaration='\n'.join(
             self._gen_declare_enc_function(f'{sxpat_cfg.APPROXIMATE_OUTPUT_PREFIX}{sxpat_cfg.OUT}{output_i}')
-            for output_i in self._exact_graph.output_dict.keys()
+            for output_i in output_dict.keys()
         ))
 
         # exact_wires_constraints
         def get_preds(name: str) -> Collection[str]: return tuple(self._exact_graph.graph.predecessors(name))
         def get_func(name: str) -> str: return self._exact_graph.graph.nodes[name][sxpat_cfg.LABEL]
         lines = []
-        for gate_i, gate_name in self._exact_graph.gate_dict.items():
+        for gate_i, gate_name in exact_gates_dict.items():
             gate_preds = get_preds(gate_name)
             gate_func = get_func(gate_name)
             assert (gate_func, len(gate_preds)) in [
@@ -274,7 +267,7 @@ class SOPManager(ProductTemplateManager):
 
         # exact_output_constraints
         lines = []
-        for output_name in self._exact_graph.output_dict.values():
+        for output_name in output_dict.values():
             output_preds = get_preds(output_name)
             assert len(output_preds) == 1, 'an output must have exactly one predecessor'
 
@@ -284,21 +277,22 @@ class SOPManager(ProductTemplateManager):
         builder.update(exact_output_constraints='\n'.join(f'{sxpat_cfg.TAB}{line}' for line in lines))
 
         # exact_aggregated_output
-        function_call = self._gen_call_function('fe', self._exact_graph.input_dict.values())
+        function_call = self._gen_call_function('fe', input_dict.values())
         aggregated_output = self._encoding.aggregate_variables(tuple(
-            self._use_exact_var(self._exact_graph.output_dict[output_i])
+            self._use_exact_var(output_dict[output_i])
             for output_i in range(self._exact_graph.num_outputs)
         ))
         builder.update(exact_aggregated_output=f'{sxpat_cfg.TAB}{function_call} == {aggregated_output},')
 
         # approximate_wires_constraints
+        
 
         # approximate_output_constraints
-        
+
         # approximate_aggregated_output
-        function_call = self._gen_call_function('fa', self._exact_graph.input_dict.values())
+        function_call = self._gen_call_function('fa', input_dict.values())
         aggregated_output = self._encoding.aggregate_variables(tuple(
-            self._use_exact_var(self._exact_graph.output_dict[output_i])
+            self._use_approx_var(output_dict[output_i])
             for output_i in range(self._exact_graph.num_outputs)
         ))
         builder.update(exact_aggregated_output=f'{sxpat_cfg.TAB}{function_call} == {aggregated_output},')
@@ -306,13 +300,16 @@ class SOPManager(ProductTemplateManager):
         # boolean_outputs
         # approximate_outputs
         # forall_solver
-        # verification_solver
-        # difference_constraint
+
+        # solver (both forall and verification)
+        builder.update(solver=self._encoding.solver)
+
+        # difference_constraint (add new encoding function for > ?)
+
         # data_object
-        # output_path
-        # circuit_name
-        # encoding
-        # cell
+
+        # output_path (maybe needs function to set pat)
+        builder.update(output_path=self._specs.json_out_path)
 
     def _run_script(self) -> None:
         pass

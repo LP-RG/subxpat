@@ -65,8 +65,12 @@ exact_circuit = And(
 approximate_circuit = And(
 	# wires
 {{{{approximate_wires_constraints}}}}
-	# boolean outputs (from the least significant) as bitvectors
-	# exact_bitvector_outputs
+
+	# output bits (from the least significant)
+{{{{approximate_output_constraints}}}}
+	
+	# aggregated output
+{{{{approximate_aggregated_output}}}}
 )
 
 
@@ -80,8 +84,54 @@ approximate_circuit = And(
 {{{{approximate_outputs}}}}
 
 # forall and verification solvers
-forall_solver = {{{{forall_solver}}}}
-verification_solver = {{{{verification_solver}}}}
+forall_solver = {{{{solver}}}}
+forall_solver.add(ForAll(
+	[{{}}],
+	And(
+		# error constraints
+		{{{{difference_less_equal_et}}}},
+
+		# circuits
+		exact_circuit,
+		approximate_circuit,
+
+	)
+))
+# forall_solver.add(ForAll(
+# 	[in0,in1,in2,in3,in4,in5,in6,in7],
+# 	And(
+
+# 		# error constraints
+# 		difference <= ET,
+
+# 		# circuits
+# 		exact_circuit,
+# 		approximate_circuit,
+
+# 		# Force the number of inputs to sums to be at most as its
+# 		(IntVal(1) * p_pr0_o0 + IntVal(1) * p_pr1_o0 + IntVal(1) * p_pr2_o0 + IntVal(1) * p_pr0_o1 + IntVal(1) * p_pr1_o1 + IntVal(1) * p_pr2_o1) <= 3,
+
+# 		# Redundancy constraints
+# 		# remove double no-care
+# 		Implies(p_pr0_i0_l, p_pr0_i0_s), Implies(p_pr0_i1_l, p_pr0_i1_s), Implies(p_pr0_i2_l, p_pr0_i2_s), Implies(p_pr0_i3_l, p_pr0_i3_s), Implies(p_pr0_i4_l, p_pr0_i4_s), Implies(p_pr0_i5_l, p_pr0_i5_s), Implies(p_pr0_i6_l, p_pr0_i6_s), 
+# 		Implies(p_pr1_i0_l, p_pr1_i0_s), Implies(p_pr1_i1_l, p_pr1_i1_s), Implies(p_pr1_i2_l, p_pr1_i2_s), Implies(p_pr1_i3_l, p_pr1_i3_s), Implies(p_pr1_i4_l, p_pr1_i4_s), Implies(p_pr1_i5_l, p_pr1_i5_s), Implies(p_pr1_i6_l, p_pr1_i6_s), 
+# 		Implies(p_pr2_i0_l, p_pr2_i0_s), Implies(p_pr2_i1_l, p_pr2_i1_s), Implies(p_pr2_i2_l, p_pr2_i2_s), Implies(p_pr2_i3_l, p_pr2_i3_s), Implies(p_pr2_i4_l, p_pr2_i4_s), Implies(p_pr2_i5_l, p_pr2_i5_s), Implies(p_pr2_i6_l, p_pr2_i6_s), 
+
+# 		# remove constant 0 parameters permutations
+# 		Implies(Not(p_o0), Not(Or(p_pr0_o0, p_pr1_o0, p_pr2_o0))), 
+# 		Implies(Not(p_o1), Not(Or(p_pr0_o1, p_pr1_o1, p_pr2_o1))), 
+
+# 		# set order of pits
+# 		(IntVal(1) * p_pr0_i0_s + IntVal(2) * p_pr0_i0_l + IntVal(4) * p_pr0_i1_s + IntVal(8) * p_pr0_i1_l + IntVal(16) * p_pr0_i2_s + IntVal(32) * p_pr0_i2_l + IntVal(64) * p_pr0_i3_s + IntVal(128) * p_pr0_i3_l + IntVal(256) * p_pr0_i4_s + IntVal(512) * p_pr0_i4_l + IntVal(1024) * p_pr0_i5_s + IntVal(2048) * p_pr0_i5_l + IntVal(4096) * p_pr0_i6_s + IntVal(8192) * p_pr0_i6_l) > (IntVal(1) * p_pr1_i0_s + IntVal(2) * p_pr1_i0_l + IntVal(4) * p_pr1_i1_s + IntVal(8) * p_pr1_i1_l + IntVal(16) * p_pr1_i2_s + IntVal(32) * p_pr1_i2_l + IntVal(64) * p_pr1_i3_s + IntVal(128) * p_pr1_i3_l + IntVal(256) * p_pr1_i4_s + IntVal(512) * p_pr1_i4_l + IntVal(1024) * p_pr1_i5_s + IntVal(2048) * p_pr1_i5_l + IntVal(4096) * p_pr1_i6_s + IntVal(8192) * p_pr1_i6_l), 
+# 		(IntVal(1) * p_pr1_i0_s + IntVal(2) * p_pr1_i0_l + IntVal(4) * p_pr1_i1_s + IntVal(8) * p_pr1_i1_l + IntVal(16) * p_pr1_i2_s + IntVal(32) * p_pr1_i2_l + IntVal(64) * p_pr1_i3_s + IntVal(128) * p_pr1_i3_l + IntVal(256) * p_pr1_i4_s + IntVal(512) * p_pr1_i4_l + IntVal(1024) * p_pr1_i5_s + IntVal(2048) * p_pr1_i5_l + IntVal(4096) * p_pr1_i6_s + IntVal(8192) * p_pr1_i6_l) > (IntVal(1) * p_pr2_i0_s + IntVal(2) * p_pr2_i0_l + IntVal(4) * p_pr2_i1_s + IntVal(8) * p_pr2_i1_l + IntVal(16) * p_pr2_i2_s + IntVal(32) * p_pr2_i2_l + IntVal(64) * p_pr2_i3_s + IntVal(128) * p_pr2_i3_l + IntVal(256) * p_pr2_i4_s + IntVal(512) * p_pr2_i4_l + IntVal(1024) * p_pr2_i5_s + IntVal(2048) * p_pr2_i5_l + IntVal(4096) * p_pr2_i6_s + IntVal(8192) * p_pr2_i6_l), 
+# 	)
+# ))
+verification_solver = {{{{solver}}}}
+verification_solver.add(
+	error == difference,
+	exact_circuit,
+	approximate_circuit,
+)
 
 parameters_constraints: List[Tuple[BoolRef, bool]] = []
 found_data = []
@@ -125,7 +175,7 @@ while(len(found_data) < wanted_models and timeout > 0):
 
 		while verification_ET < max_possible_ET:
 			# add constraint (difference > verification_ET) or UGE(...)
-			verification_solver.add({{{{difference_constraint}}}})
+			verification_solver.add({{{{difference_greater_verET}}}})
 			# run solver
 			verification_solver.set("timeout", int(timeout * 1000))
 			v_result = verification_solver.check()
@@ -195,16 +245,3 @@ print(json.dumps(found_data, separators=(",", ":"),))
 # Could consider file writing fully dynamically
 with open(f'output/json/{{{{output_path}}}}', 'w') as ofile:
 	ofile.write(json.dumps(found_data, separators=(",", ":"), indent=4))
-
-with open('./output/report/all_results.csv', 'a') as f:
-	csvwriter = csv.writer(f)
-	row = []
-	row.append('{{{{circuit_name}}}}')
-	row.append('{{{{encoding}}}}')
-	row.append(str(result))
-	row.append('{{{{cell}}}}')
-	row.append(time_total)
-	row.append(attempts)
-	row.append(ET)
-	row = tuple(row)
-	csvwriter.writerow(row)
