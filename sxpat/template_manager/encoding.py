@@ -43,8 +43,16 @@ class Encoding:
         raise NotImplementedError(f'{self.__class__.__name__}.sort(...) is abstract.')
 
     @abstractmethod
+    def unsigned_greater(self, a: str, b: str) -> str:
+        raise NotImplementedError(f'{self.__class__.__name__}.unsigned_greater(...) is abstract.')
+
+    @abstractmethod
     def unsigned_greater_equal(self, a: str, b: str) -> str:
         raise NotImplementedError(f'{self.__class__.__name__}.unsigned_greater_equal(...) is abstract.')
+
+    @abstractmethod
+    def unsigned_less(self, a: str, b: str) -> str:
+        raise NotImplementedError(f'{self.__class__.__name__}.unsigned_less(...) is abstract.')
 
     @abstractmethod
     def unsigned_less_equal(self, a: str, b: str) -> str:
@@ -94,8 +102,14 @@ class IntegerEncoding(Encoding):
     def sort(self) -> str:
         return 'IntSort()'
 
+    def unsigned_greater(self, a: str, b: str) -> str:
+        return f'{a} > {b}'
+
     def unsigned_greater_equal(self, a: str, b: str) -> str:
         return f'{a} >= {b}'
+
+    def unsigned_less(self, a: str, b: str) -> str:
+        return f'{a} < {b}'
 
     def unsigned_less_equal(self, a: str, b: str) -> str:
         return f'{a} <= {b}'
@@ -129,8 +143,14 @@ class BitVectorEncoding(Encoding):
     def sort(self) -> str:
         return f'BitVecSort({self._outputs_count})'
 
+    def unsigned_greater(self, a: str, b: str) -> str:
+        return f'UGT({a}, {b})'
+
     def unsigned_greater_equal(self, a: str, b: str) -> str:
         return f'UGE({a}, {b})'
+
+    def unsigned_less(self, a: str, b: str) -> str:
+        return f'ULT({a}, {b})'
 
     def unsigned_less_equal(self, a: str, b: str) -> str:
         return f'ULE({a}, {b})'
