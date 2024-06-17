@@ -23,30 +23,22 @@ fe = {{{{function_exact}}}}
 # Bitvector function declaration
 fa = {{{{function_approximate}}}}
 # utility variables
-# Using abs_diff
 difference = z3_abs_diff(fe({{{{gen_inputs_arguments}}}}), fa({{{{gen_inputs_arguments}}}}))
 error = {{{{error}}}}
 
 # Parameters variables declaration
-# p_oi = Bool('p_oi')
-# p_o0_t0_i0_s = Bool('p_o0_t0_i0_s')
-# p_o0_t0_i0_l = Bool('p_o0_t0_i0_l')
 {{{{params_declaration}}}}
 
 # wires functions declaration for exact circuit
-# ei = Function('ei', BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort())
 {{{{exact_wires_declaration}}}}
 
 # wires functions declaration for approximate circuit
-# ai = Function('ai', BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort())
 {{{{approximate_wires_declaration}}}}
 
 # outputs bitvectors declaration for exact circuit
-# eouti = Function ('eouti', BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BitVecSort(outputs))
 {{{{exact_outputs_declaration}}}}
 
 # outputs bitvectors declaration for approximate circuit
-# aouti = Function ('aouti', BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BoolSort(), BitVecSort(outputs))
 {{{{approximate_outputs_declaration}}}}
 
 # exact circuit constraints
@@ -77,7 +69,7 @@ approximate_circuit = And(
 # forall and verification solvers
 forall_solver = {{{{solver}}}}
 forall_solver.add(ForAll(
-	[{{}}],
+	[{{{{inputs}}}}],
 	And(
 		# error constraints
 		{{{{difference_less_equal_etenc}}}},
@@ -92,13 +84,9 @@ forall_solver.add(ForAll(
 
 		# remove double no-care
 		{{{{remove_double_constraint}}}}
-		Implies(p_o0_t0_i0_l, p_o0_t0_i0_s), Implies(p_o0_t0_i1_l, p_o0_t0_i1_s), Implies(p_o0_t0_i2_l, p_o0_t0_i2_s), Implies(p_o0_t0_i3_l, p_o0_t0_i3_s), Implies(p_o0_t0_i4_l, p_o0_t0_i4_s), Implies(p_o0_t0_i5_l, p_o0_t0_i5_s), Implies(p_o0_t0_i6_l, p_o0_t0_i6_s), Implies(p_o0_t1_i0_l, p_o0_t1_i0_s), Implies(p_o0_t1_i1_l, p_o0_t1_i1_s), Implies(p_o0_t1_i2_l, p_o0_t1_i2_s), Implies(p_o0_t1_i3_l, p_o0_t1_i3_s), Implies(p_o0_t1_i4_l, p_o0_t1_i4_s), Implies(p_o0_t1_i5_l, p_o0_t1_i5_s), Implies(p_o0_t1_i6_l, p_o0_t1_i6_s), Implies(p_o0_t2_i0_l, p_o0_t2_i0_s), Implies(p_o0_t2_i1_l, p_o0_t2_i1_s), Implies(p_o0_t2_i2_l, p_o0_t2_i2_s), Implies(p_o0_t2_i3_l, p_o0_t2_i3_s), Implies(p_o0_t2_i4_l, p_o0_t2_i4_s), Implies(p_o0_t2_i5_l, p_o0_t2_i5_s), Implies(p_o0_t2_i6_l, p_o0_t2_i6_s), 
-		Implies(p_o1_t0_i0_l, p_o1_t0_i0_s), Implies(p_o1_t0_i1_l, p_o1_t0_i1_s), Implies(p_o1_t0_i2_l, p_o1_t0_i2_s), Implies(p_o1_t0_i3_l, p_o1_t0_i3_s), Implies(p_o1_t0_i4_l, p_o1_t0_i4_s), Implies(p_o1_t0_i5_l, p_o1_t0_i5_s), Implies(p_o1_t0_i6_l, p_o1_t0_i6_s), Implies(p_o1_t1_i0_l, p_o1_t1_i0_s), Implies(p_o1_t1_i1_l, p_o1_t1_i1_s), Implies(p_o1_t1_i2_l, p_o1_t1_i2_s), Implies(p_o1_t1_i3_l, p_o1_t1_i3_s), Implies(p_o1_t1_i4_l, p_o1_t1_i4_s), Implies(p_o1_t1_i5_l, p_o1_t1_i5_s), Implies(p_o1_t1_i6_l, p_o1_t1_i6_s), Implies(p_o1_t2_i0_l, p_o1_t2_i0_s), Implies(p_o1_t2_i1_l, p_o1_t2_i1_s), Implies(p_o1_t2_i2_l, p_o1_t2_i2_s), Implies(p_o1_t2_i3_l, p_o1_t2_i3_s), Implies(p_o1_t2_i4_l, p_o1_t2_i4_s), Implies(p_o1_t2_i5_l, p_o1_t2_i5_s), Implies(p_o1_t2_i6_l, p_o1_t2_i6_s), 
 
 		# remove constant 0 parameters permutations
 		{{{{remove_zero_permutations_constraint}}}}
-		Implies(Not(p_o0), Not(Or(p_o0_t0_i0_s, p_o0_t0_i0_l, p_o0_t0_i1_s, p_o0_t0_i1_l, p_o0_t0_i2_s, p_o0_t0_i2_l, p_o0_t0_i3_s, p_o0_t0_i3_l, p_o0_t0_i4_s, p_o0_t0_i4_l, p_o0_t0_i5_s, p_o0_t0_i5_l, p_o0_t0_i6_s, p_o0_t0_i6_l, p_o0_t1_i0_s, p_o0_t1_i0_l, p_o0_t1_i1_s, p_o0_t1_i1_l, p_o0_t1_i2_s, p_o0_t1_i2_l, p_o0_t1_i3_s, p_o0_t1_i3_l, p_o0_t1_i4_s, p_o0_t1_i4_l, p_o0_t1_i5_s, p_o0_t1_i5_l, p_o0_t1_i6_s, p_o0_t1_i6_l, p_o0_t2_i0_s, p_o0_t2_i0_l, p_o0_t2_i1_s, p_o0_t2_i1_l, p_o0_t2_i2_s, p_o0_t2_i2_l, p_o0_t2_i3_s, p_o0_t2_i3_l, p_o0_t2_i4_s, p_o0_t2_i4_l, p_o0_t2_i5_s, p_o0_t2_i5_l, p_o0_t2_i6_s, p_o0_t2_i6_l))),
-		Implies(Not(p_o1), Not(Or(p_o1_t0_i0_s, p_o1_t0_i0_l, p_o1_t0_i1_s, p_o1_t0_i1_l, p_o1_t0_i2_s, p_o1_t0_i2_l, p_o1_t0_i3_s, p_o1_t0_i3_l, p_o1_t0_i4_s, p_o1_t0_i4_l, p_o1_t0_i5_s, p_o1_t0_i5_l, p_o1_t0_i6_s, p_o1_t0_i6_l, p_o1_t1_i0_s, p_o1_t1_i0_l, p_o1_t1_i1_s, p_o1_t1_i1_l, p_o1_t1_i2_s, p_o1_t1_i2_l, p_o1_t1_i3_s, p_o1_t1_i3_l, p_o1_t1_i4_s, p_o1_t1_i4_l, p_o1_t1_i5_s, p_o1_t1_i5_l, p_o1_t1_i6_s, p_o1_t1_i6_l, p_o1_t2_i0_s, p_o1_t2_i0_l, p_o1_t2_i1_s, p_o1_t2_i1_l, p_o1_t2_i2_s, p_o1_t2_i2_l, p_o1_t2_i3_s, p_o1_t2_i3_l, p_o1_t2_i4_s, p_o1_t2_i4_l, p_o1_t2_i5_s, p_o1_t2_i5_l, p_o1_t2_i6_s, p_o1_t2_i6_l))),
 
 		# set order of products
 		{{{{product_order_constraint}}}}
@@ -128,7 +116,7 @@ while(len(found_data) < wanted_models and timeout > 0):
 		if parameters_constraints:
 			forall_solver.add(Or(*map(lambda x: x[0] != x[1], parameters_constraints)))
 		parameters_constraints = []
-		forall_solver.set("timeout", int(timeout * 1000))
+		forall_solver.set('timeout', int(timeout * 1000))
 		result = forall_solver.check()
 		time_parameters = time() - time_attempt_start
 		time_attempt = time() - time_attempt_start
@@ -139,7 +127,7 @@ while(len(found_data) < wanted_models and timeout > 0):
 		m = forall_solver.model()
 		parameters_constraints = []
 		for k, v in map(lambda k: (k, m[k]), m):
-			if str(k)[0] == "p":
+			if str(k)[0] == 'p':
 				parameters_constraints.append((Bool(str(k)), v))
 		# verify parameters
 		WCE: int = None
@@ -153,10 +141,10 @@ while(len(found_data) < wanted_models and timeout > 0):
 		)
 
 		while verification_et < max_possible_et:
-			# add constraint (difference > verification_ET) or UGE(...)
+			# add constraint
 			verification_solver.add({{{{difference_greater_veret}}}})
 			# run solver
-			verification_solver.set("timeout", int(timeout * 1000))
+			verification_solver.set('timeout', int(timeout * 1000))
 			v_result = verification_solver.check()
 			if v_result == unsat:
 				# unsat, WCE found
@@ -227,8 +215,8 @@ while(len(found_data) < wanted_models and timeout > 0):
 	found_data.append(data_object)
 	if result != sat:
 		break
-print(json.dumps(found_data, separators=(",", ":"),))
+print(json.dumps(found_data, separators=(',', ':'),))
 
 # Could consider file writing fully dynamically
-with open(f'output/json/{{{{output_path}}}}', 'w') as ofile:
-	ofile.write(json.dumps(found_data, separators=(",", ":"), indent=4))
+with open('{{{{output_path}}}}', 'w') as ofile:
+	ofile.write(json.dumps(found_data, separators=(',', ':'), indent=4))
