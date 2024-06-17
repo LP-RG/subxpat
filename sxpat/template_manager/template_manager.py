@@ -170,21 +170,8 @@ class ProductTemplateManager(TemplateManager):
             multiplexers.append(f'Or(Not({p_s}), {p_l} == {self._use_approx_var(input_name)})')
 
         return f'And({", ".join(multiplexers)})'
-
-
-class SOPManager(ProductTemplateManager):
-    @staticmethod
-    def _input_parameters(output_i: int, product_i: int, input_i: int) -> Tuple[str, str]:
-        """
-        Returns the pair of parameters for the given indexes. (Literal parameter, State parameter)
-        """
-        partial_parameter = f'{sxpat_cfg.PRODUCT_PREFIX}{output_i}_{sxpat_cfg.TREE_PREFIX}{product_i}_{sxpat_cfg.INPUT_LITERAL_PREFIX}{input_i}'
-        return (f'{partial_parameter}_{sxpat_cfg.LITERAL_PREFIX}', f'{partial_parameter}_{sxpat_cfg.SELECT_PREFIX}')
-
-    def _output_parameter(output_i: int) -> str:
-        return f'{sxpat_cfg.PRODUCT_PREFIX}{output_i}'
-
-    def _generate_script(self) -> None:
+    
+    def _build_common_template(self, builder: Builder) -> None:
         # utility references
         input_dict = self._exact_graph.input_dict
         output_dict = self._exact_graph.output_dict
@@ -195,9 +182,6 @@ class SOPManager(ProductTemplateManager):
         exact_const_dict = self._exact_graph.constant_dict
         current_gates_dict = self._current_graph.gate_dict
         current_const_dict = self._current_graph.constant_dict
-
-        # initialize builder object
-        builder = Builder.from_file('./template.py')
 
         # et_encoded
         builder.update(et_encoded=self._encoding.output_value('et'))
@@ -223,22 +207,6 @@ class SOPManager(ProductTemplateManager):
         # error
         builder.update(error=self._encoding.output_variable('error'))
 
-        # params_declaration
-        builder.update(params_declaration='\n'.join(itertools.chain(
-            (
-                self._gen_declare_gate(self._output_parameter(output_i))
-                for output_i in output_dict.keys()
-            ),
-            itertools.chain.from_iterable(
-                (
-                    self._gen_declare_gate((pars := self._input_parameters(output_i, product_i, input_i))[0]),
-                    self._gen_declare_gate(pars[1])
-                )
-                for output_i in subgraph_output_dict.keys()
-                for product_i in range(self._specs.ppo)
-                for input_i in subgraph_input_dict.keys()
-            ),
-        )))
 
         # exact_wires_declaration
         builder.update(exact_wires_declaration='\n'.join(
@@ -308,42 +276,6 @@ class SOPManager(ProductTemplateManager):
         ))
         builder.update(exact_aggregated_output=f'{function_call} == {aggregated_output},')
 
-        # approximate_wires_constraints
-        def get_preds(name: str) -> Collection[str]: return tuple(self._current_graph.graph.predecessors(name))
-        def get_func(name: str) -> str: return self._current_graph.graph.nodes[name][sxpat_cfg.LABEL]
-        lines = []
-        for gate_i, gate_name in self._current_graph.gate_dict.values():
-            if not self._current_graph.is_subgraph_member(gate_name):
-                gate_preds = get_preds(gate_name)
-                gate_func = get_func(gate_name)
-                assert (gate_func, len(gate_preds)) in [
-                    (sxpat_cfg.NOT, 1),
-                    (sxpat_cfg.AND, 2),
-                    (sxpat_cfg.OR, 2),
-                ], 'invalid gate function/predecessors combination'
-
-                preds = tuple(self._use_approx_var(gate_pred) for gate_pred in gate_preds)
-                name = f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(input_dict) + gate_i}'
-                lines.append(
-                    f'{self._gen_call_function(name, input_dict.values())}'
-                    f' == {sxpat_cfg.TO_Z3_GATE_DICT[gate_func]}({", ".join(preds)}),'
-                )
-
-            # the gate is an output of the subgraph
-            elif self._current_graph.is_subgraph_output(gate_name):
-                output_i = mapping_inv(subgraph_output_dict, gate_name)
-                output_use = self._gen_call_function(
-                    f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(input_dict) + gate_i}',
-                    subgraph_input_dict.values()
-                )
-                products = (
-                    self._generate_product(functools.partial(self._input_parameters, output_i, product_i))
-                    for product_i in range(self._specs.ppo)
-                )
-
-                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(products)}))')
-        builder.update(approximate_wires_constraints='\n'.join(lines))
-
         # approximate_output_constraints
         lines = []
         for output_name in output_dict.values():
@@ -371,17 +303,6 @@ class SOPManager(ProductTemplateManager):
             difference_less_equal_etenc=self._encoding.unsigned_less_equal('difference', 'et_encoded'),
             difference_greater_veret=self._encoding.unsigned_greater('difference', self._encoding.output_value('verification_et'))
         )
-
-        # logic_dependant_constraint1
-        lines = ['# constrain the number of literals']
-        for output_i in subgraph_output_dict.keys():
-            for product_i in range(self._specs.ppo):
-                state_parameters = (
-                    self._input_parameters(output_i, product_i, input_i)[1]
-                    for input_i in subgraph_input_dict.keys()
-                )
-                lines.append(f'AtMost({", ".join(state_parameters)}, {self._specs.lpp}),')
-        builder.update(logic_dependant_constraint1='\n'.join(lines))
 
         # remove_double_constraint
         builder.update(remove_double_constraint='\n'.join(
@@ -422,6 +343,101 @@ class SOPManager(ProductTemplateManager):
                     for product_a, product_b in pairwise_iter(products)
                 )
         builder.update(product_order_constraint='\n'.join(lines))
+
+
+class SOPManager(ProductTemplateManager):
+    @staticmethod
+    def _input_parameters(output_i: int, product_i: int, input_i: int) -> Tuple[str, str]:
+        """
+        Returns the pair of parameters for the given indexes. (Literal parameter, State parameter)
+        """
+        partial_parameter = f'{sxpat_cfg.PRODUCT_PREFIX}{output_i}_{sxpat_cfg.TREE_PREFIX}{product_i}_{sxpat_cfg.INPUT_LITERAL_PREFIX}{input_i}'
+        return (f'{partial_parameter}_{sxpat_cfg.LITERAL_PREFIX}', f'{partial_parameter}_{sxpat_cfg.SELECT_PREFIX}')
+
+    def _output_parameter(output_i: int) -> str:
+        return f'{sxpat_cfg.PRODUCT_PREFIX}{output_i}'
+
+    def _generate_script(self) -> None:
+        # utility references
+        input_dict = self._exact_graph.input_dict
+        output_dict = self._exact_graph.output_dict
+        subgraph_input_dict = {i: v for i, v in enumerate(self._subgraph_inputs())}
+        subgraph_output_dict = self._current_graph.subgraph_output_dict
+
+        exact_gates_dict = self._exact_graph.gate_dict
+        exact_const_dict = self._exact_graph.constant_dict
+        current_gates_dict = self._current_graph.gate_dict
+        current_const_dict = self._current_graph.constant_dict
+
+        # initialize builder object
+        builder = Builder.from_file('./template.py')
+
+        # set common template part
+        self._build_common_template(builder)
+
+        # params_declaration
+        builder.update(params_declaration='\n'.join(itertools.chain(
+            (
+                self._gen_declare_gate(self._output_parameter(output_i))
+                for output_i in output_dict.keys()
+            ),
+            itertools.chain.from_iterable(
+                (
+                    self._gen_declare_gate((pars := self._input_parameters(output_i, product_i, input_i))[0]),
+                    self._gen_declare_gate(pars[1])
+                )
+                for output_i in subgraph_output_dict.keys()
+                for product_i in range(self._specs.ppo)
+                for input_i in subgraph_input_dict.keys()
+            ),
+        )))
+
+        # approximate_wires_constraints
+        def get_preds(name: str) -> Collection[str]: return tuple(self._current_graph.graph.predecessors(name))
+        def get_func(name: str) -> str: return self._current_graph.graph.nodes[name][sxpat_cfg.LABEL]
+        lines = []
+        for gate_i, gate_name in self._current_graph.gate_dict.values():
+            if not self._current_graph.is_subgraph_member(gate_name):
+                gate_preds = get_preds(gate_name)
+                gate_func = get_func(gate_name)
+                assert (gate_func, len(gate_preds)) in [
+                    (sxpat_cfg.NOT, 1),
+                    (sxpat_cfg.AND, 2),
+                    (sxpat_cfg.OR, 2),
+                ], 'invalid gate function/predecessors combination'
+
+                preds = tuple(self._use_approx_var(gate_pred) for gate_pred in gate_preds)
+                name = f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(input_dict) + gate_i}'
+                lines.append(
+                    f'{self._gen_call_function(name, input_dict.values())}'
+                    f' == {sxpat_cfg.TO_Z3_GATE_DICT[gate_func]}({", ".join(preds)}),'
+                )
+
+            # the gate is an output of the subgraph
+            elif self._current_graph.is_subgraph_output(gate_name):
+                output_i = mapping_inv(subgraph_output_dict, gate_name)
+                output_use = self._gen_call_function(
+                    f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(input_dict) + gate_i}',
+                    subgraph_input_dict.values()
+                )
+                products = (
+                    self._generate_product(functools.partial(self._input_parameters, output_i, product_i))
+                    for product_i in range(self._specs.ppo)
+                )
+
+                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(products)}))')
+        builder.update(approximate_wires_constraints='\n'.join(lines))
+
+        # logic_dependant_constraint1
+        lines = ['# constrain the number of literals']
+        for output_i in subgraph_output_dict.keys():
+            for product_i in range(self._specs.ppo):
+                state_parameters = (
+                    self._input_parameters(output_i, product_i, input_i)[1]
+                    for input_i in subgraph_input_dict.keys()
+                )
+                lines.append(f'AtMost({", ".join(state_parameters)}, {self._specs.lpp}),')
+        builder.update(logic_dependant_constraint1='\n'.join(lines))
 
         # general informations: benchmark_name, encoding and cell
         builder.update(
