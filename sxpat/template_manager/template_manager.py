@@ -37,15 +37,27 @@ class TemplateManager:
         self._encoding = encoding
 
     @staticmethod
-    def factory(graph: AnnotatedGraph, specs: TemplateSpecs) -> TemplateManager:
+    def factory(specs: TemplateSpecs,
+                exact_graph: AnnotatedGraph,
+                current_graph: AnnotatedGraph,
+                ) -> TemplateManager:
         # create required Encoding object
-        encoding = Encoding.factory(specs.encoding, graph.num_inputs, graph.num_outputs)
+        encoding = Encoding.factory(
+            specs.encoding,
+            exact_graph.num_inputs,
+            exact_graph.num_outputs
+        )
 
         # select and return TemplateManager object
         return {
             False: SOPManager,
             True: SOPSManager,
-        }[specs.shared](graph, specs, encoding)
+        }[specs.shared](
+            exact_graph,
+            current_graph,
+            specs,
+            encoding
+        )
 
     @abstractmethod
     def _generate_script(self) -> None:

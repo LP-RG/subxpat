@@ -9,7 +9,8 @@ class Encoding:
     """
 
     def __init__(self,
-                 inputs_count: int, outputs_count: int,
+                 inputs_count: int, 
+                 outputs_count: int,
                  # full_inputs: Collection[str], sub_inputs: Collection[str],
                  # full_outputs: Collection[str], sub_outputs: Collection[str]
                  ) -> None:
@@ -22,7 +23,8 @@ class Encoding:
 
     @staticmethod
     def factory(encoding_id: int,
-                inputs_count: int, outputs_count: int,
+                inputs_count: int,
+                outputs_count: int,
                 # full_inputs: Collection[str], sub_inputs: Collection[str],
                 # full_outputs: Collection[str], sub_outputs: Collection[str]
                 ) -> Encoding:
@@ -30,7 +32,9 @@ class Encoding:
         return {
             1: IntegerEncoding,
             2: BitVectorEncoding,
-        }[encoding_id](inputs_count, outputs_count)
+        }[encoding_id](
+            inputs_count,
+            outputs_count)
 
     @property
     @abstractmethod
