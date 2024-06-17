@@ -43,7 +43,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
     exact_file_name = specs_obj.exact_benchmark
     sum_wce_actual = 0
-    max_lpp = specs_obj.lpp
+    max_lpp = specs_obj.pit + 3 if specs_obj.shared else specs_obj.lpp
     max_ppo = specs_obj.pit if specs_obj.shared else specs_obj.ppo
     total_number_of_cells_per_iter = max_lpp * max_ppo + 1
 
@@ -71,14 +71,10 @@ def explore_grid(specs_obj: TemplateSpecs):
             log2 = int(math.log2(specs_obj.et))
             et = 2**(log2 - i - 2)
         elif specs_obj.et_partitioning == 'smart_asc':
-            et = 1 if i == 1 else prev_given_error + (1 if prev_actual_error == 0 else 0)
-            if available_error < et*2:
-                et = available_error
+            et = 1 if i == 1 else prev_given_error * (2 if prev_actual_error == 0 else 1)
             prev_given_error = et
         elif specs_obj.et_partitioning == 'smart_desc':
-            et = available_error if i == 1 else prev_given_error - (1 if prev_actual_error == 0 else 0)
-            if et > available_error:
-                et = available_error
+            et = available_error if i == 1 else prev_given_error / (2 if prev_actual_error == 0 else 1)
             prev_given_error = et
         else:
             raise NotImplementedError('invalid status')
@@ -142,7 +138,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             # explore the grid
             pprint.info2(f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...')
             dominant_cells = []
-            for lpp, ppo in cell_iterator(max_lpp, max_ppo):
+            for lpp, ppo in CellIterator.factory(specs_obj):
                 if is_dominated((lpp, ppo), dominant_cells):
                     pprint.info1(f'Cell({lpp},{ppo}) at iteration {i} -> DOMINATED')
                     continue
@@ -270,14 +266,38 @@ def explore_grid(specs_obj: TemplateSpecs):
     return stats_obj
 
 
-def cell_iterator(max_lpp: int, max_ppo: int) -> Iterator[Tuple[int, int]]:
-    # special cell
-    yield (0, 1)
+class CellIterator:
+    @classmethod
+    def factory(cls, specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+        return {
+            True: cls.shared,
+            False: cls.non_shared,
+        }[specs.shared](specs)
 
-    # grid cells
-    for ppo in range(1, max_ppo + 1):
-        for lpp in range(1, max_lpp + 1):
-            yield (lpp, ppo)
+    @staticmethod
+    def shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+        max_pit = specs.pit
+
+        # special cell
+        yield (0, 1)
+
+        # grid cells
+        for pit in range(1, max_pit + 1):
+            for its in range(pit, pit + 4):
+                yield (its, pit)
+
+    @staticmethod
+    def non_shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+        max_lpp = specs.lpp
+        max_ppo = specs.ppo
+
+        # special cell
+        yield (0, 1)
+
+        # grid cells
+        for ppo in range(1, max_ppo + 1):
+            for lpp in range(1, max_lpp + 1):
+                yield (lpp, ppo)
 
 
 def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, int]]) -> bool:
@@ -290,7 +310,7 @@ def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, in
 
 def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int) -> TemplateSpecs:
     specs_obj.lpp = lpp
-    specs_obj.ppo = ppo
+    specs_obj.ppo = specs_obj.pit = ppo
     specs_obj.iterations = iteration
     return specs_obj
 
@@ -427,6 +447,7 @@ def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph,
 
     for n in current_graph.graph.nodes:
         current_graph.graph.nodes[n][WEIGHT] = int(labels[n]) if n in labels else -1
+
 
 def get_toolname(specs_obj: TemplateSpecs) -> str:
     if specs_obj.subxpat_v2:
