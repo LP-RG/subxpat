@@ -9,6 +9,7 @@ import math
 from Z3Log.utils import *
 from Z3Log.config import path as z3logpath
 
+from sxpat.labeling import labeling_explicit
 from sxpat.templateCreator import Template_SOP1, Template_SOP1ShareLogic
 from sxpat.TempWrappers.subxpat_v2 import Template_V2
 
@@ -16,9 +17,11 @@ from sxpat.templateSpecs import TemplateSpecs
 from sxpat.config.paths import *
 from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
+from sxpat.template_manager.template_manager import TemplateManager
 from sxpat.utils.filesystem import FS
 from sxpat.verification import erroreval_verification_explicit, erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
+from sxpat.annotatedGraph import AnnotatedGraph
 
 from z_marco.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subgraph
 
@@ -31,25 +34,9 @@ def explore_grid(specs_obj: TemplateSpecs):
 
     labeling_time: float = -1
     subgraph_extraction_time: float = -1
-    subxpat_phase1_time: float = -1
-    subxpat_phase2_time: float = -1
 
     # Select toolname
-    if specs_obj.subxpat_v2:
-        pprint.info2('SubXPAT-V2 started...')
-        toolname = sxpatconfig.SUBXPAT_V2
-    elif specs_obj.subxpat and specs_obj.shared:
-        pprint.info2('Shared SubXPAT started...')
-        toolname = sxpatconfig.SHARED_SUBXPAT
-    elif specs_obj.subxpat and not specs_obj.shared:
-        pprint.info2('SubXPAT started...')
-        toolname = sxpatconfig.SUBXPAT
-    elif not specs_obj.subxpat and specs_obj.shared:
-        pprint.info2('Shared XPAT started...')
-        toolname = sxpatconfig.SHARED_XPAT
-    elif not specs_obj.subxpat and not specs_obj.shared:
-        pprint.info2('XPAT started...')
-        toolname = sxpatconfig.XPAT
+    toolname = get_toolname(specs_obj)
 
     # initial setup
     total_iterations = specs_obj.iterations
@@ -62,12 +49,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
     # create stat and template object
     stats_obj = Stats(specs_obj)
-    if specs_obj.shared:
-        template_obj = Template_SOP1ShareLogic(specs_obj)
-    elif specs_obj.subxpat_v2:
-        template_obj = Template_V2(specs_obj)
-    else:
-        template_obj = Template_SOP1(specs_obj)
 
     # This line would cause a problem,
     # current_population: Dict = {specs_obj.benchmark_name: -1}
@@ -121,37 +102,33 @@ def explore_grid(specs_obj: TemplateSpecs):
 
             # initialize context
             specs_obj.et = et
-            template_obj.set_new_context(specs_obj)
 
             # import the graph
-            template_obj.current_graph = template_obj.import_graph()
+            current_graph = AnnotatedGraph(specs_obj.benchmark_name, is_clean=False, partitioning_percentage=1)
+            exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False, partitioning_percentage=0)
 
-            # extract the subgraph
+            # label graph
             if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
-                # label graph
+                et_coefficient = 8
+
                 t_start = time.time()
-
-            et_coefficient = 8
-
-            template_obj.label_graph(min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling, et=et*et_coefficient, parallel=specs_obj.parallel)
-            labeling_time = time.time() - t_start
-            print(f'labeling_time = {labeling_time}')
+                label_graph(exact_graph, current_graph,
+                            min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
+                            et=et*et_coefficient, parallel=specs_obj.parallel)
+                labeling_time = time.time() - t_start
+                print(f'labeling_time = {labeling_time}')
 
             # extract subgraph
             t_start = time.time()
-            subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
+            subgraph_is_available = current_graph.extract_subgraph(specs_obj)
             subgraph_extraction_time = time.time() - t_start
-            subgraph_number_inputs = template_obj.current_graph.subgraph_num_inputs
-            subgraph_number_outputs = template_obj.current_graph.subgraph_num_outputs
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
-            print(f'subgraph_number_inputs = {subgraph_number_inputs}')
-            print(f'subgraph_number_outputs = {subgraph_number_outputs}')
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
             graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
             FS.mkdir(folder)
-            template_obj.current_graph.export_annotated_graph(graph_path)
+            current_graph.export_annotated_graph(graph_path)
             print(f'subgraph exported at {graph_path}')
 
             # guard
@@ -161,24 +138,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                 if et == available_error:
                     available_error = 0
                 continue
-
-            # run grid phase
-            if template_obj.is_two_phase_kind:
-                # todo:wip:marco
-                full_magraph, sub_magraph = template_obj.set_graph_and_update_functions(template_obj.current_graph)
-
-                p1_start = time.time()
-                success, message = template_obj.run_phase1([specs_obj.et, specs_obj.num_of_models, 1*60*60])
-                subxpat_phase1_time = time.time() - p1_start
-                print(f"p1_time = {subxpat_phase1_time:.6f}")
-
-                if not success:
-                    # TODO: Look into this in v2
-                    pprint.warning(f'phase 1 failed with message: {message}')
-                    prev_actual_error = 0
-                    if et == available_error:
-                        available_error = 0
-                    continue
 
             # explore the grid
             pprint.info2(f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...')
@@ -192,30 +151,14 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                 # update the context
                 specs_obj = set_current_context(specs_obj, lpp, ppo, i)
-                template_obj.set_new_context(specs_obj)
 
-                # run cell phase
-                if template_obj.is_two_phase_kind:
-                    # run script
-                    p2_start = time.time()
-                    cur_status, model = template_obj.run_phase2()
-                    subxpat_phase2_time = time.time() - p2_start
-                    print(f"p2_time = {subxpat_phase2_time:.6f}")
-                    template_obj.import_json_model()
+                # run script
+                manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
+                start_time = time.time()
+                results = manager.run()
+                execution_time = time.time() - start_time
 
-                else:
-                    # run script
-                    template_obj.z3_generate_z3pyscript()
-                    v1_start = time.time()
-                    template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=specs_obj.timeout)
-                    v1_end = time.time()
-                    subxpat_v1_time = v1_end - v1_start
-
-                    # at this point the internal verification using verification solver is already passed!
-
-                    # gather results
-                    cur_status = get_status(template_obj)
-
+                cur_status = results[0].status
                 if cur_status in (UNSAT, UNKNOWN):
                     pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()}')
 
@@ -223,11 +166,9 @@ def explore_grid(specs_obj: TemplateSpecs):
                     this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
                                             labeling_time=labeling_time,
                                             subgraph_extraction_time=subgraph_extraction_time,
-                                            subgraph_number_inputs=subgraph_number_inputs,
-                                            subgraph_number_outputs=subgraph_number_outputs,
-                                            subxpat_phase1_time=subxpat_phase1_time,
-                                            subxpat_phase2_time=subxpat_phase2_time,
-                                            subxpat_v1_time=subxpat_v1_time)
+                                            subgraph_number_inputs=current_graph.subgraph_num_inputs,
+                                            subgraph_number_outputs=current_graph.subgraph_num_outputs,
+                                            subxpat_v1_time=execution_time)
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
                     pre_iter_unsats[candidate] += 1
 
@@ -236,59 +177,18 @@ def explore_grid(specs_obj: TemplateSpecs):
                         dominant_cells.append((lpp, ppo))
 
                 elif cur_status == SAT:
-                    if specs_obj.subxpat_v2:
-                        # remove sub-graph from the full-graph
-                        hole_magraph = remove_subgraph(full_magraph, sub_magraph)
-                        # convert the model to a circuit
-                        model_magraph = xpat_model_to_magraph(model, iter_id=i)
-                        # insert the subgraph into the hole-graph
-                        merged_magraph = insert_subgraph(hole_magraph, model_magraph)
-
-                        synth_obj = Synthesis(
-                            specs_obj,
-                            template_obj.current_graph,  # not used if magraph is given
-                            template_obj.json_model,  # not used if magraph is given
-                            merged_magraph
-                        )
-
-                        # todo:marco: this seems to be working, lets make sure
-                        cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
-                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
-                        # print(f"{synth_obj.ver_out_path = }")
-                        synth_obj.export_verilog()
-                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
+                    synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
+                    cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
+                    for idx in range(synth_obj.num_of_models):
+                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
+                        synth_obj.export_verilog(idx=idx)
+                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
                         cur_model_results[synth_obj.ver_out_name] = (
                             synth_obj.estimate_area(),
                             synth_obj.estimate_power(),
                             synth_obj.estimate_delay(),
                             (lpp, ppo)
                         )
-
-                        # Morteza: Here we create a Model object and then save it
-                        this_model = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
-                                           area=cur_model_results[synth_obj.ver_out_name][0],
-                                           total_power=cur_model_results[synth_obj.ver_out_name][1],
-                                           delay=cur_model_results[synth_obj.ver_out_name][2],
-                                           labeling_time=labeling_time,
-                                           subgraph_extraction_time=subgraph_extraction_time,
-                                           subgraph_number_inputs=subgraph_number_inputs,
-                                           subgraph_number_outputs=subgraph_number_outputs,
-                                           subxpat_phase1_time=subxpat_phase1_time,
-                                           subxpat_phase2_time=subxpat_phase2_time)
-                        stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
-                    else:
-                        synth_obj = Synthesis(specs_obj, template_obj.current_graph, template_obj.json_model)
-                        cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
-                        for idx in range(synth_obj.num_of_models):
-                            synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
-                            synth_obj.export_verilog(idx=idx)
-                            synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
-                            cur_model_results[synth_obj.ver_out_name] = (
-                                synth_obj.estimate_area(),
-                                synth_obj.estimate_power(),
-                                synth_obj.estimate_delay(),
-                                (lpp, ppo)
-                            )
 
                     # todo: should we refactor with pandas?
                     with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
@@ -306,39 +206,31 @@ def explore_grid(specs_obj: TemplateSpecs):
                     for candidate in cur_model_results:
                         approximate_benchmark = candidate[:-2]
 
-                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, template_obj.et)
-                        if specs_obj.subxpat_v2:
-                            obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et)
-                            prev_actual_error = obtained_wce_prev
+                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, available_error)
+                        obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, available_error)
+                        prev_actual_error = obtained_wce_prev
 
-                        if obtained_wce_exact > template_obj.et:
+                        if obtained_wce_exact > available_error:
                             raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
-                    this_model = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=obtained_wce_exact, iteration=i,
-                                       area=cur_model_results[synth_obj.ver_out_name][0],
-                                       total_power=cur_model_results[synth_obj.ver_out_name][1],
-                                       delay=cur_model_results[synth_obj.ver_out_name][2],
-                                       labeling_time=labeling_time,
-                                       subgraph_extraction_time=subgraph_extraction_time,
-                                       subgraph_number_inputs=subgraph_number_inputs,
-                                       subgraph_number_outputs=subgraph_number_outputs,
-                                       subxpat_phase1_time=subxpat_phase1_time,
-                                       subxpat_phase2_time=subxpat_phase2_time,
-                                       subxpat_v1_time=subxpat_v1_time)
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
-                    print(f'{subxpat_v1_time = }')
-                    prev_string = ''
-                    if specs_obj.subxpat_v2:
-                        sum_wce_actual += obtained_wce_prev
-                        prev_string = f' and prev_wce = {obtained_wce_prev} with sum of prevs wce = {sum_wce_actual}'
-                    pprint.success(f'ErrorEval PASS! with total wce = {obtained_wce_exact}' + prev_string)
+                    this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=obtained_wce_exact, iteration=i,
+                                            area=cur_model_results[synth_obj.ver_out_name][0],
+                                            total_power=cur_model_results[synth_obj.ver_out_name][1],
+                                            delay=cur_model_results[synth_obj.ver_out_name][2],
+                                            labeling_time=labeling_time,
+                                            subgraph_extraction_time=subgraph_extraction_time,
+                                            subgraph_number_inputs=current_graph.subgraph_num_inputs,
+                                            subgraph_number_outputs=current_graph.subgraph_num_outputs,
+                                            subxpat_v1_time=execution_time)
+
+                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
+                    pprint.success(f'ErrorEval PASS! with total wce = {obtained_wce_exact}')
 
                     benchmark_name = specs_obj.benchmark_name
 
                     # todo:check: this seems to be working, lets make sure
                     specs_obj.exact_benchmark = approximate_benchmark
                     specs_obj.benchmark_name = approximate_benchmark
-                    template_obj.set_new_context(specs_obj)
 
                     synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
 
@@ -401,69 +293,6 @@ def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration:
     specs_obj.ppo = ppo
     specs_obj.iterations = iteration
     return specs_obj
-
-
-def is_unknown(template_obj: Template_SOP1) -> bool:
-    # NOTE: Never used
-    """
-        checks whether the current model was unknown or not
-        :param: the current template object
-        :rtype: boolean True if the current result is unknown
-    """
-
-    if template_obj.import_json_model():
-        # NOTE: Never enters here
-        return False
-
-    if template_obj.json_model == UNKNOWN:
-        print(f'my unknown!')
-        return True
-    else:
-        return False
-    # return template_obj.json_model == UNKNOWN
-
-
-def is_unsat(template_obj: Template_SOP1) -> bool:
-    # NOTE: Never used
-    """
-        checks whether the current model was unsat or not
-        :param: the current template object
-        :rtype: boolean True if the current result is unsat
-    """
-
-    if template_obj.import_json_model():
-        # NOTE: Never enters here
-        return False
-
-    if template_obj.json_model == UNSAT:
-        print(f'my unsat!')
-        return True
-    else:
-        return False
-    # return template_obj.json_model == UNSAT
-
-
-def get_status(template_obj: Union[Template_SOP1, Template_SOP1ShareLogic]) -> str:
-    """
-        checks whether the current model was sat, unsat or unknown
-        :param: the current template object
-        :rtype: an str containing either of SAT, UNSAT, or UNKNOWN
-    """
-
-    # note:refactor:marco
-    template_obj.import_json_model()
-    assert all(res in (SAT, UNSAT, UNKNOWN) for res in template_obj.json_status), f'Invalid status ({template_obj.json_status})'
-    # todo:question: why do we return only the 0th element? doesn't the json model include many models?
-    return template_obj.json_status[0]
-
-    # original
-    # template_obj.import_json_model()
-    # if template_obj.json_status[0] == SAT:
-    #     return SAT
-    # elif template_obj.json_status[0] == UNSAT:
-    #     return UNSAT
-    # elif template_obj.json_status[0] == UNKNOWN:
-    #     return UNKNOWN
 
 
 def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_stats: List = None) -> None:
@@ -587,3 +416,31 @@ def display_the_tree(this_dict: Dict) -> None:
 
     # with open(file_path, 'w') as f:
     #     pass
+
+
+def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph,
+                min_labeling: bool = False,  partial: bool = False,
+                et: int = -1, parallel: bool = False):
+    labels, _ = labeling_explicit(exact_graph.name, current_graph.name,
+                                  constant_value=0, min_labeling=min_labeling,
+                                  partial=partial, et=et, parallel=parallel)
+
+    for n in current_graph.graph.nodes:
+        current_graph.graph.nodes[n][WEIGHT] = int(labels[n]) if n in labels else -1
+
+def get_toolname(specs_obj: TemplateSpecs) -> str:
+    if specs_obj.subxpat_v2:
+        pprint.info2('SubXPAT-V2 started...')
+        toolname = sxpatconfig.SUBXPAT_V2
+    elif specs_obj.subxpat and specs_obj.shared:
+        pprint.info2('Shared SubXPAT started...')
+        toolname = sxpatconfig.SHARED_SUBXPAT
+    elif specs_obj.subxpat and not specs_obj.shared:
+        pprint.info2('SubXPAT started...')
+        toolname = sxpatconfig.SUBXPAT
+    elif not specs_obj.subxpat and specs_obj.shared:
+        pprint.info2('Shared XPAT started...')
+        toolname = sxpatconfig.SHARED_XPAT
+    elif not specs_obj.subxpat and not specs_obj.shared:
+        pprint.info2('XPAT started...')
+        toolname = sxpatconfig.XPAT
