@@ -1,7 +1,7 @@
 import csv
 import time
 from typing import Iterable, Iterator, List, Union
-
+import networkx as nx
 from tabulate import tabulate
 
 import math
@@ -29,7 +29,7 @@ from z_marco.utils import pprint, color
 
 
 def explore_grid(specs_obj: TemplateSpecs):
-
+    previous_subgraphs = []
     print(f'{specs_obj = }')
 
     labeling_time: float = -1
@@ -260,7 +260,20 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if exists_an_area_zero(current_population):
             break
-    display_the_tree(total)
+        # For loop detection at an iteration in which the input and output are the same!
+        loop_detected = False
+        for idx, s in enumerate(previous_subgraphs):
+            if idx == len(previous_subgraphs) - 1 and idx > 1:
+                if nx.utils.graphs_equal(previous_subgraphs[idx - 1], previous_subgraphs[idx]) and \
+                        nx.utils.graphs_equal(previous_subgraphs[idx], previous_subgraphs[idx - 2]):
+                    print(f'The last three subgraphs are equal')
+                    pprint.info3(f'The last three subgraphs are equal!')
+                    pprint.info3(f'Terminating the exploration!')
+                    loop_detected = True
+                    break
+        if loop_detected:
+            break
+    # display_the_tree(total) # it's unused let's delete this
 
     stats_obj.store_grid()
     return stats_obj
