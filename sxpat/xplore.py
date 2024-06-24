@@ -82,7 +82,13 @@ def explore_grid(specs_obj: TemplateSpecs):
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
-    max_unsat_reached = False
+
+    max_et = specs_obj.et
+    error_exceeded = False
+    loop_detected = False
+    persistance_limit = 3
+    persistance = 1
+    prev_et = -1
     while (obtained_wce_exact < available_error):
         i += 1
         if specs_obj.et_partitioning == 'asc':
@@ -92,32 +98,48 @@ def explore_grid(specs_obj: TemplateSpecs):
             log2 = int(math.log2(specs_obj.et))
             et = 2**(log2 - i - 2)
         elif specs_obj.et_partitioning == 'smart_asc':
-            et = 1 if i == 1 else prev_given_error + (1 if prev_actual_error == 0 else 0)
-            if available_error < et*2:
-                et = available_error
-            prev_given_error = et
+            if max_et >= 8:
+                et = max_et // 8 if i == 1 else et + (max_et // 8 if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) else 0 )
+                if prev_et == et:
+                    persistance += 1
+                else:
+                    persistance = 0
+                prev_et = et
+            else:
+                et = 1 if i == 1 else et + (1 if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) else 0 )
+                if prev_et == et:
+                    persistance += 1
+                else:
+                    persistance = 0
+                prev_et = et
         elif specs_obj.et_partitioning == 'smart_desc':
-            et = available_error if i == 1 else prev_given_error - (1 if prev_actual_error == 0 else 0)
-            if et > available_error:
-                et = available_error
-            prev_given_error = et
+            et = available_error if i == 1 else et // (2 if prev_actual_error == 0 else 1)
+            # if et > available_error:
+            #     et = available_error
+            # prev_given_error = et
         else:
             raise NotImplementedError('invalid status')
+        if et > available_error or et < 0:
+            break
+
+
+
 
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
 
-        if max_unsat_reached and not template_obj.is_two_phase_kind:
-            break
+        max_unsat_reached = False
 
         # for all candidates
+        # print(f'{current_population = }')
         for candidate in current_population:
             # guard
-            if pre_iter_unsats[candidate] == total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
-                pprint.info1(f'Number of UNSATs reached!')
-                max_unsat_reached = True
-                continue
+            # if pre_iter_unsats[candidate] == total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
+            #     pprint.info1(f'Number of UNSATs reached!')
+            #     max_unsat_reached = True
+            #     pre_iter_unsats[candidate] = 0
+            #     continue
 
             pprint.info1(f'candidate {candidate}')
             if candidate.endswith('.v'):
@@ -137,7 +159,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 # label graph
                 t_start = time.time()
 
-            et_coefficient = 8
+            et_coefficient = 2
 
             template_obj.label_graph(min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling, et=et*et_coefficient, parallel=specs_obj.parallel)
             labeling_time = time.time() - t_start
@@ -147,7 +169,8 @@ def explore_grid(specs_obj: TemplateSpecs):
             t_start = time.time()
             subgraph_is_available = template_obj.current_graph.extract_subgraph(specs_obj)
 
-            previous_subgraphs.append(template_obj.current_graph.subgraph)
+
+
             subgraph_extraction_time = time.time() - t_start
             subgraph_number_inputs = template_obj.current_graph.subgraph_num_inputs
             subgraph_number_outputs = template_obj.current_graph.subgraph_num_outputs
@@ -169,7 +192,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 if et == available_error:
                     available_error = 0
                 continue
-
+            previous_subgraphs.append(template_obj.current_graph.subgraph)
             # run grid phase
             if template_obj.is_two_phase_kind:
                 # todo:wip:marco
@@ -215,7 +238,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                     # run script
                     template_obj.z3_generate_z3pyscript()
                     v1_start = time.time()
-                    template_obj.run_z3pyscript(ET=specs_obj.et, num_models=specs_obj.num_of_models, timeout=specs_obj.timeout)
+                    assert specs_obj.et == et, pprint.error(f'{et} != {specs_obj.et}')
+                    template_obj.run_z3pyscript(ET=et, num_models=specs_obj.num_of_models, timeout=specs_obj.timeout)
                     v1_end = time.time()
                     subxpat_v1_time = v1_end - v1_start
 
@@ -314,13 +338,19 @@ def explore_grid(specs_obj: TemplateSpecs):
                     for candidate in cur_model_results:
                         approximate_benchmark = candidate[:-2]
 
-                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, template_obj.et)
-                        if specs_obj.subxpat_v2:
-                            obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et)
-                            prev_actual_error = obtained_wce_prev
-
+                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, specs_obj.et)
                         if obtained_wce_exact > template_obj.et:
-                            raise Exception(color.error('ErrorEval Verification: FAILED!'))
+                            pprint.error(f'ErrorEval Verification: FAILED! {obtained_wce_exact = } < {template_obj.et = }')
+                            #  = '.txt'
+                            file_name = f'output/report/FAILED_{stats_obj.get_grid_name()[:-4]}_{obtained_wce_exact}>{template_obj.et}.txt'
+                            with open(f'{file_name}', 'w'):
+                                pass
+                            exit()
+                        pprint.info3(f'Evaluating the local WCE between the input and the output of this iteration...')
+                        obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, template_obj.et)
+                        prev_actual_error = obtained_wce_prev
+                        pprint.info3(f'Local WCE = {obtained_wce_prev}')
+
 
                     this_model = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=obtained_wce_exact, iteration=i,
                                        area=cur_model_results[synth_obj.ver_out_name][0],
@@ -334,7 +364,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                                        subxpat_phase2_time=subxpat_phase2_time,
                                        subxpat_v1_time=subxpat_v1_time)
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
-                    print(f'{subxpat_v1_time = }')
+
                     prev_string = ''
                     if specs_obj.subxpat_v2:
                         sum_wce_actual += obtained_wce_prev
@@ -384,15 +414,19 @@ def explore_grid(specs_obj: TemplateSpecs):
         loop_detected = False
         for idx, s in enumerate(previous_subgraphs):
             if idx == len(previous_subgraphs) - 1 and idx > 1:
-                if nx.utils.graphs_equal(previous_subgraphs[idx-2], previous_subgraphs[idx-1]) and \
-                    nx.utils.graphs_equal(previous_subgraphs[idx-2], previous_subgraphs[idx-3]):
+                if nx.utils.graphs_equal(previous_subgraphs[idx-1], previous_subgraphs[idx]) and \
+                    nx.utils.graphs_equal(previous_subgraphs[idx], previous_subgraphs[idx-2]):
                     print(f'The last three subgraphs are equal')
                     pprint.info3(f'The last three subgraphs are equal!')
                     pprint.info3(f'Terminating the exploration!')
                     loop_detected = True
                     break
-        if loop_detected:
-            break
+        # if loop_detected:
+        #     break
+
+        # if max_unsat_reached and (et >= max_et or et <= 0) and not template_obj.is_two_phase_kind:
+        #     max_unsat_reached = False
+        #     break
 
     # display_the_tree(total)
 
