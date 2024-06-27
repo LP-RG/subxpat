@@ -20,23 +20,30 @@ def main():
     folder = 'experiments/results'
     rel_files = get_relevant_files(args, folder)
 
-    area_error_mode_per_grid_dict = get_area_error_per_mode_grid(rel_files, folder)
-    plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict, mecals_area_error)
 
-
-    error_cells_subgraph_inputs_dict_per_mode = get_subgraph_inputs_vs_sat_cells(rel_files, folder)
-    report_sat_cells_vs_subgraph_inputs(args, error_cells_subgraph_inputs_dict_per_mode)
-
-
-
+    # area_error_mode_per_grid_dict = get_area_error_per_mode_grid(rel_files, folder)
+    # plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict, area_error_mode_last_points_dict=None,
+    #                                    mecals_area_error=mecals_area_error)
+    # area_error_mode_last_points_dict = get_area_error_per_mode_per_grid_last_points(rel_files, folder)
+    # plot_area_error_mode_per_grid_dict(args, area_error_mode_last_points_dict, area_error_mode_last_points_dict=None, mecals_area_error=mecals_area_error)
+    # 
+    # 
+    # 
+    # 
+    # 
+    # error_cells_subgraph_inputs_dict_per_mode = get_subgraph_inputs_vs_sat_cells(rel_files, folder)
+    # report_sat_cells_vs_subgraph_inputs(args, error_cells_subgraph_inputs_dict_per_mode)
+    # 
+    # 
+    # 
     # error_cells_dict_per_mode = get_sat_cells(rel_files, folder)
     # plot_cells_per_mode(args, error_cells_dict_per_mode)
-
-
-
-    get_runtime_per_mode_decomposition(rel_files, folder)
-    sorted_runtime_error_per_mode = get_runtime_per_mode(rel_files, folder)
-    plot_runtime_error_per_mode(args, sorted_runtime_error_per_mode)
+    # 
+    # 
+    # #
+    # get_runtime_per_mode_decomposition(rel_files, folder)
+    # sorted_runtime_error_per_mode = get_runtime_per_mode(rel_files, folder)
+    # plot_runtime_error_per_mode(args, sorted_runtime_error_per_mode)
 
 
 
@@ -46,8 +53,8 @@ def main():
     # area_error_ns_dict = get_area_error_per_num_subgraphs(rel_files, folder)
     # plot_area_error_per_ns(args, area_error_ns_dict)
 
-    area_error_mode_dict = get_area_error_per_mode(rel_files, folder)
-    plot_area_error_per_mode(args, area_error_mode_dict)
+    # area_error_mode_dict = get_area_error_per_mode(rel_files, folder)
+    # plot_area_error_per_mode(args, area_error_mode_dict)
 
     # sorted_aggregated_runtime_error = get_runtime_aggregated(rel_files, folder)
     # plot_runtime_aggregated(args, sorted_aggregated_runtime_error)
@@ -79,7 +86,7 @@ def get_relevant_files(args: Arguments, folder):
 def get_sat_cells(relevant_files, folder):
     error_cell_dict_per_mode: Dict = {}
     error_cell_dict: Dict = {}
-    for mode in range(20):
+    for mode in range(200):
         for rep in relevant_files:
             if re.search(f'mode{mode}_', rep):
                 with open(f'{folder}/{rep}', 'r') as f:
@@ -109,7 +116,7 @@ def get_sat_cells(relevant_files, folder):
 def get_subgraph_inputs_vs_sat_cells(relevant_files, folder):
     error_cell_dict_per_mode: Dict = {}
     error_cell_dict: Dict = {}
-    for mode in range(20):
+    for mode in range(200):
         for rep in relevant_files:
             if re.search(f'mode{mode}_', rep):
                 with open(f'{folder}/{rep}', 'r') as f:
@@ -245,17 +252,55 @@ def get_area_error_per_mode(relevant_files, folder):
     return area_error_mode_dict
 
 
+def get_area_error_per_mode_per_grid_last_points(relevant_files, folder):
+    area_error_mode_per_grid_dict: Dict[int: [float, int]] = {}
+    area_error_per_grid = {}
+    grids = []
+    for mode in range(200):
+        for rep in relevant_files:
+            last_point = False
+            min_area = float('inf')
+            max_error = 0
+            if re.search(f'mode{mode}_', rep):
+                et = int(re.search(f'et(\d+)_', rep).group(1))
+                grid = re.search(f'(\d+X\d+)', rep).group()
+                if grid not in grids:
+                    grids.append(grid)
+                with open(f'{folder}/{rep}', 'r') as f:
+                    csvreader = csv.reader(f)
+                    for line in csvreader:
+                        if line[0].startswith('cell'):  # skip the first line
+                            continue
+                        else:
+                            if line[3].startswith('SAT'):
+                                area = float(line[5])
+                                # error = int(line[8])
+
+                                if area < min_area:
+                                    min_area = area
+
+                    last_point = (min_area, et)
+                    if grid not in area_error_per_grid.keys():
+                        area_error_per_grid[grid] = []
+                    area_error_per_grid[grid].append(last_point)
+        if area_error_per_grid:
+            area_error_mode_per_grid_dict[mode] = area_error_per_grid
+        area_error_per_grid = {}
+    return area_error_mode_per_grid_dict
+
 def get_area_error_per_mode_grid(relevant_files, folder):
     area_error_mode_per_grid_dict: Dict[int: [float, int]] = {}
     area_error_per_grid = {}
     grids = []
+    print(f'{relevant_files = }')
+    print(f'{len(relevant_files) = }')
+
     for mode in range(200):
         for rep in relevant_files:
             if re.search(f'mode{mode}_', rep):
                 grid = re.search(f'(\d+X\d+)', rep).group()
                 if grid not in grids:
                     grids.append(grid)
-
                 with open(f'{folder}/{rep}', 'r') as f:
                     csvreader = csv.reader(f)
                     for line in csvreader:
@@ -269,7 +314,6 @@ def get_area_error_per_mode_grid(relevant_files, folder):
                                 if grid not in area_error_per_grid.keys():
                                     area_error_per_grid[grid] = []
                                 area_error_per_grid[grid].append((area, error))
-
 
         if area_error_per_grid:
             area_error_mode_per_grid_dict[mode] = area_error_per_grid
@@ -285,7 +329,7 @@ def get_runtime_per_mode(relevant_files, folder):
 
     runtime_error_dict: Dict[Tuple[int, float]] = {}
     runtime_error_per_mode_dict = {}
-    for mode in range(20):
+    for mode in range(200):
         for rep in relevant_files:
             if re.search(f'mode{mode}_', rep):
                 with open(f'{folder}/{rep}', 'r') as f:
@@ -443,6 +487,7 @@ def plot_area_error(args, sorted_area_error: List, mecals_area_error: List = Non
     if mecals_area_error:
         mecals_areas = [item[0] for item in mecals_area_error]
         mecals_errors = [item[1] for item in mecals_area_error]
+        print(f'{mecals_errors = }')
         plt.plot(mecals_errors, mecals_areas, 's--', label='MECALS', color='black')
         plt.legend()
 
@@ -526,7 +571,7 @@ def plot_area_error_per_mode(args, area_error_mode_dict: Dict):
     plt.savefig(figname)
 
 
-def plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict: Dict, mecals_area_error = None):
+def plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict: Dict, area_error_mode_last_points_dict: Dict = None, mecals_area_error = None):
     plt.figure(figsize=(10, 6))
     plt.title(f'{args.benchmark_name} per mode and grid')
     marker = itertools.cycle(('D', 'o', 'X', 's'))
@@ -546,12 +591,24 @@ def plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict: Dict
         plt.plot(mecals_errors, mecals_areas, 's--', label='MECALS', color='black')
         plt.legend()
 
+    if area_error_mode_last_points_dict:
+        for mode in area_error_mode_last_points_dict.keys():
+            sorted_area_error_per_mode = area_error_mode_last_points_dict[mode]
+            for grid in sorted_area_error_per_mode.keys():
+                sorted_area_error = sorted_area_error_per_mode[grid]
+                areas = [item[0] for item in sorted_area_error]
+                errors = [item[1] for item in sorted_area_error]
+                plt.scatter(errors, areas, marker='s', label=f'mode{mode}, grid{grid}', alpha=0.5)
+
     plt.legend()
     plt.xlabel('ET')
     plt.ylabel('Area')
     plt.grid(True)
     folder, _ = OUTPUT_PATH['figure']
-    figname = f'{folder}/{args.benchmark_name}_area_per_mode_and_grid.png'
+    if area_error_mode_last_points_dict:
+        figname = f'{folder}/{args.benchmark_name}_area_per_mode_and_grid_last.png'
+    else:
+        figname = f'{folder}/{args.benchmark_name}_area_per_mode_and_grid.png'
     plt.savefig(figname)
 
 
