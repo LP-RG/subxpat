@@ -1,3 +1,4 @@
+import re
 from typing import Dict, List, Callable
 from sklearn.cluster import SpectralClustering
 from colorama import Fore, Style
@@ -3264,21 +3265,55 @@ class AnnotatedGraph(Graph):
         exports the subgraph (annotated graph) to a GV (GraphViz) file
         :return:
         """
-        # print(f'exporting the annotated subgraph!')
-        # print(f'{self.subgraph_out_path = }')
-        with open(filename or self.subgraph_out_path, 'w') as f:
-            f.write(f"{STRICT} {DIGRAPH} \"{self.name}\" {{\n")
-            f.write(f"{NODE} [{STYLE} = {FILLED}, {FILLCOLOR} = {WHITE}]\n")
-            for n in self.subgraph.nodes:
-                self.export_node(n, f)
-            for e in self.subgraph.edges:
-                self.export_edge(e, f)
-            f.write(f"}}\n")
+        try:
+            with open(filename or self.subgraph_out_path, 'w') as f:
+                f.write(f"{STRICT} {DIGRAPH} \"{self.name}\" {{\n")
+                f.write(f"{NODE} [{STYLE} = {FILLED}, {FILLCOLOR} = {WHITE}]\n")
+                for n in self.subgraph.nodes:
+                    self.export_node(n, f)
+                for e in self.subgraph.edges:
+                    self.export_edge(e, f)
+                f.write(f"}}\n")
+        except OSError as exc:
+            if exc.errno == 36:
+                pprint.red(f'File name too long! Shortening it..')
+
+                self.shorten_file_name()
+                pprint.info3(f'{self.subgraph_out_path = }')
+                with open(filename or self.subgraph_out_path, 'w') as f:
+                    f.write(f"{STRICT} {DIGRAPH} \"{self.name}\" {{\n")
+                    f.write(f"{NODE} [{STYLE} = {FILLED}, {FILLCOLOR} = {WHITE}]\n")
+                    for n in self.subgraph.nodes:
+                        self.export_node(n, f)
+                    for e in self.subgraph.edges:
+                        self.export_edge(e, f)
+                    f.write(f"}}\n")
+            else:
+                raise
         folder, extension = OUTPUT_PATH[GV]
-        # print(f'{self.subgraph_out_path = }')
-        # print(f'{self.name = }')
         subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
 
+
+    def shorten_file_name(self):
+        name = self.subgraph_out_path
+        print(f'{name = }')
+        pattern = r"^(.*?)(_0)"
+        base_part = re.search(pattern, name).group(1)
+        print(f'{base_part = }')
+        tail_pattern = r"(.*_0)(.*)$"
+        tail = re.search(tail_pattern, name).group(2)
+        print(f'{tail = }')
+
+        pattern = '_short(\d+)'
+        match = re.search(pattern, base_part)
+        if match:
+            short_number = int(match.group(1))
+            base_part = re.sub(pattern, '', base_part)
+            new_name = f'{base_part}_short{short_number+1}{tail}'
+        else:
+            new_name = f'{base_part}_short1{tail}'
+
+        self.subgraph_out_path = new_name
     # TODO:for external modifications
     def evaluate_subgraph_error(self) -> float:
         """

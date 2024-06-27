@@ -24,6 +24,36 @@ from z_marco.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subg
 
 from z_marco.utils import pprint, color
 
+def generate_et_array(et, k):
+    step = et // k
+    result = []
+    offset = []
+
+
+    if step <= 1:
+        result = list(range(1, et+1))
+    else:
+        log2 = int(math.log2(step))
+        # print(f'{log2 = }')
+        for i in range(log2 + 1):
+            if 2**i < step:
+                offset.append(2**i)
+        # print(f'{offset = }')
+        for i in range(k):
+
+            base = i * step
+            # print(f'{base = }')
+            if base > 0:
+                result.append(base)
+            for off in offset:
+                result.append(base + off)
+            next_base = (i + 1) * step if (i + 1) < k else et
+            if next_base == et:
+                result.append(et)
+
+
+    return result
+
 
 def explore_grid(specs_obj: TemplateSpecs):
 
@@ -89,6 +119,12 @@ def explore_grid(specs_obj: TemplateSpecs):
     persistance_limit = 3
     persistance = 1
     prev_et = -1
+
+    et_iterator = iter(generate_et_array(max_et, 8))
+    print(f'{list(et_iterator) = }')
+    et_iterator = iter(generate_et_array(max_et, 8))
+    # print(f'{type(et_iterator) = }')
+    # exit()
     while (obtained_wce_exact < available_error):
         i += 1
         if specs_obj.et_partitioning == 'asc':
@@ -98,20 +134,23 @@ def explore_grid(specs_obj: TemplateSpecs):
             log2 = int(math.log2(specs_obj.et))
             et = 2**(log2 - i - 2)
         elif specs_obj.et_partitioning == 'smart_asc':
-            if max_et >= 8:
-                et = max_et // 8 if i == 1 else et + (max_et // 8 if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) else 0 )
-                if prev_et == et:
-                    persistance += 1
-                else:
-                    persistance = 0
-                prev_et = et
+
+                # et = max_et // 8 if i == 1 else et + (max_et // 8 if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) else 0 )
+            if i == 1:
+                et = next(et_iterator)
             else:
-                et = 1 if i == 1 else et + (1 if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) else 0 )
-                if prev_et == et:
-                    persistance += 1
-                else:
-                    persistance = 0
-                prev_et = et
+                if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) and (et < available_error):
+                    et = next(et_iterator)
+
+            if prev_et == et:
+                persistance += 1
+            else:
+                persistance = 0
+            prev_et = et
+
+            if prev_et == available_error and persistance == persistance_limit:
+                break
+
         elif specs_obj.et_partitioning == 'smart_desc':
             et = available_error if i == 1 else et // (2 if prev_actual_error == 0 else 1)
             # if et > available_error:
@@ -119,8 +158,12 @@ def explore_grid(specs_obj: TemplateSpecs):
             # prev_given_error = et
         else:
             raise NotImplementedError('invalid status')
+
+
+
         if et > available_error or et < 0:
             break
+
 
 
 
