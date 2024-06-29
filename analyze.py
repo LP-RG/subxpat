@@ -21,12 +21,12 @@ def main():
     rel_files = get_relevant_files(args, folder)
 
 
-    # area_error_mode_per_grid_dict = get_area_error_per_mode_grid(rel_files, folder)
-    # plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict, area_error_mode_last_points_dict=None,
-    #                                    mecals_area_error=mecals_area_error)
-    # area_error_mode_last_points_dict = get_area_error_per_mode_per_grid_last_points(rel_files, folder)
-    # plot_area_error_mode_per_grid_dict(args, area_error_mode_last_points_dict, area_error_mode_last_points_dict=None, mecals_area_error=mecals_area_error)
-    # 
+    area_error_mode_per_grid_dict = get_area_error_per_mode_grid(rel_files, folder)
+    plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict, area_error_mode_last_points_dict=None,
+                                       mecals_area_error=mecals_area_error)
+    area_error_mode_last_points_dict = get_area_error_per_mode_per_grid_last_points(rel_files, folder)
+    plot_area_error_mode_per_grid_dict(args, area_error_mode_last_points_dict, area_error_mode_last_points_dict=None, mecals_area_error=mecals_area_error)
+
     # 
     # 
     # 
@@ -49,7 +49,8 @@ def main():
 
     sorted_area_error = get_area_error(rel_files, folder)
     plot_area_error(args, sorted_area_error, mecals_area_error)
-
+    plot_area_error_best(args, sorted_area_error, mecals_area_error)
+    plot_area_error_pareto(args, sorted_area_error, mecals_area_error)
     # area_error_ns_dict = get_area_error_per_num_subgraphs(rel_files, folder)
     # plot_area_error_per_ns(args, area_error_ns_dict)
 
@@ -498,6 +499,86 @@ def plot_area_error(args, sorted_area_error: List, mecals_area_error: List = Non
     plt.grid(True)
     folder, _ = OUTPUT_PATH['figure']
     figname = f'{folder}/{args.benchmark_name}_all.png'
+    plt.savefig(figname)
+
+
+def plot_area_error_best(args, sorted_area_error: List, mecals_area_error: List = None):
+
+
+    min_area_by_error = {}
+    for area, error in sorted_area_error:
+        if error in min_area_by_error:
+            min_area_by_error[error] = min(min_area_by_error[error], area)
+        else:
+            min_area_by_error[error] = area
+    areas = [item[1] for item in min_area_by_error.items()]
+    errors = [item[0] for item in min_area_by_error.items()]
+    # Plot the data
+    plt.figure(figsize=(10, 6))
+    assert len(errors) == len(areas)
+    if mecals_area_error:
+        mecals_areas = [item[0] for item in mecals_area_error]
+        mecals_errors = [item[1] for item in mecals_area_error]
+
+        plt.plot(mecals_errors, mecals_areas, 's--', label='MECALS', color='black')
+        plt.legend()
+
+    plt.plot(errors, areas, 'o',  label='SubXPAT', color='blue')
+    plt.title(f'{args.benchmark_name}, ')
+    plt.xlabel('ET')
+    plt.ylabel('Area')
+    plt.grid(True)
+    folder, _ = OUTPUT_PATH['figure']
+    figname = f'{folder}/{args.benchmark_name}_best.png'
+    plt.savefig(figname)
+
+def is_dominated(current_point, points):
+    """ Check if the current point is dominated by any point in the list """
+    for point in points:
+        if point[0] < current_point[0] and point[1] < current_point[1] and point != current_point:
+            return True
+    return False
+
+def find_pareto_points(points):
+    """ Find and return the list of Pareto optimal points """
+    pareto_points = []
+    for point in points:
+        if not is_dominated(point, points):
+            pareto_points.append(point)
+    return pareto_points
+
+def plot_area_error_pareto(args, sorted_area_error: List, mecals_area_error: List = None):
+
+
+    # min_area_by_error = {}
+    # for area, error in sorted_area_error:
+    #     if error in min_area_by_error:
+    #         min_area_by_error[error] = min(min_area_by_error[error], area)
+    #     else:
+    #         min_area_by_error[error] = area
+    # areas = [item[1] for item in min_area_by_error.items()]
+    # errors = [item[0] for item in min_area_by_error.items()]
+
+    pareto_points = find_pareto_points(sorted_area_error)
+    areas = [item[0] for item in pareto_points]
+    errors = [item[1] for item in pareto_points]
+    # Plot the data
+    plt.figure(figsize=(10, 6))
+    assert len(errors) == len(areas)
+    if mecals_area_error:
+        mecals_areas = [item[0] for item in mecals_area_error]
+        mecals_errors = [item[1] for item in mecals_area_error]
+
+        plt.plot(mecals_errors, mecals_areas, 's--', label='MECALS', color='black')
+        plt.legend()
+
+    plt.plot(errors, areas, 'o',  label='SubXPAT', color='blue')
+    plt.title(f'{args.benchmark_name}, ')
+    plt.xlabel('ET')
+    plt.ylabel('Area')
+    plt.grid(True)
+    folder, _ = OUTPUT_PATH['figure']
+    figname = f'{folder}/{args.benchmark_name}_pareto.png'
     plt.savefig(figname)
 
 def plot_area_error_per_ns(args, area_error_ns_dict: Dict):
