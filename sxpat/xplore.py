@@ -121,7 +121,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     prev_et = -1
 
     et_iterator = iter(generate_et_array(max_et, 8))
-    print(f'{list(et_iterator) = }')
+    # print(f'{list(et_iterator) = }')
     et_iterator = iter(generate_et_array(max_et, 8))
     # print(f'{type(et_iterator) = }')
     # exit()
@@ -191,7 +191,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             # > grid step settings
 
             # initialize context
-            specs_obj.et = et
+            specs_obj.et =  et
             template_obj.set_new_context(specs_obj)
 
             # import the graph
@@ -220,6 +220,8 @@ def explore_grid(specs_obj: TemplateSpecs):
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
             print(f'subgraph_number_inputs = {subgraph_number_inputs}')
             print(f'subgraph_number_outputs = {subgraph_number_outputs}')
+
+
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
