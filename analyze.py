@@ -21,11 +21,11 @@ def main():
     rel_files = get_relevant_files(args, folder)
 
 
-    area_error_mode_per_grid_dict = get_area_error_per_mode_grid(rel_files, folder)
-    plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict, area_error_mode_last_points_dict=None,
-                                       mecals_area_error=mecals_area_error)
+    # area_error_mode_per_grid_dict = get_area_error_per_mode_grid(rel_files, folder)
+    # plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict, area_error_mode_last_points_dict=None,
+    #                                    mecals_area_error=mecals_area_error)
     area_error_mode_last_points_dict = get_area_error_per_mode_per_grid_last_points(rel_files, folder)
-    plot_area_error_mode_per_grid_dict(args, area_error_mode_last_points_dict, area_error_mode_last_points_dict=None, mecals_area_error=mecals_area_error)
+    # plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
 
     # 
     # 
@@ -48,9 +48,9 @@ def main():
 
 
     sorted_area_error = get_area_error(rel_files, folder)
-    plot_area_error(args, sorted_area_error, mecals_area_error)
-    plot_area_error_best(args, sorted_area_error, mecals_area_error)
-    plot_area_error_pareto(args, sorted_area_error, mecals_area_error)
+    plot_area_error(args, sorted_area_error, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
+    # plot_area_error_best(args, sorted_area_error, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
+    plot_area_error_pareto(args, sorted_area_error, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
     # area_error_ns_dict = get_area_error_per_num_subgraphs(rel_files, folder)
     # plot_area_error_per_ns(args, area_error_ns_dict)
 
@@ -260,8 +260,9 @@ def get_area_error_per_mode_per_grid_last_points(relevant_files, folder):
     for mode in range(200):
         for rep in relevant_files:
             last_point = False
-            min_area = float('inf')
-            max_error = 0
+            last_area = float('inf')
+            last_et = 0
+            last_iteration = 0
             if re.search(f'mode{mode}_', rep):
                 et = int(re.search(f'et(\d+)_', rep).group(1))
                 grid = re.search(f'(\d+X\d+)', rep).group()
@@ -275,12 +276,15 @@ def get_area_error_per_mode_per_grid_last_points(relevant_files, folder):
                         else:
                             if line[3].startswith('SAT'):
                                 area = float(line[5])
-                                # error = int(line[8])
+                                error = int(line[8])
+                                iteration = int(line[1])
+                                if iteration > last_iteration:
+                                    last_iteration = iteration
+                                    last_area = area
+                                    last_et = error
 
-                                if area < min_area:
-                                    min_area = area
 
-                    last_point = (min_area, et)
+                    last_point = (last_area, last_et)
                     if grid not in area_error_per_grid.keys():
                         area_error_per_grid[grid] = []
                     area_error_per_grid[grid].append(last_point)
@@ -293,8 +297,8 @@ def get_area_error_per_mode_grid(relevant_files, folder):
     area_error_mode_per_grid_dict: Dict[int: [float, int]] = {}
     area_error_per_grid = {}
     grids = []
-    print(f'{relevant_files = }')
-    print(f'{len(relevant_files) = }')
+    # print(f'{relevant_files = }')
+    # print(f'{len(relevant_files) = }')
 
     for mode in range(200):
         for rep in relevant_files:
@@ -478,13 +482,24 @@ def plot_cells_per_mode(args, error_cell_dict_per_mode):
     figname = f'{folder}/{args.benchmark_name}_cell_scores_per_mode.png'
     plt.savefig(figname)
 
-def plot_area_error(args, sorted_area_error: List, mecals_area_error: List = None):
+def plot_area_error(args, sorted_area_error: List, area_error_mode_last_points_dict: Dict = None, mecals_area_error: List = None):
+    color_map = {
+        51: 'red',
+        53: 'orange',
+        12: 'cyan',
+        121: 'green'
+
+        # Add more modes and their respective colors as needed
+    }
+    plt.figure(figsize=(10, 6))
+
     areas = [item[0] for item in sorted_area_error]
     errors = [item[1] for item in sorted_area_error]
-
-    # Plot the data
-    plt.figure(figsize=(10, 6))
     assert len(errors) == len(areas)
+    plt.scatter(errors, areas, marker='D', label='SubXPAT', color='blue', alpha=0.2, s=50)
+    # Plot the data
+
+
     if mecals_area_error:
         mecals_areas = [item[0] for item in mecals_area_error]
         mecals_errors = [item[1] for item in mecals_area_error]
@@ -492,17 +507,29 @@ def plot_area_error(args, sorted_area_error: List, mecals_area_error: List = Non
         plt.plot(mecals_errors, mecals_areas, 's--', label='MECALS', color='black')
         plt.legend()
 
-    plt.plot(errors, areas, 'o',  label='SubXPAT', color='blue')
+    if area_error_mode_last_points_dict:
+        for mode in area_error_mode_last_points_dict.keys():
+            sorted_area_error_per_mode = area_error_mode_last_points_dict[mode]
+            for grid in sorted_area_error_per_mode.keys():
+                sorted_area_error = sorted_area_error_per_mode[grid]
+                areas = [item[0] for item in sorted_area_error]
+                errors = [item[1] for item in sorted_area_error]
+                color = color_map.get(mode, 'black')
+                plt.scatter(errors, areas, marker='s', label=f'mode{mode} (final-points), grid{grid}', alpha=1,
+                            color=color)
+
+
     plt.title(f'{args.benchmark_name}, ')
     plt.xlabel('ET')
     plt.ylabel('Area')
     plt.grid(True)
+    plt.legend()
     folder, _ = OUTPUT_PATH['figure']
     figname = f'{folder}/{args.benchmark_name}_all.png'
     plt.savefig(figname)
 
 
-def plot_area_error_best(args, sorted_area_error: List, mecals_area_error: List = None):
+def plot_area_error_best(args, sorted_area_error: List, area_error_mode_last_points_dict: Dict = None, mecals_area_error: List = None):
 
 
     min_area_by_error = {}
@@ -515,6 +542,7 @@ def plot_area_error_best(args, sorted_area_error: List, mecals_area_error: List 
     errors = [item[0] for item in min_area_by_error.items()]
     # Plot the data
     plt.figure(figsize=(10, 6))
+    plt.scatter(errors, areas, marker='D', label='SubXPAT', color='blue', alpha=0.5, s=50)
     assert len(errors) == len(areas)
     if mecals_area_error:
         mecals_areas = [item[0] for item in mecals_area_error]
@@ -523,7 +551,18 @@ def plot_area_error_best(args, sorted_area_error: List, mecals_area_error: List 
         plt.plot(mecals_errors, mecals_areas, 's--', label='MECALS', color='black')
         plt.legend()
 
-    plt.plot(errors, areas, 'o',  label='SubXPAT', color='blue')
+
+
+
+    if area_error_mode_last_points_dict:
+        for mode in area_error_mode_last_points_dict.keys():
+            sorted_area_error_per_mode = area_error_mode_last_points_dict[mode]
+            for grid in sorted_area_error_per_mode.keys():
+                sorted_area_error = sorted_area_error_per_mode[grid]
+                areas = [item[0] for item in sorted_area_error]
+                errors = [item[1] for item in sorted_area_error]
+                plt.scatter(errors, areas, marker='D', label=f'mode{mode}, grid{grid}', alpha=1, color='orange')
+
     plt.title(f'{args.benchmark_name}, ')
     plt.xlabel('ET')
     plt.ylabel('Area')
@@ -535,8 +574,13 @@ def plot_area_error_best(args, sorted_area_error: List, mecals_area_error: List 
 def is_dominated(current_point, points):
     """ Check if the current point is dominated by any point in the list """
     for point in points:
-        if point[0] < current_point[0] and point[1] < current_point[1] and point != current_point:
-            return True
+        # if point[0] < current_point[0] and point[1] < current_point[1] and point != current_point:
+        if point != current_point:
+            if point[0] <= current_point[0] and point[1] <= current_point[1]:
+                return True
+
+
+
     return False
 
 def find_pareto_points(points):
@@ -547,8 +591,15 @@ def find_pareto_points(points):
             pareto_points.append(point)
     return pareto_points
 
-def plot_area_error_pareto(args, sorted_area_error: List, mecals_area_error: List = None):
+def plot_area_error_pareto(args, sorted_area_error: List, area_error_mode_last_points_dict: Dict = None, mecals_area_error: List = None):
+    color_map = {
+        51: 'red',
+        53: 'orange',
+        12: 'cyan',
+        121: 'green'
 
+        # Add more modes and their respective colors as needed
+    }
 
     # min_area_by_error = {}
     # for area, error in sorted_area_error:
@@ -558,25 +609,38 @@ def plot_area_error_pareto(args, sorted_area_error: List, mecals_area_error: Lis
     #         min_area_by_error[error] = area
     # areas = [item[1] for item in min_area_by_error.items()]
     # errors = [item[0] for item in min_area_by_error.items()]
-
+    # print(f'{sorted_area_error= }')
     pareto_points = find_pareto_points(sorted_area_error)
+    # print(f'{pareto_points= }')
     areas = [item[0] for item in pareto_points]
     errors = [item[1] for item in pareto_points]
     # Plot the data
     plt.figure(figsize=(10, 6))
+    plt.scatter(errors, areas, marker='D', label='SubXPAT', color='blue', alpha=1, s=50)
     assert len(errors) == len(areas)
     if mecals_area_error:
         mecals_areas = [item[0] for item in mecals_area_error]
         mecals_errors = [item[1] for item in mecals_area_error]
 
         plt.plot(mecals_errors, mecals_areas, 's--', label='MECALS', color='black')
-        plt.legend()
 
-    plt.plot(errors, areas, 'o',  label='SubXPAT', color='blue')
+
+
+    if area_error_mode_last_points_dict:
+        for mode in area_error_mode_last_points_dict.keys():
+            sorted_area_error_per_mode = area_error_mode_last_points_dict[mode]
+            for grid in sorted_area_error_per_mode.keys():
+                sorted_area_error = sorted_area_error_per_mode[grid]
+                areas = [item[0] for item in sorted_area_error]
+                errors = [item[1] for item in sorted_area_error]
+                color = color_map.get(mode, 'black')
+                plt.scatter(errors, areas, marker='s', label=f'mode{mode} (final-points), grid{grid}', alpha=1, color=color)
+
     plt.title(f'{args.benchmark_name}, ')
     plt.xlabel('ET')
     plt.ylabel('Area')
     plt.grid(True)
+    plt.legend()
     folder, _ = OUTPUT_PATH['figure']
     figname = f'{folder}/{args.benchmark_name}_pareto.png'
     plt.savefig(figname)
@@ -679,7 +743,7 @@ def plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict: Dict
                 sorted_area_error = sorted_area_error_per_mode[grid]
                 areas = [item[0] for item in sorted_area_error]
                 errors = [item[1] for item in sorted_area_error]
-                plt.scatter(errors, areas, marker='s', label=f'mode{mode}, grid{grid}', alpha=0.5)
+                plt.scatter(errors, areas, marker='D', label=f'mode{mode}, grid{grid}', alpha=1)
 
     plt.legend()
     plt.xlabel('ET')

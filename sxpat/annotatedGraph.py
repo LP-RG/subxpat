@@ -2596,7 +2596,7 @@ class AnnotatedGraph(Graph):
         # opt = Optimize()
         opt = Optimize()
         # opt.add(skipped_nodes_constraints)
-
+        set_param("parallel.enable", True)
         max_func = []
 
         # List of all the partition edges
@@ -2755,7 +2755,7 @@ class AnnotatedGraph(Graph):
 
         sat_time_e = time.time()
 
-        # print(f'\nSolver time = {round( sat_time_e-sat_time_s , 2)}')
+        print(f'\nSolver time = {round( sat_time_e-sat_time_s , 2)}')
 
         convex_check = time.time()
         # Check partition convexity
