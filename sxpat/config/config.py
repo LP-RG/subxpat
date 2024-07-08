@@ -1,4 +1,5 @@
 from enum import Enum
+from Z3Log.config.config import *
 
 # OpenSTA for power and delay analysis
 OPENSTA = 'sta'
@@ -31,6 +32,7 @@ MANUAL_NODES = 'manual_nodes'
 POPULATION = 'population'
 MIN_LABELING = 'min_labeling'
 PARALLEL = 'parallel'
+ENCODING = 'encoding'
 
 FULL_ERROR_FUNCTION = 'full_error_function'
 SUB_ERROR_FUNCTION = 'sub_error_function'

@@ -6,8 +6,10 @@ class TemplateSpecs:
         self.__template_name: str = kwargs[NAME].upper()
         self.__exact_benchamrk_name: str = kwargs[EXACT]
         self.__benchamrk_name: str = kwargs[BENCHMARK]
-        self.__literals_per_product: int = int(kwargs[LITERALS_PER_PRODUCT])
-        self.__products_per_output: int = int(kwargs[PRODUCTS_PER_OUTPUT])
+        self.__literals_per_product: int = None
+        self.__products_per_output: int = None
+        self.__max_literals_per_product: int = int(kwargs[LITERALS_PER_PRODUCT])
+        self.__max_products_per_output: int = int(kwargs[PRODUCTS_PER_OUTPUT])
         self.__subxpat: bool = kwargs[SUBXPAT]
         self.__subxpat_v2: bool = kwargs[SUBXPAT_V2]
         self.__num_of_models = kwargs[NUM_OF_MODELS]
@@ -26,8 +28,9 @@ class TemplateSpecs:
         self.__manual_nodes = kwargs[MANUAL_NODES]
         self.__population = kwargs[POPULATION]
         self.__min_labeling = kwargs[MIN_LABELING]
-        self.__shared = kwargs[SHARED]
-        self.__products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
+        self.__shared: bool = bool(kwargs[SHARED])
+        self.__products_in_total: int = None
+        self.__max_products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
         self.__parallel: bool = kwargs[PARALLEL]
 
         self.__full_error_function: int = int(kwargs[FULL_ERROR_FUNCTION])
@@ -39,13 +42,11 @@ class TemplateSpecs:
         self.__partial_labeling: bool = kwargs[PARTIAL_LABELING]
         self.__num_subgraphs: int = kwargs[NUM_SUBGRAPHS]
 
+        self.__encoding: int = kwargs[ENCODING]
+
     @property
     def num_subgraphs(self):
         return self.__num_subgraphs
-
-    @property
-    def partial_labeling(self):
-        return self.__partial_labeling
 
     @property
     def keep_unsat_candidate(self):
@@ -104,8 +105,8 @@ class TemplateSpecs:
         self.__benchamrk_name = this_name
 
     @property
-    def literals_per_product(self):
-        return self.__literals_per_product
+    def max_lpp(self):
+        return self.__max_literals_per_product
 
     @property
     def lpp(self):
@@ -116,8 +117,8 @@ class TemplateSpecs:
         self.__literals_per_product = this_lpp
 
     @property
-    def products_per_output(self):
-        return self.__products_per_output
+    def max_ppo(self):
+        return self.__max_products_per_output
 
     @property
     def ppo(self):
@@ -208,16 +209,20 @@ class TemplateSpecs:
         self.__min_subgraph_size = this_subgraph_size
 
     @property
-    def products_in_total(self):
-        return self.__products_in_total
+    def max_pit(self):
+        return self.__max_products_in_total
 
     @property
     def pit(self):
         return self.__products_in_total
 
     @pit.setter
-    def pit(self, this_pit):
-        self.__products_in_total = this_pit
+    def pit(self, new_value: int):
+        self.__products_in_total = new_value
+
+    @property
+    def max_its(self) -> int:
+        return self.__max_products_in_total + 3
 
     @property
     def full_error_function(self):
@@ -228,8 +233,39 @@ class TemplateSpecs:
         return self.__sub_error_function
 
     @property
+    def encoding(self):
+        return self.__encoding
+
+    @property
+    def partial_labeling(self):
+        return self.__partial_labeling
+
+    # > computed
+
+    @property
     def requires_subgraph_extraction(self):
         return self.__subxpat or self.__subxpat_v2
+
+    @property
+    def grid_param_1(self) -> int:
+        return (
+            self.max_its
+            if self.shared else
+            self.max_lpp
+        )
+
+    @property
+    def grid_param_2(self) -> int:
+        return (
+            self.max_pit
+            if self.shared else
+            self.max_ppo
+        )
+
+    @property
+    def total_number_of_cells_per_iter(self) -> int:
+        # special_cell + ROWS * COLUMNS
+        return 1 + self.grid_param_1 * self.grid_param_2
 
     def __repr__(self):
         return f'An object of Class TemplateSpecs:\n' \
