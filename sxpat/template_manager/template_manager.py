@@ -292,6 +292,9 @@ class ProductTemplateManager(TemplateManager):
         # et_encoded
         builder.update(et_encoded=self._encoding.output_value('et'))
 
+        # num_outputs
+        builder.update(num_outputs=self._exact_graph.num_outputs)
+
         # abs_diff_def
         builder.update(abs_diff_def=self._encoding.abs_diff('a', 'b'))
 
