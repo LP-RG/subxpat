@@ -33,8 +33,8 @@ class Synthesis:
         self.__shared: bool = template_specs.shared
 
         self.__iterations = template_specs.iterations
-        self.__literal_per_product = template_specs.literals_per_product
-        self.__product_per_output = template_specs.products_per_output
+        self.__literal_per_product = template_specs.lpp
+        self.__product_per_output = template_specs.ppo
         self.__error_threshold = template_specs.et
         self.__graph: AnnotatedGraph = graph_obj
         self.__magraph: Optional[MaGraph] = magraph
@@ -69,26 +69,6 @@ class Synthesis:
     @property
     def specs(self):
         return self.__template_specs
-
-    @property
-    def products_in_total(self):
-        return self.__products_in_total
-
-    @property
-    def pit(self):
-        return self.__products_in_total
-
-    @property
-    def subxpat(self):
-        return self.__subxpat
-
-    @property
-    def shared(self):
-        return self.__shared
-
-    @property
-    def num_of_models(self):
-        return self.__num_models
 
     @property
     def products_in_total(self):

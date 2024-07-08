@@ -43,9 +43,6 @@ def explore_grid(specs_obj: TemplateSpecs):
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
     exact_file_name = specs_obj.exact_benchmark
     sum_wce_actual = 0
-    max_lpp = specs_obj.pit + 3 if specs_obj.shared else specs_obj.lpp
-    max_ppo = specs_obj.pit if specs_obj.shared else specs_obj.ppo
-    total_number_of_cells_per_iter = max_lpp * max_ppo + 1
 
     # create stat and template object
     stats_obj = Stats(specs_obj)
@@ -93,7 +90,7 @@ def explore_grid(specs_obj: TemplateSpecs):
         # for all candidates
         for candidate in current_population:
             # guard
-            if pre_iter_unsats[candidate] == total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
+            if pre_iter_unsats[candidate] == specs_obj.total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
                 pprint.info1(f'Number of UNSATs reached!')
                 max_unsat_reached = True
                 continue
@@ -145,7 +142,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 continue
 
             # explore the grid
-            pprint.info2(f'Grid ({max_lpp} X {max_ppo}) and et={specs_obj.et} exploration started...')
+            pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
             dominant_cells = []
             for lpp, ppo in CellIterator.factory(specs_obj):
                 if is_dominated((lpp, ppo), dominant_cells):
@@ -306,20 +303,20 @@ class CellIterator:
 
     @staticmethod
     def shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
-        max_pit = specs.pit
+        max_pit = specs.max_pit
 
         # special cell
         yield (0, 1)
 
         # grid cells
         for pit in range(1, max_pit + 1):
-            for its in range(pit, pit + 4):
+            for its in range(pit, pit + 3 + 1):
                 yield (its, pit)
 
     @staticmethod
     def non_shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
-        max_lpp = specs.lpp
-        max_ppo = specs.ppo
+        max_lpp = specs.max_lpp
+        max_ppo = specs.max_ppo
 
         # special cell
         yield (0, 1)
