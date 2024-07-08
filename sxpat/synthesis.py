@@ -324,6 +324,11 @@ class Synthesis:
                 s_inputs_assigns += self.__get_fanin_cone(n)
         return s_inputs_assigns
 
+
+    def key_funciton_for_sorting(self, el):
+        idx = int(re.search(r'(\d+)$', el).group(1))
+        return idx
+
     def __fix_order(self):
         subpgraph_input_list = list(self.graph.subgraph_input_dict.values())
         subpgraph_input_list_ordered = []
@@ -337,7 +342,9 @@ class Synthesis:
             else:
                 g_list.append(node)
 
-        pi_list.sort(key=lambda x: int(re.search('\d+', x).group()))
+        # pi_list.sort(key=lambda x: int(re.search('\d+', x).group()))
+        pi_list = sorted(pi_list, key=self.key_funciton_for_sorting)
+        g_list = sorted(g_list, key=self.key_funciton_for_sorting)
         for el in pi_list:
             subpgraph_input_list_ordered.append(el)
         for el in g_list:
@@ -346,14 +353,14 @@ class Synthesis:
 
     def __subgraph_to_json_input_mapping(self):
         sub_to_json = f'//mapping subgraph inputs to json inputs\n'
-
+        # print(f'{sub_to_json = }')
         subgraph_input_list = list(self.graph.subgraph_input_dict.values())
         subgraph_input_list = self.__fix_order()
-
+        # print(f'{ subgraph_input_list = }')
         for idx in range(self.graph.subgraph_num_inputs):
             sub_to_json += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx} = ' \
                            f'{sxpatconfig.VER_WIRE_PREFIX}{subgraph_input_list[idx]};\n'
-
+            # print(f'{sub_to_json = }')
         return sub_to_json
 
     def __json_model_lpp_and_subgraph_output_assigns(self, idx: int = 0):

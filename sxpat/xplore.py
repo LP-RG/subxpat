@@ -28,6 +28,35 @@ from z_marco.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subg
 from z_marco.utils import pprint, color
 
 
+def generate_et_array(et, k):
+    step = et // k
+    result = []
+    offset = []
+
+    if step <= 1:
+        result = list(range(1, et+1))
+    else:
+        log2 = int(math.log2(step))
+        # print(f'{log2 = }')
+        for i in range(log2 + 1):
+            if 2**i < step:
+                offset.append(2**i)
+        # print(f'{offset = }')
+        for i in range(k):
+
+            base = i * step
+            # print(f'{base = }')
+            if base > 0:
+                result.append(base)
+            for off in offset:
+                result.append(base + off)
+            next_base = (i + 1) * step if (i + 1) < k else et
+            if next_base == et:
+                result.append(et)
+
+    return result
+
+
 def explore_grid(specs_obj: TemplateSpecs):
     previous_subgraphs = []
     print(f'{specs_obj = }')
@@ -59,8 +88,15 @@ def explore_grid(specs_obj: TemplateSpecs):
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
-    max_unsat_reached = False
 
+    max_et = specs_obj.et
+    error_exceeded = False
+    loop_detected = False
+    persistance_limit = 3
+    persistance = 1
+    prev_et = -1
+
+    et_iterator = iter(generate_et_array(max_et, 8))
     while (obtained_wce_exact < available_error):
         i += 1
         if specs_obj.et_partitioning == 'asc':
@@ -70,30 +106,49 @@ def explore_grid(specs_obj: TemplateSpecs):
             log2 = int(math.log2(specs_obj.et))
             et = 2**(log2 - i - 2)
         elif specs_obj.et_partitioning == 'smart_asc':
-            et = 1 if i == 1 else prev_given_error * (2 if prev_actual_error == 0 else 1)
-            prev_given_error = et
+
+            # et = max_et // 8 if i == 1 else et + (max_et // 8 if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) else 0 )
+            if i == 1:
+                et = next(et_iterator)
+            else:
+                if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) and (et < available_error):
+                    et = next(et_iterator)
+
+            if prev_et == et:
+                persistance += 1
+            else:
+                persistance = 0
+            prev_et = et
+
+            if prev_et == available_error and persistance == persistance_limit:
+                break
+
         elif specs_obj.et_partitioning == 'smart_desc':
-            et = available_error if i == 1 else prev_given_error / (2 if prev_actual_error == 0 else 1)
-            prev_given_error = et
+            et = available_error if i == 1 else et // (2 if prev_actual_error == 0 else 1)
+            # if et > available_error:
+            #     et = available_error
+            # prev_given_error = et
         else:
             raise NotImplementedError('invalid status')
-        if i == 10:
-            exit()
+
+        if et > available_error or et < 0:
+            break
+
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
-        
-        # Fix the infinite loop
-        if max_unsat_reached:
-            break
+
+        max_unsat_reached = False
 
         # for all candidates
+        # print(f'{current_population = }')
         for candidate in current_population:
             # guard
-            if pre_iter_unsats[candidate] == specs_obj.total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
-                pprint.info1(f'Number of UNSATs reached!')
-                max_unsat_reached = True
-                continue
+            # if pre_iter_unsats[candidate] == total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
+            #     pprint.info1(f'Number of UNSATs reached!')
+            #     max_unsat_reached = True
+            #     pre_iter_unsats[candidate] = 0
+            #     continue
 
             pprint.info1(f'candidate {candidate}')
             if candidate.endswith('.v'):
@@ -113,6 +168,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 et_coefficient = 8
 
                 t_start = time.time()
+                et_coefficient = 2
                 label_graph(exact_graph, current_graph,
                             min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
                             et=et*et_coefficient, parallel=specs_obj.parallel)
@@ -156,6 +212,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                 # run script
                 manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
+                assert specs_obj.et == et, pprint.error(f'{et} != {specs_obj.et}')
                 start_time = time.time()
                 results = manager.run()
                 execution_time = time.time() - start_time
@@ -266,8 +323,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if exists_an_area_zero(current_population):
             break
-
-
         # This is to fix another problem (also previously known as loop)
         # This is where the exploration get stuck in a loop of creating the same approximate circuit over and over again
         # Here, I check if the last three subgraphs are equal, if so, this means that the exploration needs to be
@@ -275,19 +330,21 @@ def explore_grid(specs_obj: TemplateSpecs):
         loop_detected = False
         for idx, s in enumerate(previous_subgraphs):
             if idx == len(previous_subgraphs) - 1 and idx > 1:
-                if nx.utils.graphs_equal(previous_subgraphs[idx - 2], previous_subgraphs[idx - 1]) and \
-                        nx.utils.graphs_equal(previous_subgraphs[idx - 2], previous_subgraphs[idx - 3]):
+                if nx.utils.graphs_equal(previous_subgraphs[idx-1], previous_subgraphs[idx]) and \
+                        nx.utils.graphs_equal(previous_subgraphs[idx], previous_subgraphs[idx-2]):
                     print(f'The last three subgraphs are equal')
                     pprint.info3(f'The last three subgraphs are equal!')
                     pprint.info3(f'Terminating the exploration!')
                     loop_detected = True
                     break
+        # if loop_detected:
+        #     break
 
-        if loop_detected:
-            break
+        # if max_unsat_reached and (et >= max_et or et <= 0) and not template_obj.is_two_phase_kind:
+        #     max_unsat_reached = False
+        #     break
 
-
-    display_the_tree(total)
+    # display_the_tree(total)
 
     stats_obj.store_grid()
     return stats_obj
