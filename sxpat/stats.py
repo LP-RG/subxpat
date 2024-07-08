@@ -287,11 +287,11 @@ class Grid:
     def __init__(self, spec_obj: TemplateSpecs):
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
-        self.__lpp: int = spec_obj.lpp
+        self.__lpp: int = spec_obj.max_lpp
         if spec_obj.shared:
-            self.__ppo: int = spec_obj.pit
+            self.__ppo: int = spec_obj.max_pit
         else:
-            self.__ppo: int = spec_obj.ppo
+            self.__ppo: int = spec_obj.max_ppo
         self.__et: int = spec_obj.et
 
         # Todo: pap is deprecated
@@ -354,13 +354,13 @@ class Stats:
         self.__template_name = spec_obj.template_name
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
-        self.__lpp: int = spec_obj.lpp
+        self.__lpp: int = spec_obj.max_lpp
 
-        self.__pit: int = spec_obj.pit
+        self.__pit: int = spec_obj.max_pit
         if spec_obj.shared:
-            self.__ppo: int = spec_obj.pit
+            self.__ppo: int = spec_obj.max_pit
         else:
-            self.__ppo: int = spec_obj.ppo
+            self.__ppo: int = spec_obj.max_ppo
         self.__et: int = spec_obj.et
         self.__shared: bool = spec_obj.shared
         self.__subxpat: bool = spec_obj.subxpat

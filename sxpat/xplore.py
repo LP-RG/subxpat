@@ -128,7 +128,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
-            graph_path = f'{folder}/{specs_obj.benchmark_name}_lpp{specs_obj.lpp}_ppo{specs_obj.ppo}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
+            graph_path = f'{folder}/{specs_obj.benchmark_name}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
             FS.mkdir(folder)
             current_graph.export_annotated_graph(graph_path)
             print(f'subgraph exported at {graph_path}')
