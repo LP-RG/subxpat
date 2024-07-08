@@ -9,7 +9,7 @@ et = int(sys.argv[1])
 et_encoded = {{{{et_encoded}}}}
 wanted_models: int = 1 if len(sys.argv) < 3 else int(sys.argv[2])
 timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])
-max_possible_et: int = 2 ** 3 - 1
+max_possible_et: int = 2 ** {{{{num_outputs}}}} - 1
 
 # Encoding abs_diff method to generate
 def z3_abs_diff(a, b):
