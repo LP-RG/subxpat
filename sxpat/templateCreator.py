@@ -157,8 +157,8 @@ class TemplateCreator:
 class Template_SOP1(TemplateCreator):
     def __init__(self, template_specs: TemplateSpecs):
         super().__init__(template_specs)
-        self.__literal_per_product = template_specs.literals_per_product
-        self.__product_per_output = template_specs.products_per_output
+        self.__literal_per_product = template_specs.lpp
+        self.__product_per_output = template_specs.ppo
         self.__subxpat: bool = template_specs.subxpat
         self.__error_threshold = template_specs.et
         self.__iterations = template_specs.iterations
@@ -1816,10 +1816,10 @@ class Template_SOP1(TemplateCreator):
 class Template_SOP1ShareLogic(TemplateCreator):
     def __init__(self, template_specs: TemplateSpecs):
         super().__init__(template_specs)
-        self.__literal_per_product = template_specs.literals_per_product
-        self.__product_per_output = template_specs.products_per_output
+        self.__literal_per_product = template_specs.lpp
+        self.__product_per_output = template_specs.ppo
         self.__z3pyscript = None
-        self.__product_in_total = template_specs.products_in_total
+        self.__product_in_total = template_specs.pit
         self.__et = template_specs.et
         self.__iterations = template_specs.iterations
         self.__z3_out_path = self.set_path(OUTPUT_PATH['z3'])
