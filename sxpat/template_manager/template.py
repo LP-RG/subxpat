@@ -29,6 +29,9 @@ error = {{{{error}}}}
 # Parameters variables declaration
 {{{{params_declaration}}}}
 
+# Constants variables declaration
+{{{{consts_declaration}}}}
+
 # wires functions declaration for exact circuit
 {{{{exact_wires_declaration}}}}
 

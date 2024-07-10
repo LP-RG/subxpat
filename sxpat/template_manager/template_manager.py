@@ -213,7 +213,12 @@ class ProductTemplateManager(TemplateManager):
 
         # is constant
         if node_name in self.exact_constants.values():
-            return sxpat_cfg.Z3_GATES_DICTIONARY[self._exact_graph.graph.nodes[node_name][sxpat_cfg.LABEL]]
+            succs = list(self._current_graph.graph.successors(node_name))
+            if len(succs) == 1 and succs[0] in self._current_graph.output_dict.values():
+                output_i = next(node_i for node_i, node_name in self._current_graph.output_dict.items() if node_name == succs[0])
+                return f'{sxpat_cfg.CONSTANT_PREFIX}{output_i}'
+            else:
+                return sxpat_cfg.Z3_GATES_DICTIONARY[self._exact_graph.graph.nodes[node_name][sxpat_cfg.LABEL]]
 
         # is gate
         if node_name in self.exact_gates.values():
@@ -315,6 +320,16 @@ class ProductTemplateManager(TemplateManager):
 
         # error
         builder.update(error=self._encoding.output_variable('error'))
+
+        # consts_declaration  
+        def get_single_predecessor(out_name): return next(self._current_graph.graph.predecessors(out_name))
+        constants = self._current_graph.constant_dict.values()
+        lines = [
+            self._gen_declare_gate(f'{sxpat_cfg.CONSTANT_PREFIX}{output_i}')
+            for output_i, output_name in self.outputs.items()
+            if get_single_predecessor(output_name) in constants
+        ]
+        builder.update(consts_declaration='\n'.join(lines))
 
         # exact_wires_declaration
         builder.update(exact_wires_declaration='\n'.join(
