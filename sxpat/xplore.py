@@ -1,5 +1,8 @@
 import csv
 import time
+
+import Lollo.test
+
 from typing import Iterable, Iterator, List, Union
 import networkx as nx
 from tabulate import tabulate
