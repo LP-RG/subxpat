@@ -32,6 +32,8 @@ from z_marco.utils import pprint, color
 
 
 def explore_grid(specs_obj: TemplateSpecs):
+    Lollo.test.check_sat(specs_obj)
+    exit()
     previous_subgraphs = []
     print(f'{specs_obj = }')
 
@@ -128,6 +130,10 @@ def explore_grid(specs_obj: TemplateSpecs):
             previous_subgraphs.append(current_graph.subgraph)
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
+
+            #aggiungi qua chiamata a check_sat
+            Lollo.test.check_sat(specs_obj)
+            exit()
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'

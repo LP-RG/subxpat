@@ -63,15 +63,15 @@ output(90)
 2112 = and(-218, -2108)
 
 #outputs of exact circuit
-30 = and(254)
-31 = and(270)
-32 = and(275)
-33 = and(282)
-34 = and(289)
-35 = and(295)
-36 = and(2102)
-37 = and(-2111)
-38 = and(-2112)
+300 = and(254)
+301 = and(270)
+302 = and(275)
+303 = and(282)
+304 = and(289)
+305 = and(295)
+306 = and(2102)
+307 = and(-2111)
+308 = and(-2112)
 
 #parametrical_circuit
 400 = and(70, 71, 115)
@@ -130,3 +130,5 @@ output(90)
 53 = and(4112, 4113, 4114, 4115)
 601 = or(52, 53)
 611 = and(931, 601)
+
+#continuing exploration of inexact_circuit
