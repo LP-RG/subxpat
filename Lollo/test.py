@@ -246,10 +246,12 @@ def check_sat(specs_obj: TemplateSpecs):
     
     while len(deq) != 0:
         cur = deq.popleft()
+        
         if cur in annotated.subgraph_output_dict.values():
             continue
         label = nodes[cur]['label']
-        
+        if cur == 'g3' or cur == 'g0' or cur == 'g7':
+            print(predecessors[cur])
         if label == AND_SUBXPAT or label == OR_SUBXPAT:
             output.write(make_qcir_variable_inexact(cur) + ' = ' + (AND_QCIR if label == AND_SUBXPAT else OR_QCIR) + '(')
             for i,x in enumerate(predecessors[cur]):
@@ -265,18 +267,18 @@ def check_sat(specs_obj: TemplateSpecs):
                 if label == NOT:
                     predecessors[succ] = [(predecessors[cur][0][0], not predecessors[cur][0][1])]
                 else:
-                    predecessors[succ] = [(cur,True)]
+                    predecessors[succ] = [(cur,False)]
             
             elif succ in predecessors:
                 deq.append(succ)
                 if label == NOT:
-                    predecessors[succ].append(predecessors[cur][0])
+                    predecessors[succ].append((predecessors[cur][0][0],not predecessors[cur][0][1]))
                 else:
                     predecessors[succ].append((cur,False))
             
             else:
                 if label == NOT:
-                    predecessors[succ] = [predecessors[cur][0]]
+                    predecessors[succ] = [(predecessors[cur][0][0],not predecessors[cur][0][1])]
                 else:
                     predecessors[succ] = [(cur,False)]
    
