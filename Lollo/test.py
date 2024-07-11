@@ -131,37 +131,41 @@ def check_sat(specs_obj: TemplateSpecs):
     output.write('#parametrical_circuit\n')
     #start with parametrical_template
     deq = deque()
-    pres = {}  # qcir_gate_name : qcir_gate_you_come_from
+    pres = {}  # qcir_gate_name : [qcir_gate_you_come_from1, qcir_gate_you_come_from2]
     inverted = {} #key : [qcir_gate_referring_to, inverted?]
-    for x in nodes:
-        if x[:len(INPUT_GATE_INITIALS)] != INPUT_GATE_INITIALS:
-            continue
-        for succ in graph.successors(x):
-            if nodes[succ]['label'] == NOT or make_qcir_variable(succ) in pres:
-                deq.append(succ)
-            else:
-                pres[make_qcir_variable(succ)] = make_qcir_variable(x)
+    # for x in nodes:
+    #     if x[:len(INPUT_GATE_INITIALS)] != INPUT_GATE_INITIALS:
+    #         continue
+    #     for succ in graph.successors(x):
+    #         if nodes[succ]['label'] == NOT or make_qcir_variable(succ) in pres:
+    #             deq.append(succ)
+    #             if nodes[succ]['label'] != NOT:
+    #                 pres[make_qcir_variable(succ)].append(make_qcir_variable(x))
+    #         else:
+    #             pres[make_qcir_variable(succ)] = [make_qcir_variable(x)]
     
     #quasi uguale a sopra, sistemare
-    while len(deq) != 0:
-        cur = deq.popleft()
-        if cur in annotated.subgraph_output_dict.values():
-            continue
-        label = nodes[cur]['label']
-        if label == NOT:
-            predecessor = next(graph.predecessors(cur))
-            predecessor_label = nodes[predecessor]['label']
-            if predecessor_label == NOT:
-                inverted[make_qcir_variable(cur)] = [inverted[make_qcir_variable(predecessor)][0], not inverted[make_qcir_variable(predecessor)][1]]
-            else:
-                inverted[make_qcir_variable(cur)] = [predecessor, True]
+    # while len(deq) != 0:
+    #     cur = deq.popleft()
+    #     if cur in annotated.subgraph_output_dict.values():
+    #         continue
+    #     label = nodes[cur]['label']
+    #     if label == NOT:
+    #         predecessor = next(graph.predecessors(cur))
+    #         predecessor_label = nodes[predecessor]['label']
+    #         if predecessor_label == NOT:
+    #             inverted[make_qcir_variable(cur)] = [inverted[make_qcir_variable(predecessor)][0], not inverted[make_qcir_variable(predecessor)][1]]
+    #         else:
+    #             inverted[make_qcir_variable(cur)] = [predecessor, True]
         
         
-        for x in graph.successors(cur):
-            if nodes[x]['label'] == NOT or make_qcir_variable(x) in pres:
-                deq.append(x)
-            else:
-                pres[make_qcir_variable(x)] = make_qcir_variable(cur)
+    #     for x in graph.successors(cur):
+    #         if nodes[x]['label'] == NOT or make_qcir_variable(x) in pres:
+    #             deq.append(x)
+    #             if nodes[x]['label'] != NOT:
+    #                 pres[make_qcir_variable(x)].append(make_qcir_variable(cur))
+    #         else:
+    #             pres[make_qcir_variable(x)] = [make_qcir_variable(cur)]
     
     #formula of multiplexer or( and(s,l,in), and(s, !l, !in), !s)
     for a,out in enumerate(annotated.subgraph_output_dict.values()):
@@ -217,24 +221,40 @@ def check_sat(specs_obj: TemplateSpecs):
         outp = '61' + str(a)
         output.write(outp + ' = and(' + p_o + ', ' + org + ')\n')
 
-    output.write('\n#continuing exploration of inexact_circuit\n')
-    #continuing exploration of inexact_circuit
-    for a,out in enumerate(annotated.subgraph_output_dict.values()):
-        for succ in graph.successors(out):
-            label = nodes[succ]['label']
-            qcir_out = '61' + str(a)
-            # print(succ,pres[make_qcir_variable(succ)])
-            if label == NOT:
-                inverted[succ] = [qcir_out,True]
-                deq.append(succ)
-            
-            
-            elif make_qcir_variable(succ) in pres:
-                deq.append(succ)
-                output.write('62' + succ[len(STANDARD_GATE_INITIALS):] + ' = and(' + pres[make_qcir_variable(succ)] + ', ' + qcir_out + ')\n')
+    
+    # output.write('\n#continuing exploration of inexact_circuit\n')
+    # #continuing exploration of inexact_circuit
+    # for a,out in enumerate(annotated.subgraph_output_dict.values()):
+    #     for succ in graph.successors(out):
+    #         label = nodes[succ]['label']
+    #         qcir_out = '61' + str(a)
+    #         # print(succ,pres[make_qcir_variable(succ)])
+    #         if label == NOT:
+    #             inverted[make_qcir_variable(succ)] = [qcir_out,True]
+    #             deq.append(succ)
 
-            else:
-                pres[make_qcir_variable(succ)] = qcir_out
+            
+            
+    #         elif make_qcir_variable(succ) in pres:
+    #             deq.append(succ)
+    #             pres[make_qcir_variable(succ)].append(qcir_out)
+    #             # output.write('62' + succ[len(STANDARD_GATE_INITIALS):] + ' = and(' + pres[make_qcir_variable(succ)] + ', ' + qcir_out + ')\n')
+
+    #         else:
+    #             pres[make_qcir_variable(succ)] = [qcir_out]
+    
+    # while len(deq) != 0:
+    #     cur = deq.popleft()
+    #     label = nodes[cur]['label']
+
+    #     if label == NOT:
+    #         predecessor = next(graph.predecessors(cur))
+    #         predecessor_label = nodes[predecessor]['label']
+    #         if predecessor_label == NOT:
+    #             inverted[make_qcir_variable(cur)] = [inverted[make_qcir_variable(predecessor)][0], not inverted[make_qcir_variable(predecessor)][1]]
+    #         else:
+    #             inverted[make_qcir_variable(cur)] = [predecessor, True]
+
     
 
             
