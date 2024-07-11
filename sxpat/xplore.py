@@ -32,8 +32,8 @@ from z_marco.utils import pprint, color
 
 
 def explore_grid(specs_obj: TemplateSpecs):
-    Lollo.test.check_sat(specs_obj)
-    exit()
+    # Lollo.test.check_sat(specs_obj)
+    # exit()
     previous_subgraphs = []
     print(f'{specs_obj = }')
 
