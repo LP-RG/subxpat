@@ -33,16 +33,80 @@ def make_qcir_variable_inexact(var):
             return value + var[len(key):] 
     raise TypeError("received a variable that I can't convert, the variable was: " + var)
 
-def test_equality(a,b):
+def next_temporary_variable():
     global temporary_gates_index
-    and1 = TEMPORARY_GATE_PREFIX + str(temporary_gates_index)
-    and2 = TEMPORARY_GATE_PREFIX + str(temporary_gates_index+1)
+    temporary_gates_index += 1
+    return TEMPORARY_GATE_PREFIX + str(temporary_gates_index - 1)
+
+def test_equality(a,b):
+    and1 = next_temporary_variable()
+    and2 = next_temporary_variable()
     output.write(f'{and1} = and({a}, {b})\n')
     output.write(f'{and2} = and(-{a}, -{b})\n')
-    result_gate_name = TEMPORARY_GATE_PREFIX + str(temporary_gates_index+2)
+    result_gate_name = next_temporary_variable()
     output.write(f'{result_gate_name} = or({and1}, {and2})\n')
-    temporary_gates_index += 3
     return result_gate_name
+
+def and2(a,b):
+    res = next_temporary_variable()
+    output.write(f'{res} = and({a}, {b})\n')
+    return res
+
+def or2(a,b):
+    res = next_temporary_variable()
+    output.write(f'{res} = or({a}, {b})\n')
+    return res
+
+def xor(a,b):
+    pand1 = next_temporary_variable()
+    pand2 = next_temporary_variable()
+    output.write(f'{pand1} = and(-{a}, {b})\n')
+    output.write(f'{pand2} = and({a}, -{b})\n')
+    result_gate_name = next_temporary_variable()
+    output.write(f'{result_gate_name} = or({pand1}, {pand2})\n')
+    return result_gate_name
+
+def inverse(a):
+    output.write('#inversing every bit\n')
+    results = []
+    for x in a:
+        results.append(next_temporary_variable())
+        output.write(f'{results[-1]} = and(-{x})\n')
+    output.write('#\n')
+    return results
+
+def increment(a):
+    """first element of a should be the least significant digit"""
+    assert len(a) > 0, "lenght of a should be higher than 0"
+
+    output.write('#incrementing by 1\n')
+    results = [next_temporary_variable()]
+    output.write(f'{results[0]} = and(-{a[0]})\n')
+    last_and = a[0]
+    for i in range(1,len(a)):
+        results.append(xor(last_and, a[i]))
+        temp = next_temporary_variable()
+        output.write(f'{temp} = and({last_and}, {a[i]})\n')
+        last_and = temp
+    output.write('#\n')
+    return results
+
+def adder(a,b):
+    """first element of a should be the least significant digit"""
+    assert len(a) == len(b), "lengths should be the same"
+
+    output.write('#adding\n')
+    results = [xor(a[0],b[0])]
+    carry_in = next_temporary_variable()
+    output.write(f'{carry_in} = and({a[0]}, {b[0]})\n')
+    for i in range(1,len(a)):
+        partial_xor = xor(a[i],b[i])
+        results.append(xor(partial_xor,carry_in))
+        partial_and1 = and2(a[i],b[i])
+        partial_and2 = and2(carry_in,partial_xor)
+        carry_in = or2(partial_and1,partial_and2)
+    output.write('#\n')
+
 
 #specs_obj: TemplateSpecs
 def check_sat(specs_obj: TemplateSpecs):
@@ -50,28 +114,14 @@ def check_sat(specs_obj: TemplateSpecs):
     annotated.extract_subgraph(specs_obj)
     graph = annotated.graph
     nodes = graph.nodes
-    print(annotated.subgraph_input_dict.values())
-    print(annotated.subgraph_output_dict.values())
+    # print(annotated.subgraph_input_dict.values())
+    # print(annotated.subgraph_output_dict.values())
     # print(specs_obj.et)
     # print(specs_obj.max_ppo)
     # print(annotated.subgraph_num_inputs, annotated.subgraph_num_outputs, specs_obj.max_ppo)
     # print(annotated.graph.nodes)
     # print(annotated.graph.nodes['g106'])
-    # print(*annotated.graph.neighbors('g20'))
     # print(*annotated.graph.predecessors('out6'))
-    # print(*annotated.graph.predecessors('g102'))
-
-    # print(*annotated.graph.predecessors('g101'))
-    # print(*annotated.graph.predecessors('g100'))
-    # print(*annotated.graph.predecessors('g52'))
-    # print(*annotated.graph.predecessors('g98'))
-
-    # print(*annotated.graph.predecessors('g99'))
-    # print(*annotated.graph.predecessors('g97'))
-    # print(*annotated.graph.predecessors('g60'))
-    # print(*annotated.graph.predecessors('g96'))
-    # print('\n\n')
-    #print(list(annotated.graph.predecessors('g103')))
     
     
     # 1,2,30 is for the input, and, output gates of the exact circuit, 40 for intermidiate and gates of the multiplexer, 41 for the output of the multiplexer,
@@ -110,11 +160,11 @@ def check_sat(specs_obj: TemplateSpecs):
             output.write(', ')
         output.write(make_qcir_variable(x))
         start = False
-    output.write(')\n\n')
+    output.write(')\n#\n')
     
-    output.write('output(90)\n\n')
+    output.write('output(90)\n#\n')
 
-    output.write('91 = and()\n92 = or()\n\n')
+    output.write('91 = and()\n92 = or()\n#\n')
 
     output.write('#exact_circuit\n')
     inverted = {} #key : [gate_referring_to, inverted?]
@@ -148,7 +198,7 @@ def check_sat(specs_obj: TemplateSpecs):
                 pres.add(x)
         
     #add outputs
-    output.write('\n#outputs of exact circuit\n')
+    output.write('#\n#outputs of exact circuit\n')
     for x in nodes:
         if x[:len(OUTPUT_GATE_INITIALS)] != OUTPUT_GATE_INITIALS:
             continue
@@ -159,7 +209,7 @@ def check_sat(specs_obj: TemplateSpecs):
             predecessor = inverted[predecessor][0]
         output.write(make_qcir_variable(x) + ' = and(' + ('-' if inv else '') + make_qcir_variable(predecessor) + ')\n')
     #finished exact_circuit
-    output.write('\n')
+    output.write('#\n')
 
     output.write('#parametrical_circuit\n')
     #start with parametrical_template
@@ -244,14 +294,13 @@ def check_sat(specs_obj: TemplateSpecs):
             else:
                 predecessors[succ] = [(x,False)]
     
+    output.write('#\n')
     while len(deq) != 0:
         cur = deq.popleft()
         
         if cur in annotated.subgraph_output_dict.values():
             continue
         label = nodes[cur]['label']
-        if cur == 'g3' or cur == 'g0' or cur == 'g7':
-            print(predecessors[cur])
         if label == AND_SUBXPAT or label == OR_SUBXPAT:
             output.write(make_qcir_variable_inexact(cur) + ' = ' + (AND_QCIR if label == AND_SUBXPAT else OR_QCIR) + '(')
             for i,x in enumerate(predecessors[cur]):
@@ -281,14 +330,26 @@ def check_sat(specs_obj: TemplateSpecs):
                     predecessors[succ] = [(predecessors[cur][0][0],not predecessors[cur][0][1])]
                 else:
                     predecessors[succ] = [(cur,False)]
-   
-    output.write('\n#outputs of inexact_circuit\n')
+    
+    output.write('#\n#outputs of inexact_circuit\n')
     for x in nodes:
         if x[:len(OUTPUT_GATE_INITIALS)] != OUTPUT_GATE_INITIALS:
             continue
         output.write(make_qcir_variable_inexact(x) + ' = and(' + ('-' if predecessors[x][0][1] else '') + make_qcir_variable_inexact(predecessors[x][0][0]) + ')\n')
     #finished exact_circuit
-    output.write('\n')
+    output.write('#\n')
+    
+    # change sign of the outputs of inexact_circuit
+    output.write('#change sign of the outputs of inexact_circuit (using two\'s complement)\n')
+    outputs_inexact = []
+    outputs_exact = []
+    i = 0
+    while OUTPUT_GATE_INITIALS + str(i) in nodes:
+        outputs_inexact.append(CHANGE_INEXACT[OUTPUT_GATE_INITIALS] + str(i))
+        outputs_exact.append(CHANGE[OUTPUT_GATE_INITIALS] + str(i))
+        i+=1
+    outputs_inexact = increment(inverse(outputs_inexact))
+    substraction_results = adder(outputs_exact,outputs_inexact)
 
     i = 0
     remember = []
@@ -297,7 +358,7 @@ def check_sat(specs_obj: TemplateSpecs):
             continue
         remember.append(test_equality('30'+str(i),'31'+str(i)))
         i+=1
-    output.write('\n90 = and(')
+    output.write('#\n90 = and(')
     start = True
     for x in remember:
         if not start:
@@ -306,4 +367,3 @@ def check_sat(specs_obj: TemplateSpecs):
         output.write(x)
     output.write(')\n')
 
-    
