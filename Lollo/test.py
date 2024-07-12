@@ -214,8 +214,6 @@ def check_sat(specs_obj: TemplateSpecs):
     output.write('#parametrical_circuit\n')
     #start with parametrical_template
     deq = deque()
-    #pres = set()
-    #inverted = {} #key : [gate_referring_to, inverted?]
     predecessors = {} #key : [(gate_coming_from, inverted?), // ]
     #formula of multiplexer or( and(s,l,in), and(s, !l, !in), !s)
     for a,out in enumerate(annotated.subgraph_output_dict.values()):
@@ -335,7 +333,10 @@ def check_sat(specs_obj: TemplateSpecs):
     for x in nodes:
         if x[:len(OUTPUT_GATE_INITIALS)] != OUTPUT_GATE_INITIALS:
             continue
-        output.write(make_qcir_variable_inexact(x) + ' = and(' + ('-' if predecessors[x][0][1] else '') + make_qcir_variable_inexact(predecessors[x][0][0]) + ')\n')
+        if x in annotated.subgraph_output_dict.values():
+            output.write(f'{make_qcir_variable_inexact(x)} = and(61{x[len(OUTPUT_GATE_INITIALS):]})\n')
+        else:
+            output.write(make_qcir_variable_inexact(x) + ' = and(' + ('-' if predecessors[x][0][1] else '') + make_qcir_variable_inexact(predecessors[x][0][0]) + ')\n')
     #finished exact_circuit
     output.write('#\n')
     
