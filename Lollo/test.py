@@ -66,6 +66,15 @@ def xor(a,b):
     output.write(f'{result_gate_name} = or({pand1}, {pand2})\n')
     return result_gate_name
 
+def adder_bit3(a,b,c):
+    results = []
+    partial_xor = xor(a,b)
+    results.append(xor(partial_xor,c))
+    partial_and1 = and2(a,b)
+    partial_and2 = and2(c,partial_xor)
+    results.append(or2(partial_and1,partial_and2))
+    return results
+
 def inverse(a):
     output.write('#inversing every bit\n')
     results = []
@@ -100,12 +109,11 @@ def adder(a,b):
     carry_in = next_temporary_variable()
     output.write(f'{carry_in} = and({a[0]}, {b[0]})\n')
     for i in range(1,len(a)):
-        partial_xor = xor(a[i],b[i])
-        results.append(xor(partial_xor,carry_in))
-        partial_and1 = and2(a[i],b[i])
-        partial_and2 = and2(carry_in,partial_xor)
-        carry_in = or2(partial_and1,partial_and2)
+        next,carry_in = adder_bit3(a[i],b[i],carry_in)
+        results.append(next)
     output.write('#\n')
+    results.append(carry_in)
+    return results
 
 
 #specs_obj: TemplateSpecs
@@ -367,4 +375,3 @@ def check_sat(specs_obj: TemplateSpecs):
         start = False
         output.write(x)
     output.write(')\n')
-
