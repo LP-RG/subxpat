@@ -202,7 +202,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 # label graph
                 t_start = time.time()
 
-            et_coefficient = 2
+            et_coefficient = 1
 
             template_obj.label_graph(min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling, et=et*et_coefficient, parallel=specs_obj.parallel)
             labeling_time = time.time() - t_start
@@ -220,7 +220,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
             print(f'subgraph_number_inputs = {subgraph_number_inputs}')
             print(f'subgraph_number_outputs = {subgraph_number_outputs}')
-
+            exit()
 
 
             # todo:wip:marco: export subgraph
