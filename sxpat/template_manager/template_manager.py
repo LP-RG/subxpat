@@ -60,7 +60,7 @@ class TemplateManager:
         # select and return TemplateManager object
         return {
             False: SOPManager,
-            True: SOPSManager,
+            True: MultilevelManager,#SOPSManager,
         }[specs.shared](
             exact_graph,
             current_graph,
@@ -606,10 +606,11 @@ class SOPSManager(ProductTemplateManager):
         # approximate_wires_constraints
         def get_preds(name: str) -> Collection[str]: return sorted(self._current_graph.graph.predecessors(name), key=lambda n: int(re.search(r'\d+', n).group()))
         def get_func(name: str) -> str: return self._current_graph.graph.nodes[name][sxpat_cfg.LABEL]
+        
         lines = []
         for gate_i, gate_name in self.current_gates.items():
-            if not self._current_graph.is_subgraph_member(gate_name):
-                gate_preds = get_preds(gate_name)
+            if not self._current_graph.is_subgraph_member(gate_name): #check wheter the node belongs to the subgraph
+                gate_preds = get_preds(gate_name) #get all the predecesson of a gate
                 gate_func = get_func(gate_name)
                 assert (gate_func, len(gate_preds)) in [
                     (sxpat_cfg.NOT, 1),
@@ -709,27 +710,32 @@ class MultilevelManager(ProductTemplateManager):
     def data_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH[sxpat_cfg.JSON]
         return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
-        
+    
+    #TODO implements this method
+    @classmethod
+    def _generate_node():
+        pass
+
     @classmethod
     def _input_parameters(cls, output_i: int, node_i: int, input_i: int) -> Tuple[str, str]:
         partial_parameter = f'p_pr{node_i}_{sxpat_cfg.INPUT_LITERAL_PREFIX}{input_i}'
         return (f'{partial_parameter}_{sxpat_cfg.LITERAL_PREFIX}', f'{partial_parameter}_{sxpat_cfg.SELECT_PREFIX}')
 
     @classmethod
-    def _product_parameter(cls, output_i: int, product_i: int) -> str:
-        return f'p_pr{product_i}_o{output_i}'
+    def _node_parameter(cls, output_i: int, node_i: int) -> str:
+        return f'p_pr{node_i}_o{output_i}'
 
     @classmethod
     def _level_parameter(cls, level_i: int, node_i: int):
-        partial_parameter = f'p_lv{level_i}_{sxpat_cfg.INPUT_LITERAL_PREFIX}{node_i}'
+        partial_parameter = f'p_lv{level_i}_{sxpat_cfg.NODE_LITERAL_PREFIX}{node_i}'
         return (f'{partial_parameter}_{sxpat_cfg.LITERAL_PREFIX}', f'{partial_parameter}_{sxpat_cfg.SELECT_PREFIX}')
-
-    @classmethod
-    def _node_parameter(cls, output_i: int, node_i: int) -> str:
-        return f'p_pr{node_i}_o{output_i}'
     
+    #TODO implements this method
+    @classmethod
+    def _node_(cls, output_i: int, node_i: int, level_i: int) -> str:
+        return f'p_lv{level_i}_nd{node_i}_o{output_i}'
+            
     def _update_builder(self, builder: Builder) -> None:
-
         # apply superclass updates
         super()._update_builder(builder)
         
@@ -738,35 +744,210 @@ class MultilevelManager(ProductTemplateManager):
 
         #initialization gpl
         #Amedeo: note that this could be parametrized with different number of gates for each level
-        for i in range(len(npl) - 1):
+        for i in range(len(npl)):
             npl[i] = self._specs.pit;
         
-        npl[self.LV - 1] = len(self.subgraph_outputs)
+        npl[1] = 7
+        
+        #npl[self.LV - 1] = len(self.subgraph_outputs)
 
         # params_declaration
         builder.update(params_declaration='\n'.join(
                 itertools.chain(
-                (  # p_o#
-                    self._gen_declare_gate(self._output_parameter(output_i))
-                    for output_i in self.subgraph_outputs.keys()
-                ),
-                itertools.chain.from_iterable(  # p_pr#_i# 
-                    (
-                        self._gen_declare_gate((pars := self._input_parameters(None, node_i, input_i))[0]),
-                        self._gen_declare_gate(pars[1])
+                    (   # p_o#
+                        self._gen_declare_gate(self._output_parameter(output_i))
+                        for output_i in self.subgraph_outputs.keys()
+                    ),
+                    itertools.chain.from_iterable(  
+                        (# p_pr#_i# 
+                            self._gen_declare_gate((pars := self._input_parameters(None, node_i, input_i))[0]),
+                            self._gen_declare_gate(pars[1])
+                        )
+                        for node_i in range(self._specs.pit)
+                        for input_i in self.subgraph_inputs.keys()
+                    ),                                                        
+                    (   # p_pr#_o#
+                        self._gen_declare_gate(self._node_parameter(output_i, node_i))
+                        for output_i in self.subgraph_outputs.keys()
+                        for node_i in range(self._specs.pit)
+                    ),
+                    itertools.chain.from_iterable(
+                        (# p_lv#_nd#
+                            self._gen_declare_gate((pars := self._level_parameter(lv, nd ))[0]),
+                            self._gen_declare_gate(pars[1])
+                        )
+                        for lv in range(len(npl))
+                        for nd in range(npl[lv])
                     )
-                    for node_i in range(self._specs.pit)
-                    for input_i in self.subgraph_inputs.keys()
-                ),                                                        
-                (  # p_pr#_o#
-                    self._gen_declare_gate(self._node_parameter(output_i, node_i))
-                    for output_i in self.subgraph_outputs.keys()
-                    for node_i in range(self._specs.pit)
                 ),
-                self._level_gate_declaration(npl)
-            ),
-            ))
+            )
+        )
+
+        # approximate_wires_constraints
+        def get_preds(name: str) -> Collection[str]: return sorted(self._current_graph.graph.predecessors(name), key=lambda n: int(re.search(r'\d+', n).group()))
+        def get_func(name: str) -> str: return self._current_graph.graph.nodes[name][sxpat_cfg.LABEL]
         
+        lines = []
+        for gate_i, gate_name in self.current_gates.items():
+            
+            if not self._current_graph.is_subgraph_member(gate_name):
+                gate_preds = get_preds(gate_name) 
+                gate_func = get_func(gate_name)
+
+                assert (gate_func, len(gate_preds)) in [
+                    (sxpat_cfg.NOT, 1),
+                    (sxpat_cfg.AND, 2),
+                    (sxpat_cfg.OR, 2),
+                ], 'invalid gate function/predecessors combination'
+
+                preds = tuple(self._use_approx_var(gate_pred) for gate_pred in gate_preds)
+                name = f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(self.inputs) + gate_i}'
+                lines.append(
+                    f'{self._gen_call_function(name, self.inputs.values())}'
+                    f' == {sxpat_cfg.TO_Z3_GATE_DICT[gate_func]}({", ".join(preds)}),'
+                )
+            
+            elif self._current_graph.is_subgraph_output(gate_name):
+                
+                output_i = mapping_inv(self.subgraph_outputs, gate_name)
+
+                output_use = self._gen_call_function(
+                    f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(self.inputs) + gate_i}', #that's why we have plus 8 in a#
+                    self.subgraph_inputs.values()
+                )
+
+######################################################################################################################################################################################################################
+                #TODO CHANGE product/node
+                node = (
+                    f'And({self._product_parameter(output_i, product_i)}, {self._generate_product(functools.partial(self._input_parameters, None, product_i))})'
+                    #node_i
+                    for product_i in range(self._specs.pit)
+                )
+                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(node)})),') 
+                                                        #MAIN WORK
+            ###########################################################################################################
+                #TODO work in progress ...
+                node = (
+                    f'And({self._(output_i, node_i,level_i)},'
+                    for level_i in range(len(npl))
+                    for node_i in range(npl[level_i])
+                )
+                    #TODO change lines.append
+                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(node)})),')
+            ###########################################################################################################
+                node = (
+                    #input level
+
+                    #node level
+                    #output level
+
+                    #iteration
+                    for gate_i in range(self._specs.pit)
+                )
+                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(node)})),')
+            ###########################################################################################################
+        builder.update(approximate_wires_constraints='\n'.join(lines))
+######################################################################################################################################################################################################################        
+        # JUST FOR RUN THE TEST
+        
+        """ def get_preds(name: str) -> Collection[str]: return sorted(self._current_graph.graph.predecessors(name), key=lambda n: int(re.search(r'\d+', n).group()))
+        def get_func(name: str) -> str: return self._current_graph.graph.nodes[name][sxpat_cfg.LABEL]
+        
+        lines = []
+        for gate_i, gate_name in self.current_gates.items():
+            if not self._current_graph.is_subgraph_member(gate_name): #check wheter the node belongs to the subgraph
+                gate_preds = get_preds(gate_name) #get all the predecesson of a gate
+                gate_func = get_func(gate_name)
+                assert (gate_func, len(gate_preds)) in [
+                    (sxpat_cfg.NOT, 1),
+                    (sxpat_cfg.AND, 2),
+                    (sxpat_cfg.OR, 2),
+                ], 'invalid gate function/predecessors combination'
+
+                preds = tuple(self._use_approx_var(gate_pred) for gate_pred in gate_preds)
+                name = f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(self.inputs) + gate_i}'
+                lines.append(
+                    f'{self._gen_call_function(name, self.inputs.values())}'
+                    f' == {sxpat_cfg.TO_Z3_GATE_DICT[gate_func]}({", ".join(preds)}),'
+                )
+
+            # the gate is an output of the subgraph
+            elif self._current_graph.is_subgraph_output(gate_name):
+                output_i = mapping_inv(self.subgraph_outputs, gate_name)
+                output_use = self._gen_call_function(
+                    f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(self.inputs) + gate_i}',
+                    self.subgraph_inputs.values()
+                )
+                products = (
+                    f'And({self._product_parameter(output_i, product_i)}, {self._generate_product(functools.partial(self._input_parameters, None, product_i))})'
+                    for product_i in range(self._specs.pit)
+                )
+
+                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(products)})),')
+        builder.update(approximate_wires_constraints='\n'.join(lines))
+
+        # remove_double_constraint
+        builder.update(remove_double_constraint='\n'.join(
+            ' '.join(
+                f'Implies({", ".join(self._input_parameters(output_i, product_i, input_i))}),'
+                for input_i in self.subgraph_inputs.keys()
+            )
+            for product_i in range(self._specs.ppo)
+        ))
+
+        # product_order_constraint
+        lines = []
+        if self._specs.pit == 1:
+            lines.append('# No order needed for only one product')
+        else:
+            products = tuple(
+                self._encoding.aggregate_variables(
+                    tuple(itertools.chain.from_iterable(
+                        reversed(self._input_parameters(output_i, product_i, input_i))
+                        for input_i in self.subgraph_inputs.keys()
+                    ))
+                )
+                for product_i in range(self._specs.pit)
+            )
+            lines.extend(
+                f'{self._encoding.unsigned_greater_equal(product_a, product_b)},'
+                for product_a, product_b in pairwise_iter(products)
+            )
+        builder.update(product_order_constraint='\n'.join(lines))
+
+        # remove_zero_permutations_constraint
+        lines = []
+        for output_i in self.subgraph_outputs.keys():
+            parameters = (
+                self._product_parameter(output_i, product_i)
+                for product_i in range(self._specs.ppo)
+            )
+            lines.append(f'Implies(Not({self._output_parameter(output_i)}), Not(Or({", ".join(parameters)}))),')
+        builder.update(remove_zero_permutations_constraint='\n'.join(lines))
+
+        # logic_dependant_constraint1
+        parameters = (
+            self._product_parameter(output_i, product_i)
+            for output_i in self.subgraph_outputs.keys()
+            for product_i in range(self._specs.pit)
+        )
+        builder.update(logic_dependant_constraint1='\n'.join([
+            '# Force the number of inputs to sum to be at most `its`',
+            f'AtMost({", ".join(parameters)}, {self._specs.lpp}),'
+        ]))
+
+        # general informations: benchmark_name, encoding and cell
+        builder.update(
+            benchmark_name=self._specs.benchmark_name,
+            encoding=self._specs.encoding,
+            cell=f'({self._specs.lpp}, {self._specs.pit})',
+        )
+    
+    #TODO remove this
+    @classmethod
+    def _product_parameter(cls, output_i: int, product_i: int) -> str:
+        return f'p_pr{product_i}_o{output_i}' """
+######################################################################################################################################################################################################################        
 
 class Builder:
     LEFT_DELIMITER = '{{{{'
