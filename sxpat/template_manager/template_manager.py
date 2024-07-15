@@ -711,11 +711,6 @@ class MultilevelManager(ProductTemplateManager):
         folder, extension = sxpat_paths.OUTPUT_PATH[sxpat_cfg.JSON]
         return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
     
-    #TODO implements this method
-    @classmethod
-    def _generate_node():
-        pass
-
     @classmethod
     def _input_parameters(cls, output_i: int, node_i: int, input_i: int) -> Tuple[str, str]:
         partial_parameter = f'p_pr{node_i}_{sxpat_cfg.INPUT_LITERAL_PREFIX}{input_i}'
@@ -734,6 +729,40 @@ class MultilevelManager(ProductTemplateManager):
     @classmethod
     def _node_(cls, output_i: int, node_i: int, level_i: int) -> str:
         return f'p_lv{level_i}_nd{node_i}_o{output_i}'
+    
+    #TODO implements this method
+    @classmethod
+    def _generate_node():
+        pass
+
+    @classmethod
+    def _generate_levels(self,npl, level_i):
+        gates_per_level = ""
+        #base case
+        if level_i == 0:
+            pass
+        for idx in range(npl[level_i]):
+            gates_per_level += f'Or(
+                                {None}, 
+                                Not(
+                                    And(
+                                        {self._connection_constraints(npl, level_i-1)},
+                                        )
+                                    )
+                                ),'
+        return gates_per_level
+
+    @classmethod
+    def _connection_constraints(self,npl, level_i):
+        gates_per_level = ""
+        if level_i == 0:
+            pass
+        for idx in range(npl[level_i]):
+            gates_per_level += f'If(p...,{self._generate_levels(npl, level_i)}),'
+        
+        return gates_per_level
+
+        
             
     def _update_builder(self, builder: Builder) -> None:
         # apply superclass updates
@@ -818,33 +847,17 @@ class MultilevelManager(ProductTemplateManager):
 
 ######################################################################################################################################################################################################################
                 #TODO CHANGE product/node
-                node = (
+                """  node = (
                     f'And({self._product_parameter(output_i, product_i)}, {self._generate_product(functools.partial(self._input_parameters, None, product_i))})'
                     #node_i
                     for product_i in range(self._specs.pit)
                 )
-                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(node)})),') 
+                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(node)})),')  """
                                                         #MAIN WORK
             ###########################################################################################################
-                #TODO work in progress ...
-                node = (
-                    f'And({self._(output_i, node_i,level_i)},'
-                    for level_i in range(len(npl))
-                    for node_i in range(npl[level_i])
-                )
-                    #TODO change lines.append
-                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(node)})),')
-            ###########################################################################################################
-                node = (
-                    #input level
-
-                    #node level
-                    #output level
-
-                    #iteration
-                    for gate_i in range(self._specs.pit)
-                )
-                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(node)})),')
+                node = (f'{self._genrate_levels(npl, len(npl)-1)}')
+                #TODO check the lines.append
+                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(node)})),') 
             ###########################################################################################################
         builder.update(approximate_wires_constraints='\n'.join(lines))
 ######################################################################################################################################################################################################################        
