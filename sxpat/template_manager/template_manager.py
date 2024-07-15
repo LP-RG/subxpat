@@ -696,6 +696,77 @@ class SOPSManager(ProductTemplateManager):
             cell=f'({self._specs.lpp}, {self._specs.pit})',
         )
 
+class MultilevelManager(ProductTemplateManager):
+    #parameter for the total number of level
+    LV = 3
+
+    @property
+    def script_path(self) -> str:
+        folder, extension = sxpat_paths.OUTPUT_PATH['z3']
+        return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
+
+    @property
+    def data_path(self) -> str:
+        folder, extension = sxpat_paths.OUTPUT_PATH[sxpat_cfg.JSON]
+        return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
+        
+    @classmethod
+    def _input_parameters(cls, output_i: int, node_i: int, input_i: int) -> Tuple[str, str]:
+        partial_parameter = f'p_pr{node_i}_{sxpat_cfg.INPUT_LITERAL_PREFIX}{input_i}'
+        return (f'{partial_parameter}_{sxpat_cfg.LITERAL_PREFIX}', f'{partial_parameter}_{sxpat_cfg.SELECT_PREFIX}')
+
+    @classmethod
+    def _product_parameter(cls, output_i: int, product_i: int) -> str:
+        return f'p_pr{product_i}_o{output_i}'
+
+    @classmethod
+    def _level_parameter(cls, level_i: int, node_i: int):
+        partial_parameter = f'p_lv{level_i}_{sxpat_cfg.INPUT_LITERAL_PREFIX}{node_i}'
+        return (f'{partial_parameter}_{sxpat_cfg.LITERAL_PREFIX}', f'{partial_parameter}_{sxpat_cfg.SELECT_PREFIX}')
+
+    @classmethod
+    def _node_parameter(cls, output_i: int, node_i: int) -> str:
+        return f'p_pr{node_i}_o{output_i}'
+    
+    def _update_builder(self, builder: Builder) -> None:
+
+        # apply superclass updates
+        super()._update_builder(builder)
+        
+        #Node Per Level
+        npl = [None]*self.LV 
+
+        #initialization gpl
+        #Amedeo: note that this could be parametrized with different number of gates for each level
+        for i in range(len(npl) - 1):
+            npl[i] = self._specs.pit;
+        
+        npl[self.LV - 1] = len(self.subgraph_outputs)
+
+        # params_declaration
+        builder.update(params_declaration='\n'.join(
+                itertools.chain(
+                (  # p_o#
+                    self._gen_declare_gate(self._output_parameter(output_i))
+                    for output_i in self.subgraph_outputs.keys()
+                ),
+                itertools.chain.from_iterable(  # p_pr#_i# 
+                    (
+                        self._gen_declare_gate((pars := self._input_parameters(None, node_i, input_i))[0]),
+                        self._gen_declare_gate(pars[1])
+                    )
+                    for node_i in range(self._specs.pit)
+                    for input_i in self.subgraph_inputs.keys()
+                ),                                                        
+                (  # p_pr#_o#
+                    self._gen_declare_gate(self._node_parameter(output_i, node_i))
+                    for output_i in self.subgraph_outputs.keys()
+                    for node_i in range(self._specs.pit)
+                ),
+                self._level_gate_declaration(npl)
+            ),
+            ))
+        
 
 class Builder:
     LEFT_DELIMITER = '{{{{'
