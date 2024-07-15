@@ -38,7 +38,7 @@ def next_temporary_variable():
     temporary_gates_index += 1
     return TEMPORARY_GATE_PREFIX + str(temporary_gates_index - 1)
 
-def test_equality(a,b):
+def test_equality_bits(a,b):
     and1 = next_temporary_variable()
     and2 = next_temporary_variable()
     output.write(f'{and1} = and({a}, {b})\n')
@@ -46,6 +46,15 @@ def test_equality(a,b):
     result_gate_name = next_temporary_variable()
     output.write(f'{result_gate_name} = or({and1}, {and2})\n')
     return result_gate_name
+
+def test_equality_lists(a : List, b : list):
+    output.write('#testing equalilty\n')
+    assert len(a) == len(b) , 'lengths of a and b should be the same'
+    
+    partials = []
+    for i in range(len(a)):
+        partials.append(test_equality_bits(a[i],b[i]))
+    return operation_on_list(partials, 'and')
 
 def and2(a,b):
     res = next_temporary_variable()
@@ -55,6 +64,18 @@ def and2(a,b):
 def or2(a,b):
     res = next_temporary_variable()
     output.write(f'{res} = or({a}, {b})\n')
+    return res
+
+def operation_on_list(a : List, operation : str) -> List:
+    res = next_temporary_variable()
+    output.write(f'{res} = {operation}(')
+    start = True
+    for x in a:
+        if not start:
+            output.write(', ')
+        output.write(x)
+        start = False
+    output.write(')\n#\n')
     return res
 
 def xor(a,b):
@@ -75,7 +96,13 @@ def adder_bit3(a,b,c):
     results.append(or2(partial_and1,partial_and2))
     return results
 
-def inverse(a):
+def xor_bits_with_bit(a : list, b) -> List:
+    results = []
+    for i in range(len(a)):
+        results.append(xor(a[i],b))
+    return results
+
+def inverse(a : List) -> List:
     output.write('#inversing every bit\n')
     results = []
     for x in a:
@@ -84,8 +111,23 @@ def inverse(a):
     output.write('#\n')
     return results
 
-def increment(a):
-    """first element of a should be the least significant digit"""
+def adder_bits_with_bit(a : list, b) -> List:
+    results = []
+    last_and = b
+    for i in range(len(a)):
+        results.append(xor(last_and, a[i]))
+        temp = next_temporary_variable()
+        output.write(f'{temp} = and({last_and}, {a[i]})\n')
+        last_and = temp
+    output.write('#\n')
+    return results
+
+def absolute_value(a) -> List:
+    return adder_bits_with_bit(xor_bits_with_bit(a,a[-1]),a[-1])
+
+def increment(a : List) -> List:
+    """first element of a should be the least significant digit\n
+    add one to a"""
     assert len(a) > 0, "lenght of a should be higher than 0"
 
     output.write('#incrementing by 1\n')
@@ -100,7 +142,7 @@ def increment(a):
     output.write('#\n')
     return results
 
-def adder(a,b):
+def adder(a : List, b : List) -> List:
     """first element of a should be the least significant digit"""
     assert len(a) == len(b), "lengths should be the same"
 
@@ -115,6 +157,30 @@ def adder(a,b):
     results.append(carry_in)
     return results
 
+def comparator_greater_than(a : List, e : int):
+    output.write('#comparing\n')
+    i = len(a) - 1
+    partial_and = []
+    while i >= 0:
+        if (e >> i) & 1 == 0:
+            partial_and.append(next_temporary_variable())
+            output.write(f'{partial_and[-1]} = and({a[i]}')
+            for j in range(len(a) - 1, i, -1):
+                output.write(', ' + ('' if (e >> j) & 1 else '-') + f'{a[j]}')
+            output.write(')\n')
+        i -= 1
+    res = next_temporary_variable()
+    output.write(f'{res} = or(')
+    start = True
+    for x in partial_and:
+        if not start:
+            output.write(', ')
+        start = False
+        output.write(x)
+    output.write(')\n#\n')
+    return res
+    
+        
 
 #specs_obj: TemplateSpecs
 def check_sat(specs_obj: TemplateSpecs):
@@ -359,19 +425,24 @@ def check_sat(specs_obj: TemplateSpecs):
         i+=1
     outputs_inexact = increment(inverse(outputs_inexact))
     substraction_results = adder(outputs_exact,outputs_inexact)
+    specs_obj.et = 32
+    print(specs_obj.et)
+    output.write(f'90 = and(-{comparator_greater_than(substraction_results, specs_obj.et)})')
 
-    i = 0
-    remember = []
-    for x in nodes:
-        if x[0] != 'o':
-            continue
-        remember.append(test_equality('30'+str(i),'31'+str(i)))
-        i+=1
-    output.write('#\n90 = and(')
-    start = True
-    for x in remember:
-        if not start:
-            output.write(', ')
-        start = False
-        output.write(x)
-    output.write(')\n')
+
+
+    # i = 0
+    # remember = []
+    # for x in nodes:
+    #     if x[0] != 'o':
+    #         continue
+    #     remember.append(test_equality_bits('30'+str(i),'31'+str(i)))
+    #     i+=1
+    # output.write('#\n90 = and(')
+    # start = True
+    # for x in remember:
+    #     if not start:
+    #         output.write(', ')
+    #     start = False
+    #     output.write(x)
+    # output.write(')\n')
