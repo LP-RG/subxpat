@@ -3191,7 +3191,7 @@ class AnnotatedGraph(Graph):
         sat_time_e = time.time()
 
         tmp_graph = self.graph.copy(as_view=False)
-        print(f'{node_partition = }')
+        # print(f'{node_partition = }')
         # Check partition convexity
         for i in range(len(node_partition) - 1):
             for j in range(i + 1, len(node_partition)):
@@ -3203,9 +3203,9 @@ class AnnotatedGraph(Graph):
 
                     for n in path:
                         if n not in node_partition:
-                            print(f'{node_partition = }')
-                            print(f'{n = }')
-                            print(f'{path = }')
+                            # print(f'{node_partition = }')
+                            # print(f'{n = }')
+                            # print(f'{path = }')
                             all_nodes_in_partition = False
 
                     if not all_nodes_in_partition:
