@@ -220,7 +220,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
             print(f'subgraph_number_inputs = {subgraph_number_inputs}')
             print(f'subgraph_number_outputs = {subgraph_number_outputs}')
-            exit()
+
 
 
             # todo:wip:marco: export subgraph

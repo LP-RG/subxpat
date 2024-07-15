@@ -2096,7 +2096,7 @@ class AnnotatedGraph(Graph):
                 edge_constraint[predecessor] = e_out
             partition_output_edges.append(e_out)
 
-        # Create graph of the cicuit without input and output nodes
+        # Create graph of the circuit without input and output nodes
         G = nx.DiGraph()
         # print(f'{tmp_graph.edges = }')
         for e in tmp_graph.edges:
@@ -2256,13 +2256,13 @@ class AnnotatedGraph(Graph):
 
         total_e = time.time()
         current_time = datetime.datetime.now()
-        with open(
-                f'{specs_obj.benchmark_name}_mode{specs_obj.mode}_imax{specs_obj.imax}_omax{specs_obj.omax}_et{specs_obj.et}_{current_time.strftime("%Y%m%d:%H%M%S")}.csv',
-                'w') as f:
-            csvwriter = csv.writer(f)
-            header = ['solver time', 'total']
-            csvwriter.writerow(header)
-            csvwriter.writerow([round(sat_time_e - sat_time_s, 4), round(total_e - total_s, 4)])
+        # with open(
+        #         f'{specs_obj.benchmark_name}_mode{specs_obj.mode}_imax{specs_obj.imax}_omax{specs_obj.omax}_et{specs_obj.et}_{current_time.strftime("%Y%m%d:%H%M%S")}.csv',
+        #         'w') as f:
+        #     csvwriter = csv.writer(f)
+        #     header = ['solver time', 'total']
+        #     csvwriter.writerow(header)
+        #     csvwriter.writerow([round(sat_time_e - sat_time_s, 4), round(total_e - total_s, 4)])
 
         return tmp_graph
 
@@ -2837,13 +2837,13 @@ class AnnotatedGraph(Graph):
 
         total_e = time.time()
         current_time = datetime.datetime.now()
-        with open(
-                f'{specs_obj.benchmark_name}_mode{specs_obj.mode}_imax{specs_obj.imax}_omax{specs_obj.omax}_et{specs_obj.et}_{current_time.strftime("%Y%m%d:%H%M%S")}.csv',
-                'w') as f:
-            csvwriter = csv.writer(f)
-            header = ['solver time', 'total']
-            csvwriter.writerow(header)
-            csvwriter.writerow([round(sat_time_e - sat_time_s, 4), round(total_e - total_s, 4)])
+        # with open(
+        #         f'{specs_obj.benchmark_name}_mode{specs_obj.mode}_imax{specs_obj.imax}_omax{specs_obj.omax}_et{specs_obj.et}_{current_time.strftime("%Y%m%d:%H%M%S")}.csv',
+        #         'w') as f:
+        #     csvwriter = csv.writer(f)
+        #     header = ['solver time', 'total']
+        #     csvwriter.writerow(header)
+        #     csvwriter.writerow([round(sat_time_e - sat_time_s, 4), round(total_e - total_s, 4)])
 
 
         return tmp_graph
@@ -3019,13 +3019,13 @@ class AnnotatedGraph(Graph):
 
         total_e = time.time()
         current_time = datetime.datetime.now()
-        with open(
-                f'{specs_obj.benchmark_name}_mode{specs_obj.mode}_imax{specs_obj.imax}_omax{specs_obj.omax}_et{specs_obj.et}_{current_time.strftime("%Y%m%d:%H%M%S")}.csv',
-                'w') as f:
-            csvwriter = csv.writer(f)
-            header = ['solver time', 'total']
-            csvwriter.writerow(header)
-            csvwriter.writerow([round(sat_time_e - sat_time_s, 4), round(total_e - total_s, 4)])
+        # with open(
+        #         f'{specs_obj.benchmark_name}_mode{specs_obj.mode}_imax{specs_obj.imax}_omax{specs_obj.omax}_et{specs_obj.et}_{current_time.strftime("%Y%m%d:%H%M%S")}.csv',
+        #         'w') as f:
+        #     csvwriter = csv.writer(f)
+        #     header = ['solver time', 'total']
+        #     csvwriter.writerow(header)
+        #     csvwriter.writerow([round(sat_time_e - sat_time_s, 4), round(total_e - total_s, 4)])
 
         return tmp_graph
 
@@ -3108,24 +3108,64 @@ class AnnotatedGraph(Graph):
                           for edge in edges]
         outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, 32), BitVecVal(0, 32))
                           for edge in edges]
-        max_nodes = [If(Node.in_subgraph(Edge.target(edge)), BitVecVal(1, 32), BitVecVal(0, 32)) for edge in edges]
-        opt.maximize(Sum(max_nodes))
+        max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, 32), BitVecVal(0, 32)) for node in nodes.values()]
+
+        descendants = {}
+        ancestors = {}
+        for node in nodes:
+            if node not in descendants:
+                descendants[node] = list(nx.descendants(self.graph, node))
+            if node not in ancestors:
+                ancestors[node] = list(nx.ancestors(self.graph, node))
+
+        for src in nodes:
+            for des in self.graph.successors(src):
+                if len(descendants[des]) > 0:
+                    not_descendants = [Not(Node.in_subgraph(nodes[l])) for l in descendants[des]]
+                    not_descendants.append(Not(Node.in_subgraph(nodes[des])))
+                    descendant_condition = Implies(
+                        And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des]))),
+                        And(not_descendants)
+                    )
+                    opt.add(descendant_condition)
+                if len(ancestors[src]) > 0:
+                    not_ancestors = [Not(Node.in_subgraph(nodes[l])) for l in ancestors[src]]
+                    not_ancestors.append(Not(Node.in_subgraph(nodes[src])))
+                    ancestor_condition = Implies(
+                        And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])),
+                        And(not_ancestors)
+                    )
+                    opt.add(ancestor_condition)
+
         opt.add(Sum(incoming_edges) <= imax)
         opt.add(Sum(outgoint_edges) <= omax)
 
-        inputs = Int('inputs')
-        outputs = Int('outputs')
-        num_nodes = Int('num_nodes')
-
-        num_nodes = BitVec('num_nodes', 32)
-        inputs = BitVec('inputs', 32)
-        outputs = BitVec('outputs', 32)
-
         feasibility_constraints = [
-            Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, 32)) for node in
-            nodes.values()
+            Implies(
+                And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),
+                Node.weight(Edge.source(edge)) <= BitVecVal(feasibility_threshold, 32)
+            )
+            for edge in edges
         ]
+
         opt.add(And(feasibility_constraints))
+
+        opt.maximize(Sum(max_nodes))
+
+        # inputs = Int('inputs')
+        # outputs = Int('outputs')
+        # num_nodes = Int('num_nodes')
+        #
+        # num_nodes = BitVec('num_nodes', 32)
+        # inputs = BitVec('inputs', 32)
+        # outputs = BitVec('outputs', 32)
+
+        # feasibility_constraints = [
+        #     Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, 32)) for node in
+        #     nodes.values()
+        # ]
+
+
 
         sat_time_s = time.time()
         res = opt.check()
@@ -3151,7 +3191,7 @@ class AnnotatedGraph(Graph):
         sat_time_e = time.time()
 
         tmp_graph = self.graph.copy(as_view=False)
-
+        print(f'{node_partition = }')
         # Check partition convexity
         for i in range(len(node_partition) - 1):
             for j in range(i + 1, len(node_partition)):
@@ -3163,14 +3203,20 @@ class AnnotatedGraph(Graph):
 
                     for n in path:
                         if n not in node_partition:
+                            print(f'{node_partition = }')
+                            print(f'{n = }')
+                            print(f'{path = }')
                             all_nodes_in_partition = False
 
                     if not all_nodes_in_partition:
                         print("Partition is not convex")
+
                         exit(0)
 
                 except nx.exception.NetworkXNoPath:
                     pass
+
+
 
         node_partition_idx = [int(re.search('g(\d+)', node).group(1)) for node in node_partition]
         for gate_idx in self.gate_dict:
@@ -3185,13 +3231,13 @@ class AnnotatedGraph(Graph):
 
         total_e = time.time()
         current_time = datetime.datetime.now()
-        with open(
-                f'{specs_obj.benchmark_name}_mode{specs_obj.mode}_imax{specs_obj.imax}_omax{specs_obj.omax}_et{specs_obj.et}_{current_time.strftime("%Y%m%d:%H%M%S")}.csv',
-                'w') as f:
-            csvwriter = csv.writer(f)
-            header = ['solver time', 'total']
-            csvwriter.writerow(header)
-            csvwriter.writerow([round(sat_time_e - sat_time_s, 4), round(total_e - total_s, 4)])
+        # with open(
+        #         f'{specs_obj.benchmark_name}_mode{specs_obj.mode}_imax{specs_obj.imax}_omax{specs_obj.omax}_et{specs_obj.et}_{current_time.strftime("%Y%m%d:%H%M%S")}.csv',
+        #         'w') as f:
+        #     csvwriter = csv.writer(f)
+        #     header = ['solver time', 'total']
+        #     csvwriter.writerow(header)
+        #     csvwriter.writerow([round(sat_time_e - sat_time_s, 4), round(total_e - total_s, 4)])
 
         return tmp_graph
 
@@ -3282,6 +3328,13 @@ class AnnotatedGraph(Graph):
         outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, 32), BitVecVal(0, 32))
                           for edge in edges]
         max_nodes = [If(Node.in_subgraph(Edge.target(edge)), BitVecVal(1, 32), BitVecVal(0, 32)) for edge in edges]
+
+        # Check Convexity
+
+
+
+
+
         opt.maximize(Sum(max_nodes))
         opt.add(Sum(incoming_edges) <= imax)
         opt.add(Sum(outgoint_edges) <= omax)
@@ -3358,13 +3411,13 @@ class AnnotatedGraph(Graph):
 
         total_e = time.time()
         current_time = datetime.datetime.now()
-        with open(
-                f'{specs_obj.benchmark_name}_mode{specs_obj.mode}_imax{specs_obj.imax}_omax{specs_obj.omax}_et{specs_obj.et}_{current_time.strftime("%Y%m%d:%H%M%S")}.csv',
-                'w') as f:
-            csvwriter = csv.writer(f)
-            header = ['solver time', 'total']
-            csvwriter.writerow(header)
-            csvwriter.writerow([round(sat_time_e - sat_time_s, 4), round(total_e - total_s, 4)])
+        # with open(
+        #         f'{specs_obj.benchmark_name}_mode{specs_obj.mode}_imax{specs_obj.imax}_omax{specs_obj.omax}_et{specs_obj.et}_{current_time.strftime("%Y%m%d:%H%M%S")}.csv',
+        #         'w') as f:
+        #     csvwriter = csv.writer(f)
+        #     header = ['solver time', 'total']
+        #     csvwriter.writerow(header)
+        #     csvwriter.writerow([round(sat_time_e - sat_time_s, 4), round(total_e - total_s, 4)])
 
         return tmp_graph
 
