@@ -43,7 +43,7 @@ class Synthesis:
         self.__num_models: int = template_specs.num_of_models
 
         if self.shared:
-            self.__products_in_total: int = template_specs.products_in_total
+            self.__products_in_total: int = template_specs.pit
         else:
             self.__products_in_total: float = float('inf')
 
@@ -69,6 +69,26 @@ class Synthesis:
     @property
     def specs(self):
         return self.__template_specs
+
+    @property
+    def products_in_total(self):
+        return self.__products_in_total
+
+    @property
+    def pit(self):
+        return self.__products_in_total
+
+    @property
+    def subxpat(self):
+        return self.__subxpat
+
+    @property
+    def shared(self):
+        return self.__shared
+
+    @property
+    def num_of_models(self):
+        return self.__num_models
 
     @property
     def products_in_total(self):
