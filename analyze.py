@@ -21,8 +21,7 @@ def main():
 
     folder = 'experiments/results'
     rel_files = get_relevant_files(args, folder)
-    print(f'{rel_files = }')
-    print(f'{len(rel_files) = }')
+
 
 
     # best_per_local_global_et = get_best_area_for_local_global_et(rel_files, folder)
@@ -42,12 +41,14 @@ def main():
     # plot_area_error_per_omax(args, area_error_per_omax_dict)
     #
     # runtime_error_per_omax_per_mode = get_runtime_per_mode_and_omax(rel_files, folder)
-    # plot_runtime_per_mode_and_omax(args, runtime_error_per_omax_per_mode)
+    runtime_error_per_omax_per_mode = get_subgraph_extraction_runtime_per_mode_and_omax(rel_files, folder)
+    plot_runtime_per_mode_and_omax(args, runtime_error_per_omax_per_mode)
 
+    exit()
 
     # plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict, area_error_mode_last_points_dict=None,
     #                                    mecals_area_error=mecals_area_error)
-    # area_error_mode_last_points_dict = get_area_error_per_mode_per_grid_last_points(rel_files, folder)
+    area_error_mode_last_points_dict = get_area_error_per_mode_per_grid_last_points(rel_files, folder)
     # plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
 
     # 
@@ -70,16 +71,16 @@ def main():
 
 
 
-    # sorted_area_error = get_area_error(rel_files, folder)
-    # plot_area_error(args, sorted_area_error, area_error_mode_last_points_dict=None, mecals_area_error=mecals_area_error)
+    sorted_area_error = get_area_error(rel_files, folder)
+    plot_area_error(args, sorted_area_error, area_error_mode_last_points_dict=None, mecals_area_error=mecals_area_error)
     # # plot_area_error(args, sorted_area_error, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
-    # # plot_area_error_best(args, sorted_area_error, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
+    # plot_area_error_best(args, sorted_area_error, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
     # plot_area_error_pareto(args, sorted_area_error, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
     # area_error_ns_dict = get_area_error_per_num_subgraphs(rel_files, folder)
     # plot_area_error_per_ns(args, area_error_ns_dict)
 
-    # area_error_mode_dict = get_area_error_per_mode(rel_files, folder)
-    # plot_area_error_per_mode(args, area_error_mode_dict)
+    area_error_mode_dict = get_area_error_per_mode(rel_files, folder)
+    plot_area_error_per_mode(args, area_error_mode_dict)
 
     # sorted_aggregated_runtime_error = get_runtime_aggregated(rel_files, folder)
     # plot_runtime_aggregated(args, sorted_aggregated_runtime_error)
@@ -528,6 +529,41 @@ def get_runtime_per_mode_and_omax(relevant_files, folder):
                             runtime += cur_runtime
                     runtime_error.append((et, runtime))
             print(f'{runtime_error = }')
+            if runtime_error:
+                sorted_runtime_error = sorted(runtime_error, key=lambda x: x[0])
+                runtime_error_per_omax[omax] = sorted_runtime_error
+                runtime_error = []
+        if runtime_error_per_omax:
+            runtime_error_per_omax_per_mode[mode] = runtime_error_per_omax
+            runtime_error_per_omax = {}
+
+    return runtime_error_per_omax_per_mode
+
+
+def get_subgraph_extraction_runtime_per_mode_and_omax(relevant_files, folder):
+    runtime_error_per_omax_per_mode: Dict = {}
+    runtime_error_per_omax: Dict = {}
+    runtime_error = []
+    for mode in range(200):
+        for omax in range(20):
+            for rep in relevant_files:
+                iterations = []
+                runtime = 0
+                if re.search(f'mode{mode}_', rep) and re.search(f'omax{omax}_', rep):
+                    et = int(re.search(f'et(\d+)_', rep).group(1))
+                    with open(f'{folder}/{rep}', 'r') as f:
+                        csvreader = csv.reader(f)
+                        for line in csvreader:
+                            if line[0].startswith('cell'):  # skip the first line
+                                continue
+                            else:
+                                cur_iter = int(line[1])
+                                if cur_iter not in iterations:
+                                    iterations.append(cur_iter)
+                                    subgraph_extraction = float(line[10])
+                                    runtime += subgraph_extraction
+                    runtime_error.append((et, runtime))
+
             if runtime_error:
                 sorted_runtime_error = sorted(runtime_error, key=lambda x: x[0])
                 runtime_error_per_omax[omax] = sorted_runtime_error

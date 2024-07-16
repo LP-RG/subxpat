@@ -3104,11 +3104,34 @@ class AnnotatedGraph(Graph):
             opt.add(Edge.target(edge) == nodes[des])
             edges.append(edge)
 
-        incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, 32), BitVecVal(0, 32))
-                          for edge in edges]
-        outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, 32), BitVecVal(0, 32))
-                          for edge in edges]
+        unique_outgoing_edges = []
+        unique_incoming_edges = []
+
+        for node_label in nodes:
+            node = nodes[node_label]
+            outgoing_conditions = []
+            incoming_conditions = []
+
+            for src, des in self.graph.edges(node_label):
+                if src == node_label:
+                    outgoing_conditions.append(And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des]))))
+                if src == node_label:
+                    incoming_conditions.append(And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])))
+
+            if outgoing_conditions:
+                unique_outgoing_edges.append(If(Or(outgoing_conditions), BitVecVal(1, 32), BitVecVal(0, 32)))
+            if incoming_conditions:
+                unique_incoming_edges.append(If(Or(incoming_conditions), BitVecVal(1, 32), BitVecVal(0, 32)))
+
+        # incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, 32), BitVecVal(0, 32))
+        #                   for edge in edges]
+        # outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, 32), BitVecVal(0, 32))
+        #                   for edge in edges]
         max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, 32), BitVecVal(0, 32)) for node in nodes.values()]
+
+
+        # max_nodes = [  for edge in edges]
+        # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), 32) for node in nodes.values()]
 
         descendants = {}
         ancestors = {}
@@ -3137,8 +3160,8 @@ class AnnotatedGraph(Graph):
                     )
                     opt.add(ancestor_condition)
 
-        opt.add(Sum(incoming_edges) <= imax)
-        opt.add(Sum(outgoint_edges) <= omax)
+        opt.add(Sum(unique_incoming_edges) <= imax)
+        opt.add(Sum(unique_outgoing_edges) <= omax)
 
         feasibility_constraints = [
             Implies(
