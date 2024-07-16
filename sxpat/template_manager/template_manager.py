@@ -730,39 +730,46 @@ class MultilevelManager(ProductTemplateManager):
     def _node_(cls, output_i: int, node_i: int, level_i: int) -> str:
         return f'p_lv{level_i}_nd{node_i}_o{output_i}'
     
-    #TODO implements this method
+    #TODO: fixing errors
+    ### -------------------- nlevels generation wires constrains ------------------------------##
     @classmethod
-    def _generate_node():
-        pass
+    def _multiplexer_multilevel(self,idx):
+        return "If(None, Or(Not(p_in"+str(idx)+"_l),p_in"+str(idx)+"_s))"
+    
+    @classmethod
+    def _generate_input(self,number_of_inputs):
+        return ','.join(itertools.chain(
+                self._multiplexer_multilevel(input_i)
+            for input_i in range(number_of_inputs)
+        ))
 
+    #TODO: create classmethods for generate script,(it wourld be more readable)
     @classmethod
-    def _generate_levels(self,npl, level_i):
+    def _connection_constraints(self,npl, level_i,num_of_i, gate):
         gates_per_level = ""
         #base case
         if level_i == 0:
-            pass
-        for idx in range(npl[level_i]):
-            gates_per_level += f'Or(
-                                {None}, 
-                                Not(
-                                    And(
-                                        {self._connection_constraints(npl, level_i-1)},
-                                        )
-                                    )
-                                ),'
+            return self._generate_input(num_of_i)
+        for node in range(npl[level_i-1]):
+            gates_per_level += "If( p_g"+str(gate)+"n_"+str(node)+", n"+ str(node) + "_lv" + str(level_i-1) +", True),"
+
         return gates_per_level
 
     @classmethod
-    def _connection_constraints(self,npl, level_i):
+    def _generate_levels(self,npl, num_of_i):
         gates_per_level = ""
-        if level_i == 0:
-            pass
-        for idx in range(npl[level_i]):
-            gates_per_level += f'If(p...,{self._generate_levels(npl, level_i)}),'
-        
+
+        for level_i in range(len(npl)-1, -1, -1):
+            for gate in range( npl[level_i] ):
+                if level_i < len(npl) - 1:
+                    gates_per_level += "\n#level"+str(level_i)+"\n And( n"+ str(gate) +"_lv"+ str(level_i)+ " == Or( None, Not(And(" + self._connection_constraints(npl,level_i,num_of_i,gate) + ")))),"
+                else:
+                    gates_per_level += "\n#level"+str(level_i)+"\nOr( None, Not(And(" + self._connection_constraints(npl,level_i,num_of_i,gate) + "))),"
+            if level_i == len(npl) - 1:
+                gates_per_level += "),"
+
         return gates_per_level
 
-        
             
     def _update_builder(self, builder: Builder) -> None:
         # apply superclass updates
@@ -772,12 +779,10 @@ class MultilevelManager(ProductTemplateManager):
         npl = [None]*self.LV 
 
         #initialization gpl
+        #TODO: reove the + 1
         #Amedeo: note that this could be parametrized with different number of gates for each level
         for i in range(len(npl)):
-            npl[i] = self._specs.pit;
-        
-        npl[1] = 7
-        
+            npl[i] = self._specs.pit;         
         #npl[self.LV - 1] = len(self.subgraph_outputs)
 
         # params_declaration
@@ -845,20 +850,10 @@ class MultilevelManager(ProductTemplateManager):
                     self.subgraph_inputs.values()
                 )
 
-######################################################################################################################################################################################################################
-                #TODO CHANGE product/node
-                """  node = (
-                    f'And({self._product_parameter(output_i, product_i)}, {self._generate_product(functools.partial(self._input_parameters, None, product_i))})'
-                    #node_i
-                    for product_i in range(self._specs.pit)
-                )
-                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(node)})),')  """
-                                                        #MAIN WORK
-            ###########################################################################################################
-                node = (f'{self._genrate_levels(npl, len(npl)-1)}')
-                #TODO check the lines.append
-                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(node)})),') 
-            ###########################################################################################################
+                node = (f'{self._generate_levels(npl, len(self.subgraph_inputs.keys()))}')
+
+                lines.append(f'#inputs:{len(self.subgraph_inputs.keys())}\n#pit:{npl[0]}\n{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({node}),') 
+                
         builder.update(approximate_wires_constraints='\n'.join(lines))
 ######################################################################################################################################################################################################################        
         # JUST FOR RUN THE TEST
@@ -898,7 +893,7 @@ class MultilevelManager(ProductTemplateManager):
 
                 lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(products)})),')
         builder.update(approximate_wires_constraints='\n'.join(lines))
-
+        """
         # remove_double_constraint
         builder.update(remove_double_constraint='\n'.join(
             ' '.join(
@@ -910,7 +905,7 @@ class MultilevelManager(ProductTemplateManager):
 
         # product_order_constraint
         lines = []
-        if self._specs.pit == 1:
+        """ if self._specs.pit == 1:
             lines.append('# No order needed for only one product')
         else:
             products = tuple(
@@ -925,17 +920,17 @@ class MultilevelManager(ProductTemplateManager):
             lines.extend(
                 f'{self._encoding.unsigned_greater_equal(product_a, product_b)},'
                 for product_a, product_b in pairwise_iter(products)
-            )
+            ) """
         builder.update(product_order_constraint='\n'.join(lines))
 
         # remove_zero_permutations_constraint
         lines = []
-        for output_i in self.subgraph_outputs.keys():
+        """ for output_i in self.subgraph_outputs.keys():
             parameters = (
                 self._product_parameter(output_i, product_i)
                 for product_i in range(self._specs.ppo)
             )
-            lines.append(f'Implies(Not({self._output_parameter(output_i)}), Not(Or({", ".join(parameters)}))),')
+            lines.append(f'Implies(Not({self._output_parameter(output_i)}), Not(Or({", ".join(parameters)}))),') """
         builder.update(remove_zero_permutations_constraint='\n'.join(lines))
 
         # logic_dependant_constraint1
@@ -947,7 +942,7 @@ class MultilevelManager(ProductTemplateManager):
         builder.update(logic_dependant_constraint1='\n'.join([
             '# Force the number of inputs to sum to be at most `its`',
             f'AtMost({", ".join(parameters)}, {self._specs.lpp}),'
-        ]))
+        ])) 
 
         # general informations: benchmark_name, encoding and cell
         builder.update(
@@ -959,7 +954,7 @@ class MultilevelManager(ProductTemplateManager):
     #TODO remove this
     @classmethod
     def _product_parameter(cls, output_i: int, product_i: int) -> str:
-        return f'p_pr{product_i}_o{output_i}' """
+        return f'p_pr{product_i}_o{output_i}' #"""
 ######################################################################################################################################################################################################################        
 
 class Builder:
@@ -998,7 +993,6 @@ class Builder:
                 tabulation = m.group(1)
                 self._kwargs[key] = tabulation.join(value.splitlines(True))
 
-        # apply kwargs to the tamplate
         return normalized_string.format(**self._kwargs)
 
     def __str__(self) -> str:
