@@ -131,6 +131,7 @@ def increment(a : List) -> List:
     assert len(a) > 0, "lenght of a should be higher than 0"
 
     output.write('#incrementing by 1\n')
+    a.append(a[-1])
     results = [next_temporary_variable()]
     output.write(f'{results[0]} = and(-{a[0]})\n')
     last_and = a[0]
@@ -144,21 +145,30 @@ def increment(a : List) -> List:
 
 def adder(a : List, b : List) -> List:
     """first element of a should be the least significant digit"""
-    assert len(a) == len(b), "lengths should be the same"
+    assert abs(len(a)-len(b)) <= 1, 'lengths of a and b should differ by maximum 1'
 
+    a.append(a[-1])
+    b.append(b[-1])
     output.write('#adding\n')
     results = [xor(a[0],b[0])]
     carry_in = next_temporary_variable()
     output.write(f'{carry_in} = and({a[0]}, {b[0]})\n')
-    for i in range(1,len(a)):
-        next,carry_in = adder_bit3(a[i],b[i],carry_in)
+    for i in range(1,max(len(a),len(b))):
+        if i < min(len(a),len(b)):
+            next,carry_in = adder_bit3(a[i],b[i],carry_in)
+        else:
+            use1 = a[i] if i < len(a) else b[i]
+            use2 = b[-1] if i < len(a) else a[-1]
+            next,carry_in = adder_bit3(use1,use2,carry_in)
         results.append(next)
     output.write('#\n')
-    results.append(carry_in)
+    #results.append(carry_in)
     return results
 
 def comparator_greater_than(a : List, e : int):
     output.write('#comparing\n')
+    if (e >> len(a) > 0):
+        return '92'
     i = len(a) - 1
     partial_and = []
     while i >= 0:
@@ -179,8 +189,34 @@ def comparator_greater_than(a : List, e : int):
         output.write(x)
     output.write(')\n#\n')
     return res
-    
-        
+
+# output.write('variables = 1, 2, 3, 4, 5, 6\n')
+# outputs_exact = [1,2,3]
+# outputs_inexact = [4,5,6]
+# outputs_inexact = increment(inverse(outputs_inexact))
+# substraction_results = adder(outputs_exact,outputs_inexact)
+# absolute_results = absolute_value(substraction_results)
+# print(substraction_results)
+# output.write(f'999999 = and(-{comparator_greater_than(absolute_results, 1)})\n')
+# output.write('outputs = 999999, ')
+# start = True
+# for x in absolute_results:
+#     if not start:
+#        output.write(', ') 
+#     start = False
+#     output.write(x)
+
+
+# output.write('variables = 1, 2, 3\n')
+# outputs_exact = [1,2,3]
+# absolute_results = absolute_value(outputs_exact)
+# output.write('outputs = ')
+# start = True
+# for x in absolute_results:
+#     if not start:
+#        output.write(', ') 
+#     start = False
+#     output.write(x)
 
 #specs_obj: TemplateSpecs
 def check_sat(specs_obj: TemplateSpecs):
@@ -201,7 +237,7 @@ def check_sat(specs_obj: TemplateSpecs):
     # 1,2,30 is for the input, and, output gates of the exact circuit, 40 for intermidiate and gates of the multiplexer, 41 for the output of the multiplexer,
     # 5 for the and gates, 60 for the or gates, 61 for the and between the or gate and p_o# (the outputs of the parametrical circuit),
     # 62 is for the and gates of the inexact circuit, 7 is for the parameters p_o#_t#_i#_s/l, 31 is for the outputs of the inexact circuit
-    # 90 is for the satisfability problem, 91 for false constant, 92 for true constant, 93 for the parameters p_o#, 94 is for temporary gates
+    # 90 is for the satisfability problem, 91 for true constant, 92 for false constant, 93 for the parameters p_o#, 94 is for temporary gates
     
     output.write('#QCIR-14\n')
 
@@ -425,9 +461,32 @@ def check_sat(specs_obj: TemplateSpecs):
         i+=1
     outputs_inexact = increment(inverse(outputs_inexact))
     substraction_results = adder(outputs_exact,outputs_inexact)
-    specs_obj.et = 32
-    print(specs_obj.et)
-    output.write(f'90 = and(-{comparator_greater_than(substraction_results, specs_obj.et)})')
+    absolute_values = absolute_value(substraction_results)
+    deqVar = deque()
+    deq = deque()
+    for a in range(annotated.subgraph_num_outputs):
+        for t in range(specs_obj.max_ppo):
+            for c in range(annotated.subgraph_num_inputs):
+                var = '7' + str(((a * specs_obj.max_ppo + t) * annotated.subgraph_num_inputs + c) * 2)
+                deqVar.append(var)
+    while len(deqVar) > 0 or len(deq) > 1:
+        if len(deqVar) > 2:
+            first = deqVar.pop()
+            second = deqVar.pop()
+            third = deqVar.pop()
+            deq.append(adder_bit3(first,second,third))
+        elif len(deqVar) > 0:
+            while len(deqVar) > 0:
+                deq.appendleft([deqVar.pop()])
+        else:
+            first = deq.popleft()
+            second = deq.popleft()
+            deq.append(adder(first,second))
+    
+    res = comparator_greater_than(deq.pop(),1)
+    output.write(f'90 = and(-{comparator_greater_than(absolute_values, 0)}')
+    output.write(f', -{res}')
+    output.write(')\n')
 
 
 

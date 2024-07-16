@@ -10,6 +10,8 @@ def parse_file(file_path):
     
     for line in lines:
         line = line.strip()
+        if line.startswith("#"):
+            continue
         if line.startswith("variables"):
             variables = [int(x.strip()) for x in line.split('=')[1].split(',')]
         elif line.startswith("outputs"):
@@ -64,19 +66,6 @@ def main():
         input_vals = " ".join(reversed(input_vals))  # Invertiamo la stringa degli input
         row_vals = " ".join(['1' if val else '0' for val in reversed(row)])  # Invertiamo la stringa degli output
         print(f"{input_vals}\t\t{row_vals}")
-
-    # for idx, row in enumerate(truth_table):
-    #     input_vals = format(idx, f'0{num_vars}b')
-    #     input_vals = " ".join(input_vals)
-    #     row_vals = " ".join(['1' if val else '0' for val in row])
-    #     print(f"{input_vals}\t\t{row_vals}")
-    
-    # for idx, row in enumerate(truth_table):
-    #     input_vals = format(idx, f'0{num_vars}b')
-    #     input_vals = " ".join(reversed(input_vals))  # Invertiamo la stringa degli input
-    #     row_vals = " ".join(['1' if val else '0' for val in row])
-    #     row_vals = "".join(reversed(row_vals))  # Invertiamo la stringa degli output
-    #     print(f"{input_vals}\t\t{row_vals}")
 
 if __name__ == "__main__":
     main()
