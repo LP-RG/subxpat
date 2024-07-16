@@ -190,49 +190,12 @@ def comparator_greater_than(a : List, e : int):
     output.write(')\n#\n')
     return res
 
-# output.write('variables = 1, 2, 3, 4, 5, 6\n')
-# outputs_exact = [1,2,3]
-# outputs_inexact = [4,5,6]
-# outputs_inexact = increment(inverse(outputs_inexact))
-# substraction_results = adder(outputs_exact,outputs_inexact)
-# absolute_results = absolute_value(substraction_results)
-# print(substraction_results)
-# output.write(f'999999 = and(-{comparator_greater_than(absolute_results, 1)})\n')
-# output.write('outputs = 999999, ')
-# start = True
-# for x in absolute_results:
-#     if not start:
-#        output.write(', ') 
-#     start = False
-#     output.write(x)
-
-
-# output.write('variables = 1, 2, 3\n')
-# outputs_exact = [1,2,3]
-# absolute_results = absolute_value(outputs_exact)
-# output.write('outputs = ')
-# start = True
-# for x in absolute_results:
-#     if not start:
-#        output.write(', ') 
-#     start = False
-#     output.write(x)
-
 #specs_obj: TemplateSpecs
 def check_sat(specs_obj: TemplateSpecs):
     annotated = AnnotatedGraph(specs_obj.benchmark_name, is_clean=False, partitioning_percentage=1) 
     annotated.extract_subgraph(specs_obj)
     graph = annotated.graph
     nodes = graph.nodes
-    # print(annotated.subgraph_input_dict.values())
-    # print(annotated.subgraph_output_dict.values())
-    # print(specs_obj.et)
-    # print(specs_obj.max_ppo)
-    # print(annotated.subgraph_num_inputs, annotated.subgraph_num_outputs, specs_obj.max_ppo)
-    # print(annotated.graph.nodes)
-    # print(annotated.graph.nodes['g106'])
-    # print(*annotated.graph.predecessors('out6'))
-    
     
     # 1,2,30 is for the input, and, output gates of the exact circuit, 40 for intermidiate and gates of the multiplexer, 41 for the output of the multiplexer,
     # 5 for the and gates, 60 for the or gates, 61 for the and between the or gate and p_o# (the outputs of the parametrical circuit),
@@ -489,7 +452,7 @@ def check_sat(specs_obj: TemplateSpecs):
     output.write(')\n')
 
 
-
+    # test for equality fast
     # i = 0
     # remember = []
     # for x in nodes:
