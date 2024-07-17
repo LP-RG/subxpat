@@ -1,5 +1,6 @@
 import sys
 from collections import deque
+import subprocess
 sys.path.append("/home/lorenzospada/Documents/SubXPAT")
 
 
@@ -143,7 +144,7 @@ def increment(a : List) -> List:
     output.write('#\n')
     return results
 
-def adder(a : List, b : List) -> List:
+def signed_adder(a : List, b : List) -> List:
     """first element of a should be the least significant digit"""
     assert abs(len(a)-len(b)) <= 1, 'lengths of a and b should differ by maximum 1'
 
@@ -164,6 +165,26 @@ def adder(a : List, b : List) -> List:
     output.write('#\n')
     #results.append(carry_in)
     return results
+
+def unsigned_adder(a : List, b : List) -> List:
+    assert abs(len(a)-len(b)) <= 1, 'lengths of a and b should differ by maximum 1' 
+
+    if len(a) < len(b):
+        a,b = b,a
+    results = [xor(a[0],b[0])]
+    carry_in = next_temporary_variable()
+    output.write(f'{carry_in} = and({a[0]}, {b[0]})\n')
+    for i in range(1,max(len(a),len(b))):
+        if i < min(len(a),len(b)):
+            next,carry_in = adder_bit3(a[i],b[i],carry_in)
+        else:
+            next = xor(a[i],carry_in)
+            carry_in = and2(a[i],carry_in)
+        results.append(next)
+    output.write('#\n')
+    results.append(carry_in)
+    return results
+
 
 def comparator_greater_than(a : List, e : int):
     output.write('#comparing\n')
@@ -190,12 +211,14 @@ def comparator_greater_than(a : List, e : int):
     output.write(')\n#\n')
     return res
 
+
 #specs_obj: TemplateSpecs
 def check_sat(specs_obj: TemplateSpecs):
     annotated = AnnotatedGraph(specs_obj.benchmark_name, is_clean=False, partitioning_percentage=1) 
     annotated.extract_subgraph(specs_obj)
     graph = annotated.graph
     nodes = graph.nodes
+    print(annotated.subgraph_num_inputs)
     
     # 1,2,30 is for the input, and, output gates of the exact circuit, 40 for intermidiate and gates of the multiplexer, 41 for the output of the multiplexer,
     # 5 for the and gates, 60 for the or gates, 61 for the and between the or gate and p_o# (the outputs of the parametrical circuit),
@@ -423,34 +446,46 @@ def check_sat(specs_obj: TemplateSpecs):
         outputs_exact.append(CHANGE[OUTPUT_GATE_INITIALS] + str(i))
         i+=1
     outputs_inexact = increment(inverse(outputs_inexact))
-    substraction_results = adder(outputs_exact,outputs_inexact)
+    substraction_results = signed_adder(outputs_exact,outputs_inexact)
     absolute_values = absolute_value(substraction_results)
-    deqVar = deque()
-    deq = deque()
-    for a in range(annotated.subgraph_num_outputs):
-        for t in range(specs_obj.max_ppo):
-            for c in range(annotated.subgraph_num_inputs):
-                var = '7' + str(((a * specs_obj.max_ppo + t) * annotated.subgraph_num_inputs + c) * 2)
-                deqVar.append(var)
-    while len(deqVar) > 0 or len(deq) > 1:
-        if len(deqVar) > 2:
-            first = deqVar.pop()
-            second = deqVar.pop()
-            third = deqVar.pop()
-            deq.append(adder_bit3(first,second,third))
-        elif len(deqVar) > 0:
-            while len(deqVar) > 0:
-                deq.appendleft([deqVar.pop()])
-        else:
-            first = deq.popleft()
-            second = deq.popleft()
-            deq.append(adder(first,second))
-    
-    res = comparator_greater_than(deq.pop(),1)
-    output.write(f'90 = and(-{comparator_greater_than(absolute_values, 0)}')
-    output.write(f', -{res}')
-    output.write(')\n')
+    res = []
+    if specs_obj.max_lpp < annotated.subgraph_num_inputs:
+        for a in range(annotated.subgraph_num_outputs):
+            for t in range(specs_obj.max_ppo):
+                deqVar = deque()
+                deq = deque()
+                for c in range(annotated.subgraph_num_inputs):
+                    var = '7' + str(((a * specs_obj.max_ppo + t) * annotated.subgraph_num_inputs + c) * 2)
+                    deqVar.append(var)
+                while len(deqVar) > 0 or len(deq) > 1:
+                    if len(deqVar) > 2:
+                        first = deqVar.pop()
+                        second = deqVar.pop()
+                        third = deqVar.pop()
+                        deq.append(adder_bit3(first,second,third))
+                    elif len(deqVar) > 0:
+                        while len(deqVar) > 0:
+                            deq.appendleft([deqVar.pop()])
+                    else:
+                        first = deq.popleft()
+                        second = deq.popleft()
+                        deq.append(unsigned_adder(first,second))
+                res.append(comparator_greater_than(deq.pop(),specs_obj.max_lpp))
 
+    output.write(f'90 = and(-{comparator_greater_than(absolute_values,specs_obj.et)}')
+    for x in res:
+        output.write(f', -{x}')
+    output.write(')\n')
+    output.close()
+    #this commands outputs to sdout "c bt_count: #" where # is a number this output is from the QBF solver and I think there's no way to not output it.
+    # (I have no idea what its meaning is)
+    result = subprocess.run(['../../cqesto-master/build/cqesto', 'Lollo/output.txt'],stdout=subprocess.PIPE).stdout.decode('utf-8')
+    
+    if result.strip()[-1] == '1':
+        print(result.split('\n')[3][2:-2].split())
+    else:
+        print('false')
+    print('time taken = ' + result.split('\n')[4].split()[-1])
 
     # test for equality fast
     # i = 0
