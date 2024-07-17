@@ -22,6 +22,13 @@ CHANGE_INEXACT = {INPUT_GATE_INITIALS : "1", STANDARD_GATE_INITIALS : "62", OUTP
 output = open('./Lollo/output.txt','w')
 temporary_gates_index = 0
 
+class Result:
+    status: str
+    model: Dict[str, bool]
+    def __init__(self,stri,dicti) -> None:
+        self.status = stri
+        self.model = dicti
+
 def make_qcir_variable(var):
     for key,value in CHANGE.items():
         if var[:len(key)] == key:
@@ -483,9 +490,19 @@ def check_sat(specs_obj: TemplateSpecs):
     
     if result.strip()[-1] == '1':
         print(result.split('\n')[3][2:-2].split())
+        print('time taken = ' + result.split('\n')[4].split()[-1])
+        res_dict = dict()
+        for x in result.split('\n')[3][2:-2].split():
+            if x[1] == '7':
+                number = int(x[2:])
+                res_dict[f'p_o{number // 2 // annotated.subgraph_num_inputs // specs_obj.max_ppo}_t{number // 2 // annotated.subgraph_num_inputs % specs_obj.max_ppo}_i{number // 2 % annotated.subgraph_num_inputs}_' + 's' if int(x) % 2 == 0 else 'l'] = True if x[0] == '+' else False
+            else:
+                res_dict[f'p_o{x[3:]}'] = True if x[0] == '+' else False
+        return Result('solvable',res_dict)
     else:
         print('false')
-    print('time taken = ' + result.split('\n')[4].split()[-1])
+        print('time taken = ' + result.split('\n')[4].split()[-1])
+        return Result('unsolvable',dict())
 
     # test for equality fast
     # i = 0
