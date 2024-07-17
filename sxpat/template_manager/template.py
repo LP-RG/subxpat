@@ -28,6 +28,7 @@ error = {{{{error}}}}
 
 # Parameters variables declaration
 {{{{params_declaration}}}}
+params_list = {{{{params_list}}}}
 
 # wires functions declaration for exact circuit
 {{{{exact_wires_declaration}}}}
@@ -209,9 +210,7 @@ while(len(found_data) < wanted_models and timeout > 0):
 		'attempts_times': [list(map(lambda tup: [*tup], attempts_times))]
 	}
 	if result == sat:
-		data_object['model'] = dict(map(lambda item: (str(item[0]), is_true(item[1])),
-			sorted(parameters_constraints,
-			key=key_function)))
+		data_object['model'] = {str(p): is_true(m[p]) for p in params_list}
 	found_data.append(data_object)
 	if result != sat:
 		break
