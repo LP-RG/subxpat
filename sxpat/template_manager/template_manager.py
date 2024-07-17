@@ -1,34 +1,22 @@
 from __future__ import annotations
-from abc import abstractmethod
+from typing import Callable, Collection, Dict, Iterable, Sequence, Tuple
 import dataclasses as dc
+
+from abc import abstractmethod
+
 import functools
 import itertools
+
 import json
-import pathlib
 import re
 import subprocess
-from typing import Any, Callable, Collection, Dict, Iterable, Iterator, Mapping, Sequence, Tuple, Union
 
 from sxpat.annotatedGraph import AnnotatedGraph
 import sxpat.config.config as sxpat_cfg
 import sxpat.config.paths as sxpat_paths
 from sxpat.templateSpecs import TemplateSpecs
 from .encoding import Encoding
-
-
-NOTHING = object()
-
-
-def mapping_inv(mapping: Mapping, value: Any, default: Any = NOTHING) -> Any:
-    key = next((k for (k, v) in mapping.items() if v == value), default)
-    if key is NOTHING:
-        raise ValueError('The value does not match with any pair in the mapping.')
-    return key
-
-
-def pairwise_iter(iterable: Iterable) -> Iterator:
-    """iterate pair-wise (AB, BC, CD, ...)"""
-    return zip(iterable, itertools.islice(iterable, 1, None))
+from utils.collections import mapping_inv, pairwise_iter
 
 
 @dc.dataclass
@@ -38,13 +26,6 @@ class Result:
 
 
 class TemplateManager:
-    def __init__(self, exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph,
-                 specs: TemplateSpecs, encoding: Encoding) -> None:
-        self._exact_graph = exact_graph
-        self._current_graph = current_graph
-        self._specs = specs
-        self._encoding = encoding
-
     @staticmethod
     def factory(specs: TemplateSpecs,
                 exact_graph: AnnotatedGraph,
@@ -59,15 +40,39 @@ class TemplateManager:
 
         # select and return TemplateManager object
         return {
-            False: SOPManager,
-            True: SOPSManager,
-        }[specs.shared](
+            (False, 1): SOPManager,
+            (False, 2): SOPManager,
+            (True, 1): SOPSManager,
+            (True, 2): SOPSManager,
+            (False, 3): SOP_QBF_Manager,
+        }[specs.shared, specs.encoding](
             exact_graph,
             current_graph,
             specs,
             encoding
         )
 
+    def __init__(self, exact_graph: AnnotatedGraph,
+                 current_graph: AnnotatedGraph,
+                 specs: TemplateSpecs,
+                 encoding: Encoding,
+                 ) -> None:
+        self._exact_graph = exact_graph
+        self._current_graph = current_graph
+        self._specs = specs
+        self._encoding = encoding
+
+    def run(self) -> Sequence[Result]:
+        raise NotImplementedError(f'{self.__class__.__name__}.run(...) is abstract.')
+
+
+class SOP_QBF_Manager(TemplateManager):
+    def run(self) -> Sequence[Result]:
+        # todo:lorenzo: here
+        pass
+
+
+class Z3TemplateManager(TemplateManager):
     def generate_script(self) -> None:
         # initialize builder object
         builder = Builder.from_file('./sxpat/template_manager/template.py')
@@ -92,10 +97,6 @@ class TemplateManager:
             stderr=subprocess.PIPE
         )
 
-        print(process.stdout)
-        print('==================================================================')
-        print(process.stderr)
-        print('==================================================================')
         if process.returncode != 0:
             raise RuntimeError(f'ERROR!!! Cannot run file {self.script_path}')
 
