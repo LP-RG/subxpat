@@ -323,11 +323,10 @@ class ProductTemplateManager(TemplateManager):
 
         # consts_declaration  
         def get_single_predecessor(out_name): return next(self._current_graph.graph.predecessors(out_name))
-        constants = self._current_graph.constant_dict.values()
         lines = [
             self._gen_declare_gate(f'{sxpat_cfg.CONSTANT_PREFIX}{output_i}')
             for output_i, output_name in self.outputs.items()
-            if get_single_predecessor(output_name) in constants
+            if get_single_predecessor(output_name) in self.current_constants.values()
         ]
         builder.update(consts_declaration='\n'.join(lines))
 
