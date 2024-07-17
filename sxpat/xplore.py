@@ -270,7 +270,9 @@ def explore_grid(specs_obj: TemplateSpecs):
                         prev_actual_error = obtained_wce_prev
 
                         if obtained_wce_exact > available_error:
-                            raise Exception(color.error('ErrorEval Verification: FAILED!'))
+                            stats_obj.store_grid()
+                            return stats_obj
+                            # raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
                     this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=obtained_wce_exact, iteration=i,
                                             area=cur_model_results[synth_obj.ver_out_name][0],
