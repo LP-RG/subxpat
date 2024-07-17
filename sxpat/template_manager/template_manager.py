@@ -440,22 +440,23 @@ class SOPManager(ProductTemplateManager):
         # apply superclass updates
         super()._update_builder(builder)
 
-        # params_declaration
-        builder.update(params_declaration='\n'.join(itertools.chain(
+        # params_declaration and params_list
+        params = list(itertools.chain(
             (
-                self._gen_declare_gate(self._output_parameter(output_i))
+                self._output_parameter(output_i)
                 for output_i in self.subgraph_outputs.keys()
             ),
             itertools.chain.from_iterable(
-                (
-                    self._gen_declare_gate((pars := self._input_parameters(output_i, product_i, input_i))[0]),
-                    self._gen_declare_gate(pars[1])
-                )
+                self._input_parameters(output_i, product_i, input_i)
                 for output_i in self.subgraph_outputs.keys()
                 for product_i in range(self._specs.ppo)
                 for input_i in self.subgraph_inputs.keys()
             ),
-        )))
+        ))
+        builder.update(
+            params_declaration='\n'.join(self._gen_declare_gate(p) for p in params),
+            params_list=f'[{", ".join(params)}]'
+        )
 
         # approximate_wires_constraints
         def get_preds(name: str) -> Collection[str]:
@@ -582,26 +583,27 @@ class SOPSManager(ProductTemplateManager):
         # apply superclass updates
         super()._update_builder(builder)
 
-        # params_declaration
-        builder.update(params_declaration='\n'.join(itertools.chain(
+        # params_declaration and params_list
+        params = list(itertools.chain(
             (  # p_o#
-                self._gen_declare_gate(self._output_parameter(output_i))
+                self._output_parameter(output_i)
                 for output_i in self.subgraph_outputs.keys()
             ),
             itertools.chain.from_iterable(  # p_pr#_i#
-                (
-                    self._gen_declare_gate((pars := self._input_parameters(None, product_i, input_i))[0]),
-                    self._gen_declare_gate(pars[1])
-                )
+                self._input_parameters(None, product_i, input_i)
                 for product_i in range(self._specs.pit)
                 for input_i in self.subgraph_inputs.keys()
             ),
             (  # p_pr#_o#
-                self._gen_declare_gate(self._product_parameter(output_i, product_i))
+                self._product_parameter(output_i, product_i)
                 for output_i in self.subgraph_outputs.keys()
                 for product_i in range(self._specs.pit)
             ),
-        )))
+        ))
+        builder.update(
+            params_declaration='\n'.join(self._gen_declare_gate(p) for p in params),
+            params_list=f'[{", ".join(params)}]'
+        )
 
         # approximate_wires_constraints
         def get_preds(name: str) -> Collection[str]: return sorted(self._current_graph.graph.predecessors(name), key=lambda n: int(re.search(r'\d+', n).group()))
