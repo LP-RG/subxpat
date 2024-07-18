@@ -452,7 +452,7 @@ class Synthesis:
                                    f'{pn[0]} {sxpatconfig.VER_OR} ' \
                                    f'{pn[1]};\n'
             else:
-                pprint.error(f'ERROR!!! node {n} has more than two drivers!')
+                pprint.error(f'ERROR!!! node {n_name} has more than two drivers!')
                 exit(1)
 
         return intact_part
@@ -970,10 +970,27 @@ class Synthesis:
             shared_assigns = self.__shared_logic_assigns_subxpat_shared(idx=idx)
             output_assigns = self.__output_assigns()
 
-            ver_str += (module_signature + io_declaration + intact_wires + annotated_graph_input_wires + json_input_wires
-                        + annotated_graph_input_wires + annotated_graph_output_wires + json_output_wires + json_model_wires)
-            ver_str += (json_input_assign + subgraph_to_json_input_mapping + intact_assigns
-                        + json_model_and_subgraph_outputs_assigns + shared_assigns + output_assigns)
+            #
+            json_model_constants_rewrite = self.__json_model_output_constants_assign(idx)
+
+            ver_str += (
+                module_signature
+                + io_declaration
+                + intact_wires
+                + annotated_graph_input_wires
+                + json_input_wires
+                + annotated_graph_input_wires
+                + annotated_graph_output_wires
+                + json_output_wires
+                + json_model_wires
+                + json_input_assign
+                + subgraph_to_json_input_mapping
+                + intact_assigns
+                + json_model_and_subgraph_outputs_assigns
+                + shared_assigns
+                + json_model_constants_rewrite
+                + output_assigns
+            )
 
             ver_string.append(ver_str)
 
@@ -1156,7 +1173,7 @@ class Synthesis:
 
         ver_str += f'{sxpatconfig.VER_ENDMODULE}'
         return ver_str
-    
+
     # =========================
 
     @staticmethod
