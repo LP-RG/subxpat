@@ -16,7 +16,7 @@ import sxpat.config.config as sxpat_cfg
 import sxpat.config.paths as sxpat_paths
 from sxpat.templateSpecs import TemplateSpecs
 from .encoding import Encoding
-from utils.collections import mapping_inv, pairwise_iter
+from sxpat.utils.collections import mapping_inv, pairwise_iter
 
 
 @dc.dataclass
@@ -189,7 +189,7 @@ class Z3TemplateManager(TemplateManager):
         return self._current_graph.constant_dict
 
 
-class ProductTemplateManager(TemplateManager):
+class ProductTemplateManager(Z3TemplateManager):
 
     # utility string methods
 
