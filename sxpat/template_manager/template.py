@@ -30,9 +30,6 @@ error = {{{{error}}}}
 {{{{params_declaration}}}}
 params_list = {{{{params_list}}}}
 
-# Constants variables declaration
-{{{{consts_declaration}}}}
-
 # wires functions declaration for exact circuit
 {{{{exact_wires_declaration}}}}
 
