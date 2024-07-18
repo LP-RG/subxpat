@@ -189,7 +189,7 @@ class Z3TemplateManager(TemplateManager):
         return self._current_graph.constant_dict
 
 
-class ProductTemplateManager(TemplateManager):
+class ProductTemplateManager(Z3TemplateManager):
 
     # utility string methods
 
