@@ -43,7 +43,10 @@ def main():
 def plot_dict(all_dict):
     color_map = {
         51: 'blue',
-        53: 'red'
+        53: 'red',
+        54: 'green',
+        55: 'orange'
+
         # Add more modes and their respective colors as needed
     }
     for benchmark, modes in all_dict.items():
