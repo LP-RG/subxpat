@@ -25,6 +25,10 @@ def parse_file(file_path):
     return variables, outputs, expressions
 
 def evaluate_expression(expr, values):
+    if expr.startswith('and()'):
+        return True
+    elif expr.startswith('or()'):
+        return False
     if expr.startswith('and'):
         args = expr[4:-1].split(',')
         return all(get_value(int(arg.strip()), values) for arg in args)
@@ -45,7 +49,7 @@ def compute_truth_table(variables, outputs, expressions):
     
     for values in itertools.product([False, True], repeat=num_vars):
         values = dict(zip(variables, values))
-        for var in sorted(expressions.keys()):
+        for var in expressions.keys():
             values[var] = evaluate_expression(expressions[var], values)
         truth_table.append([values[var] for var in outputs])
     
