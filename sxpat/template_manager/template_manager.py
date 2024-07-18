@@ -551,6 +551,8 @@ class SOP_QBF_Manager(TemplateManager):
             i+=1
         outputs_inexact = SOP_QBF_Manager.increment(SOP_QBF_Manager.inverse(outputs_inexact))
         substraction_results = SOP_QBF_Manager.signed_adder(outputs_exact,outputs_inexact)
+        print('inexact: ',outputs_inexact)
+        print('substactions:',substraction_results)
         absolute_values = SOP_QBF_Manager.absolute_value(substraction_results)
         res = []
         if self._specs.lpp < self._current_graph.subgraph_num_inputs:
@@ -575,14 +577,17 @@ class SOP_QBF_Manager(TemplateManager):
                             second = deq.popleft()
                             deq.append(SOP_QBF_Manager.unsigned_adder(first,second))
                     res.append(SOP_QBF_Manager.comparator_greater_than(deq.pop(),self._specs.lpp))
-
+        print(self._specs.et)
         SOP_QBF_Manager.output.write(f'90 = and(-{SOP_QBF_Manager.comparator_greater_than(absolute_values,self._specs.et)}')
         for x in res:
             SOP_QBF_Manager.output.write(f', -{x}')
         SOP_QBF_Manager.output.write(')\n')
         SOP_QBF_Manager.output.close()
         result = subprocess.run(['../../cqesto-master/build/cqesto', 'Lollo/output.txt'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout.decode('utf-8')
-        
+        if self._specs.ppo == self._specs.lpp == 1:
+            print(result)
+
+            exit()
         if result.strip()[-1] == '1':
             # print(result.split('\n')[3][2:-2].split())
             # print('time taken = ' + result.split('\n')[4].split()[-1])
