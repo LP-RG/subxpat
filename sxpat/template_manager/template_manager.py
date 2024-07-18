@@ -280,6 +280,7 @@ class SOP_QBF_Manager(TemplateManager):
         nodes_exact = graph_exact.nodes
         graph_current = self._current_graph.graph
         nodes_current = graph_current.nodes
+        
         # 1,2,30 is for the input, and, output gates of the exact circuit, 40 for intermidiate and gates of the multiplexer, 41 for the output of the multiplexer,
         # 5 for the and gates, 60 for the or gates, 61 for the and between the or gate and p_o# (the outputs of the parametrical circuit),
         # 62 is for the and gates of the inexact circuit, 7 is for the parameters p_o#_t#_i#_s/l, 31 is for the outputs of the inexact circuit
@@ -551,9 +552,11 @@ class SOP_QBF_Manager(TemplateManager):
             i+=1
         outputs_inexact = SOP_QBF_Manager.increment(SOP_QBF_Manager.inverse(outputs_inexact))
         substraction_results = SOP_QBF_Manager.signed_adder(outputs_exact,outputs_inexact)
+        print('exact: ',outputs_exact)
         print('inexact: ',outputs_inexact)
         print('substactions:',substraction_results)
         absolute_values = SOP_QBF_Manager.absolute_value(substraction_results)
+        print('absolute value:', absolute_values)
         res = []
         if self._specs.lpp < self._current_graph.subgraph_num_inputs:
             for a in range(self._current_graph.subgraph_num_outputs):
@@ -577,7 +580,6 @@ class SOP_QBF_Manager(TemplateManager):
                             second = deq.popleft()
                             deq.append(SOP_QBF_Manager.unsigned_adder(first,second))
                     res.append(SOP_QBF_Manager.comparator_greater_than(deq.pop(),self._specs.lpp))
-        print(self._specs.et)
         SOP_QBF_Manager.output.write(f'90 = and(-{SOP_QBF_Manager.comparator_greater_than(absolute_values,self._specs.et)}')
         for x in res:
             SOP_QBF_Manager.output.write(f', -{x}')
@@ -586,8 +588,10 @@ class SOP_QBF_Manager(TemplateManager):
         result = subprocess.run(['../../cqesto-master/build/cqesto', 'Lollo/output.txt'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout.decode('utf-8')
         if self._specs.ppo == self._specs.lpp == 1:
             print(result)
+            print('et = ',self._specs.et)
+            print(self._current_graph.subgraph_input_dict.values())
+            print(self._current_graph.subgraph_output_dict.values())
 
-            exit()
         if result.strip()[-1] == '1':
             # print(result.split('\n')[3][2:-2].split())
             # print('time taken = ' + result.split('\n')[4].split()[-1])
