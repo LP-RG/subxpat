@@ -216,8 +216,8 @@ class ProductTemplateManager(Z3TemplateManager):
         if node_name in self.exact_constants.values():
             succs = list(self._current_graph.graph.successors(node_name))
             if len(succs) == 1 and succs[0] in self._current_graph.output_dict.values():
-                output_i = next(node_i for node_i, node_name in self._current_graph.output_dict.items() if node_name == succs[0])
-                return f'{sxpat_cfg.CONSTANT_PREFIX}{output_i}'
+                output_i = mapping_inv(self._current_graph.output_dict, succs[0])
+                return f'{sxpat_cfg.CONSTANT_PREFIX}{output_i}'            
             else:
                 return sxpat_cfg.Z3_GATES_DICTIONARY[self._exact_graph.graph.nodes[node_name][sxpat_cfg.LABEL]]
 
