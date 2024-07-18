@@ -1,5 +1,5 @@
 variables = 10, 11, 12, 13
-outputs = 999999
+outputs = 94264, 94271, 94280, 94289, 94298
 #
 91 = and()
 92 = or()
@@ -85,7 +85,7 @@ outputs = 999999
 50012 = and(-6214)
 50011 = and(6217)
 #
-#change sign of the outputs of inexact_circuit (using two's complement)
+#change sign of the outputs of inexact_circuit (using twos complement)
 #inversing every bit
 94246 = and(-50010)
 94247 = and(-50011)
