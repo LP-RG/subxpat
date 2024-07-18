@@ -182,6 +182,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
 
+
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
             graph_path = f'{folder}/{specs_obj.benchmark_name}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
