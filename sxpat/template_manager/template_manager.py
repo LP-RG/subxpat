@@ -424,10 +424,6 @@ class SOP_QBF_Manager(TemplateManager):
                         predecessors[succ] = [(cur,False)]
 
         #formula of multiplexer or( and(s,l,in), and(s, !l, !in), !s)
-        # print(self._current_graph.subgraph_input_dict.values())
-        # print(self._current_graph.subgraph_output_dict.values())
-        # for x in nodes_current:
-        #     print(x,nodes_current[x],*graph_current.successors(x))
         for a,out in enumerate(self._current_graph.subgraph_output_dict.values()):
             and_list = []
 
@@ -552,11 +548,7 @@ class SOP_QBF_Manager(TemplateManager):
             i+=1
         outputs_inexact = SOP_QBF_Manager.increment(SOP_QBF_Manager.inverse(outputs_inexact))
         substraction_results = SOP_QBF_Manager.signed_adder(outputs_exact,outputs_inexact)
-        print('exact: ',outputs_exact)
-        print('inexact: ',outputs_inexact)
-        print('substactions:',substraction_results)
         absolute_values = SOP_QBF_Manager.absolute_value(substraction_results)
-        print('absolute value:', absolute_values)
         res = []
         if self._specs.lpp < self._current_graph.subgraph_num_inputs:
             for a in range(self._current_graph.subgraph_num_outputs):
@@ -586,15 +578,7 @@ class SOP_QBF_Manager(TemplateManager):
         SOP_QBF_Manager.output.write(')\n')
         SOP_QBF_Manager.output.close()
         result = subprocess.run(['../../cqesto-master/build/cqesto', 'Lollo/output.txt'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout.decode('utf-8')
-        if self._specs.ppo == self._specs.lpp == 1:
-            print(result)
-            print('et = ',self._specs.et)
-            print(self._current_graph.subgraph_input_dict.values())
-            print(self._current_graph.subgraph_output_dict.values())
-
         if result.strip()[-1] == '1':
-            # print(result.split('\n')[3][2:-2].split())
-            # print('time taken = ' + result.split('\n')[4].split()[-1])
             res_dict = dict()
             for x in result.split('\n')[3][2:-2].split():
                 if x[1] == '7':
@@ -602,11 +586,8 @@ class SOP_QBF_Manager(TemplateManager):
                     res_dict[f'p_o{number // 2 // self._current_graph.subgraph_num_inputs // self._specs.ppo}_t{number // 2 // self._current_graph.subgraph_num_inputs % self._specs.ppo}_i{number // 2 % self._current_graph.subgraph_num_inputs}_' + ('s' if int(x) % 2 == 0 else 'l')] = True if x[0] == '+' else False
                 else:
                     res_dict[f'p_o{x[3:]}'] = True if x[0] == '+' else False
-            # print('true')
             return [Result(sxpat_cfg.SAT,res_dict)]
         else:
-            # print('false')
-            # print('time taken = ' + result.split('\n')[4].split()[-1])
             return [Result(sxpat_cfg.UNSAT,dict())]
 
 
