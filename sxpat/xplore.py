@@ -131,9 +131,8 @@ def explore_grid(specs_obj: TemplateSpecs):
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
 
-            #aggiungi qua chiamata a check_sat
-            Lollo.test.check_sat(specs_obj)
-            exit()
+            # Lollo.test.check_sat(specs_obj)
+            # exit()
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
