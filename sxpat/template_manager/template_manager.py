@@ -305,8 +305,6 @@ class SOP_QBF_Manager(TemplateManager):
         pres = set() #used to check if and / or gates have all their inputs arrived
         start = True
         for x in nodes_exact:
-            print(x,nodes_exact[x],*graph_exact.predecessors(x))
-        for x in nodes_exact:
 
             if x[:len(SOP_QBF_Manager.INPUT_GATE_INITIALS)] != SOP_QBF_Manager.INPUT_GATE_INITIALS:
                 continue
@@ -370,11 +368,65 @@ class SOP_QBF_Manager(TemplateManager):
         #finished exact_circuit
         SOP_QBF_Manager.output.write('#\n')
 
+
         SOP_QBF_Manager.output.write('#parametrical_circuit\n')
-        #start with parametrical_template
         deq = deque()
         predecessors = {} #key : [(gate_coming_from, inverted?), // ]
+        for x in nodes_current:
+            if x[:len(SOP_QBF_Manager.INPUT_GATE_INITIALS)] != SOP_QBF_Manager.INPUT_GATE_INITIALS:
+                continue
+            for succ in graph_current.successors(x):
+                if nodes_current[succ]['label'] == SOP_QBF_Manager.NOT or succ in predecessors:
+                    deq.append(succ)
+                    if nodes_current[succ]['label'] == SOP_QBF_Manager.NOT:
+                        predecessors[succ] = [(x,False)]
+                    else:
+                        predecessors[succ].append((x,False))
+                else:
+                    predecessors[succ] = [(x,False)]
+        
+        SOP_QBF_Manager.output.write('#\n')
+        while len(deq) != 0:
+            cur = deq.popleft()
+            
+            if cur in self._current_graph.subgraph_output_dict.values():
+                continue
+            label = nodes_current[cur]['label']
+            if label == SOP_QBF_Manager.AND_SUBXPAT or label == SOP_QBF_Manager.OR_SUBXPAT:
+                SOP_QBF_Manager.output.write(SOP_QBF_Manager.make_qcir_variable_inexact(cur) + ' = ' + (SOP_QBF_Manager.AND_QCIR if label == SOP_QBF_Manager.AND_SUBXPAT else SOP_QBF_Manager.OR_QCIR) + '(')
+                for i,x in enumerate(predecessors[cur]):
+                    if x[1]:
+                        SOP_QBF_Manager.output.write('-')
+                    SOP_QBF_Manager.output.write(SOP_QBF_Manager.make_qcir_variable_inexact(x[0]))
+                    SOP_QBF_Manager.output.write(', ' if i < len(predecessors[cur]) - 1 else '')
+                SOP_QBF_Manager.output.write(')\n')
+
+            for succ in graph_current.successors(cur):
+                if nodes_current[succ]['label'] == SOP_QBF_Manager.NOT:
+                    deq.append(succ)
+                    if label == SOP_QBF_Manager.NOT:
+                        predecessors[succ] = [(predecessors[cur][0][0], not predecessors[cur][0][1])]
+                    else:
+                        predecessors[succ] = [(cur,False)]
+                
+                elif succ in predecessors:
+                    deq.append(succ)
+                    if label == SOP_QBF_Manager.NOT:
+                        predecessors[succ].append((predecessors[cur][0][0],not predecessors[cur][0][1]))
+                    else:
+                        predecessors[succ].append((cur,False))
+                
+                else:
+                    if label == SOP_QBF_Manager.NOT:
+                        predecessors[succ] = [(predecessors[cur][0][0],not predecessors[cur][0][1])]
+                    else:
+                        predecessors[succ] = [(cur,False)]
+
         #formula of multiplexer or( and(s,l,in), and(s, !l, !in), !s)
+        # print(self._current_graph.subgraph_input_dict.values())
+        # print(self._current_graph.subgraph_output_dict.values())
+        # for x in nodes_current:
+        #     print(x,nodes_current[x],*graph_current.successors(x))
         for a,out in enumerate(self._current_graph.subgraph_output_dict.values()):
             and_list = []
 
@@ -387,11 +439,11 @@ class SOP_QBF_Manager(TemplateManager):
                     and2 = '40' + str(var+1)
 
                     #partial and gates of the multiplexer
-                    SOP_QBF_Manager.output.write(and1 + ' = and(7' + str(var) + ', 7' + str(var+1)  + ', ' + (SOP_QBF_Manager.make_qcir_variable(inp) if nodes_current[inp]['label'] != SOP_QBF_Manager.NOT else
-                                                                                            ('-' if inverted[inp][1] else '') + SOP_QBF_Manager.make_qcir_variable(inverted[inp][0])) + ')\n')
+                    SOP_QBF_Manager.output.write(and1 + ' = and(7' + str(var) + ', 7' + str(var+1)  + ', ' + (SOP_QBF_Manager.make_qcir_variable_inexact(inp) if nodes_current[inp]['label'] != SOP_QBF_Manager.NOT else
+                                                                                            ('-' if predecessors[inp][0][1] else '') + SOP_QBF_Manager.make_qcir_variable_inexact(predecessors[inp][0][0])) + ')\n')
 
-                    SOP_QBF_Manager.output.write(and2 + ' = and(7' + str(var) + ', -7' + str(var+1) + ', ' + ('-' + SOP_QBF_Manager.make_qcir_variable(inp) if nodes_current[inp]['label'] != SOP_QBF_Manager.NOT else
-                                                                                            ('' if inverted[inp][1] else '-') + SOP_QBF_Manager.make_qcir_variable(inverted[inp][0])) + ')\n')
+                    SOP_QBF_Manager.output.write(and2 + ' = and(7' + str(var) + ', -7' + str(var+1) + ', ' + ('-' + SOP_QBF_Manager.make_qcir_variable_inexact(inp) if nodes_current[inp]['label'] != SOP_QBF_Manager.NOT else
+                                                                                            ('' if predecessors[inp][0][1] else '-') + SOP_QBF_Manager.make_qcir_variable_inexact(predecessors[inp][0][0])) + ')\n')
 
                     #output of the multiplexer
                     multi = '41' + str(var//2)
@@ -437,19 +489,6 @@ class SOP_QBF_Manager(TemplateManager):
                         predecessors[succ].append((outp,False))
                 else:
                     predecessors[succ] = [(outp,False)]
-        
-        for x in nodes_current:
-            if x[:len(SOP_QBF_Manager.INPUT_GATE_INITIALS)] != SOP_QBF_Manager.INPUT_GATE_INITIALS:
-                continue
-            for succ in graph_current.successors(x):
-                if nodes_current[succ]['label'] == SOP_QBF_Manager.NOT or succ in predecessors:
-                    deq.append(succ)
-                    if nodes_current[succ]['label'] == SOP_QBF_Manager.NOT:
-                        predecessors[succ] = [(x,False)]
-                    else:
-                        predecessors[succ].append((x,False))
-                else:
-                    predecessors[succ] = [(x,False)]
         
         SOP_QBF_Manager.output.write('#\n')
         while len(deq) != 0:
@@ -551,7 +590,7 @@ class SOP_QBF_Manager(TemplateManager):
             for x in result.split('\n')[3][2:-2].split():
                 if x[1] == '7':
                     number = int(x[2:])
-                    res_dict[f'p_o{number // 2 // self._current_graph.subgraph_num_inputs // self._specs.ppo}_t{number // 2 // self._current_graph.subgraph_num_inputs % self._specs.ppo}_i{number // 2 % self._current_graph.subgraph_num_inputs}_' + 's' if int(x) % 2 == 0 else 'l'] = True if x[0] == '+' else False
+                    res_dict[f'p_o{number // 2 // self._current_graph.subgraph_num_inputs // self._specs.ppo}_t{number // 2 // self._current_graph.subgraph_num_inputs % self._specs.ppo}_i{number // 2 % self._current_graph.subgraph_num_inputs}_' + ('s' if int(x) % 2 == 0 else 'l')] = True if x[0] == '+' else False
                 else:
                     res_dict[f'p_o{x[3:]}'] = True if x[0] == '+' else False
             # print('true')

@@ -112,6 +112,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             # import the graph
             current_graph = AnnotatedGraph(specs_obj.benchmark_name, is_clean=False, partitioning_percentage=1)
             exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False, partitioning_percentage=0)
+            original_graph = AnnotatedGraph(exact_file_name, is_clean=False, partitioning_percentage=0)
 
             # label graph
             if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
@@ -163,7 +164,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 specs_obj = set_current_context(specs_obj, lpp, ppo, i)
 
                 # run script
-                manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
+                manager = TemplateManager.factory(specs_obj, original_graph, current_graph)
                 start_time = time.time()
                 results = manager.run()
                 execution_time = time.time() - start_time
