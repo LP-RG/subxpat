@@ -697,7 +697,7 @@ class SOPSManager(ProductTemplateManager):
 
 class MultilevelManager(ProductTemplateManager):
     #parameter for the total number of level
-    LV = 4
+    LV = 3
 
     @property
     def script_path(self) -> str:
@@ -735,8 +735,8 @@ class MultilevelManager(ProductTemplateManager):
         return f'p_con_fn{from_n}_lv0_tin{to_in}'
     
     @staticmethod
-    def _id_node_output(output_i: int, nd_i: int, lv_i: int) -> str:
-        return f'p_id_o{output_i}_n{nd_i}_lv{lv_i}'
+    def _allow_node_output(output_i: int, nd_i: int, lv_i: int) -> str:
+        return f'p_allow_o{output_i}_n{nd_i}_lv{lv_i}'
 
     @staticmethod
     def _level_parameter(node_i: int,level_i: int):
@@ -749,6 +749,10 @@ class MultilevelManager(ProductTemplateManager):
     @staticmethod
     def _neg_parameter(node_i:int, level_i: int):
         return f'p_neg_n{node_i}_lv{level_i}'
+    
+    @staticmethod
+    def _id_parameter(node_i:int, level_i: int):
+         return f'p_id_n{node_i}_lv{level_i}'
 
     @staticmethod
     def count_possible_connections(self, connections):
@@ -761,16 +765,16 @@ class MultilevelManager(ProductTemplateManager):
 
     #TODO: Refactor: create classmethods for generate script,(it wourld be more readable)
 
-    @staticmethod
-    def _multiplexer_multilevel(input_i,input_i__name,n_gate):
-        return "If(p_con_fn"+str(n_gate) +"_lv0_tin"+str(input_i)+", Or(Not(p_i"+str(input_i)+"_l == "+ str(input_i__name) +"),p_i"+str(input_i)+"_s),True)"
+    def _multiplexer_multilevel(self,input_i,input_i__name,n_gate):
+        return f'If({self._input_connection(n_gate,input_i)}, Or(Not({self._input_parameters(input_i)[0]} == {input_i__name}),{self._input_parameters(input_i)[1]}),Truej)'
+        #"If(p_con_fn"+str(n_gate) +"_lv0_tin"+str(input_i)+", Or(Not(p_i"+str(input_i)+"_l == "+ str(input_i__name) +"),p_i"+str(input_i)+"_s),True)"
     
     def _generate_input(self, n_gate):
         multiplexers = []
         for input_i, input_name in self.subgraph_inputs.items():
             # self._use_approx_var
             multiplexers.append(self._multiplexer_multilevel(input_i,input_name,n_gate))
-        return f'{", ".join(multiplexers)}'
+        return f'{", ".join(multiplexers)},'
 
     def _connection_constraints(self, npl, level_i, gate):
         gates_per_level = ""
@@ -778,7 +782,9 @@ class MultilevelManager(ProductTemplateManager):
         if level_i == 0:
             return self._generate_input(gate)
         for node in range(npl[level_i-1]): #param connection from node# to node#s
-            gates_per_level += "If( p_con_fn"+str(node)+"_lv"+str(level_i-1)+"_tn"+str(gate)+"_lv"+str(level_i)+", If(p_sw_fn"+str(node)+"_lv"+str(level_i-1)+"_tn"+str(gate)+"_lv"+str(level_i)+", n"+ str(node) + "_lv" + str(level_i-1) +", Not(n"+str(node)+"_lv"+str(level_i-1)+")), True),True,"
+            self._node_connection(node,level_i-1,gate,level_i)
+            gates_per_level += f'If({self._node_connection(node,level_i-1,gate,level_i)}, If({self._switch_parameter(node,level_i-1,gate,level_i)}, {self._level_parameter(node,level_i-1)}, Not({self._level_parameter(node,level_i-1)})), True),'
+            #gates_per_level += "If( p_con_fn"+str(node)+"_lv"+str(level_i-1)+"_tn"+str(gate)+"_lv"+str(level_i)+", If(p_sw_fn"+str(node)+"_lv"+str(level_i-1)+"_tn"+str(gate)+"_lv"+str(level_i)+", n"+ str(node) + "_lv" + str(level_i-1) +", Not(n"+str(node)+"_lv"+str(level_i-1)+")), True),"
 
         return gates_per_level
 
@@ -788,9 +794,11 @@ class MultilevelManager(ProductTemplateManager):
         for level_i in range(len(npl)-1, -1, -1):
             for gate in range( npl[level_i] ):
                 if level_i < len(npl) - 1:
-                    gates_per_level += "\n#level"+str(level_i)+"\n n"+ str(gate) +"_lv"+ str(level_i)+ " == Or( p_id_o"+str(output_i)+"_n"+str(gate)+"_lv"+str(level_i)+", And(p_neg_n"+str(gate)+"_lv"+str(level_i)+", Not(And(" + self._connection_constraints(npl,level_i,gate) + ")))),"
+                    gates_per_level += f'\n#level: {level_i}\n {self._level_parameter(gate,level_i)} == Or({self._allow_node_output(output_i,gate,level_i)}, And({self._id_parameter(gate,level_i)} == {self._connection_constraints(npl, level_i, gate)} If({self._neg_parameter(gate,level_i)}, Not({self._id_parameter(gate,level_i)}), {self._id_parameter(gate,level_i)}))),'
+                    #gates_per_level += "\n#level"+str(level_i)+"\n n"+ str(gate) +"_lv"+ str(level_i)+ " == Or( p_allow_o"+str(output_i)+"_n"+str(gate)+"_lv"+str(level_i)+", And(p_id_n"+str(gate)+"_lv"+str(level_i)+" == " + self._connection_constraints(npl,level_i,gate) + "If(p_neg_n"+str(gate)+"_lv"+str(level_i)+", Not(p_id_n"+str(gate)+"_lv"+str(level_i)+"), p_id_n"+str(gate)+"_lv"+str(level_i)+"))),"   
                 else:
-                    gates_per_level += "\n#level"+str(level_i)+"\nOr( p_id_o"+str(output_i)+"_n"+str(gate)+"_lv"+str(level_i)+", And(p_neg_n"+str(gate)+"_lv"+str(level_i)+", Not(And(" + self._connection_constraints(npl,level_i,gate) + ")))),"
+                    gates_per_level+= f'\n#level: {level_i}\n Or({self._allow_node_output(output_i,gate,level_i)}, And({self._id_parameter(gate,level_i)} == {self._connection_constraints(npl, level_i, gate)} If({self._neg_parameter(gate, level_i)}, Not({self._id_parameter(gate,level_i)}), {self._id_parameter(gate, level_i)}))),'
+                    #gates_per_level += "\n#level"+str(level_i)+"\nOr( p_allow_o"+str(output_i)+"_n"+str(gate)+"_lv"+str(level_i)+", And( p_id_n"+str(gate)+"_lv"+str(level_i)+"== " + self._connection_constraints(npl,level_i,gate) + "If(p_neg_n"+str(gate)+"_lv"+str(level_i)+", Not(p_id_n"+str(gate)+"_lv"+str(level_i)+"), p_id_n"+str(gate)+"_lv"+str(level_i)+"))),"    
             if level_i == len(npl) - 1:
                 gates_per_level += "),"
 
@@ -808,7 +816,7 @@ class MultilevelManager(ProductTemplateManager):
         #TODO: reove the + 1
         #Amedeo: note that this could be parametrized with different number of gates for each level
         for i in range(len(npl)):
-            npl[i] = self._specs.pit;         
+            npl[i] = 2 #self._specs.pit     
         
         npl[self.LV - 1] = len(self.subgraph_outputs)
 
@@ -836,7 +844,8 @@ class MultilevelManager(ProductTemplateManager):
                     itertools.chain.from_iterable(
                         (
                             self._gen_declare_gate(self._level_parameter(nd,lv)),   # n#_lv# 
-                            self._gen_declare_gate(self._neg_parameter(nd,lv))      # p_neg_n#_lv#
+                            self._gen_declare_gate(self._neg_parameter(nd,lv)),     # p_neg_n#_lv#
+                            self._gen_declare_gate(self._id_parameter(nd,lv))       #p_id_n0_lv1
                         )
                         for lv in range(len(npl))
                         for nd in range(npl[lv])
@@ -856,7 +865,7 @@ class MultilevelManager(ProductTemplateManager):
                         for f_nd in range(npl[0])
                     ),
                     itertools.chain(
-                        self._gen_declare_gate(self._id_node_output(output_i,nd,lv))    # p_id_o#_n#_lv#
+                        self._gen_declare_gate(self._allow_node_output(output_i,nd,lv))    # p_allow_o#_n#_lv#
                         for output_i in self.subgraph_outputs.keys()
                         for lv in range(len(npl))
                         for nd in range(npl[lv]) 
@@ -901,7 +910,7 @@ class MultilevelManager(ProductTemplateManager):
                 node = (f'{self._generate_levels(npl, output_i)}')
                 
                 #TODO: refactor this line of code
-                lines.append(f'{output_use} == And(And({sxpat_cfg.PRODUCT_PREFIX}{output_i}== Or({node}),If(mult_o{output_i},Or(Not(p_o{output_i}_l == {sxpat_cfg.PRODUCT_PREFIX}{output_i}),p_o{output_i}_s),False)),') 
+                lines.append(f'{output_use} == And(And({sxpat_cfg.PRODUCT_PREFIX}{output_i}== Or({node}),\n # output selection \n If(mult_o{output_i},Or(Not(p_o{output_i}_l == {sxpat_cfg.PRODUCT_PREFIX}{output_i}),p_o{output_i}_s),False)),') 
                 
         builder.update(approximate_wires_constraints='\n'.join(lines))
 
@@ -934,28 +943,39 @@ class MultilevelManager(ProductTemplateManager):
         #     '# Force the number of inputs to sum to be at most `its`',
         #     f'AtMost({", ".join(parameters)}, {self._specs.lpp*self.LV}),'
         # ])) 
-######################################################################################################################################################################################################################        
-        # JUST FOR RUN THE TEST
+
         # product_order_constraint
         lines = []
-        if self._specs.pit == 1:
-            lines.append('# No order needed for only one product')
-        else:
-            products = tuple(
-                self._encoding.aggregate_variables(
-                    tuple(itertools.chain.from_iterable(
-                        reversed(self._input_parameters(output_i, product_i, input_i))
-                        for input_i in self.subgraph_inputs.keys()
-                    ))
+        for lv in range(len(npl)-1):
+            if npl[lv] == 1:
+                lines.append(f'# No order needed for only one product at level: {lv}')
+            else:
+                products = tuple(
+                            self._encoding.aggregate_variables(
+                                itertools.chain(
+                                    self._input_connection(node,input_i)
+                                    for input_i in self.subgraph_inputs.keys()  
+                                )
+                            )
+                            for node in range(npl[lv])
+                    )if lv == 0 else tuple(
+                            self._encoding.aggregate_variables(
+                                itertools.chain(
+                                    self._node_connection(node_fr,lv,node_to,lv+1)
+                                    for node_to in range(npl[lv+1])    
+                                )
+                            )
+                            for node_fr in range(npl[lv])
+                    )
+                print(products)
+                lines.extend(
+                    f'# product order constraint for level: {lv} \n {self._encoding.unsigned_greater(product_a, product_b)},'
+                    for product_a, product_b in pairwise_iter(products)
                 )
-                for product_i in range(self._specs.pit)
-            )
-            lines.extend(
-                f'{self._encoding.unsigned_greater_equal(product_a, product_b)},'
-                for product_a, product_b in pairwise_iter(products)
-            )
         builder.update(product_order_constraint='\n'.join(lines))
-
+#####################################################################################################################################################################################################################        
+        # JUST FOR RUN THE TEST
+        
         # remove_zero_permutations_constraint
         lines = []
         """ for output_i in self.subgraph_outputs.keys():
@@ -974,11 +994,6 @@ class MultilevelManager(ProductTemplateManager):
             encoding=self._specs.encoding,
             cell=f'({self._specs.lpp}, {self._specs.pit})',
         )
-    
-    #TODO remove this
-    @classmethod
-    def _product_parameter(cls, output_i: int, product_i: int) -> str:
-        return f'p_pr{product_i}_o{output_i}' #"""
 ######################################################################################################################################################################################################################        
 
 class Builder:
