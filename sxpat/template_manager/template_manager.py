@@ -60,7 +60,7 @@ class TemplateManager:
         # select and return TemplateManager object
         return {
             False: SOPManager,
-            True: MultilevelManager,#SOPSManager,
+            True:  MultilevelManager,
         }[specs.shared](
             exact_graph,
             current_graph,
@@ -285,8 +285,6 @@ class ProductTemplateManager(TemplateManager):
             # self._use_approx_var
             multiplexers.append(f'Or(Not({p_s}), {p_l} == {(input_name)})')
         return f'And({", ".join(multiplexers)})'
-
-    #
 
     def _update_builder(self, builder: Builder) -> None:
         # et_encoded
@@ -699,7 +697,7 @@ class SOPSManager(ProductTemplateManager):
 
 class MultilevelManager(ProductTemplateManager):
     #parameter for the total number of level
-    LV = 3
+    LV = 4
 
     @property
     def script_path(self) -> str:
@@ -711,65 +709,93 @@ class MultilevelManager(ProductTemplateManager):
         folder, extension = sxpat_paths.OUTPUT_PATH[sxpat_cfg.JSON]
         return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
     
-    @classmethod
-    def _input_parameters(cls, output_i: int, node_i: int, input_i: int) -> Tuple[str, str]:
-        partial_parameter = f'p_pr{node_i}_{sxpat_cfg.INPUT_LITERAL_PREFIX}{input_i}'
-        return (f'{partial_parameter}_{sxpat_cfg.LITERAL_PREFIX}', f'{partial_parameter}_{sxpat_cfg.SELECT_PREFIX}')
-
-    @classmethod
-    def _node_parameter(cls, output_i: int, node_i: int) -> str:
-        return f'p_pr{node_i}_o{output_i}'
-
-    @classmethod
-    def _level_parameter(cls, level_i: int, node_i: int):
-        partial_parameter = f'p_lv{level_i}_{sxpat_cfg.NODE_LITERAL_PREFIX}{node_i}'
+    @staticmethod
+    def _input_parameters(input_i: int) -> Tuple[str, str]:
+        partial_parameter = f'p_{sxpat_cfg.INPUT_LITERAL_PREFIX}{input_i}'
         return (f'{partial_parameter}_{sxpat_cfg.LITERAL_PREFIX}', f'{partial_parameter}_{sxpat_cfg.SELECT_PREFIX}')
     
-    #TODO implements this method
-    @classmethod
-    def _node_(cls, output_i: int, node_i: int, level_i: int) -> str:
-        return f'p_lv{level_i}_nd{node_i}_o{output_i}'
+    @staticmethod
+    def _output_mul_parameter(output_i: int) -> Tuple[str, str]:
+        partial_parameter = f'{sxpat_cfg.PARAM_PREFIX}{output_i}'
+        return (f'{partial_parameter}_{sxpat_cfg.LITERAL_PREFIX}', f'{partial_parameter}_{sxpat_cfg.SELECT_PREFIX}')
     
-    #TODO: fixing errors
-    ### -------------------- nlevels generation wires constrains ------------------------------##
-    @classmethod
-    def _multiplexer_multilevel(self,idx):
-        return "If(None, Or(Not(p_in"+str(idx)+"_l),p_in"+str(idx)+"_s))"
+    @staticmethod
+    def _output_mul_sw(output_i: int) -> Tuple[str, str]:
+        return f'mult_o{output_i}'
+    @staticmethod
+    def _node_connection(from_n: int, from_lv: int, to_n: int, to_lv:int) -> str:
+        return f'p_con_fn{from_n}_lv{from_lv}_tn{to_n}_lv{to_lv}'
     
-    @classmethod
-    def _generate_input(self,number_of_inputs):
-        return ','.join(itertools.chain(
-                self._multiplexer_multilevel(input_i)
-            for input_i in range(number_of_inputs)
-        ))
+    @staticmethod
+    def _switch_parameter(from_n: int, from_lv: int, to_n: int, to_lv:int):
+        return f'p_sw_fn{from_n}_lv{from_lv}_tn{to_n}_lv{to_lv}'
+    
+    @staticmethod
+    def _input_connection(from_n: int, to_in: int) -> str:
+        return f'p_con_fn{from_n}_lv0_tin{to_in}'
+    
+    @staticmethod
+    def _id_node_output(output_i: int, nd_i: int, lv_i: int) -> str:
+        return f'p_id_o{output_i}_n{nd_i}_lv{lv_i}'
 
-    #TODO: create classmethods for generate script,(it wourld be more readable)
-    @classmethod
-    def _connection_constraints(self,npl, level_i,num_of_i, gate):
+    @staticmethod
+    def _level_parameter(node_i: int,level_i: int):
+        return f'n{node_i}_lv{level_i}'
+
+    @staticmethod
+    def _last_level_parameter(output_i: int) -> str:
+        return f'{sxpat_cfg.PRODUCT_PREFIX}_const{output_i}'
+    
+    @staticmethod
+    def _neg_parameter(node_i:int, level_i: int):
+        return f'p_neg_n{node_i}_lv{level_i}'
+
+    @staticmethod
+    def count_possible_connections(self, connections):
+        counter = 0
+        for lv in len(connections-1):
+            counter+= connections[lv] * connections[lv+1]
+
+        return counter 
+
+
+    #TODO: Refactor: create classmethods for generate script,(it wourld be more readable)
+
+    @staticmethod
+    def _multiplexer_multilevel(input_i,input_i__name,n_gate):
+        return "If(p_con_fn"+str(n_gate) +"_lv0_tin"+str(input_i)+", Or(Not(p_i"+str(input_i)+"_l == "+ str(input_i__name) +"),p_i"+str(input_i)+"_s),True)"
+    
+    def _generate_input(self, n_gate):
+        multiplexers = []
+        for input_i, input_name in self.subgraph_inputs.items():
+            # self._use_approx_var
+            multiplexers.append(self._multiplexer_multilevel(input_i,input_name,n_gate))
+        return f'{", ".join(multiplexers)}'
+
+    def _connection_constraints(self, npl, level_i, gate):
         gates_per_level = ""
         #base case
         if level_i == 0:
-            return self._generate_input(num_of_i)
-        for node in range(npl[level_i-1]):
-            gates_per_level += "If( p_g"+str(gate)+"n_"+str(node)+", n"+ str(node) + "_lv" + str(level_i-1) +", True),"
+            return self._generate_input(gate)
+        for node in range(npl[level_i-1]): #param connection from node# to node#s
+            gates_per_level += "If( p_con_fn"+str(node)+"_lv"+str(level_i-1)+"_tn"+str(gate)+"_lv"+str(level_i)+", If(p_sw_fn"+str(node)+"_lv"+str(level_i-1)+"_tn"+str(gate)+"_lv"+str(level_i)+", n"+ str(node) + "_lv" + str(level_i-1) +", Not(n"+str(node)+"_lv"+str(level_i-1)+")), True),True,"
 
         return gates_per_level
 
-    @classmethod
-    def _generate_levels(self,npl, num_of_i):
+    def _generate_levels(self,npl,output_i):
         gates_per_level = ""
 
         for level_i in range(len(npl)-1, -1, -1):
             for gate in range( npl[level_i] ):
                 if level_i < len(npl) - 1:
-                    gates_per_level += "\n#level"+str(level_i)+"\n And( n"+ str(gate) +"_lv"+ str(level_i)+ " == Or( None, Not(And(" + self._connection_constraints(npl,level_i,num_of_i,gate) + ")))),"
+                    gates_per_level += "\n#level"+str(level_i)+"\n n"+ str(gate) +"_lv"+ str(level_i)+ " == Or( p_id_o"+str(output_i)+"_n"+str(gate)+"_lv"+str(level_i)+", And(p_neg_n"+str(gate)+"_lv"+str(level_i)+", Not(And(" + self._connection_constraints(npl,level_i,gate) + ")))),"
                 else:
-                    gates_per_level += "\n#level"+str(level_i)+"\nOr( None, Not(And(" + self._connection_constraints(npl,level_i,num_of_i,gate) + "))),"
+                    gates_per_level += "\n#level"+str(level_i)+"\nOr( p_id_o"+str(output_i)+"_n"+str(gate)+"_lv"+str(level_i)+", And(p_neg_n"+str(gate)+"_lv"+str(level_i)+", Not(And(" + self._connection_constraints(npl,level_i,gate) + ")))),"
             if level_i == len(npl) - 1:
                 gates_per_level += "),"
 
         return gates_per_level
-
+    
             
     def _update_builder(self, builder: Builder) -> None:
         # apply superclass updates
@@ -783,36 +809,58 @@ class MultilevelManager(ProductTemplateManager):
         #Amedeo: note that this could be parametrized with different number of gates for each level
         for i in range(len(npl)):
             npl[i] = self._specs.pit;         
-        #npl[self.LV - 1] = len(self.subgraph_outputs)
+        
+        npl[self.LV - 1] = len(self.subgraph_outputs)
 
         # params_declaration
         builder.update(params_declaration='\n'.join(
                 itertools.chain(
-                    (   # p_o#
-                        self._gen_declare_gate(self._output_parameter(output_i))
+                    itertools.chain.from_iterable
+                    (   
+                        (
+                            self._gen_declare_gate(self._output_parameter(output_i)),                   # p_o#
+                            self._gen_declare_gate((pars := self._output_mul_parameter(output_i))[0]), # p_o#_l
+                            self._gen_declare_gate(pars[1]),                                            # p_o#_s
+                            self._gen_declare_gate(self._output_mul_sw(output_i))                       # mult_o# 
+                        )
                         for output_i in self.subgraph_outputs.keys()
                     ),
                     itertools.chain.from_iterable(  
-                        (# p_pr#_i# 
-                            self._gen_declare_gate((pars := self._input_parameters(None, node_i, input_i))[0]),
-                            self._gen_declare_gate(pars[1])
+                        (
+                            self._gen_declare_gate((pars := self._input_parameters(input_i))[0]),   # p_i#_l
+                            self._gen_declare_gate(pars[1])                                         # p_i#_s 
                         )
                         for node_i in range(self._specs.pit)
                         for input_i in self.subgraph_inputs.keys()
                     ),                                                        
-                    (   # p_pr#_o#
-                        self._gen_declare_gate(self._node_parameter(output_i, node_i))
-                        for output_i in self.subgraph_outputs.keys()
-                        for node_i in range(self._specs.pit)
-                    ),
                     itertools.chain.from_iterable(
-                        (# p_lv#_nd#
-                            self._gen_declare_gate((pars := self._level_parameter(lv, nd ))[0]),
-                            self._gen_declare_gate(pars[1])
+                        (
+                            self._gen_declare_gate(self._level_parameter(nd,lv)),   # n#_lv# 
+                            self._gen_declare_gate(self._neg_parameter(nd,lv))      # p_neg_n#_lv#
                         )
                         for lv in range(len(npl))
                         for nd in range(npl[lv])
-                    )
+                    ),
+                    itertools.chain.from_iterable(
+                        (
+                            self._gen_declare_gate(self._node_connection(f_nd,lv-1,t_nd,lv)), # p_con_fn#_lv#_tn#_lv#
+                            self._gen_declare_gate(self._switch_parameter(f_nd,lv-1,t_nd,lv)),# p_sw_fn#_lv#_tn#_lv#
+                        )
+                        for lv in range(len(npl)-1,0,-1)
+                        for t_nd in range(npl[lv])
+                        for f_nd in range(npl[lv-1])
+                    ),
+                    itertools.chain(
+                        self._gen_declare_gate(self._input_connection(f_nd, input_i))   # p_con_fn#_lv#_tin#
+                        for input_i in self.subgraph_inputs.keys()
+                        for f_nd in range(npl[0])
+                    ),
+                    itertools.chain(
+                        self._gen_declare_gate(self._id_node_output(output_i,nd,lv))    # p_id_o#_n#_lv#
+                        for output_i in self.subgraph_outputs.keys()
+                        for lv in range(len(npl))
+                        for nd in range(npl[lv]) 
+                    ),
                 ),
             )
         )
@@ -850,62 +898,46 @@ class MultilevelManager(ProductTemplateManager):
                     self.subgraph_inputs.values()
                 )
 
-                node = (f'{self._generate_levels(npl, len(self.subgraph_inputs.keys()))}')
-
-                lines.append(f'#inputs:{len(self.subgraph_inputs.keys())}\n#pit:{npl[0]}\n{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({node}),') 
+                node = (f'{self._generate_levels(npl, output_i)}')
+                
+                #TODO: refactor this line of code
+                lines.append(f'{output_use} == And(And({sxpat_cfg.PRODUCT_PREFIX}{output_i}== Or({node}),If(mult_o{output_i},Or(Not(p_o{output_i}_l == {sxpat_cfg.PRODUCT_PREFIX}{output_i}),p_o{output_i}_s),False)),') 
                 
         builder.update(approximate_wires_constraints='\n'.join(lines))
+
+        # remove_double_constraint -> # remove double no-care
+        builder.update(remove_double_constraint='\n'.join(
+            itertools.chain(
+                itertools.chain(
+                f'Implies({", ".join(self._input_parameters( input_i))}),'
+                for input_i in self.subgraph_inputs.keys()
+            ),
+            itertools.chain(
+                f'Implies({", ".join(self._output_mul_parameter(output_i))})'
+                for output_i in self.subgraph_outputs.keys()
+            )
+        ))+',')
+
+        # p_con_fn#_lv#_tn#_lv#
+        total_wpg = []
+        for level_i in range(len(npl)-2):
+            for start_node_i in range(npl[level_i]):
+                for end_node_i in range(npl[level_i+1]):
+                    total_wpg[level_i] += f'If(p_con_fn{start_node_i}_lv{level_i}_tn{end_node_i}_lv{level_i+1},1,0) + '
+            
+        builder.update(logic_dependant_constraint1 = '# Force the number of inputs to sum to be at most `its`'+'\n'.join([
+                f'AtMost({total_wpg[wpg]} <= {self.count_possible_connections(npl)}),'
+                for wpg in range(len(total_wpg))
+        ]))
+        #                '\n'.join([
+        #     '# Force the number of inputs to sum to be at most `its`',
+        #     f'AtMost({", ".join(parameters)}, {self._specs.lpp*self.LV}),'
+        # ])) 
 ######################################################################################################################################################################################################################        
         # JUST FOR RUN THE TEST
-        
-        """ def get_preds(name: str) -> Collection[str]: return sorted(self._current_graph.graph.predecessors(name), key=lambda n: int(re.search(r'\d+', n).group()))
-        def get_func(name: str) -> str: return self._current_graph.graph.nodes[name][sxpat_cfg.LABEL]
-        
-        lines = []
-        for gate_i, gate_name in self.current_gates.items():
-            if not self._current_graph.is_subgraph_member(gate_name): #check wheter the node belongs to the subgraph
-                gate_preds = get_preds(gate_name) #get all the predecesson of a gate
-                gate_func = get_func(gate_name)
-                assert (gate_func, len(gate_preds)) in [
-                    (sxpat_cfg.NOT, 1),
-                    (sxpat_cfg.AND, 2),
-                    (sxpat_cfg.OR, 2),
-                ], 'invalid gate function/predecessors combination'
-
-                preds = tuple(self._use_approx_var(gate_pred) for gate_pred in gate_preds)
-                name = f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(self.inputs) + gate_i}'
-                lines.append(
-                    f'{self._gen_call_function(name, self.inputs.values())}'
-                    f' == {sxpat_cfg.TO_Z3_GATE_DICT[gate_func]}({", ".join(preds)}),'
-                )
-
-            # the gate is an output of the subgraph
-            elif self._current_graph.is_subgraph_output(gate_name):
-                output_i = mapping_inv(self.subgraph_outputs, gate_name)
-                output_use = self._gen_call_function(
-                    f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(self.inputs) + gate_i}',
-                    self.subgraph_inputs.values()
-                )
-                products = (
-                    f'And({self._product_parameter(output_i, product_i)}, {self._generate_product(functools.partial(self._input_parameters, None, product_i))})'
-                    for product_i in range(self._specs.pit)
-                )
-
-                lines.append(f'{output_use} == And({sxpat_cfg.PRODUCT_PREFIX}{output_i}, Or({", ".join(products)})),')
-        builder.update(approximate_wires_constraints='\n'.join(lines))
-        """
-        # remove_double_constraint
-        builder.update(remove_double_constraint='\n'.join(
-            ' '.join(
-                f'Implies({", ".join(self._input_parameters(output_i, product_i, input_i))}),'
-                for input_i in self.subgraph_inputs.keys()
-            )
-            for product_i in range(self._specs.ppo)
-        ))
-
         # product_order_constraint
         lines = []
-        """ if self._specs.pit == 1:
+        if self._specs.pit == 1:
             lines.append('# No order needed for only one product')
         else:
             products = tuple(
@@ -920,7 +952,7 @@ class MultilevelManager(ProductTemplateManager):
             lines.extend(
                 f'{self._encoding.unsigned_greater_equal(product_a, product_b)},'
                 for product_a, product_b in pairwise_iter(products)
-            ) """
+            )
         builder.update(product_order_constraint='\n'.join(lines))
 
         # remove_zero_permutations_constraint
@@ -933,17 +965,8 @@ class MultilevelManager(ProductTemplateManager):
             lines.append(f'Implies(Not({self._output_parameter(output_i)}), Not(Or({", ".join(parameters)}))),') """
         builder.update(remove_zero_permutations_constraint='\n'.join(lines))
 
-        # logic_dependant_constraint1
-        parameters = (
-            self._product_parameter(output_i, product_i)
-            for output_i in self.subgraph_outputs.keys()
-            for product_i in range(self._specs.pit)
-        )
-        builder.update(logic_dependant_constraint1='\n'.join([
-            '# Force the number of inputs to sum to be at most `its`',
-            f'AtMost({", ".join(parameters)}, {self._specs.lpp}),'
-        ])) 
-
+######################################################################################################################################################################################################################        
+ 
         # general informations: benchmark_name, encoding and cell
         builder.update(
             benchmark_name=self._specs.benchmark_name,
