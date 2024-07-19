@@ -762,11 +762,8 @@ class MultilevelManager(ProductTemplateManager):
 
         return counter 
 
-
-    #TODO: Refactor: create classmethods for generate script,(it wourld be more readable)
-
     def _multiplexer_multilevel(self,input_i,input_i__name,n_gate):
-        return f'If({self._input_connection(n_gate,input_i)}, Or(Not({self._input_parameters(input_i)[0]} == {input_i__name}),{self._input_parameters(input_i)[1]}),Truej)'
+        return f'If({self._input_connection(n_gate,input_i)}, Or(Not({self._input_parameters(input_i)[0]} == {input_i__name}),{self._input_parameters(input_i)[1]}),True)'
         #"If(p_con_fn"+str(n_gate) +"_lv0_tin"+str(input_i)+", Or(Not(p_i"+str(input_i)+"_l == "+ str(input_i__name) +"),p_i"+str(input_i)+"_s),True)"
     
     def _generate_input(self, n_gate):
@@ -946,7 +943,7 @@ class MultilevelManager(ProductTemplateManager):
 
         # product_order_constraint
         lines = []
-        for lv in range(len(npl)-1):
+        for lv in range(len(npl)):
             if npl[lv] == 1:
                 lines.append(f'# No order needed for only one product at level: {lv}')
             else:
@@ -961,11 +958,11 @@ class MultilevelManager(ProductTemplateManager):
                     )if lv == 0 else tuple(
                             self._encoding.aggregate_variables(
                                 itertools.chain(
-                                    self._node_connection(node_fr,lv,node_to,lv+1)
-                                    for node_to in range(npl[lv+1])    
+                                    self._node_connection(node_fr,lv-1,node_to,lv)
+                                    for node_fr in range(npl[lv-1])    
                                 )
                             )
-                            for node_fr in range(npl[lv])
+                            for node_to in range(npl[lv])
                     )
                 print(products)
                 lines.extend(
