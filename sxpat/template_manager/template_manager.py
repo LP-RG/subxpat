@@ -919,16 +919,17 @@ class MultilevelManager(ProductTemplateManager):
         ))+',')
 
         # p_con_fn#_lv#_tn#_lv#
-        total_wpg = []
-        for level_i in range(len(npl)-2):
-            for start_node_i in range(npl[level_i]):
-                for end_node_i in range(npl[level_i+1]):
-                    total_wpg[level_i] += f'If(p_con_fn{start_node_i}_lv{level_i}_tn{end_node_i}_lv{level_i+1},1,0) + '
+        # total_wpg = []
+        # for level_i in range(len(npl)-2):
+        #     for start_node_i in range(npl[level_i]):
+        #         for end_node_i in range(npl[level_i+1]):
+        #             total_wpg[level_i] += f'If(p_con_fn{start_node_i}_lv{level_i}_tn{end_node_i}_lv{level_i+1},1,0) + '
             
-        builder.update(logic_dependant_constraint1 = '# Force the number of inputs to sum to be at most `its`'+'\n'.join([
-                f'AtMost({total_wpg[wpg]} <= {self.count_possible_connections(npl)}),'
-                for wpg in range(len(total_wpg))
-        ]))
+        # builder.update(logic_dependant_constraint1 = '# Force the number of inputs to sum to be at most `its`'+'\n'.join([
+        #         f'AtMost({total_wpg[wpg]} <= {self.count_possible_connections(npl)}),'
+        #         for wpg in range(len(total_wpg))
+        # ]))
+        builder.update(logic_dependant_constraint1 ='')
         #                '\n'.join([
         #     '# Force the number of inputs to sum to be at most `its`',
         #     f'AtMost({", ".join(parameters)}, {self._specs.lpp*self.LV}),'
