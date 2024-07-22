@@ -133,13 +133,14 @@ def adder_bits_with_bit(a : list, b) -> List:
 def absolute_value(a) -> List:
     return adder_bits_with_bit(xor_bits_with_bit(a,a[-1]),a[-1])
 
-def increment(a : List) -> List:
+def increment(a : List,carry=True) -> List:
     """first element of a should be the least significant digit\n
     add one to a"""
     assert len(a) > 0, "lenght of a should be higher than 0"
 
     output.write('#incrementing by 1\n')
-    a.append(a[-1])
+    if carry:
+        a.append(a[-1])
     results = [next_temporary_variable()]
     output.write(f'{results[0]} = and(-{a[0]})\n')
     last_and = a[0]
@@ -151,26 +152,23 @@ def increment(a : List) -> List:
     output.write('#\n')
     return results
 
-def signed_adder(a : List, b : List) -> List:
+def signed_adder(a : list, b : list) -> list:
     """first element of a should be the least significant digit"""
-    assert abs(len(a)-len(b)) <= 1, 'lengths of a and b should differ by maximum 1'
 
     a.append(a[-1])
     b.append(b[-1])
+    while len(a) < len(b):
+        a.append(a[-1])
+    while len(b) < len(a):
+        b.append(b[-1])
     output.write('#adding\n')
     results = [xor(a[0],b[0])]
     carry_in = next_temporary_variable()
     output.write(f'{carry_in} = and({a[0]}, {b[0]})\n')
     for i in range(1,max(len(a),len(b))):
-        if i < min(len(a),len(b)):
-            next,carry_in = adder_bit3(a[i],b[i],carry_in)
-        else:
-            use1 = a[i] if i < len(a) else b[i]
-            use2 = b[-1] if i < len(a) else a[-1]
-            next,carry_in = adder_bit3(use1,use2,carry_in)
+        next,carry_in = adder_bit3(a[i],b[i],carry_in)
         results.append(next)
     output.write('#\n')
-    #results.append(carry_in)
     return results
 
 def unsigned_adder(a : List, b : List) -> List:
@@ -217,7 +215,21 @@ def comparator_greater_than(a : List, e : int):
         output.write(x)
     output.write(')\n#\n')
     return res
-
+output.write('variables = 1,2,3,4\n92=or()\n')
+outputs_inexact = increment(inverse([3,4,92]),carry=False)
+subtraction_results = signed_adder([1,2],outputs_inexact)
+absolute_values = absolute_value(subtraction_results)
+print(outputs_inexact)
+print(subtraction_results)
+print(absolute_values)
+output.write('outputs = ')
+start = True
+for x in absolute_values:
+    if not start:
+        output.write(', ')
+    start = False
+    output.write(x)
+output.write('\n')
 
 #specs_obj: TemplateSpecs
 def check_sat(specs_obj: TemplateSpecs):

@@ -69,7 +69,25 @@ def main():
         input_vals = format(idx, f'0{num_vars}b')
         input_vals = " ".join(reversed(input_vals))  # Invertiamo la stringa degli input
         row_vals = " ".join(['1' if val else '0' for val in reversed(row)])  # Invertiamo la stringa degli output
-        print(f"{input_vals}\t\t{row_vals}")
+        # print(f"{input_vals}\t\t{row_vals}")
+
+        inexact_inverse = int(row_vals[:8].replace(" ", ""), 2)
+        if row_vals[0] == '1':
+            inexact_inverse -= (1 << 4)
+        subtraction = int(row_vals[8:16].replace(" ", ""), 2)
+        if row_vals[8] == '1':
+            subtraction -= (1 << 4)
+        absolute = int(row_vals[16:].replace(" ", ""), 2)
+        # if row_vals[0] == '1':
+        #     result -= (1 << 5)
+        x =  4
+        input1 = int(input_vals[:x].replace(" ", ""), 2)
+        input2= int(input_vals[x:].replace(" ", ""), 2)
+        # if input_vals[0] == '1':
+        #     input1 -= (1 << x//2)
+        # if input_vals[x] == '1':
+        #     input2 -= (1 << x//2)
+        print(f"{input_vals}\t\t{row_vals}\t\t{input1 + inexact_inverse}\t\t{input2-input1-subtraction}\t\t{abs(input1-input2) - absolute}")
 
 if __name__ == "__main__":
     main()

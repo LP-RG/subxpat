@@ -189,13 +189,14 @@ class SOP_QBF_Manager(TemplateManager):
     def absolute_value(a) -> list:
         return SOP_QBF_Manager.adder_bits_with_bit(SOP_QBF_Manager.xor_bits_with_bit(a,a[-1]),a[-1])
 
-    def increment(a : list) -> list:
+    def increment(a : list,carry=True) -> list:
         """first element of a should be the least significant digit\n
         add one to a"""
         assert len(a) > 0, "lenght of a should be higher than 0"
 
         SOP_QBF_Manager.output.write('#incrementing by 1\n')
-        a.append(a[-1])
+        if carry:
+            a.append(a[-1])
         results = [SOP_QBF_Manager.next_temporary_variable()]
         SOP_QBF_Manager.output.write(f'{results[0]} = and(-{a[0]})\n')
         last_and = a[0]
@@ -209,24 +210,21 @@ class SOP_QBF_Manager(TemplateManager):
 
     def signed_adder(a : list, b : list) -> list:
         """first element of a should be the least significant digit"""
-        assert abs(len(a)-len(b)) <= 1, 'lengths of a and b should differ by maximum 1'
 
         a.append(a[-1])
         b.append(b[-1])
+        while len(a) < len(b):
+            a.append(a[-1])
+        while len(b) < len(a):
+            b.append(b[-1])
         SOP_QBF_Manager.output.write('#adding\n')
         results = [SOP_QBF_Manager.xor(a[0],b[0])]
         carry_in = SOP_QBF_Manager.next_temporary_variable()
         SOP_QBF_Manager.output.write(f'{carry_in} = and({a[0]}, {b[0]})\n')
         for i in range(1,max(len(a),len(b))):
-            if i < min(len(a),len(b)):
-                next,carry_in = SOP_QBF_Manager.adder_bit3(a[i],b[i],carry_in)
-            else:
-                use1 = a[i] if i < len(a) else b[i]
-                use2 = b[-1] if i < len(a) else a[-1]
-                next,carry_in = SOP_QBF_Manager.adder_bit3(use1,use2,carry_in)
+            next,carry_in = SOP_QBF_Manager.adder_bit3(a[i],b[i],carry_in)
             results.append(next)
         SOP_QBF_Manager.output.write('#\n')
-        #results.append(carry_in)
         return results
 
     def unsigned_adder(a : list, b : list) -> list:
@@ -546,9 +544,11 @@ class SOP_QBF_Manager(TemplateManager):
             outputs_inexact.append(SOP_QBF_Manager.CHANGE_INEXACT[SOP_QBF_Manager.OUTPUT_GATE_INITIALS] + str(i))
             outputs_exact.append(SOP_QBF_Manager.CHANGE[SOP_QBF_Manager.OUTPUT_GATE_INITIALS] + str(i))
             i+=1
-        outputs_inexact = SOP_QBF_Manager.increment(SOP_QBF_Manager.inverse(outputs_inexact))
-        substraction_results = SOP_QBF_Manager.signed_adder(outputs_exact,outputs_inexact)
-        absolute_values = SOP_QBF_Manager.absolute_value(substraction_results)
+        outputs_inexact.append('92')
+        outputs_exact.append('92')
+        outputs_inexact = SOP_QBF_Manager.increment(SOP_QBF_Manager.inverse(outputs_inexact),carry=False)
+        subtraction_results = SOP_QBF_Manager.signed_adder(outputs_exact,outputs_inexact)
+        absolute_values = SOP_QBF_Manager.absolute_value(subtraction_results)
         res = []
         if self._specs.lpp < self._current_graph.subgraph_num_inputs:
             for a in range(self._current_graph.subgraph_num_outputs):
@@ -578,9 +578,11 @@ class SOP_QBF_Manager(TemplateManager):
         SOP_QBF_Manager.output.write(')\n')
         SOP_QBF_Manager.output.close()
         result = subprocess.run(['../../cqesto-master/build/cqesto', 'Lollo/output.txt'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout.decode('utf-8')
+        # SOP_QBF_Manager.output = open('./Lollo/output.txt','a')
         if result.strip()[-1] == '1':
             res_dict = dict()
             for x in result.split('\n')[3][2:-2].split():
+                # SOP_QBF_Manager.output.write(f'{x} = ' + ('and()' if x[0] == '+' else 'or()') + '\n')
                 if x[1] == '7':
                     number = int(x[2:])
                     res_dict[f'p_o{number // 2 // self._current_graph.subgraph_num_inputs // self._specs.ppo}_t{number // 2 // self._current_graph.subgraph_num_inputs % self._specs.ppo}_i{number // 2 % self._current_graph.subgraph_num_inputs}_' + ('s' if int(x) % 2 == 0 else 'l')] = True if x[0] == '+' else False
