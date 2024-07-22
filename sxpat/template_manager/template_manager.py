@@ -710,8 +710,8 @@ class MultilevelManager(ProductTemplateManager):
         return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
     
     @staticmethod
-    def _input_parameters(input_i: int) -> Tuple[str, str]:
-        partial_parameter = f'p_{sxpat_cfg.INPUT_LITERAL_PREFIX}{input_i}'
+    def _input_parameters(output_i: int,input_i: int, node_i: int) -> Tuple[str, str]:
+        partial_parameter = f'p_o{output_i}_{sxpat_cfg.INPUT_LITERAL_PREFIX}{input_i}_n{node_i}'
         return (f'{partial_parameter}_{sxpat_cfg.LITERAL_PREFIX}', f'{partial_parameter}_{sxpat_cfg.SELECT_PREFIX}')
     
     @staticmethod
@@ -765,22 +765,22 @@ class MultilevelManager(ProductTemplateManager):
 
     #TODO: Refactor: create classmethods for generate script,(it wourld be more readable)
 
-    def _multiplexer_multilevel(self,input_i,input_i__name,n_gate):
-        return f'If({self._input_connection(n_gate,input_i)}, Or(Not({self._input_parameters(input_i)[0]} == {input_i__name}),{self._input_parameters(input_i)[1]}),Truej)'
+    def _multiplexer_multilevel(self,input_i,input_i__name,output_i,node_i):
+        return f'Or(Not({self._input_parameters(output_i,input_i,node_i)[0]} == {input_i__name}),{self._input_parameters(output_i,input_i,node_i)[1]})'
         #"If(p_con_fn"+str(n_gate) +"_lv0_tin"+str(input_i)+", Or(Not(p_i"+str(input_i)+"_l == "+ str(input_i__name) +"),p_i"+str(input_i)+"_s),True)"
     
-    def _generate_input(self, n_gate):
+    def _generate_input(self, output_i,node_i):
         multiplexers = []
         for input_i, input_name in self.subgraph_inputs.items():
             # self._use_approx_var
-            multiplexers.append(self._multiplexer_multilevel(input_i,input_name,n_gate))
+            multiplexers.append(self._multiplexer_multilevel(input_i,input_name,output_i,node_i))
         return f'{", ".join(multiplexers)},'
 
-    def _connection_constraints(self, npl, level_i, gate):
+    def _connection_constraints(self, npl, level_i, gate, output_i):
         gates_per_level = ""
         #base case
         if level_i == 0:
-            return self._generate_input(gate)
+            return self._generate_input(output_i,gate)
         for node in range(npl[level_i-1]): #param connection from node# to node#s
             self._node_connection(node,level_i-1,gate,level_i)
             gates_per_level += f'If({self._node_connection(node,level_i-1,gate,level_i)}, If({self._switch_parameter(node,level_i-1,gate,level_i)}, {self._level_parameter(node,level_i-1)}, Not({self._level_parameter(node,level_i-1)})), True),'
@@ -794,10 +794,10 @@ class MultilevelManager(ProductTemplateManager):
         for level_i in range(len(npl)-1, -1, -1):
             for gate in range( npl[level_i] ):
                 if level_i < len(npl) - 1:
-                    gates_per_level += f'\n#level: {level_i}\n {self._level_parameter(gate,level_i)} == Or({self._allow_node_output(output_i,gate,level_i)}, And({self._id_parameter(gate,level_i)} == {self._connection_constraints(npl, level_i, gate)} If({self._neg_parameter(gate,level_i)}, Not({self._id_parameter(gate,level_i)}), {self._id_parameter(gate,level_i)}))),'
+                    gates_per_level += f'\n#level: {level_i}\n {self._level_parameter(gate,level_i)} == Or({self._allow_node_output(output_i,gate,level_i)}, And({self._id_parameter(gate,level_i)} == And({self._connection_constraints(npl, level_i, gate, output_i)}), If({self._neg_parameter(gate,level_i)}, Not({self._id_parameter(gate,level_i)}), {self._id_parameter(gate,level_i)}))),'
                     #gates_per_level += "\n#level"+str(level_i)+"\n n"+ str(gate) +"_lv"+ str(level_i)+ " == Or( p_allow_o"+str(output_i)+"_n"+str(gate)+"_lv"+str(level_i)+", And(p_id_n"+str(gate)+"_lv"+str(level_i)+" == " + self._connection_constraints(npl,level_i,gate) + "If(p_neg_n"+str(gate)+"_lv"+str(level_i)+", Not(p_id_n"+str(gate)+"_lv"+str(level_i)+"), p_id_n"+str(gate)+"_lv"+str(level_i)+"))),"   
                 else:
-                    gates_per_level+= f'\n#level: {level_i}\n Or({self._allow_node_output(output_i,gate,level_i)}, And({self._id_parameter(gate,level_i)} == {self._connection_constraints(npl, level_i, gate)} If({self._neg_parameter(gate, level_i)}, Not({self._id_parameter(gate,level_i)}), {self._id_parameter(gate, level_i)}))),'
+                    gates_per_level+= f'\n#level: {level_i}\n Or({self._allow_node_output(output_i,gate,level_i)}, And({self._id_parameter(gate,level_i)} == And({self._connection_constraints(npl, level_i, gate,output_i)}), If({self._neg_parameter(gate, level_i)}, Not({self._id_parameter(gate,level_i)}), {self._id_parameter(gate, level_i)}))),'
                     #gates_per_level += "\n#level"+str(level_i)+"\nOr( p_allow_o"+str(output_i)+"_n"+str(gate)+"_lv"+str(level_i)+", And( p_id_n"+str(gate)+"_lv"+str(level_i)+"== " + self._connection_constraints(npl,level_i,gate) + "If(p_neg_n"+str(gate)+"_lv"+str(level_i)+", Not(p_id_n"+str(gate)+"_lv"+str(level_i)+"), p_id_n"+str(gate)+"_lv"+str(level_i)+"))),"    
             if level_i == len(npl) - 1:
                 gates_per_level += "),"
@@ -827,20 +827,12 @@ class MultilevelManager(ProductTemplateManager):
                     (   
                         (
                             self._gen_declare_gate(self._output_parameter(output_i)),                   # p_o#
-                            self._gen_declare_gate((pars := self._output_mul_parameter(output_i))[0]), # p_o#_l
+                            self._gen_declare_gate((pars := self._output_mul_parameter(output_i))[0]),  # p_o#_l
                             self._gen_declare_gate(pars[1]),                                            # p_o#_s
                             self._gen_declare_gate(self._output_mul_sw(output_i))                       # mult_o# 
                         )
                         for output_i in self.subgraph_outputs.keys()
-                    ),
-                    itertools.chain.from_iterable(  
-                        (
-                            self._gen_declare_gate((pars := self._input_parameters(input_i))[0]),   # p_i#_l
-                            self._gen_declare_gate(pars[1])                                         # p_i#_s 
-                        )
-                        for node_i in range(self._specs.pit)
-                        for input_i in self.subgraph_inputs.keys()
-                    ),                                                        
+                    ),                                                  
                     itertools.chain.from_iterable(
                         (
                             self._gen_declare_gate(self._level_parameter(nd,lv)),   # n#_lv# 
@@ -860,16 +852,20 @@ class MultilevelManager(ProductTemplateManager):
                         for f_nd in range(npl[lv-1])
                     ),
                     itertools.chain(
-                        self._gen_declare_gate(self._input_connection(f_nd, input_i))   # p_con_fn#_lv#_tin#
-                        for input_i in self.subgraph_inputs.keys()
-                        for f_nd in range(npl[0])
-                    ),
-                    itertools.chain(
                         self._gen_declare_gate(self._allow_node_output(output_i,nd,lv))    # p_allow_o#_n#_lv#
                         for output_i in self.subgraph_outputs.keys()
                         for lv in range(len(npl))
                         for nd in range(npl[lv]) 
                     ),
+                                        itertools.chain.from_iterable(  
+                        (
+                            self._gen_declare_gate((pars := self._input_parameters(output_i,input_i,nd))[0]),   # p_o#_i#_n#_l
+                            self._gen_declare_gate(pars[1])                                                     # p_o#_i#_n#_s 
+                        )
+                        for output_i in self.subgraph_outputs.keys()
+                        for input_i in self.subgraph_inputs.keys()
+                        for nd in range(npl[0]) 
+                    ),      
                 ),
             )
         )
@@ -903,7 +899,7 @@ class MultilevelManager(ProductTemplateManager):
                 output_i = mapping_inv(self.subgraph_outputs, gate_name)
 
                 output_use = self._gen_call_function(
-                    f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(self.inputs) + gate_i}', #that's why we have plus 8 in a#
+                    f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(self.inputs) + gate_i}', #that's why we have plus 8 or something in a#
                     self.subgraph_inputs.values()
                 )
 
@@ -918,8 +914,10 @@ class MultilevelManager(ProductTemplateManager):
         builder.update(remove_double_constraint='\n'.join(
             itertools.chain(
                 itertools.chain(
-                f'Implies({", ".join(self._input_parameters( input_i))}),'
+                f'Implies({", ".join(self._input_parameters(output_i,input_i,nd))}),'
                 for input_i in self.subgraph_inputs.keys()
+                for output_i in self.subgraph_outputs.keys()
+                for nd in range(npl[0])
             ),
             itertools.chain(
                 f'Implies({", ".join(self._output_mul_parameter(output_i))})'
@@ -946,33 +944,47 @@ class MultilevelManager(ProductTemplateManager):
 
         # product_order_constraint
         lines = []
-        for lv in range(len(npl)-1):
-            if npl[lv] == 1:
-                lines.append(f'# No order needed for only one product at level: {lv}')
-            else:
-                products = tuple(
-                            self._encoding.aggregate_variables(
-                                itertools.chain(
-                                    self._input_connection(node,input_i)
-                                    for input_i in self.subgraph_inputs.keys()  
+        for out_i in self.subgraph_outputs.keys():
+            for lv in range(len(npl)):
+                if npl[lv] == 1:
+                    lines.append(f'# No order needed for only one product at level: {lv}')
+                else:
+                    products = tuple(
+                                self._encoding.aggregate_variables(
+                                    itertools.chain(
+                                        f'Not({self._input_parameters(out_i,input_i,node_i)[1]})'
+                                        for input_i in self.subgraph_inputs.keys() 
+                                    )
                                 )
-                            )
-                            for node in range(npl[lv])
-                    )if lv == 0 else tuple(
-                            self._encoding.aggregate_variables(
-                                itertools.chain(
-                                    self._node_connection(node_fr,lv,node_to,lv+1)
-                                    for node_to in range(npl[lv+1])    
+                                for node_i in range(npl[0])
+                        )if lv == 0 or out_i > 0 else tuple(
+                                self._encoding.aggregate_variables(
+                                    itertools.chain(
+                                        self._node_connection(node_fr,lv-1,node_to,lv)
+                                        for node_to in range(npl[lv])    
+                                    )
                                 )
-                            )
-                            for node_fr in range(npl[lv])
+                                for node_fr in range(npl[lv-1])
+                        )
+                    print(products)
+                    lines.extend(
+                        f'# product order constraint for level: {lv} \n {self._encoding.unsigned_greater(product_a, product_b)},'
+                        for product_a, product_b in pairwise_iter(products)
                     )
-                print(products)
-                lines.extend(
-                    f'# product order constraint for level: {lv} \n {self._encoding.unsigned_greater(product_a, product_b)},'
-                    for product_a, product_b in pairwise_iter(products)
-                )
         builder.update(product_order_constraint='\n'.join(lines))
+
+        # connection_constraint
+        builder.update(connection_constraint= '\n'.join(
+            itertools.chain(
+                f'Implies({self._node_connection(nd,lv,nd_,lv+1)},{self._allow_node_output(o_i,nd,lv)}),'
+                for o_i in self.subgraph_outputs.keys()
+                for lv in range (len(npl)-1)
+                for nd in range(npl[lv])
+                for nd_ in range(npl[lv+1])
+            )
+        ))
+
+
 #####################################################################################################################################################################################################################        
         # JUST FOR RUN THE TEST
         
@@ -994,7 +1006,6 @@ class MultilevelManager(ProductTemplateManager):
             encoding=self._specs.encoding,
             cell=f'({self._specs.lpp}, {self._specs.pit})',
         )
-######################################################################################################################################################################################################################        
 
 class Builder:
     LEFT_DELIMITER = '{{{{'
