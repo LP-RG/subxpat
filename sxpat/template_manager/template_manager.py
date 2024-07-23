@@ -28,7 +28,6 @@ class Result:
     status: str
     model: Dict[str, bool]
 
-
 class TemplateManager:
     @staticmethod
     def factory(specs: TemplateSpecs,
@@ -36,12 +35,11 @@ class TemplateManager:
                 current_graph: AnnotatedGraph,
                 ) -> TemplateManager:
         # create required Encoding object
-        # encoding = Encoding.factory(
-        #     specs.encoding,
-        #     exact_graph.num_inputs,
-        #     exact_graph.num_outputs
-        # )
-        encoding = None
+        encoding = Encoding.factory(
+            specs.encoding,
+            exact_graph.num_inputs,
+            exact_graph.num_outputs
+        )
 
         # select and return TemplateManager object
         return {
@@ -710,7 +708,7 @@ class Z3TemplateManager(TemplateManager):
         return self._current_graph.constant_dict
 
 
-class ProductTemplateManager(TemplateManager):
+class ProductTemplateManager(Z3TemplateManager):
 
     # utility string methods
 
