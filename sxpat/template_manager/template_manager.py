@@ -785,15 +785,14 @@ class MultilevelManager(ProductTemplateManager):
             return self._generate_input(output_i,gate)
         for node in range(npl[level_i-1]): #param connection from node# to node#s
             gates_per_level += f'\nIf({self._node_connection(output_i,node,level_i-1,gate,level_i)}, If({self._switch_parameter(node,level_i-1,gate,level_i)}, {self._level_parameter(node,level_i-1)}(), Not({self._level_parameter(node,level_i-1)}())), True),'
-
         return gates_per_level
 
     def _generate_levels(self,npl,output_i):
         gates_per_level = []
         for level_i in range(len(npl)):
             for gate in range( npl[level_i]):
-                    gates_per_level.append(f'\n#level: {level_i}\n{self._id_parameter(gate,level_i)}() == And({self._connection_constraints(npl, level_i, gate, output_i)}),\n{self._level_parameter(gate,level_i)}() == Or({self._allow_node_output(gate,level_i)}, If({self._neg_parameter(gate,level_i)}, Not({self._id_parameter(gate,level_i)}()), {self._id_parameter(gate,level_i)}())),')
-
+                    #code with  negation param (below without) #gates_per_level.append(f'\n#level: {level_i}\n{self._id_parameter(gate,level_i)}() == And({self._connection_constraints(npl, level_i, gate, output_i)}),\n{self._level_parameter(gate,level_i)}() == Or({self._allow_node_output(gate,level_i)}, If({self._neg_parameter(gate,level_i)}, Not({self._id_parameter(gate,level_i)}()), {self._id_parameter(gate,level_i)}())),')
+                gates_per_level.append(f'\n#level: {level_i}\n{self._id_parameter(gate,level_i)}() == And({self._connection_constraints(npl, level_i, gate, output_i)}),\n{self._level_parameter(gate,level_i)}() == Or({self._allow_node_output(gate,level_i)}, {self._id_parameter(gate,level_i)}()),')
         return gates_per_level
 
     def _update_builder(self, builder: Builder) -> None:
@@ -824,15 +823,15 @@ class MultilevelManager(ProductTemplateManager):
                         )
                         for output_i in self.subgraph_outputs.keys()
                     ),                                                  
-                    itertools.chain.from_iterable(
-                        (
-                            self._gen_declare_gate(self._neg_parameter(nd,lv)),     # p_neg_n#_lv#
-                            #self._gen_declare_gate(self._level_parameter(nd,lv)),   # n#_lv# 
-                            #self._gen_declare_gate(self._id_parameter(nd,lv))       # p_id_n#_lv1
-                        )
-                        for lv in range(len(npl))
-                        for nd in range(npl[lv])
-                    ),
+                    # itertools.chain.from_iterable(
+                    #     (
+                    #         self._gen_declare_gate(self._neg_parameter(nd,lv)),     # p_neg_n#_lv#
+                    #         #self._gen_declare_gate(self._level_parameter(nd,lv)),   # n#_lv# 
+                    #         #self._gen_declare_gate(self._id_parameter(nd,lv))       # p_id_n#_lv1
+                    #     )
+                    #     for lv in range(len(npl))
+                    #     for nd in range(npl[lv])
+                    # ),
                     itertools.chain.from_iterable(
                         (
                             self._gen_declare_gate(self._switch_parameter(f_nd,lv-1,t_nd,lv)),# p_sw_fn#_lv#_tn#_lv#
