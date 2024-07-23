@@ -171,10 +171,10 @@ def explore_grid(specs_obj: TemplateSpecs):
 
             # label graph
             if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
-                et_coefficient = 8
+                # et_coefficient = 8
 
                 t_start = time.time()
-                et_coefficient = 2
+                et_coefficient = 1
                 label_graph(exact_graph, current_graph,
                             min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
                             et=et*et_coefficient, parallel=specs_obj.parallel)
@@ -329,6 +329,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                     # SAT found, stop grid exploration
                     break
+                prev_actual_error = 0
 
         if exists_an_area_zero(current_population):
             break
