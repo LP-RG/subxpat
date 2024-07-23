@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Optional
+from os import PathLike
 import dataclasses as dc
 
 import re
@@ -41,7 +42,7 @@ def runner_name(main_name: str,
 
 
 @dc.dataclass(frozen=True)
-class NameData:
+class NameData(PathLike):
     root: str
     source_id: Optional[str]
     id: Optional[str]
@@ -59,8 +60,7 @@ class NameData:
     def get_successor(self, iteration_number: int, model_number: int) -> NameData:
         return NameData(self.root, self.id, f'{iteration_number}-{model_number}')
 
-    def __str__(self) -> str:
+    def __fspath__(self) -> str:
         if self.source_id is None:
-            return f'{self.root}'
-        else:
-            return f'{self.root}_src{self.source_id}_{self.id}'
+            return self.root
+        return f'{self.root}_src{self.source_id}_{self.id}'
