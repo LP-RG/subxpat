@@ -722,9 +722,6 @@ class MultilevelManager(ProductTemplateManager):
         return (f'{partial_parameter}_{sxpat_cfg.LITERAL_PREFIX}', f'{partial_parameter}_{sxpat_cfg.SELECT_PREFIX}')
     
     @staticmethod
-    def _output_mul_sw(output_i: int) -> Tuple[str, str]:
-        return f'mult_o{output_i}'
-    @staticmethod
     def _node_connection(output_i: int,from_n: int, from_lv: int, to_n: int, to_lv:int) -> str:
         return f'p_con_o{output_i}_fn{from_n}_lv{from_lv}_tn{to_n}_lv{to_lv}'
     
@@ -747,10 +744,6 @@ class MultilevelManager(ProductTemplateManager):
     @staticmethod
     def _last_level_parameter(output_i: int) -> str:
         return f'{sxpat_cfg.PRODUCT_PREFIX}_const{output_i}'
-    
-    @staticmethod
-    def _neg_parameter(node_i:int, level_i: int):
-        return f'p_neg_n{node_i}_lv{level_i}'
     
     @staticmethod
     def _id_parameter(node_i:int, level_i: int):
