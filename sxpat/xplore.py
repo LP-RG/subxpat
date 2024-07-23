@@ -77,8 +77,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             prev_given_error = et
         else:
             raise NotImplementedError('invalid status')
-        if i == 10:
-            exit()
+
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
