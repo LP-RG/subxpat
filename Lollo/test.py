@@ -165,7 +165,7 @@ def signed_adder(a : list, b : list) -> list:
     results = [xor(a[0],b[0])]
     carry_in = next_temporary_variable()
     output.write(f'{carry_in} = and({a[0]}, {b[0]})\n')
-    for i in range(1,max(len(a),len(b))):
+    for i in range(1,len(a)):
         next,carry_in = adder_bit3(a[i],b[i],carry_in)
         results.append(next)
     output.write('#\n')
@@ -193,7 +193,7 @@ def unsigned_adder(a : List, b : List) -> List:
 
 def comparator_greater_than(a : List, e : int):
     output.write('#comparing\n')
-    if (e >> len(a) > 0):
+    if (e >> len(a)) > 0:
         return '92'
     i = len(a) - 1
     partial_and = []
@@ -215,21 +215,24 @@ def comparator_greater_than(a : List, e : int):
         output.write(x)
     output.write(')\n#\n')
     return res
-output.write('variables = 1,2,3,4\n92=or()\n')
-outputs_inexact = increment(inverse([3,4,92]),carry=False)
-subtraction_results = signed_adder([1,2],outputs_inexact)
+output.write('variables = 1,2,3,4,5,6,7,8\n92=or()\n')
+outputs_inexact = increment(inverse([5,6,7,8,92]),carry=False)
+subtraction_results = signed_adder([1,2,3,4,92],outputs_inexact)
 absolute_values = absolute_value(subtraction_results)
+comparator = comparator_greater_than(absolute_values,128)
+output.write(f'90 = and(-{comparator})')
 print(outputs_inexact)
 print(subtraction_results)
 print(absolute_values)
-output.write('outputs = ')
-start = True
-for x in absolute_values:
-    if not start:
-        output.write(', ')
-    start = False
-    output.write(x)
-output.write('\n')
+print(comparator)
+# output.write('outputs = ')
+# start = True
+# for x in absolute_values:
+#     if not start:
+#         output.write(', ')
+#     start = False
+#     output.write(x)
+# output.write('\n')
 
 #specs_obj: TemplateSpecs
 def check_sat(specs_obj: TemplateSpecs):
