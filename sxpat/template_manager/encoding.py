@@ -24,6 +24,7 @@ class Encoding:
         return {
             1: IntegerEncoding,
             2: BitVectorEncoding,
+            3: lambda *_: None
         }[encoding_id](
             inputs_count,
             outputs_count)
