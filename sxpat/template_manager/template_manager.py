@@ -249,7 +249,7 @@ class SOP_QBF_Manager(TemplateManager):
 
     def comparator_greater_than(a : list, e : int):
         SOP_QBF_Manager.output.write('#comparing\n')
-        if (e >> len(a) > 0):
+        if (e >> len(a)) > 0:
             return '92'
         i = len(a) - 1
         partial_and = []
