@@ -1,3 +1,9 @@
+from __future__ import annotations
+from typing import Optional
+import dataclasses as dc
+
+import re
+
 from Z3Log.config import path as z3logpath
 from sxpat.config.config import NameParameters
 
@@ -32,3 +38,29 @@ def runner_name(main_name: str,
     folder, extension = z3logpath.OUTPUT_PATH['z3']
 
     return f"{folder}/{name}.{extension}"
+
+
+@dc.dataclass(frozen=True)
+class NameData:
+    root: str
+    source_id: Optional[str]
+    id: Optional[str]
+
+    NAME_PATTERN = re.compile(r'([a-zA-Z_]+_i\d+_o\d+)(?:_src(E|\d+-\d+)_(\d+-\d+)|)\.v')
+
+    def __post_init__(self):
+        object.__setattr__(self, 'id', self.id or 'E')
+
+    @classmethod
+    def from_filename(cls, filename: str) -> NameData:
+        match = cls.NAME_PATTERN.match(filename)  # todo:wip: maybe .search ?
+        return NameData(match[1], match[2], match[3])
+
+    def get_successor(self, iteration_number: int, model_number: int) -> NameData:
+        return NameData(self.root, self.id, f'{iteration_number}-{model_number}')
+
+    def __str__(self) -> str:
+        if self.source_id is None:
+            return f'{self.root}'
+        else:
+            return f'{self.root}_src{self.source_id}_{self.id}'
