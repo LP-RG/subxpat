@@ -276,6 +276,9 @@ class SOP_QBF_Manager(TemplateManager):
         nodes_exact = graph_exact.nodes
         graph_current = self._current_graph.graph
         nodes_current = graph_current.nodes
+        print(self._current_graph.subgraph_input_dict.items())
+        print(self._current_graph.subgraph_output_dict.keys())
+        print(self._current_graph.subgraph_output_dict.values())
         
         # 1,2,30 is for the input, and, output gates of the exact circuit, 40 for intermidiate and gates of the multiplexer, 41 for the output of the multiplexer,
         # 5 for the and gates, 60 for the or gates, 61 for the and between the or gate and p_o# (the outputs of the parametrical circuit),
@@ -487,7 +490,7 @@ class SOP_QBF_Manager(TemplateManager):
         while len(deq) != 0:
             cur = deq.popleft()
             
-            if cur in self._current_graph.subgraph_output_dict.values():
+            if cur in self._current_graph.subgraph_output_dict.values():    #useless
                 continue
             label = nodes_current[cur]['label']
             if label == SOP_QBF_Manager.AND_SUBXPAT or label == SOP_QBF_Manager.OR_SUBXPAT:
@@ -524,9 +527,7 @@ class SOP_QBF_Manager(TemplateManager):
         for x in nodes_current:
             if x[:len(SOP_QBF_Manager.OUTPUT_GATE_INITIALS)] != SOP_QBF_Manager.OUTPUT_GATE_INITIALS:
                 continue
-            if x in self._current_graph.subgraph_output_dict.values():
-                SOP_QBF_Manager.output.write(f'{SOP_QBF_Manager.make_qcir_variable_inexact(x)} = and(61{x[len(SOP_QBF_Manager.OUTPUT_GATE_INITIALS):]})\n')
-            elif len(list(graph_current.predecessors(x))) == 1 and (nodes_current[next(graph_current.predecessors(x))]['label'] == 'FALSE' or nodes_current[next(graph_current.predecessors(x))]['label'] == 'TRUE'):
+            if len(list(graph_current.predecessors(x))) == 1 and (nodes_current[next(graph_current.predecessors(x))]['label'] == 'FALSE' or nodes_current[next(graph_current.predecessors(x))]['label'] == 'TRUE'):
                 SOP_QBF_Manager.output.write(f'{SOP_QBF_Manager.make_qcir_variable_inexact(x)} = and(' + ('91' if nodes_current[next(graph_current.predecessors(x))]['label'] == 'TRUE' else '92') + ')\n')
             else:
                 SOP_QBF_Manager.output.write(SOP_QBF_Manager.make_qcir_variable_inexact(x) + ' = and(' + ('-' if predecessors[x][0][1] else '') + SOP_QBF_Manager.make_qcir_variable_inexact(predecessors[x][0][0]) + ')\n')
@@ -547,6 +548,9 @@ class SOP_QBF_Manager(TemplateManager):
         outputs_inexact = SOP_QBF_Manager.increment(SOP_QBF_Manager.inverse(outputs_inexact),carry=False)
         subtraction_results = SOP_QBF_Manager.signed_adder(outputs_exact,outputs_inexact)
         absolute_values = SOP_QBF_Manager.absolute_value(subtraction_results)
+        print(outputs_inexact)
+        print(subtraction_results)
+        print(absolute_values)
         res = []
         if self._specs.lpp < self._current_graph.subgraph_num_inputs:
             for a in range(self._current_graph.subgraph_num_outputs):
@@ -586,6 +590,9 @@ class SOP_QBF_Manager(TemplateManager):
                     res_dict[f'p_o{number // 2 // self._current_graph.subgraph_num_inputs // self._specs.ppo}_t{number // 2 // self._current_graph.subgraph_num_inputs % self._specs.ppo}_i{number // 2 % self._current_graph.subgraph_num_inputs}_' + ('s' if int(x) % 2 == 0 else 'l')] = True if x[0] == '+' else False
                 else:
                     res_dict[f'p_o{x[3:]}'] = True if x[0] == '+' else False
+            asd = open('./Lollo/wrong.txt','w')
+            for x in res_dict.items():
+                asd.write(f'{x[0]} = {x[1]}\n')
             return [Result(sxpat_cfg.SAT,res_dict)]
         else:
             return [Result(sxpat_cfg.UNSAT,dict())]
