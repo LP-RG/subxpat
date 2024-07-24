@@ -698,6 +698,8 @@ class SOPSManager(ProductTemplateManager):
         )
 
 class MultilevelManager(ProductTemplateManager):
+
+    #TODO: make this parameter settable from shell
     #parameter for the total number of level
     LV = 3
 
@@ -730,38 +732,21 @@ class MultilevelManager(ProductTemplateManager):
         return f'p_sw_fn{from_n}_lv{from_lv}_tn{to_n}_lv{to_lv}'
     
     @staticmethod
-    def _input_connection(from_n: int, to_in: int) -> str:
-        return f'p_con_fn{from_n}_lv0_tin{to_in}'
-    
-    @staticmethod
     def _allow_node_output(nd_i: int, lv_i: int) -> str:
         return f'p_allow_n{nd_i}_lv{lv_i}'
 
     @staticmethod
     def _level_parameter(node_i: int,level_i: int):
         return f'n{node_i}_lv{level_i}'
-
-    @staticmethod
-    def _last_level_parameter(output_i: int) -> str:
-        return f'{sxpat_cfg.PRODUCT_PREFIX}_const{output_i}'
     
     @staticmethod
     def _id_parameter(node_i:int, level_i: int):
          return f'p_id_n{node_i}_lv{level_i}'
 
-    @staticmethod
-    def count_possible_connections(self, connections):
-        counter = 0
-        for lv in len(connections-1):
-            counter+= connections[lv] * connections[lv+1]
-
-        return counter 
-
-
     #TODO: Refactor: create classmethods for generate script,(it wourld be more readable)
 
     def _multiplexer_multilevel(self,input_i,input_i__name,output_i,node_i):
-        return f'\n     Or(Not({self._input_parameters(output_i,input_i,node_i)[0]} == {input_i__name}),{self._input_parameters(output_i,input_i,node_i)[1]})'
+        return f'\n     {sxpat_cfg.Z3_NOT}({sxpat_cfg.Z3_NOT}({self._input_parameters(output_i,input_i,node_i)[0]} == {input_i__name}),{self._input_parameters(output_i,input_i,node_i)[1]})'
         #"If(p_con_fn"+str(n_gate) +"_lv0_tin"+str(input_i)+", Or(Not(p_i"+str(input_i)+"_l == "+ str(input_i__name) +"),p_i"+str(input_i)+"_s),True)"
     
     def _generate_input(self, output_i,node_i):
@@ -777,7 +762,7 @@ class MultilevelManager(ProductTemplateManager):
         if level_i == 0:
             return self._generate_input(output_i,gate)
         for node in range(npl[level_i-1]): #param connection from node# to node#s
-            gates_per_level += f'\nIf({self._node_connection(output_i,node,level_i-1,gate,level_i)}, If({self._switch_parameter(node,level_i-1,gate,level_i)}, {self._level_parameter(node,level_i-1)}(), Not({self._level_parameter(node,level_i-1)}())), True),'
+            gates_per_level += f'\n{sxpat_cfg.IF}({self._node_connection(output_i,node,level_i-1,gate,level_i)}, {sxpat_cfg.IF}({self._switch_parameter(node,level_i-1,gate,level_i)}, {self._level_parameter(node,level_i-1)}(), {sxpat_cfg.Z3_NOT}({self._level_parameter(node,level_i-1)}())), True),'
         return gates_per_level
 
     def _generate_levels(self,npl,output_i):
@@ -785,7 +770,7 @@ class MultilevelManager(ProductTemplateManager):
         for level_i in range(len(npl)):
             for gate in range( npl[level_i]):
                     #code with  negation param (below without) #gates_per_level.append(f'\n#level: {level_i}\n{self._id_parameter(gate,level_i)}() == And({self._connection_constraints(npl, level_i, gate, output_i)}),\n{self._level_parameter(gate,level_i)}() == Or({self._allow_node_output(gate,level_i)}, If({self._neg_parameter(gate,level_i)}, Not({self._id_parameter(gate,level_i)}()), {self._id_parameter(gate,level_i)}())),')
-                gates_per_level.append(f'\n#level: {level_i}\n{self._id_parameter(gate,level_i)}() == And({self._connection_constraints(npl, level_i, gate, output_i)}),\n{self._level_parameter(gate,level_i)}() == Or({self._allow_node_output(gate,level_i)}, {self._id_parameter(gate,level_i)}()),')
+                gates_per_level.append(f'\n#level: {level_i}\n{self._id_parameter(gate,level_i)}() == {sxpat_cfg.Z3_AND}({self._connection_constraints(npl, level_i, gate, output_i)}),\n{self._level_parameter(gate,level_i)}() == {sxpat_cfg.Z3_OR}({self._allow_node_output(gate,level_i)}, {self._id_parameter(gate,level_i)}()),')
         return gates_per_level
 
     def _update_builder(self, builder: Builder) -> None:
@@ -799,7 +784,7 @@ class MultilevelManager(ProductTemplateManager):
         #TODO: remove the + 1
         #Amedeo: note that this could be parametrized with different number of gates for each level
         for i in range(len(npl)):
-            npl[i] = 2#self._specs.pit     
+            npl[i] = self._specs.pit     
         
         npl[self.LV - 1] = len(self.subgraph_outputs)
 
@@ -812,19 +797,9 @@ class MultilevelManager(ProductTemplateManager):
                             self._gen_declare_gate(self._output_parameter(output_i)),                   # p_o#
                             self._gen_declare_gate((pars := self._output_mul_parameter(output_i))[0]),  # p_o#_l
                             self._gen_declare_gate(pars[1]),                                            # p_o#_s
-                            self._gen_declare_gate(self._output_mul_sw(output_i))                       # mult_o# 
                         )
                         for output_i in self.subgraph_outputs.keys()
                     ),                                                  
-                    # itertools.chain.from_iterable(
-                    #     (
-                    #         self._gen_declare_gate(self._neg_parameter(nd,lv)),     # p_neg_n#_lv#
-                    #         #self._gen_declare_gate(self._level_parameter(nd,lv)),   # n#_lv# 
-                    #         #self._gen_declare_gate(self._id_parameter(nd,lv))       # p_id_n#_lv1
-                    #     )
-                    #     for lv in range(len(npl))
-                    #     for nd in range(npl[lv])
-                    # ),
                     itertools.chain.from_iterable(
                         (
                             self._gen_declare_gate(self._switch_parameter(f_nd,lv-1,t_nd,lv)),# p_sw_fn#_lv#_tn#_lv#
@@ -904,13 +879,14 @@ class MultilevelManager(ProductTemplateManager):
                 #TODO: refactor this line of code
                 lines.append('\n'.join(self._generate_levels(npl, output_i)))
                 #TODO: constraint at least one connection to the output
-                lines.append(f'\n {sxpat_cfg.PRODUCT_PREFIX}{output_i} == Or(' + ',\n'.join(
+                output_selection = ',\n'.join(
                                 itertools.chain(
                                     f'{self._level_parameter(gate,len(npl)-1)}()'
                                     for gate in range(npl[len(npl)-1])
                                 )
-                            )+ '),')
-                lines.append(f'{output_use} == Or(Not(p_o{output_i}_l == {sxpat_cfg.PRODUCT_PREFIX}{output_i}),p_o{output_i}_s),') 
+                            )
+                lines.append(f'\n {sxpat_cfg.PRODUCT_PREFIX}{output_i} == {sxpat_cfg.Z3_OR}(\n{output_selection}),\n')
+                lines.append(f'{output_use} == {sxpat_cfg.Z3_OR}({sxpat_cfg.Z3_NOT}({sxpat_cfg.PARAM_PREFIX}{output_i}_{sxpat_cfg.LITERAL_PREFIX} == {sxpat_cfg.PARAM_PREFIX}{output_i}),{sxpat_cfg.PRODUCT_PREFIX}{output_i}_{sxpat_cfg.SELECT_PREFIX}),') 
                 
         builder.update(approximate_wires_constraints='\n'.join(lines))
 
@@ -929,22 +905,8 @@ class MultilevelManager(ProductTemplateManager):
             )
         )))
 
-        # p_con_fn#_lv#_tn#_lv#
-        # total_wpg = []
-        # for level_i in range(len(npl)-2):
-        #     for start_node_i in range(npl[level_i]):
-        #         for end_node_i in range(npl[level_i+1]):
-        #             total_wpg[level_i] += f'If(p_con_fn{start_node_i}_lv{level_i}_tn{end_node_i}_lv{level_i+1},1,0) + '
-            
-        # builder.update(logic_dependant_constraint1 = '# Force the number of inputs to sum to be at most `its`'+'\n'.join([
-        #         f'AtMost({total_wpg[wpg]} <= {self.count_possible_connections(npl)}),'
-        #         for wpg in range(len(total_wpg))
-        # ]))
+        #logic dependant constraint
         builder.update(logic_dependant_constraint1 ='')
-        #                '\n'.join([
-        #     '# Force the number of inputs to sum to be at most `its`',
-        #     f'AtMost({", ".join(parameters)}, {self._specs.lpp*self.LV}),'
-        # ])) 
 
         # product_order_constraint
         lines = []
@@ -970,7 +932,6 @@ class MultilevelManager(ProductTemplateManager):
                                 )
                                 for node_fr in range(npl[lv-1])
                         )
-                    print(products)
                     lines.extend(
                         f'# product order constraint for level: {lv} \n {self._encoding.unsigned_greater(product_a, product_b)},'
                         for product_a, product_b in pairwise_iter(products)
@@ -980,15 +941,16 @@ class MultilevelManager(ProductTemplateManager):
         # connection_constraint
         builder.update(connection_constraint= '\n'.join(
             itertools.chain(
-                f'Implies({self._node_connection(o_i,nd,lv,nd_,lv+1)},Not({self._allow_node_output(nd,lv)})),'
+                f'Implies({self._node_connection(o_i,nd,lv,nd_,lv+1)},{sxpat_cfg.Z3_NOT}({self._allow_node_output(nd,lv)})),'
                 for o_i in self.subgraph_outputs.keys()
                 for lv in range (len(npl)-1)
                 for nd in range(npl[lv])
                 for nd_ in range(npl[lv+1])
             )
         ))
-
-        #last level constraint
+        #TODO: impement the following constraint
+        #at least one node between each leve
+        #at least one node connected to the output
 
         # remove_zero_permutations_constraint
         lines = []
