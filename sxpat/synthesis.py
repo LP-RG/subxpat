@@ -3,6 +3,7 @@ from typing import List, Dict, Optional, Tuple, AnyStr
 import json
 import re
 import subprocess
+import itertools
 from subprocess import PIPE
 import os
 
@@ -242,11 +243,13 @@ class Synthesis:
         :param use_json_model: if set to true, the json model is used
         :return: a Verilog description in the form of a String object
         """
+        #TODO: implement a consistent condition for the Multilevel SubXPAT
         if self.__magraph:
             # todo:hack: temporary
             verilog_str = [self.__magraph_to_verilog()]
         elif self.subxpat and self.shared:
-            verilog_str = self.__annotated_graph_to_verilog_shared()  # Shared SubXPAT
+            verilog_str = self.__annotated_graph_to_verilog_multilevel() # Multilevel SubXPAT
+            #verilog_str = self.__annotated_graph_to_verilog_shared()   # Shared SubXPAT
         elif self.subxpat and not self.shared:
             verilog_str = self.__annotated_graph_to_verilog()  # SubXPAT
         elif not self.subxpat and self.shared:
@@ -255,9 +258,11 @@ class Synthesis:
             verilog_str = self.__annotated_graph_to_verilog()  # XPAT (Vanilla)
         else:
             pprint.error('ERROR!!! the graph or json model cannot be converted into a Verilog script!')
-            exit(1)
+            exit(1)                                         
 
         return verilog_str
+
+    # ---------------------------- # ---------------------------- # ---------------------------- # ---------------------------- #
 
     def __json_input_wire_declarations(self, idx: int = 0):
         graph_input_list = list(self.graph.subgraph_input_dict.values())
@@ -290,6 +295,33 @@ class Synthesis:
         else:
             wire_list += f'// No wires detected!'
         return wire_list
+    # ---------------------------- # ---------------------------- W.I.P. start multilevel aux func ---------------------------- # ---------------------------- #
+    
+    #TODO: implement the following method
+    def __json_model_wire_declarations_multilevel(self):
+        # return '\n'.join(
+        #     itertools.chain(
+        #         itertools.chain.from_iterable
+        #         (
+        #             (
+        #                 self.__template_specs.
+        #             )
+        #             for 
+        #         )
+        #     )
+        # )
+        pass
+
+    #TODO: create new method, and replace  __get_fanin_cone with that
+    def __subgraph_inputs_assigns_multilevel(self):
+        s_inputs_assigns = f'//subgraph inputs assigns\n'
+
+        for n in self.graph.subgraph_input_dict.values():
+            if n in self.graph.input_dict.values():
+                s_inputs_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = {n};\n'
+            else:
+                s_inputs_assigns += self.__get_fanin_cone(n) #TODO: create new method, and replace it with that
+        return s_inputs_assigns
 
     def __get_fanin_cone(self, n: str, visited: List[str] = []):
         visited.append(n)
@@ -323,6 +355,8 @@ class Synthesis:
                       else succ_n_list[0])
             assignment += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = ~{gate_1};\n"
         return assignment
+
+    # ---------------------------- # ---------------------------- W.I.P.  end multilevel aux func ---------------------------- # ---------------------------- #
 
     def __subgraph_inputs_assigns(self):
         s_inputs_assigns = f'//subgraph inputs assigns\n'
@@ -933,6 +967,43 @@ class Synthesis:
 
         return ver_string
 
+    def __annotated_graph_to_verilog_multilevel(self):
+        ver_string = []
+        for idx in range(self.num_of_models):
+            self.set_path(this_path=OUTPUT_PATH['ver'], id=idx)
+            ver_str = f''
+            # 1. module declaration
+            module_signature = self.__get_module_signature(idx)
+
+            # 2. declarations
+            # input/output declarations
+            io_declaration = self.__declare_inputs_outputs()
+
+            # intact wire declaration
+            intact_wires = self.__intact_gate_wires()
+
+            # subgraph input wires
+            annotated_graph_input_wires = self.__get_subgraph_input_wires()
+            annotated_graph_output_wires = self.__get_subgraph_output_wires()
+            # json input wires
+            json_input_wires = self.__json_input_wire_declarations()                    # correct
+
+            json_model_wires = self.__json_model_wire_declarations_multilevel()         # TODO: change            
+            json_output_wires = self.__json_model_output_declaration_subxpat_shared()   # correct
+            
+            # 3. assign 
+            #TODO: finish implementation point 3.assign
+            json_input_assign = self.__subgraph_inputs_assigns_multilevel()             # TODO: check if __get_fain_cone is correct
+
+            intact_assigns = self.__intact_part_assigns()                               #correct
+
+            
+            ver_str += (module_signature + io_declaration + intact_wires + annotated_graph_input_wires + json_input_wires
+                        + annotated_graph_input_wires + annotated_graph_output_wires + json_output_wires + json_model_wires)
+            ver_string.append(ver_str)
+
+        return ver_string
+
     def __annotated_graph_to_verilog_shared(self):
         ver_string = []
 
@@ -958,7 +1029,7 @@ class Synthesis:
             json_model_wires = self.__json_model_wire_declarations_shared()
             json_output_wires = self.__json_model_output_declaration_subxpat_shared()
 
-            # 2. assigns
+            # 3. assigns
             json_input_assign = self.__subgraph_inputs_assigns_shared()
             subgraph_to_json_input_mapping = self.__subgraph_to_json_input_mapping()
             intact_assigns = self.__intact_part_assigns()
