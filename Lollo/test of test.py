@@ -64,6 +64,7 @@ def main():
     header = ['Input'] + [f'Output {output}' for output in outputs]
     print("\t".join(header))
     
+    maxi = 0
     num_vars = len(variables)
     for idx, row in enumerate(truth_table):
         input_vals = format(idx, f'0{num_vars}b')
@@ -71,7 +72,7 @@ def main():
         row_vals = " ".join(['1' if val else '0' for val in reversed(row)])  # Invertiamo la stringa degli output
         # print(f"{input_vals}\t\t{row_vals}")
 
-        lenght = 6
+        lenght = 9
         inexact_inverse = int(row_vals[:lenght*2].replace(" ", ""), 2)
         if row_vals[0] == '1':
             inexact_inverse -= (1 << lenght)
@@ -79,17 +80,21 @@ def main():
         if row_vals[lenght*2] == '1':
             subtraction -= (1 << lenght)
         absolute = int(row_vals[lenght*4:lenght*6].replace(" ", ""), 2)
-        comparator = int(row_vals[lenght*6].replace(" ", ""), 2)
+        # comparator = int(row_vals[lenght*6].replace(" ", ""), 2)
+        exact_output = int(row_vals[lenght*6:lenght*6+14].replace(" ", ""), 2)
+        inexact_output = int(row_vals[lenght*6+14:lenght*6+28].replace(" ", ""), 2)
+
         # if row_vals[0] == '1':
         #     result -= (1 << 5)
-        x =  4
+        x =  6
         input1 = int(input_vals[:x*2].replace(" ", ""), 2)
         input2= int(input_vals[x*2:].replace(" ", ""), 2)
         # if input_vals[0] == '1':
         #     input1 -= (1 << x)
         # if input_vals[x] == '1':
         #     input2 -= (1 << x)
-        print(f"{input_vals}\t\t{row_vals}\t\t{input1 + inexact_inverse}\t\t{input2-input1-subtraction}\t\t{abs(input2-input1)-absolute}\t\t{(1 if abs(input2-input1) <= 128 else 0) == comparator}")
-
+        maxi = max(absolute,maxi)
+        print(f"{input_vals}\t\t{row_vals}\t\t{absolute}")
+    print(maxi)
 if __name__ == "__main__":
     main()
