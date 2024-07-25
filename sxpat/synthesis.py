@@ -32,6 +32,7 @@ class Synthesis:
 
         self.__subxpat: bool = template_specs.subxpat
         self.__shared: bool = template_specs.shared
+        self.__multilevel: bool = template_specs.multilevel
 
         self.__iterations = template_specs.iterations
         self.__literal_per_product = template_specs.lpp
@@ -56,7 +57,7 @@ class Synthesis:
 
             self.__use_json_model: bool = None
             self.__use_graph: bool = None
-
+            
             folder, extension = sxpatpaths.OUTPUT_PATH[sxpatconfig.JSON]
             self.__json_in_path: str = None
             folder, extension = OUTPUT_PATH[sxpatconfig.GV]
@@ -66,6 +67,10 @@ class Synthesis:
             self.__ver_out_path: str = self.set_path(OUTPUT_PATH['ver'])
 
             self.__verilog_string: List[str] = self.convert_to_verilog()
+
+    @property
+    def multilevel(self):
+        return self.__multilevel
 
     @property
     def specs(self):
@@ -247,9 +252,11 @@ class Synthesis:
         if self.__magraph:
             # todo:hack: temporary
             verilog_str = [self.__magraph_to_verilog()]
-        elif self.subxpat and self.shared:
+        elif self.subxpat and self.shared and self.multilevel:
             verilog_str = self.__annotated_graph_to_verilog_multilevel() # Multilevel SubXPAT
             #verilog_str = self.__annotated_graph_to_verilog_shared()   # Shared SubXPAT
+        elif self.subxpat and self.shared and not self.multilevel:
+            verilog_str = self.__annotated_graph_to_verilog_shared()   # Shared SubXPAT
         elif self.subxpat and not self.shared:
             verilog_str = self.__annotated_graph_to_verilog()  # SubXPAT
         elif not self.subxpat and self.shared:

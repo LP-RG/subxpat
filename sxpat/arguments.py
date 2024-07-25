@@ -72,7 +72,10 @@ class CommaSplitAction(argparse.Action):
 #             o.full_error_function,
 #             o.sub_error_function,
 #         )
-
+class MultilevelActivation(argparse.Action):
+    def __call__(self,parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, True)
+        setattr(namespace, 'shared', True)
 
 class Arguments(Z3Log_Arguments):
     def __init__(self, tmp_args: argparse):
@@ -108,6 +111,17 @@ class Arguments(Z3Log_Arguments):
 
         self.__partial_labeling: bool = tmp_args.partial_labeling
         self.__num_subgraphs: int = tmp_args.num_subgraphs
+
+        self.__multilevel: bool = tmp_args.multilevel
+        self.__number_of_levels: int = tmp_args.lv
+
+    @property
+    def multilevel(self):
+        return self.__multilevel
+
+    @property 
+    def lv(self):
+        return self.__number_of_levels
 
     @property
     def parallel(self):
@@ -432,10 +446,21 @@ class Arguments(Z3Log_Arguments):
                                type=int,
                                default=1,
                                help='the-number-of-attempts-for-subgraph-extractions')
-
+        
+        my_parser.add_argument('--multilevel',
+                               action = MultilevelActivation,
+                               nargs=0,
+                               default=False,
+                               help='set-multilevel-and-shared-to-True')
+        
+        my_parser.add_argument('--lv', '-lv',
+                               type=int,
+                               default=2,
+                               help='number-of-levels')
+        
         tmp_args = my_parser.parse_args()
-
         return Arguments(tmp_args)
+
 
     def __repr__(self):
         return f'An object of class Arguments:\n' \
@@ -469,4 +494,8 @@ class Arguments(Z3Log_Arguments):
                f'{self.partial_labeling = }\n' \
                f'{self.num_subgraphs = }\n' \
                f'{self.clean = }\n' \
-               f'{self.encoding = }'
+               f'{self.encoding = }\n'\
+               f'{self.multilevel = }\n'\
+               f'{self.lv=}'
+
+
