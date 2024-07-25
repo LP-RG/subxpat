@@ -232,10 +232,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                     benchmark_name = specs_obj.benchmark_name
 
-                    # todo:check: this seems to be working, lets make sure
-                    specs_obj.exact_benchmark = approximate_benchmark
-                    specs_obj.benchmark_name = approximate_benchmark
-
                     synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
 
                     pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)')
