@@ -226,8 +226,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                 execution_time = time.time() - start_time
 
                 cur_status = results[0].status
+                pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()}')
                 if cur_status in (UNSAT, UNKNOWN):
-                    pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()}')
 
                     # store model
                     this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
