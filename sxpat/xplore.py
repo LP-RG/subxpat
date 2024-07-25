@@ -230,7 +230,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
                     pprint.success(f'ErrorEval PASS! with total wce = {obtained_wce_exact}')
 
-                    benchmark_name = specs_obj.benchmark_name
+                    specs_obj.benchmark_name = approximate_benchmark
 
                     synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
 
@@ -240,7 +240,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                                    synth_obj.estimate_delay(exact_file_path)]
                     print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
 
-                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=benchmark_name, et=specs_obj.et,
+                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.benchmark_name, et=specs_obj.et,
                                         encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
 
                     for key in cur_model_results.keys():
