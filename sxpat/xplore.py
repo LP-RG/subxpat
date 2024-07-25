@@ -41,7 +41,6 @@ def explore_grid(specs_obj: TemplateSpecs):
     # initial setup
     total_iterations = specs_obj.iterations
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
-    exact_file_name = specs_obj.exact_benchmark
     sum_wce_actual = 0
 
     # create stat and template object
@@ -59,7 +58,7 @@ def explore_grid(specs_obj: TemplateSpecs):
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
-    max_unsat_reached = False
+    # max_unsat_reached = False
 
     while (obtained_wce_exact < available_error):
         i += 1
@@ -77,23 +76,23 @@ def explore_grid(specs_obj: TemplateSpecs):
             prev_given_error = et
         else:
             raise NotImplementedError('invalid status')
-        if i == 10:
-            exit()
+
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
-        
-        # Fix the infinite loop
-        if max_unsat_reached:
-            break
+
+        # # Fix the infinite loop
+        # if max_unsat_reached:
+        #     pprint.warning('Max number of unsat reached. terminating')
+        #     break
 
         # for all candidates
         for candidate in current_population:
-            # guard
-            if pre_iter_unsats[candidate] == specs_obj.total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
-                pprint.info1(f'Number of UNSATs reached!')
-                max_unsat_reached = True
-                continue
+            # # guard
+            # if pre_iter_unsats[candidate] == specs_obj.total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
+            #     pprint.info1(f'Number of UNSATs reached!')
+            #     max_unsat_reached = True
+            #     continue
 
             pprint.info1(f'candidate {candidate}')
             if candidate.endswith('.v'):
@@ -208,8 +207,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                     for candidate in cur_model_results:
                         approximate_benchmark = candidate[:-2]
 
-                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, available_error)
-                        obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, available_error)
+                        obtained_wce_exact = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, available_error)
+                        obtained_wce_prev = erroreval_verification_wce(specs_obj.benchmark_name, approximate_benchmark, available_error)
                         prev_actual_error = obtained_wce_prev
 
                         if obtained_wce_exact > available_error:
@@ -261,10 +260,10 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                     # SAT found, stop grid exploration
                     break
+                prev_actual_error = 0
 
         if exists_an_area_zero(current_population):
             break
-
 
         # This is to fix another problem (also previously known as loop)
         # This is where the exploration get stuck in a loop of creating the same approximate circuit over and over again
@@ -283,9 +282,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if loop_detected:
             break
-
-
-    display_the_tree(total)
 
     stats_obj.store_grid()
     return stats_obj
@@ -455,20 +451,13 @@ def pick_k_best_k_worst(candidates: Dict[str, float], k: int):
         return selected_candidates
 
 
-def display_the_tree(this_dict: Dict) -> None:
-
-    file_path = 'output/file.gv'
-
-    # with open(file_path, 'w') as f:
-    #     pass
-
-
 def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph,
                 min_labeling: bool = False,  partial: bool = False,
                 et: int = -1, parallel: bool = False):
     labels, _ = labeling_explicit(exact_graph.name, current_graph.name,
                                   constant_value=0, min_labeling=min_labeling,
                                   partial=partial, et=et, parallel=parallel)
+    print('cane magico')
 
     for n in current_graph.graph.nodes:
         current_graph.graph.nodes[n][WEIGHT] = int(labels[n]) if n in labels else -1
