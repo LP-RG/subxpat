@@ -793,14 +793,7 @@ class MultilevelManager(ProductTemplateManager):
 
         # params_declaration
         builder.update(params_declaration='\n'.join(
-                itertools.chain(
-                    itertools.chain.from_iterable
-                    (   
-                        (
-                            self._gen_declare_gate(self._output_parameter(output_i)),                   # p_o#
-                        )
-                        for output_i in self.subgraph_outputs.keys()
-                    ),                                                  
+                itertools.chain(                                            
                     itertools.chain.from_iterable
                     (
                         (
@@ -883,8 +876,7 @@ class MultilevelManager(ProductTemplateManager):
                                     for gate in range(npl[len(npl)-1])
                                 )
                             )
-                lines.append(f'\n{sxpat_cfg.PRODUCT_PREFIX}{output_i} == {sxpat_cfg.Z3_AND}({output_selection}),')
-                lines.append(f'{output_use} == {sxpat_cfg.PRODUCT_PREFIX}{output_i},') 
+                lines.append(f'{output_use} == {sxpat_cfg.Z3_AND}({output_selection}),') 
                 
         builder.update(approximate_wires_constraints='\n'.join(lines))
 
