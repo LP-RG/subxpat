@@ -92,8 +92,6 @@ forall_solver.add(ForAll(
 		# set order of products
 		{{{{product_order_constraint}}}}
 
-		# connection implication constraint
-		{{{{connection_constraint}}}}
 
 	)
 ))

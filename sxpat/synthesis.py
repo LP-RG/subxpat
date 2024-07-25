@@ -254,7 +254,6 @@ class Synthesis:
             verilog_str = [self.__magraph_to_verilog()]
         elif self.subxpat and self.shared and self.multilevel:
             verilog_str = self.__annotated_graph_to_verilog_multilevel() # Multilevel SubXPAT
-            #verilog_str = self.__annotated_graph_to_verilog_shared()   # Shared SubXPAT
         elif self.subxpat and self.shared and not self.multilevel:
             verilog_str = self.__annotated_graph_to_verilog_shared()   # Shared SubXPAT
         elif self.subxpat and not self.shared:
@@ -269,6 +268,17 @@ class Synthesis:
 
         return verilog_str
 
+
+   # ---------------------------- # ---------------------------- # ---------------------------- # ---------------------------- #
+
+    def sort_native(self,dictionary: dict) -> dict:
+        return dict(sorted(dictionary.items(), key=lambda i: i[0]))
+
+
+    def sort_stdlib(dictionary: dict) -> dict:
+        import operator as op
+        return dict(sorted(dictionary.items(), key=op.itemgetter(0)))
+    
     # ---------------------------- # ---------------------------- # ---------------------------- # ---------------------------- #
 
     def __json_input_wire_declarations(self, idx: int = 0):
@@ -303,65 +313,63 @@ class Synthesis:
             wire_list += f'// No wires detected!'
         return wire_list
     # ---------------------------- # ---------------------------- W.I.P. start multilevel aux func ---------------------------- # ---------------------------- #
+
+    def __number_of_levels(self,sorted_dict) -> List[int]:
+        nodes_per_level = [0]*self.specs.lv
+        for key in sorted_dict:
+            if "con" in key:
+                identifiers = re.findall(r'\d+', key)
+                idx = int(identifiers[1])
+                nodes_per_level[idx]=+1
+            if "to" in key:
+                idx = self.specs.lv - 1
+                nodes_per_level[idx]=+1
+            print(key)
+        print(nodes_per_level)
+        return nodes_per_level
     
-    #TODO: implement the following method
-    def __json_model_wire_declarations_multilevel(self):
-        # return '\n'.join(
-        #     itertools.chain(
-        #         itertools.chain.from_iterable
-        #         (
-        #             (
-        #                 self.__template_specs.
-        #             )
-        #             for 
-        #         )
-        #     )
-        # )
-        pass
+    def __json_model_wire_declarations_multilevel(self, nodes_per_level):
+        wire_list = f'//json model\n'
+        wire_list += f'wire '
 
-    #TODO: create new method, and replace  __get_fanin_cone with that
-    def __subgraph_inputs_assigns_multilevel(self):
-        s_inputs_assigns = f'//subgraph inputs assigns\n'
+        for lv in range(self.specs.lv):
+            for node in range(nodes_per_level[lv]):
+                wire_list+= f'{sxpatconfig.VER_WIRE_PREFIX}nd{node}_lv{lv} '
+            wire_list += ',' if not lv == self.specs.lv - 1 else ';'
 
-        for n in self.graph.subgraph_input_dict.values():
-            if n in self.graph.input_dict.values():
-                s_inputs_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = {n};\n'
-            else:
-                s_inputs_assigns += self.__get_fanin_cone(n) #TODO: create new method, and replace it with that
-        return s_inputs_assigns
+        return wire_list
+    
+    def __json_multilevel_input_assign(self,node,dict_i):
 
-    def __get_fanin_cone(self, n: str, visited: List[str] = []):
-        visited.append(n)
-        assignment = f''
-        succ_n_list = list(self.graph.graph.predecessors(n))
-        for s_n in succ_n_list:
-            if s_n in self.graph.input_dict.values():
-                pass
-            else:
-                if s_n not in visited:
-                    assignment += self.__get_fanin_cone(s_n, visited)
+        expr = []
+        for idx in self.graph.subgraph_input_dict.keys():
+            val_l = bool(dict_i.get('p_i{}_n{}_l'.format(idx,node)))
+            val_s = bool(dict_i.get('p_i{}_n{}_s'.format(idx,node)))
+            if not val_s and val_l:
+                expr.append('1')
+            elif val_s and not val_l:
+                expr.append(f'~{sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx}')
+            elif val_s and val_l:
+                expr.append(f'{sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx}')
 
-        if len(succ_n_list) == 2:
-            gate_1 = (f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}'
-                      if succ_n_list[0] not in self.graph.input_dict.values()
-                      else succ_n_list[0])
-            gate_2 = (f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[1]}'
-                      if succ_n_list[1] not in self.graph.input_dict.values()
-                      else succ_n_list[1])
-
-            if self.graph.graph.nodes[n][LABEL] == sxpatconfig.AND:
-                operator = sxpatconfig.VER_AND
-            elif self.graph.graph.nodes[n][LABEL] == sxpatconfig.OR:
-                operator = sxpatconfig.VER_OR
-
-            assignment += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = " \
-                          f"{gate_1} {operator} {gate_2};\n"
-        else:
-            gate_1 = (f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}'
-                      if succ_n_list[0] not in self.graph.input_dict.values()
-                      else succ_n_list[0])
-            assignment += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = ~{gate_1};\n"
-        return assignment
+        return expr
+    
+    def __inputs_to_level_assigns(self,npl,dict):
+        lines = []
+        lines.append("// inputs_to_level_assigns")
+        j_son_nodes_connection=""
+        for lv in range(len(npl)):
+            lines.append(f'// level: {lv}')
+            for node_i in range(npl[lv]):
+                if lv == 0:
+                    j_son_nodes_connection = f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} = ' + ' & '.join(self.__json_multilevel_input_assign(node_i,dict))
+                elif lv == len(npl)-1:
+                    pass
+                else:
+                    pass
+            lines.append(j_son_nodes_connection)
+        
+        return '\n'.join(lines)
 
     # ---------------------------- # ---------------------------- W.I.P.  end multilevel aux func ---------------------------- # ---------------------------- #
 
@@ -375,14 +383,8 @@ class Synthesis:
                 s_inputs_assigns += self.__get_fanin_cone(n)
         return s_inputs_assigns
 
-    def __subgraph_inputs_assigns_shared(self):
+    def __subgraph_inputs_assigns_multilevel(self):
         s_inputs_assigns = f'//subgraph inputs assigns\n'
-
-        for n in self.graph.subgraph_input_dict.values():
-            if n in self.graph.input_dict.values():
-                s_inputs_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = {n};\n'
-            else:
-                s_inputs_assigns += self.__get_fanin_cone(n)
         return s_inputs_assigns
 
     def __fix_order(self):
@@ -678,6 +680,49 @@ class Synthesis:
             json_model_inputs += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{item} = {item};\n"
 
         return json_model_inputs
+
+    def __subgraph_inputs_assigns_shared(self):
+        s_inputs_assigns = f'//subgraph inputs assigns\n'
+
+        for n in self.graph.subgraph_input_dict.values():
+            if n in self.graph.input_dict.values():
+                s_inputs_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = {n};\n'
+            else:
+                s_inputs_assigns += self.__get_fanin_cone(n)
+        return s_inputs_assigns
+
+    def __get_fanin_cone(self, n: str, visited: List[str] = []):
+        visited.append(n)
+        assignment = f''
+        succ_n_list = list(self.graph.graph.predecessors(n))
+        for s_n in succ_n_list:
+            if s_n in self.graph.input_dict.values():
+                pass
+            else:
+                if s_n not in visited:
+                    assignment += self.__get_fanin_cone(s_n, visited)
+
+        if len(succ_n_list) == 2:
+            gate_1 = (f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}'
+                      if succ_n_list[0] not in self.graph.input_dict.values()
+                      else succ_n_list[0])
+            gate_2 = (f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[1]}'
+                      if succ_n_list[1] not in self.graph.input_dict.values()
+                      else succ_n_list[1])
+
+            if self.graph.graph.nodes[n][LABEL] == sxpatconfig.AND:
+                operator = sxpatconfig.VER_AND
+            elif self.graph.graph.nodes[n][LABEL] == sxpatconfig.OR:
+                operator = sxpatconfig.VER_OR
+
+            assignment += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = " \
+                          f"{gate_1} {operator} {gate_2};\n"
+        else:
+            gate_1 = (f'{sxpatconfig.VER_WIRE_PREFIX}{succ_n_list[0]}'
+                      if succ_n_list[0] not in self.graph.input_dict.values()
+                      else succ_n_list[0])
+            assignment += f"{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = ~{gate_1};\n"
+        return assignment
 
     def __json_model_lpp_product_assigns_subxpat_shared(self, idx: int = 0):
 
@@ -978,7 +1023,16 @@ class Synthesis:
         ver_string = []
         for idx in range(self.num_of_models):
             self.set_path(this_path=OUTPUT_PATH['ver'], id=idx)
+
             ver_str = f''
+
+            for item in self.__json_model:
+                sorted_dict = self.sort_native(item)
+            print(item)
+            print(item.get('p_con_fn0_to0'))
+            print(sorted_dict)
+            npl = self.__number_of_levels(sorted_dict)
+
             # 1. module declaration
             module_signature = self.__get_module_signature(idx)
 
@@ -994,19 +1048,26 @@ class Synthesis:
             annotated_graph_output_wires = self.__get_subgraph_output_wires()
             # json input wires
             json_input_wires = self.__json_input_wire_declarations()                    # correct
-
-            json_model_wires = self.__json_model_wire_declarations_multilevel()         # TODO: change            
+            json_model_wires = self.__json_model_wire_declarations_multilevel(npl)      # correct           
             json_output_wires = self.__json_model_output_declaration_subxpat_shared()   # correct
             
             # 3. assign 
             #TODO: finish implementation point 3.assign
-            json_input_assign = self.__subgraph_inputs_assigns_multilevel()             # TODO: check if __get_fain_cone is correct
+            json_input_assign = self.__subgraph_inputs_assigns_shared()
+            subgraph_to_json_input_mapping = self.__subgraph_to_json_input_mapping()
+            intact_assigns = self.__intact_part_assigns()
 
-            intact_assigns = self.__intact_part_assigns()                               #correct
-
+            json_model_inputs_to_level_assigns = self.__inputs_to_level_assigns(npl,item)
+            shared_assigns = ""
+            output_assigns = self.__output_assigns()
             
+
             ver_str += (module_signature + io_declaration + intact_wires + annotated_graph_input_wires + json_input_wires
                         + annotated_graph_input_wires + annotated_graph_output_wires + json_output_wires + json_model_wires)
+            ver_str += "\n// ========== # ========== //.\n"
+            ver_str += (json_input_assign + subgraph_to_json_input_mapping + intact_assigns
+                        + json_model_inputs_to_level_assigns+ shared_assigns + output_assigns)
+
             ver_string.append(ver_str)
 
         return ver_string
@@ -1032,7 +1093,6 @@ class Synthesis:
             annotated_graph_output_wires = self.__get_subgraph_output_wires()
             # json input wires
             json_input_wires = self.__json_input_wire_declarations()
-
             json_model_wires = self.__json_model_wire_declarations_shared()
             json_output_wires = self.__json_model_output_declaration_subxpat_shared()
 
