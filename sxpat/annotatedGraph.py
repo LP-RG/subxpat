@@ -1578,6 +1578,7 @@ class AnnotatedGraph(Graph):
         :return: an annotated graph in which the extracted subgraph is colored
         """
         omax = specs_obj.omax
+        imax = specs_obj.imax
         feasibility_treshold = specs_obj.et
         # print(f'{feasibility_treshold = }')
 
@@ -1777,8 +1778,11 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Add constraints on the number of input and output edges
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
 
         feasibility_constraints = []
         for s in edge_w:
