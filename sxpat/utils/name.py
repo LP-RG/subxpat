@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Any, Mapping, Optional
 from os import PathLike
 import dataclasses as dc
 
@@ -41,26 +41,43 @@ def runner_name(main_name: str,
     return f"{folder}/{name}.{extension}"
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass(repr=True)
 class NameData(PathLike):
-    root: str
-    source_id: Optional[str]
-    id: Optional[str]
+    """Class representing the data of a benchmark file name.
 
-    NAME_PATTERN = re.compile(r'([a-zA-Z_]+_i\d+_o\d+)(?:_src(E|\d+-\d+)_(\d+-\d+)|)\.v')
+    @implements: PathLike
+    """
+
+    root: str
+    source_id: Optional[str] = None
+    id: Optional[str] = None
+
+    NAME_PATTERN = re.compile(r'(.+)_si(\d+)m(\d+)_i(\d+)m(\d+)')
 
     def __post_init__(self):
-        object.__setattr__(self, 'id', self.id or 'E')
+        self.id = self.id or 'E'
 
     @classmethod
     def from_filename(cls, filename: str) -> NameData:
-        match = cls.NAME_PATTERN.match(filename)  # todo:wip: maybe .search ?
-        return NameData(match[1], match[2], match[3])
+        if (match := cls.NAME_PATTERN.match(filename)) is None:
+            return NameData(filename)
+        return NameData(match[1],cls.gen_id(match[2], match[3]), cls.gen_id(match[4], match[5]))
+
+    @ staticmethod
+    def gen_id(iteration_number: int, model_number: int) -> str:
+        return f'i{iteration_number}m{model_number}'
+
+    @ property
+    def is_origin(self) -> bool:
+        return self.source_id is None
 
     def get_successor(self, iteration_number: int, model_number: int) -> NameData:
-        return NameData(self.root, self.id, f'{iteration_number}-{model_number}')
+        return NameData(self.root, self.id, self.gen_id(iteration_number, model_number))
 
     def __fspath__(self) -> str:
         if self.source_id is None:
             return self.root
-        return f'{self.root}_src{self.source_id}_{self.id}'
+        return f'{self.root}_s{self.source_id}_{self.id}'
+
+    def __str__(self) -> str:
+        return self.__fspath__()
