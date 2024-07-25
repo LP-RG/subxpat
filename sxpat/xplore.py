@@ -112,7 +112,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 et_coefficient = 8
 
                 t_start = time.time()
-                label_graph(exact_graph, current_graph,
+                label_graph(current_graph, current_graph,
                             min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
                             et=et*et_coefficient, parallel=specs_obj.parallel)
                 labeling_time = time.time() - t_start
@@ -466,16 +466,16 @@ def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph,
 def get_toolname(specs_obj: TemplateSpecs) -> str:
     if specs_obj.subxpat_v2:
         pprint.info2('SubXPAT-V2 started...')
-        toolname = sxpatconfig.SUBXPAT_V2
+        return sxpatconfig.SUBXPAT_V2
     elif specs_obj.subxpat and specs_obj.shared:
         pprint.info2('Shared SubXPAT started...')
-        toolname = sxpatconfig.SHARED_SUBXPAT
+        return sxpatconfig.SHARED_SUBXPAT
     elif specs_obj.subxpat and not specs_obj.shared:
         pprint.info2('SubXPAT started...')
-        toolname = sxpatconfig.SUBXPAT
+        return sxpatconfig.SUBXPAT
     elif not specs_obj.subxpat and specs_obj.shared:
         pprint.info2('Shared XPAT started...')
-        toolname = sxpatconfig.SHARED_XPAT
+        return sxpatconfig.SHARED_XPAT
     elif not specs_obj.subxpat and not specs_obj.shared:
         pprint.info2('XPAT started...')
-        toolname = sxpatconfig.XPAT
+        return sxpatconfig.XPAT
