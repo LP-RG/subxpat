@@ -5,7 +5,7 @@ sys.path.append("/home/lorenzospada/Documents/SubXPAT")
 
 
 from sxpat.annotatedGraph import *
-
+#test
 #I need the labels for how the not,and,or gates are called in subxpat and the labels for the name of the function of and and or in qcir
 NOT = 'not'
 AND_QCIR = 'and'
