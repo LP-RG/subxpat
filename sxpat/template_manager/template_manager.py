@@ -270,16 +270,20 @@ class SOP_QBF_Manager(TemplateManager):
         SOP_QBF_Manager.output.write(')\n#\n')
         return res
     
+    def sort_key(value):
+        prefix = 0 if value.startswith('in') else 1
+        number = int(value[2:] if value.startswith('in') else value[1:])
+        return (prefix, number)
+
     def run(self) -> Sequence[Result]:
-        SOP_QBF_Manager.output = open('./Lollo/output.txt','w')
+        path_to_output = './Lollo/output.txt'
+        SOP_QBF_Manager.output = open(path_to_output,'w')
         graph_exact = self._exact_graph.graph
         nodes_exact = graph_exact.nodes
         graph_current = self._current_graph.graph
         nodes_current = graph_current.nodes
-        print(self._current_graph.subgraph_input_dict.items())
-        print(self._current_graph.subgraph_output_dict.keys())
-        print(self._current_graph.subgraph_output_dict.values())
-        
+        sorted_items = sorted(self._current_graph.subgraph_input_dict.items(), key=lambda item: SOP_QBF_Manager.sort_key(item[1]))
+        self._current_graph.subgraph_input_dict = {i: v for i, (k, v) in enumerate(sorted_items)}
         # 1,2,30 is for the input, and, output gates of the exact circuit, 40 for intermidiate and gates of the multiplexer, 41 for the output of the multiplexer,
         # 5 for the and gates, 60 for the or gates, 61 for the and between the or gate and p_o# (the outputs of the parametrical circuit),
         # 62 is for the and gates of the inexact circuit, 7 is for the parameters p_o#_t#_i#_s/l, 31 is for the outputs of the inexact circuit
@@ -436,10 +440,10 @@ class SOP_QBF_Manager(TemplateManager):
 
                     #partial and gates of the multiplexer
                     SOP_QBF_Manager.output.write(and1 + ' = and(7' + str(var) + ', 7' + str(var+1)  + ', ' + (SOP_QBF_Manager.make_qcir_variable_inexact(inp) if nodes_current[inp]['label'] != SOP_QBF_Manager.NOT else
-                                                                                            ('-' if predecessors[inp][0][1] else '') + SOP_QBF_Manager.make_qcir_variable_inexact(predecessors[inp][0][0])) + ')\n')
+                                                                                            ('' if predecessors[inp][0][1] else '-') + SOP_QBF_Manager.make_qcir_variable_inexact(predecessors[inp][0][0])) + ')\n')
 
                     SOP_QBF_Manager.output.write(and2 + ' = and(7' + str(var) + ', -7' + str(var+1) + ', ' + ('-' + SOP_QBF_Manager.make_qcir_variable_inexact(inp) if nodes_current[inp]['label'] != SOP_QBF_Manager.NOT else
-                                                                                            ('' if predecessors[inp][0][1] else '-') + SOP_QBF_Manager.make_qcir_variable_inexact(predecessors[inp][0][0])) + ')\n')
+                                                                                            ('-' if predecessors[inp][0][1] else '') + SOP_QBF_Manager.make_qcir_variable_inexact(predecessors[inp][0][0])) + ')\n')
 
                     #output of the multiplexer
                     multi = '41' + str(var//2)
@@ -548,9 +552,6 @@ class SOP_QBF_Manager(TemplateManager):
         outputs_inexact = SOP_QBF_Manager.increment(SOP_QBF_Manager.inverse(outputs_inexact),carry=False)
         subtraction_results = SOP_QBF_Manager.signed_adder(outputs_exact,outputs_inexact)
         absolute_values = SOP_QBF_Manager.absolute_value(subtraction_results)
-        print(outputs_inexact)
-        print(subtraction_results)
-        print(absolute_values)
         res = []
         if self._specs.lpp < self._current_graph.subgraph_num_inputs:
             for a in range(self._current_graph.subgraph_num_outputs):
@@ -580,7 +581,8 @@ class SOP_QBF_Manager(TemplateManager):
         SOP_QBF_Manager.output.write(')\n')
         SOP_QBF_Manager.output.close()
         result = subprocess.run(['../../cqesto-master/build/cqesto', 'Lollo/output.txt'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout.decode('utf-8')
-        # SOP_QBF_Manager.output = open('./Lollo/output.txt','a')
+        os.remove(path_to_output)
+        # SOP_QBF_Manager.output = open(path_to_output,'a')
         if result.strip()[-1] == '1':
             res_dict = dict()
             for x in result.split('\n')[3][2:-2].split():
