@@ -77,6 +77,10 @@ def explore_grid(specs_obj: TemplateSpecs):
         else:
             raise NotImplementedError('invalid status')
 
+        if et > available_error or et < 0:
+            pprint.info1('Loop completed.')
+            break
+
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
@@ -207,11 +211,11 @@ def explore_grid(specs_obj: TemplateSpecs):
                     for candidate in cur_model_results:
                         approximate_benchmark = candidate[:-2]
 
-                        obtained_wce_exact = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, available_error)
-                        obtained_wce_prev = erroreval_verification_wce(specs_obj.benchmark_name, approximate_benchmark, available_error)
+                        obtained_wce_exact = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, et)
+                        obtained_wce_prev = erroreval_verification_wce(specs_obj.benchmark_name, approximate_benchmark, et)
                         prev_actual_error = obtained_wce_prev
 
-                        if obtained_wce_exact > available_error:
+                        if obtained_wce_exact > et:
                             stats_obj.store_grid()
                             return stats_obj
                             # raise Exception(color.error('ErrorEval Verification: FAILED!'))
