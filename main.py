@@ -34,7 +34,8 @@ def main():
                                   min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
                                   shared=args.shared, products_in_total=args.pit, parallel=args.parallel,
                                   encoding=args.encoding,
-                                  partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs)
+                                  partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs,
+                                  multilevel=args.multilevel,number_of_levels=args.lv)
         stats_obj = Stats(specs_obj)
         stats_obj.gather_results()
 
@@ -59,8 +60,8 @@ def main():
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
                                   min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
                                   shared=args.shared, products_in_total=args.pit, parallel=args.parallel, encoding=args.encoding,
-                                  partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs)
-
+                                  partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs, 
+                                  multilevel=args.multilevel,number_of_levels=args.lv)
         if specs_obj.grid:
             stats_obj = explore_grid(specs_obj)
         else:

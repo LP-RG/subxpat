@@ -44,6 +44,21 @@ class TemplateSpecs:
 
         self.__encoding: int = kwargs[ENCODING]
 
+        self.__multilevel: bool = bool(kwargs[MULTILEVEL])
+        self.__number_of_levels: int = int(kwargs[NUMBER_OF_LEVELS])
+
+    @property
+    def multilevel(self):
+        return self.__multilevel
+    
+    @property
+    def lv(self):
+        return self.__number_of_levels
+    
+    @lv.setter
+    def lv(self, new_value :int):
+        self.__number_of_levels = new_value
+
     @property
     def num_subgraphs(self):
         return self.__num_subgraphs
@@ -275,6 +290,7 @@ class TemplateSpecs:
                f'{self.lpp = }\n' \
                f'{self.ppo = }\n' \
                f'{self.pit = }\n' \
+               f'{self.lv = }\n'\
                f'{self.subxpat = }\n' \
                f'{self.subxpat_v2 = }\n' \
                f'{self.num_of_models = }\n' \
@@ -292,6 +308,7 @@ class TemplateSpecs:
                f'{self.manual_nodes = }\n' \
                f'{self.population = }\n' \
                f'{self.shared = }\n'  \
+               f'{self.multilevel = }\n'\
                f'{self.parallel = }\n' \
                f'{self.min_labeling = }\n' \
                f'{self.full_error_function = }\n' \

@@ -59,9 +59,8 @@ class TemplateManager:
 
         # select and return TemplateManager object
         return {
-            False: SOPManager,
-            # True:  SOPSManager
-            True: MultilevelManager
+            False: SOPManager, 
+            True: MultilevelManager if specs.multilevel else SOPSManager 
         }[specs.shared](
             exact_graph,
             current_graph,
@@ -144,6 +143,10 @@ class TemplateManager:
     def outputs(self) -> Dict[int, str]:
         """The outputs of the graph. (.exact is equal to .current)"""
         return self._exact_graph.output_dict
+    
+    @property
+    def lv(self):
+        return self._specs.lv
 
     @functools.cached_property
     def subgraph_inputs(self) -> Dict[int, str]:
@@ -703,7 +706,6 @@ class MultilevelManager(ProductTemplateManager):
 
     #TODO: make this parameter settable from shell
     #parameter for the total number of level
-    LV = 3
 
     @property
     def script_path(self) -> str:
@@ -766,7 +768,7 @@ class MultilevelManager(ProductTemplateManager):
         return f'{", ".join(multiplexers)},'
 
     def _generate_output(self, node_i,output_i):
-        return f'\n{sxpat_cfg.IF}({self._node_connection_output(node_i,output_i)}, {sxpat_cfg.IF}({self._switch_parameter_output(node_i, output_i)}, {self._level_parameter(node_i,self.LV-1)}(), {sxpat_cfg.Z3_NOT}({self._level_parameter(node_i, self.LV-1)}())), True)'
+        return f'\n{sxpat_cfg.IF}({self._node_connection_output(node_i,output_i)}, {sxpat_cfg.IF}({self._switch_parameter_output(node_i, output_i)}, {self._level_parameter(node_i,self.lv-1)}(), {sxpat_cfg.Z3_NOT}({self._level_parameter(node_i, self.lv-1)}())), True)'
 
     def _connection_constraints(self, npl, level_i, gate, output_i = None):
         gates_per_level = ""
@@ -793,7 +795,7 @@ class MultilevelManager(ProductTemplateManager):
         super()._update_builder(builder)
         
         #Node Per Level
-        npl = [None]*self.LV 
+        npl = [None]*self.lv 
 
         #initialization gpl
         #TODO: remove the + 1
@@ -801,7 +803,7 @@ class MultilevelManager(ProductTemplateManager):
         for i in range(len(npl)):
             npl[i] = self._specs.pit     
         
-        npl[self.LV - 1] = len(self.subgraph_outputs)
+        npl[self.lv - 1] = len(self.subgraph_outputs)
 
         # params_declaration
         builder.update(params_declaration='\n'.join(

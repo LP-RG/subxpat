@@ -40,7 +40,9 @@ ET_PARTITIONING = 'et_partitioning'
 PARTIAL_LABELING = 'partial_labeling'
 NUM_SUBGRAPHS = 'num_subgraphs'
 
-# shared
+# shared and multilvel
+MULTILEVEL = 'multilevel'
+NUMBER_OF_LEVELS = 'number_of_levels'
 SHARED = 'shared'
 PRODUCTS_IN_TOTAL = 'products_in_total'
 SHARED_PARAM_PREFIX = 'p'
