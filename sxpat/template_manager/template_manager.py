@@ -592,9 +592,6 @@ class SOP_QBF_Manager(TemplateManager):
                     res_dict[f'p_o{number // 2 // self._current_graph.subgraph_num_inputs // self._specs.ppo}_t{number // 2 // self._current_graph.subgraph_num_inputs % self._specs.ppo}_i{number // 2 % self._current_graph.subgraph_num_inputs}_' + ('s' if int(x) % 2 == 0 else 'l')] = True if x[0] == '+' else False
                 else:
                     res_dict[f'p_o{x[3:]}'] = True if x[0] == '+' else False
-            asd = open('./Lollo/wrong.txt','w')
-            for x in res_dict.items():
-                asd.write(f'{x[0]} = {x[1]}\n')
             return [Result(sxpat_cfg.SAT,res_dict)]
         else:
             return [Result(sxpat_cfg.UNSAT,dict())]
