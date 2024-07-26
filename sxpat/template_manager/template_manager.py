@@ -798,7 +798,6 @@ class MultilevelManager(ProductTemplateManager):
         npl = [None]*self.lv 
 
         #initialization gpl
-        #TODO: remove the + 1
         #Amedeo: note that this could be parametrized with different number of gates for each level
         for i in range(len(npl)):
             npl[i] = 2#self._specs.pit     
@@ -901,8 +900,9 @@ class MultilevelManager(ProductTemplateManager):
                                 )
                             )
                 #TODO: refactor if(cond, body, not(body)) -- is orrible but for now is ok
-                lines.append(f'{self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())} == {output_selection},')
-                lines.append(f'{output_use} == {sxpat_cfg.IF}({self._output_negation(output_i)},\n{sxpat_cfg.Z3_AND}({self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())}),\n{sxpat_cfg.Z3_NOT}({self._gen_call_function(self._output_identifier(output_i), self.subgraph_inputs.values())})),') 
+                #lines.append(f'{self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())} == {output_selection},')
+                #lines.append(f'{output_use} == {sxpat_cfg.IF}({self._output_negation(output_i)},\n{sxpat_cfg.Z3_AND}({self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())}),\n{sxpat_cfg.Z3_NOT}({self._gen_call_function(self._output_identifier(output_i), self.subgraph_inputs.values())})),') 
+                lines.append(f'{output_use} == {sxpat_cfg.Z3_OR}({output_selection}),') 
         builder.update(approximate_wires_constraints='\n'.join(lines))
 
         # ----------------------------- # ----------------------------- #
