@@ -580,7 +580,11 @@ class SOP_QBF_Manager(TemplateManager):
             SOP_QBF_Manager.output.write(f', -{x}')
         SOP_QBF_Manager.output.write(')\n')
         SOP_QBF_Manager.output.close()
-        result = subprocess.run(['../../cqesto-master/build/cqesto', 'Lollo/output.txt'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout.decode('utf-8')
+        try:
+            result = subprocess.run(['../../cqesto-master/build/cqesto', 'Lollo/output.txt'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=self._specs.timeout).stdout.decode('utf-8')
+        except subprocess.TimeoutExpired:
+            os.remove(path_to_output)
+            return [Result(sxpat_cfg.UNKNOWN,dict())]
         os.remove(path_to_output)
         # SOP_QBF_Manager.output = open(path_to_output,'a')
         if result.strip()[-1] == '1':
