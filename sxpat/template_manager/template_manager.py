@@ -757,6 +757,13 @@ class MultilevelManager(ProductTemplateManager):
         return f'\n     {sxpat_cfg.Z3_OR}({self._input_parameters(input_i,node_i)[0]} == {input_i__name},{sxpat_cfg.Z3_NOT}({self._input_parameters(input_i,node_i)[1]}))'
     
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
+    def _edge_constraint(self, vars: Collection[str]) -> str:
+        return ' + '.join(
+            f'If({var}, {1}, 0)'
+            for var in vars
+        )
+    
+    # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
     def _generate_input(self,node_i):
         multiplexers = []
         for input_i, input_name in self.subgraph_inputs.items():
@@ -800,7 +807,7 @@ class MultilevelManager(ProductTemplateManager):
         #initialization gpl
         #Amedeo: note that this could be parametrized with different number of gates for each level
         for i in range(len(npl)):
-            npl[i] = 2#self._specs.pit     
+            npl[i] = self._specs.pit     
         
         npl[self.lv - 1] = len(self.subgraph_outputs)
 
@@ -923,18 +930,41 @@ class MultilevelManager(ProductTemplateManager):
 
         # product_order_constraint
         lines = [""]
+        for lv in range(len(npl)):
+            its_constraint = tuple(
+                self._edge_constraint(
+                    itertools.chain(
+                        f'{sxpat_cfg.Z3_NOT}({self._input_parameters(input_i,node_i)[1]})'
+                        for input_i in self.subgraph_inputs.keys() 
+                    )
+                )
+                for node_i in range(npl[0])
+            )if lv == 0 else tuple(
+                self._edge_constraint(
+                    itertools.chain(
+                        self._node_connection_levels(node_fr,lv-1,node_to,lv)
+                        for node_fr in range(npl[lv-1])    
+                    )
+                )
+                for node_to in range(npl[lv])
+            )
+            lines.extend(
+                f'# its constraint for level: {lv} \n {self._specs.lpp} == {constr},'
+                for constr in its_constraint
+            )
+        
         """ for lv in range(len(npl)):
             if npl[lv] == 1:
                 lines.append(f'# No order needed for only one node at - level: {lv}')
             else:
-                products = tuple(""
-                #     self._encoding.aggregate_variables(
-                #         itertools.chain(
-                #             f'{sxpat_cfg.Z3_NOT}({self._input_parameters(input_i,node_i)[1]})'
-                #             for input_i in self.subgraph_inputs.keys() 
-                #         )
-                #     )
-                #     for node_i in range(npl[0])
+                products = tuple(
+                    self._encoding.aggregate_variables(
+                        itertools.chain(
+                            f'{sxpat_cfg.Z3_NOT}({self._input_parameters(input_i,node_i)[1]})'
+                            for input_i in self.subgraph_inputs.keys() 
+                        )
+                    )
+                    for node_i in range(npl[0])
                 )if lv == 0 else tuple(
                     self._encoding.aggregate_variables(
                         itertools.chain(
@@ -947,8 +977,8 @@ class MultilevelManager(ProductTemplateManager):
                 lines.extend(
                     f'# product order constraint for level: {lv} \n {self._encoding.unsigned_greater(product_a, product_b)},'
                     for product_a, product_b in pairwise_iter(products)
-                )if npl[lv-1] > 1 else lines.append(f'# No order needed because of only one node at previous lv:{lv-1} - level: {lv}')
- """
+                )if npl[lv-1] > 1 else lines.append(f'# No order needed because of only one node at previous lv:{lv-1} - level: {lv}') """
+
         builder.update(product_order_constraint='\n'.join(lines))
         # ----------------------------- # ----------------------------- #
     
