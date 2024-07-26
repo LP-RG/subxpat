@@ -138,7 +138,11 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if et > available_error or et < 0:
             break
-
+        
+        #xpat
+        if not (specs_obj.subxpat or specs_obj.subxpat_v2):
+            et = specs_obj.et
+        
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
@@ -169,7 +173,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False, partitioning_percentage=0)
 
             # label graph
-            if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
+            if (specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3) and (specs_obj.subxpat or specs_obj.subxpat_v2):
                 # et_coefficient = 8
 
                 t_start = time.time()
@@ -186,9 +190,6 @@ def explore_grid(specs_obj: TemplateSpecs):
             previous_subgraphs.append(current_graph.subgraph)
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
-
-            # Lollo.test.check_sat(specs_obj)
-            # exit()
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
