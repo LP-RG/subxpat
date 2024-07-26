@@ -161,7 +161,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                 t_start = time.time()
                 et_coefficient = 1
-                label_graph(exact_graph, current_graph,
+                label_graph(current_graph,
                             min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
                             et=et*et_coefficient, parallel=specs_obj.parallel)
                 labeling_time = time.time() - t_start
