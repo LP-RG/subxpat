@@ -584,6 +584,8 @@ class SOP_QBF_Manager(TemplateManager):
         os.remove(path_to_output)
         # SOP_QBF_Manager.output = open(path_to_output,'a')
         if result.strip()[-1] == '1':
+            time_taken = result.split('\n')[4]
+            # print(time_taken)
             res_dict = dict()
             for x in result.split('\n')[3][2:-2].split():
                 # SOP_QBF_Manager.output.write(f'{x} = ' + ('and()' if x[0] == '+' else 'or()') + '\n')
@@ -594,6 +596,8 @@ class SOP_QBF_Manager(TemplateManager):
                     res_dict[f'p_o{x[3:]}'] = True if x[0] == '+' else False
             return [Result(sxpat_cfg.SAT,res_dict)]
         else:
+            time_taken = result.split('\n')[3]
+            # print(time_taken)
             return [Result(sxpat_cfg.UNSAT,dict())]
 
 

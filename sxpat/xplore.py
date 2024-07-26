@@ -209,10 +209,22 @@ def explore_grid(specs_obj: TemplateSpecs):
             # explore the grid
             pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
             dominant_cells = []
+            # for top_grid
+            skip = False
+            stop_at_ppo = specs_obj.max_ppo
             for lpp, ppo in CellIterator.factory(specs_obj):
                 if is_dominated((lpp, ppo), dominant_cells):
                     pprint.info1(f'Cell({lpp},{ppo}) at iteration {i} -> DOMINATED')
                     continue
+
+                # for top_grid
+                if specs_obj.top_grid and ppo > stop_at_ppo:
+                    break
+                if skip and lpp < specs_obj.max_lpp:
+                    pprint.info1(f'Skipping Cell({lpp},{ppo})')
+                    continue
+                else:
+                    skip = False
 
                 # > cell step settings
 
@@ -239,7 +251,9 @@ def explore_grid(specs_obj: TemplateSpecs):
                                             subxpat_v1_time=execution_time)
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
                     pre_iter_unsats[candidate] += 1
-
+                    # for top_grid
+                    if specs_obj.top_grid and lpp == specs_obj.max_lpp:
+                        skip = True
                     if cur_status == UNKNOWN:
                         # store cell as dominant (to skip dominated subgrid)
                         dominant_cells.append((lpp, ppo))
@@ -327,6 +341,10 @@ def explore_grid(specs_obj: TemplateSpecs):
                     for key in current_population.keys():
                         pre_iter_unsats[key] = 0
 
+                    # for top_grid
+                    if specs_obj.top_grid and lpp == specs_obj.max_lpp:
+                        stop_at_ppo = ppo
+                        continue
                     # SAT found, stop grid exploration
                     break
                 prev_actual_error = 0
@@ -390,8 +408,13 @@ class CellIterator:
 
         # grid cells
         for ppo in range(1, max_ppo + 1):
-            for lpp in range(1, max_lpp + 1):
-                yield (lpp, ppo)
+            if specs.top_grid:
+                yield (max_lpp, ppo)
+                for lpp in range(1, max_lpp):
+                    yield (lpp,ppo)
+            else:
+                for lpp in range(1, max_lpp + 1):
+                    yield (lpp, ppo)
 
 
 def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, int]]) -> bool:

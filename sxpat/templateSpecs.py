@@ -18,6 +18,7 @@ class TemplateSpecs:
 
         self.__iterations = kwargs[ITERATIONS] if self.subxpat else 1
         self.__grid = kwargs[GRID]
+        self.__top_grid = kwargs[TOP_GRID]
         self.__imax = kwargs[IMAX]
         self.__omax = kwargs[OMAX]
         self.__max_sensitivity = kwargs[SENSITIVITY]
@@ -147,6 +148,10 @@ class TemplateSpecs:
     @property
     def grid(self):
         return self.__grid
+    
+    @property
+    def top_grid(self):
+        return self.__top_grid
 
     @property
     def imax(self):
@@ -282,6 +287,7 @@ class TemplateSpecs:
                f'{self.partitioning_percentage = }\n' \
                f'{self.iterations = }\n' \
                f'{self.grid = }\n' \
+               f'{self.top_grid = }\n' \
                f'{self.imax = }\n' \
                f'{self.omax = }\n' \
                f'{self.max_sensitivity = }\n' \

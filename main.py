@@ -28,7 +28,7 @@ def main():
                                   sub_error_function=args.sub_error_function,
                                   et=args.et, et_partitioning=args.et_partitioning,
                                   partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                  grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
+                                  grid=args.grid, top_grid=args.top_grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode,
                                   population=args.population,
                                   min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
@@ -55,18 +55,18 @@ def main():
                                   full_error_function=args.full_error_function, sub_error_function=args.sub_error_function,
                                   et=args.et, et_partitioning=args.et_partitioning,
                                   partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                  grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
+                                  grid=args.grid, top_grid=args.top_grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
                                   min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
                                   shared=args.shared, products_in_total=args.pit, parallel=args.parallel, encoding=args.encoding,
                                   partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs)
 
-        if specs_obj.grid:
+        if specs_obj.grid or specs_obj.top_grid:
             stats_obj = explore_grid(specs_obj)
 
         else:
             # todo:question: What should happen here?
-            raise NotImplementedError('WIP: for now --grid must be passed')
+            raise NotImplementedError('WIP: for now --grid or --top_grid must be passed')
 
 
 def clean_all():
