@@ -351,6 +351,9 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if exists_an_area_zero(current_population):
             break
+        # bad, but right now the code doesn't work without this for xpat
+        if not (specs_obj.subxpat or specs_obj.subxpat_v2):
+            break
         # This is to fix another problem (also previously known as loop)
         # This is where the exploration get stuck in a loop of creating the same approximate circuit over and over again
         # Here, I check if the last three subgraphs are equal, if so, this means that the exploration needs to be
