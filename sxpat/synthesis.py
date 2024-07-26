@@ -317,12 +317,12 @@ class Synthesis:
     def __number_of_levels(self,sorted_dict) -> List[int]:
         nodes_per_level = [0]*self.specs.lv
         for key in sorted_dict:
-            if "con" in key:
-                identifiers = re.findall(r'\d+', key)
-                idx = int(identifiers[1])
-                nodes_per_level[idx]=+1
             if "to" in key:
                 idx = self.specs.lv - 1
+                nodes_per_level[idx]=+1
+            elif "con" in key:
+                identifiers = re.findall(r'\d+', key)
+                idx = int(identifiers[1])
                 nodes_per_level[idx]=+1
             print(key)
         print(nodes_per_level)
@@ -364,6 +364,7 @@ class Synthesis:
                 if lv == 0:
                     j_son_nodes_connection = f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} = ' + ' & '.join(self.__json_multilevel_input_assign(node_i,dict))
                 elif lv == len(npl)-1:
+                    #j_son_nodes_connection = f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv}' = ' + ' & 
                     pass
                 else:
                     pass
@@ -1028,9 +1029,6 @@ class Synthesis:
 
             for item in self.__json_model:
                 sorted_dict = self.sort_native(item)
-            print(item)
-            print(item.get('p_con_fn0_to0'))
-            print(sorted_dict)
             npl = self.__number_of_levels(sorted_dict)
 
             # 1. module declaration
