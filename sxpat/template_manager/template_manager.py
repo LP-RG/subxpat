@@ -360,6 +360,7 @@ class ProductTemplateManager(Z3TemplateManager):
 
         # exact_wires_constraints
         def get_preds(name: str) -> Collection[str]: return tuple(self._exact_graph.graph.predecessors(name))
+        def get_preds_approx(name: str) -> Collection[str]: return tuple(self._current_graph.graph.predecessors(name))
         def get_func(name: str) -> str: return self._exact_graph.graph.nodes[name][sxpat_cfg.LABEL]
         lines = []
         for gate_i, gate_name in self.exact_gates.items():
@@ -401,7 +402,7 @@ class ProductTemplateManager(Z3TemplateManager):
         # approximate_output_constraints
         lines = []
         for output_name in self.outputs.values():
-            output_preds = get_preds(output_name)
+            output_preds = get_preds_approx(output_name)
             assert len(output_preds) == 1, 'an output must have exactly one predecessor'
 
             pred = self._use_approx_var(output_preds[0])
