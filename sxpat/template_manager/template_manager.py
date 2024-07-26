@@ -807,7 +807,7 @@ class MultilevelManager(ProductTemplateManager):
         #initialization gpl
         #Amedeo: note that this could be parametrized with different number of gates for each level
         for i in range(len(npl)):
-            npl[i] = self._specs.pit     
+            npl[i] = 3#self._specs.pit    
         
         npl[self.lv - 1] = len(self.subgraph_outputs)
 
@@ -915,21 +915,22 @@ class MultilevelManager(ProductTemplateManager):
         # ----------------------------- # ----------------------------- #
 
         # remove_double_constraint -> # remove double no-care
-        builder.update(remove_double_constraint= "" #'\n'.join(
-        #     itertools.chain(
-        #         itertools.chain(
-        #         f'Or({", ".join(self._input_parameters(input_i,nd))}),'
-        #         for input_i in self.subgraph_inputs.keys()
-        #         for nd in range(npl[0])
-        #     ),
-        # ))
+        builder.update(remove_double_constraint= "" '\n'.join(
+            itertools.chain(
+                itertools.chain(
+                f'Or({", ".join(self._input_parameters(input_i,nd))}),'
+                for input_i in self.subgraph_inputs.keys()
+                for nd in range(npl[0])
+            ),
+        ))
         )
         # ----------------------------- # ----------------------------- #
         #logic dependant constraint
         builder.update(logic_dependant_constraint1 ='')
 
-        # product_order_constraint
-        lines = [""]
+        # its_constraint
+        lines = []
+        lines.append('# its constraint')
         for lv in range(len(npl)):
             its_constraint = tuple(
                 self._edge_constraint(
@@ -949,10 +950,24 @@ class MultilevelManager(ProductTemplateManager):
                 for node_to in range(npl[lv])
             )
             lines.extend(
-                f'# its constraint for level: {lv} \n {self._specs.lpp} == {constr},'
+                f'# its constraint for level: {lv} \n {self._encoding.unsigned_greater_equal(self._specs.lpp, constr)},'
                 for constr in its_constraint
             )
+
+        # connect at least one node to the output
+        lines.append('\n# At least one node connect to the output')
+        for output_i in self.subgraph_outputs.keys():
+            lines.append(f'# Constraint for output {output_i}')
+            output_i_constraint = 'Or({}),'.format(', '.join(
+                itertools.chain
+                (
+                    self._node_connection_output(nd,output_i)  # p_con_fn#_to#               
+                    for nd in range(npl[len(npl)-1])
+                )
+            ))
+            lines.append(output_i_constraint)
         
+        # product_order_constraint
         """ for lv in range(len(npl)):
             if npl[lv] == 1:
                 lines.append(f'# No order needed for only one node at - level: {lv}')
