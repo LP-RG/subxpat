@@ -98,6 +98,7 @@ class Arguments(Z3Log_Arguments):
         self.__population: int = tmp_args.population
         self.__num_models: int = tmp_args.num_models
         self.__min_labeling: bool = tmp_args.min_labeling
+        self.__top_grid: bool = tmp_args.top_grid
         self.__shared: bool = tmp_args.shared
         self.__products_in_total: int = tmp_args.pit
         self.__parallel: bool = tmp_args.parallel
@@ -128,6 +129,10 @@ class Arguments(Z3Log_Arguments):
     @property
     def min_labeling(self):
         return self.__min_labeling
+
+    @property
+    def top_grid(self):
+        return self.__top_grid
 
     @property
     def num_models(self):
@@ -323,6 +328,10 @@ class Arguments(Z3Log_Arguments):
                                action="store_true",
                                default=False)
 
+        my_parser.add_argument('--top_grid',
+                               action="store_true",
+                               default=False)                     
+
         my_parser.add_argument('--multiple',
                                action="store_true",
                                default=False)
@@ -461,6 +470,7 @@ class Arguments(Z3Log_Arguments):
                f'{self.population = }\n' \
                f'{self.num_models = }\n'\
                f'{self.min_labeling = }\n' \
+               f'{self.top_grid = }\n' \
                f'{self.shared = }\n' \
                f'{self.parallel = }\n' \
                f'{self.full_error_function = }\n' \
