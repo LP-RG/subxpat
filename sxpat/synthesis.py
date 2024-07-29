@@ -314,16 +314,9 @@ class Synthesis:
         return wire_list
     # ---------------------------- # ---------------------------- W.I.P. start multilevel aux func ---------------------------- # ---------------------------- #
 
-    def __number_of_levels(self,sorted_dict) -> List[int]:
-        nodes_per_level = [0]*self.specs.lv
-        for key in sorted_dict:
-            if "to" in key:
-                idx = self.specs.lv - 1
-                nodes_per_level[idx]=+1
-            elif "con" in key:
-                identifiers = re.findall(r'\d+', key)
-                idx = int(identifiers[1])
-                nodes_per_level[idx]=+1
+    def __generate_nodes_per_gates(self) -> List[int]:
+        nodes_per_level = [self.specs.pit]*self.specs.lv
+        nodes_per_level[self.specs.lv-1] = self.graph.subgraph_num_outputs
         return nodes_per_level
     
     def __json_model_wire_declarations_multilevel(self, nodes_per_level):
@@ -331,10 +324,13 @@ class Synthesis:
         wire_list += f'wire '
 
         for lv in range(self.specs.lv):
+            print(f'{lv} of total lv = {self.specs.lv} -> value in npl[lv] = {nodes_per_level[lv]}')
             for node in range(nodes_per_level[lv]):
                 wire_list+= f'{sxpatconfig.VER_WIRE_PREFIX}nd{node}_lv{lv} '
-            wire_list += ',' if not lv == self.specs.lv - 1 else ';'
+                print(node, lv)
+                wire_list += ';' if lv == self.specs.lv - 1 and node == nodes_per_level[lv] - 1 else ','
 
+        print(wire_list)
         return wire_list
     
     def __json_multilevel_input_assign(self,node :int,dict_i: dict):
@@ -357,6 +353,8 @@ class Synthesis:
         for node_i in range(npl[actual_level]):
             val_s = bool(dict_i.get('p_con_fn{}_lv{}_tn{}_lv{}'.format(node_i, actual_level, node, actual_level+1)))
             val_l = bool(dict_i.get('p_sw_fn{}_lv{}_tn{}_lv{}'.format(node_i, actual_level, node, actual_level+1)))
+            print(val_l)
+            print(val_s)
             if val_s and not val_l:
                 expr.append(f'{sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{actual_level}')
             elif val_s and val_l:
@@ -387,15 +385,15 @@ class Synthesis:
     def __inputs_to_level_assigns(self,npl,dict):
         lines = []
         lines.append("// inputs_to_level_assigns")
-        j_son_nodes_connection=""
         for lv in range(len(npl)+1):
+            j_son_nodes_connection=""
             lines.append(f'// level: {lv}')
             if lv < len(npl):
                 for node_i in range(npl[lv]):
                     if lv == 0:
-                        j_son_nodes_connection = f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} =  {self.__json_multilevel_input_assign(node_i,dict)}'
+                        j_son_nodes_connection += f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} =  {self.__json_multilevel_input_assign(node_i,dict)}\n'
                     else:
-                        j_son_nodes_connection = f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} = {self.__json_multilevel_node_assign(node_i,lv-1,npl,dict)}'
+                        j_son_nodes_connection += f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} = {self.__json_multilevel_node_assign(node_i,lv-1,npl,dict)}\n'
             else:
                 j_son_nodes_connection = '\n'.join(
                     itertools.chain(
@@ -403,7 +401,6 @@ class Synthesis:
                         for out_i in self.graph.subgraph_output_dict.keys()
                     )
                 )
-            
             lines.append(j_son_nodes_connection)
         
         return '\n'.join(lines)
@@ -1069,10 +1066,13 @@ class Synthesis:
             self.set_path(this_path=OUTPUT_PATH['ver'], id=idx)
 
             ver_str = f''
+            
+            item = self.sort_native(dict(self.__json_model[0]))
 
-            for item in self.__json_model:
-                sorted_dict = self.sort_native(item)
-            npl = self.__number_of_levels(sorted_dict)
+            for key, val in item.items():
+                 print(key,val)
+
+            npl = self.__generate_nodes_per_gates()
 
             # 1. module declaration
             module_signature = self.__get_module_signature(idx)

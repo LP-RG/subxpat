@@ -29,6 +29,8 @@ from z_marco.utils import pprint, color
 
 
 def explore_grid(specs_obj: TemplateSpecs):
+    main_start_time = time.time()
+
     previous_subgraphs = []
     print(f'{specs_obj = }')
 
@@ -213,6 +215,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                         prev_actual_error = obtained_wce_prev
 
                         if obtained_wce_exact > available_error:
+                            main_execution_time = time.time() - main_start_time
+                            print(f'execution_time = {main_execution_time}')
                             raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
                     this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=obtained_wce_exact, iteration=i,
@@ -262,6 +266,8 @@ def explore_grid(specs_obj: TemplateSpecs):
                         pre_iter_unsats[key] = 0
 
                     # SAT found, stop grid exploration
+                    main_execution_time = time.time() - main_start_time
+                    print(f'execution_time = {main_execution_time}')
                     break
 
         if exists_an_area_zero(current_population):

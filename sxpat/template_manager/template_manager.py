@@ -807,7 +807,7 @@ class MultilevelManager(ProductTemplateManager):
         #initialization gpl
         #Amedeo: note that this could be parametrized with different number of gates for each level
         for i in range(len(npl)):
-            npl[i] = 3#self._specs.pit    
+            npl[i] = self._specs.pit    
         
         npl[self.lv - 1] = len(self.subgraph_outputs)
 
@@ -843,26 +843,15 @@ class MultilevelManager(ProductTemplateManager):
                         for output_i in self.subgraph_outputs.keys()
                         for nd in range(npl[len(npl)-1])
                     ),  
-                    itertools.chain.from_iterable
-                    (
-                        (    
-                            self._gen_declare_bool_function(self._level_parameter(nd,lv),len(self.subgraph_inputs)),    # function n#_lv# 
-                        )
-                        for lv in range(len(npl))
+                    itertools.chain
+                    ( 
+                        self._gen_declare_bool_function(self._level_parameter(nd,lv),len(self.subgraph_inputs))    # function n#_lv# 
+                        for lv in range(self._specs.lv)
                         for nd in range(npl[lv])
                     ),
-                    itertools.chain.from_iterable
-                    (   
-                        (
-                            self._gen_declare_gate(self._output_negation(output_i)),  # neg_o#
-                            self._gen_declare_bool_function(self._output_identifier(output_i),len(self.subgraph_inputs)) # out_id#)            
-                        )
-                        for output_i in self.subgraph_outputs.keys()
-                    ),  
                 ),
             )
         )
-
         # approximate_wires_constraints
         # ----------------------------- # ----------------------------- #
         def get_preds(name: str) -> Collection[str]: return sorted(self._current_graph.graph.predecessors(name), key=lambda n: int(re.search(r'\d+', n).group()))
@@ -915,21 +904,18 @@ class MultilevelManager(ProductTemplateManager):
         # ----------------------------- # ----------------------------- #
 
         # remove_double_constraint -> # remove double no-care
-        builder.update(remove_double_constraint= "" '\n'.join(
+        builder.update(remove_double_constraint= '\n'.join(
             itertools.chain(
-                itertools.chain(
-                f'Or({", ".join(self._input_parameters(input_i,nd))}),'
+                f'Implies({",".join(self._input_parameters(input_i,nd))}),'
                 for input_i in self.subgraph_inputs.keys()
                 for nd in range(npl[0])
-            ),
+            )
         ))
-        )
         # ----------------------------- # ----------------------------- #
         #logic dependant constraint
-        builder.update(logic_dependant_constraint1 ='')
 
         # its_constraint
-        lines = []
+        lines = [""]
         lines.append('# its constraint')
         for lv in range(len(npl)):
             its_constraint = tuple(
@@ -950,9 +936,23 @@ class MultilevelManager(ProductTemplateManager):
                 for node_to in range(npl[lv])
             )
             lines.extend(
-                f'# its constraint for level: {lv} \n {self._encoding.unsigned_greater_equal(self._specs.lpp, constr)},'
+                f'# its constraint for level: {lv} \n {self._encoding.unsigned_greater(self._specs.lpp, constr)},' # IMPORTANT unsigned_greater_equal is solwer than unsigned_greater
                 for constr in its_constraint
             )
+        
+        #lpp input constraint
+        # lines.append('# its constraint, input layer')
+        # for nd in range(npl[0]):
+        #     lv_constr =' + '.join(
+        #         tuple(
+        #             itertools.chain
+        #             (
+        #                 f'If({self._input_parameters(in_i,nd)[1]},1,0)'
+        #                 for in_i in range(len(self.subgraph_inputs))
+        #             )
+        #         )
+        #     )
+        #     lines.append(f'{self._specs.lpp} >= ({lv_constr}),')
 
         # connect at least one node to the output
         lines.append('\n# At least one node connect to the output')
@@ -965,8 +965,8 @@ class MultilevelManager(ProductTemplateManager):
                     for nd in range(npl[len(npl)-1])
                 )
             ))
-            lines.append(output_i_constraint)
-        
+            lines.append(output_i_constraint) 
+        builder.update(logic_dependant_constraint1 = '\n'.join(lines))
         # product_order_constraint
         """ for lv in range(len(npl)):
             if npl[lv] == 1:
@@ -994,7 +994,7 @@ class MultilevelManager(ProductTemplateManager):
                     for product_a, product_b in pairwise_iter(products)
                 )if npl[lv-1] > 1 else lines.append(f'# No order needed because of only one node at previous lv:{lv-1} - level: {lv}') """
 
-        builder.update(product_order_constraint='\n'.join(lines))
+        builder.update(product_order_constraint='')
         # ----------------------------- # ----------------------------- #
     
         #TODO: impement the following constraint
