@@ -1,3 +1,4 @@
+import time
 from Z3Log.utils import setup_folder_structure
 from Z3Log.config import path as z3logpath
 
