@@ -363,6 +363,9 @@ class SOP_QBF_Manager(TemplateManager):
         for x in nodes_exact:
             if x[:len(SOP_QBF_Manager.OUTPUT_GATE_INITIALS)] != SOP_QBF_Manager.OUTPUT_GATE_INITIALS:
                 continue
+            if nodes_exact[next(graph_exact.predecessors(x))]['label'] == 'FALSE' or nodes_exact[next(graph_exact.predecessors(x))]['label'] == 'TRUE':
+                SOP_QBF_Manager.output.write(SOP_QBF_Manager.make_qcir_variable(x) + ' = and(' + ('91' if nodes_exact[next(graph_exact.predecessors(x))]['label'] == 'TRUE' else '92') + ')\n')
+                continue
             predecessor = next(graph_exact.predecessors(x))
             inv = False
             if predecessor in inverted:
