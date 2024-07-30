@@ -135,6 +135,9 @@ def explore_grid(specs_obj: TemplateSpecs):
             current_graph.export_annotated_graph(graph_path)
             print(f'subgraph exported at {graph_path}')
 
+            print(f'subgraph inputs = {current_graph.subgraph_num_inputs}')
+            print(f'subgraph outputs = {current_graph.subgraph_num_outputs}')
+
             # guard
             if not subgraph_is_available:
                 pprint.warning(f'No subgraph available.')

@@ -801,15 +801,17 @@ class MultilevelManager(ProductTemplateManager):
         # apply superclass updates
         super()._update_builder(builder)
         
-        #Node Per Level
-        npl = [None]*self.lv 
-
-        #initialization gpl
-        #Amedeo: note that this could be parametrized with different number of gates for each level
-        for i in range(len(npl)):
-            npl[i] = self._specs.pit    
-        
-        npl[self.lv - 1] = len(self.subgraph_outputs)
+        # Node Per Level
+        # initialization gpl
+        # Amedeo: note that this could be parametrized with different number of gates for each level
+        npl = [self._specs.pit]*self.lv 
+        #npl[0] = self.subgraph_inputs.__len__()
+        npl[self.lv - 1] = self.subgraph_outputs.__len__()
+        print(f'npl = {npl}')
+        print(f'number of sub_outputs in template gen = {self.subgraph_outputs.__len__()}')
+        print(f'number of sub_inputs in template gen = {self.subgraph_inputs.__len__()}')
+        print(f'number of levels = {self._specs.lv}')
+        print(f'actual pit = {self._specs.pit}')
 
         # params_declaration
         # ----------------------------- # ----------------------------- #
@@ -831,7 +833,7 @@ class MultilevelManager(ProductTemplateManager):
                             self._gen_declare_gate((pars := self._input_parameters(input_i,nd))[0]),   # p_i#_n#_l
                             self._gen_declare_gate(pars[1])                                            # p_i#_n#_s 
                         )
-                        for input_i in self.subgraph_inputs.keys()
+                        for input_i in range(self.subgraph_inputs.__len__())
                         for nd in range(npl[0]) 
                     ),
                     itertools.chain.from_iterable
@@ -840,7 +842,7 @@ class MultilevelManager(ProductTemplateManager):
                             self._gen_declare_gate(self._node_connection_output(nd,output_i)),  # p_con_fn#_to#
                             self._gen_declare_gate(self._switch_parameter_output(nd,output_i))  # p_sw_fn#_to#                
                         )
-                        for output_i in self.subgraph_outputs.keys()
+                        for output_i in range(self.subgraph_outputs.__len__())
                         for nd in range(npl[len(npl)-1])
                     ),  
                     itertools.chain
