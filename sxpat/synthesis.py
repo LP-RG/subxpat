@@ -408,25 +408,22 @@ class Synthesis:
         # for sub_out_i, sub_out_name in self.graph.subgraph_output_dict.items():
         #     lines.append(f'assign {sxpatconfig.VER_WIRE_PREFIX}{sub_out_name} = {sxpatconfig.VER_WIRE_PREFIX}out{sub_out_i};')
         # return '\n'.join(lines)
-        multilevel_assigns = f'\n //subgraph outputs assign'
+        multilevel_assigns = f'\n //subgraph outputs assign\n'
 
-        annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
-        primary_output_list = list(self.graph.subgraph_output_dict.values())
-        sorted_annotated_graph_output_list = [-1] * len(annotated_graph_output_list)
-        for node_idx in range(len(annotated_graph_output_list)):
-            this_node = annotated_graph_output_list[node_idx]
-            for key in self.graph.subgraph_output_dict.keys():
-                if primary_output_list[node_idx] == self.graph.subgraph_output_dict[key]:
-                    sorted_annotated_graph_output_list[key] = this_node
-                    break
-
-        print(sorted_annotated_graph_output_list)
-        return ""
+        print(self.graph.output_dict)
+        print(self.graph.constant_dict)
+        #back
+        for n in self.graph.output_dict.values():
+            pn = list(self.graph.graph.predecessors(n))
+            if not (pn[0] in self.graph.constant_dict.values()):
+                print(pn[0],self.graph.constant_dict.values())
+                multilevel_assigns += f'assign {sxpatconfig.VER_WIRE_PREFIX}{pn[0]} = {sxpatconfig.VER_WIRE_PREFIX}out{idx};\n'
+                idx+=1
+        return multilevel_assigns
     # ---------------------------- # ---------------------------- W.I.P.  end multilevel aux func ---------------------------- # ---------------------------- #
 
     def __subgraph_inputs_assigns(self):
         s_inputs_assigns = f'//subgraph inputs assigns\n'
-
         for n in self.graph.subgraph_input_dict.values():
             if n in self.graph.input_dict.values():
                 s_inputs_assigns += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_WIRE_PREFIX}{n} = {n};\n'
