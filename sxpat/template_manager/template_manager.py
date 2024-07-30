@@ -918,29 +918,29 @@ class MultilevelManager(ProductTemplateManager):
 
         # its_constraint
         lines = [""]
-        lines.append('# its constraint')
-        for lv in range(len(npl)):
-            its_constraint = tuple(
-                self._edge_constraint(
-                    itertools.chain(
-                        f'{sxpat_cfg.Z3_NOT}({self._input_parameters(input_i,node_i)[1]})'
-                        for input_i in self.subgraph_inputs.keys() 
-                    )
-                )
-                for node_i in range(npl[0])
-            )if lv == 0 else tuple(
-                self._edge_constraint(
-                    itertools.chain(
-                        self._node_connection_levels(node_fr,lv-1,node_to,lv)
-                        for node_fr in range(npl[lv-1])    
-                    )
-                )
-                for node_to in range(npl[lv])
-            )
-            lines.extend(
-                f'# its constraint for level: {lv} \n {self._encoding.unsigned_greater(self._specs.lpp, constr)},' # IMPORTANT unsigned_greater_equal is solwer than unsigned_greater
-                for constr in its_constraint
-            )
+        # lines.append('# its constraint')
+        # for lv in range(len(npl)):
+        #     its_constraint = tuple(
+        #         self._edge_constraint(
+        #             itertools.chain(
+        #                 f'{sxpat_cfg.Z3_NOT}({self._input_parameters(input_i,node_i)[1]})'
+        #                 for input_i in self.subgraph_inputs.keys() 
+        #             )
+        #         )
+        #         for node_i in range(npl[0])
+        #     )if lv == 0 else tuple(
+        #         self._edge_constraint(
+        #             itertools.chain(
+        #                 self._node_connection_levels(node_fr,lv-1,node_to,lv)
+        #                 for node_fr in range(npl[lv-1])    
+        #             )
+        #         )
+        #         for node_to in range(npl[lv])
+        #     )
+        #     lines.extend(
+        #         f'# its constraint for level: {lv} \n {self._encoding.unsigned_greater(self._specs.lpp, constr)},' # IMPORTANT unsigned_greater_equal is solwer than unsigned_greater
+        #         for constr in its_constraint
+        #     )
         
         #lpp input constraint
         # lines.append('# its constraint, input layer')
@@ -957,18 +957,20 @@ class MultilevelManager(ProductTemplateManager):
         #     lines.append(f'{self._specs.lpp} >= ({lv_constr}),')
 
         # connect at least one node to the output
-        lines.append('\n# At least one node connect to the output')
-        for output_i in self.subgraph_outputs.keys():
-            lines.append(f'# Constraint for output {output_i}')
-            output_i_constraint = 'Or({}),'.format(', '.join(
-                itertools.chain
-                (
-                    self._node_connection_output(nd,output_i)  # p_con_fn#_to#               
-                    for nd in range(npl[len(npl)-1])
-                )
-            ))
-            lines.append(output_i_constraint) 
+        # lines.append('\n# At least one node connect to the output')
+        # for output_i in self.subgraph_outputs.keys():
+        #     lines.append(f'# Constraint for output {output_i}')
+        #     output_i_constraint = 'Or({}),'.format(', '.join(
+        #         itertools.chain
+        #         (
+        #             self._node_connection_output(nd,output_i)  # p_con_fn#_to#               
+        #             for nd in range(npl[len(npl)-1])
+        #         )
+        #     ))
+        #     lines.append(output_i_constraint) 
         builder.update(logic_dependant_constraint1 = '\n'.join(lines))
+
+
         # product_order_constraint
         """ for lv in range(len(npl)):
             if npl[lv] == 1:
