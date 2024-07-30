@@ -252,6 +252,8 @@ class Synthesis:
         if self.__magraph:
             # todo:hack: temporary
             verilog_str = [self.__magraph_to_verilog()]
+        elif self.shared and self.multilevel:
+            verilog_str = self.__annotated_graph_to_verilog_multilevel() # Multilevel XPAT
         elif self.subxpat and self.shared and self.multilevel:
             verilog_str = self.__annotated_graph_to_verilog_multilevel() # Multilevel SubXPAT
         elif self.subxpat and self.shared and not self.multilevel:
@@ -324,13 +326,10 @@ class Synthesis:
         wire_list += f'wire '
 
         for lv in range(self.specs.lv):
-            print(f'{lv} of total lv = {self.specs.lv} -> value in npl[lv] = {nodes_per_level[lv]}')
             for node in range(nodes_per_level[lv]):
                 wire_list+= f'{sxpatconfig.VER_WIRE_PREFIX}nd{node}_lv{lv} '
-                print(node, lv)
                 wire_list += ';' if lv == self.specs.lv - 1 and node == nodes_per_level[lv] - 1 else ','
 
-        print(wire_list)
         return wire_list
     
     def __json_multilevel_input_assign(self,node :int,dict_i: dict):
@@ -353,8 +352,6 @@ class Synthesis:
         for node_i in range(npl[actual_level]):
             val_s = bool(dict_i.get('p_con_fn{}_lv{}_tn{}_lv{}'.format(node_i, actual_level, node, actual_level+1)))
             val_l = bool(dict_i.get('p_sw_fn{}_lv{}_tn{}_lv{}'.format(node_i, actual_level, node, actual_level+1)))
-            print(val_l)
-            print(val_s)
             if val_s and not val_l:
                 expr.append(f'{sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{actual_level}')
             elif val_s and val_l:
@@ -405,13 +402,26 @@ class Synthesis:
         
         return '\n'.join(lines)
     
-    def __sub_output_to_wires_assigns(self):
-        lines = []
-        lines.append("\n //subgraph outputs assigns")
-        for sub_out_i, sub_out_name in self.graph.subgraph_output_dict.items():
-            lines.append(f'assign {sxpatconfig.VER_WIRE_PREFIX}{sub_out_name} = {sxpatconfig.VER_WIRE_PREFIX}out{sub_out_i};')
-        return '\n'.join(lines)
+    def __sub_output_to_wires_assigns(self,idx=0):
+        # lines = []
+        # lines.append("\n //subgraph outputs assigns")
+        # for sub_out_i, sub_out_name in self.graph.subgraph_output_dict.items():
+        #     lines.append(f'assign {sxpatconfig.VER_WIRE_PREFIX}{sub_out_name} = {sxpatconfig.VER_WIRE_PREFIX}out{sub_out_i};')
+        # return '\n'.join(lines)
+        multilevel_assigns = f'\n //subgraph outputs assign'
 
+        annotated_graph_output_list = list(self.graph.subgraph_output_dict.values())
+        primary_output_list = list(self.graph.subgraph_output_dict.values())
+        sorted_annotated_graph_output_list = [-1] * len(annotated_graph_output_list)
+        for node_idx in range(len(annotated_graph_output_list)):
+            this_node = annotated_graph_output_list[node_idx]
+            for key in self.graph.subgraph_output_dict.keys():
+                if primary_output_list[node_idx] == self.graph.subgraph_output_dict[key]:
+                    sorted_annotated_graph_output_list[key] = this_node
+                    break
+
+        print(sorted_annotated_graph_output_list)
+        return ""
     # ---------------------------- # ---------------------------- W.I.P.  end multilevel aux func ---------------------------- # ---------------------------- #
 
     def __subgraph_inputs_assigns(self):
