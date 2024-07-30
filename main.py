@@ -21,7 +21,7 @@ def main():
     if args.plot:
         pprint.info2('Plotting...')
 
-        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.benchmark_name,
+        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic' if not args.multilevel else 'Multilevel', exact=args.benchmark_name,
                                   literals_per_product=args.lpp, products_per_output=args.ppo,
                                   benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
                                   subxpat=args.subxpat, subxpat_v2=args.subxpat_v2,
@@ -50,7 +50,7 @@ def main():
             FS.mkdir(directory)
 
         # todo:later: update how we create the templatespecs (more than 2 names, ecc.)
-        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.benchmark_name,
+        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic' if not args.multilevel else 'Multilevel', exact=args.benchmark_name,
                                   literals_per_product=args.lpp, products_per_output=args.ppo,
                                   benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
                                   subxpat=args.subxpat, subxpat_v2=args.subxpat_v2,

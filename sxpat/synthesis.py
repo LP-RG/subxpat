@@ -270,9 +270,6 @@ class Synthesis:
 
         return verilog_str
 
-
-   # ---------------------------- # ---------------------------- # ---------------------------- # ---------------------------- #
-
     def sort_native(self,dictionary: dict) -> dict:
         return dict(sorted(dictionary.items(), key=lambda i: i[0]))
 
@@ -281,8 +278,6 @@ class Synthesis:
         import operator as op
         return dict(sorted(dictionary.items(), key=op.itemgetter(0)))
     
-    # ---------------------------- # ---------------------------- # ---------------------------- # ---------------------------- #
-
     def __json_input_wire_declarations(self, idx: int = 0):
         graph_input_list = list(self.graph.subgraph_input_dict.values())
 
@@ -314,7 +309,6 @@ class Synthesis:
         else:
             wire_list += f'// No wires detected!'
         return wire_list
-    # ---------------------------- # ---------------------------- W.I.P. start multilevel aux func ---------------------------- # ---------------------------- #
 
     def __generate_nodes_per_gates(self) -> List[int]:
         nodes_per_level = [self.specs.pit]*self.specs.lv
@@ -410,17 +404,13 @@ class Synthesis:
         # return '\n'.join(lines)
         multilevel_assigns = f'\n //subgraph outputs assign\n'
 
-        print(self.graph.output_dict)
-        print(self.graph.constant_dict)
         #back
         for n in self.graph.output_dict.values():
             pn = list(self.graph.graph.predecessors(n))
             if not (pn[0] in self.graph.constant_dict.values()):
-                print(pn[0],self.graph.constant_dict.values())
                 multilevel_assigns += f'assign {sxpatconfig.VER_WIRE_PREFIX}{pn[0]} = {sxpatconfig.VER_WIRE_PREFIX}out{idx};\n'
                 idx+=1
         return multilevel_assigns
-    # ---------------------------- # ---------------------------- W.I.P.  end multilevel aux func ---------------------------- # ---------------------------- #
 
     def __subgraph_inputs_assigns(self):
         s_inputs_assigns = f'//subgraph inputs assigns\n'
