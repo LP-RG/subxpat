@@ -248,7 +248,7 @@ class Synthesis:
         :param use_json_model: if set to true, the json model is used
         :return: a Verilog description in the form of a String object
         """
-        #TODO: implement a consistent condition for the Multilevel SubXPAT
+ 
         if self.__magraph:
             # todo:hack: temporary
             verilog_str = [self.__magraph_to_verilog()]
@@ -371,7 +371,7 @@ class Synthesis:
             elif val_s and val_l:
                 expr.append(f'{sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{idx}')
 
-        return ' | '.join(expr) + ';'
+        return ' & '.join(expr) + ';'
     
     def __inputs_to_level_assigns(self,npl,dict):
         lines = []
@@ -1058,7 +1058,17 @@ class Synthesis:
         return ver_string
 
     def __annotated_graph_to_verilog_multilevel(self):
+
+        def sort_key(value):
+            prefix = 0 if value.startswith('in') else 1
+            number = int(value[2:] if value.startswith('in') else value[1:])
+            return (prefix, number)
+ 
         ver_string = []
+        sorted_items = sorted(self.graph.subgraph_input_dict.items(), key=lambda item: sort_key(item[1]))
+        self.graph.subgraph_input_dict = {i: v for i, (k, v) in enumerate(sorted_items)}
+        print(self.graph.subgraph_input_dict)
+
         for idx in range(self.num_of_models):
             self.set_path(this_path=OUTPUT_PATH['ver'], id=idx)
 
@@ -1090,7 +1100,6 @@ class Synthesis:
             json_output_wires = self.__json_model_output_declaration_subxpat_shared()   # correct
             
             # 3. assign 
-            #TODO: finish implementation point 3.assign
             json_input_assign = self.__subgraph_inputs_assigns_shared()
             subgraph_to_json_input_mapping = self.__subgraph_to_json_input_mapping()
             intact_assigns = self.__intact_part_assigns()

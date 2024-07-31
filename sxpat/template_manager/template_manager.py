@@ -704,9 +704,6 @@ class SOPSManager(ProductTemplateManager):
 
 class MultilevelManager(ProductTemplateManager):
 
-    #TODO: make this parameter settable from shell
-    #parameter for the total number of level
-
     @property
     def script_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH['z3']
@@ -751,7 +748,6 @@ class MultilevelManager(ProductTemplateManager):
         return f'out_id{output_i}'
 
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
-    #TODO: Refactor: create classmethods for generate script,(it wourld be more readable)
 
     def _multiplexer_multilevel(self,input_i,input_i__name,node_i):
         return f'\n     {sxpat_cfg.Z3_OR}({self._input_parameters(input_i,node_i)[0]} == {input_i__name},{sxpat_cfg.Z3_NOT}({self._input_parameters(input_i,node_i)[1]}))'
@@ -804,8 +800,9 @@ class MultilevelManager(ProductTemplateManager):
         # Node Per Level
         # initialization gpl
         # Amedeo: note that this could be parametrized with different number of gates for each level
-        npl = [self._specs.pit]*self.lv 
-        #npl[0] = self.subgraph_inputs.__len__()
+        npl = [1]*self.lv
+        # npl = [self._specs.pit]*self.lv 
+        # npl[0] = self.subgraph_inputs.__len__()
         npl[self.lv - 1] = self.subgraph_outputs.__len__()
         print(f'npl = {npl}')
         print(f'number of sub_outputs in template gen = {self.subgraph_outputs.__len__()}')
@@ -897,10 +894,9 @@ class MultilevelManager(ProductTemplateManager):
                                     for gate in range(npl[len(npl)-1])
                                 )
                             )
-                #TODO: refactor if(cond, body, not(body)) -- is orrible but for now is ok
                 #lines.append(f'{self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())} == {output_selection},')
                 #lines.append(f'{output_use} == {sxpat_cfg.IF}({self._output_negation(output_i)},\n{sxpat_cfg.Z3_AND}({self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())}),\n{sxpat_cfg.Z3_NOT}({self._gen_call_function(self._output_identifier(output_i), self.subgraph_inputs.values())})),') 
-                lines.append(f'{output_use} == {sxpat_cfg.Z3_OR}({output_selection}),') 
+                lines.append(f'{output_use} == {sxpat_cfg.Z3_AND}({output_selection}),') 
         builder.update(approximate_wires_constraints='\n'.join(lines))
 
         # ----------------------------- # ----------------------------- #
