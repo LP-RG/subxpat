@@ -1,34 +1,22 @@
 from __future__ import annotations
-from abc import abstractmethod
+from typing import Callable, Collection, Dict, Iterable, Sequence, Tuple
 import dataclasses as dc
+
+from abc import abstractmethod
+
 import functools
 import itertools
+
 import json
-import pathlib
 import re
 import subprocess
-from typing import Any, Callable, Collection, Dict, Iterable, Iterator, Mapping, Sequence, Tuple, Union
 
 from sxpat.annotatedGraph import AnnotatedGraph
 import sxpat.config.config as sxpat_cfg
 import sxpat.config.paths as sxpat_paths
 from sxpat.templateSpecs import TemplateSpecs
 from .encoding import Encoding
-
-
-NOTHING = object()
-
-
-def mapping_inv(mapping: Mapping, value: Any, default: Any = NOTHING) -> Any:
-    key = next((k for (k, v) in mapping.items() if v == value), default)
-    if key is NOTHING:
-        raise ValueError('The value does not match with any pair in the mapping.')
-    return key
-
-
-def pairwise_iter(iterable: Iterable) -> Iterator:
-    """iterate pair-wise (AB, BC, CD, ...)"""
-    return zip(iterable, itertools.islice(iterable, 1, None))
+from sxpat.utils.collections import mapping_inv, pairwise_iter
 
 
 @dc.dataclass
@@ -38,13 +26,6 @@ class Result:
 
 
 class TemplateManager:
-    def __init__(self, exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph,
-                 specs: TemplateSpecs, encoding: Encoding) -> None:
-        self._exact_graph = exact_graph
-        self._current_graph = current_graph
-        self._specs = specs
-        self._encoding = encoding
-
     @staticmethod
     def factory(specs: TemplateSpecs,
                 exact_graph: AnnotatedGraph,
@@ -59,15 +40,40 @@ class TemplateManager:
 
         # select and return TemplateManager object
         return {
-            False: SOPManager, 
-            True: MultilevelManager if specs.multilevel else SOPSManager 
-        }[specs.shared](
+            (False, 1): SOPManager,
+            (False, 2): SOPManager,
+            (True, 1): MultilevelManager if specs.multilevel else SOPSManager,
+            (True, 2): MultilevelManager if specs.multilevel else SOPSManager,
+            (False, 3): SOP_QBF_Manager,
+        }[specs.shared, specs.encoding](
             exact_graph,
             current_graph,
             specs,
             encoding
         )
 
+
+    def __init__(self, exact_graph: AnnotatedGraph,
+                 current_graph: AnnotatedGraph,
+                 specs: TemplateSpecs,
+                 encoding: Encoding,
+                 ) -> None:
+        self._exact_graph = exact_graph
+        self._current_graph = current_graph
+        self._specs = specs
+        self._encoding = encoding
+
+    def run(self) -> Sequence[Result]:
+        raise NotImplementedError(f'{self.__class__.__name__}.run(...) is abstract.')
+
+
+class SOP_QBF_Manager(TemplateManager):
+    def run(self) -> Sequence[Result]:
+        # todo:lorenzo: here
+        pass
+
+
+class Z3TemplateManager(TemplateManager):
     def generate_script(self) -> None:
         # initialize builder object
         builder = Builder.from_file('./sxpat/template_manager/template.py')
@@ -92,10 +98,6 @@ class TemplateManager:
             stderr=subprocess.PIPE
         )
 
-        print(process.stdout)
-        print('==================================================================')
-        print(process.stderr)
-        print('==================================================================')
         if process.returncode != 0:
             raise RuntimeError(f'ERROR!!! Cannot run file {self.script_path}')
 
@@ -191,7 +193,8 @@ class TemplateManager:
         """The constants of the current graph."""
         return self._current_graph.constant_dict
 
-class ProductTemplateManager(TemplateManager):
+
+class ProductTemplateManager(Z3TemplateManager):
 
     # utility string methods
 
@@ -347,6 +350,7 @@ class ProductTemplateManager(TemplateManager):
 
         # exact_wires_constraints
         def get_preds(name: str) -> Collection[str]: return tuple(self._exact_graph.graph.predecessors(name))
+        def get_preds_approx(name: str) -> Collection[str]: return tuple(self._current_graph.graph.predecessors(name))
         def get_func(name: str) -> str: return self._exact_graph.graph.nodes[name][sxpat_cfg.LABEL]
         lines = []
         for gate_i, gate_name in self.exact_gates.items():
@@ -388,7 +392,7 @@ class ProductTemplateManager(TemplateManager):
         # approximate_output_constraints
         lines = []
         for output_name in self.outputs.values():
-            output_preds = get_preds(output_name)
+            output_preds = get_preds_approx(output_name)
             assert len(output_preds) == 1, 'an output must have exactly one predecessor'
 
             pred = self._use_approx_var(output_preds[0])
@@ -441,22 +445,23 @@ class SOPManager(ProductTemplateManager):
         # apply superclass updates
         super()._update_builder(builder)
 
-        # params_declaration
-        builder.update(params_declaration='\n'.join(itertools.chain(
+        # params_declaration and params_list
+        params = list(itertools.chain(
             (
-                self._gen_declare_gate(self._output_parameter(output_i))
+                self._output_parameter(output_i)
                 for output_i in self.subgraph_outputs.keys()
             ),
             itertools.chain.from_iterable(
-                (
-                    self._gen_declare_gate((pars := self._input_parameters(output_i, product_i, input_i))[0]),
-                    self._gen_declare_gate(pars[1])
-                )
+                self._input_parameters(output_i, product_i, input_i)
                 for output_i in self.subgraph_outputs.keys()
                 for product_i in range(self._specs.ppo)
                 for input_i in self.subgraph_inputs.keys()
             ),
-        )))
+        ))
+        builder.update(
+            params_declaration='\n'.join(self._gen_declare_gate(p) for p in params),
+            params_list=f'[{", ".join(params)}]'
+        )
 
         # approximate_wires_constraints
         def get_preds(name: str) -> Collection[str]:
@@ -585,26 +590,27 @@ class SOPSManager(ProductTemplateManager):
         # apply superclass updates
         super()._update_builder(builder)
 
-        # params_declaration
-        builder.update(params_declaration='\n'.join(itertools.chain(
+        # params_declaration and params_list
+        params = list(itertools.chain(
             (  # p_o#
-                self._gen_declare_gate(self._output_parameter(output_i))
+                self._output_parameter(output_i)
                 for output_i in self.subgraph_outputs.keys()
             ),
             itertools.chain.from_iterable(  # p_pr#_i#
-                (
-                    self._gen_declare_gate((pars := self._input_parameters(None, product_i, input_i))[0]),
-                    self._gen_declare_gate(pars[1])
-                )
+                self._input_parameters(None, product_i, input_i)
                 for product_i in range(self._specs.pit)
                 for input_i in self.subgraph_inputs.keys()
             ),
             (  # p_pr#_o#
-                self._gen_declare_gate(self._product_parameter(output_i, product_i))
+                self._product_parameter(output_i, product_i)
                 for output_i in self.subgraph_outputs.keys()
                 for product_i in range(self._specs.pit)
             ),
-        )))
+        ))
+        builder.update(
+            params_declaration='\n'.join(self._gen_declare_gate(p) for p in params),
+            params_list=f'[{", ".join(params)}]'
+        )
 
         # approximate_wires_constraints
         def get_preds(name: str) -> Collection[str]: return sorted(self._current_graph.graph.predecessors(name), key=lambda n: int(re.search(r'\d+', n).group()))
