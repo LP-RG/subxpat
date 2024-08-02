@@ -410,7 +410,7 @@ class Synthesis:
         for n in self.graph.output_dict.values():
             pn = list(self.graph.graph.predecessors(n))
             #pn = list(self.graph.graph.predecessors(n))
-            if not (n in self.graph.constant_dict.values()):
+            if not (pn[0] in self.graph.constant_dict.values()) and not(pn[0] in self.graph.graph_intact_gate_dict.values()):
                 multilevel_assigns += f'assign {sxpatconfig.VER_WIRE_PREFIX}{pn[0]} = {sxpatconfig.VER_WIRE_PREFIX}out{idx};\n'
                 idx+=1
         return multilevel_assigns

@@ -28,38 +28,8 @@ from z_marco.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subg
 from z_marco.utils import pprint, color
 
 
-def generate_et_array(et, k):
-    step = et // k
-    result = []
-    offset = []
-
-    if step <= 1:
-        result = list(range(1, et+1))
-    else:
-        log2 = int(math.log2(step))
-        # print(f'{log2 = }')
-        for i in range(log2 + 1):
-            if 2**i < step:
-                offset.append(2**i)
-        # print(f'{offset = }')
-        for i in range(k):
-
-            base = i * step
-            # print(f'{base = }')
-            if base > 0:
-                result.append(base)
-            for off in offset:
-                result.append(base + off)
-            next_base = (i + 1) * step if (i + 1) < k else et
-            if next_base == et:
-                result.append(et)
-
-    return result
-
-
 def explore_grid(specs_obj: TemplateSpecs):
-    main_start_time = time.time()
-
+    check_exec_time = time.time()
     previous_subgraphs = []
     print(f'{specs_obj = }')
 
@@ -90,62 +60,42 @@ def explore_grid(specs_obj: TemplateSpecs):
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
+    max_unsat_reached = False
 
-    max_et = specs_obj.et
-    error_exceeded = False
-    loop_detected = False
-    persistance_limit = 3
-    persistance = 1
-    prev_et = -1
-
-    et_iterator = iter(generate_et_array(max_et, 8))
     while (obtained_wce_exact < available_error):
         i += 1
         if specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
             et = 2**(i-1)
-            if et > available_error:
-                break
         elif specs_obj.et_partitioning == 'desc':
             log2 = int(math.log2(specs_obj.et))
             et = 2**(log2 - i - 2)
         elif specs_obj.et_partitioning == 'smart_asc':
-
-            # et = max_et // 8 if i == 1 else et + (max_et // 8 if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) else 0 )
-            if i == 1:
-                et = next(et_iterator)
-            else:
-                if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) and (et < available_error):
-                    et = next(et_iterator)
-
-            if prev_et == et:
-                persistance += 1
-            else:
-                persistance = 0
-            prev_et = et
-
-            if prev_et == available_error and persistance == persistance_limit:
-                break
-
+            et = 1 if i == 1 else prev_given_error * (2 if prev_actual_error == 0 else 1)
+            prev_given_error = et
         elif specs_obj.et_partitioning == 'smart_desc':
-            et = available_error if i == 1 else et // (2 if prev_actual_error == 0 else 1)
-            # if et > available_error:
-            #     et = available_error
-            # prev_given_error = et
+            et = available_error if i == 1 else prev_given_error / (2 if prev_actual_error == 0 else 1)
+            prev_given_error = et
         else:
             raise NotImplementedError('invalid status')
-
-        if et > available_error or et < 0:
-            break
-
+        if i == 10:
+            exit()
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
         
+        # Fix the infinite loop
+        if max_unsat_reached:
+            break
+
         # for all candidates
-        # print(f'{current_population = }')
         for candidate in current_population:
-            
+            # guard
+            if pre_iter_unsats[candidate] == specs_obj.total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
+                pprint.info1(f'Number of UNSATs reached!')
+                max_unsat_reached = True
+                continue
+
             pprint.info1(f'candidate {candidate}')
             if candidate.endswith('.v'):
                 specs_obj.benchmark_name = candidate[:-2]
@@ -161,11 +111,10 @@ def explore_grid(specs_obj: TemplateSpecs):
 
             # label graph
             if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
-                # et_coefficient = 8
+                et_coefficient = 8
 
                 t_start = time.time()
-                et_coefficient = 1
-                label_graph(current_graph,
+                label_graph(exact_graph, current_graph,
                             min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
                             et=et*et_coefficient, parallel=specs_obj.parallel)
                 labeling_time = time.time() - t_start
@@ -178,16 +127,12 @@ def explore_grid(specs_obj: TemplateSpecs):
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
 
-
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
             graph_path = f'{folder}/{specs_obj.benchmark_name}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
             FS.mkdir(folder)
             current_graph.export_annotated_graph(graph_path)
             print(f'subgraph exported at {graph_path}')
-
-            print(f'subgraph inputs = {current_graph.subgraph_num_inputs}')
-            print(f'subgraph outputs = {current_graph.subgraph_num_outputs}')
 
             # guard
             if not subgraph_is_available:
@@ -212,7 +157,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                 # run script
                 manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
-                assert specs_obj.et == et, pprint.error(f'{et} != {specs_obj.et}')
                 start_time = time.time()
                 results = manager.run()
                 execution_time = time.time() - start_time
@@ -265,12 +209,14 @@ def explore_grid(specs_obj: TemplateSpecs):
                     for candidate in cur_model_results:
                         approximate_benchmark = candidate[:-2]
 
-                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, et)
-                        obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, et)
+                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, available_error)
+                        obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, available_error)
                         prev_actual_error = obtained_wce_prev
 
-                        if obtained_wce_exact > et:
+                        if obtained_wce_exact > available_error:
                             stats_obj.store_grid()
+                            final_check_exec_time = time.time() - check_exec_time
+                            pprint.success(f'time = {final_check_exec_time}')
                             return stats_obj
                             # raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
@@ -287,11 +233,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
                     pprint.success(f'ErrorEval PASS! with total wce = {obtained_wce_exact}')
 
-<<<<<<< HEAD
                     benchmark_name = specs_obj.benchmark_name
-=======
-                    specs_obj.benchmark_name = approximate_benchmark
->>>>>>> 56.2-testing
 
                     synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
 
@@ -301,7 +243,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                                    synth_obj.estimate_delay(exact_file_path)]
                     print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
 
-                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.benchmark_name, et=specs_obj.et,
+                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=benchmark_name, et=specs_obj.et,
                                         encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
 
                     for key in cur_model_results.keys():
@@ -321,14 +263,14 @@ def explore_grid(specs_obj: TemplateSpecs):
                         pre_iter_unsats[key] = 0
 
                     # SAT found, stop grid exploration
-                    main_execution_time = time.time() - main_start_time
-                    print(f'execution_time = {main_execution_time}')
+                    final_check_exec_time = time.time() - check_exec_time
+                    pprint.success(f'time = {final_check_exec_time}')
                     break
-                prev_actual_error = 0
-                prev_actual_error = 0
 
         if exists_an_area_zero(current_population):
             break
+
+
         # This is to fix another problem (also previously known as loop)
         # This is where the exploration get stuck in a loop of creating the same approximate circuit over and over again
         # Here, I check if the last three subgraphs are equal, if so, this means that the exploration needs to be
@@ -336,21 +278,19 @@ def explore_grid(specs_obj: TemplateSpecs):
         loop_detected = False
         for idx, s in enumerate(previous_subgraphs):
             if idx == len(previous_subgraphs) - 1 and idx > 1:
-                if nx.utils.graphs_equal(previous_subgraphs[idx-1], previous_subgraphs[idx]) and \
-                        nx.utils.graphs_equal(previous_subgraphs[idx], previous_subgraphs[idx-2]):
+                if nx.utils.graphs_equal(previous_subgraphs[idx - 2], previous_subgraphs[idx - 1]) and \
+                        nx.utils.graphs_equal(previous_subgraphs[idx - 2], previous_subgraphs[idx - 3]):
                     print(f'The last three subgraphs are equal')
                     pprint.info3(f'The last three subgraphs are equal!')
                     pprint.info3(f'Terminating the exploration!')
                     loop_detected = True
                     break
-        # if loop_detected:
-        #     break
 
-        # if max_unsat_reached and (et >= max_et or et <= 0) and not template_obj.is_two_phase_kind:
-        #     max_unsat_reached = False
-        #     break
+        if loop_detected:
+            break
 
-    # display_the_tree(total)
+
+    display_the_tree(total)
 
     stats_obj.store_grid()
     return stats_obj
@@ -362,8 +302,22 @@ class CellIterator:
         return {
             (True,False): cls.shared,
             (False,False): cls.non_shared,
-            (True,True):cls.multilevel
-        }[specs.shared, specs.multilevel](specs)
+            (True,True) : cls.multilevel,
+        }[specs.shared,specs.multilevel](specs)
+
+
+    @staticmethod
+    def multilevel(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+        max_pit = specs.max_pit
+        max_lv = specs.num_lev
+        # special cell
+        yield (2, 2)
+
+        # grid cells
+        for pit in range(2, max_pit + 3):
+            for lv in range(2, max_lv + 3):
+                yield (lv, pit)
+
 
     @staticmethod
     def shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
@@ -376,17 +330,6 @@ class CellIterator:
         for pit in range(1, max_pit + 1):
             for its in range(pit, pit + 3 + 1):
                 yield (its, pit)
-
-    @staticmethod
-    def multilevel(specs: TemplateSpecs) -> Iterator[Tuple[int,int]]:
-        max_lv = specs.num_lev
-        max_pit = specs.max_pit
-
-        yield(1,1)
-
-        for lv in range(1,max_lv):
-            for pit in range(1,max_pit):
-                yield(pit,lv)
 
     @staticmethod
     def non_shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
@@ -410,15 +353,14 @@ def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, in
     )
 
 
-def set_current_context(specs_obj: TemplateSpecs, var_1: int, var_2: int, iteration: int) -> TemplateSpecs:
-
+def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int) -> TemplateSpecs:
     if specs_obj.multilevel:
-        specs_obj.pit = var_2
-        specs_obj.lv = var_1
+        specs_obj.lv = lpp
+        specs_obj.pit = ppo
     else:
-        specs_obj.lpp = var_1
-        specs_obj.ppo = specs_obj.pit = var_2
-    
+        specs_obj.lpp = lpp
+        specs_obj.ppo = specs_obj.pit = ppo
+
     specs_obj.iterations = iteration
     return specs_obj
 
@@ -546,10 +488,10 @@ def display_the_tree(this_dict: Dict) -> None:
     #     pass
 
 
-def label_graph(current_graph: AnnotatedGraph,
+def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph,
                 min_labeling: bool = False,  partial: bool = False,
                 et: int = -1, parallel: bool = False):
-    labels, _ = labeling_explicit(current_graph.name, current_graph.name,
+    labels, _ = labeling_explicit(exact_graph.name, current_graph.name,
                                   constant_value=0, min_labeling=min_labeling,
                                   partial=partial, et=et, parallel=parallel)
 
