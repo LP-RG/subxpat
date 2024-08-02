@@ -378,14 +378,15 @@ class Synthesis:
         lines.append("// inputs_to_level_assigns")
         for lv in range(len(npl)+1):
             j_son_nodes_connection=""
-            lines.append(f'// level: {lv}')
-            if lv < len(npl):
+            if lv < len(npl):   
+                lines.append(f'// level: {lv}')
                 for node_i in range(npl[lv]):
                     if lv == 0:
                         j_son_nodes_connection += f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} =  {self.__json_multilevel_input_assign(node_i,dict)}\n'
                     else:
                         j_son_nodes_connection += f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} = {self.__json_multilevel_node_assign(node_i,lv-1,npl,dict)}\n'
             else:
+                lines.append("// ouutput layer")
                 j_son_nodes_connection = '\n'.join(
                     itertools.chain(
                         f'assign {sxpatconfig.VER_WIRE_PREFIX}out{out_i} = {self.__json_multilevel_output_assign(out_i,dict,npl)}'
@@ -405,10 +406,11 @@ class Synthesis:
         multilevel_assigns = f'\n //subgraph outputs assign\n'
 
         #back
-        for n in self.graph.output_dict.values():
-            pn = list(self.graph.graph.predecessors(n))
-            if not (pn[0] in self.graph.constant_dict.values()):
-                multilevel_assigns += f'assign {sxpatconfig.VER_WIRE_PREFIX}{pn[0]} = {sxpatconfig.VER_WIRE_PREFIX}out{idx};\n'
+        # for n in self.graph.output_dict.values():
+        for n in self.graph.subgraph_output_dict.values():
+            #pn = list(self.graph.graph.predecessors(n))
+            if not (n in self.graph.constant_dict.values()):
+                multilevel_assigns += f'assign {sxpatconfig.VER_WIRE_PREFIX}{n} = {sxpatconfig.VER_WIRE_PREFIX}out{idx};\n'
                 idx+=1
         return multilevel_assigns
 
@@ -1067,7 +1069,6 @@ class Synthesis:
         ver_string = []
         sorted_items = sorted(self.graph.subgraph_input_dict.items(), key=lambda item: sort_key(item[1]))
         self.graph.subgraph_input_dict = {i: v for i, (k, v) in enumerate(sorted_items)}
-        print(self.graph.subgraph_input_dict)
 
         for idx in range(self.num_of_models):
             self.set_path(this_path=OUTPUT_PATH['ver'], id=idx)
@@ -1075,9 +1076,6 @@ class Synthesis:
             ver_str = f''
             
             item = self.sort_native(dict(self.__json_model[0]))
-
-            for key, val in item.items():
-                 print(key,val)
 
             npl = self.__generate_nodes_per_gates()
 

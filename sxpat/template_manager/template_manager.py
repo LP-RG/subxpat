@@ -802,12 +802,12 @@ class MultilevelManager(ProductTemplateManager):
     def _update_builder(self, builder: Builder) -> None:
         # apply superclass updates
         super()._update_builder(builder)
-        
+        print("Multilevel")
         # Node Per Level
         # initialization gpl
         # Amedeo: note that this could be parametrized with different number of gates for each level
-        npl = [1]*self.lv
-        # npl = [self._specs.pit]*self.lv 
+        # npl = [1]*self.lv
+        npl = [3]*self.lv 
         # npl[0] = self.subgraph_inputs.__len__()
         npl[self.lv - 1] = self.subgraph_outputs.__len__()
         print(f'npl = {npl}')
@@ -857,20 +857,52 @@ class MultilevelManager(ProductTemplateManager):
                 ),
             )
         )
+
+        builder.update(params_list = '[{}]'.format(','.join(
+                itertools.chain(                                            
+                    itertools.chain.from_iterable
+                    (
+                        (
+                            self._switch_parameter_levels(f_nd,lv-1,t_nd,lv),   # p_sw_fn#_lv#_tn#_lv#
+                            self._node_connection_levels(f_nd,lv-1,t_nd,lv),    # p_con_fn#_lv#_tn#_lv#
+                        )
+                        for lv in range(len(npl)-1,0,-1)
+                        for t_nd in range(npl[lv])
+                        for f_nd in range(npl[lv-1])
+                    ),
+                    itertools.chain.from_iterable
+                    (
+                        (
+                            self._input_parameters(input_i,nd)[0],   # p_i#_n#_l
+                            self._input_parameters(input_i,nd)[1]    # p_i#_n#_s 
+                        )
+                        for input_i in range(self.subgraph_inputs.__len__())
+                        for nd in range(npl[0]) 
+                    ),
+                    itertools.chain.from_iterable
+                    (   
+                        (
+                            self._node_connection_output(nd,output_i),  # p_con_fn#_to#
+                            self._switch_parameter_output(nd,output_i)  # p_sw_fn#_to#                
+                        )
+                        for output_i in range(self.subgraph_outputs.__len__())
+                        for nd in range(npl[len(npl)-1])
+                    ), 
+                )
+            )))
         # approximate_wires_constraints
         # ----------------------------- # ----------------------------- #
         def get_preds(name: str) -> Collection[str]: return sorted(self._current_graph.graph.predecessors(name), key=lambda n: int(re.search(r'\d+', n).group()))
         def get_func(name: str) -> str: return self._current_graph.graph.nodes[name][sxpat_cfg.LABEL]
 
-        lines = [""]
+        lines = []
         multilevel_structure = '\n'.join(self._generate_levels(npl)) + '\n'
         lines.append(multilevel_structure)
+        print(self.current_gates.items())
         for gate_i, gate_name in self.current_gates.items():
-            
-            if not self._current_graph.is_subgraph_member(gate_name):
-                gate_preds = get_preds(gate_name) 
+            if not self._current_graph.is_subgraph_member(gate_name): #check wheter the node belongs to the subgraph
+                gate_preds = get_preds(gate_name) #get all the predecesson of a gate
                 gate_func = get_func(gate_name)
-
                 assert (gate_func, len(gate_preds)) in [
                     (sxpat_cfg.NOT, 1),
                     (sxpat_cfg.AND, 2),
