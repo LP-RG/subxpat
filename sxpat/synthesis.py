@@ -371,7 +371,7 @@ class Synthesis:
             elif val_s and val_l:
                 expr.append(f'{sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{idx}')
 
-        return ' & '.join(expr) + ';'
+        return ' | '.join(expr) + ';'
     
     def __inputs_to_level_assigns(self,npl,dict):
         lines = []
@@ -407,10 +407,11 @@ class Synthesis:
 
         #back
         # for n in self.graph.output_dict.values():
-        for n in self.graph.subgraph_output_dict.values():
+        for n in self.graph.output_dict.values():
+            pn = list(self.graph.graph.predecessors(n))
             #pn = list(self.graph.graph.predecessors(n))
             if not (n in self.graph.constant_dict.values()):
-                multilevel_assigns += f'assign {sxpatconfig.VER_WIRE_PREFIX}{n} = {sxpatconfig.VER_WIRE_PREFIX}out{idx};\n'
+                multilevel_assigns += f'assign {sxpatconfig.VER_WIRE_PREFIX}{pn[0]} = {sxpatconfig.VER_WIRE_PREFIX}out{idx};\n'
                 idx+=1
         return multilevel_assigns
 
@@ -423,7 +424,7 @@ class Synthesis:
                 s_inputs_assigns += self.__get_fanin_cone(n)
         return s_inputs_assigns
 
-    def __subgraph_inputs_assigns_multilevel(self):
+    def __subgraph_inputs_assigns_multilevel(self): 
         s_inputs_assigns = f'//subgraph inputs assigns\n'
         return s_inputs_assigns
 
@@ -1093,9 +1094,9 @@ class Synthesis:
             annotated_graph_input_wires = self.__get_subgraph_input_wires()
             annotated_graph_output_wires = self.__get_subgraph_output_wires()
             # json input wires
-            json_input_wires = self.__json_input_wire_declarations()                    # correct
-            json_model_wires = self.__json_model_wire_declarations_multilevel(npl)      # correct           
-            json_output_wires = self.__json_model_output_declaration_subxpat_shared()   # correct
+            json_input_wires = self.__json_input_wire_declarations()                    
+            json_model_wires = self.__json_model_wire_declarations_multilevel(npl)                 
+            json_output_wires = self.__json_model_output_declaration_subxpat_shared()   
             
             # 3. assign 
             json_input_assign = self.__subgraph_inputs_assigns_shared()

@@ -36,7 +36,7 @@ def main():
                                   shared=args.shared, products_in_total=args.pit, parallel=args.parallel,
                                   encoding=args.encoding,
                                   partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs,
-                                  multilevel=args.multilevel,number_of_levels=args.lv)
+                                  multilevel=args.multilevel,actual_number_of_levels=args.lv)
         stats_obj = Stats(specs_obj)
         stats_obj.gather_results()
 

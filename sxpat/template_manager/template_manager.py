@@ -149,6 +149,10 @@ class Z3TemplateManager(TemplateManager):
     @property
     def lv(self):
         return self._specs.lv
+    
+    @property
+    def pit(self):
+        return self._specs.pit
 
     @functools.cached_property
     def subgraph_inputs(self) -> Dict[int, str]:
@@ -774,7 +778,7 @@ class MultilevelManager(ProductTemplateManager):
     
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
     def _generate_output(self, node_i,output_i):
-        return f'\n{sxpat_cfg.IF}({self._node_connection_output(node_i,output_i)}, {sxpat_cfg.IF}({self._switch_parameter_output(node_i, output_i)}, {self._gen_call_function(self._level_parameter(node_i,self.lv-1),self.subgraph_inputs.values())}, {sxpat_cfg.Z3_NOT}({self._gen_call_function(self._level_parameter(node_i, self.lv-1),self.subgraph_inputs.values())})), {sxpat_cfg.IF}({self._switch_parameter_output(node_i, output_i)}, True, False))'
+        return f'\n{sxpat_cfg.IF}({self._node_connection_output(node_i,output_i)}, {sxpat_cfg.IF}({self._switch_parameter_output(node_i, output_i)}, {self._gen_call_function(self._level_parameter(node_i,self._specs.lv - 1),self.subgraph_inputs.values())}, {sxpat_cfg.Z3_NOT}({self._gen_call_function(self._level_parameter(node_i, self._specs.lv - 1),self.subgraph_inputs.values())})), {sxpat_cfg.IF}({self._switch_parameter_output(node_i, output_i)}, True, False))'
 
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
     def _connection_constraints(self, npl, level_i, gate, output_i = None):
@@ -802,18 +806,21 @@ class MultilevelManager(ProductTemplateManager):
         # apply superclass updates
         super()._update_builder(builder)
         print("Multilevel")
-        # Node Per Level
-        # initialization gpl
-        # Amedeo: note that this could be parametrized with different number of gates for each level
-        # npl = [1]*self.lv
-        npl = [3]*self.lv 
-        # npl[0] = self.subgraph_inputs.__len__()
-        npl[self.lv - 1] = self.subgraph_outputs.__len__()
-        print(f'npl = {npl}')
         print(f'number of sub_outputs in template gen = {self.subgraph_outputs.__len__()}')
         print(f'number of sub_inputs in template gen = {self.subgraph_inputs.__len__()}')
         print(f'number of levels = {self._specs.lv}')
-        print(f'actual pit = {self._specs.pit}')
+        print(f'actual level(lpp) = {self._specs.lpp}')
+        print(f'actual node per level (pit) = {self._specs.pit}')
+        # Node Per Level
+        # initialization gpl
+        # Amedeo: note that this could be parametrized with different number of gates for each level
+        npl = [self.pit]*self.lv
+        # npl = [self._specs.pit]*self._specs.lpp
+        # npl[0] = self.subgraph_inputs.__len__()
+        npl[len(npl)-1] = self.subgraph_outputs.__len__()
+        # npl[self.lv - 1] = self.subgraph_outputs.__len__()
+        print(f'npl = {npl}')
+        
 
         # params_declaration
         # ----------------------------- # ----------------------------- #
@@ -850,6 +857,7 @@ class MultilevelManager(ProductTemplateManager):
                     itertools.chain
                     ( 
                         self._gen_declare_bool_function(self._level_parameter(nd,lv),len(self.subgraph_inputs))    # function n#_lv# 
+                        # for lv in range(self._specs.lpp)
                         for lv in range(self._specs.lv)
                         for nd in range(npl[lv])
                     ),
@@ -897,7 +905,6 @@ class MultilevelManager(ProductTemplateManager):
         lines = []
         multilevel_structure = '\n'.join(self._generate_levels(npl)) + '\n'
         lines.append(multilevel_structure)
-        print(self.current_gates.items())
         for gate_i, gate_name in self.current_gates.items():
             if not self._current_graph.is_subgraph_member(gate_name): #check wheter the node belongs to the subgraph
                 gate_preds = get_preds(gate_name) #get all the predecesson of a gate
@@ -933,7 +940,7 @@ class MultilevelManager(ProductTemplateManager):
                             )
                 #lines.append(f'{self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())} == {output_selection},')
                 #lines.append(f'{output_use} == {sxpat_cfg.IF}({self._output_negation(output_i)},\n{sxpat_cfg.Z3_AND}({self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())}),\n{sxpat_cfg.Z3_NOT}({self._gen_call_function(self._output_identifier(output_i), self.subgraph_inputs.values())})),') 
-                lines.append(f'{output_use} == {sxpat_cfg.Z3_AND}({output_selection}),') 
+                lines.append(f'{output_use} == {sxpat_cfg.Z3_OR}({output_selection}),') 
         builder.update(approximate_wires_constraints='\n'.join(lines))
 
         # ----------------------------- # ----------------------------- #
