@@ -7,7 +7,7 @@
 **/*.local
 **/local.*
 /test
-/experiments
+#/experiments
 /output
 # data
 /results

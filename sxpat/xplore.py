@@ -120,16 +120,31 @@ def explore_grid(specs_obj: TemplateSpecs):
     persistance = 1
     prev_et = -1
 
-    et_iterator = iter(generate_et_array(max_et, 8))
+
     # print(f'{list(et_iterator) = }')
     et_iterator = iter(generate_et_array(max_et, 8))
-    # print(f'{type(et_iterator) = }')
-    # exit()
+    step = max_et // 8
+    et_asc_linear_array = list(range(step, max_et + 1, step))
+    print(f'{et_asc_linear_array = }')
+    et_asc_linear_iterator = iter(et_asc_linear_array)
+
     while (obtained_wce_exact < available_error):
         i += 1
         if specs_obj.et_partitioning == 'asc':
-            log2 = int(math.log2(specs_obj.et))
-            et = 2**(i-1)
+            if i == 1:
+                et = next(et_asc_linear_iterator)
+            else:
+                if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) and (
+                        et < available_error):
+                    et = next(et_asc_linear_iterator)
+            if prev_et == et:
+                persistance += 1
+            else:
+                persistance = 0
+            prev_et = et
+
+            if prev_et == available_error and persistance == persistance_limit:
+                break
         elif specs_obj.et_partitioning == 'desc':
             log2 = int(math.log2(specs_obj.et))
             et = 2**(log2 - i - 2)

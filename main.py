@@ -12,6 +12,9 @@ from sxpat.stats import Stats
 from z_marco.utils import pprint
 from sxpat.utils.filesystem import FS
 
+import cProfile
+import pstats
+
 
 def main():
     args = Arguments.parse()
@@ -87,4 +90,9 @@ def clean_all():
 
 
 if __name__ == "__main__":
+    # profiler = cProfile.Profile()
+    # profiler.enable()
     main()
+    # stats = pstats.Stats(profiler)
+    # stats.sort_stats(pstats.SortKey.TIME)
+    # stats.print_stats()

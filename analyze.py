@@ -22,42 +22,27 @@ def main():
     folder = 'experiments/results'
     rel_files = get_relevant_files(args, folder)
 
+    area_error_per_imax_omax_per_mode = get_subgraph_area_per_mode_and_imax_omax(rel_files, folder)
+    plot_area_per_mode_and_imax_omax(args, area_error_per_imax_omax_per_mode, mecals_area_error)
+    runtime_error_per_imax_omax_per_mode = get_subgraph_extraction_runtime_per_mode_and_imax_omax(rel_files, folder)
+    plot_runtime_per_mode_and_imax_omax(args, runtime_error_per_imax_omax_per_mode)
 
-
-    # best_per_local_global_et = get_best_area_for_local_global_et(rel_files, folder)
-    # plot_report_best_area_for_local_global_et(args, best_per_local_global_et)
-
-
-
-
-
-    # area_error_mode_et = get_area_error_per_et(rel_files, folder)
-    # plot_area_error_per_et(args, area_error_mode_et)
-
-
-
-    #
-    # area_error_per_omax_dict = get_area_error_per_omax(rel_files, folder)
-    # plot_area_error_per_omax(args, area_error_per_omax_dict)
-    #
-    # runtime_error_per_omax_per_mode = get_runtime_per_mode_and_omax(rel_files, folder)
-    runtime_error_per_omax_per_mode = get_subgraph_extraction_runtime_per_mode_and_omax(rel_files, folder)
-    plot_runtime_per_mode_and_omax(args, runtime_error_per_omax_per_mode)
-
-    exit()
+    # exit()
+    # area_error_per_omax_per_mode = get_area_error_per_mode_and_omax(rel_files, folder)
+   
 
     # plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict, area_error_mode_last_points_dict=None,
     #                                    mecals_area_error=mecals_area_error)
-    area_error_mode_last_points_dict = get_area_error_per_mode_per_grid_last_points(rel_files, folder)
+    # area_error_mode_last_points_dict = get_area_error_per_mode_per_grid_last_points(rel_files, folder)
     # plot_area_error_mode_per_grid_dict(args, area_error_mode_per_grid_dict, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
 
     # 
     # 
     # 
     # 
-    error_cells_subgraph_inputs_dict_per_mode = get_subgraph_inputs_vs_sat_cells(rel_files, folder)
-    report_sat_cells_vs_subgraph_inputs(args, error_cells_subgraph_inputs_dict_per_mode)
-    # 
+    # error_cells_subgraph_inputs_dict_per_mode = get_subgraph_inputs_vs_sat_cells(rel_files, folder)
+    # report_sat_cells_vs_subgraph_inputs(args, error_cells_subgraph_inputs_dict_per_mode)
+    # #
     # 
     # 
     # error_cells_dict_per_mode = get_sat_cells(rel_files, folder)
@@ -71,16 +56,16 @@ def main():
 
 
 
-    sorted_area_error = get_area_error(rel_files, folder)
-    plot_area_error(args, sorted_area_error, area_error_mode_last_points_dict=None, mecals_area_error=mecals_area_error)
-    # # plot_area_error(args, sorted_area_error, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
-    # plot_area_error_best(args, sorted_area_error, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
+    # sorted_area_error = get_area_error(rel_files, folder)
+    # plot_area_error(args, sorted_area_error, area_error_mode_last_points_dict=None, mecals_area_error=mecals_area_error)
+    # # # plot_area_error(args, sorted_area_error, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
+    # # plot_area_error_best(args, sorted_area_error, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
     # plot_area_error_pareto(args, sorted_area_error, area_error_mode_last_points_dict=area_error_mode_last_points_dict, mecals_area_error=mecals_area_error)
-    # area_error_ns_dict = get_area_error_per_num_subgraphs(rel_files, folder)
-    # plot_area_error_per_ns(args, area_error_ns_dict)
-
-    area_error_mode_dict = get_area_error_per_mode(rel_files, folder)
-    plot_area_error_per_mode(args, area_error_mode_dict)
+    # # area_error_ns_dict = get_area_error_per_num_subgraphs(rel_files, folder)
+    # # plot_area_error_per_ns(args, area_error_ns_dict)
+    #
+    # area_error_mode_dict = get_area_error_per_mode(rel_files, folder)
+    # plot_area_error_per_mode(args, area_error_mode_dict)
 
     # sorted_aggregated_runtime_error = get_runtime_aggregated(rel_files, folder)
     # plot_runtime_aggregated(args, sorted_aggregated_runtime_error)
@@ -97,14 +82,7 @@ def main():
     # draw the figures we want:
 
 
-def get_relevant_files(args: Arguments, folder):
-    # search the folder:
-    all_files = [f for f in os.listdir(folder)]
-    relevant_files = []
-    for file in all_files:
-        if re.search(args.benchmark_name, file) and file.endswith('.csv'):
-            relevant_files.append(file)
-    return relevant_files
+
 
 
 
@@ -146,7 +124,7 @@ def get_subgraph_inputs_vs_sat_cells(relevant_files, folder):
         for rep in relevant_files:
             if re.search(f'mode{mode}_', rep):
                 global_et = int(re.search(f'et(\d+)_', rep).group(1))
-                print(f'{global_et = }')
+                # print(f'{global_et = }')
                 with open(f'{folder}/{rep}', 'r') as f:
                     csvreader = csv.reader(f)
                     for line in csvreader:
@@ -171,7 +149,7 @@ def get_subgraph_inputs_vs_sat_cells(relevant_files, folder):
         if error_cell_dict:
             error_cell_dict_per_mode[mode] = error_cell_dict
             error_cell_dict = {}
-    print(f'{error_cell_dict_per_mode = }')
+    # print(f'{error_cell_dict_per_mode = }')
     return  error_cell_dict_per_mode
 
 def get_area_error(relevant_files, folder):
@@ -242,16 +220,6 @@ def get_best_area_for_local_global_et(relevant_files, folder):
                 bests_per_omax[omax] = bests_per_global_et
         if bests_per_omax:
             best_area_for_local_global_et_per_mode_per_omax[mode] = bests_per_omax
-
-
-    # print(F'{best_area_for_local_global_et_per_mode_per_omax = }')
-    # for mode in best_area_for_local_global_et_per_mode_per_omax.keys():
-    #     print(f'{mode = }')
-    #     for omax in best_area_for_local_global_et_per_mode_per_omax[mode].keys():
-    #         print(f'{omax = }')
-    #         for et in best_area_for_local_global_et_per_mode_per_omax[mode][omax].keys():
-    #             print(f'{et}: {best_area_for_local_global_et_per_mode_per_omax[mode][omax][et]}')
-
     return best_area_for_local_global_et_per_mode_per_omax
 
 def get_area_error_per_et(relevant_files, folder):
@@ -278,72 +246,6 @@ def get_area_error_per_et(relevant_files, folder):
             area_error_mode_et_dict[mode] = area_error_et
             area_error_et = {}
     return area_error_mode_et_dict
-
-
-
-
-def get_mecals_area_error(args, folder):
-    area_error: List[Tuple[float, int]] = []
-    relevant_files = _get_mecals_rel_files(args, folder)
-
-    if relevant_files:
-        for rep in relevant_files:
-            with open(f'{folder}/{rep}', 'r') as f:
-                cur_area = float(f.readline())
-                cur_wce = int(re.search('wce(\d+).', rep).group(1))
-
-                area_error.append((cur_area, cur_wce))
-        sorted_area_error = sorted(area_error, key=lambda x: x[1])
-        return sorted_area_error
-    else:
-        return []
-def get_runtime_aggregated(relevant_files, folder):
-    runtime_error: List[Tuple[float, int]] = []
-    runtime_dict = {}
-    for rep in relevant_files:
-        with open(f'{folder}/{rep}', 'r') as f:
-            csvreader = csv.reader(f)
-            for line in csvreader:
-                if line[0].startswith('cell'):  # skip the first line
-                    continue
-                else:
-                    error = int(line[8])
-                    runtime = float(line[9]) + float(line[10]) + float(line[-1])
-                    if error not in runtime_dict:
-                        runtime_dict[error] = runtime
-                    else:
-                        runtime_dict[error] += runtime
-
-    runtime_error = [(runtime, error) for error, runtime in runtime_dict.items()]
-
-
-    sorted_runtime_error = sorted(runtime_error, key=lambda x: x[1])
-
-
-    return sorted_runtime_error
-def get_area_error_per_num_subgraphs(relevant_files, folder):
-    area_error_ns_dict: Dict[int: [float, int]] = {}
-    area_error: List[Tuple[float, int]] = []
-    for ns in [1, 5, 10, 15]:
-        for rep in relevant_files:
-            if re.search(f'ns{ns}_', rep):
-                with open(f'{folder}/{rep}', 'r') as f:
-                    csvreader = csv.reader(f)
-                    for line in csvreader:
-                        if line[0].startswith('cell'):  # skip the first line
-                            continue
-                        else:
-                            if line[3].startswith('SAT'):
-                                area = float(line[5])
-                                error = int(line[8])
-
-                                area_error.append((area, error))
-
-        sorted_area_error = sorted(area_error, key=lambda x: x[1])
-        area_error_ns_dict[ns] = sorted_area_error
-        area_error = []
-        sorted_area_error = []
-    return area_error_ns_dict
 
 def get_area_error_per_mode(relevant_files, folder):
     area_error_mode_dict: Dict[int: [float, int]] = {}
@@ -505,11 +407,10 @@ def get_runtime_per_mode(relevant_files, folder):
     return runtime_error_per_mode_dict
 
 
-
-def get_runtime_per_mode_and_omax(relevant_files, folder):
-    runtime_error_per_omax_per_mode: Dict = {}
-    runtime_error_per_omax: Dict = {}
-    runtime_error = []
+def get_area_error_per_mode_and_omax(relevant_files, folder):
+    area_error_per_omax_per_mode: Dict = {}
+    area_error_per_omax: Dict = {}
+    area_error = []
     for mode in range(200):
         for omax in range(20):
             for rep in relevant_files:
@@ -527,47 +428,85 @@ def get_runtime_per_mode_and_omax(relevant_files, folder):
                                 exploration = float(line[-1])
                                 cur_runtime = subgraph_extraction + labeling + exploration
                             runtime += cur_runtime
-                    runtime_error.append((et, runtime))
-            print(f'{runtime_error = }')
-            if runtime_error:
-                sorted_runtime_error = sorted(runtime_error, key=lambda x: x[0])
-                runtime_error_per_omax[omax] = sorted_runtime_error
-                runtime_error = []
+                    area_error.append((et, runtime))
+
+            if area_error:
+                sorted_runtime_error = sorted(area_error, key=lambda x: x[0])
+                area_error_per_omax[omax] = sorted_runtime_error
+                area_error = []
+        if area_error_per_omax:
+            area_error_per_omax_per_mode[mode] = area_error_per_omax
+            area_error_per_omax = {}
+
+    return area_error_per_omax_per_mode
+
+
+
+def get_subgraph_area_per_mode_and_imax_omax(relevant_files, folder):
+    runtime_error_per_omax_per_mode: Dict = {}
+    runtime_error_per_omax: Dict = {}
+    area_error = {}
+    cur_area_error = []
+    for mode in range(200):
+        for omax in range(10):
+            for imax in range(10):
+                for rep in relevant_files:
+                    sorted_cur_area_error = []
+                    cur_area_error = []
+                    if re.search(f'mode{mode}_', rep) and re.search(f'omax{omax}_', rep) and re.search(f'imax{imax}_', rep):
+                        et = int(re.search(f'et(\d+)_', rep).group(1))
+                        with open(f'{folder}/{rep}', 'r') as f:
+                            csvreader = csv.reader(f)
+                            for line in csvreader:
+                                if line[0].startswith('cell'):  # skip the first line
+                                    continue
+                                else:
+                                    if line[3].startswith('SAT'):
+                                        cur_et = int(line[8])
+                                        cur_area = float(line[5])
+                                        cur_area_error.append((cur_area, cur_et))
+
+                        sorted_cur_area_error = sorted(cur_area_error, key=lambda x: x[1])
+                        if sorted_cur_area_error:
+                            area_error[et] = sorted_cur_area_error
+
+                if area_error:
+                    runtime_error_per_omax[(imax, omax)] = area_error
+                    area_error = {}
         if runtime_error_per_omax:
             runtime_error_per_omax_per_mode[mode] = runtime_error_per_omax
             runtime_error_per_omax = {}
-
     return runtime_error_per_omax_per_mode
 
-
-def get_subgraph_extraction_runtime_per_mode_and_omax(relevant_files, folder):
+def get_subgraph_extraction_runtime_per_mode_and_imax_omax(relevant_files, folder):
     runtime_error_per_omax_per_mode: Dict = {}
     runtime_error_per_omax: Dict = {}
     runtime_error = []
     for mode in range(200):
-        for omax in range(20):
-            for rep in relevant_files:
-                iterations = []
-                runtime = 0
-                if re.search(f'mode{mode}_', rep) and re.search(f'omax{omax}_', rep):
-                    et = int(re.search(f'et(\d+)_', rep).group(1))
-                    with open(f'{folder}/{rep}', 'r') as f:
-                        csvreader = csv.reader(f)
-                        for line in csvreader:
-                            if line[0].startswith('cell'):  # skip the first line
-                                continue
-                            else:
-                                cur_iter = int(line[1])
-                                if cur_iter not in iterations:
-                                    iterations.append(cur_iter)
-                                    subgraph_extraction = float(line[10])
-                                    runtime += subgraph_extraction
-                    runtime_error.append((et, runtime))
+        for omax in range(10):
+            for imax in range(10):
+                for rep in relevant_files:
+                    iterations = []
+                    runtime = 0
+                    if re.search(f'mode{mode}_', rep) and re.search(f'omax{omax}_', rep) and re.search(f'imax{imax}_', rep):
+                        et = int(re.search(f'et(\d+)_', rep).group(1))
+                        with open(f'{folder}/{rep}', 'r') as f:
+                            csvreader = csv.reader(f)
+                            for line in csvreader:
+                                if line[0].startswith('cell'):  # skip the first line
+                                    continue
+                                else:
+                                    cur_iter = int(line[1])
+                                    if cur_iter not in iterations:
+                                        iterations.append(cur_iter)
+                                        subgraph_extraction = float(line[10])
+                                        runtime += subgraph_extraction
+                        runtime_error.append((et, runtime))
 
-            if runtime_error:
-                sorted_runtime_error = sorted(runtime_error, key=lambda x: x[0])
-                runtime_error_per_omax[omax] = sorted_runtime_error
-                runtime_error = []
+                if runtime_error:
+                    sorted_runtime_error = sorted(runtime_error, key=lambda x: x[0])
+                    runtime_error_per_omax[(imax, omax)] = sorted_runtime_error
+                    runtime_error = []
         if runtime_error_per_omax:
             runtime_error_per_omax_per_mode[mode] = runtime_error_per_omax
             runtime_error_per_omax = {}
@@ -577,52 +516,6 @@ def get_subgraph_extraction_runtime_per_mode_and_omax(relevant_files, folder):
 
 
 
-def get_runtime_per_mode_decomposition(relevant_files, folder):
-
-    runtime_error_decomposed_dict: Dict[Tuple[int, float]] = {}
-    runtime_error_per_mode_dict = {}
-    for mode in range(20):
-        for rep in relevant_files:
-            if re.search(f'mode{mode}_', rep):
-                with open(f'{folder}/{rep}', 'r') as f:
-                    csvreader = csv.reader(f)
-                    for line in csvreader:
-                        if line[0].startswith('cell'):  # skip the first line
-                            continue
-                        else:
-                            error = int(line[8])
-                            subgraph_extraction = float(line[9])
-                            labeling = float(line[10])
-                            exploration = float(line[-1])
-                            if error not in runtime_error_decomposed_dict:
-                                runtime_error_decomposed_dict[error] = []
-                            runtime_error_decomposed_dict[error].append((subgraph_extraction, labeling, exploration))
-    return runtime_error_per_mode_dict
-
-
-def report_sat_cells(args, error_cell_dict_per_mode: Dict):
-    records = []
-    for mode, thresholds in error_cell_dict_per_mode.items():
-        for threshold, tuples in thresholds.items():
-            for tpl in tuples:
-                records.append((mode, threshold, tpl))
-
-    # Create a DataFrame from the records
-    df = pd.DataFrame(records, columns=['Mode', 'Error_Threshold', 'Tuple'])
-
-    # Summarize the DataFrame by counting occurrences of each tuple for every mode and error threshold
-    summary = df.groupby(['Mode', 'Error_Threshold', 'Tuple']).size().reset_index(name='Count')
-
-    # Calculate the total count for each mode
-    total_counts = summary.groupby('Mode')['Count'].transform('sum')
-
-    # Calculate the percentage
-    summary['Percentage'] = round((summary['Count'] / total_counts) * 100, 2)
-
-    folder, _ = OUTPUT_PATH['figure']
-    # Save the summary DataFrame to a CSV file
-    summary.to_csv(f'{folder}/{args.benchmark_name}_error_sat_cells_distribution_per_mode.csv', index=False)
-    print(f'{summary}')
 
 
 def report_sat_cells_vs_subgraph_inputs(args, error_cells_subgraph_inputs_dict_per_mode: Dict):
@@ -650,119 +543,7 @@ def report_sat_cells_vs_subgraph_inputs(args, error_cells_subgraph_inputs_dict_p
     folder, _ = OUTPUT_PATH['figure']
     # Save the summary DataFrame to a CSV file
     summary.to_csv(f'{folder}/{args.benchmark_name}_error_sat_cells_distribution_per_mode.csv', index=False)
-    print(f'{summary}')
-
-
-
-def plot_cells_per_mode(args, error_cell_dict_per_mode):
-    def tuple_score(tpl):
-        return sum(int(x) for x in tpl)
-
-    # Calculate the total score for each mode
-    mode_scores = {}
-    for mode, thresholds in error_cell_dict_per_mode.items():
-        total_score = 0
-        for threshold, tuples in thresholds.items():
-            for tpl in tuples:
-                total_score += tuple_score(tpl)
-        mode_scores[mode] = total_score
-
-    # Convert the scores to a DataFrame
-    scores_df = pd.DataFrame(list(mode_scores.items()), columns=['Mode', 'Total_Score'])
-
-    # Calculate Spearman rank correlation
-    corr, p_value = spearmanr(scores_df['Mode'], scores_df['Total_Score'])
-
-    print(f"Spearman Correlation Coefficient: {corr}")
-    print(f"P-value: {p_value}")
-
-    plt.figure(figsize=(8, 5))
-    plt.bar(scores_df['Mode'], scores_df['Total_Score'], color=['blue', 'orange'])
-    plt.xlabel('Mode')
-    plt.ylabel('Total Sum of lpp and ppo for SAT cells')
-    plt.title('Total Scores')
-    plt.xticks(scores_df['Mode'])
-
-    folder, _ = OUTPUT_PATH['figure']
-    figname = f'{folder}/{args.benchmark_name}_cell_scores_per_mode.png'
-    plt.savefig(figname)
-
-def plot_area_error(args, sorted_area_error: List, area_error_mode_last_points_dict: Dict = None, mecals_area_error: List = None):
-    color_map = {
-        51: 'red',
-        53: 'orange',
-        12: 'cyan',
-        121: 'green'
-
-        # Add more modes and their respective colors as needed
-    }
-    plt.figure(figsize=(10, 6))
-
-    areas = [item[0] for item in sorted_area_error]
-    errors = [item[1] for item in sorted_area_error]
-    assert len(errors) == len(areas)
-    plt.scatter(errors, areas, marker='D', label='SubXPAT', color='blue', alpha=0.2, s=50)
-    # Plot the data
-
-
-    if mecals_area_error:
-        mecals_areas = [item[0] for item in mecals_area_error]
-        mecals_errors = [item[1] for item in mecals_area_error]
-        print(f'{mecals_errors = }')
-        plt.plot(mecals_errors, mecals_areas, 's--', label='MECALS', color='black')
-        plt.legend()
-
-    if area_error_mode_last_points_dict:
-        for mode in area_error_mode_last_points_dict.keys():
-            sorted_area_error_per_mode = area_error_mode_last_points_dict[mode]
-            for grid in sorted_area_error_per_mode.keys():
-                sorted_area_error = sorted_area_error_per_mode[grid]
-                areas = [item[0] for item in sorted_area_error]
-                errors = [item[1] for item in sorted_area_error]
-                color = color_map.get(mode, 'black')
-                plt.scatter(errors, areas, marker='s', label=f'mode{mode} (final-points), grid{grid}', alpha=1,
-                            color=color)
-
-
-    plt.title(f'{args.benchmark_name}, ')
-    plt.xlabel('ET')
-    plt.ylabel('Area')
-    plt.grid(True)
-    plt.legend()
-    folder, _ = OUTPUT_PATH['figure']
-    figname = f'{folder}/{args.benchmark_name}_all.png'
-    plt.savefig(figname)
-
-
-def plot_area_error_per_et(args, area_error_mode_et):
-
-    color_idx = 0
-    distinct_colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown', 'pink', 'gray']
-    modes = list(area_error_mode_et.keys())
-    mode_markers = ['o', 'x', '^']
-    mode_idx = 0
-    for mode in area_error_mode_et.keys():
-        plt.figure(figsize=(10, 6))
-        et_arrays = list(area_error_mode_et[mode].keys())
-        et_arrays.sort()
-
-        for et in et_arrays:
-            areas = [item[0] for item in area_error_mode_et[mode][et]]
-            errors = [item[1] for item in area_error_mode_et[mode][et]]
-            plt.scatter(errors, areas, alpha=0.4, label=f'mode{mode}_et{et}', color=distinct_colors[color_idx % 8], marker=mode_markers[mode_idx])
-            color_idx += 1
-        mode_idx += 1
-
-        plt.title(f'{args.benchmark_name}, ')
-        plt.xlabel('ET')
-        plt.ylabel('Area')
-        plt.grid(True)
-        plt.xticks()
-        plt.legend()
-        folder, _ = OUTPUT_PATH['figure']
-        figname = f'{folder}/{args.benchmark_name}_per_et_mode{mode}.png'
-        plt.savefig(figname)
-        plt.close()
+    # print(f'{summary}')
 
 
 
@@ -815,9 +596,6 @@ def is_dominated(current_point, points):
         if point != current_point:
             if point[0] <= current_point[0] and point[1] <= current_point[1]:
                 return True
-
-
-
     return False
 
 def find_pareto_points(points):
@@ -1034,26 +812,100 @@ def plot_area_error_per_omax(args, area_error_mode_per_grid_dict: Dict, mecals_a
     figname = f'{folder}/{args.benchmark_name}_omax.png'
     plt.savefig(figname)
 
+def plot_area_per_mode_and_imax_omax(args, area_error_per_imax_omax_per_mode, mecals_area_error = None):
+    fig, ax = plt.subplots(figsize=(14, 7))
+    # Calculate the number of unique labels (mode, (imax, omax) pairs)
+    unique_labels = [(mode, (imax, omax)) for mode in area_error_per_imax_omax_per_mode
+                     for (imax, omax) in area_error_per_imax_omax_per_mode[mode]]
+    num_unique_labels = len(unique_labels)
+    # Generate as many colors as unique labels
+    colormap = plt.cm.get_cmap("tab20b")
+    colors = [colormap(i % 20) for i in range(num_unique_labels + num_unique_labels)]
 
-def plot_runtime_per_mode_and_omax(args, runtime_error_per_omax_per_mode):
-    plt.figure(figsize=(10, 6))
-    plt.title(f'{args.benchmark_name} runtime')
-    marker = itertools.cycle(('D', 'o', 'X', 's'))
+    color_idx = 0
+    all_local_ets = []
+    all_global_ets = []
+    for mode, imax_omax_dict in area_error_per_imax_omax_per_mode.items():
+        for (imax, omax), et_dict in imax_omax_dict.items():
+            for global_et, area_local_et_list in et_dict.items():
+                areas, local_ets = zip(*area_local_et_list)
+                all_local_ets.extend(local_ets)
+                all_global_ets.append(global_et)
+                ax.scatter(local_ets, areas, color=colors[color_idx], alpha=0.6)
 
-    for mode in runtime_error_per_omax_per_mode.keys():
-        for omax in runtime_error_per_omax_per_mode[mode].keys():
-            errors = [item[0] for item in runtime_error_per_omax_per_mode[mode][omax]]
-            runtimes = [item[1] for item in runtime_error_per_omax_per_mode[mode][omax]]
-            plt.plot(errors, runtimes, marker=next(marker), label=f'mode{mode}, omax{omax}', alpha=1)
+            ax.scatter([], [], color=colors[color_idx],
+                       label=f'Mode {mode}, (imax, omax) = ({imax}, {omax})')  # Empty scatter for legend
+            color_idx += 2
 
-    plt.legend()
-    plt.xlabel('ET')
-    plt.ylabel('Runtime')
+
+    if mecals_area_error:
+        mecals_areas = [item[0] for item in mecals_area_error]
+        mecals_errors = [item[1] for item in mecals_area_error]
+        ax.plot(mecals_errors, mecals_areas, 's--', label='MECALS', color='black')
+
+
+    # Set labels and title
+    ax.set_xlabel('Local ET Values')
+    ax.set_ylabel('Area')
+    ax.set_title(f'{args.benchmark_name}')
+    ax.legend()
+
+    # Set x-ticks to be the unique Local ET values
+    all_global_ets = sorted(set(all_global_ets))
+    ax.set_xticks(all_global_ets)
+    ax.set_xticklabels(all_global_ets)
 
     plt.grid(True)
     folder, _ = OUTPUT_PATH['figure']
 
-    figname = f'{folder}/{args.benchmark_name}_omax_runtime.png'
+    figname = f'{folder}/{args.benchmark_name}_imax_omax_area.png'
+    plt.savefig(figname)
+
+def plot_runtime_per_mode_and_imax_omax(args, runtime_error_per_omax_per_mode):
+    # print(f'{runtime_error_per_omax_per_mode = }')
+    # plt.figure(figsize=(10, 6))
+    # plt.title(f'{args.benchmark_name} runtime')
+    # marker = itertools.cycle(('D', 'o', 'X', 's'))
+    #
+    # for mode in runtime_error_per_omax_per_mode.keys():
+    #     for omax in runtime_error_per_omax_per_mode[mode].keys():
+    #         errors = [item[0] for item in runtime_error_per_omax_per_mode[mode][omax]]
+    #         runtimes = [item[1] for item in runtime_error_per_omax_per_mode[mode][omax]]
+    #         plt.plot(errors, runtimes, marker=next(marker), label=f'mode{mode}, omax{omax}', alpha=1)
+
+    fig, ax = plt.subplots(figsize=(14, 7))
+    bar_width = 0.1  # Width of the bars
+    total_bars = sum(len(imax_omax_dict) for imax_omax_dict in runtime_error_per_omax_per_mode.values())
+    colors = plt.cm.viridis(np.linspace(0, 1, total_bars))
+
+    # Create a counter for the color and bar positions
+    color_idx = 0
+
+    # Determine the number of ET values from the first mode and first (imax, omax) pair
+    first_mode = next(iter(runtime_error_per_omax_per_mode.values()))
+    first_imax_omax = next(iter(first_mode.values()))
+    num_ets = len(first_imax_omax)
+    bar_positions = np.arange(num_ets)
+
+    for idx, (mode, imax_omax_dict) in enumerate(runtime_error_per_omax_per_mode.items()):
+        for (imax, omax), et_runtime_list in imax_omax_dict.items():
+            ets, runtimes = zip(*et_runtime_list)
+            positions = bar_positions + color_idx * bar_width  # Offset each group's bars
+            ax.bar(positions, runtimes, width=bar_width, label=f'Mode {mode}, (imax, omax) = ({imax}, {omax})',
+                   color=colors[color_idx])
+            color_idx += 1
+
+
+    plt.legend()
+    plt.xlabel('ET')
+    plt.ylabel('Runtime')
+    plt.title(f'{args.benchmark_name}', size=20)
+    ax.set_xticks(np.arange(len(ets)))
+    ax.set_xticklabels(ets)
+    plt.grid(True)
+    folder, _ = OUTPUT_PATH['figure']
+
+    figname = f'{folder}/{args.benchmark_name}_imax_omax_runtime.png'
     plt.savefig(figname)
 
 
@@ -1145,26 +997,22 @@ def plot_report_best_area_for_local_global_et(args, best_per_local_global_et):
     figname = f'{folder}/{args.benchmark_name}_pareto_local_et_per_global_et.png'
     plt.savefig(figname)
 
+# MECALS ================================
+def get_mecals_area_error(args, folder):
+    area_error: List[Tuple[float, int]] = []
+    relevant_files = _get_mecals_rel_files(args, folder)
 
-def plot_runtime_aggregated(args, sorted_runtime_error):
-    areas = [item[0] for item in sorted_runtime_error]
-    errors = [item[1] for item in sorted_runtime_error]
+    if relevant_files:
+        for rep in relevant_files:
+            with open(f'{folder}/{rep}', 'r') as f:
+                cur_area = float(f.readline())
+                cur_wce = int(re.search('wce(\d+).', rep).group(1))
 
-    # Plot the data
-    plt.figure(figsize=(10, 6))
-    assert len(errors) == len(areas)
-
-    plt.plot(errors, areas, 'o-')
-    plt.title(f'{args.benchmark_name}, ')
-    plt.xlabel('ET')
-    plt.ylabel('Runtime')
-    plt.grid(True)
-    folder, _ = OUTPUT_PATH['figure']
-    figname = f'{folder}/{args.benchmark_name}_aggregated_runtime.png'
-    plt.savefig(figname)
-
-
-
+                area_error.append((cur_area, cur_wce))
+        sorted_area_error = sorted(area_error, key=lambda x: x[1])
+        return sorted_area_error
+    else:
+        return []
 
 def _get_mecals_rel_files(args, folder):
     # search the folder:
@@ -1178,9 +1026,46 @@ def _get_mecals_rel_files(args, folder):
             relevant_files.append(file)
     return relevant_files
 
+# MUSCAT ================================
+def _get_muscat_rel_files(args, folder):
+    # search the folder:
+    if os.path.exists(folder):
+        all_files = [f for f in os.listdir(folder)]
+    else:
+        return []
+    relevant_files = []
+    for file in all_files:
+        if re.search(args.benchmark_name, file) and file.endswith('.area'):
+            relevant_files.append(file)
+    return relevant_files
 
-def get_muscat_area_error():
-    pass
+def get_muscat_area_error(args, folder):
+    area_error: List[Tuple[float, int]] = []
+    relevant_files = _get_mecals_rel_files(args, folder)
+
+    if relevant_files:
+        for rep in relevant_files:
+            with open(f'{folder}/{rep}', 'r') as f:
+                cur_area = float(f.readline())
+                cur_wce = int(re.search('wce(\d+).', rep).group(1))
+
+                area_error.append((cur_area, cur_wce))
+        sorted_area_error = sorted(area_error, key=lambda x: x[1])
+        return sorted_area_error
+    else:
+        return []
+
+# SubXPAT ==========================
+def get_relevant_files(args: Arguments, folder):
+    # search the folder:
+    all_files = [f for f in os.listdir(folder)]
+    relevant_files = []
+    for file in all_files:
+        if re.search(args.benchmark_name, file) and file.endswith('.csv'):
+            relevant_files.append(file)
+    return relevant_files
+
+
 
 if __name__ == "__main__":
     main()
