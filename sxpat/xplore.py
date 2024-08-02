@@ -68,6 +68,8 @@ def explore_grid(specs_obj: TemplateSpecs):
         if specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
             et = 2**(i-1)
+            if et > available_error:
+                break
         elif specs_obj.et_partitioning == 'desc':
             log2 = int(math.log2(specs_obj.et))
             et = 2**(log2 - i - 2)
@@ -302,9 +304,10 @@ class CellIterator:
     @classmethod
     def factory(cls, specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
         return {
-            True: cls.shared,
-            False: cls.non_shared,
-        }[specs.shared](specs)
+            (True,False): cls.shared,
+            (False,False): cls.non_shared,
+            (True,True):cls.multilevel
+        }[specs.shared, specs.multilevel](specs)
 
     @staticmethod
     def shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
@@ -317,6 +320,17 @@ class CellIterator:
         for pit in range(1, max_pit + 1):
             for its in range(pit, pit + 3 + 1):
                 yield (its, pit)
+
+    @staticmethod
+    def multilevel(specs: TemplateSpecs) -> Iterator[Tuple[int,int]]:
+        max_lv = specs.num_lev
+        max_pit = specs.max_pit
+
+        yield(1,1)
+
+        for lv in range(1,max_lv):
+            for pit in range(1,max_pit):
+                yield(pit,lv)
 
     @staticmethod
     def non_shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
@@ -340,9 +354,15 @@ def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, in
     )
 
 
-def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int) -> TemplateSpecs:
-    specs_obj.lpp = lpp
-    specs_obj.ppo = specs_obj.pit = ppo
+def set_current_context(specs_obj: TemplateSpecs, var_1: int, var_2: int, iteration: int) -> TemplateSpecs:
+
+    if specs_obj.multilevel:
+        specs_obj.pit = var_2
+        specs_obj.lv = var_1
+    else:
+        specs_obj.lpp = var_1
+        specs_obj.ppo = specs_obj.pit = var_2
+    
     specs_obj.iterations = iteration
     return specs_obj
 

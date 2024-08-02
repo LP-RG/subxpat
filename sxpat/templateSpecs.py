@@ -46,18 +46,23 @@ class TemplateSpecs:
 
         self.__multilevel: bool = bool(kwargs[MULTILEVEL])
         self.__number_of_levels: int = int(kwargs[NUMBER_OF_LEVELS])
+        self.__actual_number_of_levels: int = None
 
     @property
     def multilevel(self):
         return self.__multilevel
     
     @property
-    def lv(self):
+    def num_lev(self):
         return self.__number_of_levels
+
+    @property
+    def lv(self):
+        return self.__actual_number_of_levels
     
     @lv.setter
     def lv(self, new_value :int):
-        self.__number_of_levels = new_value
+        self.__actual_number_of_levels = new_value
 
     @property
     def num_subgraphs(self):
