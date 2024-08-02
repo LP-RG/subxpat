@@ -65,6 +65,7 @@ def main():
                                   multilevel=args.multilevel,number_of_levels=args.lv)
         if specs_obj.grid:
             stats_obj = explore_grid(specs_obj)
+
         else:
             # todo:question: What should happen here?
             raise NotImplementedError('WIP: for now --grid must be passed')

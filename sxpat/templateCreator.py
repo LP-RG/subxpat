@@ -734,6 +734,11 @@ class Template_SOP1(TemplateCreator):
                     idx] = f"{self.__z3_get_approximate_label(inp)}({', '.join(list(self.current_graph.input_dict.values()))})"
         return input_list_tmp
 
+
+    def key_funciton_for_sorting(self, el):
+        idx = int(re.search(r'(\d+)$', el).group(1))
+        return idx
+
     def __fix_order(self):
         subpgraph_input_list = list(self.current_graph.subgraph_input_dict.values())
         subpgraph_input_list_ordered = []
@@ -742,18 +747,24 @@ class Template_SOP1(TemplateCreator):
 
         for node in subpgraph_input_list:
             if re.search('in(\d+)', node):
-                idx = int(re.search('in(\d+)', node).group(1))
                 pi_list.append(node)
             else:
                 g_list.append(node)
 
-        pi_list.sort(key=lambda x: re.search('\d+', x).group())
+        # pi_list.sort(key=key_funciton_for_sorting)
+        # print(f'{pi_list = }')
+        # print(f'{g_list = }')
+        pi_list = sorted(pi_list, key=self.key_funciton_for_sorting)
+        g_list = sorted(g_list, key=self.key_funciton_for_sorting)
+        # pi_list.sort(key=lambda x: re.search('\d+', x).group())
 
+        # print(f'{pi_list = }')
+        # print(f'{g_list = }')
         for el in pi_list:
             subpgraph_input_list_ordered.append(el)
         for el in g_list:
             subpgraph_input_list_ordered.append(el)
-
+        # print(f'{subpgraph_input_list_ordered = }')
         return subpgraph_input_list_ordered
 
     def z3_express_node_as_wire_constraints_subxpat(self, node: str):
@@ -1768,22 +1779,26 @@ class Template_SOP1(TemplateCreator):
         return stats
 
     def z3_generate_config(self):
+        print(f'{self.current_graph.num_outputs = }')
         config = ''
         config += f'ET = int(sys.argv[1])\n' \
+                  f"print(f'{{ET = }}')\n" \
                   f'wanted_models: int = 1 if len(sys.argv) < 3 else int(sys.argv[2])\n' \
                   f'timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])\n' \
-                  f'max_possible_ET: int = 2 ** 3 - 1\n' \
+                  f'max_possible_ET: int = 2 ** {self.current_graph.num_outputs} - 1\n' \
                   f'\n'
 
         return config
 
     def z3_generate_config_bitvec(self):
+        # print(f'{self.current_graph.num_outputs = }')
         config = ''
         config += f'ET = int(sys.argv[1])\n' \
+                  f"print(f'{{ET = }}')\n" \
                   f'ET_BV = BitVecVal(ET, {self.exact_graph.num_outputs})\n' \
                   f'wanted_models: int = 1 if len(sys.argv) < 3 else int(sys.argv[2])\n' \
                   f'timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])\n' \
-                  f'max_possible_ET: int = 2 ** 3 - 1\n' \
+                  f'max_possible_ET: int = 2 ** {self.exact_graph.num_outputs} - 1\n' \
                   f'\n'
         return config
 
@@ -3536,11 +3551,12 @@ class Template_SOP1ShareLogic(TemplateCreator):
 
     # NM
     def z3_generate_config(self):
+        print(f'{self.current_graph.num_outputs = }')
         config = ''
         config += f'ET = int(sys.argv[1])\n' \
                   f'wanted_models: int = 1 if len(sys.argv) < 3 else int(sys.argv[2])\n' \
                   f'timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])\n' \
-                  f'max_possible_ET: int = 2 ** 3 - 1\n' \
+                  f'max_possible_ET: int = 2 ** {self.current_graph.num_outputs} - 1\n' \
                   f'\n'
 
         return config
