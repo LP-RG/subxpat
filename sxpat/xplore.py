@@ -310,13 +310,10 @@ class CellIterator:
     def multilevel(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
         max_pit = specs.max_pit
         max_lv = specs.num_lev
-        # special cell
-        yield (2, 2)
-
         # grid cells
-        for pit in range(2, max_pit + 3):
-            for lv in range(2, max_lv + 3):
-                yield (lv, pit)
+        for lv in range(2, max_lv):
+            for pit in range(1, max_pit):
+                yield (pit,lv)
 
 
     @staticmethod
@@ -355,8 +352,8 @@ def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, in
 
 def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int) -> TemplateSpecs:
     if specs_obj.multilevel:
-        specs_obj.lv = lpp
-        specs_obj.pit = ppo
+        specs_obj.lv = ppo
+        specs_obj.pit = lpp
     else:
         specs_obj.lpp = lpp
         specs_obj.ppo = specs_obj.pit = ppo

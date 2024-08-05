@@ -407,11 +407,21 @@ class Synthesis:
 
         #back
         # for n in self.graph.output_dict.values():
-        for n in self.graph.output_dict.values():
-            pn = list(self.graph.graph.predecessors(n))
-            #pn = list(self.graph.graph.predecessors(n))
-            if not (pn[0] in self.graph.constant_dict.values()) and not(pn[0] in self.graph.graph_intact_gate_dict.values()):
-                multilevel_assigns += f'assign {sxpatconfig.VER_WIRE_PREFIX}{pn[0]} = {sxpatconfig.VER_WIRE_PREFIX}out{idx};\n'
+        w_gate = {}
+
+        for n in self.graph.subgraph_output_dict.values():
+            match = re.search(r'\d+', n)
+            if match:
+                key_gate = int(match.group())
+                if not(key_gate in w_gate.keys()):
+                    w_gate[key_gate] = n
+            
+        #pn = list(self.graph.graph.predecessors(n))
+        w_gate = dict(sorted(w_gate.items()))
+        print(w_gate.keys())
+        for gate in w_gate.values():
+            if not (gate in self.graph.constant_dict.values()) and not(gate in self.graph.graph_intact_gate_dict.values()):
+                multilevel_assigns += f'assign {sxpatconfig.VER_WIRE_PREFIX}{gate} = {sxpatconfig.VER_WIRE_PREFIX}out{idx};\n'
                 idx+=1
         return multilevel_assigns
 
