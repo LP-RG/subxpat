@@ -145,7 +145,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             # explore the grid
             pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
             dominant_cells = []
-            for lpp, ppo in CellIterator.factory(specs_obj):
+            for lpp, ppo in CellIterator.factory(specs_obj,current_graph.subgraph_num_outputs):
                 if is_dominated((lpp, ppo), dominant_cells):
                     pprint.info1(f'Cell({lpp},{ppo}) at iteration {i} -> DOMINATED')
                     continue
@@ -298,26 +298,26 @@ def explore_grid(specs_obj: TemplateSpecs):
 
 class CellIterator:
     @classmethod
-    def factory(cls, specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def factory(cls, specs: TemplateSpecs, num_out = 0) -> Iterator[Tuple[int, int]]:
         return {
             (True,False): cls.shared,
             (False,False): cls.non_shared,
             (True,True) : cls.multilevel,
-        }[specs.shared,specs.multilevel](specs)
+        }[specs.shared,specs.multilevel](specs,num_out)
 
 
     @staticmethod
-    def multilevel(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
-        max_pit = specs.max_pit
+    def multilevel(specs: TemplateSpecs, num_out: int) -> Iterator[Tuple[int, int]]:
+        max_pit = specs.max_pit + num_out
         max_lv = specs.num_lev
         # grid cells
-        for lv in range(2, max_lv):
-            for pit in range(1, max_pit):
-                yield (pit,lv)
+        for pit in range(1, max_pit):
+            for lv in range(2, max_lv):
+                yield (lv,pit)
 
 
     @staticmethod
-    def shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def shared(specs: TemplateSpecs, num_out: int) -> Iterator[Tuple[int, int]]:
         max_pit = specs.max_pit
 
         # special cell
@@ -329,7 +329,7 @@ class CellIterator:
                 yield (its, pit)
 
     @staticmethod
-    def non_shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def non_shared(specs: TemplateSpecs, num_out: int) -> Iterator[Tuple[int, int]]:
         max_lpp = specs.max_lpp
         max_ppo = specs.max_ppo
 
@@ -352,8 +352,8 @@ def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, in
 
 def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int) -> TemplateSpecs:
     if specs_obj.multilevel:
-        specs_obj.lv = ppo
-        specs_obj.pit = lpp
+        specs_obj.lv = lpp
+        specs_obj.pit = ppo
     else:
         specs_obj.lpp = lpp
         specs_obj.ppo = specs_obj.pit = ppo

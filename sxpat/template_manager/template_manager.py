@@ -958,21 +958,21 @@ class MultilevelManager(ProductTemplateManager):
         #logic dependant constraint
 
         # ode connection constraint
-        lines = []
-        lines.append('# node connection constraint')
-        for lv in range(len(npl)-1):
-            lines.append(
-                ' + '.join(
-                    itertools.chain
-                    (
-                        (
-                            f'If({self._node_connection_levels(f_nd,lv,t_nd,lv+1)},1,0)'    # p_con_fn#_lv#_tn#_lv#
-                        )
-                        for t_nd in range(npl[lv+1])
-                        for f_nd in range(npl[lv])
-                    ),
-                ) + ' >= 1,' 
-            )
+        # lines = []
+        # lines.append('# node connection constraint')
+        # for lv in range(len(npl)-1):
+        #     lines.append(
+        #         ' + '.join(
+        #             itertools.chain
+        #             (
+        #                 (
+        #                     f'If({self._node_connection_levels(f_nd,lv,t_nd,lv+1)},1,0)'    # p_con_fn#_lv#_tn#_lv#
+        #                 )
+        #                 for t_nd in range(npl[lv+1])
+        #                 for f_nd in range(npl[lv])
+        #             ),
+        #         ) + ' >= 1,' 
+        #     )
         # connect at least one node to the output
         # lines.append('\n# At least one node connect to the output')
         # for output_i in self.subgraph_outputs.keys():
