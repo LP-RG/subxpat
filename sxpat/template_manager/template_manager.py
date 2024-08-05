@@ -985,7 +985,7 @@ class MultilevelManager(ProductTemplateManager):
         #         )
         #     ))
         #     lines.append(output_i_constraint) 
-        builder.update(logic_dependant_constraint1 = '\n'.join(lines))
+        builder.update(logic_dependant_constraint1 = '')#'\n'.join(lines))
 
 
         # product_order_constraint
