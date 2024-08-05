@@ -957,46 +957,22 @@ class MultilevelManager(ProductTemplateManager):
         # ----------------------------- # ----------------------------- #
         #logic dependant constraint
 
-        # its_constraint
-        lines = [""]
-        # lines.append('# its constraint')
-        # for lv in range(len(npl)):
-        #     its_constraint = tuple(
-        #         self._edge_constraint(
-        #             itertools.chain(
-        #                 f'{sxpat_cfg.Z3_NOT}({self._input_parameters(input_i,node_i)[1]})'
-        #                 for input_i in self.subgraph_inputs.keys() 
-        #             )
-        #         )
-        #         for node_i in range(npl[0])
-        #     )if lv == 0 else tuple(
-        #         self._edge_constraint(
-        #             itertools.chain(
-        #                 self._node_connection_levels(node_fr,lv-1,node_to,lv)
-        #                 for node_fr in range(npl[lv-1])    
-        #             )
-        #         )
-        #         for node_to in range(npl[lv])
-        #     )
-        #     lines.extend(
-        #         f'# its constraint for level: {lv} \n {self._encoding.unsigned_greater(self._specs.lpp, constr)},' # IMPORTANT unsigned_greater_equal is solwer than unsigned_greater
-        #         for constr in its_constraint
-        #     )
-        
-        #lpp input constraint
-        # lines.append('# its constraint, input layer')
-        # for nd in range(npl[0]):
-        #     lv_constr =' + '.join(
-        #         tuple(
-        #             itertools.chain
-        #             (
-        #                 f'If({self._input_parameters(in_i,nd)[1]},1,0)'
-        #                 for in_i in range(len(self.subgraph_inputs))
-        #             )
-        #         )
-        #     )
-        #     lines.append(f'{self._specs.lpp} >= ({lv_constr}),')
-
+        # ode connection constraint
+        lines = []
+        lines.append('# node connection constraint')
+        for lv in range(len(npl)-1):
+            lines.append(
+                ' + '.join(
+                    itertools.chain
+                    (
+                        (
+                            f'If({self._node_connection_levels(f_nd,lv,t_nd,lv+1)},1,0)'    # p_con_fn#_lv#_tn#_lv#
+                        )
+                        for t_nd in range(npl[lv+1])
+                        for f_nd in range(npl[lv])
+                    ),
+                ) + ' >= 1,' 
+            )
         # connect at least one node to the output
         # lines.append('\n# At least one node connect to the output')
         # for output_i in self.subgraph_outputs.keys():
@@ -1013,31 +989,18 @@ class MultilevelManager(ProductTemplateManager):
 
 
         # product_order_constraint
-        """ for lv in range(len(npl)):
-            if npl[lv] == 1:
-                lines.append(f'# No order needed for only one node at - level: {lv}')
-            else:
-                products = tuple(
-                    self._encoding.aggregate_variables(
-                        itertools.chain(
-                            f'{sxpat_cfg.Z3_NOT}({self._input_parameters(input_i,node_i)[1]})'
-                            for input_i in self.subgraph_inputs.keys() 
-                        )
-                    )
-                    for node_i in range(npl[0])
-                )if lv == 0 else tuple(
-                    self._encoding.aggregate_variables(
-                        itertools.chain(
-                            self._node_connection_levels(node_fr,lv-1,node_to,lv)
-                            for node_fr in range(npl[lv-1])    
-                        )
-                    )
-                    for node_to in range(npl[lv])
-                )
-                lines.extend(
-                    f'# product order constraint for level: {lv} \n {self._encoding.unsigned_greater(product_a, product_b)},'
-                    for product_a, product_b in pairwise_iter(products)
-                )if npl[lv-1] > 1 else lines.append(f'# No order needed because of only one node at previous lv:{lv-1} - level: {lv}') """
+        # list_of_constraint = []
+        # for lv in range(len(npl)):
+        #     if npl[lv] == 1:
+        #         lines.append(f'# No order needed for only one node at - level: {lv}')
+        #     else:
+        #         if lv == len(npl) - 1:
+        #             list_of_constraint.append(
+
+        #             )
+        #             continue
+        #         else:
+        #             continue
 
         builder.update(product_order_constraint='')
         # ----------------------------- # ----------------------------- #
