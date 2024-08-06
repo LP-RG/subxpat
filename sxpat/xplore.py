@@ -301,8 +301,8 @@ class CellIterator:
         max_pit = specs.max_pit + num_out
         max_lv = specs.num_lev
         # grid cells
-        for pit in range(1, max_pit):
-            for lv in range(1, max_lv):
+        for lv in range(2, max_lv):
+            for pit in range(1, max_pit):
                 yield (lv,pit)
 
 
