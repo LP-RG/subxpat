@@ -818,7 +818,9 @@ class MultilevelManager(ProductTemplateManager):
         npl = [self.pit]*self.lv
         # npl = [self._specs.pit]*self._specs.lpp
         # npl[0] = self.subgraph_inputs.__len__()
+
         npl[len(npl)-1] = self.subgraph_outputs.__len__()
+
         # npl[self.lv - 1] = self.subgraph_outputs.__len__()
         print(f'npl = {npl}')
         
@@ -957,7 +959,7 @@ class MultilevelManager(ProductTemplateManager):
         # ----------------------------- # ----------------------------- #
         #logic dependant constraint
 
-        # ode connection constraint
+        # node connection constraint
         # lines = []
         # lines.append('# node connection constraint')
         # for lv in range(len(npl)-1):
@@ -985,7 +987,14 @@ class MultilevelManager(ProductTemplateManager):
         #         )
         #     ))
         #     lines.append(output_i_constraint) 
-        builder.update(logic_dependant_constraint1 = '')#'\n'.join(lines))
+
+        lines = []
+        lines.append('# negation - connection constraint')
+        for lv in range(len(npl)-1,0,-1):
+            for t_nd in range(npl[lv]):
+                for f_nd in range(npl[lv-1]):
+                    lines.append(f'Implies({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},{self._node_connection_levels(f_nd,lv-1,t_nd,lv)}),')
+        builder.update(logic_dependant_constraint1 = '\n'.join(lines))#'\n'.join(lines))
 
 
         # product_order_constraint
