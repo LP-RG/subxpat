@@ -114,9 +114,19 @@ def explore_grid(specs_obj: TemplateSpecs):
             # extract subgraph
             t_start = time.time()
             subgraph_is_available = current_graph.extract_subgraph(specs_obj)
-            previous_subgraphs.append(current_graph.subgraph)
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
+
+            # store subgraph
+            previous_subgraphs.append(current_graph.subgraph)
+            # skip the iteration if the subraph is equal to the previous one
+            if (
+                len(previous_subgraphs) >= 2
+                and nx.utils.graphs_equal(previous_subgraphs[-2], previous_subgraphs[-1])
+            ):
+                pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
+                prev_actual_error = 0
+                continue
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
@@ -248,25 +258,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if exists_an_area_zero(current_population):
             break
-
-        # This is to fix another problem (also previously known as loop)
-        # This is where the exploration get stuck in a loop of creating the same approximate circuit over and over again
-        # Here, I check if the last three subgraphs are equal, if so, this means that the exploration needs to be
-        # terminated!
-        loop_detected = False
-        for idx, s in enumerate(previous_subgraphs):
-            if idx == len(previous_subgraphs) - 1 and idx > 1:
-                if nx.utils.graphs_equal(previous_subgraphs[idx - 2], previous_subgraphs[idx - 1]) and \
-                        nx.utils.graphs_equal(previous_subgraphs[idx - 2], previous_subgraphs[idx - 3]):
-                    print(f'The last three subgraphs are equal')
-                    pprint.info3(f'The last three subgraphs are equal!')
-                    pprint.info3(f'Terminating the exploration!')
-                    loop_detected = True
-                    prev_actual_error = 0
-                    break
-
-        if loop_detected:
-            continue
 
     display_the_tree(total)
 
