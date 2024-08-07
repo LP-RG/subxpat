@@ -53,7 +53,6 @@ def explore_grid(specs_obj: TemplateSpecs):
     current_population: Dict = {specs_obj.benchmark_name: ('Area', 'Delay', 'Power', ('LPP', 'PPO'))}
     next_generation: Dict = {}
     total: Dict[Dict] = {}
-    pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
     available_error = specs_obj.et
     obtained_wce_exact = 0
     i = 0
@@ -77,6 +76,9 @@ def explore_grid(specs_obj: TemplateSpecs):
         else:
             raise NotImplementedError('invalid status')
         
+        if not specs_obj.subxpat:
+            et = specs_obj.et
+
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
@@ -161,7 +163,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                                             subgraph_number_outputs=current_graph.subgraph_num_outputs,
                                             subxpat_v1_time=execution_time)
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
-                    pre_iter_unsats[candidate] += 1
 
                     if cur_status == UNKNOWN:
                         # store cell as dominant (to skip dominated subgrid)
@@ -234,20 +235,12 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                     for key in cur_model_results.keys():
                         next_generation[key] = cur_model_results[key]
-                    pre_iter_unsats[candidate] = 0
 
                     current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
                     total[i] = current_population
 
                     next_generation = {}
-                    pre_iter_unsats = {}
-                    for key in current_population.keys():
-                        pre_iter_unsats[key] = 0
-                    next_generation = {}
-                    pre_iter_unsats = {}
-                    for key in current_population.keys():
-                        pre_iter_unsats[key] = 0
-
+                   
                     # SAT found, stop grid exploration
                     break
                 prev_actual_error = 0
@@ -269,10 +262,11 @@ def explore_grid(specs_obj: TemplateSpecs):
                     pprint.info3(f'The last three subgraphs are equal!')
                     pprint.info3(f'Terminating the exploration!')
                     loop_detected = True
+                    prev_actual_error = 0
                     break
 
         if loop_detected:
-            break
+            continue
 
 
     display_the_tree(total)
