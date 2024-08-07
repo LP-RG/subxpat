@@ -61,7 +61,11 @@ def explore_grid(specs_obj: TemplateSpecs):
 
     while (obtained_wce_exact < available_error):
         i += 1
-        if specs_obj.et_partitioning == 'asc':
+
+        if not specs_obj.subxpat:
+            et = specs_obj.et
+
+        elif specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
             et = 2**(i-1)
         elif specs_obj.et_partitioning == 'desc':
@@ -75,14 +79,11 @@ def explore_grid(specs_obj: TemplateSpecs):
             prev_given_error = et
         else:
             raise NotImplementedError('invalid status')
-        
-        if not specs_obj.subxpat:
-            et = specs_obj.et
 
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
-        
+
         # for all candidates
         for candidate in current_population:
 
@@ -240,14 +241,13 @@ def explore_grid(specs_obj: TemplateSpecs):
                     total[i] = current_population
 
                     next_generation = {}
-                   
+
                     # SAT found, stop grid exploration
                     break
                 prev_actual_error = 0
 
         if exists_an_area_zero(current_population):
             break
-
 
         # This is to fix another problem (also previously known as loop)
         # This is where the exploration get stuck in a loop of creating the same approximate circuit over and over again
@@ -267,7 +267,6 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         if loop_detected:
             continue
-
 
     display_the_tree(total)
 
