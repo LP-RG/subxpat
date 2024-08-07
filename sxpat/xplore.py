@@ -298,11 +298,12 @@ class CellIterator:
 
     @staticmethod
     def multilevel(specs: TemplateSpecs, num_out: int) -> Iterator[Tuple[int, int]]:
-        max_pit = specs.max_pit + num_out
+        max_pit = specs.max_pit
         max_lv = specs.num_lev
         # grid cells
+        yield(2,1)
         for lv in range(2, max_lv):
-            for pit in range(1, max_pit):
+            for pit in range(2, max_pit):
                 yield (lv,pit)
 
 

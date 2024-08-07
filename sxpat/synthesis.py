@@ -312,7 +312,7 @@ class Synthesis:
 
     def __generate_nodes_per_gates(self) -> List[int]:
         nodes_per_level = [self.specs.pit]*self.specs.lv
-        nodes_per_level[self.specs.lv-1] = self.graph.subgraph_num_outputs
+        #nodes_per_level[self.specs.lv-1] = self.graph.subgraph_num_outputs
         return nodes_per_level
     
     def __json_model_wire_declarations_multilevel(self, nodes_per_level):
@@ -418,7 +418,7 @@ class Synthesis:
             
         #pn = list(self.graph.graph.predecessors(n))
         w_gate = dict(sorted(w_gate.items()))
-        print(w_gate.keys())
+        # print(w_gate.keys())
         for gate in w_gate.values():
             if not (gate in self.graph.constant_dict.values()) and not(gate in self.graph.graph_intact_gate_dict.values()):
                 multilevel_assigns += f'assign {sxpatconfig.VER_WIRE_PREFIX}{gate} = {sxpatconfig.VER_WIRE_PREFIX}out{idx};\n'

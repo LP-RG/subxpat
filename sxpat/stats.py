@@ -287,7 +287,10 @@ class Grid:
     def __init__(self, spec_obj: TemplateSpecs):
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
-        if spec_obj.shared:
+        if spec_obj.multilevel:
+            self.__lpp: int = spec_obj.num_lev
+            self.__ppo: int = spec_obj.max_pit
+        elif spec_obj.shared:
             self.__lpp: int = spec_obj.max_its
             self.__ppo: int = spec_obj.max_pit
         else:
@@ -355,7 +358,10 @@ class Stats:
         self.__template_name = spec_obj.template_name
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
-        if spec_obj.shared:
+        if spec_obj.multilevel:
+            self.__lpp: int = spec_obj.num_lev
+            self.__ppo: int = spec_obj.max_pit
+        elif spec_obj.shared:
             self.__lpp: int = spec_obj.max_its
             self.__ppo: int = spec_obj.max_pit
         else:

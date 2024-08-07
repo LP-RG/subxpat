@@ -806,12 +806,12 @@ class MultilevelManager(ProductTemplateManager):
     def _update_builder(self, builder: Builder) -> None:
         # apply superclass updates
         super()._update_builder(builder)
-        print("Multilevel")
-        print(f'number of sub_outputs in template gen = {self.subgraph_outputs.__len__()}')
-        print(f'number of sub_inputs in template gen = {self.subgraph_inputs.__len__()}')
-        print(f'number of levels = {self._specs.lv}')
-        print(f'actual level(lpp) = {self._specs.lpp}')
-        print(f'actual node per level (pit) = {self._specs.pit}')
+        # print("Multilevel")
+        # print(f'number of sub_outputs in template gen = {self.subgraph_outputs.__len__()}')
+        # print(f'number of sub_inputs in template gen = {self.subgraph_inputs.__len__()}')
+        # print(f'number of levels = {self._specs.lv}')
+        # print(f'actual level(lpp) = {self._specs.lpp}')
+        # print(f'actual node per level (pit) = {self._specs.pit}')
         # Node Per Level
         # initialization gpl
         # Amedeo: note that this could be parametrized with different number of gates for each level
@@ -819,10 +819,10 @@ class MultilevelManager(ProductTemplateManager):
         # npl = [self._specs.pit]*self._specs.lpp
         # npl[0] = self.subgraph_inputs.__len__()
 
-        # npl[len(npl)-1] = self.subgraph_outputs.__len__()
+        #npl[len(npl)-1] = self.subgraph_outputs.__len__()
 
         # npl[self.lv - 1] = self.subgraph_outputs.__len__()
-        print(f'npl = {npl}')
+        # print(f'npl = {npl}')
         
 
         # params_declaration
