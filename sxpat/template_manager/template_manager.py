@@ -819,7 +819,7 @@ class MultilevelManager(ProductTemplateManager):
         # npl = [self._specs.pit]*self._specs.lpp
         # npl[0] = self.subgraph_inputs.__len__()
 
-        #npl[len(npl)-1] = self.subgraph_outputs.__len__()
+        npl[len(npl)-1] = self.subgraph_outputs.__len__()
 
         # npl[self.lv - 1] = self.subgraph_outputs.__len__()
         # print(f'npl = {npl}')
@@ -957,61 +957,45 @@ class MultilevelManager(ProductTemplateManager):
             )
         ))
         # ----------------------------- # ----------------------------- #
-        #logic dependant constraint
-
-        # node connection constraint
-        # lines = []
-        # lines.append('# node connection constraint')
-        # for lv in range(len(npl)-1):
-        #     lines.append(
-        #         ' + '.join(
-        #             itertools.chain
-        #             (
-        #                 (
-        #                     f'If({self._node_connection_levels(f_nd,lv,t_nd,lv+1)},1,0)'    # p_con_fn#_lv#_tn#_lv#
-        #                 )
-        #                 for t_nd in range(npl[lv+1])
-        #                 for f_nd in range(npl[lv])
-        #             ),
-        #         ) + ' >= 1,' 
-        #     )
-        # connect at least one node to the output
-        # lines.append('\n# At least one node connect to the output')
-        # for output_i in self.subgraph_outputs.keys():
-        #     lines.append(f'# Constraint for output {output_i}')
-        #     output_i_constraint = 'Or({}),'.format(', '.join(
-        #         itertools.chain
-        #         (
-        #             self._node_connection_output(nd,output_i)  # p_con_fn#_to#               
-        #             for nd in range(npl[len(npl)-1])
-        #         )
-        #     ))
-        #     lines.append(output_i_constraint) 
-
         lines = []
-        lines.append('# negation - connection constraint')
+        lines.append('# negation -> connection constraint')
         for lv in range(len(npl)-1,0,-1):
             for t_nd in range(npl[lv]):
                 for f_nd in range(npl[lv-1]):
                     lines.append(f'Implies({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},{self._node_connection_levels(f_nd,lv-1,t_nd,lv)}),')
         builder.update(logic_dependant_constraint1 = '\n'.join(lines))#'\n'.join(lines))
+        
 
+        # node_order_constraint
+        lines = []
+        for lv in range(len(npl)):
+            if npl[lv] == 1:
+                lines.append(f'# No order needed for a single node - level: {lv}')
+            else:
+                lines.append(f'# level {lv} - node order constr')
+                constr_line = []
+                if lv == 0:
+                    for t_nd in range(npl[lv]):
+                        constr_line.append(' + '.join(
+                            itertools.chain
+                            (
+                                f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},2,1),0)'   
+                                for input_i in range(self.subgraph_inputs.__len__())
+                            )))
+                else:
+                    for t_nd in range(npl[lv]):
+                        constr_line.append(' + '.join(
+                            itertools.chain
+                            (
+                                f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},2,1),0)'   
+                                for f_nd in range(npl[lv-1])
+                            )))
+                lines.extend(
+                    f'{self._encoding.unsigned_greater(node_a, node_b)},'
+                    for node_a, node_b in pairwise_iter(constr_line)
+                )
 
-        # product_order_constraint
-        # list_of_constraint = []
-        # for lv in range(len(npl)):
-        #     if npl[lv] == 1:
-        #         lines.append(f'# No order needed for only one node at - level: {lv}')
-        #     else:
-        #         if lv == len(npl) - 1:
-        #             list_of_constraint.append(
-
-        #             )
-        #             continue
-        #         else:
-        #             continue
-
-        builder.update(product_order_constraint='')
+        builder.update(product_order_constraint= '\n'.join(lines))
         # ----------------------------- # ----------------------------- #
     
         #TODO: impement the following constraint
@@ -1021,29 +1005,7 @@ class MultilevelManager(ProductTemplateManager):
         # remove_zero_permutations_constraint
         # TODO: add it for all outpus
         lines = [""]
-        """ lines.append('\n# At least one node connect to the output')
-        for output_i in self.subgraph_outputs.keys():
-            lines.append(f'# Constraint for output {output_i}')
-            output_i_constraint = 'Or({}),'.format(', '.join(
-                itertools.chain
-                (
-                    self._node_connection_output(nd,output_i)  # p_con_fn#_to#               
-                    for nd in range(npl[len(npl)-1])
-                )
-            ))
-            lines.append(output_i_constraint)"""
-        builder.update(remove_zero_permutations_constraint='\n'.join(lines))
-        # builder.update(remove_zero_permutations_constraint='\n{}\nOr({}),'.format(
-        #     '# At least one node connect to the output',
-        #     ','.join(
-        #         itertools.chain
-        #         (
-        #             self._node_connection_output(nd,output_i)  # p_con_fn#_to#               
-        #             for output_i in self.subgraph_outputs.keys()
-        #             for nd in range(npl[len(npl)-1])
-        #         )
-        #     )
-        # ))
+        builder.update(remove_zero_permutations_constraint=''.join(lines))
 
         # ----------------------------- # ----------------------------- #
         # general informations: benchmark_name, encoding and cell
