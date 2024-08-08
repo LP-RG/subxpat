@@ -60,12 +60,16 @@ def explore_grid(specs_obj: TemplateSpecs):
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
+    previous_iteration_graph = {}
 
     while (obtained_wce_exact < available_error):
         i += 1
         if specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
+            # if 2**(i-1) <= available_error:
             et = 2**(i-1)
+            # if et > available_error:
+            #     break
         elif specs_obj.et_partitioning == 'desc':
             log2 = int(math.log2(specs_obj.et))
             et = 2**(log2 - i - 2)
@@ -151,6 +155,35 @@ def explore_grid(specs_obj: TemplateSpecs):
                 execution_time = time.time() - start_time
 
                 cur_status = results[0].status
+                # If multilevel and SAT check whether the new approximation is different from the input graph 
+                if specs_obj.multilevel and cur_status == SAT and i > 1:
+
+                    pprint.cyan("HERE")
+                    synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
+                    cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
+
+                    for idx in range(synth_obj.num_of_models):
+                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
+                        synth_obj.export_verilog(idx=idx)
+                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
+
+                        for obj_model in previous_iteration_graph.values():
+                            if obj_model[0] != synth_obj.estimate_area():
+                                pprint.success("can get this model")
+                                print(obj_model)
+                                pprint.info1(f'obj_model[0] = {obj_model[0]}, synth_obj.estimate_area = {synth_obj.estimate_area()}')
+                                cur_model_results[synth_obj.ver_out_name] = (
+                                    synth_obj.estimate_area(),
+                                    synth_obj.estimate_power(),
+                                    synth_obj.estimate_delay(),
+                                    (lpp, ppo)
+                                )
+                    if not cur_model_results:
+                        cur_status = UNSAT
+                    else:
+                        previous_iteration_graph = cur_model_results
+                        print(f'changin previous iteration graph ... {previous_iteration_graph}')
+
                 if cur_status in (UNSAT, UNKNOWN):
                     pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()}')
 
@@ -169,18 +202,20 @@ def explore_grid(specs_obj: TemplateSpecs):
                         dominant_cells.append((lpp, ppo))
 
                 elif cur_status == SAT:
-                    synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
-                    cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
-                    for idx in range(synth_obj.num_of_models):
-                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
-                        synth_obj.export_verilog(idx=idx)
-                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
-                        cur_model_results[synth_obj.ver_out_name] = (
-                            synth_obj.estimate_area(),
-                            synth_obj.estimate_power(),
-                            synth_obj.estimate_delay(),
-                            (lpp, ppo)
-                        )
+                    if specs_obj.shared and (not specs_obj.multilevel or i == 1):
+                        synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
+                        cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
+                        for idx in range(synth_obj.num_of_models):
+                            synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
+                            synth_obj.export_verilog(idx=idx)
+                            synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
+                            cur_model_results[synth_obj.ver_out_name] = (
+                                synth_obj.estimate_area(),
+                                synth_obj.estimate_power(),
+                                synth_obj.estimate_delay(),
+                                (lpp, ppo)
+                            )
+                        previous_iteration_graph = cur_model_results
 
                     # todo: should we refactor with pandas?
                     with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
