@@ -819,7 +819,7 @@ class MultilevelManager(ProductTemplateManager):
         # npl = [self._specs.pit]*self._specs.lpp
         # npl[0] = self.subgraph_inputs.__len__()
 
-        npl[len(npl)-1] = self.subgraph_outputs.__len__()
+        # npl[len(npl)-1] = self.subgraph_outputs.__len__()
 
         # npl[self.lv - 1] = self.subgraph_outputs.__len__()
         # print(f'npl = {npl}')
@@ -957,15 +957,20 @@ class MultilevelManager(ProductTemplateManager):
             )
         ))
         # ----------------------------- # ----------------------------- #
+
+        # logic dependant consraint
+
+        # negation -> connection constraint
         lines = []
         lines.append('# negation -> connection constraint')
         for lv in range(len(npl)-1,0,-1):
             for t_nd in range(npl[lv]):
                 for f_nd in range(npl[lv-1]):
                     lines.append(f'Implies({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},{self._node_connection_levels(f_nd,lv-1,t_nd,lv)}),')
-        builder.update(logic_dependant_constraint1 = '\n'.join(lines))#'\n'.join(lines))
-        
 
+        builder.update(logic_dependant_constraint1 = '\n'.join(lines))#'\n'.join(lines))
+
+        # ----------------------------- # ----------------------------- #
         # node_order_constraint
         lines = []
         for lv in range(len(npl)):
@@ -979,7 +984,7 @@ class MultilevelManager(ProductTemplateManager):
                         constr_line.append(' + '.join(
                             itertools.chain
                             (
-                                f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},2,1),0)'   
+                                f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},1,2),0)'   
                                 for input_i in range(self.subgraph_inputs.__len__())
                             )))
                 else:
@@ -987,7 +992,7 @@ class MultilevelManager(ProductTemplateManager):
                         constr_line.append(' + '.join(
                             itertools.chain
                             (
-                                f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},2,1),0)'   
+                                f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},1,2),0)'   
                                 for f_nd in range(npl[lv-1])
                             )))
                 lines.extend(

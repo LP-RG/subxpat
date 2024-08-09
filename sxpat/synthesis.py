@@ -312,7 +312,7 @@ class Synthesis:
 
     def __generate_nodes_per_gates(self) -> List[int]:
         nodes_per_level = [self.specs.pit]*self.specs.lv
-        nodes_per_level[self.specs.lv-1] = self.graph.subgraph_num_outputs
+        # nodes_per_level[self.specs.lv-1] = self.graph.subgraph_num_outputs
         return nodes_per_level
     
     def __json_model_wire_declarations_multilevel(self, nodes_per_level):
