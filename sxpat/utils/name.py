@@ -50,34 +50,38 @@ class NameData(PathLike):
 
     root: str
     source_id: Optional[str] = None
-    id: Optional[str] = None
+    curr_id: Optional[str] = None
 
-    NAME_PATTERN = re.compile(r'(.+)_si(\d+)m(\d+)_i(\d+)m(\d+)')
+    NAME_PATTERN = re.compile(r'(.+)_s(E|i\d+m\d+)_(i\d+m\d+)')
 
     def __post_init__(self):
-        self.id = self.id or 'E'
+        self.curr_id = self.curr_id or 'E'
 
     @classmethod
     def from_filename(cls, filename: str) -> NameData:
         if (match := cls.NAME_PATTERN.match(filename)) is None:
             return NameData(filename)
-        return NameData(match[1],cls.gen_id(match[2], match[3]), cls.gen_id(match[4], match[5]))
+        return NameData(match.group(1), match.group(2), match.group(3))
 
-    @ staticmethod
+    @staticmethod
     def gen_id(iteration_number: int, model_number: int) -> str:
         return f'i{iteration_number}m{model_number}'
 
-    @ property
+    @property
     def is_origin(self) -> bool:
         return self.source_id is None
 
+    @property
+    def total_id(self) -> str:
+        return f'{self.source_id}_{self.curr_id}'
+
     def get_successor(self, iteration_number: int, model_number: int) -> NameData:
-        return NameData(self.root, self.id, self.gen_id(iteration_number, model_number))
+        return NameData(self.root, self.curr_id, self.gen_id(iteration_number, model_number))
 
     def __fspath__(self) -> str:
         if self.source_id is None:
             return self.root
-        return f'{self.root}_s{self.source_id}_{self.id}'
+        return f'{self.root}_s{self.source_id}_{self.curr_id}'
 
     def __str__(self) -> str:
         return self.__fspath__()
