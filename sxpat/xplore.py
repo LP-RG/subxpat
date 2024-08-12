@@ -66,7 +66,7 @@ def explore_grid(specs_obj: TemplateSpecs):
         i += 1
         if specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
-            # if 2**(i-1) <= available_error:
+            #if 2**(i-1) <= available_error:
             et = 2**(i-1)
             # if et > available_error:
             #     break
@@ -336,7 +336,7 @@ class CellIterator:
         max_pit = specs.max_pit
         max_lv = specs.num_lev
         # grid cells
-        yield(1,1)
+        #yield(1,1)
         yield(2,1)
         for lv in range(2, max_lv+1):
             for pit in range(2, max_pit+1):
