@@ -60,12 +60,14 @@ def explore_grid(specs_obj: TemplateSpecs):
     prev_actual_error = 0
     prev_given_error = 0
     previous_iteration_graph = {}
+    total_exec_time = 0
 
     while (obtained_wce_exact < available_error):
         i += 1
 
         if not specs_obj.subxpat:
             et = specs_obj.et
+            obtained_wce_exact = et
 
         elif specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
@@ -166,6 +168,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 start_time = time.time()
                 results = manager.run()
                 execution_time = time.time() - start_time
+                total_exec_time += execution_time
 
                 cur_status = results[0].status
                 # If multilevel and SAT check whether the new approximation is different from the input graph 
@@ -293,6 +296,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     # SAT found, stop grid exploration
                     final_check_exec_time = time.time() - check_exec_time
                     pprint.success(f'time = {final_check_exec_time}')
+                    pprint.info1(total_exec_time)
                     break
                 prev_actual_error = 0
 
