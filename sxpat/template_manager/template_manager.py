@@ -819,7 +819,7 @@ class MultilevelManager(ProductTemplateManager):
         # npl = [self._specs.pit]*self._specs.lpp
         # npl[0] = self.subgraph_inputs.__len__()
 
-        # npl[len(npl)-1] = self.subgraph_outputs.__len__()
+        npl[len(npl)-1] = self.subgraph_outputs.__len__()
 
         # npl[self.lv - 1] = self.subgraph_outputs.__len__()
         # print(f'npl = {npl}')
