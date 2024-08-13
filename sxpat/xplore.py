@@ -87,24 +87,19 @@ def explore_grid(specs_obj: TemplateSpecs):
     current_population: Dict = {specs_obj.benchmark_name: ('Area', 'Delay', 'Power', ('LPP', 'PPO'))}
     next_generation: Dict = {}
     total: Dict[Dict] = {}
-    pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
     available_error = specs_obj.et
     obtained_wce_exact = 0
     i = 0
     prev_actual_error = 0
     prev_given_error = 0
 
-    max_et = specs_obj.et
-    error_exceeded = False
-    loop_detected = False
-    persistance_limit = 3
-    persistance = 1
-    prev_et = -1
-
-    et_iterator = iter(generate_et_array(max_et, 8))
     while (obtained_wce_exact < available_error):
         i += 1
-        if specs_obj.et_partitioning == 'asc':
+
+        if not specs_obj.subxpat:
+            et = specs_obj.et
+
+        elif specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
             et = 2**(i-1)
         elif specs_obj.et_partitioning == 'desc':
@@ -147,17 +142,9 @@ def explore_grid(specs_obj: TemplateSpecs):
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
 
-        max_unsat_reached = False
-
         # for all candidates
         # print(f'{current_population = }')
         for candidate in current_population:
-            # guard
-            # if pre_iter_unsats[candidate] == total_number_of_cells_per_iter and not specs_obj.keep_unsat_candidate:
-            #     pprint.info1(f'Number of UNSATs reached!')
-            #     max_unsat_reached = True
-            #     pre_iter_unsats[candidate] = 0
-            #     continue
 
             pprint.info1(f'candidate {candidate}')
             if candidate.endswith('.v'):
@@ -174,11 +161,10 @@ def explore_grid(specs_obj: TemplateSpecs):
 
             # label graph
             if (specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3) and (specs_obj.subxpat or specs_obj.subxpat_v2):
-                # et_coefficient = 8
+                et_coefficient = 1
 
                 t_start = time.time()
-                et_coefficient = 1
-                label_graph(exact_graph, current_graph,
+                label_graph(current_graph,
                             min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
                             et=et*et_coefficient, parallel=specs_obj.parallel)
                 labeling_time = time.time() - t_start
@@ -187,9 +173,19 @@ def explore_grid(specs_obj: TemplateSpecs):
             # extract subgraph
             t_start = time.time()
             subgraph_is_available = current_graph.extract_subgraph(specs_obj)
-            previous_subgraphs.append(current_graph.subgraph)
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
+
+            # store subgraph
+            previous_subgraphs.append(current_graph.subgraph)
+            # skip the iteration if the subraph is equal to the previous one
+            if (
+                len(previous_subgraphs) >= 2
+                and nx.utils.graphs_equal(previous_subgraphs[-2], previous_subgraphs[-1])
+            ):
+                pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
+                prev_actual_error = 0
+                continue
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
@@ -250,7 +246,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                                             subgraph_number_outputs=current_graph.subgraph_num_outputs,
                                             subxpat_v1_time=execution_time)
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
-                    pre_iter_unsats[candidate] += 1
                     # for top_grid
                     if specs_obj.top_grid and lpp == specs_obj.max_lpp:
                         skip = True
@@ -288,11 +283,11 @@ def explore_grid(specs_obj: TemplateSpecs):
                     for candidate in cur_model_results:
                         approximate_benchmark = candidate[:-2]
 
-                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, available_error)
-                        obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, available_error)
+                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, et)
+                        obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, et)
                         prev_actual_error = obtained_wce_prev
 
-                        if obtained_wce_exact > available_error:
+                        if obtained_wce_exact > et:
                             stats_obj.store_grid()
                             return stats_obj
                             # raise Exception(color.error('ErrorEval Verification: FAILED!'))
@@ -310,9 +305,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
                     pprint.success(f'ErrorEval PASS! with total wce = {obtained_wce_exact}')
 
-                    benchmark_name = specs_obj.benchmark_name
-
-                    # todo:check: this seems to be working, lets make sure
+                    specs_obj.benchmark_name = approximate_benchmark
 
                     synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
 
@@ -322,24 +315,16 @@ def explore_grid(specs_obj: TemplateSpecs):
                                    synth_obj.estimate_delay(exact_file_path)]
                     print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
 
-                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=benchmark_name, et=specs_obj.et,
+                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.benchmark_name, et=specs_obj.et,
                                         encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
 
                     for key in cur_model_results.keys():
                         next_generation[key] = cur_model_results[key]
-                    pre_iter_unsats[candidate] = 0
 
                     current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
                     total[i] = current_population
 
                     next_generation = {}
-                    pre_iter_unsats = {}
-                    for key in current_population.keys():
-                        pre_iter_unsats[key] = 0
-                    next_generation = {}
-                    pre_iter_unsats = {}
-                    for key in current_population.keys():
-                        pre_iter_unsats[key] = 0
 
                     # for top_grid
                     if specs_obj.top_grid and lpp == specs_obj.max_lpp:
@@ -348,34 +333,12 @@ def explore_grid(specs_obj: TemplateSpecs):
                     # SAT found, stop grid exploration
                     break
                 prev_actual_error = 0
+                prev_actual_error = 0
 
         if exists_an_area_zero(current_population):
             break
-        # bad, but right now the code doesn't work without this for xpat
-        if not (specs_obj.subxpat or specs_obj.subxpat_v2):
-            break
-        # This is to fix another problem (also previously known as loop)
-        # This is where the exploration get stuck in a loop of creating the same approximate circuit over and over again
-        # Here, I check if the last three subgraphs are equal, if so, this means that the exploration needs to be
-        # terminated!
-        loop_detected = False
-        for idx, s in enumerate(previous_subgraphs):
-            if idx == len(previous_subgraphs) - 1 and idx > 1:
-                if nx.utils.graphs_equal(previous_subgraphs[idx-1], previous_subgraphs[idx]) and \
-                        nx.utils.graphs_equal(previous_subgraphs[idx], previous_subgraphs[idx-2]):
-                    print(f'The last three subgraphs are equal')
-                    pprint.info3(f'The last three subgraphs are equal!')
-                    pprint.info3(f'Terminating the exploration!')
-                    loop_detected = True
-                    break
-        # if loop_detected:
-        #     break
 
-        # if max_unsat_reached and (et >= max_et or et <= 0) and not template_obj.is_two_phase_kind:
-        #     max_unsat_reached = False
-        #     break
-
-    # display_the_tree(total)
+    display_the_tree(total)
 
     stats_obj.store_grid()
     return stats_obj
@@ -558,10 +521,10 @@ def display_the_tree(this_dict: Dict) -> None:
     #     pass
 
 
-def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph,
+def label_graph(current_graph: AnnotatedGraph,
                 min_labeling: bool = False,  partial: bool = False,
                 et: int = -1, parallel: bool = False):
-    labels, _ = labeling_explicit(exact_graph.name, current_graph.name,
+    labels, _ = labeling_explicit(current_graph.name, current_graph.name,
                                   constant_value=0, min_labeling=min_labeling,
                                   partial=partial, et=et, parallel=parallel)
 
