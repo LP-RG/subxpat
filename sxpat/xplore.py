@@ -219,6 +219,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 elif cur_status == SAT:
                     if specs_obj.shared and (not specs_obj.multilevel or i == 1):
                         synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
+                        
                         cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
                         for idx in range(synth_obj.num_of_models):
                             synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
@@ -324,10 +325,10 @@ class CellIterator:
         max_pit = specs.max_pit
         max_lv = specs.num_lev
         # grid cells
-        #yield(1,1)
-        yield(2,1)
-        for lv in range(2, max_lv+1):
-            for pit in range(2, max_pit+1):
+        # yield(1,1)
+        # yield(2,1)
+        for lv in range(6, max_lv+6):
+            for pit in range(6 , max_pit+6):
                 yield (lv,pit)
 
 
