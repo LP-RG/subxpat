@@ -325,11 +325,16 @@ class CellIterator:
         max_pit = specs.max_pit
         max_lv = specs.num_lev
         # grid cells
-        # yield(1,1)
-        # yield(2,1)
-        for lv in range(6, max_lv+6):
-            for pit in range(6 , max_pit+6):
+        # 
+        #subXPAT
+        #yield(1,1)
+        yield(2,1)
+        for pit in range(2 , max_pit+1):
+            for lv in range(2, max_lv+1):
                 yield (lv,pit)
+        #
+        #XPAT
+        #yield(max_lv,max_pit)
 
 
     @staticmethod

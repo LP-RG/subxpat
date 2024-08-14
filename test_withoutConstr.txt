@@ -1,0 +1,80 @@
+args = An object of class Arguments:
+self.literals_per_product = 3
+self.products_per_output = 2
+self.products_in_total = 6
+self.subxpat = False
+self.subxpat_v2 = False
+self.et = 1
+self.clean = True
+self.partitioning_percentage = 10
+self.iterations = 1
+self.grid = True
+self.multiple = False
+self.plot = False
+self.imax = 3
+self.omax = 2
+self.sensitivity = -1
+self.timeout = 10800
+self.subgraph_size = 10
+self.mode = 5
+self.manual_nodes = []
+self.population = 1
+self.num_models = 1
+self.min_labeling = False
+self.shared = True
+self.parallel = True
+self.full_error_function = 1
+self.sub_error_function = 1
+self.et_partitioning = 'asc'
+self.partial_labeling = True
+self.num_subgraphs = 1
+self.clean = True
+self.encoding = 1
+self.multilevel = True
+self.lv=6
+[34mcleaning...[39m
+specs_obj = An object of Class TemplateSpecs:
+self.template_name = 'MULTILEVEL'
+self.exact_benchmark = 'adder_i6_o4'
+self.benchmark_name = 'adder_i6_o4'
+self.lpp = None
+self.ppo = None
+self.pit = None
+self.lv = None
+self.subxpat = False
+self.subxpat_v2 = False
+self.num_of_models = 1
+self.et = 1
+self.partitioning_percentage = 10
+self.iterations = 1
+self.grid = True
+self.imax = 3
+self.omax = 2
+self.max_sensitivity = -1
+self.sensitivity = 0
+self.timeout = 10800.0
+self.min_subgraph_size = 10
+self.mode = 5
+self.manual_nodes = []
+self.population = 1
+self.shared = True
+self.multilevel = True
+self.parallel = True
+self.min_labeling = False
+self.full_error_function = 1
+self.sub_error_function = 1
+self.et_partitioning = 'asc'
+self.partial_labeling = True
+self.keep_unsat_candidate = False
+
+[34mShared XPAT started...[39m
+path = 'output/report/grid_adder_i6_o4_6X6_et1_shared_xpat__enc1_mode5_omax2_imax3_kucFalse_MULTILEVEL_time20240814:132206.csv'
+[36mOnly one iteration with et 1[39m
+[36mcandidate adder_i6_o4[39m
+[94mLabeling (explicit & parallel)... [0m[94mDone[0m
+labeling_time = 1.6870930194854736
+subgraph_extraction_time = 0.20575284957885742
+subgraph exported at output/gv/subgraphs/adder_i6_o4_et1_mode5_omax2_serr1.gv
+[34mGrid (9 X 6) and et=1 exploration started...[39m
+[33mCell(6,6) at iteration 1 -> UNKNOWN[39m
+candidates = {'adder_i6_o4': ('Area', 'Delay', 'Power', ('LPP', 'PPO'))}

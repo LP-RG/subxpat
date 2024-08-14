@@ -818,11 +818,9 @@ class MultilevelManager(ProductTemplateManager):
         npl = [self.pit]*self.lv
         # npl = [self._specs.pit]*self._specs.lpp
         # npl[0] = self.subgraph_inputs.__len__()
-
+        
+        #constr
         npl[len(npl)-1] = self.subgraph_outputs.__len__()
-
-        # npl[self.lv - 1] = self.subgraph_outputs.__len__()
-        # print(f'npl = {npl}')
         
 
         # params_declaration
@@ -972,33 +970,50 @@ class MultilevelManager(ProductTemplateManager):
 
         # ----------------------------- # ----------------------------- #
         # node_order_constraint
-        lines = []
-        for lv in range(len(npl)):
-            if npl[lv] == 1:
-                lines.append(f'# No order needed for a single node - level: {lv}')
-            else:
-                lines.append(f'# level {lv} - node order constr')
-                constr_line = []
-                if lv == 0:
-                    for t_nd in range(npl[lv]):
-                        constr_line.append(' + '.join(
-                            itertools.chain
-                            (
-                                f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},1,2),0)'   
-                                for input_i in range(self.subgraph_inputs.__len__())
-                            )))
-                else:
-                    for t_nd in range(npl[lv]):
-                        constr_line.append(' + '.join(
-                            itertools.chain
-                            (
-                                f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},1,2),0)'   
-                                for f_nd in range(npl[lv-1])
-                            )))
-                lines.extend(
-                    f'{self._encoding.unsigned_greater(node_a, node_b)},'
-                    for node_a, node_b in pairwise_iter(constr_line)
-                )
+        # lines = []
+        # for lv in range(len(npl)):
+        #     if npl[lv] == 1:
+        #         lines.append(f'# No order needed for a single node - level: {lv}')
+        #     else:
+        #         lines.append(f'# level {lv} - node order constr')
+        #         constr_line = []
+        #         if lv == 0:
+        #             for t_nd in range(npl[lv]):
+        #                 constr_line.append(' + '.join(
+        #                     itertools.chain
+        #                     (
+        #                         f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},1,2),0)'   
+        #                         for input_i in range(self.subgraph_inputs.__len__())
+        #                     )))
+        #         else:
+        #             for t_nd in range(npl[lv]):
+        #                 constr_line.append(' + '.join(
+        #                     itertools.chain
+        #                     (
+        #                         f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},1,2),0)'   
+        #                         for f_nd in range(npl[lv-1])
+        #                     )))
+
+        #         lines.extend(
+        #             f'{self._encoding.unsigned_greater_equal(node_a, node_b)},'
+        #             for node_a, node_b in pairwise_iter(constr_line)
+        #         )
+        
+        # for lv in range(len(npl)):
+        #     if npl[lv]>1 and lv>0:
+        #         constr_equal = []
+        #         for to_node in range (npl[lv]-1):
+        #             constr_equal.append(
+        #                 ','.join(
+        #                     itertools.chain
+        #                     (
+        #                         f'And({self._node_connection_levels(from_node,lv-1,to_node,lv)} == {self._node_connection_levels(from_node,lv-1,to_node+1,lv)},{self._switch_parameter_levels(from_node,lv-1,to_node,lv)} == {self._switch_parameter_levels(from_node,lv-1,to_node+1,lv)})'
+        #                         for from_node in range(npl[lv-1])
+        #                     )
+        #                 ))
+        #         print(constr_equal)
+        #         single_line = ',\n'.join(constr_equal)
+        #         lines.append(f'Not(And({single_line}))-,')
 
         builder.update(product_order_constraint= '\n'.join(lines))
         # ----------------------------- # ----------------------------- #
