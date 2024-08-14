@@ -82,7 +82,6 @@ def explore_grid(specs_obj: TemplateSpecs):
     current_population: Dict = {specs_obj.benchmark_name: ('Area', 'Delay', 'Power', ('LPP', 'PPO'))}
     next_generation: Dict = {}
     total: Dict[Dict] = {}
-    pre_iter_unsats: Dict = {specs_obj.benchmark_name: 0}
     available_error = specs_obj.et
     obtained_wce_exact = 0
     i = 0
@@ -99,7 +98,11 @@ def explore_grid(specs_obj: TemplateSpecs):
     et_iterator = iter(generate_et_array(max_et, 8))
     while (obtained_wce_exact < available_error):
         i += 1
-        if specs_obj.et_partitioning == 'asc':
+
+        if not specs_obj.subxpat:
+            et = specs_obj.et
+
+        elif specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
             et = 2**(i-1)
         elif specs_obj.et_partitioning == 'desc':
@@ -170,10 +173,20 @@ def explore_grid(specs_obj: TemplateSpecs):
             # extract subgraph
             t_start = time.time()
             subgraph_is_available = current_graph.extract_subgraph(specs_obj)
-            previous_subgraphs.append(current_graph.subgraph)
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
 
+
+            # store subgraph
+            previous_subgraphs.append(current_graph.subgraph)
+            # skip the iteration if the subraph is equal to the previous one
+            if (
+                len(previous_subgraphs) >= 2
+                and nx.utils.graphs_equal(previous_subgraphs[-2], previous_subgraphs[-1])
+            ):
+                pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
+                prev_actual_error = 0
+                continue
 
             # todo:wip:marco: export subgraph
             folder = 'output/gv/subgraphs'
@@ -222,7 +235,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                                             subgraph_number_outputs=current_graph.subgraph_num_outputs,
                                             subxpat_v1_time=execution_time)
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
-                    pre_iter_unsats[candidate] += 1
 
                     if cur_status == UNKNOWN:
                         # store cell as dominant (to skip dominated subgrid)
@@ -295,49 +307,20 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                     for key in cur_model_results.keys():
                         next_generation[key] = cur_model_results[key]
-                    pre_iter_unsats[candidate] = 0
 
                     current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
                     total[i] = current_population
 
                     next_generation = {}
-                    pre_iter_unsats = {}
-                    for key in current_population.keys():
-                        pre_iter_unsats[key] = 0
-                    next_generation = {}
-                    pre_iter_unsats = {}
-                    for key in current_population.keys():
-                        pre_iter_unsats[key] = 0
 
                     # SAT found, stop grid exploration
                     break
                 prev_actual_error = 0
-                prev_actual_error = 0
 
         if exists_an_area_zero(current_population):
             break
-        # This is to fix another problem (also previously known as loop)
-        # This is where the exploration get stuck in a loop of creating the same approximate circuit over and over again
-        # Here, I check if the last three subgraphs are equal, if so, this means that the exploration needs to be
-        # terminated!
-        loop_detected = False
-        for idx, s in enumerate(previous_subgraphs):
-            if idx == len(previous_subgraphs) - 1 and idx > 1:
-                if nx.utils.graphs_equal(previous_subgraphs[idx-1], previous_subgraphs[idx]) and \
-                        nx.utils.graphs_equal(previous_subgraphs[idx], previous_subgraphs[idx-2]):
-                    print(f'The last three subgraphs are equal')
-                    pprint.info3(f'The last three subgraphs are equal!')
-                    pprint.info3(f'Terminating the exploration!')
-                    loop_detected = True
-                    break
-        # if loop_detected:
-        #     break
 
-        # if max_unsat_reached and (et >= max_et or et <= 0) and not template_obj.is_two_phase_kind:
-        #     max_unsat_reached = False
-        #     break
-
-    # display_the_tree(total)
+    display_the_tree(total)
 
     stats_obj.store_grid()
     return stats_obj
