@@ -1365,7 +1365,7 @@ class Synthesis:
         if process.stderr:
             raise Exception(color.error(f'Yosys ERROR!!!\n {process.stderr.decode()}'))
         else:
-
+            #print(f'{process.stdout.decode() = }')
             if re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()):
                 area = re.search(r'Chip area for .*: (\d+.\d+)', process.stdout.decode()).group(1)
 
