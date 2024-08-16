@@ -3,7 +3,6 @@ import sys
 from time import time
 from typing import Tuple, List, Callable, Any, Union
 import json
-import csv
 
 et = int(sys.argv[1])
 et_encoded = {{{{et_encoded}}}}
@@ -12,11 +11,8 @@ timeout: float = float(sys.maxsize if len(sys.argv) < 4 else sys.argv[3])
 max_possible_et: int = 2 ** {{{{num_outputs}}}} - 1
 
 # Encoding abs_diff method to generate
-
-
 def z3_abs_diff(a, b):
 	return {{{{abs_diff_def}}}}
-
 
 # Inputs variables declaration
 {{{{ini_defs}}}}
