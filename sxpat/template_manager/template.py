@@ -66,34 +66,6 @@ approximate_circuit = And(
 	{{{{approximate_aggregated_output}}}}
 )
 
-
-# forall and verification solvers
-forall_solver = {{{{solver}}}}
-forall_solver.add(ForAll(
-	[{{{{inputs}}}}],
-	And(
-		# error constraints
-		{{{{difference_less_equal_etenc}}}},
-
-		# circuits
-		exact_circuit,
-		approximate_circuit,
-
-		{{{{logic_dependant_constraint1}}}}
-		
-		#> redundancy constraints
-
-		# remove double no-care
-		{{{{remove_double_constraint}}}}
-
-		# remove constant 0 parameters permutations
-		{{{{remove_zero_permutations_constraint}}}}
-
-		# set order of products
-		{{{{product_order_constraint}}}}
-	)
-))
-
 verification_solver = {{{{solver}}}}
 verification_solver.add(
 	error == difference,
@@ -102,6 +74,7 @@ verification_solver.add(
 )
 
 parameters_constraints: List[Tuple[BoolRef, bool]] = []
+all_parameters_constraints = []
 found_data = []
 while(len(found_data) < wanted_models and timeout > 0):
 	time_total_start = time()
@@ -113,10 +86,38 @@ while(len(found_data) < wanted_models and timeout > 0):
 	while result != sat:
 		time_attempt_start = time()
 		time_parameters_start = time_attempt_start
+
+		# forall and verification solvers
+		forall_solver = {{{{solver}}}}
+		forall_solver.add(ForAll(
+			[{{{{inputs}}}}],
+			And(
+				# error constraints
+				{{{{difference_less_equal_etenc}}}},
+
+				# circuits
+				exact_circuit,
+				approximate_circuit,
+
+				{{{{logic_dependant_constraint1}}}}
+				
+				#> redundancy constraints
+
+				# remove double no-care
+				{{{{remove_double_constraint}}}}
+
+				# remove constant 0 parameters permutations
+				{{{{remove_zero_permutations_constraint}}}}
+
+				# set order of products
+				{{{{product_order_constraint}}}}
+			)
+		))
+
 		# add constrain to prevent the same parameters to happen
-		if parameters_constraints:
-			forall_solver.add(Or(*map(lambda x: x[0] != x[1], parameters_constraints)))
-		parameters_constraints = []
+		if all_parameters_constraints:
+			for pc in all_parameters_constraints:
+				forall_solver.add(Or(*map(lambda x: x[0] != x[1], pc)))
 		forall_solver.set('timeout', int(timeout * 1000))
 		result = forall_solver.check()
 		time_parameters = time() - time_attempt_start
@@ -130,6 +131,7 @@ while(len(found_data) < wanted_models and timeout > 0):
 		for k, v in map(lambda k: (k, m[k]), m):
 			if str(k)[0] == 'p':
 				parameters_constraints.append((Bool(str(k)), v))
+		all_parameters_constraints.append(parameters_constraints)
 		# verify parameters
 		WCE: int = None
 		verification_et: int = 0
