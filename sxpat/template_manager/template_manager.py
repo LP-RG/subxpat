@@ -270,6 +270,8 @@ class SOP_QBF_Manager(TemplateManager):
         SOP_QBF_Manager.output.write(')\n#\n')
         return res
     
+
+    
     def sort_key(value):
         prefix = 0 if value.startswith('in') else 1
         number = int(value[2:] if value.startswith('in') else value[1:])
@@ -282,6 +284,9 @@ class SOP_QBF_Manager(TemplateManager):
         nodes_exact = graph_exact.nodes
         graph_current = self._current_graph.graph
         nodes_current = graph_current.nodes
+
+        # here I sort the sugraph input dict, because during XPAT/SubXPAT it is sorted and if I don't do this before then the results that I give could be based on a
+        # different permutation
         sorted_items = sorted(self._current_graph.subgraph_input_dict.items(), key=lambda item: SOP_QBF_Manager.sort_key(item[1]))
         self._current_graph.subgraph_input_dict = {i: v for i, (k, v) in enumerate(sorted_items)}
         # 1,2,30 is for the input, and, output gates of the exact circuit, 40 for intermidiate and gates of the multiplexer, 41 for the output of the multiplexer,
