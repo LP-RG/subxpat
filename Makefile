@@ -19,6 +19,8 @@ IN_ENV := $(ACTIV_ENV) &&
 
 # actions
 
+# need to add dependencies for https://github.com/MikolasJanota/cqesto
+
 help:
 	$(PY) main.py -h
 
