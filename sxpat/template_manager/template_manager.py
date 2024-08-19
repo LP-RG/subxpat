@@ -278,7 +278,7 @@ class SOP_QBF_Manager(TemplateManager):
         return (prefix, number)
 
     def run(self) -> Sequence[Result]:
-        path_to_output = './Lollo/output.txt'
+        path_to_output = 'cqesto_output.txt'
         SOP_QBF_Manager.output = open(path_to_output,'w')
         graph_exact = self._exact_graph.graph
         nodes_exact = graph_exact.nodes
@@ -592,7 +592,7 @@ class SOP_QBF_Manager(TemplateManager):
         SOP_QBF_Manager.output.write(')\n')
         SOP_QBF_Manager.output.close()
         try:
-            result = subprocess.run(['../../cqesto-master/build/cqesto', 'Lollo/output.txt'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=self._specs.timeout).stdout.decode('utf-8')
+            result = subprocess.run(['../../cqesto-master/build/cqesto', path_to_output],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=self._specs.timeout).stdout.decode('utf-8')
         except subprocess.TimeoutExpired:
             os.remove(path_to_output)
             return [Result(sxpat_cfg.UNKNOWN,dict())]
