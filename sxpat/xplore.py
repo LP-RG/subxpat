@@ -259,8 +259,6 @@ def explore_grid(specs_obj: TemplateSpecs):
         if exists_an_area_zero(current_population):
             break
 
-    display_the_tree(total)
-
     stats_obj.store_grid()
     return stats_obj
 
@@ -414,14 +412,6 @@ def pick_k_best_k_worst(candidates: Dict[str, float], k: int):
                 selected_candidates[key[0]] = candidates[key[0]]
             i += 1
         return selected_candidates
-
-
-def display_the_tree(this_dict: Dict) -> None:
-
-    file_path = 'output/file.gv'
-
-    # with open(file_path, 'w') as f:
-    #     pass
 
 
 def label_graph(current_graph: AnnotatedGraph,
