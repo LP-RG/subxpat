@@ -34,8 +34,8 @@ class Synthesis:
         self.__shared: bool = template_specs.shared
 
         self.__iterations = template_specs.iterations
-        self.__literal_per_product = template_specs.literals_per_product
-        self.__product_per_output = template_specs.products_per_output
+        self.__literals_per_product = template_specs.lpp
+        self.__products_per_output = template_specs.ppo
         self.__error_threshold = template_specs.et
         self.__graph: AnnotatedGraph = graph_obj
         self.__magraph: Optional[MaGraph] = magraph
@@ -44,7 +44,7 @@ class Synthesis:
         self.__num_models: int = template_specs.num_of_models
 
         if self.shared:
-            self.__products_in_total: int = template_specs.products_in_total
+            self.__products_in_total: int = template_specs.pit
         else:
             self.__products_in_total: float = float('inf')
 
@@ -70,26 +70,6 @@ class Synthesis:
     @property
     def specs(self):
         return self.__template_specs
-
-    @property
-    def products_in_total(self):
-        return self.__products_in_total
-
-    @property
-    def pit(self):
-        return self.__products_in_total
-
-    @property
-    def subxpat(self):
-        return self.__subxpat
-
-    @property
-    def shared(self):
-        return self.__shared
-
-    @property
-    def num_of_models(self):
-        return self.__num_models
 
     @property
     def products_in_total(self):
@@ -141,19 +121,19 @@ class Synthesis:
 
     @property
     def literals_per_product(self):
-        return self.__literal_per_product
+        return self.__literals_per_product
 
     @property
     def lpp(self):
-        return self.__literal_per_product
+        return self.__literals_per_product
 
     @property
     def products_per_output(self):
-        return self.__product_per_output
+        return self.__products_per_output
 
     @property
     def ppo(self):
-        return self.__product_per_output
+        return self.__products_per_output
 
     @property
     def template_name(self):

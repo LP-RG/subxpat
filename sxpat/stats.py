@@ -287,11 +287,12 @@ class Grid:
     def __init__(self, spec_obj: TemplateSpecs):
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
-        self.__lpp: int = spec_obj.lpp
         if spec_obj.shared:
-            self.__ppo: int = spec_obj.pit
+            self.__lpp: int = spec_obj.max_its
+            self.__ppo: int = spec_obj.max_pit
         else:
-            self.__ppo: int = spec_obj.ppo
+            self.__lpp: int = spec_obj.max_lpp
+            self.__ppo: int = spec_obj.max_ppo
         self.__et: int = spec_obj.et
 
         # Todo: pap is deprecated
@@ -354,13 +355,12 @@ class Stats:
         self.__template_name = spec_obj.template_name
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
-        self.__lpp: int = spec_obj.lpp
-
-        self.__pit: int = spec_obj.pit
         if spec_obj.shared:
-            self.__ppo: int = spec_obj.pit
+            self.__lpp: int = spec_obj.max_its
+            self.__ppo: int = spec_obj.max_pit
         else:
-            self.__ppo: int = spec_obj.ppo
+            self.__lpp: int = spec_obj.max_lpp
+            self.__ppo: int = spec_obj.max_ppo
         self.__et: int = spec_obj.et
         self.__shared: bool = spec_obj.shared
         self.__subxpat: bool = spec_obj.subxpat
@@ -403,10 +403,6 @@ class Stats:
     @property
     def template_name(self):
         return self.__template_name
-
-    @property
-    def pit(self):
-        return self.__pit
 
     @property
     def shared(self):
@@ -558,7 +554,7 @@ class Stats:
 
         # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
 
-        head = f'grid_{self.exact_name}_{self.lpp}X{self.pit if self.specs.shared else self.ppo}_et{self.et}_'
+        head = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_'
 
         technique_specific = f'{self.tool_name}_{self.specs.et_partitioning if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}_'
         technique_specific += f'enc{self.specs.encoding}_'

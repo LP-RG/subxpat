@@ -1,4 +1,5 @@
 from enum import Enum
+from Z3Log.config.config import *
 
 # OpenSTA for power and delay analysis
 OPENSTA = 'sta'
