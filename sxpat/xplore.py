@@ -116,31 +116,30 @@ def explore_grid(specs_obj: TemplateSpecs):
             subgraph_is_available = current_graph.extract_subgraph(specs_obj)
             subgraph_extraction_time = time.time() - t_start
             print(f'subgraph_extraction_time = {subgraph_extraction_time}')
-
-            # store subgraph
             previous_subgraphs.append(current_graph.subgraph)
-            # skip the iteration if the subraph is equal to the previous one
-            if (
-                len(previous_subgraphs) >= 2
-                and nx.utils.graphs_equal(previous_subgraphs[-2], previous_subgraphs[-1])
-            ):
-                pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
-                prev_actual_error = 0
-                continue
 
-            # todo:wip:marco: export subgraph
+            # todo:wip: export subgraph
             folder = 'output/gv/subgraphs'
             graph_path = f'{folder}/{specs_obj.benchmark_name}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
             FS.mkdir(folder)
             current_graph.export_annotated_graph(graph_path)
             print(f'subgraph exported at {graph_path}')
 
-            # guard
+            # guard: skip if no subgraph was found
             if not subgraph_is_available:
                 pprint.warning(f'No subgraph available.')
                 prev_actual_error = 0
                 if et == available_error:
                     available_error = 0
+                continue
+
+            # guard: skip if the subraph is equal to the previous one
+            if (
+                len(previous_subgraphs) >= 2
+                and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
+            ):
+                pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
+                prev_actual_error = 0
                 continue
 
             # explore the grid
@@ -200,7 +199,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                         header = list(range(len(cur_model_results)))
                         all = list(cur_model_results.values())
                         content = [f for (f, _, _, _) in all]
-                        # print(f'{content = }')
 
                         csvwriter.writerow(header)
                         csvwriter.writerow(content)
@@ -209,14 +207,14 @@ def explore_grid(specs_obj: TemplateSpecs):
                     for candidate in cur_model_results:
                         approximate_benchmark = candidate[:-2]
 
-                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, et)
-                        obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, et)
+                        obtained_wce_exact = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, et)
+                        obtained_wce_prev = erroreval_verification_wce(specs_obj.benchmark_name, approximate_benchmark, et)
                         prev_actual_error = obtained_wce_prev
 
                         if obtained_wce_exact > et:
+                            pprint.error('ErrorEval Verification FAILED!')
                             stats_obj.store_grid()
                             return stats_obj
-                            # raise Exception(color.error('ErrorEval Verification: FAILED!'))
 
                     this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=obtained_wce_exact, iteration=i,
                                             area=cur_model_results[synth_obj.ver_out_name][0],
@@ -443,3 +441,11 @@ def get_toolname(specs_obj: TemplateSpecs) -> str:
         toolname = sxpatconfig.XPAT
 
     return toolname
+
+
+def node_matcher(n1: dict, n2: dict) -> bool:
+    """Return if two node data dicts represent the same semantic node""" 
+    return (
+        n1.get('label') == n2.get('label')
+        and n1.get('subgraph', 0) == n2.get('subgraph', 0)
+    )
