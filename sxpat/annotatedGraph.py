@@ -31,7 +31,7 @@ class AnnotatedGraph(Graph):
         self.set_output_dict(self.sort_dict(self.output_dict))
 
         self.__partitioning_percentage = partitioning_percentage
-        
+
         self.__subgraph_candidates = []
         self.__subgraph = None
         self.__subgraph_input_dict: Dict[int, str] = None
@@ -579,8 +579,10 @@ class AnnotatedGraph(Graph):
             opt.add(output_literals[output_node_id] == False)
 
         # Add constraints on the number of input/output edges
-        opt.add(Sum(partition_input_edges) <= imax)
-        opt.add(Sum(partition_output_edges) <= omax)
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         # Generate function to maximize
         for gate_id in gate_literals:
@@ -878,8 +880,10 @@ class AnnotatedGraph(Graph):
             opt.add(output_literals[output_node_id] == False)
 
         # Add constraints on the number of input/output edges
-        opt.add(Sum(partition_input_edges) <= imax)
-        opt.add(Sum(partition_output_edges) <= omax)
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         sensitivity_constraints = []
         for s in edge_w:
@@ -974,8 +978,6 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-        imax = specs_obj.imax
-        omax = specs_obj.omax
         sensitivity_t = specs_obj.sensitivity
 
         # Todo:
@@ -1179,10 +1181,6 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of input/output edges
-        # opt.add(Sum(partition_input_edges) <= imax)
-        # opt.add(Sum(partition_output_edges) <= omax)
-
         sensitivity_constraints = []
         for s in edge_w:
             sensitivity_constraints.append(edge_constraint[s] * edge_w[s])
@@ -1278,6 +1276,7 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
         # print(f'{feasibility_treshold = }')
@@ -1478,8 +1477,11 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         feasibility_constraints = []
         for s in edge_w:
@@ -1577,6 +1579,7 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
         # print(f'{feasibility_treshold = }')
@@ -1777,8 +1780,11 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         feasibility_constraints = []
         for s in edge_w:
@@ -1878,6 +1884,7 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
 
@@ -2070,15 +2077,17 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
+
         feasibility_constraints = []
         for s in edge_w:
-
             if gate_weight[s] <= feasibility_treshold and gate_weight[s] != -1:
                 print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
-
         opt.add(Sum(feasibility_constraints) >= 1)
 
         # Generate function to maximize
@@ -2209,6 +2218,7 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
+        imax = specs_obj.imax
         omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
 
@@ -2417,16 +2427,17 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of output edges
-        opt.add(Sum(partition_output_edges) <= omax)
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
         feasibility_constraints = []
         for s in edge_w:
-
             if gate_weight[s] <= feasibility_treshold and gate_weight[s] != -1:
                 # print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
-
         opt.add(Sum(feasibility_constraints) >= 1)
 
         # Generate function to maximize
@@ -2469,9 +2480,9 @@ class AnnotatedGraph(Graph):
 
         opt.add(penalty_output == Sum(partition_output_edges_penalty))
         # Why IntVal(1)? => Because sometimes the Sum results into an integer "Python number (e.g., int)", but we need a "Z3 number (e.g., ArithRef)"
-        opt.add_soft( IntVal(1)* Sum(partition_output_edges_penalty) <= omax * feasibility_treshold, weight = 100)
+        opt.add_soft(IntVal(1) * Sum(partition_output_edges_penalty) <= omax * feasibility_treshold, weight=100)
         opt.add(penalty_gate == Sum(output_individual_penalty))
-        opt.add_soft(IntVal(1)* Sum(output_individual_penalty) <= omax * feasibility_treshold, weight=1)
+        opt.add_soft(IntVal(1) * Sum(output_individual_penalty) <= omax * feasibility_treshold, weight=1)
 
         # ========================================================
         # ======================== Check for multiple subgraphs =======================================
