@@ -10,6 +10,7 @@ from Z3Log.graph import Graph
 from Z3Log.config.config import *
 from Z3Log.config.path import *
 
+from sxpat.utils.name import NameData
 from z_marco.ma_graph import MaGraph
 from z_marco.utils import pprint, color
 
@@ -197,21 +198,15 @@ class Synthesis:
 
         return num_models
 
-    def set_path(self, this_path: Tuple[str, str] = None, this_name: str = None, id: int = 0):
+    def set_path(self, this_path: Tuple[str, str], this_name: Optional[str] = None, id: int = 0):
+        if this_name is None:
+            data = NameData.from_filename(self.benchmark_name)
+            if data.is_origin:
+                data.root = f'{data.root}_{self.template_name}_enc{self.specs.encoding}'
+            this_name = str(data.get_successor(self.specs.iterations, id))
+
         folder, extenstion = this_path
-
-        if this_name:
-            self.ver_out_name = this_name
-
-        elif re.search('id(\d+)', self.benchmark_name):
-            self.ver_out_name = f'{self.benchmark_name}_{id}.{extenstion}'
-
-        elif self.num_of_models == 1:
-            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_enc{self.specs.encoding}_id0.{extenstion}'
-
-        elif self.num_of_models > 1:
-            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_enc{self.specs.encoding}_id{id}.{extenstion}'
-
+        self.ver_out_name = f'{this_name}.{extenstion}'
         self.ver_out_path = f'{folder}/{self.ver_out_name}'
         return self.ver_out_path
 
