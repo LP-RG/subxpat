@@ -1,8 +1,5 @@
 import csv
 import time
-
-#import Lollo.test
-
 from typing import Iterable, Iterator, List, Union
 import networkx as nx
 from tabulate import tabulate
@@ -22,47 +19,16 @@ from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
 from sxpat.template_manager.template_manager import TemplateManager
 from sxpat.utils.filesystem import FS
+from sxpat.utils.name import NameData
 from sxpat.verification import erroreval_verification_explicit, erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 
 from z_marco.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subgraph
-
 from z_marco.utils import pprint, color
 
 
-def generate_et_array(et, k):
-    step = et // k
-    result = []
-    offset = []
-
-    if step <= 1:
-        result = list(range(1, et+1))
-    else:
-        log2 = int(math.log2(step))
-        # print(f'{log2 = }')
-        for i in range(log2 + 1):
-            if 2**i < step:
-                offset.append(2**i)
-        # print(f'{offset = }')
-        for i in range(k):
-
-            base = i * step
-            # print(f'{base = }')
-            if base > 0:
-                result.append(base)
-            for off in offset:
-                result.append(base + off)
-            next_base = (i + 1) * step if (i + 1) < k else et
-            if next_base == et:
-                result.append(et)
-
-    return result
-
-
 def explore_grid(specs_obj: TemplateSpecs):
-    # Lollo.test.check_sat(specs_obj)
-    # exit()
     previous_subgraphs = []
     print(f'{specs_obj = }')
 
@@ -106,44 +72,19 @@ def explore_grid(specs_obj: TemplateSpecs):
             log2 = int(math.log2(specs_obj.et))
             et = 2**(log2 - i - 2)
         elif specs_obj.et_partitioning == 'smart_asc':
-
-            # et = max_et // 8 if i == 1 else et + (max_et // 8 if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) else 0 )
-            if i == 1:
-                et = next(et_iterator)
-            else:
-                if (loop_detected or prev_actual_error == 0 or persistance == persistance_limit) and (et < available_error):
-                    et = next(et_iterator)
-
-            if prev_et == et:
-                persistance += 1
-            else:
-                persistance = 0
-            prev_et = et
-
-            if prev_et == available_error and persistance == persistance_limit:
-                break
-
+            et = 1 if i == 1 else prev_given_error * (2 if prev_actual_error == 0 else 1)
+            prev_given_error = et
         elif specs_obj.et_partitioning == 'smart_desc':
-            et = available_error if i == 1 else et // (2 if prev_actual_error == 0 else 1)
-            # if et > available_error:
-            #     et = available_error
-            # prev_given_error = et
+            et = available_error if i == 1 else prev_given_error / (2 if prev_actual_error == 0 else 1)
+            prev_given_error = et
         else:
             raise NotImplementedError('invalid status')
 
-        if et > available_error or et < 0:
-            break
-        
-        #xpat
-        if not (specs_obj.subxpat or specs_obj.subxpat_v2):
-            et = specs_obj.et
-        
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
 
         # for all candidates
-        # print(f'{current_population = }')
         for candidate in current_population:
 
             pprint.info1(f'candidate {candidate}')
@@ -160,7 +101,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False, partitioning_percentage=0)
 
             # label graph
-            if (specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3) and (specs_obj.subxpat or specs_obj.subxpat_v2):
+            if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
                 et_coefficient = 1
 
                 t_start = time.time()
@@ -210,12 +151,6 @@ def explore_grid(specs_obj: TemplateSpecs):
                     pprint.info1(f'Cell({lpp},{ppo}) at iteration {i} -> DOMINATED')
                     continue
 
-                if skip and lpp < specs_obj.max_lpp:
-                    pprint.info1(f'Skipping Cell({lpp},{ppo})')
-                    continue
-                else:
-                    skip = False
-
                 # > cell step settings
 
                 # update the context
@@ -223,14 +158,13 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                 # run script
                 manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
-                assert specs_obj.et == et, pprint.error(f'{et} != {specs_obj.et}')
                 start_time = time.time()
                 results = manager.run()
                 execution_time = time.time() - start_time
 
                 cur_status = results[0].status
-                pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()}')
                 if cur_status in (UNSAT, UNKNOWN):
+                    pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()}')
 
                     # store model
                     this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
@@ -240,6 +174,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                                             subgraph_number_outputs=current_graph.subgraph_num_outputs,
                                             subxpat_v1_time=execution_time)
                     stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
+
                     if cur_status == UNKNOWN:
                         # store cell as dominant (to skip dominated subgrid)
                         dominant_cells.append((lpp, ppo))
@@ -320,12 +255,9 @@ def explore_grid(specs_obj: TemplateSpecs):
                     # SAT found, stop grid exploration
                     break
                 prev_actual_error = 0
-                prev_actual_error = 0
 
         if exists_an_area_zero(current_population):
             break
-
-    display_the_tree(total)
 
     stats_obj.store_grid()
     return stats_obj
@@ -382,36 +314,32 @@ def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration:
 
 def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_stats: List = None) -> None:
     data = []
+
     if exact_stats:
-        exact_area = exact_stats[0]
-        exact_power = exact_stats[1]
-        exact_delay = exact_stats[2]
-        data.append(['Exact', exact_area, exact_power, exact_delay])
+        # add exact circuit data
+        e_area, e_power, e_delay, *_ = exact_stats
+        data.append(['Exact', e_area, e_power, e_delay])
+
         if normalize:
-            for key in cur_model_result.keys():
-                cur_model_result[key][0] = (cur_model_result[key][0] / exact_area) * 100
-                cur_model_result[key][1] = (cur_model_result[key][1] / exact_power) * 100
-                cur_model_result[key][2] = (cur_model_result[key][2] / exact_delay) * 100
+            for stats in cur_model_result.values():
+                stats[0] = (stats[0] / e_area) * 100
+                stats[1] = (stats[1] / e_power) * 100
+                stats[2] = (stats[2] / e_delay) * 100
 
+    # keep wanted models
+    sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
     if len(cur_model_result) < 10:
-        sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
-        for idx, key in enumerate(sorted_candidates):
-            this_id = re.search('(id.*)', sorted_candidates[idx][0]).group(1).split('.')[0]
-            this_area = sorted_candidates[idx][1][0]
-            this_power = sorted_candidates[idx][1][1]
-            this_delay = sorted_candidates[idx][1][2]
-            data.append([this_id, this_area, this_power, this_delay])
-        pprint.success(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
-
+        wanted_candidates = sorted_candidates
     else:
-        sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
-        best_id = re.search('(id.*)', sorted_candidates[0][0]).group(1).split('.')[0]
-        best_area = sorted_candidates[0][1][0]
-        best_power = sorted_candidates[0][1][1]
-        best_delay = sorted_candidates[0][1][2]
-        data.append([best_id, best_area, best_power, best_delay])
-        pprint.success(tabulate(data, headers=["Design ID", "Area", "Power", "Delay"]))
-        # print the best model for now
+        wanted_candidates = [sorted_candidates[0]]
+
+    # add candidates data
+    for c_name, c_stats in wanted_candidates:
+        c_id = NameData.from_filename(c_name).total_id
+        c_area, c_power, c_delay, *_ = c_stats
+        data.append([c_id, c_area, c_power, c_delay])
+
+    pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay']))
 
 
 def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, encoding: int, subgraph_extraction_time: float, labeling_time: float, exact_stats: List = None) -> None:
@@ -420,41 +348,32 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
 
         # to avoid duplicate data
         if encoding == 2:
-            exact_data = []
             if exact_stats:
-                exact_area = exact_stats[0]
-                exact_power = exact_stats[1]
-                exact_delay = exact_stats[2]
-                exact_data.append(f'{benchmark_name}')
-                exact_data.append('Exact')
-                exact_data.append(exact_area)
-                exact_data.append(exact_power)
-                exact_data.append(exact_delay)
-                exact_data.append(et)
-                exact_data.append(encoding)
-                exact_data.append(labeling_time)
-                exact_data.append(subgraph_extraction_time)
-                exact_data = tuple(exact_data)
-
+                e_area, e_power, e_delay, *_ = exact_stats
+                exact_data = (
+                    benchmark_name,
+                    'Exact',
+                    e_area, e_power, e_delay,
+                    et, encoding,
+                    labeling_time, subgraph_extraction_time,
+                )
+            else:
+                exact_data = ()
             csvwriter.writerow(exact_data)
 
-        approx_data = []
+        # get best candidate data
         sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
-        best_id = re.search('(id.*)', sorted_candidates[0][0]).group(1).split('.')[0]
-        best_area = sorted_candidates[0][1][0]
-        best_power = sorted_candidates[0][1][1]
-        best_delay = sorted_candidates[0][1][2]
-        approx_data.append(f'{benchmark_name}')
-        approx_data.append(best_id)
-        approx_data.append(best_area)
-        approx_data.append(best_power)
-        approx_data.append(best_delay)
-        approx_data.append(et)
-        approx_data.append(encoding)
-        approx_data.append(labeling_time)
-        approx_data.append(subgraph_extraction_time)
-        approx_data = tuple(approx_data)
+        c_name, c_stats = sorted_candidates[0]
+        c_id = NameData.from_filename(c_name).total_id
+        c_area, c_power, c_delay, *_ = c_stats
 
+        approx_data = (
+            benchmark_name,
+            c_id,
+            c_area, c_power, c_delay,
+            et, encoding,
+            labeling_time, subgraph_extraction_time,
+        )
         csvwriter.writerow(approx_data)
 
 
@@ -495,14 +414,6 @@ def pick_k_best_k_worst(candidates: Dict[str, float], k: int):
         return selected_candidates
 
 
-def display_the_tree(this_dict: Dict) -> None:
-
-    file_path = 'output/file.gv'
-
-    # with open(file_path, 'w') as f:
-    #     pass
-
-
 def label_graph(current_graph: AnnotatedGraph,
                 min_labeling: bool = False,  partial: bool = False,
                 et: int = -1, parallel: bool = False):
@@ -530,3 +441,5 @@ def get_toolname(specs_obj: TemplateSpecs) -> str:
     elif not specs_obj.subxpat and not specs_obj.shared:
         pprint.info2('XPAT started...')
         toolname = sxpatconfig.XPAT
+
+    return toolname
