@@ -10,6 +10,7 @@ from Z3Log.graph import Graph
 from Z3Log.config.config import *
 from Z3Log.config.path import *
 
+from sxpat.utils.name import NameData
 from z_marco.ma_graph import MaGraph
 from z_marco.utils import pprint, color
 
@@ -197,21 +198,15 @@ class Synthesis:
 
         return num_models
 
-    def set_path(self, this_path: Tuple[str, str] = None, this_name: str = None, id: int = 0):
+    def set_path(self, this_path: Tuple[str, str], this_name: Optional[str] = None, id: int = 0):
+        if this_name is None:
+            data = NameData.from_filename(self.benchmark_name)
+            if data.is_origin:
+                data.root = f'{data.root}_{self.template_name}_enc{self.specs.encoding}'
+            this_name = str(data.get_successor(self.specs.iterations, id))
+
         folder, extenstion = this_path
-
-        if this_name:
-            self.ver_out_name = this_name
-
-        elif re.search('id(\d+)', self.benchmark_name):
-            self.ver_out_name = f'{self.benchmark_name}_{id}.{extenstion}'
-
-        elif self.num_of_models == 1:
-            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_enc{self.specs.encoding}_id0.{extenstion}'
-
-        elif self.num_of_models > 1:
-            self.ver_out_name = f'{self.exact_name}_{sxpatconfig.TEMPLATE_SPEC_ET}{self.et}_{self.template_name}_enc{self.specs.encoding}_id{id}.{extenstion}'
-
+        self.ver_out_name = f'{this_name}.{extenstion}'
         self.ver_out_path = f'{folder}/{self.ver_out_name}'
         return self.ver_out_path
 
@@ -324,11 +319,6 @@ class Synthesis:
                 s_inputs_assigns += self.__get_fanin_cone(n)
         return s_inputs_assigns
 
-
-    def key_funciton_for_sorting(self, el):
-        idx = int(re.search(r'(\d+)$', el).group(1))
-        return idx
-
     def __fix_order(self):
         subpgraph_input_list = list(self.graph.subgraph_input_dict.values())
         subpgraph_input_list_ordered = []
@@ -342,9 +332,7 @@ class Synthesis:
             else:
                 g_list.append(node)
 
-        # pi_list.sort(key=lambda x: int(re.search('\d+', x).group()))
-        pi_list = sorted(pi_list, key=self.key_funciton_for_sorting)
-        g_list = sorted(g_list, key=self.key_funciton_for_sorting)
+        pi_list.sort(key=lambda x: int(re.search('\d+', x).group()))
         for el in pi_list:
             subpgraph_input_list_ordered.append(el)
         for el in g_list:
@@ -353,14 +341,14 @@ class Synthesis:
 
     def __subgraph_to_json_input_mapping(self):
         sub_to_json = f'//mapping subgraph inputs to json inputs\n'
-        # print(f'{sub_to_json = }')
+
         subgraph_input_list = list(self.graph.subgraph_input_dict.values())
         subgraph_input_list = self.__fix_order()
-        # print(f'{ subgraph_input_list = }')
+
         for idx in range(self.graph.subgraph_num_inputs):
             sub_to_json += f'{sxpatconfig.VER_ASSIGN} {sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx} = ' \
                            f'{sxpatconfig.VER_WIRE_PREFIX}{subgraph_input_list[idx]};\n'
-            # print(f'{sub_to_json = }')
+
         return sub_to_json
 
     def __json_model_lpp_and_subgraph_output_assigns(self, idx: int = 0):

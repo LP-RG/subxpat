@@ -562,7 +562,7 @@ class Stats:
             technique_specific += f'fef{self.specs.full_error_function}_'
             technique_specific += f'sef{self.specs.sub_error_function}_'
 
-        tail = f'mode{self.specs.mode}_ns{self.specs.num_subgraphs}_omax{self.specs.omax}_imax{self.specs.imax}_'
+        tail = f'mode{self.specs.mode}_omax{self.specs.omax}_imax{self.specs.imax}_'
         tail += f'kuc{self.specs.keep_unsat_candidate}_'
         tail += f'{self.template_name}_time'
 
