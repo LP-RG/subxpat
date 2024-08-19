@@ -441,3 +441,5 @@ def get_toolname(specs_obj: TemplateSpecs) -> str:
     elif not specs_obj.subxpat and not specs_obj.shared:
         pprint.info2('XPAT started...')
         toolname = sxpatconfig.XPAT
+
+    return toolname
