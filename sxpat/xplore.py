@@ -327,14 +327,14 @@ class CellIterator:
         # grid cells
         # 
         #subXPAT
-        #yield(1,1)
+        yield(1,1)
         yield(2,1)
         for pit in range(2 , max_pit+1):
             for lv in range(2, max_lv+1):
                 yield (lv,pit)
         #
         #XPAT
-        #yield(max_lv,max_pit)
+        # yield(max_lv,max_pit)
 
 
     @staticmethod

@@ -1,0 +1,87 @@
+args = An object of class Arguments:
+self.literals_per_product = 3
+self.products_per_output = 2
+self.products_in_total = 3
+self.subxpat = False
+self.subxpat_v2 = False
+self.et = 32
+self.clean = True
+self.partitioning_percentage = 10
+self.iterations = 1
+self.grid = True
+self.multiple = False
+self.plot = False
+self.imax = 3
+self.omax = 2
+self.sensitivity = -1
+self.timeout = 10800
+self.subgraph_size = 10
+self.mode = 5
+self.manual_nodes = []
+self.population = 1
+self.num_models = 1
+self.min_labeling = False
+self.shared = True
+self.parallel = True
+self.full_error_function = 1
+self.sub_error_function = 1
+self.et_partitioning = 'asc'
+self.partial_labeling = False
+self.num_subgraphs = 1
+self.clean = True
+self.encoding = 1
+self.multilevel = True
+self.lv=3
+[34mcleaning...[39m
+specs_obj = An object of Class TemplateSpecs:
+self.template_name = 'MULTILEVEL'
+self.exact_benchmark = 'adder_i10_o6'
+self.benchmark_name = 'adder_i10_o6'
+self.lpp = None
+self.ppo = None
+self.pit = None
+self.lv = None
+self.subxpat = False
+self.subxpat_v2 = False
+self.num_of_models = 1
+self.et = 32
+self.partitioning_percentage = 10
+self.iterations = 1
+self.grid = True
+self.imax = 3
+self.omax = 2
+self.max_sensitivity = -1
+self.sensitivity = 0
+self.timeout = 10800.0
+self.min_subgraph_size = 10
+self.mode = 5
+self.manual_nodes = []
+self.population = 1
+self.shared = True
+self.multilevel = True
+self.parallel = True
+self.min_labeling = False
+self.full_error_function = 1
+self.sub_error_function = 1
+self.et_partitioning = 'asc'
+self.partial_labeling = False
+self.keep_unsat_candidate = False
+
+[34mShared XPAT started...[39m
+path = 'output/report/grid_adder_i10_o6_3X3_et32_shared_xpat__enc1_mode5_omax2_imax3_kucFalse_MULTILEVEL_time20240820:161223.csv'
+[36mOnly one iteration with et 32[39m
+[36mcandidate adder_i10_o6[39m
+[94mLabeling (explicit & parallel)... [0m[94mDone[0m
+labeling_time = 4.945467948913574
+subgraph_extraction_time = 0.32006025314331055
+subgraph exported at output/gv/subgraphs/adder_i10_o6_et32_mode5_omax2_serr1.gv
+[34mGrid (6 X 3) and et=32 exploration started...[39m
+[32mverifying all approximate circuits -> [39m[32mErrorEval PASS! with total wce = 32[39m
+[32mCell = (1, 1) iteration = 1 -> sat (1 models found)[39m
+[32mDesign ID       Area       Power     Delay
+-----------  -------  ----------  --------
+Exact        67.5792  2.4298e-05  0.287319
+id0           6.5702  1.7914e-06  0.084327[39m
+[32mtime = 148.1207218170166[39m
+[36m136.98113012313843[39m
+candidates = {'adder_i10_o6_et32_MULTILEVEL_enc1_id0.v': (6.5702, 1.79139942702e-06, 0.084327, (1, 1))}
