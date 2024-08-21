@@ -975,17 +975,25 @@ class MultilevelManager(ProductTemplateManager):
                 limit = ((self.pit*self.subgraph_inputs.__len__())//3)*2
                 lines.append(f'AtMost({constr},{limit})')
                 lines.append(f'AtLeast({constr},{self.pit})')
-
-            elif lv < self.lv-1:
+            else:
                 constr = ', '.join(
                                 itertools.chain(
                                     f'{self._node_connection_levels(f_nd,lv-1,t_nd,lv)}'
                                     for f_nd in range(npl[lv-1])
                                     for t_nd in range(npl[lv])
                                     ))
-                limit = ((self.pit**2)//5)*2
-                lines.append(f'AtMost({constr},{limit})')
-                lines.append(f'AtLeast({constr},{self.pit**2})')
+                limit = npl[lv]*npl[lv-1]
+                lines.append(f'AtMost({constr},{(limit//5)*3})')
+                lines.append(f'AtLeast({constr},{(limit//10)*3})') # constr = ', '.join( #                 itertools.chain( #                     f'{self._node_connection_output(from_n,out_i)}' #                     for from_n in range(npl[self.lv-1]) #                     for out_i in range(self.subgraph_outputs.__len__()) #                 )) # limit = (npl[self.lv-1]*self.subgraph_outputs.__len__())//2
+            
+            constr = ', '.join(
+                                itertools.chain(
+                                    f'{self._node_connection_output(from__nd,out_j)}'
+                                    for from__nd in range(npl[self.lv-1])
+                                    for out_j in range(self.subgraph_outputs.__len__())
+                                    ))
+            limit = self.subgraph_outputs.__len__() * (npl[self.lv-1]//2)
+            lines.append(f'AtMost({constr},{limit})')
 
         builder.update(logic_dependant_constraint1 = ', \n'.join(lines) + ',')#'\n'.join(lines))
 
@@ -999,7 +1007,7 @@ class MultilevelManager(ProductTemplateManager):
                 lines.append(f'# level {lv} - node order constr')
                 constr_line = []
                 if lv == 0:
-                    default = 2**self.subgraph_inputs.__len__()
+                    default = self.subgraph_inputs.__len__()
                     for t_nd in range(npl[lv]):
                         constr_line.append(' + '.join(
                             itertools.chain
