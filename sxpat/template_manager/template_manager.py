@@ -996,7 +996,7 @@ class MultilevelManager(ProductTemplateManager):
                                     for from__nd in range(npl[self.lv-1])
                                     for out_j in range(self.subgraph_outputs.__len__())
                                     ))
-            limit = self.subgraph_outputs.__len__() * (npl[self.lv-1]/2)
+            limit = self.subgraph_outputs.__len__() * (npl[self.lv-1]*2/5)
             
             lines.append(f'AtMost({constr},{int(limit)})')
 
