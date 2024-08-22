@@ -972,9 +972,13 @@ class MultilevelManager(ProductTemplateManager):
                                     for input_i in range(self.subgraph_inputs.__len__())
                                     for t_nd in range(npl[lv])
                                 ))
-                limit = ((self.pit*self.subgraph_inputs.__len__())//3)*2
-                lines.append(f'AtMost({constr},{limit})')
-                lines.append(f'AtLeast({constr},{self.pit})')
+                if self.lv==1:
+                    limit = ((self.pit*self.subgraph_inputs.__len__())/5)
+                else:
+                    limit = ((self.pit*self.subgraph_inputs.__len__())/10)*7
+
+                lines.append(f'AtMost({constr},{int(limit)})')
+                #lines.append(f'AtLeast({constr},{self.pit})')
             else:
                 constr = ', '.join(
                                 itertools.chain(
@@ -983,8 +987,8 @@ class MultilevelManager(ProductTemplateManager):
                                     for t_nd in range(npl[lv])
                                     ))
                 limit = npl[lv]*npl[lv-1]
-                lines.append(f'AtMost({constr},{(limit//5)*3})')
-                lines.append(f'AtLeast({constr},{(limit//10)*3})') # constr = ', '.join( #                 itertools.chain( #                     f'{self._node_connection_output(from_n,out_i)}' #                     for from_n in range(npl[self.lv-1]) #                     for out_i in range(self.subgraph_outputs.__len__()) #                 )) # limit = (npl[self.lv-1]*self.subgraph_outputs.__len__())//2
+                lines.append(f'AtMost({constr},{int((limit/5)*3)})')
+                lines.append(f'AtLeast({constr},{int((limit/10)*2)})') # constr = ', '.join( #                 itertools.chain( #                     f'{self._node_connection_output(from_n,out_i)}' #                     for from_n in range(npl[self.lv-1]) #                     for out_i in range(self.subgraph_outputs.__len__()) #                 )) # limit = (npl[self.lv-1]*self.subgraph_outputs.__len__())//2
             
             constr = ', '.join(
                                 itertools.chain(
@@ -992,8 +996,9 @@ class MultilevelManager(ProductTemplateManager):
                                     for from__nd in range(npl[self.lv-1])
                                     for out_j in range(self.subgraph_outputs.__len__())
                                     ))
-            limit = self.subgraph_outputs.__len__() * (npl[self.lv-1]//2)
-            lines.append(f'AtMost({constr},{limit})')
+            limit = self.subgraph_outputs.__len__() * (npl[self.lv-1]/2)
+            
+            lines.append(f'AtMost({constr},{int(limit)})')
 
         builder.update(logic_dependant_constraint1 = ', \n'.join(lines) + ',')#'\n'.join(lines))
 

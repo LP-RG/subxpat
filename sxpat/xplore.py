@@ -174,7 +174,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 # If multilevel and SAT check whether the new approximation is different from the input graph 
                 if specs_obj.multilevel and cur_status == SAT and i > 1:
 
-                    pprint.cyan("HERE")
+                    
                     synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
                     cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
 
