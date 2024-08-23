@@ -58,7 +58,7 @@ def main():
             #
             #
             # get cur_wce using errorEval
-            erroreval_verification(cur_benchmark, cur_ver[:-2], cur_claimed_wce)
+            erroreval_verification(cur_benchmark, cur_ver[:-2])
             #
             #
 
