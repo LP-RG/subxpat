@@ -363,29 +363,6 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         csvwriter.writerow(approx_data)
 
 
-def pick_k_best_k_worst(candidates: Dict[str, float], k: int):
-    num_of_candidates: int = len(candidates)
-    if 2 * k >= num_of_candidates:
-        return candidates
-    else:
-        # sort the dict based on the value and remove everything but the k first and k last elements
-        sorted_candidates = sorted(candidates.items(), key=lambda x: x[1])
-        i = 0
-        selected_candidates: Dict = {}
-        for key in sorted_candidates:
-            if i < k or (i >= len(candidates) - k):
-                selected_candidates[key[0]] = candidates[key[0]]
-            i += 1
-        return selected_candidates
-
-
-def pick_best_model(candidates: Dict[str, List]):
-    sorted_by_area = sorted(candidates.items(), key=lambda x: x[1][0])
-    pruned_by_area = [el for el in sorted_by_area if el[1][0] == sorted_by_area[0][1][0]]
-    sorted_by_et = sorted(pruned_by_area, key=lambda x: x[1][4])
-    return sorted_by_et[0]
-
-
 def label_graph(current_graph: AnnotatedGraph,
                 min_labeling: bool = False,  partial: bool = False,
                 et: int = -1, parallel: bool = False):
