@@ -1,6 +1,7 @@
 from typing import Iterable, Iterator, List
 
 from tabulate import tabulate
+import functools as ft
 import csv
 import time
 import math
@@ -39,8 +40,6 @@ def explore_grid(specs_obj: TemplateSpecs):
     # create stat and template object
     stats_obj = Stats(specs_obj)
 
-    current_population: Dict = {specs_obj.benchmark_name: ('Area', 'Delay', 'Power', ('LPP', 'PPO'))}
-    total: Dict[Dict] = {}
     available_error = specs_obj.et
     obtained_wce_exact = 0
     i = 0
@@ -190,7 +189,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
                     header = list(range(len(cur_model_results)))
                     all = list(cur_model_results.values())
-                    content = [f for (f, _, _, _) in all]
+                    content = [f for (f, *_) in all]
 
                     csvwriter.writerow(header)
                     csvwriter.writerow(content)
@@ -207,10 +206,12 @@ def explore_grid(specs_obj: TemplateSpecs):
                         return stats_obj
                 pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)')
 
+                # sort circuits
+                sorted_circuits = sorted(cur_model_results.items(), key=ft.cmp_to_key(model_compare))
+
                 # select best circuit
-                best_name, best_data = pick_best_model(cur_model_results)
+                best_name, best_data = sorted_circuits[0]
                 prev_actual_error = best_data[5]
-                total[i] = 1
 
                 specs_obj.benchmark_name = best_name
                 best_model_info = Model(id=0,
@@ -235,7 +236,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 exact_stats = [synth_obj.estimate_area(exact_file_path),
                                synth_obj.estimate_power(exact_file_path),
                                synth_obj.estimate_delay(exact_file_path)]
-                print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
+                print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
                 store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.benchmark_name, et=specs_obj.et,
                                     encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
 
@@ -243,7 +244,8 @@ def explore_grid(specs_obj: TemplateSpecs):
 
             prev_actual_error = 0
 
-        if exists_an_area_zero(current_population):
+        if best_data[0] == 0:
+            pprint.info3('Area zero found!\nTerminated.')
             break
 
     stats_obj.store_grid()
@@ -299,34 +301,31 @@ def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration:
     return specs_obj
 
 
-def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_stats: List = None) -> None:
+def print_current_model(sorted_models: List[Tuple[str, List]], normalize: bool = True, exact_stats: List = None) -> None:
     data = []
 
     if exact_stats:
         # add exact circuit data
         e_area, e_power, e_delay, *_ = exact_stats
-        data.append(['Exact', e_area, e_power, e_delay])
+        data.append(['Exact', e_area, e_power, e_delay, 0])
 
         if normalize:
-            for stats in cur_model_result.values():
+            for _, stats in sorted_models:
                 stats[0] = (stats[0] / e_area) * 100
                 stats[1] = (stats[1] / e_power) * 100
                 stats[2] = (stats[2] / e_delay) * 100
 
     # keep wanted models
-    sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
-    if len(cur_model_result) < 10:
-        wanted_candidates = sorted_candidates
-    else:
-        wanted_candidates = [sorted_candidates[0]]
+    if len(sorted_models) > 10:
+        sorted_models = sorted_models[0:10]
 
     # add candidates data
-    for c_name, c_stats in wanted_candidates:
+    for c_name, c_stats in sorted_models:
         c_id = NameData.from_filename(c_name).total_id
-        c_area, c_power, c_delay, *_ = c_stats
-        data.append([c_id, c_area, c_power, c_delay])
+        c_area, c_power, c_delay, _, c_error, _ = c_stats
+        data.append([c_id, c_area, c_power, c_delay, c_error])
 
-    pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay']))
+    pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
 
 def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, encoding: int, subgraph_extraction_time: float, labeling_time: float, exact_stats: List = None) -> None:
@@ -362,14 +361,6 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
             labeling_time, subgraph_extraction_time,
         )
         csvwriter.writerow(approx_data)
-
-
-def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
-    for key in candidates.keys():
-        if candidates[key][0] == 0:
-            pprint.info3('Area zero found!\nTerminated.')
-            return True
-    return False
 
 
 def pick_k_best_k_worst(candidates: Dict[str, float], k: int):
@@ -432,3 +423,14 @@ def node_matcher(n1: dict, n2: dict) -> bool:
         n1.get('label') == n2.get('label')
         and n1.get('subgraph', 0) == n2.get('subgraph', 0)
     )
+
+
+def model_compare(a, b) -> bool:
+    if a[1][0] < b[1][0]:
+        return True
+    elif b[1][0] < a[1][0]:
+        return False
+    elif a[1][4] < b[1][4]:
+        return True
+    else:
+        return False
