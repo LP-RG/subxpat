@@ -1014,21 +1014,39 @@ class MultilevelManager(ProductTemplateManager):
                 if lv == 0:
                     default = self.subgraph_inputs.__len__()
                     for t_nd in range(npl[lv]):
-                        constr_line.append(' + '.join(
-                            itertools.chain
-                            (
-                                f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},{2**(input_i+default)},{2**input_i}),0)'   
-                                for input_i in range(self.subgraph_inputs.__len__())
-                            )))
+                        if self._specs.encoding == 1:
+                            constr_line.append(' + '.join(
+                                itertools.chain
+                                (
+                                    f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},{2**(input_i+default)},{2**input_i}),0)'   
+                                    for input_i in range(self.subgraph_inputs.__len__())
+                                )))
+                        elif self._specs.encoding == 2:
+                            lim = npl[0] * self.subgraph_inputs.__len__()
+                            constr_line.append(' + '.join(
+                                itertools.chain
+                                (
+                                    f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},BitVecVal({2**(input_i+default)},{lim}),BitVecVal({2**input_i},{lim})),BitVec(0,{lim}))'   
+                                    for input_i in range(self.subgraph_inputs.__len__())
+                                )))
                 else:
                     default=npl[lv-1]
                     for t_nd in range(npl[lv]):
-                        constr_line.append(' + '.join(
-                            itertools.chain
-                            (
-                                f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},{2**(f_nd+default)},{2**f_nd}),0)'   
-                                for f_nd in range(npl[lv-1])
-                            )))
+                        if self._specs.encoding == 1:
+                            constr_line.append(' + '.join(
+                                itertools.chain
+                                (
+                                    f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},{2**(f_nd+default)},{2**f_nd}),0)'   
+                                    for f_nd in range(npl[lv-1])
+                                )))
+                        elif self._specs.encoding == 2:
+                            lim = (npl[lv-1]*npl[lv]) + 1
+                            constr_line.append(' + '.join(
+                                itertools.chain
+                                (
+                                    f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},BitVecVal({2**(f_nd+default)},{lim}),BitVecVal({2**f_nd},{lim})),BitVecVal(0,{lim}))'   
+                                    for f_nd in range(npl[lv-1])
+                                )))
 
                 lines.extend(
                     f'{self._encoding.unsigned_greater(node_a, node_b)}'
