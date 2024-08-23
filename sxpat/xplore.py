@@ -382,7 +382,7 @@ def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
 def select_candidates_for_next_iteration(spec_obj: TemplateSpecs, candidates: Dict[str, float]) -> Dict[str, float]:
     # Check which alogirhtm we use for selection of the next generation
     if spec_obj.population > 1:
-        return pick_k_best_k_worst(candidates, spec_obj.population // 2)
+        return pick_best_model(candidates)
     else:
         selected_candidates = {}
         for key in candidates.keys():
@@ -406,6 +406,9 @@ def pick_k_best_k_worst(candidates: Dict[str, float], k: int):
             i += 1
         return selected_candidates
 
+def pick_best_model(candidates: Dict[str, float]):
+    sorted_candidates = sorted(candidates.items(), key=lambda x: x[1])
+    return dict([next(iter(sorted_candidates))])
 
 def label_graph(current_graph: AnnotatedGraph,
                 min_labeling: bool = False,  partial: bool = False,
