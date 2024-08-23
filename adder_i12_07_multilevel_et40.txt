@@ -4,7 +4,7 @@ self.products_per_output = 2
 self.products_in_total = 4
 self.subxpat = False
 self.subxpat_v2 = False
-self.et = 32
+self.et = 40
 self.clean = True
 self.partitioning_percentage = 10
 self.iterations = 1
@@ -44,7 +44,7 @@ self.lv = None
 self.subxpat = False
 self.subxpat_v2 = False
 self.num_of_models = 1
-self.et = 32
+self.et = 40
 self.partitioning_percentage = 10
 self.iterations = 1
 self.grid = True
@@ -68,22 +68,22 @@ self.partial_labeling = False
 self.keep_unsat_candidate = False
 
 [34mShared XPAT started...[39m
-path = 'output/report/grid_adder_i12_o7_4X4_et32_shared_xpat__enc1_mode5_omax2_imax3_kucFalse_MULTILEVEL_time20240822:135434.csv'
-[36mOnly one iteration with et 32[39m
+path = 'output/report/grid_adder_i12_o7_4X4_et40_shared_xpat__enc1_mode5_omax2_imax3_kucFalse_MULTILEVEL_time20240822:180935.csv'
+[36mOnly one iteration with et 40[39m
 [36mcandidate adder_i12_o7[39m
 [94mLabeling (explicit & sequential)... [0m[94mDone[0m
-labeling_time = 16.288100719451904
-subgraph_extraction_time = 0.42373061180114746
-subgraph exported at output/gv/subgraphs/adder_i12_o7_et32_mode5_omax2_serr1.gv
-[34mGrid (7 X 4) and et=32 exploration started...[39m
+labeling_time = 17.75624108314514
+subgraph_extraction_time = 0.4291377067565918
+subgraph exported at output/gv/subgraphs/adder_i12_o7_et40_mode5_omax2_serr1.gv
+[34mGrid (7 X 4) and et=40 exploration started...[39m
 [33mCell(1,1) at iteration 1 -> UNSAT[39m
 [33mCell(2,1) at iteration 1 -> UNSAT[39m
-[32mverifying all approximate circuits -> [39m[32mErrorEval PASS! with total wce = 32[39m
+[32mverifying all approximate circuits -> [39m[32mErrorEval PASS! with total wce = 40[39m
 [32mCell = (2, 2) iteration = 1 -> sat (1 models found)[39m
 [32mDesign ID       Area        Power     Delay
 -----------  -------  -----------  --------
 Exact        82.5968  3.01167e-05  0.345084
-id0           1.4079  1.20833e-07  0.008511[39m
-[32mtime = 5490.702714920044[39m
-[36m5467.6156005859375[39m
-candidates = {'adder_i12_o7_et32_MULTILEVEL_enc1_id0.v': (1.4079, 1.208333202385e-07, 0.008511, (2, 2))}
+id0           6.1009  1.78945e-06  0.057193[39m
+[32mtime = 8734.340054273605[39m
+[36m8709.671887874603[39m
+candidates = {'adder_i12_o7_et40_MULTILEVEL_enc1_id0.v': (6.1009, 1.789447878764e-06, 0.057193, (2, 2))}

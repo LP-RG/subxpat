@@ -1,0 +1,99 @@
+args = An object of class Arguments:
+self.literals_per_product = 12
+self.products_per_output = 2
+self.products_in_total = 15
+self.subxpat = False
+self.subxpat_v2 = False
+self.et = 32
+self.clean = True
+self.partitioning_percentage = 10
+self.iterations = 1
+self.grid = True
+self.multiple = False
+self.plot = False
+self.imax = 3
+self.omax = 2
+self.sensitivity = -1
+self.timeout = 10800
+self.subgraph_size = 10
+self.mode = 5
+self.manual_nodes = []
+self.population = 1
+self.num_models = 1
+self.min_labeling = False
+self.shared = True
+self.parallel = False
+self.full_error_function = 1
+self.sub_error_function = 1
+self.et_partitioning = 'asc'
+self.partial_labeling = False
+self.num_subgraphs = 1
+self.clean = True
+self.encoding = 1
+self.multilevel = False
+self.lv=2
+[34mcleaning...[39m
+specs_obj = An object of Class TemplateSpecs:
+self.template_name = 'SHAREDLOGIC'
+self.exact_benchmark = 'adder_i12_o7'
+self.benchmark_name = 'adder_i12_o7'
+self.lpp = None
+self.ppo = None
+self.pit = None
+self.lv = None
+self.subxpat = False
+self.subxpat_v2 = False
+self.num_of_models = 1
+self.et = 32
+self.partitioning_percentage = 10
+self.iterations = 1
+self.grid = True
+self.imax = 3
+self.omax = 2
+self.max_sensitivity = -1
+self.sensitivity = 0
+self.timeout = 10800.0
+self.min_subgraph_size = 10
+self.mode = 5
+self.manual_nodes = []
+self.population = 1
+self.shared = True
+self.multilevel = False
+self.parallel = False
+self.min_labeling = False
+self.full_error_function = 1
+self.sub_error_function = 1
+self.et_partitioning = 'asc'
+self.partial_labeling = False
+self.keep_unsat_candidate = False
+
+[34mShared XPAT started...[39m
+path = 'output/report/grid_adder_i12_o7_18X15_et32_shared_xpat__enc1_mode5_omax2_imax3_kucFalse_SHAREDLOGIC_time20240822:135530.csv'
+[36mOnly one iteration with et 32[39m
+[36mcandidate adder_i12_o7[39m
+[94mLabeling (explicit & sequential)... [0m[94mDone[0m
+labeling_time = 16.397146224975586
+subgraph_extraction_time = 0.42060017585754395
+subgraph exported at output/gv/subgraphs/adder_i12_o7_et32_mode5_omax2_serr1.gv
+[34mGrid (18 X 15) and et=32 exploration started...[39m
+[33mCell(0,1) at iteration 1 -> UNSAT[39m
+[33mCell(1,1) at iteration 1 -> UNSAT[39m
+[33mCell(2,1) at iteration 1 -> UNSAT[39m
+[33mCell(3,1) at iteration 1 -> UNSAT[39m
+[33mCell(4,1) at iteration 1 -> UNSAT[39m
+[33mCell(2,2) at iteration 1 -> UNSAT[39m
+[33mCell(3,2) at iteration 1 -> UNSAT[39m
+[33mCell(4,2) at iteration 1 -> UNSAT[39m
+[33mCell(5,2) at iteration 1 -> UNSAT[39m
+[33mCell(3,3) at iteration 1 -> UNSAT[39m
+[33mCell(4,3) at iteration 1 -> UNSAT[39m
+[33mCell(5,3) at iteration 1 -> UNSAT[39m
+[32mverifying all approximate circuits -> [39m[32mErrorEval PASS! with total wce = 32[39m
+[32mCell = (6, 3) iteration = 1 -> sat (1 models found)[39m
+[32mDesign ID       Area        Power     Delay
+-----------  -------  -----------  --------
+Exact        82.5968  3.01167e-05  0.345084
+id0           1.4079  1.20833e-07  0.008511[39m
+[32mtime = 9916.189189434052[39m
+[36m9893.174671649933[39m
+candidates = {'adder_i12_o7_et32_SHAREDLOGIC_enc1_id0.v': (1.4079, 1.208333202385e-07, 0.008511, (6, 3))}
