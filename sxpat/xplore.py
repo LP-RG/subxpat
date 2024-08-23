@@ -427,10 +427,12 @@ def node_matcher(n1: dict, n2: dict) -> bool:
 
 def model_compare(a, b) -> bool:
     if a[1][0] < b[1][0]:
-        return True
-    elif b[1][0] < a[1][0]:
-        return False
+        return -1
+    elif a[1][0] > b[1][0]:
+        return +1
     elif a[1][4] < b[1][4]:
-        return True
+        return -1
+    elif a[1][4] > b[1][4]:
+        return +1
     else:
-        return False
+        return 0
