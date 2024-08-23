@@ -46,5 +46,6 @@ def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark:
                     if row[0] == z3logcfg.WCE:
                         obtained_wce = int(row[1])
                         os.remove(report_file)
+                        break
 
     return obtained_wce
