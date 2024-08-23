@@ -1,6 +1,7 @@
 from typing import Iterable, Iterator, List
 
 from tabulate import tabulate
+import operator as op
 import csv
 import time
 import math
@@ -46,7 +47,6 @@ def explore_grid(specs_obj: TemplateSpecs):
     # current_population: Dict = {specs_obj.benchmark_name: -1}
     # So I changed it into the following:
     current_population: Dict = {specs_obj.benchmark_name: ('Area', 'Delay', 'Power', ('LPP', 'PPO'))}
-    next_generation: Dict = {}
     total: Dict[Dict] = {}
     available_error = specs_obj.et
     obtained_wce_exact = 0
@@ -236,17 +236,11 @@ def explore_grid(specs_obj: TemplateSpecs):
                                    synth_obj.estimate_power(exact_file_path),
                                    synth_obj.estimate_delay(exact_file_path)]
                     print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
-
                     store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.benchmark_name, et=specs_obj.et,
                                         encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
 
-                    for key in cur_model_results.keys():
-                        next_generation[key] = cur_model_results[key]
-
-                    current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
+                    current_population = pick_best_model(cur_model_results)
                     total[i] = current_population
-
-                    next_generation = {}
 
                     # SAT found, stop grid exploration
                     break
@@ -382,18 +376,6 @@ def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
     return False
 
 
-def select_candidates_for_next_iteration(spec_obj: TemplateSpecs, candidates: Dict[str, float]) -> Dict[str, float]:
-    # Check which alogirhtm we use for selection of the next generation
-    if spec_obj.population > 1:
-        return pick_best_model(candidates)
-    else:
-        selected_candidates = {}
-        for key in candidates.keys():
-            selected_candidates[key] = candidates[key]
-            break
-        return selected_candidates
-
-
 def pick_k_best_k_worst(candidates: Dict[str, float], k: int):
     num_of_candidates: int = len(candidates)
     if 2 * k >= num_of_candidates:
@@ -409,9 +391,11 @@ def pick_k_best_k_worst(candidates: Dict[str, float], k: int):
             i += 1
         return selected_candidates
 
+
 def pick_best_model(candidates: Dict[str, float]):
-    sorted_candidates = sorted(candidates.items(), key=lambda x: x[1])
-    return dict([next(iter(sorted_candidates))])
+    best_candidate = sorted(candidates.items(), key=lambda x: x[1][0])[0]
+    return {best_candidate[0]: best_candidate[1]}
+
 
 def label_graph(current_graph: AnnotatedGraph,
                 min_labeling: bool = False,  partial: bool = False,
