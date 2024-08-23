@@ -12,7 +12,7 @@ from Z3Log.z3solver import Z3solver
 from z_marco.utils import pprint
 
 
-def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark: str, et: int) -> int:
+def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark: str) -> int:
 
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()
@@ -46,9 +46,6 @@ def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark:
                     if row[0] == z3logcfg.WCE:
                         obtained_wce = int(row[1])
                         os.remove(report_file)
-                        if obtained_wce > et:
-                            pprint.error('ERROR!!! The obtained WCE does not match the given error threshold!')
-                            pprint.error(f'{obtained_wce = } > ET = {et}')
-                            open(f'output/report/FAILED_{approximate_benchmark}.txt', 'w').close()
+                        break
 
     return obtained_wce
