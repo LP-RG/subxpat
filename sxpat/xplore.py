@@ -1,7 +1,6 @@
 from typing import Iterable, Iterator, List
 
 from tabulate import tabulate
-import operator as op
 import csv
 import time
 import math
@@ -35,17 +34,11 @@ def explore_grid(specs_obj: TemplateSpecs):
     toolname = get_toolname(specs_obj)
 
     # initial setup
-    total_iterations = specs_obj.iterations
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
-    exact_file_name = specs_obj.exact_benchmark
-    sum_wce_actual = 0
 
     # create stat and template object
     stats_obj = Stats(specs_obj)
 
-    # This line would cause a problem,
-    # current_population: Dict = {specs_obj.benchmark_name: -1}
-    # So I changed it into the following:
     current_population: Dict = {specs_obj.benchmark_name: ('Area', 'Delay', 'Power', ('LPP', 'PPO'))}
     total: Dict[Dict] = {}
     available_error = specs_obj.et
@@ -368,7 +361,6 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
 
 
 def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
-    print(f'{candidates = }')
     for key in candidates.keys():
         if candidates[key][0] == 0:
             pprint.info3('Area zero found!\nTerminated.')
