@@ -3,7 +3,6 @@ import sys
 from time import time
 from typing import Tuple, List, Callable, Any, Union
 import json
-import csv
 
 et = int(sys.argv[1])
 et_encoded = {{{{et_encoded}}}}
@@ -46,10 +45,10 @@ params_list = {{{{params_list}}}}
 exact_circuit = And(
 	# wires
 	{{{{exact_wires_constraints}}}}
-	
+
 	# output bits (from the least significant)
 	{{{{exact_output_constraints}}}}
-	
+
 	# aggregated output
 	{{{{exact_aggregated_output}}}}
 )
@@ -61,39 +60,12 @@ approximate_circuit = And(
 
 	# output bits (from the least significant)
 	{{{{approximate_output_constraints}}}}
-	
+
 	# aggregated output
 	{{{{approximate_aggregated_output}}}}
 )
 
-
-# forall and verification solvers
-forall_solver = {{{{solver}}}}
-forall_solver.add(ForAll(
-	[{{{{inputs}}}}],
-	And(
-		# error constraints
-		{{{{difference_less_equal_etenc}}}},
-
-		# circuits
-		exact_circuit,
-		approximate_circuit,
-
-		{{{{logic_dependant_constraint1}}}}
-		
-		#> redundancy constraints
-
-		# remove double no-care
-		{{{{remove_double_constraint}}}}
-
-		# remove constant 0 parameters permutations
-		{{{{remove_zero_permutations_constraint}}}}
-
-		# set order of products
-		{{{{product_order_constraint}}}}
-	)
-))
-
+# solver used to verify the correctness of the model
 verification_solver = {{{{solver}}}}
 verification_solver.add(
 	error == difference,
@@ -101,11 +73,11 @@ verification_solver.add(
 	approximate_circuit,
 )
 
-parameters_constraints: List[Tuple[BoolRef, bool]] = []
+previous_models: List[List[Tuple[BoolRef, bool]]] = []
 found_data = []
-while(len(found_data) < wanted_models and timeout > 0):
+while (len(found_data) < wanted_models and timeout > 0):
 	time_total_start = time()
-	
+
 	attempts = 1
 	result: CheckSatResult = None
 	attempts_times: List[Tuple[float, float, float]] = []
@@ -113,33 +85,65 @@ while(len(found_data) < wanted_models and timeout > 0):
 	while result != sat:
 		time_attempt_start = time()
 		time_parameters_start = time_attempt_start
-		# add constrain to prevent the same parameters to happen
-		if parameters_constraints:
-			forall_solver.add(Or(*map(lambda x: x[0] != x[1], parameters_constraints)))
-		parameters_constraints = []
+
+		# solver used to get a set of parameters
+		forall_solver = {{{{solver}}}}
+		forall_solver.add(ForAll(
+			[{{{{inputs}}}}],
+			And(
+				# error constraints
+				{{{{difference_less_equal_etenc}}}},
+
+				# circuits
+				exact_circuit,
+				approximate_circuit,
+
+				{{{{logic_dependant_constraint1}}}}
+
+				# > redundancy constraints
+
+				# remove double no-care
+				{{{{remove_double_constraint}}}}
+
+				# remove constant 0 parameters permutations
+				{{{{remove_zero_permutations_constraint}}}}
+
+				# set order of products
+				{{{{product_order_constraint}}}}
+			)
+		))
+
+		# add constrain to prevent old models from reappearing
+		for model in previous_models:
+			forall_solver.add(Or([p != v for p, v in model]))
+
 		forall_solver.set('timeout', int(timeout * 1000))
 		result = forall_solver.check()
 		time_parameters = time() - time_attempt_start
 		time_attempt = time() - time_attempt_start
-		timeout -= time_parameters # removed the time used from the timeout
+		timeout -= time_parameters  # removed the time used from the timeout
+		
 		if result != sat:
 			attempts_times.append((time_attempt, time_parameters, None))
 			break
 		m = forall_solver.model()
-		parameters_constraints = []
-		for k, v in map(lambda k: (k, m[k]), m):
-			if str(k)[0] == 'p':
-				parameters_constraints.append((Bool(str(k)), v))
-		# verify parameters
+
+		# extract wanted model (get only parameters from total model)
+		current_model: List[Tuple[BoolRef, bool]] = [
+			(Bool(str(k)), is_true(m[k]))
+			for k in m
+			if str(k)[0] == 'p'
+		]
+		previous_models.append(current_model)
+
+		# veriy parameters
 		WCE: int = None
 		verification_et: int = 0
 		time_verification_start = time()
 		# save state
 		verification_solver.push()
-		# parameters constraints
-		verification_solver.add(
-			*map(lambda x: x[0] == x[1], parameters_constraints),
-		)
+		# force parameters values (from current model)
+		verification_solver.add(*(p == v for p, v in current_model))
 
 		while verification_et < max_possible_et:
 			# add constraint
@@ -156,7 +160,7 @@ while(len(found_data) < wanted_models and timeout > 0):
 				m = verification_solver.model()
 				verification_et = m[error].as_long()
 			else:
-				 # unknown (probably a timeout)
+				# unknown (probably a timeout)
 				WCE = -1
 				break
 
@@ -168,20 +172,20 @@ while(len(found_data) < wanted_models and timeout > 0):
 		time_attempt = time() - time_attempt_start
 		timeout -= time_verification  # remove the time used from the timeout
 		attempts_times.append((time_attempt, time_parameters, time_verification))
-		
+
 		# ==== continue or exit
 		if WCE > et:
 			# Z3 hates us and decided it doesn't like being appreciated
 			result = None
 			attempts += 1
-			invalid_parameters = parameters_constraints
+			invalid_parameters = current_model
 		elif WCE < 0:  # caused by unknown
 			break
 
 	# store data
 	def extract_info(pattern: Union[Pattern, str], string: str,
-				parser: Callable[[Any], Any] = lambda x: x,
-				default: Union[Callable[[], None], Any] = None) -> Any:
+					 parser: Callable[[Any], Any] = lambda x: x,
+					 default: Union[Callable[[], None], Any] = None) -> Any:
 		import re
 		return (parser(match[1]) if (match := re.search(pattern, string))
 				else (default() if callable(default) else default))
