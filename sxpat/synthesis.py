@@ -33,6 +33,7 @@ class Synthesis:
         self.__subxpat: bool = template_specs.subxpat
         self.__shared: bool = template_specs.shared
         self.__multilevel: bool = template_specs.multilevel
+        self.__template: int = template_specs.template
 
         self.__iterations = template_specs.iterations
         self.__literals_per_product = template_specs.lpp
@@ -44,7 +45,7 @@ class Synthesis:
 
         self.__num_models: int = template_specs.num_of_models
 
-        if self.shared:
+        if self.template == 1:
             self.__products_in_total: int = template_specs.pit
         else:
             self.__products_in_total: float = float('inf')
@@ -75,30 +76,14 @@ class Synthesis:
     @property
     def specs(self):
         return self.__template_specs
-
-    @property
-    def products_in_total(self):
-        return self.__products_in_total
-
-    @property
-    def pit(self):
-        return self.__products_in_total
-
+    
     @property
     def subxpat(self):
         return self.__subxpat
 
     @property
-    def shared(self):
-        return self.__shared
-
-    @property
     def num_of_models(self):
         return self.__num_models
-
-    @property
-    def products_in_total(self):
-        return self.__products_in_total
 
     @property
     def pit(self):
@@ -145,16 +130,8 @@ class Synthesis:
         return self.__json_model
 
     @property
-    def literals_per_product(self):
-        return self.__literals_per_product
-
-    @property
     def lpp(self):
         return self.__literals_per_product
-
-    @property
-    def products_per_output(self):
-        return self.__products_per_output
 
     @property
     def ppo(self):
@@ -250,20 +227,13 @@ class Synthesis:
         """
  
         if self.__magraph:
-            # todo:hack: temporary
             verilog_str = [self.__magraph_to_verilog()]
-        elif self.shared and self.multilevel:
-            verilog_str = self.__annotated_graph_to_verilog_multilevel() # Multilevel XPAT
-        elif self.subxpat and self.shared and self.multilevel:
-            verilog_str = self.__annotated_graph_to_verilog_multilevel() # Multilevel SubXPAT
-        elif self.subxpat and self.shared and not self.multilevel:
-            verilog_str = self.__annotated_graph_to_verilog_shared()   # Shared SubXPAT
-        elif self.subxpat and not self.shared:
-            verilog_str = self.__annotated_graph_to_verilog()  # SubXPAT
-        elif not self.subxpat and self.shared:
-            verilog_str = self.__json_model_to_verilog_shared()  # Shared XPAT
-        elif not self.subxpat and not self.shared:
-            verilog_str = self.__annotated_graph_to_verilog()  # XPAT (Vanilla)
+        elif self.template == 0:
+            self.__annotated_graph_to_verilog()
+        elif self.template == 1:
+            self.__annotated_graph_to_verilog_shared() if self.subxpat else self.__json_model_to_verilog_shared()
+        elif self.template == 2:
+            self.__annotated_graph_to_verilog_multilevel()
         else:
             pprint.error('ERROR!!! the graph or json model cannot be converted into a Verilog script!')
             exit(1)                                         
