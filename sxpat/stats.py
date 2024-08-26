@@ -289,10 +289,10 @@ class Grid:
     def __init__(self, spec_obj: TemplateSpecs):
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
-        if spec_obj.multilevel:
+        if spec_obj.template == 2:
             self.__lpp: int = spec_obj.num_lev
             self.__ppo: int = spec_obj.max_pit
-        elif spec_obj.shared:
+        elif spec_obj.template == 1:
             self.__lpp: int = spec_obj.max_its
             self.__ppo: int = spec_obj.max_pit
         else:
@@ -360,29 +360,28 @@ class Stats:
         self.__template_name = spec_obj.template_name
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
-        if spec_obj.multilevel:
+        if spec_obj.template == 2:
             self.__lpp: int = spec_obj.num_lev
             self.__ppo: int = spec_obj.max_pit
-        elif spec_obj.shared:
+        elif spec_obj.template == 1:
             self.__lpp: int = spec_obj.max_its
             self.__ppo: int = spec_obj.max_pit
         else:
             self.__lpp: int = spec_obj.max_lpp
             self.__ppo: int = spec_obj.max_ppo
         self.__et: int = spec_obj.et
-        self.__shared: bool = spec_obj.shared
         self.__subxpat: bool = spec_obj.subxpat
         self.__subxpat_v2: bool = spec_obj.subxpat_v2
 
         if self.subxpat_v2:
             self.__tool_name = sxpatconfig.SUBXPAT_V2
-        elif self.subxpat and self.shared:
+        elif self.subxpat and specs_obj.template == 1:
             self.__tool_name = sxpatconfig.SHARED_SUBXPAT
-        elif self.subxpat and not self.shared:
+        elif self.subxpat and not specs_obj.template == 1:
             self.__tool_name = sxpatconfig.SUBXPAT
-        elif not self.subxpat and self.shared:
+        elif not self.subxpat and specs_obj.template == 1:
             self.__tool_name = sxpatconfig.SHARED_XPAT
-        elif not self.subxpat and not self.shared:
+        elif not self.subxpat and not specs_obj.template == 1:
             self.__tool_name = sxpatconfig.XPAT
 
         self.__max_sensitivity: int = spec_obj.max_sensitivity
@@ -411,10 +410,6 @@ class Stats:
     @property
     def template_name(self):
         return self.__template_name
-
-    @property
-    def shared(self):
-        return self.__shared
 
     @property
     def subxpat(self):
