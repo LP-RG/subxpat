@@ -3,7 +3,6 @@ from .config.config import *
 
 class TemplateSpecs:
     def __init__(self, **kwargs):
-        self.__template_name: str = kwargs[NAME].upper()
         self.__exact_benchamrk_name: str = kwargs[EXACT]
         self.__benchamrk_name: str = kwargs[BENCHMARK]
         self.__literals_per_product: int = None
@@ -28,7 +27,7 @@ class TemplateSpecs:
         self.__manual_nodes = kwargs[MANUAL_NODES]
         self.__population = kwargs[POPULATION]
         self.__min_labeling = kwargs[MIN_LABELING]
-        self.__shared: bool = bool(kwargs[SHARED])
+        self.__template: int = int(kwargs[TEMPLATE])
         self.__products_in_total: int = None
         self.__max_products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
         self.__parallel: bool = kwargs[PARALLEL]
@@ -44,14 +43,13 @@ class TemplateSpecs:
 
         self.__encoding: int = kwargs[ENCODING]
 
-        self.__multilevel: bool = bool(kwargs[MULTILEVEL])
         self.__number_of_levels: int = int(kwargs[NUMBER_OF_LEVELS])
         self.__actual_number_of_levels: int = None
 
     @property
-    def multilevel(self):
-        return self.__multilevel
-    
+    def template(self):
+        return self.__template
+
     @property
     def num_lev(self):
         return self.__number_of_levels
@@ -59,9 +57,9 @@ class TemplateSpecs:
     @property
     def lv(self):
         return self.__actual_number_of_levels
-    
+
     @lv.setter
-    def lv(self, new_value :int):
+    def lv(self, new_value: int):
         self.__actual_number_of_levels = new_value
 
     @property
@@ -75,10 +73,6 @@ class TemplateSpecs:
     @property
     def parallel(self):
         return self.__parallel
-
-    @property
-    def shared(self):
-        return self.__shared
 
     @property
     def min_labeling(self):
@@ -104,9 +98,6 @@ class TemplateSpecs:
     def pp(self):
         return self.__partitioning_percentage
 
-    @property
-    def template_name(self):
-        return self.__template_name
 
     @property
     def exact_benchmark(self):
@@ -263,24 +254,32 @@ class TemplateSpecs:
     # > computed
 
     @property
+    def template_name(self):
+        return {
+            0: 'Sop1',
+            1: 'SharedLogic',
+            2: 'Multilevel',
+        }[self.template]
+
+    @property
     def requires_subgraph_extraction(self):
         return self.__subxpat or self.__subxpat_v2
 
     @property
     def grid_param_1(self) -> int:
-        return (
-            self.max_its
-            if self.shared else
-            self.max_lpp
-        )
+        return {
+            0: self.max_lpp,
+            1: self.max_its,
+            2: self.num_lev,
+        }[self.template]
 
     @property
     def grid_param_2(self) -> int:
-        return (
-            self.max_pit
-            if self.shared else
-            self.max_ppo
-        )
+        return {
+            0: self.max_ppo,
+            1: self.max_pit,
+            2: self.max_pit
+        }[self.template]
 
     @property
     def total_number_of_cells_per_iter(self) -> int:
@@ -312,7 +311,7 @@ class TemplateSpecs:
                f'{self.mode = }\n' \
                f'{self.manual_nodes = }\n' \
                f'{self.population = }\n' \
-               f'{self.shared = }\n'  \
+               f'{self.template = }\n'  \
                f'{self.multilevel = }\n'\
                f'{self.parallel = }\n' \
                f'{self.min_labeling = }\n' \

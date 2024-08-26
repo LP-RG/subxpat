@@ -21,7 +21,7 @@ def main():
     if args.plot:
         pprint.info2('Plotting...')
 
-        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic' if not args.multilevel else 'Multilevel', exact=args.benchmark_name,
+        specs_obj = TemplateSpecs(exact=args.benchmark_name,
                                   literals_per_product=args.lpp, products_per_output=args.ppo,
                                   benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
                                   subxpat=args.subxpat, subxpat_v2=args.subxpat_v2,
@@ -33,10 +33,10 @@ def main():
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode,
                                   population=args.population,
                                   min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
-                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel,
+                                  template=args.template, products_in_total=args.pit, parallel=args.parallel,
                                   encoding=args.encoding,
                                   partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs,
-                                  multilevel=args.multilevel,actual_number_of_levels=args.lv)
+                                  actual_number_of_levels=args.lv)
         stats_obj = Stats(specs_obj)
         stats_obj.gather_results()
 
@@ -50,7 +50,7 @@ def main():
             FS.mkdir(directory)
 
         # todo:later: update how we create the templatespecs (more than 2 names, ecc.)
-        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic' if not args.multilevel else 'Multilevel', exact=args.benchmark_name,
+        specs_obj = TemplateSpecs(exact=args.benchmark_name,
                                   literals_per_product=args.lpp, products_per_output=args.ppo,
                                   benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
                                   subxpat=args.subxpat, subxpat_v2=args.subxpat_v2,
@@ -60,9 +60,9 @@ def main():
                                   grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
                                   timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
                                   min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
-                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel, encoding=args.encoding,
+                                  template=args.template, products_in_total=args.pit, parallel=args.parallel, encoding=args.encoding,
                                   partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs, 
-                                  multilevel=args.multilevel,number_of_levels=args.lv)
+                                  number_of_levels=args.lv)
         if specs_obj.grid:
             stats_obj = explore_grid(specs_obj)
 

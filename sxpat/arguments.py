@@ -72,12 +72,13 @@ class CommaSplitAction(argparse.Action):
 #             o.full_error_function,
 #             o.sub_error_function,
 #         )
-class MultilevelActivation(argparse.Action):
-    def __call__(self,parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, True)
-        setattr(namespace, 'shared', True)
+
 
 class Arguments(Z3Log_Arguments):
+    @dc.dataclass(frozen=True)
+    class Namespace:
+        pass
+
     def __init__(self, tmp_args: argparse):
         super().__init__(tmp_args)
         self.__literal_per_product: int = tmp_args.lpp
@@ -101,7 +102,7 @@ class Arguments(Z3Log_Arguments):
         self.__population: int = tmp_args.population
         self.__num_models: int = tmp_args.num_models
         self.__min_labeling: bool = tmp_args.min_labeling
-        self.__shared: bool = tmp_args.shared
+        self.__template: int = tmp_args.template
         self.__products_in_total: int = tmp_args.pit
         self.__parallel: bool = tmp_args.parallel
         self.__full_error_function: int = tmp_args.full_error_function
@@ -112,14 +113,13 @@ class Arguments(Z3Log_Arguments):
         self.__partial_labeling: bool = tmp_args.partial_labeling
         self.__num_subgraphs: int = tmp_args.num_subgraphs
 
-        self.__multilevel: bool = tmp_args.multilevel
         self.__number_of_levels: int = tmp_args.lv
 
     @property
-    def multilevel(self):
-        return self.__multilevel
+    def template(self):
+        return self.__template
 
-    @property 
+    @property
     def lv(self):
         return self.__number_of_levels
 
@@ -134,10 +134,6 @@ class Arguments(Z3Log_Arguments):
     @property
     def pit(self):
         return self.__products_in_total
-
-    @property
-    def shared(self):
-        return self.__shared
 
     @property
     def min_labeling(self):
@@ -403,10 +399,11 @@ class Arguments(Z3Log_Arguments):
                                help='[if true labels-gates-with-min-error] \
                                      [if false max-error]')
 
-        my_parser.add_argument('--shared',
-                               action="store_true",
-                               default=False,
-                               help='activates-logic-sharing')
+        my_parser.add_argument('--template',
+                               type=int,
+                               default=0,
+                               choices=[0, 1, 2],
+                               help='select template logic [0:non-shared, 1:shared, 2:multilevel]')
 
         my_parser.add_argument('--pit', '-pit',
                                type=int,
@@ -446,21 +443,14 @@ class Arguments(Z3Log_Arguments):
                                type=int,
                                default=1,
                                help='the-number-of-attempts-for-subgraph-extractions')
-        
-        my_parser.add_argument('--multilevel',
-                               action = MultilevelActivation,
-                               nargs=0,
-                               default=False,
-                               help='set-multilevel-and-shared-to-True')
-        
+
         my_parser.add_argument('--lv', '-lv',
                                type=int,
                                default=2,
                                help='number-of-levels')
-        
+
         tmp_args = my_parser.parse_args()
         return Arguments(tmp_args)
-
 
     def __repr__(self):
         return f'An object of class Arguments:\n' \
@@ -486,7 +476,7 @@ class Arguments(Z3Log_Arguments):
                f'{self.population = }\n' \
                f'{self.num_models = }\n'\
                f'{self.min_labeling = }\n' \
-               f'{self.shared = }\n' \
+               f'{self.template = }\n' \
                f'{self.parallel = }\n' \
                f'{self.full_error_function = }\n' \
                f'{self.sub_error_function = }\n' \
@@ -494,8 +484,5 @@ class Arguments(Z3Log_Arguments):
                f'{self.partial_labeling = }\n' \
                f'{self.num_subgraphs = }\n' \
                f'{self.clean = }\n' \
-               f'{self.encoding = }\n'\
-               f'{self.multilevel = }\n'\
-               f'{self.lv=}'
-
-
+               f'{self.encoding = }\n' \
+               f'{self.lv = }'

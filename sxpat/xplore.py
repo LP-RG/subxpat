@@ -71,7 +71,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         elif specs_obj.et_partitioning == 'asc':
             log2 = int(math.log2(specs_obj.et))
-            #if 2**(i-1) <= available_error:
+            # if 2**(i-1) <= available_error:
             et = 2**(i-1)
             # if et > available_error:
             #     break
@@ -153,7 +153,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             # explore the grid
             pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
             dominant_cells = []
-            for lpp, ppo in CellIterator.factory(specs_obj,current_graph.subgraph_num_outputs):
+            for lpp, ppo in CellIterator.factory(specs_obj):
                 if is_dominated((lpp, ppo), dominant_cells):
                     pprint.info1(f'Cell({lpp},{ppo}) at iteration {i} -> DOMINATED')
                     continue
@@ -171,10 +171,9 @@ def explore_grid(specs_obj: TemplateSpecs):
                 total_exec_time += execution_time
 
                 cur_status = results[0].status
-                # If multilevel and SAT check whether the new approximation is different from the input graph 
+                # If multilevel and SAT check whether the new approximation is different from the input graph
                 if specs_obj.multilevel and cur_status == SAT and i > 1:
 
-                    
                     synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
                     cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
 
@@ -219,7 +218,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 elif cur_status == SAT:
                     if specs_obj.shared and (not specs_obj.multilevel or i == 1):
                         synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
-                        
+
                         cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
                         for idx in range(synth_obj.num_of_models):
                             synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
@@ -312,33 +311,27 @@ def explore_grid(specs_obj: TemplateSpecs):
 
 class CellIterator:
     @classmethod
-    def factory(cls, specs: TemplateSpecs, num_out = 0) -> Iterator[Tuple[int, int]]:
+    def factory(cls, specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
         return {
-            (True,False): cls.shared,
-            (False,False): cls.non_shared,
-            (True,True) : cls.multilevel,
-        }[specs.shared,specs.multilevel](specs,num_out)
-
+            1: cls.shared,
+            0: cls.non_shared,
+            2: cls.multilevel,
+        }[specs.template](specs)
 
     @staticmethod
-    def multilevel(specs: TemplateSpecs, num_out: int) -> Iterator[Tuple[int, int]]:
+    def multilevel(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
         max_pit = specs.max_pit
         max_lv = specs.num_lev
-        # grid cells
-        # 
-        #subXPAT
-        yield(1,1)
-        yield(2,1)
-        for pit in range(2 , max_pit+1):
-            for lv in range(2, max_lv+1):
-                yield (lv,pit)
-        #
-        #XPAT
-        # yield(max_lv,max_pit)
 
+        # grid cells
+        yield (1, 1)
+        yield (2, 1)
+        for pit in range(2, max_pit+1):
+            for lv in range(2, max_lv+1):
+                yield (lv, pit)
 
     @staticmethod
-    def shared(specs: TemplateSpecs, num_out: int) -> Iterator[Tuple[int, int]]:
+    def shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
         max_pit = specs.max_pit
 
         # special cell
@@ -350,7 +343,7 @@ class CellIterator:
                 yield (its, pit)
 
     @staticmethod
-    def non_shared(specs: TemplateSpecs, num_out: int) -> Iterator[Tuple[int, int]]:
+    def non_shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
         max_lpp = specs.max_lpp
         max_ppo = specs.max_ppo
 
