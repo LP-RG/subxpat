@@ -558,11 +558,6 @@ class SOP_QBF_Manager(TemplateManager):
             outputs_inexact.append(SOP_QBF_Manager.CHANGE_INEXACT[SOP_QBF_Manager.OUTPUT_GATE_INITIALS] + str(i))
             outputs_exact.append(SOP_QBF_Manager.CHANGE[SOP_QBF_Manager.OUTPUT_GATE_INITIALS] + str(i))
             i+=1
-        outputs_inexact.append('92')
-        outputs_exact.append('92')
-        outputs_inexact = SOP_QBF_Manager.increment(SOP_QBF_Manager.inverse(outputs_inexact),carry=False)
-        subtraction_results = SOP_QBF_Manager.signed_adder(outputs_exact,outputs_inexact)
-        absolute_values = SOP_QBF_Manager.absolute_value(subtraction_results)
         res = []
         if self._specs.lpp < self._current_graph.subgraph_num_inputs:
             for a in range(self._current_graph.subgraph_num_outputs):
@@ -586,13 +581,22 @@ class SOP_QBF_Manager(TemplateManager):
                             second = deq.popleft()
                             deq.append(SOP_QBF_Manager.unsigned_adder(first,second))
                     res.append(SOP_QBF_Manager.comparator_greater_than(deq.pop(),self._specs.lpp))
-        SOP_QBF_Manager.output.write(f'90 = and(-{SOP_QBF_Manager.comparator_greater_than(absolute_values,self._specs.et)}')
+        
+        if self._specs.et == 0:
+            SOP_QBF_Manager.output.write(f'90 = and(-{SOP_QBF_Manager.test_equality_lists(outputs_exact,outputs_inexact)}')
+        else:
+            outputs_inexact.append('92')
+            outputs_exact.append('92')
+            outputs_inexact = SOP_QBF_Manager.increment(SOP_QBF_Manager.inverse(outputs_inexact),carry=False)
+            subtraction_results = SOP_QBF_Manager.signed_adder(outputs_exact,outputs_inexact)
+            absolute_values = SOP_QBF_Manager.absolute_value(subtraction_results)
+            SOP_QBF_Manager.output.write(f'90 = and(-{SOP_QBF_Manager.comparator_greater_than(absolute_values,self._specs.et)}')
         for x in res:
             SOP_QBF_Manager.output.write(f', -{x}')
         SOP_QBF_Manager.output.write(')\n')
         SOP_QBF_Manager.output.close()
         try:
-            result = subprocess.run(['../../cqesto-master/build/cqesto', path_to_output],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=self._specs.timeout).stdout.decode('utf-8')
+            result = subprocess.run(['../../cqesto-master/build/cqesto', path_to_output, '-f'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=self._specs.timeout).stdout.decode('utf-8')
         except subprocess.TimeoutExpired:
             os.remove(path_to_output)
             return [Result(sxpat_cfg.UNKNOWN,dict())]
