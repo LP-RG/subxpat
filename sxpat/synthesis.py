@@ -70,10 +70,6 @@ class Synthesis:
             self.__verilog_string: List[str] = self.convert_to_verilog()
 
     @property
-    def multilevel(self):
-        return self.__multilevel
-
-    @property
     def specs(self):
         return self.__template_specs
     
