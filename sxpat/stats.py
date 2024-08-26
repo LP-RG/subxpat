@@ -184,10 +184,12 @@ class Cell:
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
         self.__lpp: int = spec_obj.lpp
-        if spec_obj.shared:
+
+        if spec_obj.template == 1:
             self.__ppo: int = spec_obj.pit
-        else:
+        elif spec_obj.template == 0:
             self.__ppo: int = spec_obj.ppo
+        # TODO:marco: missing `== 2`
 
         # Todo: coordinates is deprecated
         # self.__coordinates: Tuple[int, int] = (spec_obj.lpp, spec_obj.ppo)
