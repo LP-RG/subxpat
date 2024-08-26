@@ -171,34 +171,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 total_exec_time += execution_time
 
                 cur_status = results[0].status
-                # If multilevel and SAT check whether the new approximation is different from the input graph
-                if specs_obj.multilevel and cur_status == SAT and i > 1:
-
-                    synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
-                    cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
-
-                    for idx in range(synth_obj.num_of_models):
-                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
-                        synth_obj.export_verilog(idx=idx)
-                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
-
-                        for obj_model in previous_iteration_graph.values():
-                            if obj_model[0] != synth_obj.estimate_area():
-                                pprint.success("can get this model")
-                                print(obj_model)
-                                pprint.info1(f'obj_model[0] = {obj_model[0]}, synth_obj.estimate_area = {synth_obj.estimate_area()}')
-                                cur_model_results[synth_obj.ver_out_name] = (
-                                    synth_obj.estimate_area(),
-                                    synth_obj.estimate_power(),
-                                    synth_obj.estimate_delay(),
-                                    (lpp, ppo)
-                                )
-                    if not cur_model_results:
-                        cur_status = UNSAT
-                    else:
-                        previous_iteration_graph = cur_model_results
-                        print(f'changin previous iteration graph ... {previous_iteration_graph}')
-
+                
                 if cur_status in (UNSAT, UNKNOWN):
                     pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()}')
 
@@ -216,7 +189,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                         dominant_cells.append((lpp, ppo))
 
                 elif cur_status == SAT:
-                    if specs_obj.shared and (not specs_obj.multilevel or i == 1):
+                    if specs_obj.template == 1 and (not specs_obj.template == 2 or i == 1):
                         synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
 
                         cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
@@ -365,7 +338,7 @@ def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, in
 
 
 def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int) -> TemplateSpecs:
-    if specs_obj.multilevel:
+    if specs_obj.template == 2:
         specs_obj.lv = lpp
         specs_obj.pit = ppo
     else:
@@ -514,15 +487,15 @@ def get_toolname(specs_obj: TemplateSpecs) -> str:
     if specs_obj.subxpat_v2:
         pprint.info2('SubXPAT-V2 started...')
         toolname = sxpatconfig.SUBXPAT_V2
-    elif specs_obj.subxpat and specs_obj.shared:
+    elif specs_obj.subxpat and specs_obj.template == 1:
         pprint.info2('Shared SubXPAT started...')
         toolname = sxpatconfig.SHARED_SUBXPAT
-    elif specs_obj.subxpat and not specs_obj.shared:
+    elif specs_obj.subxpat and not specs_obj.template == 1:
         pprint.info2('SubXPAT started...')
         toolname = sxpatconfig.SUBXPAT
-    elif not specs_obj.subxpat and specs_obj.shared:
+    elif not specs_obj.subxpat and specs_obj.template == 1:
         pprint.info2('Shared XPAT started...')
         toolname = sxpatconfig.SHARED_XPAT
-    elif not specs_obj.subxpat and not specs_obj.shared:
+    elif not specs_obj.subxpat and not specs_obj.template == 1:
         pprint.info2('XPAT started...')
         toolname = sxpatconfig.XPAT
