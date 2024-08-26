@@ -1,6 +1,7 @@
 from typing import Iterable, Iterator, List
 
 from tabulate import tabulate
+import functools as ft
 import csv
 import time
 import math
@@ -34,20 +35,11 @@ def explore_grid(specs_obj: TemplateSpecs):
     toolname = get_toolname(specs_obj)
 
     # initial setup
-    total_iterations = specs_obj.iterations
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
-    exact_file_name = specs_obj.exact_benchmark
-    sum_wce_actual = 0
 
     # create stat and template object
     stats_obj = Stats(specs_obj)
 
-    # This line would cause a problem,
-    # current_population: Dict = {specs_obj.benchmark_name: -1}
-    # So I changed it into the following:
-    current_population: Dict = {specs_obj.benchmark_name: ('Area', 'Delay', 'Power', ('LPP', 'PPO'))}
-    next_generation: Dict = {}
-    total: Dict[Dict] = {}
     available_error = specs_obj.et
     obtained_wce_exact = 0
     i = 0
@@ -75,181 +67,185 @@ def explore_grid(specs_obj: TemplateSpecs):
         else:
             raise NotImplementedError('invalid status')
 
+        if et > available_error:
+            break
+
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
                      if (specs_obj.subxpat or specs_obj.subxpat_v2) else
                      f'Only one iteration with et {et}')
 
-        # for all candidates
-        for candidate in current_population:
+        if specs_obj.benchmark_name.endswith('.v'):
+            specs_obj.benchmark_name = specs_obj.benchmark_name[:-2]
+        pprint.info1(f'benchmark {specs_obj.benchmark_name}')
 
-            pprint.info1(f'candidate {candidate}')
-            if candidate.endswith('.v'):
-                specs_obj.benchmark_name = candidate[:-2]
+        # > grid step settings
 
-            # > grid step settings
+        # initialize context
+        specs_obj.et = et
 
-            # initialize context
-            specs_obj.et = et
+        # import the graph
+        current_graph = AnnotatedGraph(specs_obj.benchmark_name, is_clean=False, partitioning_percentage=1)
+        exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False, partitioning_percentage=0)
 
-            # import the graph
-            current_graph = AnnotatedGraph(specs_obj.benchmark_name, is_clean=False, partitioning_percentage=1)
-            exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False, partitioning_percentage=0)
+        # label graph
+        if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
+            et_coefficient = 1
 
-            # label graph
-            if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
-                et_coefficient = 1
-
-                t_start = time.time()
-                label_graph(current_graph,
-                            min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
-                            et=et*et_coefficient, parallel=specs_obj.parallel)
-                labeling_time = time.time() - t_start
-                print(f'labeling_time = {labeling_time}')
-
-            # extract subgraph
             t_start = time.time()
-            subgraph_is_available = current_graph.extract_subgraph(specs_obj)
-            subgraph_extraction_time = time.time() - t_start
-            print(f'subgraph_extraction_time = {subgraph_extraction_time}')
-            previous_subgraphs.append(current_graph.subgraph)
+            label_graph(current_graph,
+                        min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
+                        et=et*et_coefficient, parallel=specs_obj.parallel)
+            labeling_time = time.time() - t_start
+            print(f'labeling_time = {labeling_time}')
 
-            # todo:wip: export subgraph
-            folder = 'output/gv/subgraphs'
-            graph_path = f'{folder}/{specs_obj.benchmark_name}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
-            FS.mkdir(folder)
-            current_graph.export_annotated_graph(graph_path)
-            print(f'subgraph exported at {graph_path}')
+        # extract subgraph
+        t_start = time.time()
+        subgraph_is_available = current_graph.extract_subgraph(specs_obj)
+        subgraph_extraction_time = time.time() - t_start
+        print(f'subgraph_extraction_time = {subgraph_extraction_time}')
+        previous_subgraphs.append(current_graph.subgraph)
 
-            # guard: skip if no subgraph was found
-            if not subgraph_is_available:
-                pprint.warning(f'No subgraph available.')
-                prev_actual_error = 0
-                if et == available_error:
-                    available_error = 0
+        # todo:wip: export subgraph
+        folder = 'output/gv/subgraphs'
+        graph_path = f'{folder}/{specs_obj.benchmark_name}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
+        FS.mkdir(folder)
+        current_graph.export_annotated_graph(graph_path)
+        print(f'subgraph exported at {graph_path}')
+
+        # guard: skip if no subgraph was found
+        if not subgraph_is_available:
+            pprint.warning(f'No subgraph available.')
+            prev_actual_error = 0
+            if et == available_error:
+                available_error = 0
+            continue
+
+        # guard: skip if the subraph is equal to the previous one
+        if (
+            len(previous_subgraphs) >= 2
+            and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
+        ):
+            pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
+            prev_actual_error = 0
+            continue
+
+        # explore the grid
+        pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
+        dominant_cells = []
+        for lpp, ppo in CellIterator.factory(specs_obj):
+            if is_dominated((lpp, ppo), dominant_cells):
+                pprint.info1(f'Cell({lpp},{ppo}) at iteration {i} -> DOMINATED')
                 continue
 
-            # guard: skip if the subraph is equal to the previous one
-            if (
-                len(previous_subgraphs) >= 2
-                and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
-            ):
-                pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
-                prev_actual_error = 0
-                continue
+            # > cell step settings
 
-            # explore the grid
-            pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
-            dominant_cells = []
-            for lpp, ppo in CellIterator.factory(specs_obj):
-                if is_dominated((lpp, ppo), dominant_cells):
-                    pprint.info1(f'Cell({lpp},{ppo}) at iteration {i} -> DOMINATED')
-                    continue
+            # update the context
+            specs_obj = set_current_context(specs_obj, lpp, ppo, i)
 
-                # > cell step settings
+            # run script
+            manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
+            start_time = time.time()
+            results = manager.run()
+            execution_time = time.time() - start_time
 
-                # update the context
-                specs_obj = set_current_context(specs_obj, lpp, ppo, i)
+            cur_status = results[0].status
+            pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()}')
+            if cur_status in (UNSAT, UNKNOWN):
 
-                # run script
-                manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
-                start_time = time.time()
-                results = manager.run()
-                execution_time = time.time() - start_time
+                # store model
+                this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
+                                        labeling_time=labeling_time,
+                                        subgraph_extraction_time=subgraph_extraction_time,
+                                        subgraph_number_inputs=current_graph.subgraph_num_inputs,
+                                        subgraph_number_outputs=current_graph.subgraph_num_outputs,
+                                        subxpat_v1_time=execution_time)
+                stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
 
-                cur_status = results[0].status
-                pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()}')
-                if cur_status in (UNSAT, UNKNOWN):
+                if cur_status == UNKNOWN:
+                    # store cell as dominant (to skip dominated subgrid)
+                    dominant_cells.append((lpp, ppo))
 
-                    # store model
-                    this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
-                                            labeling_time=labeling_time,
-                                            subgraph_extraction_time=subgraph_extraction_time,
-                                            subgraph_number_inputs=current_graph.subgraph_num_inputs,
-                                            subgraph_number_outputs=current_graph.subgraph_num_outputs,
-                                            subxpat_v1_time=execution_time)
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
+            elif cur_status == SAT:
 
-                    if cur_status == UNKNOWN:
-                        # store cell as dominant (to skip dominated subgrid)
-                        dominant_cells.append((lpp, ppo))
+                # synthesize all models and compute circuit specifications
+                synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
+                cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
+                for idx in range(synth_obj.num_of_models):
+                    synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
+                    synth_obj.export_verilog(idx=idx)
+                    synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
+                    cur_model_results[synth_obj.ver_out_name] = [
+                        synth_obj.estimate_area(),
+                        synth_obj.estimate_power(),
+                        synth_obj.estimate_delay(),
+                        (lpp, ppo),
+                        None,  # abs diff to exact
+                        None  # abs diff to previous
+                    ]
 
-                elif cur_status == SAT:
-                    synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
-                    cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
-                    for idx in range(synth_obj.num_of_models):
-                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
-                        synth_obj.export_verilog(idx=idx)
-                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
-                        cur_model_results[synth_obj.ver_out_name] = (
-                            synth_obj.estimate_area(),
-                            synth_obj.estimate_power(),
-                            synth_obj.estimate_delay(),
-                            (lpp, ppo)
-                        )
+                # todo: should we refactor with pandas?
+                with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
+                    csvwriter = csv.writer(f)
 
-                    # todo: should we refactor with pandas?
-                    with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
-                        csvwriter = csv.writer(f)
+                    header = list(range(len(cur_model_results)))
+                    all = list(cur_model_results.values())
+                    content = [f for (f, *_) in all]
 
-                        header = list(range(len(cur_model_results)))
-                        all = list(cur_model_results.values())
-                        content = [f for (f, _, _, _) in all]
+                    csvwriter.writerow(header)
+                    csvwriter.writerow(content)
 
-                        csvwriter.writerow(header)
-                        csvwriter.writerow(content)
+                # verify all models and store errors
+                pprint.success('verifying all approximate circuits -> ', end='')
+                for candidate_name, candidate_data in cur_model_results.items():
+                    candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
+                    candidate_data[5] = erroreval_verification_wce(specs_obj.benchmark_name, candidate_name[:-2])
 
-                    pprint.success('verifying all approximate circuits -> ', end='')
-                    for candidate in cur_model_results:
-                        approximate_benchmark = candidate[:-2]
+                    if candidate_data[4] > et:
+                        pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
+                        stats_obj.store_grid()
+                        return stats_obj
+                pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)')
 
-                        obtained_wce_exact = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, et)
-                        obtained_wce_prev = erroreval_verification_wce(specs_obj.benchmark_name, approximate_benchmark, et)
-                        prev_actual_error = obtained_wce_prev
+                # sort circuits
+                sorted_circuits = sorted(cur_model_results.items(), key=ft.cmp_to_key(model_compare))
 
-                        if obtained_wce_exact > et:
-                            pprint.error('ErrorEval Verification FAILED!')
-                            stats_obj.store_grid()
-                            return stats_obj
+                # select best circuit
+                best_name, best_data = sorted_circuits[0]
+                prev_actual_error = best_data[5]
 
-                    this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=obtained_wce_exact, iteration=i,
-                                            area=cur_model_results[synth_obj.ver_out_name][0],
-                                            total_power=cur_model_results[synth_obj.ver_out_name][1],
-                                            delay=cur_model_results[synth_obj.ver_out_name][2],
-                                            labeling_time=labeling_time,
-                                            subgraph_extraction_time=subgraph_extraction_time,
-                                            subgraph_number_inputs=current_graph.subgraph_num_inputs,
-                                            subgraph_number_outputs=current_graph.subgraph_num_outputs,
-                                            subxpat_v1_time=execution_time)
+                specs_obj.benchmark_name = best_name
+                best_model_info = Model(id=0,
+                                        status=cur_status.upper(),
+                                        cell=(lpp, ppo),
+                                        et=best_data[4],
+                                        iteration=i,
+                                        area=best_data[0],
+                                        total_power=best_data[1],
+                                        delay=best_data[2],
+                                        labeling_time=labeling_time,
+                                        subgraph_extraction_time=subgraph_extraction_time,
+                                        subgraph_number_inputs=current_graph.subgraph_num_inputs,
+                                        subgraph_number_outputs=current_graph.subgraph_num_outputs,
+                                        subxpat_v1_time=execution_time)
 
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
-                    pprint.success(f'ErrorEval PASS! with total wce = {obtained_wce_exact}')
+                stats_obj.grid.cells[lpp][ppo].store_model_info(best_model_info)
+                pprint.success(f'ErrorEval PASS! with total wce = {best_data[4]}')
 
-                    specs_obj.benchmark_name = approximate_benchmark
+                synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
 
-                    synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
+                exact_stats = [synth_obj.estimate_area(exact_file_path),
+                               synth_obj.estimate_power(exact_file_path),
+                               synth_obj.estimate_delay(exact_file_path)]
+                print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
+                store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.benchmark_name, et=specs_obj.et,
+                                    encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
 
-                    pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)')
-                    exact_stats = [synth_obj.estimate_area(exact_file_path),
-                                   synth_obj.estimate_power(exact_file_path),
-                                   synth_obj.estimate_delay(exact_file_path)]
-                    print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
+                break  # SAT found, stop grid exploration
 
-                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.benchmark_name, et=specs_obj.et,
-                                        encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
+            prev_actual_error = 0
 
-                    for key in cur_model_results.keys():
-                        next_generation[key] = cur_model_results[key]
-
-                    current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
-                    total[i] = current_population
-
-                    next_generation = {}
-
-                    # SAT found, stop grid exploration
-                    break
-                prev_actual_error = 0
-
-        if exists_an_area_zero(current_population):
+        if best_data[0] == 0:
+            pprint.info3('Area zero found!\nTerminated.')
             break
 
     stats_obj.store_grid()
@@ -305,34 +301,31 @@ def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration:
     return specs_obj
 
 
-def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_stats: List = None) -> None:
+def print_current_model(sorted_models: List[Tuple[str, List]], normalize: bool = True, exact_stats: List = None) -> None:
     data = []
 
     if exact_stats:
         # add exact circuit data
         e_area, e_power, e_delay, *_ = exact_stats
-        data.append(['Exact', e_area, e_power, e_delay])
+        data.append(['Exact', e_area, e_power, e_delay, 0])
 
         if normalize:
-            for stats in cur_model_result.values():
+            for _, stats in sorted_models:
                 stats[0] = (stats[0] / e_area) * 100
                 stats[1] = (stats[1] / e_power) * 100
                 stats[2] = (stats[2] / e_delay) * 100
 
     # keep wanted models
-    sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
-    if len(cur_model_result) < 10:
-        wanted_candidates = sorted_candidates
-    else:
-        wanted_candidates = [sorted_candidates[0]]
+    if len(sorted_models) > 10:
+        sorted_models = sorted_models[0:10]
 
     # add candidates data
-    for c_name, c_stats in wanted_candidates:
+    for c_name, c_stats in sorted_models:
         c_id = NameData.from_filename(c_name).total_id
-        c_area, c_power, c_delay, *_ = c_stats
-        data.append([c_id, c_area, c_power, c_delay])
+        c_area, c_power, c_delay, _, c_error, _ = c_stats
+        data.append([c_id, c_area, c_power, c_delay, c_error])
 
-    pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay']))
+    pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
 
 def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, encoding: int, subgraph_extraction_time: float, labeling_time: float, exact_stats: List = None) -> None:
@@ -368,43 +361,6 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
             labeling_time, subgraph_extraction_time,
         )
         csvwriter.writerow(approx_data)
-
-
-def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
-    print(f'{candidates = }')
-    for key in candidates.keys():
-        if candidates[key][0] == 0:
-            pprint.info3('Area zero found!\nTerminated.')
-            return True
-    return False
-
-
-def select_candidates_for_next_iteration(spec_obj: TemplateSpecs, candidates: Dict[str, float]) -> Dict[str, float]:
-    # Check which alogirhtm we use for selection of the next generation
-    if spec_obj.population > 1:
-        return pick_k_best_k_worst(candidates, spec_obj.population // 2)
-    else:
-        selected_candidates = {}
-        for key in candidates.keys():
-            selected_candidates[key] = candidates[key]
-            break
-        return selected_candidates
-
-
-def pick_k_best_k_worst(candidates: Dict[str, float], k: int):
-    num_of_candidates: int = len(candidates)
-    if 2 * k >= num_of_candidates:
-        return candidates
-    else:
-        # sort the dict based on the value and remove everything but the k first and k last elements
-        sorted_candidates = sorted(candidates.items(), key=lambda x: x[1])
-        i = 0
-        selected_candidates: Dict = {}
-        for key in sorted_candidates:
-            if i < k or (i >= len(candidates) - k):
-                selected_candidates[key[0]] = candidates[key[0]]
-            i += 1
-        return selected_candidates
 
 
 def label_graph(current_graph: AnnotatedGraph,
@@ -444,3 +400,16 @@ def node_matcher(n1: dict, n2: dict) -> bool:
         n1.get('label') == n2.get('label')
         and n1.get('subgraph', 0) == n2.get('subgraph', 0)
     )
+
+
+def model_compare(a, b) -> bool:
+    if a[1][0] < b[1][0]:
+        return -1
+    elif a[1][0] > b[1][0]:
+        return +1
+    elif a[1][4] < b[1][4]:
+        return -1
+    elif a[1][4] > b[1][4]:
+        return +1
+    else:
+        return 0
