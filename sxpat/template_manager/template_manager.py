@@ -596,7 +596,7 @@ class SOP_QBF_Manager(TemplateManager):
         SOP_QBF_Manager.output.write(')\n')
         SOP_QBF_Manager.output.close()
         try:
-            result = subprocess.run(['../../cqesto-master/build/cqesto', path_to_output, '-f'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=self._specs.timeout).stdout.decode('utf-8')
+            result = subprocess.run(['../../cqesto-master/build/cqesto', path_to_output],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=self._specs.timeout).stdout.decode('utf-8')
         except subprocess.TimeoutExpired:
             os.remove(path_to_output)
             return [Result(sxpat_cfg.UNKNOWN,dict())]
