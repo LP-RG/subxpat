@@ -75,10 +75,6 @@ class CommaSplitAction(argparse.Action):
 
 
 class Arguments(Z3Log_Arguments):
-    @dc.dataclass(frozen=True)
-    class Namespace:
-        pass
-
     def __init__(self, tmp_args: argparse):
         super().__init__(tmp_args)
         self.__literal_per_product: int = tmp_args.lpp

@@ -40,18 +40,19 @@ class TemplateManager:
 
         # select and return TemplateManager object
         return {
-            (False, 1): SOPManager,
-            (False, 2): SOPManager,
-            (True, 1): MultilevelManager if specs.multilevel else SOPSManager,
-            (True, 2): MultilevelManager if specs.multilevel else SOPSManager,
-            (False, 3): SOP_QBF_Manager,
-        }[specs.shared, specs.encoding](
+            (0, 1): SOPManager,
+            (0, 2): SOPManager,
+            (1, 1): SOPSManager,
+            (1, 2): SOPSManager,
+            (2, 1): MultilevelManager,
+            (2, 2): MultilevelManager,
+            (0, 3): SOP_QBF_Manager,
+        }[specs.template, specs.encoding](
             exact_graph,
             current_graph,
             specs,
             encoding
         )
-
 
     def __init__(self, exact_graph: AnnotatedGraph,
                  current_graph: AnnotatedGraph,
@@ -145,14 +146,6 @@ class Z3TemplateManager(TemplateManager):
     def outputs(self) -> Dict[int, str]:
         """The outputs of the graph. (.exact is equal to .current)"""
         return self._exact_graph.output_dict
-    
-    @property
-    def lv(self):
-        return self._specs.lv
-    
-    @property
-    def pit(self):
-        return self._specs.pit
 
     @functools.cached_property
     def subgraph_inputs(self) -> Dict[int, str]:
@@ -566,7 +559,7 @@ class SOPManager(ProductTemplateManager):
             cell=f'({self._specs.lpp}, {self._specs.ppo})',
         )
 
-        builder.update(connection_constraint="")
+        builder.update(connection_constraint='')
 
 
 class SOPSManager(ProductTemplateManager):
@@ -619,11 +612,11 @@ class SOPSManager(ProductTemplateManager):
         # approximate_wires_constraints
         def get_preds(name: str) -> Collection[str]: return sorted(self._current_graph.graph.predecessors(name), key=lambda n: int(re.search(r'\d+', n).group()))
         def get_func(name: str) -> str: return self._current_graph.graph.nodes[name][sxpat_cfg.LABEL]
-        
+
         lines = []
         for gate_i, gate_name in self.current_gates.items():
-            if not self._current_graph.is_subgraph_member(gate_name): #check wheter the node belongs to the subgraph
-                gate_preds = get_preds(gate_name) #get all the predecesson of a gate
+            if not self._current_graph.is_subgraph_member(gate_name):
+                gate_preds = get_preds(gate_name)
                 gate_func = get_func(gate_name)
                 assert (gate_func, len(gate_preds)) in [
                     (sxpat_cfg.NOT, 1),
@@ -712,6 +705,7 @@ class SOPSManager(ProductTemplateManager):
             cell=f'({self._specs.lpp}, {self._specs.pit})',
         )
 
+
 class MultilevelManager(ProductTemplateManager):
 
     @property
@@ -723,177 +717,165 @@ class MultilevelManager(ProductTemplateManager):
     def data_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH[sxpat_cfg.JSON]
         return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
-    
+
     @staticmethod
     def _input_parameters(input_i: int, node_i: int) -> Tuple[str, str]:
         partial_parameter = f'p_{sxpat_cfg.INPUT_LITERAL_PREFIX}{input_i}_n{node_i}'
         return (f'{partial_parameter}_{sxpat_cfg.LITERAL_PREFIX}', f'{partial_parameter}_{sxpat_cfg.SELECT_PREFIX}')
-    
+
     @staticmethod
-    def _node_connection_levels(from_n: int, from_lv: int, to_n: int, to_lv:int) -> str:
+    def _node_connection_levels(from_n: int, from_lv: int, to_n: int, to_lv: int) -> str:
         return f'p_con_fn{from_n}_lv{from_lv}_tn{to_n}_lv{to_lv}'
-    
+
     @staticmethod
     def _node_connection_output(from_n: int, output_i: int) -> str:
         return f'p_con_fn{from_n}_to{output_i}'
-    
+
     @staticmethod
-    def _switch_parameter_levels(from_n: int, from_lv: int, to_n: int, to_lv:int):
+    def _switch_parameter_levels(from_n: int, from_lv: int, to_n: int, to_lv: int):
         return f'p_sw_fn{from_n}_lv{from_lv}_tn{to_n}_lv{to_lv}'
-    
+
     @staticmethod
     def _switch_parameter_output(from_n: int, to_out_i: int):
         return f'p_sw_fn{from_n}_to{to_out_i}'
 
     @staticmethod
-    def _level_parameter(node_i: int,level_i: int):
+    def _level_parameter(node_i: int, level_i: int):
         return f'n{node_i}_lv{level_i}'
-    
+
     @staticmethod
     def _output_negation(output_i: int):
         return f'neg_o{output_i}'
-    
+
     @staticmethod
-    def _output_identifier(output_i :int):
+    def _output_identifier(output_i: int):
         return f'out_id{output_i}'
 
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
 
-    def _multiplexer_multilevel(self,input_i,input_i__name,node_i):
+    def _multiplexer_multilevel(self, input_i, input_i__name, node_i):
         return f'\n     {sxpat_cfg.Z3_OR}({self._input_parameters(input_i,node_i)[0]} == {input_i__name},{sxpat_cfg.Z3_NOT}({self._input_parameters(input_i,node_i)[1]}))'
-    
+
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
     def _edge_constraint(self, vars: Collection[str]) -> str:
         return ' + '.join(
             f'If({var}, {1}, 0)'
             for var in vars
         )
-    
+
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
-    def _generate_input(self,node_i):
+    def _generate_input(self, node_i):
         multiplexers = []
         for input_i, input_name in self.subgraph_inputs.items():
             # self._use_approx_var
-            multiplexers.append(self._multiplexer_multilevel(input_i,input_name,node_i))
+            multiplexers.append(self._multiplexer_multilevel(input_i, input_name, node_i))
         return f'{", ".join(multiplexers)},'
-    
+
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
-    def _generate_output(self, node_i,output_i):
+    def _generate_output(self, node_i, output_i):
         return f'\n{sxpat_cfg.IF}({self._node_connection_output(node_i,output_i)}, {sxpat_cfg.IF}({self._switch_parameter_output(node_i, output_i)}, {self._gen_call_function(self._level_parameter(node_i,self._specs.lv - 1),self.subgraph_inputs.values())}, {sxpat_cfg.Z3_NOT}({self._gen_call_function(self._level_parameter(node_i, self._specs.lv - 1),self.subgraph_inputs.values())})), {sxpat_cfg.IF}({self._switch_parameter_output(node_i, output_i)}, True, False))'
 
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
-    def _connection_constraints(self, npl, level_i, gate, output_i = None):
+    def _connection_constraints(self, npl, level_i, gate, output_i=None):
         gates_per_level = ""
-        #base case
+        # base case
         if level_i == len(npl):
-            return self._generate_output(gate,output_i)
+            return self._generate_output(gate, output_i)
         elif level_i == 0:
             return self._generate_input(gate)
-        
-        for node in range(npl[level_i-1]): #param connection from node# to node#s
+
+        for node in range(npl[level_i-1]):  # param connection from node# to node#s
             gates_per_level += f'\n{sxpat_cfg.IF}({self._node_connection_levels(node,level_i-1,gate,level_i)}, {sxpat_cfg.IF}({self._switch_parameter_levels(node,level_i-1,gate,level_i)}, {self._gen_call_function(self._level_parameter(node,level_i-1),self.subgraph_inputs.values())}, {sxpat_cfg.Z3_NOT}({self._gen_call_function(self._level_parameter(node,level_i-1),self.subgraph_inputs.values())})), True),'
         return gates_per_level
 
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
-    def _generate_levels(self,npl):
+    def _generate_levels(self, npl):
         gates_per_level = []
         for level_i in range(len(npl)):
-            for gate in range( npl[level_i]):
-                gates_per_level.append(f'\n#level: {level_i}\n{self._gen_call_function(self._level_parameter(gate,level_i),self.subgraph_inputs.values())} == {sxpat_cfg.Z3_AND}({self._connection_constraints(npl, level_i, gate)}),')
+            for gate in range(npl[level_i]):
+                gates_per_level.append(
+                    f'\n#level: {level_i}\n{self._gen_call_function(self._level_parameter(gate,level_i),self.subgraph_inputs.values())} == {sxpat_cfg.Z3_AND}({self._connection_constraints(npl, level_i, gate)}),')
         return gates_per_level
-    
+
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
     def _update_builder(self, builder: Builder) -> None:
         # apply superclass updates
         super()._update_builder(builder)
-        # print("Multilevel")
-        # print(f'number of sub_outputs in template gen = {self.subgraph_outputs.__len__()}')
-        # print(f'number of sub_inputs in template gen = {self.subgraph_inputs.__len__()}')
-        # print(f'number of levels = {self._specs.lv}')
-        # print(f'actual level(lpp) = {self._specs.lpp}')
-        # print(f'actual node per level (pit) = {self._specs.pit}')
-        # Node Per Level
-        # initialization gpl
-        # Amedeo: note that this could be parametrized with different number of gates for each level
-        npl = [self.pit]*self.lv
-        # npl = [self._specs.pit]*self._specs.lpp
-        # npl[0] = self.subgraph_inputs.__len__()
-        
-        #constr
-        if self.lv > 1:
-            npl[len(npl)-1] = self.subgraph_outputs.__len__()
-        
+
+        # initialization npl
+        # NOTE:Amedeo: this could be parametrized with different number of gates for each level
+        npl = [self._specs.pit]*self._specs.lv
+
+        # constr
+        if self._specs.lv > 1:
+            npl[len(npl)-1] = len(self.subgraph_outputs)
 
         # params_declaration
         # ----------------------------- # ----------------------------- #
         builder.update(params_declaration='\n'.join(
-                itertools.chain(                                            
-                    itertools.chain.from_iterable
+            itertools.chain(
+                itertools.chain.from_iterable(
                     (
-                        (
-                            self._gen_declare_gate(self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)),   # p_sw_fn#_lv#_tn#_lv#
-                            self._gen_declare_gate(self._node_connection_levels(f_nd,lv-1,t_nd,lv)),    # p_con_fn#_lv#_tn#_lv#
-                        )
-                        for lv in range(len(npl)-1,0,-1)
-                        for t_nd in range(npl[lv])
-                        for f_nd in range(npl[lv-1])
-                    ),
-                    itertools.chain.from_iterable
+                        self._gen_declare_gate(self._switch_parameter_levels(f_nd, lv-1, t_nd, lv)),   # p_sw_fn#_lv#_tn#_lv#
+                        self._gen_declare_gate(self._node_connection_levels(f_nd, lv-1, t_nd, lv)),    # p_con_fn#_lv#_tn#_lv#
+                    )
+                    for lv in range(len(npl)-1, 0, -1)
+                    for t_nd in range(npl[lv])
+                    for f_nd in range(npl[lv-1])
+                ),
+                itertools.chain.from_iterable(
                     (
-                        (
-                            self._gen_declare_gate((pars := self._input_parameters(input_i,nd))[0]),   # p_i#_n#_l
-                            self._gen_declare_gate(pars[1])                                            # p_i#_n#_s 
-                        )
-                        for input_i in range(self.subgraph_inputs.__len__())
-                        for nd in range(npl[0]) 
-                    ),
-                    itertools.chain.from_iterable
-                    (   
-                        (
-                            self._gen_declare_gate(self._node_connection_output(nd,output_i)),  # p_con_fn#_to#
-                            self._gen_declare_gate(self._switch_parameter_output(nd,output_i))  # p_sw_fn#_to#                
-                        )
-                        for output_i in range(self.subgraph_outputs.__len__())
-                        for nd in range(npl[len(npl)-1])
-                    ),  
-                    itertools.chain
-                    ( 
-                        self._gen_declare_bool_function(self._level_parameter(nd,lv),len(self.subgraph_inputs))    # function n#_lv# 
-                        # for lv in range(self._specs.lpp)
-                        for lv in range(self._specs.lv)
-                        for nd in range(npl[lv])
-                    ),),))
+                        self._gen_declare_gate((pars := self._input_parameters(input_i, nd))[0]),   # p_i#_n#_l
+                        self._gen_declare_gate(pars[1])                                            # p_i#_n#_s
+                    )
+                    for input_i in range(len(self.subgraph_inputs))
+                    for nd in range(npl[0])
+                ),
+                itertools.chain.from_iterable(
+                    (
+                        self._gen_declare_gate(self._node_connection_output(nd, output_i)),  # p_con_fn#_to#
+                        self._gen_declare_gate(self._switch_parameter_output(nd, output_i))  # p_sw_fn#_to#
+                    )
+                    for output_i in range(len(self.subgraph_outputs))
+                    for nd in range(npl[len(npl)-1])
+                ),
+                itertools.chain(
+                    self._gen_declare_bool_function(self._level_parameter(nd, lv), len(self.subgraph_inputs))    # function n#_lv#
+                    for lv in range(self._specs.lv)
+                    for nd in range(npl[lv])
+                ),
+            ),
+        ))
 
-        builder.update(params_list = '[{}]'.format(','.join(
-                itertools.chain(                                            
-                    itertools.chain.from_iterable
+        builder.update(params_list='[{}]'.format(','.join(
+            itertools.chain(
+                itertools.chain.from_iterable(
                     (
-                        (
-                            self._switch_parameter_levels(f_nd,lv-1,t_nd,lv),   # p_sw_fn#_lv#_tn#_lv#
-                            self._node_connection_levels(f_nd,lv-1,t_nd,lv),    # p_con_fn#_lv#_tn#_lv#
-                        )
-                        for lv in range(len(npl)-1,0,-1)
-                        for t_nd in range(npl[lv])
-                        for f_nd in range(npl[lv-1])
-                    ),
-                    itertools.chain.from_iterable
+                        self._switch_parameter_levels(f_nd, lv-1, t_nd, lv),   # p_sw_fn#_lv#_tn#_lv#
+                        self._node_connection_levels(f_nd, lv-1, t_nd, lv),    # p_con_fn#_lv#_tn#_lv#
+                    )
+                    for lv in range(len(npl)-1, 0, -1)
+                    for t_nd in range(npl[lv])
+                    for f_nd in range(npl[lv-1])
+                ),
+                itertools.chain.from_iterable(
                     (
-                        (
-                            self._input_parameters(input_i,nd)[0],   # p_i#_n#_l
-                            self._input_parameters(input_i,nd)[1]    # p_i#_n#_s 
-                        )
-                        for input_i in range(self.subgraph_inputs.__len__())
-                        for nd in range(npl[0]) 
-                    ),
-                    itertools.chain.from_iterable
-                    (   
-                        (
-                            self._node_connection_output(nd,output_i),  # p_con_fn#_to#
-                            self._switch_parameter_output(nd,output_i)  # p_sw_fn#_to#                
-                        )
-                        for output_i in range(self.subgraph_outputs.__len__())
-                        for nd in range(npl[len(npl)-1])
-                    ),))))
+                        self._input_parameters(input_i, nd)[0],   # p_i#_n#_l
+                        self._input_parameters(input_i, nd)[1]    # p_i#_n#_s
+                    )
+                    for input_i in range(len(self.subgraph_inputs))
+                    for nd in range(npl[0])
+                ),
+                itertools.chain.from_iterable(
+                    (
+                        self._node_connection_output(nd, output_i),  # p_con_fn#_to#
+                        self._switch_parameter_output(nd, output_i)  # p_sw_fn#_to#
+                    )
+                    for output_i in range(len(self.subgraph_outputs))
+                    for nd in range(npl[len(npl)-1])
+                ),
+            )
+        )))
         # approximate_wires_constraints
         # ----------------------------- # ----------------------------- #
         def get_preds(name: str) -> Collection[str]: return sorted(self._current_graph.graph.predecessors(name), key=lambda n: int(re.search(r'\d+', n).group()))
@@ -903,8 +885,8 @@ class MultilevelManager(ProductTemplateManager):
         multilevel_structure = '\n'.join(self._generate_levels(npl)) + '\n'
         lines.append(multilevel_structure)
         for gate_i, gate_name in self.current_gates.items():
-            if not self._current_graph.is_subgraph_member(gate_name): #check wheter the node belongs to the subgraph
-                gate_preds = get_preds(gate_name) #get all the predecesson of a gate
+            if not self._current_graph.is_subgraph_member(gate_name):
+                gate_preds = get_preds(gate_name)
                 gate_func = get_func(gate_name)
                 assert (gate_func, len(gate_preds)) in [
                     (sxpat_cfg.NOT, 1),
@@ -918,32 +900,32 @@ class MultilevelManager(ProductTemplateManager):
                     f'{self._gen_call_function(name, self.inputs.values())}'
                     f' == {sxpat_cfg.TO_Z3_GATE_DICT[gate_func]}({", ".join(preds)}),'
                 )
-            
+
             elif self._current_graph.is_subgraph_output(gate_name):
-                
+
                 output_i = mapping_inv(self.subgraph_outputs, gate_name)
 
                 output_use = self._gen_call_function(
-                    f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(self.inputs) + gate_i}', #that's why we have plus 8 or something in a#
+                    f'{sxpat_cfg.APPROXIMATE_WIRE_PREFIX}{len(self.inputs) + gate_i}',  # that's why we have plus 8 or something in a#
                     self.subgraph_inputs.values()
                 )
 
-                #TODO: constraint at least one connection to the output
+                # TODO: constraint at least one connection to the output
                 output_selection = ', '.join(
-                                itertools.chain(
-                                    f'{self._connection_constraints(npl,len(npl),gate,output_i)}'
-                                    for gate in range(npl[len(npl)-1])
-                                )
-                            )
-                #lines.append(f'{self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())} == {output_selection},')
-                #lines.append(f'{output_use} == {sxpat_cfg.IF}({self._output_negation(output_i)},\n{sxpat_cfg.Z3_AND}({self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())}),\n{sxpat_cfg.Z3_NOT}({self._gen_call_function(self._output_identifier(output_i), self.subgraph_inputs.values())})),') 
-                lines.append(f'{output_use} == {sxpat_cfg.Z3_OR}({output_selection}),') 
+                    itertools.chain(
+                        f'{self._connection_constraints(npl,len(npl),gate,output_i)}'
+                        for gate in range(npl[len(npl)-1])
+                    )
+                )
+                # lines.append(f'{self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())} == {output_selection},')
+                # lines.append(f'{output_use} == {sxpat_cfg.IF}({self._output_negation(output_i)},\n{sxpat_cfg.Z3_AND}({self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())}),\n{sxpat_cfg.Z3_NOT}({self._gen_call_function(self._output_identifier(output_i), self.subgraph_inputs.values())})),')
+                lines.append(f'{output_use} == {sxpat_cfg.Z3_OR}({output_selection}),')
         builder.update(approximate_wires_constraints='\n'.join(lines))
 
         # ----------------------------- # ----------------------------- #
 
         # remove_double_constraint -> # remove double no-care
-        builder.update(remove_double_constraint= '\n'.join(
+        builder.update(remove_double_constraint='\n'.join(
             itertools.chain(
                 f'Implies({",".join(self._input_parameters(input_i,nd))}),'
                 for input_i in self.subgraph_inputs.keys()
@@ -957,50 +939,48 @@ class MultilevelManager(ProductTemplateManager):
         # negation -> connection constraint
         lines = []
         lines.append('# negation -> connection constraint')
-        for lv in range(len(npl)-1,0,-1):
+        for lv in range(len(npl)-1, 0, -1):
             for t_nd in range(npl[lv]):
                 for f_nd in range(npl[lv-1]):
                     lines.append(f'Implies({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},{self._node_connection_levels(f_nd,lv-1,t_nd,lv)})')
 
         # number of nodes connection contraint
         lines.append('# number of nodes connection contraint')
-        for lv in range(self.lv):
+        for lv in range(self._specs.lv):
             if lv == 0:
                 constr = ', '.join(
-                                itertools.chain(
-                                    f'{self._input_parameters(input_i,t_nd)[1]}'   
-                                    for input_i in range(self.subgraph_inputs.__len__())
-                                    for t_nd in range(npl[lv])
-                                ))
-                if self.lv==1:
-                    limit = ((self.pit*self.subgraph_inputs.__len__())/5)
+                    itertools.chain(
+                        f'{self._input_parameters(input_i,t_nd)[1]}'
+                        for input_i in range(len(self.subgraph_inputs))
+                        for t_nd in range(npl[lv])
+                    ))
+                if self._specs.lv == 1:
+                    limit = self._specs.pit * len(self.subgraph_inputs) / 5
                 else:
-                    limit = ((self.pit*self.subgraph_inputs.__len__())/10)*7
+                    limit = self._specs.pit * len(self.subgraph_inputs) * 7 / 10
 
                 lines.append(f'AtMost({constr},{int(limit)})')
-                #lines.append(f'AtLeast({constr},{self.pit})')
             else:
                 constr = ', '.join(
-                                itertools.chain(
-                                    f'{self._node_connection_levels(f_nd,lv-1,t_nd,lv)}'
-                                    for f_nd in range(npl[lv-1])
-                                    for t_nd in range(npl[lv])
-                                    ))
-                limit = npl[lv]*npl[lv-1]
-                lines.append(f'AtMost({constr},{int((limit/5)*3)})')
-                #lines.append(f'AtLeast({constr},{int((limit/10))})') # constr = ', '.join( #                 itertools.chain( #                     f'{self._node_connection_output(from_n,out_i)}' #                     for from_n in range(npl[self.lv-1]) #                     for out_i in range(self.subgraph_outputs.__len__()) #                 )) # limit = (npl[self.lv-1]*self.subgraph_outputs.__len__())//2
-            
+                    itertools.chain(
+                        f'{self._node_connection_levels(f_nd,lv-1,t_nd,lv)}'
+                        for f_nd in range(npl[lv-1])
+                        for t_nd in range(npl[lv])
+                    ))
+                limit = npl[lv] * npl[lv-1]
+                lines.append(f'AtMost({constr},{int(limit * 3 / 5)})')
+
             constr = ', '.join(
-                                itertools.chain(
-                                    f'{self._node_connection_output(from__nd,out_j)}'
-                                    for from__nd in range(npl[self.lv-1])
-                                    for out_j in range(self.subgraph_outputs.__len__())
-                                    ))
-            limit = self.subgraph_outputs.__len__() * (npl[self.lv-1]*3/7)
-            
+                itertools.chain(
+                    f'{self._node_connection_output(from__nd,out_j)}'
+                    for from__nd in range(npl[self._specs.lv-1])
+                    for out_j in range(len(self.subgraph_outputs))
+                ))
+            limit = len(self.subgraph_outputs) * (npl[self._specs.lv-1]*3/7)
+
             lines.append(f'AtMost({constr},{int(limit)})')
 
-        builder.update(logic_dependant_constraint1 = ', \n'.join(lines) + ',')#'\n'.join(lines))
+        builder.update(logic_dependant_constraint1=', \n'.join(lines) + ',')  # '\n'.join(lines))
 
         # ----------------------------- # ----------------------------- #
         # node_order_constraint
@@ -1012,41 +992,41 @@ class MultilevelManager(ProductTemplateManager):
                 lines.append(f'# level {lv} - node order constr')
                 constr_line = []
                 if lv == 0:
-                    default = self.subgraph_inputs.__len__()
+                    default = len(self.subgraph_inputs)
                     for t_nd in range(npl[lv]):
                         if self._specs.encoding == 1:
                             constr_line.append(' + '.join(
-                                itertools.chain
-                                (
-                                    f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},{2**(input_i+default)},{2**input_i}),0)'   
-                                    for input_i in range(self.subgraph_inputs.__len__())
-                                )))
+                                itertools.chain(
+                                    f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},{2**(input_i+default)},{2**input_i}),0)'
+                                    for input_i in range(len(self.subgraph_inputs))
+                                )
+                            ))
                         elif self._specs.encoding == 2:
-                            lim = npl[0] * self.subgraph_inputs.__len__()
+                            lim = npl[0] * len(self.subgraph_inputs)
                             constr_line.append(' + '.join(
-                                itertools.chain
-                                (
-                                    f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},BitVecVal({2**(input_i+default)},{lim}),BitVecVal({2**input_i},{lim})),BitVec(0,{lim}))'   
-                                    for input_i in range(self.subgraph_inputs.__len__())
-                                )))
+                                itertools.chain(
+                                    f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},BitVecVal({2**(input_i+default)},{lim}),BitVecVal({2**input_i},{lim})),BitVec(0,{lim}))'
+                                    for input_i in range(len(self.subgraph_inputs))
+                                )
+                            ))
                 else:
-                    default=npl[lv-1]
+                    default = npl[lv-1]
                     for t_nd in range(npl[lv]):
                         if self._specs.encoding == 1:
                             constr_line.append(' + '.join(
-                                itertools.chain
-                                (
-                                    f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},{2**(f_nd+default)},{2**f_nd}),0)'   
+                                itertools.chain(
+                                    f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},{2**(f_nd+default)},{2**f_nd}),0)'
                                     for f_nd in range(npl[lv-1])
-                                )))
+                                )
+                            ))
                         elif self._specs.encoding == 2:
                             lim = (npl[lv-1]*npl[lv]) + 1
                             constr_line.append(' + '.join(
-                                itertools.chain
-                                (
-                                    f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},BitVecVal({2**(f_nd+default)},{lim}),BitVecVal({2**f_nd},{lim})),BitVecVal(0,{lim}))'   
+                                itertools.chain(
+                                    f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},BitVecVal({2**(f_nd+default)},{lim}),BitVecVal({2**f_nd},{lim})),BitVecVal(0,{lim}))'
                                     for f_nd in range(npl[lv-1])
-                                )))
+                                )
+                            ))
 
                 lines.extend(
                     f'{self._encoding.unsigned_greater(node_a, node_b)}'
@@ -1054,10 +1034,10 @@ class MultilevelManager(ProductTemplateManager):
                 )
 
         # ----------------------------- # ----------------------------- #
-        builder.update(product_order_constraint= ', \n'.join(lines))
+        builder.update(product_order_constraint=', \n'.join(lines))
         # remove_zero_permutations_constraint
         # TODO: add it for all outpus
-        lines = [""]
+        lines = ['']
         builder.update(remove_zero_permutations_constraint=''.join(lines))
 
         # ----------------------------- # ----------------------------- #
@@ -1067,6 +1047,7 @@ class MultilevelManager(ProductTemplateManager):
             encoding=self._specs.encoding,
             cell=f'({self._specs.lpp}, {self._specs.pit})',
         )
+
 
 class Builder:
     LEFT_DELIMITER = '{{{{'
