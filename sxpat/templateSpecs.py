@@ -312,7 +312,6 @@ class TemplateSpecs:
                f'{self.manual_nodes = }\n' \
                f'{self.population = }\n' \
                f'{self.template = }\n'  \
-               f'{self.multilevel = }\n'\
                f'{self.parallel = }\n' \
                f'{self.min_labeling = }\n' \
                f'{self.full_error_function = }\n' \

@@ -375,13 +375,13 @@ class Stats:
 
         if self.subxpat_v2:
             self.__tool_name = sxpatconfig.SUBXPAT_V2
-        elif self.subxpat and specs_obj.template == 1:
+        elif self.subxpat and spec_obj.template == 1:
             self.__tool_name = sxpatconfig.SHARED_SUBXPAT
-        elif self.subxpat and not specs_obj.template == 1:
+        elif self.subxpat and not spec_obj.template == 1:
             self.__tool_name = sxpatconfig.SUBXPAT
-        elif not self.subxpat and specs_obj.template == 1:
+        elif not self.subxpat and spec_obj.template == 1:
             self.__tool_name = sxpatconfig.SHARED_XPAT
-        elif not self.subxpat and not specs_obj.template == 1:
+        elif not self.subxpat and not spec_obj.template == 1:
             self.__tool_name = sxpatconfig.XPAT
 
         self.__max_sensitivity: int = spec_obj.max_sensitivity
