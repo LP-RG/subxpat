@@ -31,8 +31,6 @@ class Synthesis:
         self.__template_name = template_specs.template_name
 
         self.__subxpat: bool = template_specs.subxpat
-        self.__shared: bool = template_specs.shared
-        self.__multilevel: bool = template_specs.multilevel
         self.__template: int = template_specs.template
 
         self.__iterations = template_specs.iterations
@@ -44,7 +42,7 @@ class Synthesis:
 
         self.__num_models: int = template_specs.num_of_models
 
-        if self.template == 1:
+        if self.__template == 1:
             self.__products_in_total: int = template_specs.pit
         else:
             self.__products_in_total: float = float('inf')
@@ -130,6 +128,10 @@ class Synthesis:
     @property
     def template_name(self):
         return self.__template_name
+    
+    @property
+    def template(self):
+        return self.__template
 
     @property
     def error_threshold(self):
