@@ -194,17 +194,17 @@ class AnnotatedGraph(Graph):
 
         # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
 
-        head = f'grid_{specs.benchmark_name}_{specs.lpp}X{specs.pit if specs.shared else specs.ppo}_et{specs.et}_'
+        head = f'grid_{specs.benchmark_name}_{specs.lpp}X{specs.pit if specs.template == 1 else specs.ppo}_et{specs.et}_'
 
         if specs.subxpat_v2:
             tool_name = SUBXPAT_V2
-        elif specs.subxpat and specs.shared:
+        elif specs.subxpat and specs.template==1:
             tool_name = SHARED_SUBXPAT
-        elif specs.subxpat and not specs.shared:
+        elif specs.subxpat and not specs.template==1:
             tool_name = SUBXPAT
-        elif not specs.subxpat and specs.shared:
+        elif not specs.subxpat and specs.template==1:
             tool_name = SHARED_XPAT
-        elif not specs.subxpat and not specs.shared:
+        elif not specs.subxpat and not specs.template==1:
             tool_name = XPAT
 
         technique_specific = f'{tool_name}_{specs.et_partitioning if tool_name == SUBXPAT_V2 else ""}_'
