@@ -1045,7 +1045,7 @@ class MultilevelManager(ProductTemplateManager):
         builder.update(
             benchmark_name=self._specs.benchmark_name,
             encoding=self._specs.encoding,
-            cell=f'({self._specs.lpp}, {self._specs.pit})',
+            cell=f'({self._specs.lv}, {self._specs.pit})',
         )
 
 

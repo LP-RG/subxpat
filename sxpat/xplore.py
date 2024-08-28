@@ -30,7 +30,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
     # Select toolname
     toolname = get_toolname(specs_obj)
-
+    
     # initial setup
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
 
@@ -247,7 +247,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
             prev_actual_error = 0
 
-        if best_data[0] == 0:
+        if  cur_status == SAT and best_data[0] == 0:
             pprint.info3('Area zero found!\nTerminated.')
             break
 
