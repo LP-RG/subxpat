@@ -196,9 +196,7 @@ class AnnotatedGraph(Graph):
 
         head = f'grid_{specs.benchmark_name}_{specs.lpp}X{specs.pit if specs.shared else specs.ppo}_et{specs.et}_'
 
-        if specs.subxpat_v2:
-            tool_name = SUBXPAT_V2
-        elif specs.subxpat and specs.shared:
+        if specs.subxpat and specs.shared:
             tool_name = SHARED_SUBXPAT
         elif specs.subxpat and not specs.shared:
             tool_name = SUBXPAT

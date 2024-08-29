@@ -71,7 +71,7 @@ def explore_grid(specs_obj: TemplateSpecs):
             break
 
         pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
-                     if (specs_obj.subxpat or specs_obj.subxpat_v2) else
+                     if (specs_obj.subxpat) else
                      f'Only one iteration with et {et}')
 
         if specs_obj.benchmark_name.endswith('.v'):
@@ -375,10 +375,7 @@ def label_graph(current_graph: AnnotatedGraph,
 
 
 def get_toolname(specs_obj: TemplateSpecs) -> str:
-    if specs_obj.subxpat_v2:
-        pprint.info2('SubXPAT-V2 started...')
-        toolname = sxpatconfig.SUBXPAT_V2
-    elif specs_obj.subxpat and specs_obj.shared:
+    if specs_obj.subxpat and specs_obj.shared:
         pprint.info2('Shared SubXPAT started...')
         toolname = sxpatconfig.SHARED_SUBXPAT
     elif specs_obj.subxpat and not specs_obj.shared:
