@@ -15,7 +15,7 @@ from Z3Log.config.path import *
 
 from sxpat.config import config as sxpatconfig
 from sxpat.config import paths as sxpatpaths
-from sxpat.templateSpecs import TemplateSpecs
+from sxpat.specifications import Specifications
 
 
 def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
@@ -180,7 +180,7 @@ class Model:
 
 
 class Cell:
-    def __init__(self, spec_obj: TemplateSpecs):
+    def __init__(self, spec_obj: Specifications):
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
         self.__lpp: int = spec_obj.lpp
@@ -284,7 +284,7 @@ class Cell:
 
 
 class Grid:
-    def __init__(self, spec_obj: TemplateSpecs):
+    def __init__(self, spec_obj: Specifications):
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.benchmark_name
         if spec_obj.shared:
@@ -348,7 +348,7 @@ class Grid:
 
 
 class Stats:
-    def __init__(self, spec_obj: TemplateSpecs):
+    def __init__(self, spec_obj: Specifications):
         """
         stores the stats of an experiment (grid or cell) into an object
         """
@@ -386,7 +386,7 @@ class Stats:
         self.__mode: int = spec_obj.mode
 
         # This property should be assigned before calling the funciton "self.get_grid_name()"
-        self.__specs_obj: TemplateSpecs = spec_obj
+        self.__specs_obj: Specifications = spec_obj
 
         self.__grid_name: str = self.get_grid_name()
         self.__grid_path: str = self.get_grid_path()

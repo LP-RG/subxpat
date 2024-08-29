@@ -16,14 +16,14 @@ from z_marco.utils import pprint, color
 from .annotatedGraph import AnnotatedGraph
 from .config import paths as sxpatpaths
 from .config import config as sxpatconfig
-from .templateSpecs import TemplateSpecs
+from .specifications import Specifications
 
 
 class Synthesis:
     # TODO:
     # we assign wires to both inputs and outputs of an annotated subgraph
     # follow, inputs, red, white, outputs notation in the Verilog generation
-    def __init__(self, template_specs: TemplateSpecs, graph_obj: AnnotatedGraph = None, json_obj: List[Dict] = None, magraph: MaGraph = None):
+    def __init__(self, template_specs: Specifications, graph_obj: AnnotatedGraph = None, json_obj: List[Dict] = None, magraph: MaGraph = None):
         self.__template_specs = template_specs
         self.__benchmark_name = template_specs.benchmark_name
         self.__exact_benchmark_name = template_specs.exact_benchmark

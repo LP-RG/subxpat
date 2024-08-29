@@ -10,7 +10,7 @@ import networkx as nx
 from Z3Log.config import path as z3logpath
 
 from sxpat.labeling import labeling_explicit
-from sxpat.templateSpecs import TemplateSpecs
+from sxpat.specifications import Specifications
 from sxpat.config.paths import *
 from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
@@ -24,7 +24,7 @@ from sxpat.annotatedGraph import AnnotatedGraph
 from z_marco.utils import pprint
 
 
-def explore_grid(specs_obj: TemplateSpecs):
+def explore_grid(specs_obj: Specifications):
     previous_subgraphs = []
     print(f'{specs_obj = }')
 
@@ -254,14 +254,14 @@ def explore_grid(specs_obj: TemplateSpecs):
 
 class CellIterator:
     @classmethod
-    def factory(cls, specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def factory(cls, specs: Specifications) -> Iterator[Tuple[int, int]]:
         return {
             True: cls.shared,
             False: cls.non_shared,
         }[specs.shared](specs)
 
     @staticmethod
-    def shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def shared(specs: Specifications) -> Iterator[Tuple[int, int]]:
         max_pit = specs.max_pit
 
         # special cell
@@ -273,7 +273,7 @@ class CellIterator:
                 yield (its, pit)
 
     @staticmethod
-    def non_shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def non_shared(specs: Specifications) -> Iterator[Tuple[int, int]]:
         max_lpp = specs.max_lpp
         max_ppo = specs.max_ppo
 
@@ -294,7 +294,7 @@ def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, in
     )
 
 
-def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int) -> TemplateSpecs:
+def set_current_context(specs_obj: Specifications, lpp: int, ppo: int, iteration: int) -> Specifications:
     specs_obj.lpp = lpp
     specs_obj.ppo = specs_obj.pit = ppo
     specs_obj.iterations = iteration
@@ -374,7 +374,7 @@ def label_graph(current_graph: AnnotatedGraph,
         current_graph.graph.nodes[n][WEIGHT] = int(labels[n]) if n in labels else -1
 
 
-def get_toolname(specs_obj: TemplateSpecs) -> str:
+def get_toolname(specs_obj: Specifications) -> str:
     if specs_obj.subxpat and specs_obj.shared:
         pprint.info2('Shared SubXPAT started...')
         toolname = sxpatconfig.SHARED_SUBXPAT
