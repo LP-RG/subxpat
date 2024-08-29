@@ -364,11 +364,8 @@ class Stats:
         self.__et: int = spec_obj.et
         self.__shared: bool = spec_obj.shared
         self.__subxpat: bool = spec_obj.subxpat
-        self.__subxpat_v2: bool = spec_obj.subxpat_v2
 
-        if self.subxpat_v2:
-            self.__tool_name = sxpatconfig.SUBXPAT_V2
-        elif self.subxpat and self.shared:
+        if self.subxpat and self.shared:
             self.__tool_name = sxpatconfig.SHARED_SUBXPAT
         elif self.subxpat and not self.shared:
             self.__tool_name = sxpatconfig.SUBXPAT

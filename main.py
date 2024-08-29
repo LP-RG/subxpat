@@ -17,24 +17,20 @@ def main():
     args = Arguments.parse()
     print(f'{args = }')
 
+    # todo:later: update how we create the templatespecs (more than 2 names, ecc.)
+    specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.exact_benchmark,
+                              literals_per_product=args.lpp, products_per_output=args.ppo,
+                              benchmark_name=args.current_benchmark, num_of_models=args.num_models,
+                              subxpat=args.subxpat,
+                              et=args.et, et_partitioning=args.error_partitioning,
+                              imax=args.imax, omax=args.omax,
+                              timeout=args.timeout, subgraph_size=args.min_subgraph_size, mode=args.extraction_mode,
+                              min_labeling=args.min_labeling,
+                              shared=args.shared, products_in_total=args.pit, parallel=args.parallel, encoding=args.encoding,
+                              partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs)
+
     if args.plot:
         pprint.info2('Plotting...')
-
-        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.benchmark_name,
-                                  literals_per_product=args.lpp, products_per_output=args.ppo,
-                                  benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
-                                  subxpat=args.subxpat, subxpat_v2=args.subxpat_v2,
-                                  full_error_function=args.full_error_function,
-                                  sub_error_function=args.sub_error_function,
-                                  et=args.et, et_partitioning=args.et_partitioning,
-                                  partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                  grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
-                                  timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode,
-                                  population=args.population,
-                                  min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
-                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel,
-                                  encoding=args.encoding,
-                                  partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs)
         stats_obj = Stats(specs_obj)
         stats_obj.gather_results()
 
@@ -43,29 +39,13 @@ def main():
             pprint.info2('cleaning...')
             clean_all()
 
+        # prepare folders
         setup_folder_structure()
         for (directory, _) in sxpatpaths.OUTPUT_PATH.values():
             FS.mkdir(directory)
 
-        # todo:later: update how we create the templatespecs (more than 2 names, ecc.)
-        specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.benchmark_name,
-                                  literals_per_product=args.lpp, products_per_output=args.ppo,
-                                  benchmark_name=args.approximate_benchmark, num_of_models=args.num_models,
-                                  subxpat=args.subxpat, subxpat_v2=args.subxpat_v2,
-                                  full_error_function=args.full_error_function, sub_error_function=args.sub_error_function,
-                                  et=args.et, et_partitioning=args.et_partitioning,
-                                  partitioning_percentage=args.partitioning_percentage, iterations=args.iterations,
-                                  grid=args.grid, imax=args.imax, omax=args.omax, sensitivity=args.sensitivity,
-                                  timeout=args.timeout, subgraph_size=args.subgraph_size, mode=args.mode, population=args.population,
-                                  min_labeling=args.min_labeling, manual_nodes=args.manual_nodes,
-                                  shared=args.shared, products_in_total=args.pit, parallel=args.parallel, encoding=args.encoding,
-                                  partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs)
-
-        if specs_obj.grid:
-            stats_obj = explore_grid(specs_obj)
-        else:
-            # todo:question: What should happen here?
-            raise NotImplementedError('WIP: for now --grid must be passed')
+        # run system
+        stats_obj = explore_grid(specs_obj)
 
 
 def clean_all():
