@@ -158,6 +158,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 # store model
                 this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
                                         labeling_time=labeling_time,
+                                        runtime = execution_time,
                                         subgraph_extraction_time=subgraph_extraction_time,
                                         subgraph_number_inputs=current_graph.subgraph_num_inputs,
                                         subgraph_number_outputs=current_graph.subgraph_num_outputs,
@@ -220,6 +221,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                 best_model_info = Model(id=0,
                                         status=cur_status.upper(),
                                         cell=(lpp, ppo),
+                                        runtime=execution_time, 
                                         et=best_data[4],
                                         iteration=i,
                                         area=best_data[0],
@@ -273,7 +275,7 @@ class CellIterator:
         yield (1, 1)
         yield (2, 1)
         for pit in range(2, max_pit+1):
-            for lv in range(2, max_lv+1):
+            for lv in range(2, pit+2):
                 yield (lv, pit)
 
     @staticmethod

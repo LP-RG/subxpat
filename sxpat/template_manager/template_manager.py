@@ -942,7 +942,7 @@ class MultilevelManager(ProductTemplateManager):
         for lv in range(len(npl)-1, 0, -1):
             for t_nd in range(npl[lv]):
                 for f_nd in range(npl[lv-1]):
-                    lines.append(f'Implies({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},{self._node_connection_levels(f_nd,lv-1,t_nd,lv)})')
+                    lines.append(f'Or({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},{self._node_connection_levels(f_nd,lv-1,t_nd,lv)})')
 
         # number of nodes connection contraint
         lines.append('# number of nodes connection contraint')
@@ -970,15 +970,15 @@ class MultilevelManager(ProductTemplateManager):
                 limit = npl[lv] * npl[lv-1]
                 lines.append(f'AtMost({constr},{int(limit * 3 / 5)})')
 
-            constr = ', '.join(
-                itertools.chain(
-                    f'{self._node_connection_output(from__nd,out_j)}'
-                    for from__nd in range(npl[self._specs.lv-1])
-                    for out_j in range(len(self.subgraph_outputs))
-                ))
-            limit = len(self.subgraph_outputs) * (npl[self._specs.lv-1]*3/7)
+        constr = ', '.join(
+            itertools.chain(
+                f'{self._node_connection_output(from__nd,out_j)}'
+                for from__nd in range(npl[self._specs.lv-1])
+                for out_j in range(len(self.subgraph_outputs))
+            ))
+        limit = len(self.subgraph_outputs) * (npl[self._specs.lv-1]*3/7)
 
-            lines.append(f'AtMost({constr},{int(limit)})')
+        lines.append(f'AtMost({constr},{int(limit)})')
 
         builder.update(logic_dependant_constraint1=', \n'.join(lines) + ',')  # '\n'.join(lines))
 
