@@ -14,7 +14,7 @@ import subprocess
 from sxpat.annotatedGraph import AnnotatedGraph
 import sxpat.config.config as sxpat_cfg
 import sxpat.config.paths as sxpat_paths
-from sxpat.templateSpecs import TemplateSpecs
+from sxpat.specifications import Specifications
 from .encoding import Encoding
 from sxpat.utils.collections import mapping_inv, pairwise_iter
 
@@ -27,7 +27,7 @@ class Result:
 
 class TemplateManager:
     @staticmethod
-    def factory(specs: TemplateSpecs,
+    def factory(specs: Specifications,
                 exact_graph: AnnotatedGraph,
                 current_graph: AnnotatedGraph,
                 ) -> TemplateManager:
@@ -54,7 +54,7 @@ class TemplateManager:
 
     def __init__(self, exact_graph: AnnotatedGraph,
                  current_graph: AnnotatedGraph,
-                 specs: TemplateSpecs,
+                 specs: Specifications,
                  encoding: Encoding,
                  ) -> None:
         self._exact_graph = exact_graph

@@ -13,7 +13,7 @@ from .config import paths as sxpatpaths
 from Z3Log.z3solver import Z3solver
 from z3 import *
 
-from .templateSpecs import TemplateSpecs
+from .specifications import Specifications
 
 from z_marco.utils import pprint
 
@@ -176,7 +176,7 @@ class AnnotatedGraph(Graph):
     def sort_dict(self, this_dict: Dict) -> Dict:
         return dict(sorted(this_dict.items(), key=lambda x: x[0]))
 
-    def get_subgraph_name(self, specs: TemplateSpecs):
+    def get_subgraph_name(self, specs: Specifications):
         """
         returns: a unique gv file name for this experiment (that is determined by specs_obj)
         """
@@ -222,7 +222,7 @@ class AnnotatedGraph(Graph):
 
         return f'{name}.{extension}'
 
-    def get_subgraph_path(self, specs: TemplateSpecs):
+    def get_subgraph_path(self, specs: Specifications):
         """
         returns: the path where the grid .gv file should be stored
         """
@@ -247,7 +247,7 @@ class AnnotatedGraph(Graph):
                f'{self.subgraph_num_gates = }\n' \
                f'{self.partitioning_percentage = }\n'
 
-    def extract_subgraph(self, specs_obj: TemplateSpecs):
+    def extract_subgraph(self, specs_obj: Specifications):
 
         if self.num_gates == 0:
             pprint.with_color(Fore.LIGHTYELLOW_EX)(f'No gates are found in the graph! Skipping the subgraph extraction')
@@ -390,7 +390,7 @@ class AnnotatedGraph(Graph):
             else:
                 return True
 
-    def find_subgraph(self, specs_obj: TemplateSpecs):
+    def find_subgraph(self, specs_obj: Specifications):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -678,7 +678,7 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-    def find_subgraph_sensitivity(self, specs_obj: TemplateSpecs):
+    def find_subgraph_sensitivity(self, specs_obj: Specifications):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -983,7 +983,7 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-    def find_subgraph_sensitivity_no_io_constraints(self, specs_obj: TemplateSpecs):
+    def find_subgraph_sensitivity_no_io_constraints(self, specs_obj: Specifications):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -1281,7 +1281,7 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-    def find_subgraph_feasible(self, specs_obj: TemplateSpecs):
+    def find_subgraph_feasible(self, specs_obj: Specifications):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -1584,7 +1584,7 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-    def find_subgraph_feasible_hard(self, specs_obj: TemplateSpecs):
+    def find_subgraph_feasible_hard(self, specs_obj: Specifications):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -1890,7 +1890,7 @@ class AnnotatedGraph(Graph):
         return tmp_graph
 
 
-    def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(self, specs_obj: TemplateSpecs):
+    def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(self, specs_obj: Specifications):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -2125,7 +2125,7 @@ class AnnotatedGraph(Graph):
 
         return tmp_graph
 
-    def find_subgraph_feasible_soft(self, specs_obj: TemplateSpecs):
+    def find_subgraph_feasible_soft(self, specs_obj: Specifications):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -2459,7 +2459,7 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-    def find_subgraph_feasible_soft_outputs(self, specs_obj: TemplateSpecs):
+    def find_subgraph_feasible_soft_outputs(self, specs_obj: Specifications):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored

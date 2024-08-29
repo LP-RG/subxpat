@@ -1,7 +1,7 @@
 from .config.config import *
 
 
-class TemplateSpecs:
+class Specifications:
     def __init__(self, **kwargs):
         self.__template_name: str = kwargs[NAME].upper()
         self.__exact_benchamrk_name: str = kwargs[EXACT]

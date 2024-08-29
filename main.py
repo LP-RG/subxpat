@@ -1,7 +1,7 @@
 from Z3Log.utils import setup_folder_structure
 from Z3Log.config import path as z3logpath
 
-from sxpat.templateSpecs import TemplateSpecs
+from sxpat.specifications import Specifications
 from sxpat.config import paths as sxpatpaths
 
 from sxpat.arguments import Arguments
@@ -18,7 +18,7 @@ def main():
     print(f'{args = }')
 
     # todo:later: update how we create the templatespecs (more than 2 names, ecc.)
-    specs_obj = TemplateSpecs(name='Sop1' if not args.shared else 'SharedLogic', exact=args.exact_benchmark,
+    specs_obj = Specifications(name='Sop1' if not args.shared else 'SharedLogic', exact=args.exact_benchmark,
                               literals_per_product=args.lpp, products_per_output=args.ppo,
                               benchmark_name=args.current_benchmark, num_of_models=args.num_models,
                               subxpat=args.subxpat,
