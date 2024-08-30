@@ -4,8 +4,6 @@ from Z3Log.config import path as z3logpath
 from sxpat.specifications import Specifications
 from sxpat.config import paths as sxpatpaths
 
-from sxpat.arguments import Arguments
-
 from sxpat.xplore import explore_grid
 from sxpat.stats import Stats
 
@@ -14,28 +12,16 @@ from sxpat.utils.filesystem import FS
 
 
 def main():
-    args = Arguments.parse()
-    print(f'{args = }')
+    specs_obj = Specifications.parse_args()
+    print(f'{specs_obj = }')
 
-    # todo:later: update how we create the templatespecs (more than 2 names, ecc.)
-    specs_obj = Specifications(name='Sop1' if not args.shared else 'SharedLogic', exact=args.exact_benchmark,
-                              literals_per_product=args.lpp, products_per_output=args.ppo,
-                              benchmark_name=args.current_benchmark, num_of_models=args.num_models,
-                              subxpat=args.subxpat,
-                              et=args.et, et_partitioning=args.error_partitioning,
-                              imax=args.imax, omax=args.omax,
-                              timeout=args.timeout, subgraph_size=args.min_subgraph_size, mode=args.extraction_mode,
-                              min_labeling=args.min_labeling,
-                              shared=args.shared, products_in_total=args.pit, parallel=args.parallel, encoding=args.encoding,
-                              partial_labeling=args.partial_labeling, num_subgraphs=args.num_subgraphs)
-
-    if args.plot:
+    if specs_obj.plot:
         pprint.info2('Plotting...')
         stats_obj = Stats(specs_obj)
         stats_obj.gather_results()
 
     else:
-        if args.clean:
+        if specs_obj.clean:
             pprint.info2('cleaning...')
             clean_all()
 

@@ -1,295 +1,297 @@
-from .config.config import *
+# from .config.config import *
+
+from __future__ import annotations
+from typing import Any, Dict, List, Optional, Tuple
+from collections import defaultdict
+import enum
+import dataclasses as dc
+
+import argparse
+from pathlib import Path
+import operator as op
 
 
+class ErrorPartitioningType(enum.Enum):
+    ASCENDING = 'asc'
+    DESCENDING = 'desc'
+    SMART_ASCENDING = 'smart_asc'
+    SMART_DESCENDING = 'smart_desc'
+
+
+class EncodingType(enum.Enum):
+    Z3_INTEGER = 'z3int'
+    Z3_BITVECTOR = 'z3bvec'
+    QBF = 'qbf'
+
+
+class TemplateType(enum.Enum):
+    NON_SHARED = 'nonshared'
+    SHARED = 'shared'
+
+
+class EnumChoicesAction(argparse.Action):
+    def __init__(self, *args, type: enum.Enum, **kwargs) -> None:
+        super().__init__(*args, **kwargs, choices=[e.value for e in type])
+        self.enum = type
+
+    def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace,
+                 value: str, option_string: str = None) -> None:
+        setattr(namespace, self.dest, self.enum(value))
+
+
+@dc.dataclass
 class Specifications:
-    def __init__(self, **kwargs):
-        self.__template_name: str = kwargs[NAME].upper()
-        self.__exact_benchamrk_name: str = kwargs[EXACT]
-        self.__benchamrk_name: str = kwargs[BENCHMARK]
-        self.__literals_per_product: int = None
-        self.__products_per_output: int = None
-        self.__max_literals_per_product: int = int(kwargs[LITERALS_PER_PRODUCT])
-        self.__max_products_per_output: int = int(kwargs[PRODUCTS_PER_OUTPUT])
-        self.__subxpat: bool = kwargs[SUBXPAT]
-        self.__subxpat_v2: bool = kwargs[SUBXPAT_V2]
-        self.__num_of_models = kwargs[NUM_OF_MODELS]
-        self.__error_threshold = kwargs[TEMPLATE_SPEC_ET]
-        self.__partitioning_percentage = kwargs[PARTITIONING_PERCENTAGE]
+    # files
+    exact_benchmark: str
+    current_benchmark: str  # rw
 
-        self.__iterations = kwargs[ITERATIONS] if self.subxpat else 1
-        self.__imax = kwargs[IMAX]
-        self.__omax = kwargs[OMAX]
-        self.__max_sensitivity = kwargs[SENSITIVITY]
-        self.__sensitivity = 0
-        self.__timeout = float(kwargs[TIMEOUT])
-        self.__min_subgraph_size = kwargs[SUBGRAPHSIZE]
-        self.__mode = kwargs[MODE]
-        self.__manual_nodes = kwargs[MANUAL_NODES]
-        self.__population = kwargs[POPULATION]
-        self.__min_labeling = kwargs[MIN_LABELING]
-        self.__shared: bool = bool(kwargs[SHARED])
-        self.__products_in_total: int = None
-        self.__max_products_in_total: int = int(kwargs[PRODUCTS_IN_TOTAL])
-        self.__parallel: bool = kwargs[PARALLEL]
+    # labeling
+    min_labeling: bool
+    partial_labeling: bool
 
-        self.__full_error_function: int = int(kwargs[FULL_ERROR_FUNCTION])
-        self.__sub_error_function: int = int(kwargs[SUB_ERROR_FUNCTION])
+    # subgraph extraction
+    extraction_mode: int
+    imax: int
+    omax: int
+    min_subgraph_size: int
+    num_subgraphs: int
+    max_sensitivity: int
+    sensitivity: int = dc.field(init=False, default=None)  # rw
 
-        self.et_partitioning: str = kwargs[ET_PARTITIONING]
+    # exploration (1)
+    subxpat: bool
+    template: TemplateType
+    encoding: EncodingType
+    wanted_models: int
+    iteration: int = dc.field(init=False, default=None)  # rw
+    # exploration (2)
+    max_lpp: int
+    lpp: int = dc.field(init=False, default=None)  # rw
+    max_ppo: int
+    ppo: int = dc.field(init=False, default=None)  # rw
+    max_pit: int
+    pit: int = dc.field(init=False, default=None)  # rw
 
-        self.__keep_unsat_candidate: bool = self.__subxpat_v2
-        self.__partial_labeling: bool = kwargs[PARTIAL_LABELING]
-        self.__num_subgraphs: int = kwargs[NUM_SUBGRAPHS]
+    # error
+    max_error: int
+    et: int = dc.field(init=False, default=None)  # rw
+    error_partitioning: ErrorPartitioningType
 
-        self.__encoding: int = kwargs[ENCODING]
+    # other
+    timeout: float
+    parallel: bool
+    plot: bool
+    clean: bool
 
-    @property
-    def num_subgraphs(self):
-        return self.__num_subgraphs
-
-    @property
-    def keep_unsat_candidate(self):
-        return self.__keep_unsat_candidate
-
-    @property
-    def parallel(self):
-        return self.__parallel
-
-    @property
-    def shared(self):
-        return self.__shared
-
-    @property
-    def min_labeling(self):
-        return self.__min_labeling
-
-    @property
-    def population(self):
-        return self.__population
-
-    @property
-    def mode(self):
-        return self.__mode
-
-    @property
-    def manual_nodes(self):
-        return self.__manual_nodes
-
-    @property
-    def partitioning_percentage(self):
-        return self.__partitioning_percentage
-
-    @property
-    def pp(self):
-        return self.__partitioning_percentage
-
-    @property
-    def template_name(self):
-        return self.__template_name
-
-    @property
-    def exact_benchmark(self):
-        return self.__exact_benchamrk_name
-
-    @exact_benchmark.setter
-    def exact_benchmark(self, value):
-        self.__exact_benchamrk_name = value
-
-    @property
-    def benchmark_name(self):
-        return self.__benchamrk_name
-
-    @benchmark_name.setter
-    def benchmark_name(self, this_name):
-        self.__benchamrk_name = this_name
-
-    @property
-    def max_lpp(self):
-        return self.__max_literals_per_product
-
-    @property
-    def lpp(self):
-        return self.__literals_per_product
-
-    @lpp.setter
-    def lpp(self, this_lpp):
-        self.__literals_per_product = this_lpp
-
-    @property
-    def max_ppo(self):
-        return self.__max_products_per_output
-
-    @property
-    def ppo(self):
-        return self.__products_per_output
-
-    @ppo.setter
-    def ppo(self, this_ppo):
-        self.__products_per_output = this_ppo
-
-    @property
-    def subxpat(self):
-        return self.__subxpat
-
-    @property
-    def subxpat_v2(self):
-        return self.__subxpat_v2
-
-    @property
-    def iterations(self):
-        return self.__iterations
-
-    @iterations.setter
-    def iterations(self, this_iteration: int):
-        self.__iterations = this_iteration
-
-    @property
-    def imax(self):
-        return self.__imax
-
-    @imax.setter
-    def imax(self, this_imax):
-        self.__imax = this_imax
-
-    @property
-    def omax(self):
-        return self.__omax
-
-    @omax.setter
-    def omax(self, this_omax):
-        self.__omax = this_omax
-
-    @property
-    def max_sensitivity(self):
-        return self.__max_sensitivity
-
-    @max_sensitivity.setter
-    def max_sensitivity(self, this_sens):
-        self.__max_sensitivity = this_sens
-
-    @property
-    def sensitivity(self):
-        return self.__sensitivity
-
-    @sensitivity.setter
-    def sensitivity(self, this_sensitivity):
-        self.__sensitivity = this_sensitivity
-
-    @property
-    def timeout(self):
-        return self.__timeout
-
-    @timeout.setter
-    def timeout(self, this_timeout: float):
-        self.__timeout = float(this_timeout)
-
-    @property
-    def num_of_models(self):
-        return self.__num_of_models
-
-    @property
-    def et(self):
-        return self.__error_threshold
-
-    @et.setter
-    def et(self, value):
-        self.__error_threshold = value
-
-    @property
-    def min_subgraph_size(self):
-        return self.__min_subgraph_size
-
-    @min_subgraph_size.setter
-    def min_subgraph_size(self, this_subgraph_size):
-        self.__min_subgraph_size = this_subgraph_size
-
-    @property
-    def max_pit(self):
-        return self.__max_products_in_total
-
-    @property
-    def pit(self):
-        return self.__products_in_total
-
-    @pit.setter
-    def pit(self, new_value: int):
-        self.__products_in_total = new_value
-
-    @property
-    def max_its(self) -> int:
-        return self.__max_products_in_total + 3
-
-    @property
-    def full_error_function(self):
-        return self.__full_error_function
-
-    @property
-    def sub_error_function(self):
-        return self.__sub_error_function
-
-    @property
-    def encoding(self):
-        return self.__encoding
-
-    @property
-    def partial_labeling(self):
-        return self.__partial_labeling
+    def __post_init__(self):
+        object.__setattr__(self, 'exact_benchmark', Path(self.exact_benchmark).stem)
+        object.__setattr__(self, 'current_benchmark', Path(self.current_benchmark).stem)
 
     # > computed
 
     @property
-    def requires_subgraph_extraction(self):
-        return self.__subxpat or self.__subxpat_v2
+    def max_its(self) -> int:
+        return self.max_pit + 3
+
+    @property
+    def template_name(self):
+        return {
+            TemplateType.NON_SHARED: 'Sop1',
+            TemplateType.SHARED: 'SharedLogic',
+        }[self.template]
+
+    @property
+    def requires_subgraph_extraction(self) -> bool:
+        return (
+            self.subxpat
+            # or ...
+        )
+
+    @property
+    def requires_labeling(self) -> bool:
+        return (
+            self.extraction_mode >= 2
+            # or ...
+        )
 
     @property
     def grid_param_1(self) -> int:
-        return (
-            self.max_its
-            if self.shared else
-            self.max_lpp
-        )
+        return {  # lazy
+            TemplateType.NON_SHARED: lambda: self.max_lpp,
+            TemplateType.SHARED: lambda: self.max_its,
+        }[self.template]()
 
     @property
     def grid_param_2(self) -> int:
-        return (
-            self.max_pit
-            if self.shared else
-            self.max_ppo
-        )
+        return {  # lazy
+            TemplateType.NON_SHARED: lambda: self.max_ppo,
+            TemplateType.SHARED: lambda: self.max_pit,
+        }[self.template]()
 
     @property
     def total_number_of_cells_per_iter(self) -> int:
         # special_cell + ROWS * COLUMNS
         return 1 + self.grid_param_1 * self.grid_param_2
 
+    @classmethod
+    def parse_args(cls):
+        parser = argparse.ArgumentParser(description='Run the XPat system',
+                                         epilog='Developed by Prof. Pozzi research team',
+                                         formatter_class=argparse.RawTextHelpFormatter)
+
+        # > files stuff
+
+        _ex_bench = parser.add_argument(metavar='exact-benchmark',
+                                        dest='exact_benchmark',
+                                        type=str,
+                                        help='Circuit to approximate. Must be in the input/ver/ folder')
+
+        _cur_bench = parser.add_argument('--current-benchmark', '--curr',
+                                         type=str,
+                                         default=None,
+                                         help='Approximated circuit to continue from. Must be in the input/ver/ folder')
+
+        # > graph labeling stuff
+
+        _min_lab = parser.add_argument('--min-labeling',
+                                       action='store_true',
+                                       help='Nodes are weighted using their minimum error, instead of maximum error')
+
+        _part_lab = parser.add_argument('--partial-labeling',
+                                        action='store_true',
+                                        help='Assign weight only to relevant nodes')
+
+        # > subgraph extraction stuff
+
+        _ex_mode = parser.add_argument('--extraction-mode', '--mode',
+                                       choices=[1, 2, 3, 4, 5, 55, 11, 12],
+                                       type=int,
+                                       help='Subgraph extraction algorithm to use')
+
+        _imax = parser.add_argument('--input-max', '--imax',
+                                    type=int,
+                                    dest='imax',
+                                    help='Maximum allowed number of inputs to the subgraph')
+
+        _omax = parser.add_argument('--output-max', '--omax',
+                                    type=int,
+                                    dest='omax',
+                                    help='Maximum allowed number of outputs from the subgraph')
+
+        _msens = parser.add_argument('--max-sensitivity',
+                                     type=int,
+                                     help='Maximum partitioning sensitivity')
+
+        _msub_size = parser.add_argument('--min-subgraph-size',
+                                         type=int,
+                                         help='Minimum valid size for the subgraph')
+
+        _num_sub = parser.add_argument('--num-subgraphs',
+                                       type=int,
+                                       default=1,
+                                       help='The number of attempts for subgraph extraction')
+
+        # > exploration stuff
+
+        _subxpat = parser.add_argument('--subxpat',
+                                       action='store_true',
+                                       help='Run the system as SubXPAT instead of XPat')
+
+        _template = parser.add_argument('--template',
+                                        type=TemplateType,
+                                        action=EnumChoicesAction,
+                                        help='Select template logic')
+
+        _lpp = parser.add_argument('--literals-per-product', '--max-lpp', '--lpp',
+                                   type=int,
+                                   dest='max_lpp',
+                                   help='The max number of literals per product to use')
+
+        _ppo = parser.add_argument('--products-per-output', '--max-ppo', '--ppo',
+                                   type=int,
+                                   dest='max_ppo',
+                                   help='The max number of products per output to use')
+
+        _pit = parser.add_argument('--products-in-total', '--max-pit', '--pit',
+                                   type=int,
+                                   dest='max_pit',
+                                   help='The max number of products to use in total')
+
+        _nmod = parser.add_argument('--wanted-models',
+                                    type=int,
+                                    default=1,
+                                    help='Wanted number of models to generate for each step')
+
+        # > error stuff
+
+        _et = parser.add_argument('--max-error', '-e',
+                                  type=int,
+                                  help='The maximum allowable error')
+
+        _ep = parser.add_argument('--error-partitioning', '--epar',
+                                  type=ErrorPartitioningType,
+                                  action=EnumChoicesAction,
+                                  default=ErrorPartitioningType.ASCENDING,
+                                  help='The error partitioning algorithm to use')
+
+        # > other stuff
+
+        _enc = parser.add_argument('--encoding',
+                                   type=EncodingType,
+                                   action=EnumChoicesAction,
+                                   default=EncodingType.Z3_BITVECTOR,
+                                   help='The encoding to use in solving the approximation')
+
+        _timeout = parser.add_argument('--timeout',
+                                       type=float,
+                                       default=10800,
+                                       help='The maximum time each cell is given to run in seconds (default: 3h)')
+
+        _parallel = parser.add_argument('--parallel',
+                                        action='store_true',
+                                        help='Run in parallel what is possilbe')
+
+        _plt = parser.add_argument('--plot',
+                                   action='store_true',
+                                   help='The system will be run as plotter (DEPRECATED?)')
+
+        _clean = parser.add_argument('--clean',
+                                     action='store_true',
+                                     help='Reset the output folder before running')
+
+        raw_args = parser.parse_args()
+
+        # custom defaults
+        if raw_args.current_benchmark is None:
+            raw_args.current_benchmark = raw_args.exact_benchmark
+
+        # define dependencies
+        dependencies: Dict[Tuple[argparse.Action, Optional[Any]], List[argparse.Action]] = defaultdict(list)
+        dependencies = {
+            # (source_argument, value | None): [dependent_arguments],
+            (_subxpat, True): [_ex_mode, _template],
+            (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
+            (_template, TemplateType.SHARED): [_pit],
+        }
+
+        # check dependencies
+        for (source, value), dependents in dependencies.items():
+            if value is None and getattr(raw_args, source.dest, None) is not None:
+                for dep in dependents:
+                    if getattr(raw_args, dep.dest, None) is None:
+                        parser.error(f'missing argument: argument `{source.option_strings[0]}` requires argument `{dep.option_strings[0]}`')
+
+            elif value is not None and getattr(raw_args, source.dest, None) == value:
+                for dep in dependents:
+                    if getattr(raw_args, dep.dest, None) is None:
+                        parser.error(f'missing argument: argument `{source.option_strings[0]}` with value {value!r} requires argument `{dep.option_strings[0]}`')
+
+        return cls(**vars(raw_args))
+
     def __repr__(self):
-        return f'An object of Class TemplateSpecs:\n' \
-               f'{self.template_name = }\n' \
-               f'{self.exact_benchmark = }\n' \
-               f'{self.benchmark_name = }\n' \
-               f'{self.lpp = }\n' \
-               f'{self.ppo = }\n' \
-               f'{self.pit = }\n' \
-               f'{self.subxpat = }\n' \
-               f'{self.subxpat_v2 = }\n' \
-               f'{self.num_of_models = }\n' \
-               f'{self.et = }\n' \
-               f'{self.partitioning_percentage = }\n' \
-               f'{self.iterations = }\n' \
-               f'{self.imax = }\n' \
-               f'{self.omax = }\n' \
-               f'{self.max_sensitivity = }\n' \
-               f'{self.sensitivity = }\n' \
-               f'{self.timeout = }\n' \
-               f'{self.min_subgraph_size = }\n' \
-               f'{self.mode = }\n' \
-               f'{self.manual_nodes = }\n' \
-               f'{self.population = }\n' \
-               f'{self.shared = }\n'  \
-               f'{self.parallel = }\n' \
-               f'{self.min_labeling = }\n' \
-               f'{self.full_error_function = }\n' \
-               f'{self.sub_error_function = }\n' \
-               f'{self.et_partitioning = }\n' \
-               f'{self.partial_labeling = }\n' \
-               f'{self.keep_unsat_candidate = }\n'
+        """
+        Procedurally generates the string representation of the object.  
+        The string will contain the name of the class, followed by one line for each field (name/value pair).
+        """
+        fields = ''.join(f'   {k} = {v},\n' for k, v in vars(self).items())
+        return f'{self.__class__.__name__}(\n{fields})'
