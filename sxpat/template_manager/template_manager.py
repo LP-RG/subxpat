@@ -14,7 +14,7 @@ import subprocess
 from sxpat.annotatedGraph import AnnotatedGraph
 import sxpat.config.config as sxpat_cfg
 import sxpat.config.paths as sxpat_paths
-from sxpat.specifications import Specifications
+from sxpat.specifications import EncodingType, Specifications, TemplateType
 from .encoding import Encoding
 from sxpat.utils.collections import mapping_inv, pairwise_iter
 
@@ -40,12 +40,12 @@ class TemplateManager:
 
         # select and return TemplateManager object
         return {
-            (False, 1): SOPManager,
-            (False, 2): SOPManager,
-            (True, 1): SOPSManager,
-            (True, 2): SOPSManager,
-            (False, 3): SOP_QBF_Manager,
-        }[specs.shared, specs.encoding](
+            (TemplateType.NON_SHARED, EncodingType.Z3_INTEGER): SOPManager,
+            (TemplateType.NON_SHARED, EncodingType.Z3_BITVECTOR): SOPManager,
+            (TemplateType.SHARED, EncodingType.Z3_INTEGER): SOPSManager,
+            (TemplateType.SHARED, EncodingType.Z3_BITVECTOR): SOPSManager,
+            (TemplateType.NON_SHARED, EncodingType.QBF): SOP_QBF_Manager,
+        }[specs.template, specs.encoding](
             exact_graph,
             current_graph,
             specs,
@@ -90,7 +90,7 @@ class Z3TemplateManager(TemplateManager):
                 sxpat_cfg.PYTHON3,
                 self.script_path,
                 f'{self._specs.et}',
-                f'{self._specs.num_of_models}',
+                f'{self._specs.wanted_models}',
                 f'{self._specs.timeout}'
             ],
             stdout=subprocess.PIPE,
@@ -426,12 +426,12 @@ class SOPManager(ProductTemplateManager):
     @property
     def script_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH['z3']
-        return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
+        return f'{folder}/{self._specs.current_benchmark}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding.value}_{sxpat_cfg.ITER}{self._specs.iteration}.{extension}'
 
     @property
     def data_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH[sxpat_cfg.JSON]
-        return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
+        return f'{folder}/{self._specs.current_benchmark}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding.value}_{sxpat_cfg.ITER}{self._specs.iteration}.{extension}'
 
     @classmethod
     def _input_parameters(cls, output_i: int, product_i: int, input_i: int) -> Tuple[str, str]:
@@ -554,8 +554,8 @@ class SOPManager(ProductTemplateManager):
 
         # general informations: benchmark_name, encoding and cell
         builder.update(
-            benchmark_name=self._specs.benchmark_name,
-            encoding=self._specs.encoding,
+            benchmark_name=self._specs.current_benchmark,
+            encoding=self._specs.encoding.value,
             cell=f'({self._specs.lpp}, {self._specs.ppo})',
         )
 
@@ -565,12 +565,12 @@ class SOPSManager(ProductTemplateManager):
     @property
     def script_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH['z3']
-        return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
+        return f'{folder}/{self._specs.current_benchmark}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding.value}_{sxpat_cfg.ITER}{self._specs.iteration}.{extension}'
 
     @property
     def data_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH[sxpat_cfg.JSON]
-        return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
+        return f'{folder}/{self._specs.current_benchmark}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding.value}_{sxpat_cfg.ITER}{self._specs.iteration}.{extension}'
 
     @classmethod
     def _input_parameters(cls, output_i: int, product_i: int, input_i: int) -> Tuple[str, str]:
@@ -695,8 +695,8 @@ class SOPSManager(ProductTemplateManager):
 
         # general informations: benchmark_name, encoding and cell
         builder.update(
-            benchmark_name=self._specs.benchmark_name,
-            encoding=self._specs.encoding,
+            benchmark_name=self._specs.current_benchmark,
+            encoding=self._specs.encoding.value,
             cell=f'({self._specs.lpp}, {self._specs.pit})',
         )
 

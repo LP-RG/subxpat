@@ -16,7 +16,7 @@ from z_marco.utils import pprint, color
 from .annotatedGraph import AnnotatedGraph
 from .config import paths as sxpatpaths
 from .config import config as sxpatconfig
-from .specifications import Specifications
+from .specifications import Specifications, TemplateType
 
 
 class Synthesis:
@@ -25,26 +25,19 @@ class Synthesis:
     # follow, inputs, red, white, outputs notation in the Verilog generation
     def __init__(self, template_specs: Specifications, graph_obj: AnnotatedGraph = None, json_obj: List[Dict] = None, magraph: MaGraph = None):
         self.__template_specs = template_specs
-        self.__benchmark_name = template_specs.benchmark_name
+        self.__benchmark_name = template_specs.current_benchmark
         self.__exact_benchmark_name = template_specs.exact_benchmark
         self.__template_name = template_specs.template_name
 
         self.__subxpat: bool = template_specs.subxpat
-        self.__shared: bool = template_specs.shared
 
-        self.__iterations = template_specs.iterations
         self.__literals_per_product = template_specs.lpp
         self.__products_per_output = template_specs.ppo
+        self.__products_in_total: int = template_specs.pit
+
         self.__error_threshold = template_specs.et
         self.__graph: AnnotatedGraph = graph_obj
         self.__magraph: Optional[MaGraph] = magraph
-
-        self.__num_models: int = template_specs.num_of_models
-
-        if self.shared:
-            self.__products_in_total: int = template_specs.pit
-        else:
-            self.__products_in_total: float = float('inf')
 
         if json_obj == sxpatconfig.UNSAT or json_obj == sxpatconfig.UNKNOWN:
             pprint.error('ERROR!!! the json does not contain any models!')
@@ -77,10 +70,6 @@ class Synthesis:
         return self.__subxpat
 
     @property
-    def shared(self):
-        return self.__shared
-
-    @property
     def num_of_models(self):
         return self.__num_models
 
@@ -95,14 +84,6 @@ class Synthesis:
     @property
     def exact_name(self):
         return self.__exact_benchmark_name
-
-    @property
-    def iterations(self):
-        return self.__iterations
-
-    @iterations.setter
-    def iterations(self, this_iteration: int):
-        self.__iterations = this_iteration
 
     @property
     def graph(self):
@@ -195,8 +176,8 @@ class Synthesis:
         if this_name is None:
             data = NameData.from_filename(self.benchmark_name)
             if data.is_origin:
-                data.root = f'{data.root}_{self.template_name}_enc{self.specs.encoding}'
-            this_name = str(data.get_successor(self.specs.iterations, id))
+                data.root = f'{data.root}_{self.template_name}_enc{self.specs.encoding.value}'
+            this_name = str(data.get_successor(self.specs.iteration, id))
 
         folder, extenstion = this_path
         self.ver_out_name = f'{this_name}.{extenstion}'
@@ -210,18 +191,12 @@ class Synthesis:
         :param use_json_model: if set to true, the json model is used
         :return: a Verilog description in the form of a String object
         """
-        if self.__magraph:
-            # todo:hack: temporary
-            verilog_str = [self.__magraph_to_verilog()]
-        elif self.shared:  # Shared XPat/SubXPat
-            verilog_str = self.__annotated_graph_to_verilog_shared()
-        elif not self.shared:  # XPat/SubXPat
-            verilog_str = self.__annotated_graph_to_verilog()
-        else:
-            pprint.error('ERROR!!! the graph or json model cannot be converted into a Verilog script!')
-            exit(1)
+        verilog_generator = {
+            TemplateType.NON_SHARED: self.__annotated_graph_to_verilog,  # XPat/SubXPat
+            TemplateType.SHARED: self.__annotated_graph_to_verilog_shared,  # Shared XPat/SubXPat
+        }[self.specs.template]
 
-        return verilog_str
+        return verilog_generator()
 
     def __json_input_wire_declarations(self, idx: int = 0):
         graph_input_list = list(self.graph.subgraph_input_dict.values())
