@@ -1,5 +1,3 @@
-# from .config.config import *
-
 from __future__ import annotations
 from typing import Any, Dict, List, Optional, Tuple
 from collections import defaultdict
@@ -8,7 +6,6 @@ import dataclasses as dc
 
 import argparse
 from pathlib import Path
-import operator as op
 
 
 class ErrorPartitioningType(enum.Enum):
