@@ -773,7 +773,7 @@ class MultilevelManager(ProductTemplateManager):
 
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
     def _generate_output(self, node_i, output_i):
-        return f'\n{sxpat_cfg.IF}({self._node_connection_output(node_i,output_i)}, {sxpat_cfg.IF}({self._switch_parameter_output(node_i, output_i)}, {self._gen_call_function(self._level_parameter(node_i,self._specs.lv - 1),self.subgraph_inputs.values())}, {sxpat_cfg.Z3_NOT}({self._gen_call_function(self._level_parameter(node_i, self._specs.lv - 1),self.subgraph_inputs.values())})), {sxpat_cfg.IF}({self._switch_parameter_output(node_i, output_i)}, True, False))'
+        return f'\n{sxpat_cfg.IF}({self._node_connection_output(node_i,output_i)}, {sxpat_cfg.IF}({self._switch_parameter_output(node_i, output_i)}, {self._gen_call_function(self._level_parameter(node_i if self._specs.lv > 1 else 0,self._specs.lv - 1),self.subgraph_inputs.values())}, {sxpat_cfg.Z3_NOT}({self._gen_call_function(self._level_parameter(node_i if self._specs.lv > 1 else 0, self._specs.lv - 1),self.subgraph_inputs.values())})), {sxpat_cfg.IF}({self._switch_parameter_output(node_i, output_i)}, True, False))'
 
     # ----------------------------- # ----------------------------- # ----------------------------- # ----------------------------- #
     def _connection_constraints(self, npl, level_i, gate, output_i=None):
@@ -833,11 +833,10 @@ class MultilevelManager(ProductTemplateManager):
                 ),
                 itertools.chain.from_iterable(
                     (
-                        self._gen_declare_gate(self._node_connection_output(nd, output_i)),  # p_con_fn#_to#
-                        self._gen_declare_gate(self._switch_parameter_output(nd, output_i))  # p_sw_fn#_to#
+                        self._gen_declare_gate(self._node_connection_output(output_i, output_i)),  # p_con_fn#_to#
+                        self._gen_declare_gate(self._switch_parameter_output(output_i, output_i))  # p_sw_fn#_to#
                     )
                     for output_i in range(len(self.subgraph_outputs))
-                    for nd in range(npl[len(npl)-1])
                 ),
                 itertools.chain(
                     self._gen_declare_bool_function(self._level_parameter(nd, lv), len(self.subgraph_inputs))    # function n#_lv#
@@ -868,11 +867,10 @@ class MultilevelManager(ProductTemplateManager):
                 ),
                 itertools.chain.from_iterable(
                     (
-                        self._node_connection_output(nd, output_i),  # p_con_fn#_to#
-                        self._switch_parameter_output(nd, output_i)  # p_sw_fn#_to#
+                        self._node_connection_output(output_i, output_i),  # p_con_fn#_to#
+                        self._switch_parameter_output(output_i, output_i)  # p_sw_fn#_to#
                     )
                     for output_i in range(len(self.subgraph_outputs))
-                    for nd in range(npl[len(npl)-1])
                 ),
             )
         )))
@@ -910,13 +908,10 @@ class MultilevelManager(ProductTemplateManager):
                     self.subgraph_inputs.values()
                 )
 
-                # TODO: constraint at least one connection to the output
-                output_selection = ', '.join(
-                    itertools.chain(
-                        f'{self._connection_constraints(npl,len(npl),gate,output_i)}'
-                        for gate in range(npl[len(npl)-1])
-                    )
-                )
+                # Each output is connected to the corresponding last node of the final layer
+                output_selection = f'{self._connection_constraints(npl,len(npl),output_i,output_i)}'
+
+
                 # lines.append(f'{self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())} == {output_selection},')
                 # lines.append(f'{output_use} == {sxpat_cfg.IF}({self._output_negation(output_i)},\n{sxpat_cfg.Z3_AND}({self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())}),\n{sxpat_cfg.Z3_NOT}({self._gen_call_function(self._output_identifier(output_i), self.subgraph_inputs.values())})),')
                 lines.append(f'{output_use} == {sxpat_cfg.Z3_OR}({output_selection}),')
@@ -970,22 +965,12 @@ class MultilevelManager(ProductTemplateManager):
                 limit = npl[lv] * npl[lv-1]
                 lines.append(f'AtMost({constr},{int(limit * 3 / 5)})')
 
-        constr = ', '.join(
-            itertools.chain(
-                f'{self._node_connection_output(from__nd,out_j)}'
-                for from__nd in range(npl[self._specs.lv-1])
-                for out_j in range(len(self.subgraph_outputs))
-            ))
-        limit = len(self.subgraph_outputs) * (npl[self._specs.lv-1]*3/7)
-
-        lines.append(f'AtMost({constr},{int(limit)})')
-
         builder.update(logic_dependant_constraint1=', \n'.join(lines) + ',')  # '\n'.join(lines))
 
         # ----------------------------- # ----------------------------- #
         # node_order_constraint
         lines = []
-        for lv in range(len(npl)):
+        for lv in range(len(npl) - 1):
             if npl[lv] == 1:
                 lines.append(f'# No order needed for a single node - level: {lv}')
             else:
