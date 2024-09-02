@@ -120,7 +120,7 @@ class Specifications:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_lpp,
             TemplateType.SHARED: lambda: self.max_its,
-            TemplateType.MULTI_LEVEL: lambda: self.num_lev,
+            TemplateType.MULTI_LEVEL: lambda: self.max_lv,
         }[self.template]()
 
     @property
