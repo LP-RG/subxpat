@@ -68,6 +68,7 @@ class Specifications:
     ppo: int = dc.field(init=False, default=None)  # rw
     max_pit: int
     pit: int = dc.field(init=False, default=None)  # rw
+    its: int = dc.field(init=False, default=None)  # rw
 
     # error
     max_error: int
@@ -101,14 +102,13 @@ class Specifications:
     def requires_subgraph_extraction(self) -> bool:
         return (
             self.subxpat
-            # or ...
         )
 
     @property
     def requires_labeling(self) -> bool:
         return (
-            self.extraction_mode >= 2
-            # or ...
+            self.subxpat
+            and self.extraction_mode >= 2
         )
 
     @property
@@ -197,21 +197,19 @@ class Specifications:
         _template = parser.add_argument('--template',
                                         type=TemplateType,
                                         action=EnumChoicesAction,
+                                        required=True,
                                         help='Select template logic')
 
-        _lpp = parser.add_argument('--literals-per-product', '--max-lpp', '--lpp',
+        _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
                                    type=int,
-                                   dest='max_lpp',
                                    help='The max number of literals per product to use')
 
-        _ppo = parser.add_argument('--products-per-output', '--max-ppo', '--ppo',
+        _ppo = parser.add_argument('--max-ppo', '--products-per-output',
                                    type=int,
-                                   dest='max_ppo',
                                    help='The max number of products per output to use')
 
-        _pit = parser.add_argument('--products-in-total', '--max-pit', '--pit',
+        _pit = parser.add_argument('--max-pit', '--products-in-total',
                                    type=int,
-                                   dest='max_pit',
                                    help='The max number of products to use in total')
 
         _nmod = parser.add_argument('--wanted-models',
@@ -223,6 +221,7 @@ class Specifications:
 
         _et = parser.add_argument('--max-error', '-e',
                                   type=int,
+                                  required=True,
                                   help='The maximum allowable error')
 
         _ep = parser.add_argument('--error-partitioning', '--epar',
@@ -237,6 +236,7 @@ class Specifications:
                                    type=EncodingType,
                                    action=EnumChoicesAction,
                                    default=EncodingType.Z3_BITVECTOR,
+                                   required=True,
                                    help='The encoding to use in solving the approximation')
 
         _timeout = parser.add_argument('--timeout',
@@ -246,7 +246,7 @@ class Specifications:
 
         _parallel = parser.add_argument('--parallel',
                                         action='store_true',
-                                        help='Run in parallel what is possilbe')
+                                        help='Run in parallel what is possible')
 
         _plt = parser.add_argument('--plot',
                                    action='store_true',
@@ -266,7 +266,7 @@ class Specifications:
         dependencies: Dict[Tuple[argparse.Action, Optional[Any]], List[argparse.Action]] = defaultdict(list)
         dependencies = {
             # (source_argument, value | None): [dependent_arguments],
-            (_subxpat, True): [_ex_mode, _template],
+            (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
         }
