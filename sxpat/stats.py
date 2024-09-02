@@ -183,11 +183,10 @@ class Cell:
     def __init__(self, spec_obj: Specifications):
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.current_benchmark
-        self.__lpp: int = spec_obj.lpp
-        self.__ppo: int = {
-            TemplateType.NON_SHARED: spec_obj.ppo,
-            TemplateType.SHARED: spec_obj.pit,
-        }[spec_obj.template]
+        self.__lpp, self.__ppo = {
+            TemplateType.NON_SHARED: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
+            TemplateType.SHARED: lambda: (spec_obj.max_its, spec_obj.max_pit),
+        }[spec_obj.template]()
 
         self.__et: int = spec_obj.max_error
 
@@ -232,12 +231,10 @@ class Grid:
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.current_benchmark
 
-        if spec_obj.template == TemplateType.NON_SHARED:
-            self.__lpp: int = spec_obj.max_lpp
-            self.__ppo: int = spec_obj.max_ppo
-        elif spec_obj.template == TemplateType.SHARED:
-            self.__lpp: int = spec_obj.max_its
-            self.__ppo: int = spec_obj.max_pit
+        self.__lpp, self.__ppo = {
+            TemplateType.NON_SHARED: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
+            TemplateType.SHARED: lambda: (spec_obj.max_its, spec_obj.max_pit),
+        }[spec_obj.template]()
 
         self.__et: int = spec_obj.max_error
 
@@ -285,12 +282,10 @@ class Stats:
         self.__exact_name: str = spec_obj.exact_benchmark
         self.__approximate_name: str = spec_obj.current_benchmark
 
-        if spec_obj.template == TemplateType.NON_SHARED:
-            self.__lpp: int = spec_obj.max_lpp
-            self.__ppo: int = spec_obj.max_ppo
-        elif spec_obj.template == TemplateType.SHARED:
-            self.__lpp: int = spec_obj.max_its
-            self.__ppo: int = spec_obj.max_pit
+        self.__lpp, self.__ppo = {
+            TemplateType.NON_SHARED: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
+            TemplateType.SHARED: lambda: (spec_obj.max_its, spec_obj.max_pit),
+        }[spec_obj.template]()
 
         self.__et: int = spec_obj.max_error
 
@@ -323,10 +318,6 @@ class Stats:
     @property
     def template_name(self):
         return self.__template_name
-
-    @property
-    def subxpat(self):
-        return self.__subxpat
 
     @property
     def specs(self):

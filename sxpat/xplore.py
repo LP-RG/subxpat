@@ -236,7 +236,7 @@ def explore_grid(specs_obj: Specifications):
 
             prev_actual_error = 0
 
-        if best_data[0] == 0:
+        if cur_status == SAT and best_data[0] == 0:
             pprint.info3('Area zero found!\nTerminated.')
             break
 
