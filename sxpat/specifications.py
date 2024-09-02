@@ -203,6 +203,7 @@ class Specifications:
         _template = parser.add_argument('--template',
                                         type=TemplateType,
                                         action=EnumChoicesAction,
+                                        required=True,
                                         help='Select template logic')
 
         _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
@@ -217,7 +218,7 @@ class Specifications:
                                    type=int,
                                    help='The max number of products to use in total')
 
-        _lv = parser.add_argument('--max-lv', '--level-count',
+        _lv = parser.add_argument('--max-lv', '--max-levels',
                                   type=int,
                                   help='The max number of levels to use')
 
@@ -230,6 +231,7 @@ class Specifications:
 
         _et = parser.add_argument('--max-error', '-e',
                                   type=int,
+                                  required=True,
                                   help='The maximum allowable error')
 
         _ep = parser.add_argument('--error-partitioning', '--epar',
@@ -244,6 +246,7 @@ class Specifications:
                                    type=EncodingType,
                                    action=EnumChoicesAction,
                                    default=EncodingType.Z3_BITVECTOR,
+                                   required=True,
                                    help='The encoding to use in solving the approximation')
 
         _timeout = parser.add_argument('--timeout',
@@ -253,7 +256,7 @@ class Specifications:
 
         _parallel = parser.add_argument('--parallel',
                                         action='store_true',
-                                        help='Run in parallel what is possilbe')
+                                        help='Run in parallel what is possible')
 
         _plt = parser.add_argument('--plot',
                                    action='store_true',
@@ -273,7 +276,7 @@ class Specifications:
         dependencies: Dict[Tuple[argparse.Action, Optional[Any]], List[argparse.Action]] = defaultdict(list)
         dependencies = {
             # (source_argument, value | None): [dependent_arguments],
-            (_subxpat, True): [_ex_mode, _template],
+            (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
             (_template, TemplateType.MULTI_LEVEL): [_lv, _pit],

@@ -59,14 +59,6 @@ class Synthesis:
         return self.__template_specs
 
     @property
-    def subxpat(self):
-        return self.__subxpat
-
-    @property
-    def num_of_models(self):
-        return self.__num_models
-
-    @property
     def pit(self):
         return self.__products_in_total
 
