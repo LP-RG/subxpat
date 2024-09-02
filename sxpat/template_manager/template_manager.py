@@ -711,12 +711,12 @@ class MultilevelManager(ProductTemplateManager):
     @property
     def script_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH['z3']
-        return f'{folder}/{self._specs.current_benchmark}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iteration}.{extension}'
+        return f'{folder}/{self._specs.current_benchmark}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding.value}_{sxpat_cfg.ITER}{self._specs.iteration}.{extension}'
 
     @property
     def data_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH[sxpat_cfg.JSON]
-        return f'{folder}/{self._specs.current_benchmark}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iteration}.{extension}'
+        return f'{folder}/{self._specs.current_benchmark}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding.value}_{sxpat_cfg.ITER}{self._specs.iteration}.{extension}'
 
     @staticmethod
     def _input_parameters(input_i: int, node_i: int) -> Tuple[str, str]:
@@ -1028,7 +1028,7 @@ class MultilevelManager(ProductTemplateManager):
         # general informations: benchmark_name, encoding and cell
         builder.update(
             benchmark_name=self._specs.current_benchmark,
-            encoding=self._specs.encoding,
+            encoding=self._specs.encoding.value,
             cell=f'({self._specs.lv}, {self._specs.pit})',
         )
 
