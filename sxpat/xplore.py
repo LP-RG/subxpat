@@ -206,6 +206,7 @@ def explore_grid(specs_obj: Specifications):
 
                 # select best circuit
                 best_name, best_data = sorted_circuits[0]
+                obtained_wce_exact = best_data[4]
                 prev_actual_error = best_data[5]
 
                 specs_obj.current_benchmark = best_name
@@ -254,13 +255,14 @@ class CellIterator:
         return {
             TemplateType.NON_SHARED: cls.non_shared,
             TemplateType.SHARED: cls.shared,
+            TemplateType.MULTI_LEVEL: cls.multilevel,
 
         }[specs.template](specs)
 
     @staticmethod
     def multilevel(specs: Specifications) -> Iterator[Tuple[int, int]]:
         max_pit = specs.max_pit
-        max_lv = specs.num_lev
+        max_lv = specs.max_lv
 
         # grid cells
         yield (1, 1)
