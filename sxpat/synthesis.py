@@ -343,7 +343,7 @@ class Synthesis:
                     else:
                         j_son_nodes_connection += f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} = {self.__json_multilevel_node_assign(node_i,lv-1,npl,dict)}\n'
             else:
-                lines.append("// ouutput layer")
+                lines.append("// output layer")
                 j_son_nodes_connection = '\n'.join(
                     itertools.chain(
                         f'assign {sxpatconfig.VER_WIRE_PREFIX}out{out_i} = {self.__json_multilevel_output_assign(out_i,dict,npl)}'
@@ -360,7 +360,7 @@ class Synthesis:
         # for sub_out_i, sub_out_name in self.graph.subgraph_output_dict.items():
         #     lines.append(f'assign {sxpatconfig.VER_WIRE_PREFIX}{sub_out_name} = {sxpatconfig.VER_WIRE_PREFIX}out{sub_out_i};')
         # return '\n'.join(lines)
-        multilevel_assigns = f'\n //subgraph outputs assign\n'
+        multilevel_assigns = f'\n// subgraph outputs assign\n'
 
         # back
         # for n in self.graph.output_dict.values():
