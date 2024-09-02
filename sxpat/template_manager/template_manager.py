@@ -978,14 +978,14 @@ class MultilevelManager(ProductTemplateManager):
                 if lv == 0:
                     default = len(self.subgraph_inputs)
                     for t_nd in range(npl[lv]):
-                        if self._specs.encoding == 1:
+                        if self._specs.encoding == EncodingType.Z3_INTEGER:
                             constr_line.append(' + '.join(
                                 itertools.chain(
                                     f'If({self._input_parameters(input_i,t_nd)[1]},If({self._input_parameters(input_i,t_nd)[0]},{2**(input_i+default)},{2**input_i}),0)'
                                     for input_i in range(len(self.subgraph_inputs))
                                 )
                             ))
-                        elif self._specs.encoding == 2:
+                        elif self._specs.encoding == EncodingType.Z3_BITVECTOR:
                             lim = npl[0] * len(self.subgraph_inputs)
                             constr_line.append(' + '.join(
                                 itertools.chain(
@@ -996,14 +996,14 @@ class MultilevelManager(ProductTemplateManager):
                 else:
                     default = npl[lv-1]
                     for t_nd in range(npl[lv]):
-                        if self._specs.encoding == 1:
+                        if self._specs.encoding == EncodingType.Z3_INTEGER:
                             constr_line.append(' + '.join(
                                 itertools.chain(
                                     f'If({self._node_connection_levels(f_nd,lv-1,t_nd,lv)},If({self._switch_parameter_levels(f_nd,lv-1,t_nd,lv)},{2**(f_nd+default)},{2**f_nd}),0)'
                                     for f_nd in range(npl[lv-1])
                                 )
                             ))
-                        elif self._specs.encoding == 2:
+                        elif self._specs.encoding == EncodingType.Z3_BITVECTOR:
                             lim = (npl[lv-1]*npl[lv]) + 1
                             constr_line.append(' + '.join(
                                 itertools.chain(
