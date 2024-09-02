@@ -185,10 +185,10 @@ class Cell:
         self.__approximate_name: str = spec_obj.current_benchmark
 
         self.__lpp, self.__ppo = {
-            TemplateType.NON_SHARED: (spec_obj.lpp, spec_obj.ppo ),
-            TemplateType.SHARED: (spec_obj.its, spec_obj.pit ),
-            TemplateType.MULTI_LEVEL: (spec_obj.lv, spec_obj.pit ),
-        }[spec_obj.template]
+            TemplateType.NON_SHARED: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
+            TemplateType.SHARED: lambda: (spec_obj.max_its, spec_obj.max_pit),
+            TemplateType.MULTI_LEVEL: lambda: (spec_obj.max_lv, spec_obj.max_pit),
+        }[spec_obj.template]()
 
         self.__et: int = spec_obj.max_error
 
@@ -234,10 +234,10 @@ class Grid:
         self.__approximate_name: str = spec_obj.current_benchmark
 
         self.__lpp, self.__ppo = {
-            TemplateType.NON_SHARED: (spec_obj.max_lpp, spec_obj.max_ppo ),
-            TemplateType.SHARED: (spec_obj.max_its, spec_obj.max_pit ),
-            TemplateType.MULTI_LEVEL: (spec_obj.max_lv, spec_obj.max_pit ),
-        }[spec_obj.template]
+            TemplateType.NON_SHARED: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
+            TemplateType.SHARED: lambda: (spec_obj.max_its, spec_obj.max_pit),
+            TemplateType.MULTI_LEVEL: lambda: (spec_obj.max_lv, spec_obj.max_pit),
+        }[spec_obj.template]()
 
         self.__et: int = spec_obj.max_error
 
@@ -286,10 +286,10 @@ class Stats:
         self.__approximate_name: str = spec_obj.current_benchmark
 
         self.__lpp, self.__ppo = {
-            TemplateType.NON_SHARED: (spec_obj.max_lpp, spec_obj.max_ppo ),
-            TemplateType.SHARED: (spec_obj.max_its, spec_obj.max_pit ),
-            TemplateType.MULTI_LEVEL: (spec_obj.max_lv, spec_obj.max_pit ),
-        }[spec_obj.template]
+            TemplateType.NON_SHARED: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
+            TemplateType.SHARED: lambda: (spec_obj.max_its, spec_obj.max_pit),
+            TemplateType.MULTI_LEVEL: lambda: (spec_obj.max_lv, spec_obj.max_pit),
+        }[spec_obj.template]()
 
         self.__et: int = spec_obj.max_error
 
