@@ -106,14 +106,13 @@ class Specifications:
     def requires_subgraph_extraction(self) -> bool:
         return (
             self.subxpat
-            # or ...
         )
 
     @property
     def requires_labeling(self) -> bool:
         return (
-            self.extraction_mode >= 2
-            # or ...
+            self.subxpat
+            and self.extraction_mode >= 2
         )
 
     @property
