@@ -2,6 +2,8 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Collection
 
+from sxpat.specifications import EncodingType
+
 
 class Encoding:
     """
@@ -16,17 +18,18 @@ class Encoding:
         self._outputs_count = outputs_count
 
     @staticmethod
-    def factory(encoding_id: int,
+    def factory(encoding_type: EncodingType,
                 inputs_count: int,
                 outputs_count: int,
                 ) -> Encoding:
         # select and return Encoding object
         return {
-            1: IntegerEncoding,
-            2: BitVectorEncoding,
-        }[encoding_id](
+            EncodingType.Z3_INTEGER: IntegerEncoding,
+            EncodingType.Z3_BITVECTOR: BitVectorEncoding,
+        }[encoding_type](
             inputs_count,
-            outputs_count)
+            outputs_count
+        )
 
     @property
     @abstractmethod

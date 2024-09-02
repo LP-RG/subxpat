@@ -14,7 +14,7 @@ import subprocess
 from sxpat.annotatedGraph import AnnotatedGraph
 import sxpat.config.config as sxpat_cfg
 import sxpat.config.paths as sxpat_paths
-from sxpat.templateSpecs import TemplateSpecs
+from sxpat.specifications import EncodingType, Specifications, TemplateType
 from .encoding import Encoding
 from sxpat.utils.collections import mapping_inv, pairwise_iter
 
@@ -27,7 +27,7 @@ class Result:
 
 class TemplateManager:
     @staticmethod
-    def factory(specs: TemplateSpecs,
+    def factory(specs: Specifications,
                 exact_graph: AnnotatedGraph,
                 current_graph: AnnotatedGraph,
                 ) -> TemplateManager:
@@ -40,13 +40,13 @@ class TemplateManager:
 
         # select and return TemplateManager object
         return {
-            (0, 1): SOPManager,
-            (0, 2): SOPManager,
-            (1, 1): SOPSManager,
-            (1, 2): SOPSManager,
-            (2, 1): MultilevelManager,
-            (2, 2): MultilevelManager,
-            (0, 3): SOP_QBF_Manager,
+            (TemplateType.NON_SHARED, EncodingType.Z3_INTEGER): SOPManager,
+            (TemplateType.NON_SHARED, EncodingType.Z3_BITVECTOR): SOPManager,
+            (TemplateType.SHARED, EncodingType.Z3_INTEGER): SOPSManager,
+            (TemplateType.SHARED, EncodingType.Z3_BITVECTOR): SOPSManager,
+            (TemplateType.MULTI_LEVEL, EncodingType.Z3_INTEGER): MultilevelManager,
+            (TemplateType.MULTI_LEVEL, EncodingType.Z3_BITVECTOR): MultilevelManager,
+            (TemplateType.NON_SHARED, EncodingType.QBF): SOP_QBF_Manager,
         }[specs.template, specs.encoding](
             exact_graph,
             current_graph,
@@ -56,7 +56,7 @@ class TemplateManager:
 
     def __init__(self, exact_graph: AnnotatedGraph,
                  current_graph: AnnotatedGraph,
-                 specs: TemplateSpecs,
+                 specs: Specifications,
                  encoding: Encoding,
                  ) -> None:
         self._exact_graph = exact_graph
@@ -92,7 +92,7 @@ class Z3TemplateManager(TemplateManager):
                 sxpat_cfg.PYTHON3,
                 self.script_path,
                 f'{self._specs.et}',
-                f'{self._specs.num_of_models}',
+                f'{self._specs.wanted_models}',
                 f'{self._specs.timeout}'
             ],
             stdout=subprocess.PIPE,
@@ -426,12 +426,12 @@ class SOPManager(ProductTemplateManager):
     @property
     def script_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH['z3']
-        return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
+        return f'{folder}/{self._specs.current_benchmark}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding.value}_{sxpat_cfg.ITER}{self._specs.iteration}.{extension}'
 
     @property
     def data_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH[sxpat_cfg.JSON]
-        return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
+        return f'{folder}/{self._specs.current_benchmark}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding.value}_{sxpat_cfg.ITER}{self._specs.iteration}.{extension}'
 
     @classmethod
     def _input_parameters(cls, output_i: int, product_i: int, input_i: int) -> Tuple[str, str]:
@@ -554,8 +554,8 @@ class SOPManager(ProductTemplateManager):
 
         # general informations: benchmark_name, encoding and cell
         builder.update(
-            benchmark_name=self._specs.benchmark_name,
-            encoding=self._specs.encoding,
+            benchmark_name=self._specs.current_benchmark,
+            encoding=self._specs.encoding.value,
             cell=f'({self._specs.lpp}, {self._specs.ppo})',
         )
 
@@ -567,12 +567,12 @@ class SOPSManager(ProductTemplateManager):
     @property
     def script_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH['z3']
-        return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
+        return f'{folder}/{self._specs.current_benchmark}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding.value}_{sxpat_cfg.ITER}{self._specs.iteration}.{extension}'
 
     @property
     def data_path(self) -> str:
         folder, extension = sxpat_paths.OUTPUT_PATH[sxpat_cfg.JSON]
-        return f'{folder}/{self._specs.benchmark_name}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding}_{sxpat_cfg.ITER}{self._specs.iterations}.{extension}'
+        return f'{folder}/{self._specs.current_benchmark}_{sxpat_cfg.TEMPLATE_SPEC_ET}{self._specs.et}_{self._specs.template_name}_encoding{self._specs.encoding.value}_{sxpat_cfg.ITER}{self._specs.iteration}.{extension}'
 
     @classmethod
     def _input_parameters(cls, output_i: int, product_i: int, input_i: int) -> Tuple[str, str]:
@@ -700,8 +700,8 @@ class SOPSManager(ProductTemplateManager):
 
         # general informations: benchmark_name, encoding and cell
         builder.update(
-            benchmark_name=self._specs.benchmark_name,
-            encoding=self._specs.encoding,
+            benchmark_name=self._specs.current_benchmark,
+            encoding=self._specs.encoding.value,
             cell=f'({self._specs.lpp}, {self._specs.pit})',
         )
 
@@ -910,7 +910,6 @@ class MultilevelManager(ProductTemplateManager):
 
                 # Each output is connected to the corresponding last node of the final layer
                 output_selection = f'{self._connection_constraints(npl,len(npl),output_i,output_i)}'
-
 
                 # lines.append(f'{self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())} == {output_selection},')
                 # lines.append(f'{output_use} == {sxpat_cfg.IF}({self._output_negation(output_i)},\n{sxpat_cfg.Z3_AND}({self._gen_call_function(self._output_identifier(output_i),self.subgraph_inputs.values())}),\n{sxpat_cfg.Z3_NOT}({self._gen_call_function(self._output_identifier(output_i), self.subgraph_inputs.values())})),')

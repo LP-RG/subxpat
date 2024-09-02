@@ -1,103 +1,96 @@
-from z_marco.utils import pprint
-from sxpat.annotatedGraph import AnnotatedGraph
-from sxpat.stats import Stats, sxpatconfig, Model
-from sxpat.verification import erroreval_verification_wce
-from sxpat.utils.name import NameData
-from sxpat.utils.filesystem import FS
-from sxpat.template_manager.template_manager import TemplateManager
-from sxpat.synthesis import Synthesis
-from sxpat.config.config import *
-from sxpat.config.paths import *
-from sxpat.templateSpecs import TemplateSpecs
-from sxpat.labeling import labeling_explicit
-from Z3Log.config import path as z3logpath
-import networkx as nx
-import math
-import time
-import csv
-import functools as ft
-from tabulate import tabulate
 from typing import Iterable, Iterator, List
 
+from tabulate import tabulate
+import functools as ft
+import csv
+import time
+import math
+import networkx as nx
 
-def explore_grid(specs_obj: TemplateSpecs):
-    check_exec_time = time.time()
+from Z3Log.config import path as z3logpath
+
+from sxpat.labeling import labeling_explicit
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
+from sxpat.config.paths import *
+from sxpat.config.config import *
+from sxpat.synthesis import Synthesis
+from sxpat.template_manager.template_manager import TemplateManager
+from sxpat.utils.filesystem import FS
+from sxpat.utils.name import NameData
+from sxpat.verification import erroreval_verification_wce
+from sxpat.stats import Stats, sxpatconfig, Model
+from sxpat.annotatedGraph import AnnotatedGraph
+
+from z_marco.utils import pprint
+
+
+def explore_grid(specs_obj: Specifications):
     previous_subgraphs = []
-    print(f'{specs_obj = }')
 
     labeling_time: float = -1
     subgraph_extraction_time: float = -1
 
     # Select toolname
     toolname = get_toolname(specs_obj)
-    
+
     # initial setup
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
 
     # create stat and template object
     stats_obj = Stats(specs_obj)
 
-    available_error = specs_obj.et
     obtained_wce_exact = 0
-    i = 0
+    specs_obj.iteration = 0
     prev_actual_error = 0
     prev_given_error = 0
     previous_iteration_graph = {}
     total_exec_time = 0
 
-    while (obtained_wce_exact < available_error):
-        i += 1
+    while (obtained_wce_exact < specs_obj.max_error):
+        specs_obj.iteration += 1
 
         if not specs_obj.subxpat:
-            et = specs_obj.et
-            obtained_wce_exact = et
+            specs_obj.et = specs_obj.max_error
 
-        elif specs_obj.et_partitioning == 'asc':
-            log2 = int(math.log2(specs_obj.et))
-            # if 2**(i-1) <= available_error:
-            et = 2**(i-1)
-            # if et > available_error:
-            #     break
-        elif specs_obj.et_partitioning == 'desc':
-            log2 = int(math.log2(specs_obj.et))
-            et = 2**(log2 - i - 2)
-        elif specs_obj.et_partitioning == 'smart_asc':
-            et = 1 if i == 1 else prev_given_error * (2 if prev_actual_error == 0 else 1)
-            prev_given_error = et
-        elif specs_obj.et_partitioning == 'smart_desc':
-            et = available_error if i == 1 else prev_given_error / (2 if prev_actual_error == 0 else 1)
-            prev_given_error = et
+        elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
+            specs_obj.et = 2 ** (specs_obj.iteration - 1)
+        elif specs_obj.error_partitioning is ErrorPartitioningType.DESCENDING:
+            log2 = int(math.log2(specs_obj.max_error))
+            specs_obj.et = 2 ** (log2 - specs_obj.iteration - 2)
+        elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_ASCENDING:
+            specs_obj.et = 1 if specs_obj.iteration == 1 else prev_given_error * (2 if prev_actual_error == 0 else 1)
+            prev_given_error = specs_obj.et
+        elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_DESCENDING:
+            specs_obj.et = specs_obj.max_error if specs_obj.iteration == 1 else math.ceil(prev_given_error / (2 if prev_actual_error == 0 else 1))
+            prev_given_error = specs_obj.et
         else:
             raise NotImplementedError('invalid status')
 
-        if et > available_error:
+        if specs_obj.et > specs_obj.max_error or specs_obj.et <= 0:
             break
 
-        pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
-                     if (specs_obj.subxpat or specs_obj.subxpat_v2) else
-                     f'Only one iteration with et {et}')
+        pprint.info1(f'iteration {specs_obj.iteration} with et {specs_obj.et}, available error {specs_obj.max_error}'
+                     if (specs_obj.subxpat) else
+                     f'Only one iteration with et {specs_obj.et}')
 
-        if specs_obj.benchmark_name.endswith('.v'):
-            specs_obj.benchmark_name = specs_obj.benchmark_name[:-2]
-        pprint.info1(f'benchmark {specs_obj.benchmark_name}')
+        if specs_obj.current_benchmark.endswith('.v'):
+            specs_obj.current_benchmark = specs_obj.current_benchmark[:-2]
+        pprint.info1(f'benchmark {specs_obj.current_benchmark}')
 
         # > grid step settings
 
-        # initialize context
-        specs_obj.et = et
-
         # import the graph
-        current_graph = AnnotatedGraph(specs_obj.benchmark_name, is_clean=False, partitioning_percentage=1)
-        exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False, partitioning_percentage=0)
+        current_graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
+        exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False)
 
         # label graph
-        if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
+        if specs_obj.requires_labeling:
             et_coefficient = 1
 
             t_start = time.time()
             label_graph(current_graph,
                         min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
-                        et=et*et_coefficient, parallel=specs_obj.parallel)
+                        et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel)
             labeling_time = time.time() - t_start
             print(f'labeling_time = {labeling_time}')
 
@@ -110,7 +103,7 @@ def explore_grid(specs_obj: TemplateSpecs):
 
         # todo:wip: export subgraph
         folder = 'output/gv/subgraphs'
-        graph_path = f'{folder}/{specs_obj.benchmark_name}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
+        graph_path = f'{folder}/{specs_obj.current_benchmark}_et{specs_obj.et}_mode{specs_obj.extraction_mode}_omax{specs_obj.omax}.gv'
         FS.mkdir(folder)
         current_graph.export_annotated_graph(graph_path)
         print(f'subgraph exported at {graph_path}')
@@ -119,8 +112,6 @@ def explore_grid(specs_obj: TemplateSpecs):
         if not subgraph_is_available:
             pprint.warning(f'No subgraph available.')
             prev_actual_error = 0
-            if et == available_error:
-                available_error = 0
             continue
 
         # guard: skip if the subraph is equal to the previous one
@@ -137,13 +128,13 @@ def explore_grid(specs_obj: TemplateSpecs):
         dominant_cells = []
         for lpp, ppo in CellIterator.factory(specs_obj):
             if is_dominated((lpp, ppo), dominant_cells):
-                pprint.info1(f'Cell({lpp},{ppo}) at iteration {i} -> DOMINATED')
+                pprint.info1(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> DOMINATED')
                 continue
 
             # > cell step settings
 
             # update the context
-            specs_obj = set_current_context(specs_obj, lpp, ppo, i)
+            update_context(specs_obj, lpp, ppo)
 
             # run script
             manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
@@ -153,12 +144,12 @@ def explore_grid(specs_obj: TemplateSpecs):
 
             cur_status = results[0].status
             if cur_status in (UNSAT, UNKNOWN):
-                pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()}')
+                pprint.warning(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {cur_status.upper()}')
 
                 # store model
-                this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
+                this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=specs_obj.et, iteration=specs_obj.iteration,
                                         labeling_time=labeling_time,
-                                        runtime = execution_time,
+                                        runtime=execution_time,
                                         subgraph_extraction_time=subgraph_extraction_time,
                                         subgraph_number_inputs=current_graph.subgraph_num_inputs,
                                         subgraph_number_outputs=current_graph.subgraph_num_outputs,
@@ -188,7 +179,7 @@ def explore_grid(specs_obj: TemplateSpecs):
                     ]
 
                 # todo: should we refactor with pandas?
-                with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
+                with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{toolname}.csv", 'w') as f:
                     csvwriter = csv.writer(f)
 
                     header = list(range(len(cur_model_results)))
@@ -202,13 +193,13 @@ def explore_grid(specs_obj: TemplateSpecs):
                 pprint.success('verifying all approximate circuits -> ', end='')
                 for candidate_name, candidate_data in cur_model_results.items():
                     candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
-                    candidate_data[5] = erroreval_verification_wce(specs_obj.benchmark_name, candidate_name[:-2])
+                    candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
 
-                    if candidate_data[4] > et:
+                    if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
                         stats_obj.store_grid()
                         return stats_obj
-                pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)')
+                pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {specs_obj.iteration} -> {cur_status} ({synth_obj.num_of_models} models found)')
 
                 # sort circuits
                 sorted_circuits = sorted(cur_model_results.items(), key=ft.cmp_to_key(model_compare))
@@ -217,13 +208,13 @@ def explore_grid(specs_obj: TemplateSpecs):
                 best_name, best_data = sorted_circuits[0]
                 prev_actual_error = best_data[5]
 
-                specs_obj.benchmark_name = best_name
+                specs_obj.current_benchmark = best_name
                 best_model_info = Model(id=0,
                                         status=cur_status.upper(),
                                         cell=(lpp, ppo),
-                                        runtime=execution_time, 
+                                        runtime=execution_time,
                                         et=best_data[4],
-                                        iteration=i,
+                                        iteration=specs_obj.iteration,
                                         area=best_data[0],
                                         total_power=best_data[1],
                                         delay=best_data[2],
@@ -242,14 +233,14 @@ def explore_grid(specs_obj: TemplateSpecs):
                                synth_obj.estimate_power(exact_file_path),
                                synth_obj.estimate_delay(exact_file_path)]
                 print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
-                store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.benchmark_name, et=specs_obj.et,
+                store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.current_benchmark, et=specs_obj.et,
                                     encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
 
                 break  # SAT found, stop grid exploration
 
             prev_actual_error = 0
 
-        if  cur_status == SAT and best_data[0] == 0:
+        if cur_status == SAT and best_data[0] == 0:
             pprint.info3('Area zero found!\nTerminated.')
             break
 
@@ -259,15 +250,15 @@ def explore_grid(specs_obj: TemplateSpecs):
 
 class CellIterator:
     @classmethod
-    def factory(cls, specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def factory(cls, specs: Specifications) -> Iterator[Tuple[int, int]]:
         return {
-            1: cls.shared,
-            0: cls.non_shared,
-            2: cls.multilevel,
+            TemplateType.NON_SHARED: cls.non_shared,
+            TemplateType.SHARED: cls.shared,
+
         }[specs.template](specs)
 
     @staticmethod
-    def multilevel(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def multilevel(specs: Specifications) -> Iterator[Tuple[int, int]]:
         max_pit = specs.max_pit
         max_lv = specs.num_lev
 
@@ -279,7 +270,7 @@ class CellIterator:
                 yield (lv, pit)
 
     @staticmethod
-    def shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def shared(specs: Specifications) -> Iterator[Tuple[int, int]]:
         max_pit = specs.max_pit
 
         # special cell
@@ -291,7 +282,7 @@ class CellIterator:
                 yield (its, pit)
 
     @staticmethod
-    def non_shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def non_shared(specs: Specifications) -> Iterator[Tuple[int, int]]:
         max_lpp = specs.max_lpp
         max_ppo = specs.max_ppo
 
@@ -312,16 +303,9 @@ def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, in
     )
 
 
-def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int) -> TemplateSpecs:
-    if specs_obj.template == 2:
-        specs_obj.lv = lpp
-        specs_obj.pit = ppo
-    else:
-        specs_obj.lpp = lpp
-        specs_obj.ppo = specs_obj.pit = ppo
-
-    specs_obj.iterations = iteration
-    return specs_obj
+def update_context(specs_obj: Specifications, lpp: int, ppo: int):
+    specs_obj.lpp = specs_obj.lv = lpp
+    specs_obj.ppo = specs_obj.pit = ppo
 
 
 def print_current_model(sorted_models: List[Tuple[str, List]], normalize: bool = True, exact_stats: List = None) -> None:
@@ -397,23 +381,15 @@ def label_graph(current_graph: AnnotatedGraph,
         current_graph.graph.nodes[n][WEIGHT] = int(labels[n]) if n in labels else -1
 
 
-def get_toolname(specs_obj: TemplateSpecs) -> str:
-    if specs_obj.subxpat_v2:
-        pprint.info2('SubXPAT-V2 started...')
-        toolname = sxpatconfig.SUBXPAT_V2
-    elif specs_obj.subxpat and specs_obj.template == 1:
-        pprint.info2('Shared SubXPAT started...')
-        toolname = sxpatconfig.SHARED_SUBXPAT
-    elif specs_obj.subxpat and not specs_obj.template == 1:
-        pprint.info2('SubXPAT started...')
-        toolname = sxpatconfig.SUBXPAT
-    elif not specs_obj.subxpat and specs_obj.template == 1:
-        pprint.info2('Shared XPAT started...')
-        toolname = sxpatconfig.SHARED_XPAT
-    elif not specs_obj.subxpat and not specs_obj.template == 1:
-        pprint.info2('XPAT started...')
-        toolname = sxpatconfig.XPAT
+def get_toolname(specs_obj: Specifications) -> str:
+    message, toolname = {
+        (False, TemplateType.NON_SHARED): ('XPAT', sxpatconfig.XPAT),
+        (False, TemplateType.SHARED): ('Shared XPAT', sxpatconfig.SHARED_XPAT),
+        (True, TemplateType.NON_SHARED): ('SubXPAT', sxpatconfig.SUBXPAT),
+        (True, TemplateType.SHARED): ('Shared SubXPAT', sxpatconfig.SHARED_SUBXPAT),
+    }[(specs_obj.subxpat, specs_obj.template)]
 
+    pprint.info2(f'{message} started...')
     return toolname
 
 
