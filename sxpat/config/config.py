@@ -10,36 +10,9 @@ ABC_SCRIPT_PATH = 'config/abc.script'
 
 # TemplateSpecs constants
 #   properties
-NAME = 'name'
-LITERALS_PER_PRODUCT = 'literals_per_product'
-PRODUCTS_PER_OUTPUT = 'products_per_output'
-BENCHMARK = 'benchmark_name'
-NUM_OF_MODELS = 'num_of_models'
 SUBXPAT = 'subxpat'
-SUBXPAT_V2 = 'subxpat_v2'
 TEMPLATE_SPEC_ET = 'et'
-PARTITIONING_PERCENTAGE = 'partitioning_percentage'
-ITERATIONS = 'iterations'
-GRID = 'grid'
-EXACT = 'exact'
-IMAX = 'imax'
-OMAX = 'omax'
-SENSITIVITY = 'sensitivity'
-TIMEOUT = 'timeout'
-SUBGRAPHSIZE = 'subgraph_size'
-MODE = 'mode'
-MANUAL_NODES = 'manual_nodes'
-POPULATION = 'population'
-MIN_LABELING = 'min_labeling'
-PARALLEL = 'parallel'
-TEMPLATE = 'template'
-ENCODING = 'encoding'
 
-FULL_ERROR_FUNCTION = 'full_error_function'
-SUB_ERROR_FUNCTION = 'sub_error_function'
-ET_PARTITIONING = 'et_partitioning'
-PARTIAL_LABELING = 'partial_labeling'
-NUM_SUBGRAPHS = 'num_subgraphs'
 
 # shared and multilvel
 NUMBER_OF_LEVELS = 'number_of_levels'
@@ -105,13 +78,7 @@ ERROR = 'error'
 # random constants
 GV = 'gv'
 JSON = 'json'
-
-LPP = 'lpp'
-PPO = 'ppo'
-PAP = 'pap'
 ITER = 'iter'
-PIT = 'pit'
-DST = 'dst'
 
 
 class NameParameters(Enum):
@@ -200,7 +167,8 @@ XPAT = 'xpat'
 BLASYS = 'blasys'
 SHARED_SUBXPAT = 'shared_subxpat'
 SHARED_XPAT = 'shared_xpat'
-SUBXPAT_V2 = 'subxpat_v2'
+MULTILEVEL_SUBXPAT = 'multilevel_subxpat'
+MULTILEVEL_XPAT = 'multilevel_xpat'
 
 # for plotting
 BENCH_DICT = {'abs_diff_2': 'abs_diff_i4_o3', 'abs_diff_4': 'abs_diff_i8_o5', 'abs_diff_6': 'abs_diff_i12_o7',

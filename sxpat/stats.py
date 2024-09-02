@@ -15,7 +15,7 @@ from Z3Log.config.path import *
 
 from sxpat.config import config as sxpatconfig
 from sxpat.config import paths as sxpatpaths
-from sxpat.templateSpecs import TemplateSpecs
+from sxpat.specifications import Specifications, TemplateType
 
 
 def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
@@ -119,7 +119,7 @@ class Model:
 
     @property
     def subxpat_v1_time(self):
-        return  self.__subxpat_v1_time
+        return self.__subxpat_v1_time
 
     @property
     def area(self):
@@ -180,33 +180,17 @@ class Model:
 
 
 class Cell:
-    def __init__(self, spec_obj: TemplateSpecs):
+    def __init__(self, spec_obj: Specifications):
         self.__exact_name: str = spec_obj.exact_benchmark
-        self.__approximate_name: str = spec_obj.benchmark_name
-        self.__lpp: int = spec_obj.lpp
+        self.__approximate_name: str = spec_obj.current_benchmark
 
-        if spec_obj.template == 1:
-            self.__ppo: int = spec_obj.pit
-        elif spec_obj.template == 0:
-            self.__ppo: int = spec_obj.ppo
-        # TODO:marco: missing `== 2`
+        self.__lpp, self.__ppo = {
+            TemplateType.NON_SHARED: (spec_obj.lpp, spec_obj.ppo ),
+            TemplateType.SHARED: (spec_obj.its, spec_obj.pit ),
+            TemplateType.MULTI_LEVEL: (spec_obj.lv, spec_obj.pit ),
+        }[spec_obj.template]
 
-        # Todo: coordinates is deprecated
-        # self.__coordinates: Tuple[int, int] = (spec_obj.lpp, spec_obj.ppo)
-
-        self.__et: int = spec_obj.et
-
-        # Todo: pap is deprecated
-        # self.__pap: int = spec_obj.partitioning_percentage
-
-        # Todo: We're gonna make the code agnostic of iterations which is the root cause of all the bugs
-        # self.__iterations: int = spec_obj.iterations
-
-        # Todo: We're gonna make the code agnostic of num_of_models which is the root cause of all the bugs
-        # self.__num_of_models: int = spec_obj.num_of_models
-
-        # Todo: I'm changing this to nested Dicts type instead of being List
-        # self.__models = [[Model() for n in range(self.num_of_models)] for i in range(self.iterations)]
+        self.__et: int = spec_obj.max_error
 
         self.__models: Dict[int, Dict[int, Model]] = {}
 
@@ -226,54 +210,13 @@ class Cell:
     def ppo(self):
         return self.__ppo
 
-    # @property
-    # def coordinates(self):
-    #     return self.__coordinates
-
     @property
     def et(self):
         return self.__et
 
-    # @property
-    # def pap(self):
-    #     return self.__pap
-
-    # @property
-    # def iterations(self):
-    #     return self.__iterations
-    #
-    # @iterations.setter
-    # def iterations(self, this_iterations):
-    #     self.__iterations = this_iterations
-
-    # @property
-    # def num_of_models(self):
-    #     return self.__num_of_models
-
     @property
     def models(self):
         return self.__models
-
-    # Todo: this version only works for subxpat v1 in which the iteration variable is given
-    # def store_model_info(self, this_model_id: int = 0, this_iteration: int = 0,
-    #                      this_area: float = None, this_delay: float = -1, this_total_power: float = -1,
-    #                      this_runtime: float = None,
-    #                      this_status: str = 'SAT',
-    #                      this_cell: Tuple[int, int] = (-1, -1)):
-    #     self.models[this_iteration - 1][this_model_id] = Model(this_runtime, this_area, this_delay, this_total_power,
-    #                                                            this_model_id, this_status, this_cell)
-
-    # Todo: this version is compatible with subxpat v2
-    # def store_model_info(self, this_model_id: int = 0, this_iteration: int = 0,
-    #                      this_area: float = None, this_delay: float = -1, this_total_power: float = -1,
-    #                      this_runtime: float = None,
-    #                      this_status: str = 'SAT',
-    #                      this_cell: Tuple[int, int] = (-1, -1)):
-    #     temp_dict = {
-    #         this_model_id: Model(this_runtime, this_area, this_delay, this_total_power, this_model_id, this_status,
-    #                              this_cell)}
-    #
-    #     self.models[this_iteration] = temp_dict
 
     def store_model_info(self, model_info_obj: Model):
         self.models[model_info_obj.iteration] = {model_info_obj.id: model_info_obj}
@@ -286,24 +229,17 @@ class Cell:
 
 
 class Grid:
-    def __init__(self, spec_obj: TemplateSpecs):
+    def __init__(self, spec_obj: Specifications):
         self.__exact_name: str = spec_obj.exact_benchmark
-        self.__approximate_name: str = spec_obj.benchmark_name
-        if spec_obj.template == 2:
-            self.__lpp: int = spec_obj.num_lev
-            self.__ppo: int = spec_obj.max_pit
-        elif spec_obj.template == 1:
-            self.__lpp: int = spec_obj.max_its
-            self.__ppo: int = spec_obj.max_pit
-        else:
-            self.__lpp: int = spec_obj.max_lpp
-            self.__ppo: int = spec_obj.max_ppo
-        self.__et: int = spec_obj.et
+        self.__approximate_name: str = spec_obj.current_benchmark
 
-        # Todo: pap is deprecated
-        # self.__pap: int = spec_obj.partitioning_percentage
-        # Todo: trying to stay agnostic of interactions
-        # self.__iterations: int = spec_obj.iterations
+        self.__lpp, self.__ppo = {
+            TemplateType.NON_SHARED: (spec_obj.max_lpp, spec_obj.max_ppo ),
+            TemplateType.SHARED: (spec_obj.max_its, spec_obj.max_pit ),
+            TemplateType.MULTI_LEVEL: (spec_obj.max_lv, spec_obj.max_pit ),
+        }[spec_obj.template]
+
+        self.__et: int = spec_obj.max_error
 
         # Since the rows and cols are predefined as lpp, and ppo (pit) then we're gonna use 2DList instead of a nested Dict
         self.__cells: List[List[Cell]] = [[Cell(spec_obj) for _ in range(self.ppo + 1)] for _ in range(self.lpp + 1)]
@@ -328,18 +264,6 @@ class Grid:
     def et(self):
         return self.__et
 
-    # @property
-    # def pap(self):
-    #     return self.__pap
-
-    # @property
-    # def iterations(self):
-    #     return self.__iterations
-    #
-    # @iterations.setter
-    # def iterations(self, this_iterations):
-    #     self.__iterations = this_iterations
-
     @property
     def cells(self):
         return self.__cells
@@ -353,50 +277,40 @@ class Grid:
 
 
 class Stats:
-    def __init__(self, spec_obj: TemplateSpecs):
+    def __init__(self, spec_obj: Specifications):
         """
         stores the stats of an experiment (grid or cell) into an object
         """
         self.__template_name = spec_obj.template_name
         self.__exact_name: str = spec_obj.exact_benchmark
-        self.__approximate_name: str = spec_obj.benchmark_name
-        if spec_obj.template == 2:
-            self.__lpp: int = spec_obj.num_lev
-            self.__ppo: int = spec_obj.max_pit
-        elif spec_obj.template == 1:
-            self.__lpp: int = spec_obj.max_its
-            self.__ppo: int = spec_obj.max_pit
-        else:
-            self.__lpp: int = spec_obj.max_lpp
-            self.__ppo: int = spec_obj.max_ppo
-        self.__et: int = spec_obj.et
-        self.__subxpat: bool = spec_obj.subxpat
-        self.__subxpat_v2: bool = spec_obj.subxpat_v2
+        self.__approximate_name: str = spec_obj.current_benchmark
 
-        if self.subxpat_v2:
-            self.__tool_name = sxpatconfig.SUBXPAT_V2
-        elif self.subxpat and spec_obj.template == 1:
-            self.__tool_name = sxpatconfig.SHARED_SUBXPAT
-        elif self.subxpat and not spec_obj.template == 1:
-            self.__tool_name = sxpatconfig.SUBXPAT
-        elif not self.subxpat and spec_obj.template == 1:
-            self.__tool_name = sxpatconfig.SHARED_XPAT
-        elif not self.subxpat and not spec_obj.template == 1:
-            self.__tool_name = sxpatconfig.XPAT
+        self.__lpp, self.__ppo = {
+            TemplateType.NON_SHARED: (spec_obj.max_lpp, spec_obj.max_ppo ),
+            TemplateType.SHARED: (spec_obj.max_its, spec_obj.max_pit ),
+            TemplateType.MULTI_LEVEL: (spec_obj.max_lv, spec_obj.max_pit ),
+        }[spec_obj.template]
+
+        self.__et: int = spec_obj.max_error
+
+        self.__tool_name = {
+            (False, TemplateType.NON_SHARED): sxpatconfig.XPAT,
+            (False, TemplateType.SHARED): sxpatconfig.SHARED_XPAT,
+            (False, TemplateType.MULTI_LEVEL): sxpatconfig.MULTILEVEL_XPAT,
+            (True, TemplateType.NON_SHARED): sxpatconfig.SUBXPAT,
+            (True, TemplateType.SHARED): sxpatconfig.SHARED_SUBXPAT,
+            (True, TemplateType.MULTI_LEVEL): sxpatconfig.MULTILEVEL_SUBXPAT,
+        }[(spec_obj.subxpat, spec_obj.template)]
 
         self.__max_sensitivity: int = spec_obj.max_sensitivity
         self.__min_subgraph_size: int = spec_obj.min_subgraph_size
 
-        # Todo: We're gonna make the code agnostic of iterations and num_of_models which is the root cause of all the bugs
-        # self.__iterations: int = spec_obj.iterations
-        # self.__number_of_models: int = spec_obj.num_of_models
-
         self.__imax: int = spec_obj.imax
         self.__omax: int = spec_obj.omax
-        self.__mode: int = spec_obj.mode
+        self.__mode: int = spec_obj.extraction_mode
 
         # This property should be assigned before calling the funciton "self.get_grid_name()"
-        self.__specs_obj: TemplateSpecs = spec_obj
+        self.__specs_obj: Specifications = spec_obj
 
         self.__grid_name: str = self.get_grid_name()
         self.__grid_path: str = self.get_grid_path()
@@ -410,14 +324,6 @@ class Stats:
     @property
     def template_name(self):
         return self.__template_name
-
-    @property
-    def subxpat(self):
-        return self.__subxpat
-
-    @property
-    def subxpat_v2(self):
-        return self.__subxpat_v2
 
     @property
     def specs(self):
@@ -471,14 +377,6 @@ class Stats:
     def et(self):
         return self.__et
 
-    # @property
-    # def iterations(self):
-    #     return self.__iterations
-    #
-    # @iterations.setter
-    # def iterations(self, this_iterations):
-    #     self.__iterations = this_iterations
-
     @property
     def grid(self):
         return self.__grid
@@ -490,14 +388,6 @@ class Stats:
     @status.setter
     def status(self, this_status):
         self.__status = this_status
-
-    # @property
-    # def num_models(self):
-    #     return self.__number_of_models
-    #
-    # @num_models.setter
-    # def num_models(self, this_num_models):
-    #     self.__number_of_models = this_num_models
 
     @property
     def areas(self):
@@ -548,8 +438,8 @@ class Stats:
         # TODO: Morteza: this naming convention is not generic enough,
         # I will try to add every type of specification of the experiment into the name so it wouldn't get overwritten
         # new fields that are added:
-        # for subxpat_v2 => et_partitioning, fef: full_error_function, sef: sub_error_function,
-        # for all num_of_models, omax, imax, kuc: keep_unsat_candidates
+        # for subxpat_v2 => et_partitioning
+        # for all num_of_models, omax, imax
         # as a precautionary measure, we also add the time stamp at the end of every generated file
 
         # So we change the names from "grid_adder_i6_o4_10X20_et10_subxpat_v2_mode4_SOP1" to
@@ -559,14 +449,10 @@ class Stats:
 
         head = f'grid_{self.exact_name}_{self.lpp}X{self.ppo}_et{self.et}_'
 
-        technique_specific = f'{self.tool_name}_{self.specs.et_partitioning if self.tool_name == sxpatconfig.SUBXPAT_V2 else ""}_'
-        technique_specific += f'enc{self.specs.encoding}_'
-        if self.tool_name == sxpatconfig.SUBXPAT_V2:
-            technique_specific += f'fef{self.specs.full_error_function}_'
-            technique_specific += f'sef{self.specs.sub_error_function}_'
+        technique_specific = f'{self.tool_name}_{self.specs.error_partitioning.value}_'
+        technique_specific += f'enc{self.specs.encoding.value}_'
 
-        tail = f'mode{self.specs.mode}_omax{self.specs.omax}_imax{self.specs.imax}_'
-        tail += f'kuc{self.specs.keep_unsat_candidate}_'
+        tail = f'mode{self.specs.extraction_mode}_omax{self.specs.omax}_imax{self.specs.imax}_'
         tail += f'{self.template_name}_time'
 
         # Get the current date and time
@@ -771,11 +657,11 @@ class Stats:
 
                         else:
                             best_area_dict[et] = subxpat.area_dict[et]
-                    if subxpat.mode == 1:
+                    if subxpat.extraction_mode == 1:
                         label = f'SubXPAT_io_best'
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_best.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_best.pdf"
-                    elif subxpat.mode == 3:
+                    elif subxpat.extraction_mode == 3:
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.pdf"
                         label = f'SubXPAT_subgraphsize_best'
@@ -795,11 +681,11 @@ class Stats:
 
                         else:
                             shared_best_area_dict[et] = shared.area_dict[et]
-                    if shared.mode == 1:
+                    if shared.extraction_mode == 1:
                         label = f'Shared_SubXPAT_io_best'
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_best.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_best.pdf"
-                    elif shared.mode == 3:
+                    elif shared.extraction_mode == 3:
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_best.pdf"
                         label = f'Shared_SubXPAT_subgraphsize_best'
@@ -811,13 +697,13 @@ class Stats:
 
             for idx, subxpat in enumerate(subxpat_list):
                 if subxpat.status:
-                    if subxpat.mode == 1:
+                    if subxpat.extraction_mode == 1:
 
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_multiple.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_multiple.pdf"
 
                         label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
-                    elif subxpat.mode == 3:
+                    elif subxpat.extraction_mode == 3:
 
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_multiple.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_multiple.pdf"
@@ -828,13 +714,13 @@ class Stats:
 
             for idx, shared in enumerate(shared_subxpat_list):
                 if shared.status:
-                    if shared.mode == 1:
+                    if shared.extraction_mode == 1:
 
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_multiple.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_io_multiple.pdf"
 
                         label = f'Shared_SubXPAT_i{shared.imax}_o{shared.omax}'
-                    elif shared.mode == 3:
+                    elif shared.extraction_mode == 3:
 
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_multiple.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/area_{self.exact_name}_subgraph_multiple.pdf"
@@ -880,10 +766,10 @@ class Stats:
 
         for subxpat in subxpat_list:
             if subxpat.status:
-                if self.mode == 1:
+                if self.extraction_mode == 1:
                     color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
                     label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
-                elif self.mode == 3:
+                elif self.extraction_mode == 3:
                     color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']
                     label = f'SubXPAT_subgraphsize{subxpat.subgraphsize}'
                 ax.plot(subxpat.error_array, subxpat.power_dict.values(), label=label, color=color, marker='D', markeredgecolor=color,
@@ -918,10 +804,10 @@ class Stats:
         for subxpat in subxpat_list:
             # color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
             if subxpat.status:
-                if self.mode == 1:
+                if self.extraction_mode == 1:
                     color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
                     label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
-                elif self.mode == 3:
+                elif self.extraction_mode == 3:
                     color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']
                     label = f'SubXPAT_subgraphsize{subxpat.subgraphsize}'
                 ax.plot(subxpat.error_array, subxpat.delay_dict.values(), label=label, color=color, marker='D', markeredgecolor=color,
@@ -955,10 +841,10 @@ class Stats:
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
         for subxpat in subxpat_list:
             if subxpat.status:
-                if self.mode == 1:
+                if self.extraction_mode == 1:
                     color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
                     label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
-                elif self.mode == 3:
+                elif self.extraction_mode == 3:
                     color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']
                     label = f'SubXPAT_subgraphsize{subxpat.subgraphsize}'
                 ax.plot(subxpat.error_array, [subxpat.power_dict[key] * subxpat.area_dict[key] for key in subxpat.power_dict.keys()],
@@ -994,10 +880,10 @@ class Stats:
                     markeredgewidth=5, linestyle='solid', linewidth=2, markersize=3)
         for subxpat in subxpat_list:
             if subxpat.status:
-                if self.mode == 1:
+                if self.extraction_mode == 1:
                     color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
                     label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
-                elif self.mode == 3:
+                elif self.extraction_mode == 3:
                     color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']
                     label = f'SubXPAT_subgraphsize{subxpat.subgraphsize}'
                 ax.plot(subxpat.error_array, [subxpat.delay_dict[key] * subxpat.power_dict[key] * subxpat.power_dict[key] for key in subxpat.power_dict.keys()],
@@ -1045,11 +931,11 @@ class Stats:
                         else:
                             best_area_dict[et] = subxpat.area_dict[et]
                             respective_delay_dict[et] = subxpat.delay_dict[et]
-                    if self.mode == 1:
+                    if self.extraction_mode == 1:
                         label = f'SubXPAT_io_best'
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_{self.exact_name}_io_best.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_{self.exact_name}_io_best.pdf"
-                    elif self.mode == 3:
+                    elif self.extraction_mode == 3:
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_{self.exact_name}_subgraph_best.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_{self.exact_name}_subgraph_best.pdf"
                         label = f'SubXPAT_subgraphsize_best'
@@ -1059,12 +945,12 @@ class Stats:
         else:
             for subxpat in subxpat_list:
                 if subxpat.status:
-                    if self.mode == 1:
+                    if self.extraction_mode == 1:
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_{self.exact_name}_io_multiple.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_{self.exact_name}_io_multiple.pdf"
                         color = sxpatconfig.SUBXPAT_COLOR_DICT[f'i{subxpat.imax}_o{subxpat.omax}']
                         label = f'SubXPAT_i{subxpat.imax}_o{subxpat.omax}'
-                    elif self.mode == 3:
+                    elif self.extraction_mode == 3:
                         figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_product_{self.exact_name}_subgraph_multiple.png"
                         figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/delay_area_product_{self.exact_name}_subgraph_multiple.pdf"
                         color = sxpatconfig.SUBXPAT_COLOR_DICT[f'subgraphsize{subxpat.subgraphsize}']
@@ -1111,8 +997,8 @@ class Stats:
         if len(iteration_list) > 0:
             plt.xticks(iteration_list)
             plt.legend(loc='best')
-            figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/{metric}_over_iterations_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_without_sensitivity.png"
-            figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/{metric}_over_iterations_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.iterations}_without_sensitivity.pdf"
+            figurename_png = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/{metric}_over_iterations_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.specs.iteration}_without_sensitivity.png"
+            figurename_pdf = f"{sxpatpaths.OUTPUT_PATH['figure'][0]}/{metric}_over_iterations_{self.exact_name}_{self.lpp}X{self.ppo}_it{self.specs.iteration}_without_sensitivity.pdf"
             plt.savefig(figurename_png)
             plt.savefig(figurename_pdf)
         else:
@@ -1243,12 +1129,12 @@ class Result:
 
         if self.tool_name == sxpatconfig.SUBXPAT or self.tool_name == sxpatconfig.SHARED_SUBXPAT:
             self.__mode = mode
-            if self.mode == 1:
+            if self.extraction_mode == 1:
                 self.__imax = imax
                 self.__omax = omax
-            elif self.mode == 2:
+            elif self.extraction_mode == 2:
                 print(Fore.RED + f'Warning! mode variable 2 is not correct! Not collecting subxpat results!' + Style.RESET_ALL)
-            elif self.mode == 3:
+            elif self.extraction_mode == 3:
                 self.__subgraphsize = subgraphsize
             else:
                 print(Fore.RED + f'Warning! mode variable was not correct! Not collecting subxpat results!' + Style.RESET_ALL)
@@ -1942,7 +1828,7 @@ class Result:
             for csv_file in all_csv_files:
                 if re.search(f'{self.tool_name}', csv_file):
                     if self.tool_name == sxpatconfig.SHARED_SUBXPAT:
-                        if self.mode == 1:
+                        if self.extraction_mode == 1:
                             imax = f'imax{self.imax}'
                             omax = f'omax{self.omax}'
                             if (csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark, csv_file)
@@ -1950,7 +1836,7 @@ class Result:
                                 cur_et = int(re.search('et(\d+)', csv_file).group(1))
                                 if cur_et == et:
                                     grid_files[csv_file] = et
-                        elif self.mode == 3:
+                        elif self.extraction_mode == 3:
                             subgraphsize = f'subgraphsize{self.subgraphsize}'
                             if (csv_file.startswith('grid_') and csv_file.endswith('.csv')
                                     and re.search(self.benchmark, csv_file) and re.search(subgraphsize, csv_file)):
@@ -1958,7 +1844,7 @@ class Result:
                                 if cur_et == et:
                                     grid_files[csv_file] = et
                     elif self.tool_name == sxpatconfig.SUBXPAT:
-                        if self.mode == 1:
+                        if self.extraction_mode == 1:
                             imax = f'imax{self.imax}'
                             omax = f'omax{self.omax}'
                             if (csv_file.startswith('grid_') and csv_file.endswith('.csv') and re.search(self.benchmark, csv_file)
@@ -1966,7 +1852,7 @@ class Result:
                                 cur_et = int(re.search('et(\d+)', csv_file).group(1))
                                 if cur_et == et:
                                     grid_files[csv_file] = et
-                        elif self.mode == 3:
+                        elif self.extraction_mode == 3:
                             subgraphsize = f'subgraphsize{self.subgraphsize}'
                             if (csv_file.startswith('grid_') and csv_file.endswith('.csv')
                                     and re.search(self.benchmark, csv_file) and re.search(subgraphsize, csv_file)):
