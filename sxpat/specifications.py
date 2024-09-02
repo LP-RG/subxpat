@@ -68,6 +68,7 @@ class Specifications:
     ppo: int = dc.field(init=False, default=None)  # rw
     max_pit: int
     pit: int = dc.field(init=False, default=None)  # rw
+    its: int = dc.field(init=False, default=None)  # rw
 
     # error
     max_error: int
@@ -101,14 +102,13 @@ class Specifications:
     def requires_subgraph_extraction(self) -> bool:
         return (
             self.subxpat
-            # or ...
         )
 
     @property
     def requires_labeling(self) -> bool:
         return (
-            self.extraction_mode >= 2
-            # or ...
+            self.subxpat
+            and self.extraction_mode >= 2
         )
 
     @property
@@ -199,19 +199,16 @@ class Specifications:
                                         action=EnumChoicesAction,
                                         help='Select template logic')
 
-        _lpp = parser.add_argument('--literals-per-product', '--max-lpp', '--lpp',
+        _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
                                    type=int,
-                                   dest='max_lpp',
                                    help='The max number of literals per product to use')
 
-        _ppo = parser.add_argument('--products-per-output', '--max-ppo', '--ppo',
+        _ppo = parser.add_argument('--max-ppo', '--products-per-output',
                                    type=int,
-                                   dest='max_ppo',
                                    help='The max number of products per output to use')
 
-        _pit = parser.add_argument('--products-in-total', '--max-pit', '--pit',
+        _pit = parser.add_argument('--max-pit', '--products-in-total',
                                    type=int,
-                                   dest='max_pit',
                                    help='The max number of products to use in total')
 
         _nmod = parser.add_argument('--wanted-models',

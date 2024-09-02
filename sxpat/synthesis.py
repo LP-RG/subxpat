@@ -58,10 +58,6 @@ class Synthesis:
         return self.__template_specs
 
     @property
-    def products_in_total(self):
-        return self.__products_in_total
-
-    @property
     def pit(self):
         return self.__products_in_total
 
