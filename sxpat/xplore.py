@@ -385,8 +385,10 @@ def get_toolname(specs_obj: Specifications) -> str:
     message, toolname = {
         (False, TemplateType.NON_SHARED): ('XPAT', sxpatconfig.XPAT),
         (False, TemplateType.SHARED): ('Shared XPAT', sxpatconfig.SHARED_XPAT),
+        (False, TemplateType.MULTI_LEVEL): ('Shared SubXPAT', sxpatconfig.MULTILEVEL_XPAT),
         (True, TemplateType.NON_SHARED): ('SubXPAT', sxpatconfig.SUBXPAT),
         (True, TemplateType.SHARED): ('Shared SubXPAT', sxpatconfig.SHARED_SUBXPAT),
+        (True, TemplateType.MULTI_LEVEL): ('Shared SubXPAT', sxpatconfig.MULTILEVEL_SUBXPAT),
     }[(specs_obj.subxpat, specs_obj.template)]
 
     pprint.info2(f'{message} started...')
