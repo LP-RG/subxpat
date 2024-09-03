@@ -245,54 +245,54 @@ class Synthesis:
 
         return wire_list
 
-    def __json_multilevel_input_assign(self, node: int, dict_i: dict):
+    def __json_multilevel_input_assign(self, node: int, dict_i: dict, idx: int):
 
         expr = []
-        for idx in self.graph.subgraph_input_dict.keys():
-            val_l = bool(dict_i.get('p_i{}_n{}_l'.format(idx, node)))
-            val_s = bool(dict_i.get('p_i{}_n{}_s'.format(idx, node)))
-            if val_s and not val_l:
-                expr.append(f'{sxpatconfig.VER_NOT}{sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx}')
-            elif val_s and val_l:
-                expr.append(f'{sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{idx}')
+        for input in self.graph.subgraph_input_dict.keys():
+            val_l = 'p_i{}_n{}_l'.format(input, node)
+            val_s = 'p_i{}_n{}_s'.format(input, node)
+            if self.json_model[idx][val_s] and not self.json_model[idx][val_l]:
+                expr.append(f'{sxpatconfig.VER_NOT}{sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{input}')
+            elif self.json_model[idx][val_s] and self.json_model[idx][val_l]:
+                expr.append(f'{sxpatconfig.VER_JSON_WIRE_PREFIX}{sxpatconfig.VER_INPUT_PREFIX}{input}')
             else:
                 expr.append('1')
 
         return ' & '.join(expr) + ';'
 
-    def __json_multilevel_node_assign(self, node: int, actual_level: int, npl: List[int], dict_i: dict):
+    def __json_multilevel_node_assign(self, node: int, actual_level: int, npl: List[int], dict_i: dict, idx: int):
         expr = []
         for node_i in range(npl[actual_level]):
-            val_s = bool(dict_i.get('p_con_fn{}_lv{}_tn{}_lv{}'.format(node_i, actual_level, node, actual_level+1)))
-            val_l = bool(dict_i.get('p_sw_fn{}_lv{}_tn{}_lv{}'.format(node_i, actual_level, node, actual_level+1)))
-            if val_s and not val_l:
+            val_s = 'p_con_fn{}_lv{}_tn{}_lv{}'.format(node_i, actual_level, node, actual_level+1)
+            val_l = 'p_sw_fn{}_lv{}_tn{}_lv{}'.format(node_i, actual_level, node, actual_level+1)
+            if self.json_model[idx][val_s] and not self.json_model[idx][val_l]:
                 expr.append(f'{sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{actual_level}')
-            elif val_s and val_l:
+            elif self.json_model[idx][val_s] and self.json_model[idx][val_l]:
                 expr.append(f'{sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{actual_level}')
             else:
                 expr.append('1')
 
         return ' & '.join(expr) + ';'
 
-    def __json_multilevel_output_assign(self, output_i: int, dict_i: dict, npl: List[int]):
+    def __json_multilevel_output_assign(self, output_i: int, dict_i: dict, npl: List[int], idx: int):
 
         expr = []
-        idx = self.specs.lv-1
-        for node_i in range(npl[idx]):
-            val_s = bool(dict_i.get('p_con_fn{}_to{}'.format(node_i, output_i)))
-            val_l = bool(dict_i.get('p_sw_fn{}_to{}'.format(node_i, output_i)))
-            if not val_s and val_l:
-                expr.append('1')
-            elif not val_s and not val_l:
-                expr.append('0')
-            elif val_s and not val_l:
-                expr.append(f'{sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{idx}')
-            elif val_s and val_l:
-                expr.append(f'{sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{idx}')
+        lv = self.specs.lv-1
+        
+        val_s = 'p_con_fn{}_to{}'.format(output_i, output_i)
+        val_l = 'p_sw_fn{}_to{}'.format(output_i, output_i)
+        if not self.json_model[idx][val_s] and self.json_model[idx][val_l]:
+            expr.append('1')
+        elif not self.json_model[idx][val_s] and not self.json_model[idx][val_l]:
+            expr.append('0')
+        elif self.json_model[idx][val_s] and not self.json_model[idx][val_l]:
+            expr.append(f'{sxpatconfig.VER_NOT}{sxpatconfig.VER_WIRE_PREFIX}nd{output_i}_lv{lv}')
+        elif self.json_model[idx][val_s] and self.json_model[idx][val_l]:
+            expr.append(f'{sxpatconfig.VER_WIRE_PREFIX}nd{output_i}_lv{lv}')
 
         return ' | '.join(expr) + ';'
 
-    def __inputs_to_level_assigns(self, npl, dict):
+    def __inputs_to_level_assigns(self, npl, dict, idx):
         lines = []
         lines.append("// inputs_to_level_assigns")
         for lv in range(len(npl)+1):
@@ -301,14 +301,14 @@ class Synthesis:
                 lines.append(f'// level: {lv}')
                 for node_i in range(npl[lv]):
                     if lv == 0:
-                        j_son_nodes_connection += f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} =  {self.__json_multilevel_input_assign(node_i,dict)}\n'
+                        j_son_nodes_connection += f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} =  {self.__json_multilevel_input_assign(node_i,dict, idx)}\n'
                     else:
-                        j_son_nodes_connection += f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} = {self.__json_multilevel_node_assign(node_i,lv-1,npl,dict)}\n'
+                        j_son_nodes_connection += f'assign {sxpatconfig.VER_WIRE_PREFIX}nd{node_i}_lv{lv} = {self.__json_multilevel_node_assign(node_i,lv-1,npl,dict, idx)}\n'
             else:
                 lines.append("// output layer")
                 j_son_nodes_connection = '\n'.join(
                     itertools.chain(
-                        f'assign {sxpatconfig.VER_WIRE_PREFIX}out{out_i} = {self.__json_multilevel_output_assign(out_i,dict,npl)}'
+                        f'assign {sxpatconfig.VER_WIRE_PREFIX}out{out_i} = {self.__json_multilevel_output_assign(out_i,dict,npl, idx)}'
                         for out_i in self.graph.subgraph_output_dict.keys()
                     )
                 )
@@ -802,7 +802,7 @@ class Synthesis:
             subgraph_to_json_input_mapping = self.__subgraph_to_json_input_mapping()
             intact_assigns = self.__intact_part_assigns()
 
-            json_model_inputs_to_level_assigns = self.__inputs_to_level_assigns(npl, item)
+            json_model_inputs_to_level_assigns = self.__inputs_to_level_assigns(npl, item, idx)
             multilevel_assigns = '\n' + self.__sub_output_to_wires_assigns()
             output_assigns = self.__output_assigns()
 

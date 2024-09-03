@@ -197,8 +197,8 @@ def explore_grid(specs_obj: Specifications):
 
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
-                        stats_obj.store_grid()
-                        return stats_obj
+                        # stats_obj.store_grid()
+                        # return stats_obj
                 pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {specs_obj.iteration} -> {cur_status} ({synth_obj.num_of_models} models found)')
 
                 # sort circuits
