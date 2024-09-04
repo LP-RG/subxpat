@@ -51,6 +51,27 @@ local_dep:
 setup: folders_dep py_init py_dep local_dep
 setup-all: sftw_dep setup
 
+
+setup-mac:
+	# install required Python version
+	brew install python@3.8
+
+	# install CMake
+	brew install cmake
+
+	# install dependencies using HomeBrew
+	brew install eigen
+	brew install swig
+	
+	# install CUDD
+	mkdir -p dependencies && \
+	cd dependencies && \
+	git clone git@github.com:ivmai/cudd.git && \
+	./configure && \
+	make && \
+	make check
+
+
 rm_cache:
 	@echo "\n[[ removing all pycache folders ]]"
 	find . -name __pycache__ -prune -print -exec rm -rf {} \;
