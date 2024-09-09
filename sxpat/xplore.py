@@ -41,13 +41,15 @@ def explore_grid(specs_obj: Specifications):
 
     obtained_wce_exact = 0
     specs_obj.iteration = 0
-    prev_actual_error = 0
+    prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
 
     while (obtained_wce_exact < specs_obj.max_error):
         specs_obj.iteration += 1
 
         if not specs_obj.subxpat:
+            if prev_actual_error == 0:
+                break
             specs_obj.et = specs_obj.max_error
 
         elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
