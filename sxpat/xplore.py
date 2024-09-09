@@ -203,6 +203,7 @@ def explore_grid(specs_obj: Specifications):
 
                 # select best circuit
                 best_name, best_data = sorted_circuits[0]
+                obtained_wce_exact = best_data[4]
                 prev_actual_error = best_data[5]
 
                 specs_obj.current_benchmark = best_name
