@@ -964,6 +964,37 @@ class MultilevelManager(ProductTemplateManager):
                 limit = npl[lv] * npl[lv-1]
                 lines.append(f'AtMost({constr},{int(limit * 3 / 5)})')
 
+        # Delete unused input layer node connections
+        if self._specs.lv > 1:
+            lines.append('# delete unused input layer node connections')
+            for node_i in range(npl[0]):
+                    constr = 'Or('
+                    constr += ', '.join([f'{self._input_parameters(input_i, node_i)[1]}' for input_i in range(len(self.subgraph_inputs))]) 
+                    constr += ') == Or('
+                    constr += ', '.join([f'{self._node_connection_levels(node_i, 0, node_j, 1)}' for node_j in range(npl[1])])
+                    constr += ")"
+                    lines.append(constr)
+
+        # Delete unused output layer node connections
+            if self._specs.lv > 2:
+                lines.append('# delete unused internal layer node connections')
+                for level_i in range(1, self._specs.lv-1):
+                    for node_i in range(npl[level_i]):
+                            constr = 'Or('
+                            constr += ', '.join([f'{self._node_connection_levels(node_j, level_i-1, node_i, level_i)}' for node_j in range(npl[level_i-1])]) 
+                            constr += ') == Or('
+                            constr += ', '.join([f'{self._node_connection_levels(node_i, level_i, node_j, level_i+1)}' for node_j in range(npl[level_i+1])])
+                            constr += ")"
+                            lines.append(constr)
+
+        # Delete unused output layer node connections
+            lines.append('# delete unused output layer node connections')
+            for output_i in range(len(self.subgraph_outputs)):
+                constr = f'{self._node_connection_output(output_i, output_i)} == Or('
+                constr += ', '.join([f'{self._node_connection_levels(node_i, len(npl)-2, output_i, len(npl)-1)}' for node_i in range(npl[len(npl)-2])])
+                constr += ")"
+                lines.append(constr)
+
         builder.update(logic_dependant_constraint1=', \n'.join(lines) + ',')  # '\n'.join(lines))
 
         # ----------------------------- # ----------------------------- #
