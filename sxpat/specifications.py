@@ -45,6 +45,7 @@ class Specifications:
     # labeling
     min_labeling: bool
     partial_labeling: bool
+    et_coefficient: int
 
     # subgraph extraction
     extraction_mode: int
@@ -229,6 +230,12 @@ class Specifications:
                                   action=EnumChoicesAction,
                                   default=ErrorPartitioningType.ASCENDING,
                                   help='The error partitioning algorithm to use')
+        
+        _et_coefficient=parser.add_argument('--et-coefficient','--etcoeff',
+                                            type=int,
+                                            default=1,
+                                            dest='et_coefficient',
+                                            help='The coefficient to use in labeling process')
 
         # > other stuff
 
@@ -269,6 +276,7 @@ class Specifications:
             (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
+            (_ex_mode, 12) : [_omax]
         }
 
         # check dependencies

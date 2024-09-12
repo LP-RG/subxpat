@@ -83,8 +83,7 @@ def explore_grid(specs_obj: Specifications):
 
         # label graph
         if specs_obj.requires_labeling:
-            et_coefficient = 1
-
+            et_coefficient = specs_obj.et_coefficient
             t_start = time.time()
             label_graph(current_graph,
                         min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
