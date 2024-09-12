@@ -16,7 +16,7 @@ import sxpat.config.config as sxpat_cfg
 import sxpat.config.paths as sxpat_paths
 from sxpat.specifications import EncodingType, Specifications, TemplateType
 from .encoding import Encoding
-from sxpat.utils.collections import mapping_inv, pairwise_iter
+from sxpat.utils.collections import mapping_inv, pairwise
 
 
 @dc.dataclass
@@ -537,7 +537,7 @@ class SOPManager(ProductTemplateManager):
                 )
                 lines.extend(
                     f'{self._encoding.unsigned_greater_equal(product_a, product_b)},'
-                    for product_a, product_b in pairwise_iter(products)
+                    for product_a, product_b in pairwise(products)
                 )
         builder.update(product_order_constraint='\n'.join(lines))
 
@@ -668,7 +668,7 @@ class SOPSManager(ProductTemplateManager):
             )
             lines.extend(
                 f'{self._encoding.unsigned_greater_equal(product_a, product_b)},'
-                for product_a, product_b in pairwise_iter(products)
+                for product_a, product_b in pairwise(products)
             )
         builder.update(product_order_constraint='\n'.join(lines))
 

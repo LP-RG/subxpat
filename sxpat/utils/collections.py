@@ -18,9 +18,25 @@ def mapping_inv(mapping: Mapping[K, V], value: V, default: K = NOTHING) -> K:
     return key
 
 
-def pairwise_iter(sequence: Sequence[T]) -> Iterator[Tuple[T, T]]:
-    """iterate pair-wise (AB, BC, CD, ...)"""
-    return zip(sequence, itertools.islice(sequence, 1, None))
+def flat(iterable: Iterable) -> Iterator:
+    for i in iterable:
+        if isinstance(i, Iterable):
+            yield from flat(i)
+        else:
+            yield i
+
+
+def pairwise(iterable: Iterable[T]) -> Iterator[Tuple[T, T]]:
+    """
+    example: `pairwise((1,2,3,4))` -> `(1,2) (2,3) (3,4)`.  
+    credits: https://docs.python.org/3.12/library/itertools.html#itertools.pairwise
+    """
+
+    iterator = iter(iterable)
+    a = next(iterator, None)
+    for b in iterator:
+        yield a, b
+        a = b
 
 
 class MultiDict(UserDict, Mapping[K, V]):
