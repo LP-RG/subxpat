@@ -12,8 +12,22 @@ import re
 from sxpat.utils.inheritance import get_all_leaves_subclasses, get_all_subclasses
 from sxpat.utils.collections import InheritanceMapping
 
+__all__ = list(it.chain(
+    # nodes
+    [
+        'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolInput', 'BoolNode',
+        'Copy', 'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
+        'IntInput', 'IntNode', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'Not',
+        'Op1Node', 'Op2Node', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Switch', 'ToInt',
+    ],
+    # graphs
+    ['Graph', 'GGraph', 'CGraph', 'SGraph', 'TGraph'],
+    # converters
+    ['DotConverter', 'JSONConverter'],
+))
 
 # > precursors
+
 
 @dc.dataclass(frozen=True)
 class Node:
@@ -21,6 +35,9 @@ class Node:
     weight: int = None
     in_subgraph: bool = None
     SYMBOL: ClassVar[str] = 'MISSING'
+
+    def __post_init__(self) -> None:
+        assert re.match(r'^\w+$', self.name), f'The name `{self.name}` is invalid, it must match regex `\w+`.'
 
     def copy(self, **update):
         return type(self)(**{**vars(self), **update})
@@ -36,32 +53,8 @@ class IntNode(Node):
     pass
 
 
-# @dc.dataclass(frozen=True)
-# class OperationNode(Node):
-#     _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = dict()
-#     _items: Tuple[Node, ...] = tuple()
-
-#     @ft.cached_property
-#     def items(self) -> Tuple[str, ...]:
-#         return tuple(item.name for item in self._items)
-
-#     def __post_init__(self):
-#         # freeze attributes
-#         object.__setattr__(self, '_items', tuple(self._items))
-
-#         # assert that all REQUIRED_CLASSES are respected
-#         n = len(self._items)
-#         covered_positions = set()
-#         for pos, type in self._REQUIRED_CLASSES.items():
-#             if pos is None:
-#                 assert all(isinstance(item, type) for i, item in enumerate(self._items) if i not in covered_positions), f'Wrong item type in node {self.name} of class {self.__class__.__name__}'
-#             else:
-#                 covered_positions.add((n + pos) % n)
-#                 assert isinstance(self._items[pos], type), f'Wrong item type(item {pos}) in node {self.name} of class {self.__class__.__name__}'
-
 @dc.dataclass(frozen=True)
 class OperationNode(Node):
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = dict()
     _items: Tuple[str, ...] = tuple()
 
     @property
@@ -69,7 +62,7 @@ class OperationNode(Node):
         return self._items
 
     def __post_init__(self):
-        object.__setattr__(self, '_items', tuple(self._items))
+        object.__setattr__(self, '_items',  tuple(i.name if isinstance(i, Node) else i for i in self._items))
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -100,6 +93,7 @@ class Op2Node(OperationNode):
 
 # > int
 
+
 @dc.dataclass(frozen=True, repr=False)
 class IntInput(IntNode):
     SYMBOL: ClassVar[str] = 'inI'
@@ -114,19 +108,17 @@ class IntConstant(IntNode):
 @dc.dataclass(frozen=True, repr=False)
 class ToInt(IntNode, OperationNode):
     SYMBOL: ClassVar[str] = 'toInt'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: BoolNode}
 
 
 @dc.dataclass(frozen=True, repr=False)
 class Sum(IntNode, OperationNode):
     SYMBOL: ClassVar[str] = 'sum'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: IntNode}
 
 
 @dc.dataclass(frozen=True, repr=False)
 class AbsDiff(IntNode, Op2Node):
     SYMBOL: ClassVar[str] = 'absdiff'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: IntNode}
+
 
 # > bool
 
@@ -145,25 +137,21 @@ class BoolConstant(BoolNode):
 @dc.dataclass(frozen=True, repr=False)
 class Not(BoolNode, Op1Node):
     SYMBOL: ClassVar[str] = 'not'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: BoolNode}
 
 
 @dc.dataclass(frozen=True, repr=False)
 class And(BoolNode, OperationNode):
     SYMBOL: ClassVar[str] = 'and'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: BoolNode}
 
 
 @dc.dataclass(frozen=True, repr=False)
 class Or(BoolNode, OperationNode):
     SYMBOL: ClassVar[str] = 'or'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: BoolNode}
 
 
 @dc.dataclass(frozen=True, repr=False)
 class Implies(BoolNode, Op2Node):
-    SYMBOL: ClassVar[str] = '=>'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: BoolNode}
+    SYMBOL: ClassVar[str] = 'impl'
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -172,19 +160,11 @@ class Equals(BoolNode, Op2Node):
 
     def __post_init__(self):
         super().__post_init__()
-        # assert self._same_class(), f'The `left` and `right` items in node {self.name} of class {self.__class__.__name__} must be of the same type'
-
-    # def _same_class(self) -> bool:
-    #     return (
-    #         (isinstance(self.left, IntNode) and isinstance(self.right, IntNode))
-    #         or (isinstance(self.left, BoolNode) and isinstance(self.right, BoolNode))
-    #     )
 
 
 @dc.dataclass(frozen=True, repr=False)
 class AtLeast(BoolNode, OperationNode):
     SYMBOL: ClassVar[str] = 'atleast'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {-1: IntConstant, None: BoolNode}
 
     @property
     def items(self) -> Tuple[str, ...]:
@@ -198,7 +178,6 @@ class AtLeast(BoolNode, OperationNode):
 @dc.dataclass(frozen=True, repr=False)
 class AtMost(BoolNode, OperationNode):
     SYMBOL: ClassVar[str] = 'atmost'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {-1: IntConstant, None: BoolNode}
 
     @property
     def items(self) -> Tuple[str, ...]:
@@ -212,31 +191,26 @@ class AtMost(BoolNode, OperationNode):
 @dc.dataclass(frozen=True, repr=False)
 class LessThan(BoolNode, Op2Node):
     SYMBOL: ClassVar[str] = '<'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: IntNode}
 
 
 @dc.dataclass(frozen=True, repr=False)
 class LessEqualThan(BoolNode, Op2Node):
     SYMBOL: ClassVar[str] = '<='
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: IntNode}
 
 
 @dc.dataclass(frozen=True, repr=False)
 class GreaterThan(BoolNode, Op2Node):
     SYMBOL: ClassVar[str] = '>'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: IntNode}
 
 
 @dc.dataclass(frozen=True, repr=False)
 class GreaterEqualThan(BoolNode, Op2Node):
     SYMBOL: ClassVar[str] = '>='
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: IntNode}
 
 
 @dc.dataclass(frozen=True, repr=False)
 class Multiplexer(BoolNode, OperationNode):
     SYMBOL: ClassVar[str] = 'mux'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: BoolNode}
 
     def __post_init__(self):
         super().__post_init__()
@@ -258,7 +232,7 @@ class Multiplexer(BoolNode, OperationNode):
 @dc.dataclass(frozen=True, repr=False)
 class Switch(BoolNode, Op2Node):
     SYMBOL: ClassVar[str] = 'switch'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: BoolNode}
+    off_value: bool = None
 
     @property
     def origin(self) -> str:
@@ -268,24 +242,17 @@ class Switch(BoolNode, Op2Node):
     def parameter(self) -> str:
         return self._items[1]
 
+
 # > generic
 
 
 @dc.dataclass(frozen=True, repr=False)
 class If(OperationNode):
     SYMBOL: ClassVar[str] = 'if'
-    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {0: BoolNode}
 
     def __post_init__(self):
         super().__post_init__()
         assert len(self._items) == 3, f'Wrong items count in node {self.name} of class {self.__class__.__name__}'
-        # assert self._same_class(), f'The `if_true` and `if_false` items in node {self.name} of class {self.__class__.__name__} must be of the same type'
-
-    # def _same_class(self) -> bool:
-    #     return (
-    #         (isinstance(self.if_true, IntNode) and isinstance(self.if_false, IntNode))
-    #         or (isinstance(self.if_true, BoolConstant) and isinstance(self.if_false, BoolConstant))
-    #     )
 
     @property
     def contition(self) -> str:
@@ -306,8 +273,8 @@ class Copy(Op1Node, BoolNode, IntNode):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Placeholder(BoolNode, IntNode):
-    pass
+class PlaceHolder(BoolNode, IntNode):
+    SYMBOL: ClassVar[str] = 'holder'
 
 
 class Graph:
@@ -342,22 +309,20 @@ class Graph:
             and set(self.nodes) == set(other.nodes)
         )
 
-    # @staticmethod
-    # def _get_name(node_or_name: NodeOrName) -> str:
-    #     return node_or_name if isinstance(node_or_name, str) else node_or_name.name
-
     @ft.cached_property
     def nodes(self) -> Tuple[Node, ...]:
         return tuple(self._graph.nodes[name][self.K] for name in self._graph.nodes)
 
-    def predecessors(self, node_name: str) -> Tuple[Node, ...]:
+    def predecessors(self, node_or_name: Union[str, Node]) -> Tuple[Node, ...]:
+        node_name = node_or_name.name if isinstance(node_or_name, Node) else node_or_name
         node = self._graph.nodes[node_name][self.K]
         return tuple(sorted(
             (self._graph.nodes[_name][self.K] for _name in self._graph.predecessors(node_name)),
             key=lambda _n: node._items.index(_n.name)
         ))
 
-    def successors(self, node_name: str) -> Tuple[OperationNode, ...]:
+    def successors(self, node_or_name: Union[str, Node]) -> Tuple[OperationNode, ...]:
+        node_name = node_or_name.name if isinstance(node_or_name, Node) else node_or_name
         return tuple(self._graph.nodes[_name][self.K] for _name in self._graph.successors(node_name))
 
     def to_nx_digraph(self, /,  mutable: bool = False) -> nx.DiGraph:
@@ -406,18 +371,13 @@ class GGraph(Graph):
             if node in self.inputs:
                 nodes.append(node)
             elif isinstance(node, OperationNode):
-                # TODO:HERE: _items should be given as Iterable[Nodes], fix this line or update to accept names
-                # note: i think the fix here is better and cleaner
                 items = (name if name in self.inputs_names else f'{prefix}{name}' for name in node._items)
-                # todo: hereEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEe
                 nodes.append(node.copy(name=f'{prefix}{node.name}', _items=items))
             else:
                 nodes.append(node.copy(name=f'{prefix}{node.name}'))
 
         outputs_names = (f'{prefix}{name}' for name in self.outputs_names)
 
-        print(*zip(self.nodes, nodes), sep='\n')
-        # exit()
         return type(self)(nodes, self.inputs_names, outputs_names)
 
 
@@ -428,7 +388,7 @@ class SGraph(GGraph):
 
     @ft.cached_property
     def subgraph_inputs(self) -> Tuple[Node, ...]:
-        # if a node is a subgraph input if it is not in the subgraph and any successor is in the subgraph
+        # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
         return tuple(it.chain.from_iterable(
             (pred for pred in self.predecessors(node) if not pred.in_subgraph)
             for node in self.subgraph_nodes
@@ -436,7 +396,7 @@ class SGraph(GGraph):
 
     @ft.cached_property
     def subgraph_outputs(self) -> Tuple[Node, ...]:
-        # if a subgraph node is a subgraph output if any successor is not in the subgraph
+        # a node is a subgraph output if it is in the subgraph and at least one successor is not in the subgraph
         return tuple(
             node
             for node in self.subgraph_nodes
@@ -469,14 +429,16 @@ class TGraph(GGraph):
 class CGraph(Graph):
     @staticmethod
     def is_placeholder(node: Node) -> bool:
-        return isinstance(node, Placeholder)
+        return isinstance(node, PlaceHolder)
 
     @ft.cached_property
-    def placeholders(self) -> FrozenSet[Placeholder]:
+    def placeholders(self) -> FrozenSet[PlaceHolder]:
         return frozenset(node for node in self.nodes if CGraph.is_placeholder(node))
 
 
 class DotConverter:
+    # TODO: update / simplify
+
     def __new__(cls) -> NoReturn:
         raise TypeError(f'Cannot create instances of class {cls.__name__}')
 
@@ -583,8 +545,10 @@ class DotConverter:
         SHAPE_MAPPING = InheritanceMapping({
             BoolInput: 'circle',
             BoolConstant: 'square',
+            IntConstant: 'square',
             OperationNode: 'invhouse',
             Copy: 'doublecircle',
+            PlaceHolder: 'invtrapezium',
         })
 
         node_lines = []
@@ -671,13 +635,3 @@ class JSONConverter:
             _g['parameters_names'] = graph.parameters_names
 
         return cls.json.dumps(_g, indent=4)
-
-
-if __name__ == '__main__':
-
-    g = DotConverter.load_file_clean('output/gv/adder_i8_o5_Sop1_encz3bvec_si6m0_i7m1.gv')
-    DotConverter.save_file(g, 'output/gv/adder_i8_o5_Sop1_encz3bvec_si6m0_i7m1_2.gv')
-    g = GGraph.from_Graph(g)
-
-    f = g.with_prefix('zz_')
-    DotConverter.save_file(f, 'output/gv/adder_i8_o5_Sop1_encz3bvec_si6m0_i7m1_3.gv')
