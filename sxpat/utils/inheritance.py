@@ -1,17 +1,17 @@
-from typing import List, Type
+from typing import List, Set, Type
 
 
-def get_all_subclasses(cls: Type) -> List[Type]:
+def get_all_subclasses(cls: Type) -> Set[Type]:
     """Returns a collection of all subclasses (itself included)"""
 
     subclasses = [cls]
     for cls in subclasses:
         subclasses.extend(cls.__subclasses__())
 
-    return subclasses
+    return set(subclasses)
 
 
-def get_all_leaves_subclasses(cls: Type) -> List[Type]:
+def get_all_leaves_subclasses(cls: Type) -> Set[Type]:
     """
     Returns a collection of all leaf subclasses (possibly included).  
     By leaf subclass we indend a subclass that has no subclasses of its own.
@@ -27,4 +27,4 @@ def get_all_leaves_subclasses(cls: Type) -> List[Type]:
         else:
             to_check.extend(subclasses)
 
-    return leaves
+    return set(leaves)
