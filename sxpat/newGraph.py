@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import ClassVar, Collection, Dict, FrozenSet, Iterable, List, Mapping, NoReturn, Tuple, Union
+from typing import ClassVar, Dict, FrozenSet, Iterable, List, Mapping, NoReturn, Tuple, Union
 
 from collections import defaultdict
 import dataclasses as dc
@@ -9,7 +9,7 @@ import functools as ft
 import itertools as it
 import re
 
-# from utils.collections import InheritanceMapping
+from sxpat.utils.inheritance import get_all_leaves_subclasses, get_all_subclasses
 from sxpat.utils.collections import InheritanceMapping
 
 
@@ -24,9 +24,6 @@ class Node:
 
     def copy(self, **update):
         return type(self)(**{**vars(self), **update})
-
-
-# NodeOrName = Union[Node, str]
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -623,6 +620,57 @@ class DotConverter:
             *edge_lines,
             '}',
         ))
+
+
+class JSONConverter:
+    import json
+
+    _CLASS_F = 'class'
+    _NODES_F = 'nodes'
+
+    _G_CLSS = {c.__name__: c for c in get_all_subclasses(Graph)}
+    _N_CLSS = {c.__name__: c for c in get_all_leaves_subclasses(Node)}
+
+    @classmethod
+    def dict_factory(cls, obj: object) -> dict:
+        return {cls._CLASS_F: obj.__class__.__name__, **vars(obj)}
+
+    @classmethod
+    def node_factory(cls, dct: dict) -> Node:
+        return cls._N_CLSS[dct.pop(cls._CLASS_F)](**dct)
+
+    @classmethod
+    def load_file(cls, filename: str) -> Graph:
+        with open(filename, 'r') as f:
+            string = f.read()
+        return cls.from_string(string)
+
+    @classmethod
+    def save_file(cls, graph: Graph, filename: str) -> None:
+        string = cls.to_string(graph)
+        with open(filename, 'w') as f:
+            f.write(string)
+
+    @classmethod
+    def from_string(cls, string: str) -> Graph:
+        _g: dict = cls.json.loads(string)
+        nodes = [cls.node_factory(n) for n in _g.pop(cls._NODES_F)]
+        return cls._G_CLSS[_g.pop(cls._CLASS_F)](nodes=nodes, **_g)
+
+    @classmethod
+    def to_string(cls, graph: Graph) -> str:
+        _g = {
+            cls._CLASS_F: graph.__class__.__name__,
+            cls._NODES_F: [cls.dict_factory(node) for node in graph.nodes],
+        }
+
+        if isinstance(graph, GGraph):
+            _g['inputs_names'] = graph.inputs_names
+            _g['outputs_names'] = graph.outputs_names
+        if isinstance(graph, TGraph):
+            _g['parameters_names'] = graph.parameters_names
+
+        return cls.json.dumps(_g, indent=4)
 
 
 if __name__ == '__main__':
