@@ -13,6 +13,7 @@ import re
 from sxpat.utils.inheritance import get_all_leaves_subclasses, get_all_subclasses
 from sxpat.utils.collections import InheritanceMapping
 
+
 __all__ = list(it.chain(
     # nodes
     [
@@ -26,6 +27,7 @@ __all__ = list(it.chain(
     # converters
     ['DotConverter', 'JSONConverter'],
 ))
+
 
 # > precursors
 
@@ -55,40 +57,45 @@ class IntNode(Node):
 
 @dc.dataclass(frozen=True)
 class OperationNode(Node):
-    _items: Tuple[str, ...] = tuple()
+    items: Tuple[str, ...] = tuple()
 
-    @property
-    def items(self) -> Tuple[str, ...]:
-        return self._items
-
-    def __post_init__(self):
-        object.__setattr__(self, '_items',  tuple(i.name if isinstance(i, Node) else i for i in self._items))
+    def __post_init__(self, reqired_items_count: int = 0):
+        object.__setattr__(self, 'items',  tuple(i.name if isinstance(i, Node) else i for i in self.items))
+        if reqired_items_count > 0:
+            assert len(self.items) == 1, f'Wrong items count (expected {reqired_items_count}) in node {self.name} of class {type(self).__name__}'
 
 
 @dc.dataclass(frozen=True, repr=False)
 class Op1Node(OperationNode):
+    def __post_init__(self):
+        super().__post_init__(1)
+
     @property
     def item(self) -> str:
-        return self._items[0]
-
-    def __post_init__(self):
-        super().__post_init__()
-        assert len(self._items) == 1, f'Wrong items count (expected 1) in node {self.name} of class {self.__class__.__name__}'
+        return self.items[0]
 
 
 @dc.dataclass(frozen=True, repr=False)
 class Op2Node(OperationNode):
     def __post_init__(self):
-        super().__post_init__()
-        assert len(self._items) == 2, f'Wrong items count (expected 2) in node {self.name} of class {self.__class__.__name__}'
+        super().__post_init__(2)
 
+
+@dc.dataclass(frozen=True, repr=False)
+class Op3Node(OperationNode):
+    def __post_init__(self):
+        super().__post_init__(3)
+
+
+@dc.dataclass(frozen=True, repr=False)
+class Ord2Node(Op2Node):
     @property
     def left(self) -> str:
-        return self._items[0]
+        return self.items[0]
 
     @property
     def right(self) -> str:
-        return self._items[1]
+        return self.items[1]
 
 
 # > int
@@ -101,7 +108,7 @@ class IntInput(IntNode):
 
 @dc.dataclass(frozen=True)
 class IntConstant(IntNode):
-    value: int = 0
+    value: int = None
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -115,7 +122,7 @@ class Sum(IntNode, OperationNode):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class AbsDiff(IntNode, Op2Node):
+class AbsDiff(IntNode, Ord2Node):
     pass
 
 
@@ -148,7 +155,7 @@ class Or(BoolNode, OperationNode):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Implies(BoolNode, Op2Node):
+class Implies(BoolNode, Ord2Node):
     pass
 
 
@@ -160,63 +167,47 @@ class Equals(BoolNode, Op2Node):
 
 @dc.dataclass(frozen=True, repr=False)
 class AtLeast(BoolNode, OperationNode):
-    @property
-    def items(self) -> Tuple[str, ...]:
-        return self._items[:-1]
-
-    @property
-    def value(self) -> str:
-        return self._items[-1]
+    value: int = None
 
 
 @dc.dataclass(frozen=True, repr=False)
 class AtMost(BoolNode, OperationNode):
-    @property
-    def items(self) -> Tuple[str, ...]:
-        return self._items[:-1]
-
-    @property
-    def value(self) -> str:
-        return self._items[-1]
+    value: int = None
 
 
 @dc.dataclass(frozen=True, repr=False)
-class LessThan(BoolNode, Op2Node):
+class LessThan(BoolNode, Ord2Node):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class LessEqualThan(BoolNode, Op2Node):
+class LessEqualThan(BoolNode, Ord2Node):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class GreaterThan(BoolNode, Op2Node):
+class GreaterThan(BoolNode, Ord2Node):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class GreaterEqualThan(BoolNode, Op2Node):
+class GreaterEqualThan(BoolNode, Ord2Node):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Multiplexer(BoolNode, OperationNode):
-    def __post_init__(self):
-        super().__post_init__()
-        assert len(self._items) == 3, f'Wrong items count in node {self.name} of class {self.__class__.__name__}'
-
+class Multiplexer(BoolNode, Op3Node):
     @property
     def origin(self) -> str:
-        return self._items[0]
+        return self.items[0]
 
     @property
     def parameter_1(self) -> str:
-        return self._items[1]
+        return self.items[1]
 
     @property
     def parameter_2(self) -> str:
-        return self._items[2]
+        return self.items[2]
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -225,33 +216,29 @@ class Switch(BoolNode, Op2Node):
 
     @property
     def origin(self) -> str:
-        return self._items[0]
+        return self.items[0]
 
     @property
     def parameter(self) -> str:
-        return self._items[1]
+        return self.items[1]
 
 
 # > generic
 
 
 @dc.dataclass(frozen=True, repr=False)
-class If(OperationNode):
-    def __post_init__(self):
-        super().__post_init__()
-        assert len(self._items) == 3, f'Wrong items count in node {self.name} of class {self.__class__.__name__}'
-
+class If(Op3Node):
     @property
     def contition(self) -> str:
-        return self._items[0]
+        return self.items[0]
 
     @property
     def if_true(self) -> str:
-        return self._items[1]
+        return self.items[1]
 
     @property
     def if_false(self) -> str:
-        return self._items[2]
+        return self.items[2]
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -265,7 +252,7 @@ class PlaceHolder(BoolNode, IntNode):
 
 
 class Graph:
-    """Immutable graph structure."""
+    """Generic graph."""
 
     K = object()
 
@@ -283,7 +270,7 @@ class Graph:
                 (src_name, dst_name)
                 for dst_name, data in _inner.nodes(data=True)
                 if isinstance(node := data[self.K], OperationNode)
-                for src_name in node._items
+                for src_name in node.items
             )
         self._graph = nx.freeze(_inner)
 
@@ -305,7 +292,7 @@ class Graph:
         node = self._graph.nodes[node_name][self.K]
         return tuple(sorted(
             (self._graph.nodes[_name][self.K] for _name in self._graph.predecessors(node_name)),
-            key=lambda _n: node._items.index(_n.name)
+            key=lambda _n: node.items.index(_n.name)
         ))
 
     def successors(self, node_or_name: Union[str, Node]) -> Tuple[OperationNode, ...]:
@@ -318,6 +305,8 @@ class Graph:
 
 
 class GGraph(Graph):
+    """Graph with inputs and outputs."""
+
     def __init__(self, nodes: Iterable[Node],
                  inputs_names: Iterable[str] = (), outputs_names: Iterable[str] = (),
                  *, _inner: nx.DiGraph = None,
@@ -358,8 +347,8 @@ class GGraph(Graph):
             if node in self.inputs:
                 nodes.append(node)
             elif isinstance(node, OperationNode):
-                items = (name if name in self.inputs_names else f'{prefix}{name}' for name in node._items)
-                nodes.append(node.copy(name=f'{prefix}{node.name}', _items=items))
+                items = (name if name in self.inputs_names else f'{prefix}{name}' for name in node.items)
+                nodes.append(node.copy(name=f'{prefix}{node.name}', items=items))
             else:
                 nodes.append(node.copy(name=f'{prefix}{node.name}'))
 
@@ -369,6 +358,8 @@ class GGraph(Graph):
 
 
 class SGraph(GGraph):
+    """Graph with inputs, outputs and subgraph."""
+
     @ft.cached_property
     def subgraph_nodes(self) -> Tuple[Node, ...]:
         return tuple(node for node in self.nodes if node.in_subgraph)
@@ -391,7 +382,9 @@ class SGraph(GGraph):
         )
 
 
-class TGraph(GGraph):
+class TGraph(SGraph):
+    """Graph with inputs, outputs and template (replacing subgraph)."""
+
     def __init__(self, nodes: Iterable[Node],
                  inputs_names: Iterable[str] = (), outputs_names: Iterable[str] = (),
                  parameters_names: Iterable[str] = (),
@@ -414,6 +407,8 @@ class TGraph(GGraph):
 
 
 class CGraph(Graph):
+    """Graph containing the constraints."""
+
     @staticmethod
     def is_placeholder(node: Node) -> bool:
         return isinstance(node, PlaceHolder)
@@ -509,7 +504,7 @@ class DotConverter:
         if node.weight is not None:
             string += rf'\nw={node.weight}'
         if isinstance(Node, OperationNode):
-            string += rf'\ni={node._items}'
+            string += rf'\ni={node.items}'
         if isinstance(node, (BoolConstant, IntConstant, Switch)):
             string += rf'\nv={node.value}'
 
@@ -540,7 +535,7 @@ class DotConverter:
 
         arguments = {
             k: v
-            for k, v in [('name', name), ('weight', weight), ('value', value), ('_items', items)]
+            for k, v in [('name', name), ('weight', weight), ('value', value), ('items', items)]
             if v is not None
         }
 
@@ -636,7 +631,7 @@ class DotConverter:
                     nodes[dst] = func(dst)
 
                 elif all(p in nodes.keys() for p in preds):  # operation node
-                    nodes[dst] = func(dst, _items=(nodes[p].name for p in preds))
+                    nodes[dst] = func(dst, items=(nodes[p].name for p in preds))
 
         # construct graph
         return Graph(nodes.values())
@@ -675,31 +670,31 @@ class DotConverter:
             items_f = ''
             symbol_l = cls.NODE_SYMBOL[type(n)]
             if isinstance(n, OperationNode):
-                items_s = ','.join(n._items)
+                items_s = ','.join(n.items)
                 items_f = f', items="{items_s}"'
                 symbol_l += f'({items_s})'
 
             # TODO:?: expand for subgraph
             node_lines.append(rf'    {n.name} [label="{symbol_l}\n{n.name}{weight_l}", shape={SHAPE_MAPPING[n.__class__]}{fillcolor_f}{weight_f}{subgraph_f}{items_f}];')
             if isinstance(n, OperationNode):
-                edge_lines.extend(f'    {src_name} -> {n.name};' for src_name in n._items)
+                edge_lines.extend(f'    {src_name} -> {n.name};' for src_name in n.items)
 
         return '\n'.join((
-            f'strict digraph {type(graph).__name__} {{',
+            f'strict digraph _{type(graph).__name__}_ {{',
             '    node [style=filled, fillcolor=white];',
             *node_lines,
             *edge_lines,
             '}',
         ))
 
-    @classmethod
-    def to_string(cls, graph: Graph) -> str:
-        node_lines = []
-        for node in graph.nodes:
-            node_lines.append(
-                f''
-            )
-            pass
+    # @classmethod
+    # def to_string(cls, graph: Graph) -> str:
+    #     node_lines = []
+    #     for node in graph.nodes:
+    #         node_lines.append(
+    #             f''
+    #         )
+    #         pass
 
 
 class JSONConverter:
