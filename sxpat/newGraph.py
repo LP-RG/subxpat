@@ -1,12 +1,15 @@
-from typing import ClassVar, Collection, Dict, Iterable, List, Mapping, NoReturn, Union
-import dataclasses as dc
+from __future__ import annotations
+from typing import ClassVar, Collection, Dict, FrozenSet, Iterable, List, Mapping, NoReturn, Tuple, Union
+
 from collections import defaultdict
+import dataclasses as dc
 
 import networkx as nx
 import functools as ft
 import itertools as it
 import re
 
+# from utils.collections import InheritanceMapping
 from sxpat.utils.collections import InheritanceMapping
 
 
@@ -15,16 +18,15 @@ from sxpat.utils.collections import InheritanceMapping
 @dc.dataclass(frozen=True)
 class Node:
     name: str
-    weight: int
-    in_subgraph: bool
+    weight: int = None
+    in_subgraph: bool = None
     SYMBOL: ClassVar[str] = 'MISSING'
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, 'weight', int(self.weight))
-        object.__setattr__(self, 'in_subgraph', bool(self.in_subgraph))
 
     def copy(self, **update):
         return type(self)(**{**vars(self), **update})
+
+
+# NodeOrName = Union[Node, str]
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -37,54 +39,65 @@ class IntNode(Node):
     pass
 
 
+# @dc.dataclass(frozen=True)
+# class OperationNode(Node):
+#     _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = dict()
+#     _items: Tuple[Node, ...] = tuple()
+
+#     @ft.cached_property
+#     def items(self) -> Tuple[str, ...]:
+#         return tuple(item.name for item in self._items)
+
+#     def __post_init__(self):
+#         # freeze attributes
+#         object.__setattr__(self, '_items', tuple(self._items))
+
+#         # assert that all REQUIRED_CLASSES are respected
+#         n = len(self._items)
+#         covered_positions = set()
+#         for pos, type in self._REQUIRED_CLASSES.items():
+#             if pos is None:
+#                 assert all(isinstance(item, type) for i, item in enumerate(self._items) if i not in covered_positions), f'Wrong item type in node {self.name} of class {self.__class__.__name__}'
+#             else:
+#                 covered_positions.add((n + pos) % n)
+#                 assert isinstance(self._items[pos], type), f'Wrong item type(item {pos}) in node {self.name} of class {self.__class__.__name__}'
+
 @dc.dataclass(frozen=True)
 class OperationNode(Node):
     _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = dict()
-    _items: Iterable[Node] = tuple()
+    _items: Tuple[str, ...] = tuple()
 
     @property
-    def items(self) -> Collection[str]:
+    def items(self) -> Tuple[str, ...]:
         return self._items
 
     def __post_init__(self):
-        # assert that all REQUIRED_CLASSES are respected
-        n = len(self._items)
-        items = tuple(self._items)
-        covered_positions = set()
-        for pos, type in self._REQUIRED_CLASSES.items():
-            if pos is None:
-                assert all(isinstance(item, type) for i, item in enumerate(items) if i not in covered_positions), f'Wrong item type in node {self.name} of class {self.__class__.__name__}'
-            else:
-                covered_positions.add((n + pos) % n)
-                assert isinstance(items[pos], type), f'Wrong item type(item {pos}) in node {self.name} of class {self.__class__.__name__}'
-
-        # store items names
-        object.__setattr__(self, '_items', tuple(node.name for node in self._items))
+        object.__setattr__(self, '_items', tuple(self._items))
 
 
 @dc.dataclass(frozen=True, repr=False)
 class Op1Node(OperationNode):
     @property
-    def item(self) -> Node:
+    def item(self) -> str:
         return self._items[0]
 
     def __post_init__(self):
         super().__post_init__()
-        assert len(self._items) == 1, f'Wrong item count (expected 1) in node {self.name} of class {self.__class__.__name__}'
+        assert len(self._items) == 1, f'Wrong items count (expected 1) in node {self.name} of class {self.__class__.__name__}'
 
 
 @dc.dataclass(frozen=True, repr=False)
 class Op2Node(OperationNode):
     def __post_init__(self):
         super().__post_init__()
-        assert len(self._items) == 2, f'Wrong item count (expected 2) in node {self.name} of class {self.__class__.__name__}'
+        assert len(self._items) == 2, f'Wrong items count (expected 2) in node {self.name} of class {self.__class__.__name__}'
 
     @property
-    def left(self) -> Node:
+    def left(self) -> str:
         return self._items[0]
 
     @property
-    def right(self) -> Node:
+    def right(self) -> str:
         return self._items[1]
 
 
@@ -98,7 +111,7 @@ class IntInput(IntNode):
 @dc.dataclass(frozen=True)
 class IntConstant(IntNode):
     SYMBOL: ClassVar[str] = 'constI'
-    value: int
+    value: int = 0
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -129,7 +142,7 @@ class BoolInput(BoolNode):
 @dc.dataclass(frozen=True)
 class BoolConstant(BoolNode):
     SYMBOL: ClassVar[str] = 'constB'
-    value: bool
+    value: bool = False
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -162,13 +175,13 @@ class Equals(BoolNode, Op2Node):
 
     def __post_init__(self):
         super().__post_init__()
-        assert self._same_class(), f'The `left` and `right` items in node {self.name} of class {self.__class__.__name__} must be of the same type'
+        # assert self._same_class(), f'The `left` and `right` items in node {self.name} of class {self.__class__.__name__} must be of the same type'
 
-    def _same_class(self) -> bool:
-        return (
-            (isinstance(self.left, IntNode) and isinstance(self.right, IntNode))
-            or (isinstance(self.left, BoolNode) and isinstance(self.right, BoolNode))
-        )
+    # def _same_class(self) -> bool:
+    #     return (
+    #         (isinstance(self.left, IntNode) and isinstance(self.right, IntNode))
+    #         or (isinstance(self.left, BoolNode) and isinstance(self.right, BoolNode))
+    #     )
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -177,11 +190,11 @@ class AtLeast(BoolNode, OperationNode):
     _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {-1: IntConstant, None: BoolNode}
 
     @property
-    def items(self) -> Collection[Node]:
+    def items(self) -> Tuple[str, ...]:
         return self._items[:-1]
 
     @property
-    def value(self) -> IntConstant:
+    def value(self) -> str:
         return self._items[-1]
 
 
@@ -191,11 +204,11 @@ class AtMost(BoolNode, OperationNode):
     _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {-1: IntConstant, None: BoolNode}
 
     @property
-    def items(self) -> Collection[Node]:
+    def items(self) -> Tuple[str, ...]:
         return self._items[:-1]
 
     @property
-    def value(self) -> IntConstant:
+    def value(self) -> str:
         return self._items[-1]
 
 
@@ -230,22 +243,36 @@ class Multiplexer(BoolNode, OperationNode):
 
     def __post_init__(self):
         super().__post_init__()
-        assert len(self._items) == 3, f'Wrong item count in node {self.name} of class {self.__class__.__name__}'
+        assert len(self._items) == 3, f'Wrong items count in node {self.name} of class {self.__class__.__name__}'
 
     @property
-    def origin(self) -> BoolNode:
+    def origin(self) -> str:
         return self._items[0]
 
     @property
-    def parameter_1(self) -> BoolNode:
+    def parameter_1(self) -> str:
         return self._items[1]
 
     @property
-    def parameter_2(self) -> BoolNode:
+    def parameter_2(self) -> str:
         return self._items[2]
 
 
+@dc.dataclass(frozen=True, repr=False)
+class Switch(BoolNode, Op2Node):
+    SYMBOL: ClassVar[str] = 'switch'
+    _REQUIRED_CLASSES: ClassVar[Mapping[int, type]] = {None: BoolNode}
+
+    @property
+    def origin(self) -> str:
+        return self._items[0]
+
+    @property
+    def parameter(self) -> str:
+        return self._items[1]
+
 # > generic
+
 
 @dc.dataclass(frozen=True, repr=False)
 class If(OperationNode):
@@ -254,88 +281,156 @@ class If(OperationNode):
 
     def __post_init__(self):
         super().__post_init__()
-        assert len(self._items) == 3, f'Wrong item count in node {self.name} of class {self.__class__.__name__}'
-        assert self._same_class(), f'The `if_true` and `if_false` items in node {self.name} of class {self.__class__.__name__} must be of the same type'
+        assert len(self._items) == 3, f'Wrong items count in node {self.name} of class {self.__class__.__name__}'
+        # assert self._same_class(), f'The `if_true` and `if_false` items in node {self.name} of class {self.__class__.__name__} must be of the same type'
 
-    def _same_class(self) -> bool:
-        return (
-            (isinstance(self.if_true, IntNode) and isinstance(self.if_false, IntNode))
-            or (isinstance(self.if_true, BoolConstant) and isinstance(self.if_false, BoolConstant))
-        )
+    # def _same_class(self) -> bool:
+    #     return (
+    #         (isinstance(self.if_true, IntNode) and isinstance(self.if_false, IntNode))
+    #         or (isinstance(self.if_true, BoolConstant) and isinstance(self.if_false, BoolConstant))
+    #     )
 
     @property
-    def contition(self) -> BoolNode:
+    def contition(self) -> str:
         return self._items[0]
 
     @property
-    def if_true(self) -> Node:
+    def if_true(self) -> str:
         return self._items[1]
 
     @property
-    def if_false(self) -> Node:
+    def if_false(self) -> str:
         return self._items[2]
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Copy(Op1Node):
+class Copy(Op1Node, BoolNode, IntNode):
     SYMBOL: ClassVar[str] = 'copy'
 
 
-class GGraph:
+@dc.dataclass(frozen=True, repr=False)
+class Placeholder(BoolNode, IntNode):
+    pass
+
+
+class Graph:
     """Immutable graph structure."""
 
     K = object()
 
-    def __init__(self, nodes: Iterable[Node], /,
-                 input_names: Iterable[str] = (), output_names: Iterable[str] = ()
+    def __init__(self, nodes: Iterable[Node],
+                 *, _inner: nx.DiGraph = None
                  ) -> None:
         # generate inner mutable structure
-        self._graph = nx.DiGraph()
-        self._graph.add_nodes_from(
-            (node.name, {'type': type(node), **vars(node)})
-            for node in nodes
-        )
-        self._graph.add_edges_from(
-            (src_name, dst_name)
-            for dst_name, data in self._graph.nodes(data=True)
-            if isinstance(data[self.K], OperationNode)
-            for src_name in data[self.K].items
-        )
-
-        # freeze local instances
-        self._graph = nx.freeze(self._graph)
-        self._input_names = tuple(input_names)
-        self._output_names = tuple(output_names)
+        if _inner is None:
+            _inner = nx.DiGraph()
+            _inner.add_nodes_from(
+                (node.name, {self.K: node})
+                for node in nodes
+            )
+            _inner.add_edges_from(
+                (src_name, dst_name)
+                for dst_name, data in _inner.nodes(data=True)
+                if isinstance(node := data[self.K], OperationNode)
+                for src_name in node._items
+            )
+        self._graph = nx.freeze(_inner)
 
     def __getitem__(self, key: str) -> Node:
         return self._graph.nodes[key][self.K]
 
-    def predecessors(self, node_or_name: Union[Node, str]) -> Collection[Node]:
-        name = node_or_name if isinstance(node_or_name, str) else node_or_name.name
-        return tuple(self._graph.nodes[_name][self.K] for _name in self._graph.predecessors(name))
+    def __eq__(self, other: object) -> bool:
+        return (
+            type(self) == type(other)
+            and set(self.nodes) == set(other.nodes)
+        )
 
-    def successors(self, node_or_name: Union[Node, str]) -> Collection[Node]:
-        name = node_or_name if isinstance(node_or_name, str) else node_or_name.name
-        return tuple(self._graph.nodes[_name][self.K] for _name in self._graph.successors(name))
+    # @staticmethod
+    # def _get_name(node_or_name: NodeOrName) -> str:
+    #     return node_or_name if isinstance(node_or_name, str) else node_or_name.name
 
     @ft.cached_property
-    def nodes(self) -> Collection[Node]:
+    def nodes(self) -> Tuple[Node, ...]:
         return tuple(self._graph.nodes[name][self.K] for name in self._graph.nodes)
 
-    @ft.cached_property
-    def inputs(self) -> Collection[Node]:
-        return tuple(self._graph.nodes[name][self.K] for name in self._input_names)
+    def predecessors(self, node_name: str) -> Tuple[Node, ...]:
+        node = self._graph.nodes[node_name][self.K]
+        return tuple(sorted(
+            (self._graph.nodes[_name][self.K] for _name in self._graph.predecessors(node_name)),
+            key=lambda _n: node._items.index(_n.name)
+        ))
+
+    def successors(self, node_name: str) -> Tuple[OperationNode, ...]:
+        return tuple(self._graph.nodes[_name][self.K] for _name in self._graph.successors(node_name))
+
+    def to_nx_digraph(self, /,  mutable: bool = False) -> nx.DiGraph:
+        # TODO: needed?
+        return nx.DiGraph(self._graph) if mutable else self._graph
+
+
+class GGraph(Graph):
+    def __init__(self, nodes: Iterable[Node],
+                 inputs_names: Iterable[str] = (), outputs_names: Iterable[str] = (),
+                 *, _inner: nx.DiGraph = None,
+                 ) -> None:
+        # construct base
+        super().__init__(nodes, _inner=_inner)
+
+        # freeze local instances
+        self.inputs_names = tuple(inputs_names)
+        self.outputs_names = tuple(outputs_names)
+
+    def __eq__(self, other: object) -> bool:
+        return (
+            super().__eq__(other)
+            and self.inputs_names == other.inputs_names
+            and self.outputs_names == other.outputs_names
+        )
+
+    @classmethod
+    def from_Graph(cls, graph: Graph) -> GGraph:
+        inputs_names = (node.name for node in graph.nodes if isinstance(node, BoolInput))
+        outputs_names = (node.name for node in graph.nodes if isinstance(node, Copy))
+        return cls(None, inputs_names, outputs_names, _inner=graph._graph)
 
     @ft.cached_property
-    def outputs(self) -> Collection[Node]:
-        return tuple(self._graph.nodes[name][self.K] for name in self._output_names)
+    def inputs(self) -> Tuple[Node, ...]:
+        return tuple(self._graph.nodes[name][self.K] for name in self.inputs_names)
 
     @ft.cached_property
-    def subgraph_nodes(self) -> Collection[Node]:
+    def outputs(self) -> Tuple[Node, ...]:
+        return tuple(self._graph.nodes[name][self.K] for name in self.outputs_names)
+
+    def with_prefix(self, prefix: str):
+        """Returns a copy of the current graph with all nodes names (and items names) updated with the prefix (except the inputs)"""
+
+        nodes = []
+        for node in self.nodes:
+            if node in self.inputs:
+                nodes.append(node)
+            elif isinstance(node, OperationNode):
+                # TODO:HERE: _items should be given as Iterable[Nodes], fix this line or update to accept names
+                # note: i think the fix here is better and cleaner
+                items = (name if name in self.inputs_names else f'{prefix}{name}' for name in node._items)
+                # todo: hereEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEe
+                nodes.append(node.copy(name=f'{prefix}{node.name}', _items=items))
+            else:
+                nodes.append(node.copy(name=f'{prefix}{node.name}'))
+
+        outputs_names = (f'{prefix}{name}' for name in self.outputs_names)
+
+        print(*zip(self.nodes, nodes), sep='\n')
+        # exit()
+        return type(self)(nodes, self.inputs_names, outputs_names)
+
+
+class SGraph(GGraph):
+    @ft.cached_property
+    def subgraph_nodes(self) -> Tuple[Node, ...]:
         return tuple(node for node in self.nodes if node.in_subgraph)
 
     @ft.cached_property
-    def subgraph_inputs(self) -> Collection[Node]:
+    def subgraph_inputs(self) -> Tuple[Node, ...]:
         # if a node is a subgraph input if it is not in the subgraph and any successor is in the subgraph
         return tuple(it.chain.from_iterable(
             (pred for pred in self.predecessors(node) if not pred.in_subgraph)
@@ -343,7 +438,7 @@ class GGraph:
         ))
 
     @ft.cached_property
-    def subgraph_outputs(self) -> Collection[Node]:
+    def subgraph_outputs(self) -> Tuple[Node, ...]:
         # if a subgraph node is a subgraph output if any successor is not in the subgraph
         return tuple(
             node
@@ -351,22 +446,51 @@ class GGraph:
             if any(not succ.in_subgraph for succ in self.successors(node))
         )
 
-    def to_nx_digraph(self, /,  mutable: bool = False) -> nx.DiGraph:
-        return nx.DiGraph(self._graph) if mutable else self._graph
+
+class TGraph(GGraph):
+    def __init__(self, nodes: Iterable[Node],
+                 inputs_names: Iterable[str] = (), outputs_names: Iterable[str] = (),
+                 parameters_names: Iterable[str] = (),
+                 ) -> None:
+
+        super().__init__(nodes, inputs_names, outputs_names)
+
+        # freeze local instances
+        self.parameters_names = tuple(parameters_names)
+
+    def __eq__(self, other: object) -> bool:
+        return (
+            super().__eq__(other)
+            and self.parameters_names == other.parameters_names
+        )
+
+    @ft.cached_property
+    def parameters(self) -> Tuple[Node, ...]:
+        return tuple(self._graph.nodes[name][self.K] for name in self.parameters_names)
 
 
-class DotManager:
+class CGraph(Graph):
+    @staticmethod
+    def is_placeholder(node: Node) -> bool:
+        return isinstance(node, Placeholder)
+
+    @ft.cached_property
+    def placeholders(self) -> FrozenSet[Placeholder]:
+        return frozenset(node for node in self.nodes if CGraph.is_placeholder(node))
+
+
+class DotConverter:
     def __new__(cls) -> NoReturn:
         raise TypeError(f'Cannot create instances of class {cls.__name__}')
 
     @classmethod
-    def load_file_clean(cls, filename: str) -> GGraph:
+    def load_file_clean(cls, filename: str) -> Graph:
         with open(filename, 'r') as f:
             string = f.read()
         return cls.from_string_clean(string)
 
     @classmethod
-    def from_string_clean(cls, string: str) -> GGraph:
+    def from_string_clean(cls, string: str) -> Graph:
         # get elements
         body = string.split('{')[1].split('}')[0]
         elements = [
@@ -380,7 +504,7 @@ class DotManager:
         NODE_SHAPE_PATTERN = re.compile(r'shape\s*=\s*(\w+)')
         NODE_FUNC_PATTERN = re.compile(r'label\s*=\s*"(in|out|TRUE|FALSE|not|and|or).*?"')
         NODE_SUBG_PATTERN = re.compile(r'subgraph\s*=\s*(\d)')
-        NODE_COLOR_PATTERN = re.compile(r'fillcolor\s*=\s*([[:alpha:]]+)')  # legacy
+        NODE_COLOR_PATTERN = re.compile(r'fillcolor\s*=\s*([a-zA-Z]+)')  # legacy
         NODE_WEIGHT_PATTERN = re.compile(r'weight\s*=\s*([-\d]+)')
         EDGE_PATTERN = re.compile(r'^(\w+)\s*->\s*(\w+)$')
         SHAPE_FUNC_MAPPING = {
@@ -446,19 +570,19 @@ class DotManager:
                     nodes[dst] = func(dst)
 
                 elif all(p in nodes.keys() for p in preds):  # operation node
-                    nodes[dst] = func(dst, _items=(nodes[p] for p in preds))
+                    nodes[dst] = func(dst, _items=(nodes[p].name for p in preds))
 
         # construct graph
-        return GGraph(nodes.values())
+        return Graph(nodes.values())
 
     @classmethod
-    def save_to_file(cls, graph: GGraph, filename: str) -> None:
+    def save_file(cls, graph: Graph, filename: str) -> None:
         string = cls.to_string(graph)
         with open(filename, 'w') as f:
             f.write(string)
 
     @classmethod
-    def to_string(cls, graph: GGraph) -> str:
+    def to_string(cls, graph: Graph) -> str:
         SHAPE_MAPPING = InheritanceMapping({
             BoolInput: 'circle',
             BoolConstant: 'square',
@@ -483,14 +607,14 @@ class DotManager:
             items_f = ''
             symbol_l = n.SYMBOL
             if isinstance(n, OperationNode):
-                items_s = ','.join(i.name for i in n._items)
+                items_s = ','.join(n._items)
                 items_f = f', items="{items_s}"'
                 symbol_l += f'({items_s})'
 
             # TODO:?: expand for subgraph
             node_lines.append(rf'    {n.name} [label="{symbol_l}\n{n.name}{weight_l}", shape={SHAPE_MAPPING[n.__class__]}{fillcolor_f}{weight_f}{subgraph_f}{items_f}];')
             if isinstance(n, OperationNode):
-                edge_lines.extend(f'    {src.name} -> {n.name};' for src in n._items)
+                edge_lines.extend(f'    {src_name} -> {n.name};' for src_name in n._items)
 
         return '\n'.join((
             'strict digraph GGraph {',
@@ -502,5 +626,10 @@ class DotManager:
 
 
 if __name__ == '__main__':
-    g = DotManager.load_file_clean('output/gv/adder_i8_o5_Sop1_encz3bvec_si6m0_i7m1.gv')
-    DotManager.save_to_file(g, 'output/gv/adder_i8_o5_Sop1_encz3bvec_si6m0_i7m1_2.gv')
+
+    g = DotConverter.load_file_clean('output/gv/adder_i8_o5_Sop1_encz3bvec_si6m0_i7m1.gv')
+    DotConverter.save_file(g, 'output/gv/adder_i8_o5_Sop1_encz3bvec_si6m0_i7m1_2.gv')
+    g = GGraph.from_Graph(g)
+
+    f = g.with_prefix('zz_')
+    DotConverter.save_file(f, 'output/gv/adder_i8_o5_Sop1_encz3bvec_si6m0_i7m1_3.gv')
