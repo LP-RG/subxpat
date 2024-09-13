@@ -275,7 +275,7 @@ class Graph:
                 if isinstance(node := data[self.K], OperationNode)
                 for src_name in node.items
             )
-        self._graph = nx.freeze(_inner)
+        self._graph: nx.DiGraph = nx.freeze(_inner)
 
     def __getitem__(self, key: str) -> Node:
         return self._graph.nodes[key][self.K]
@@ -301,10 +301,6 @@ class Graph:
     def successors(self, node_or_name: Union[str, Node]) -> Tuple[OperationNode, ...]:
         node_name = node_or_name.name if isinstance(node_or_name, Node) else node_or_name
         return tuple(self._graph.nodes[_name][self.K] for _name in self._graph.successors(node_name))
-
-    def to_nx_digraph(self, /,  mutable: bool = False) -> nx.DiGraph:
-        # TODO: needed?
-        return nx.DiGraph(self._graph) if mutable else self._graph
 
 
 class GGraph(Graph):
@@ -341,6 +337,14 @@ class GGraph(Graph):
     @ft.cached_property
     def outputs(self) -> Tuple[Node, ...]:
         return tuple(self._graph.nodes[name][self.K] for name in self.outputs_names)
+
+    @ft.cached_property
+    def constants(self) -> Tuple[Node, ...]:
+        return tuple(node for node in self.nodes if isinstance(node, (BoolConstant, IntConstant)))
+
+    @ft.cached_property
+    def gates(self) -> Tuple[Node, ...]:
+        return tuple(node for node in self.nodes if isinstance(node, OperationNode))
 
     def with_prefix(self, prefix: str):
         """Returns a copy of the current graph with all nodes names (and items names) updated with the prefix (except the inputs)"""
@@ -401,7 +405,7 @@ class TGraph(SGraph):
     def __eq__(self, other: object) -> bool:
         return (
             super().__eq__(other)
-            and self.parameters_names == other.parameters_names
+            and frozenset(self.parameters_names) == frozenset(other.parameters_names)
         )
 
     @ft.cached_property

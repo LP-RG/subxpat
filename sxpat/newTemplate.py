@@ -91,7 +91,7 @@ class SharedTemplate:
         template_graph = TGraph(
             nodes,
             a_graph.inputs_names, a_graph.outputs_names,
-            (n.name for n in flat((products_p, sums_p)))
+            (n.name for n in flat((products_p, sums_p, outs_p)))
         )
 
         # > Constraints Graph
