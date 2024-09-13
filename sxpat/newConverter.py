@@ -11,6 +11,7 @@ import re
 from sxpat.newGraph import *
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
 from sxpat.utils.functions import str_to_bool
+from sxpat.utils.collections import MultiDict
 
 
 __all__ = ['DotConverter', 'JSONConverter']
@@ -36,15 +37,15 @@ class DotConverter(Converter):
         Copy: 'copy',
         # placeholder
         PlaceHolder: 'holder',
-        # int operations
-        ToInt: 'toInt',
-        Sum: 'sum',
-        AbsDiff: 'absdiff',
         # bool operations
         Not: 'not',
         And: 'and',
         Or: 'or',
         Implies: 'impl',
+        # int operations
+        ToInt: 'toInt',
+        Sum: 'sum',
+        AbsDiff: 'absdiff',
         # comparison operations
         Equals: '==',
         AtLeast: 'atleast',
@@ -58,46 +59,25 @@ class DotConverter(Converter):
         Switch: 'switch',
         If: 'if',
     })
-    NODE_SHAPE = {
+    NODE_SHAPE = MultiDict({
         # inputs
-        BoolInput: 'circle',
-        IntInput: 'circle',
+        (BoolInput, IntInput): 'circle',
         # constants
-        BoolConstant: 'square',
-        IntConstant: 'square',
+        (BoolConstant, IntConstant): 'square',
         # output
-        Copy: 'doublecircle',
+        (Copy,): 'doublecircle',
         # placeholder
-        PlaceHolder: 'octagon',
-        # int operations
-        ToInt: 'invtrapezium',
-        Sum: 'invtrapezium',
-        AbsDiff: 'invtrapezium',
+        (PlaceHolder,): 'octagon',
         # bool operations
-        Not: 'invhouse',
-        And: 'invhouse',
-        Or: 'invhouse',
-        Implies: 'invhouse',
+        (Not, And, Or, Implies): 'invhouse',
+        # int operations
+        (ToInt, Sum, AbsDiff): 'invtrapezium',
         # comparison operations
-        Equals: 'invtriangle',
-        AtLeast: 'invtriangle',
-        AtMost: 'invtriangle',
-        LessThan: 'invtriangle',
-        LessEqualThan: 'invtriangle',
-        GreaterThan: 'invtriangle',
-        GreaterEqualThan: 'invtriangle',
+        (Equals, AtLeast, AtMost, LessThan,
+         LessEqualThan, GreaterThan, GreaterEqualThan): 'invtriangle',
         # branching operations
-        Multiplexer: 'diamond',
-        Switch: 'diamond',
-        If: 'diamond',
-    }
-    NODE_LABEL_EXTRA: Dict[Type, Callable[[Node], str]] = {
-        # constants
-        BoolConstant: lambda n: rf'\nv={n.value}',
-        IntConstant: lambda n: rf'\nv={n.value}',
-        # branching operations
-        Switch: lambda n: rf'\nv={n.off_value}',
-    }
+        (Multiplexer, Switch, If): 'diamond',
+    })
     NODE_COLOR: Mapping[Type[Graph], Callable[[Graph, Node], Optional[str]]] = {
         Graph: lambda g, n: 'red' if n.in_subgraph else 'white',
         GGraph: lambda g, n: 'red' if n.in_subgraph else 'white',

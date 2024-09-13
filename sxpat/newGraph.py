@@ -12,17 +12,20 @@ import re
 __all__ = list(it.chain(
     # nodes
     [
-        'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolInput', 'BoolNode',
-        'Copy', 'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
-        'IntInput', 'IntNode', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'Not',
-        'Op1Node', 'Op2Node', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Switch', 'ToInt',
+        'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolInput', 'Copy',
+        'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
+        'IntInput', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'Not', 'Op1Node',
+        'Op2Node', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Switch', 'ToInt',
     ],
     # graphs
     ['Graph', 'GGraph', 'CGraph', 'SGraph', 'TGraph'],
 ))
 
 
-# > precursors
+# > nodes
+
+
+# abstracts
 
 
 @dc.dataclass(frozen=True)
@@ -37,16 +40,6 @@ class Node:
 
     def copy(self, **update):
         return type(self)(**{**vars(self), **update})
-
-
-@dc.dataclass(frozen=True, repr=False)
-class BoolNode(Node):
-    pass
-
-
-@dc.dataclass(frozen=True, repr=False)
-class IntNode(Node):
-    pass
 
 
 @dc.dataclass(frozen=True)
@@ -92,105 +85,132 @@ class Ord2Node(Op2Node):
         return self.items[1]
 
 
-# > int
+# inputs
 
 
 @dc.dataclass(frozen=True, repr=False)
-class IntInput(IntNode):
+class BoolInput(Node):
     pass
+
+
+@dc.dataclass(frozen=True, repr=False)
+class IntInput(Node):
+    pass
+
+
+# constants
 
 
 @dc.dataclass(frozen=True)
-class IntConstant(IntNode):
-    value: int = None
-
-
-@dc.dataclass(frozen=True, repr=False)
-class ToInt(IntNode, OperationNode):
-    pass
-
-
-@dc.dataclass(frozen=True, repr=False)
-class Sum(IntNode, OperationNode):
-    pass
-
-
-@dc.dataclass(frozen=True, repr=False)
-class AbsDiff(IntNode, Ord2Node):
-    pass
-
-
-# > bool
-
-
-@dc.dataclass(frozen=True, repr=False)
-class BoolInput(BoolNode):
-    pass
-
-
-@dc.dataclass(frozen=True)
-class BoolConstant(BoolNode):
+class BoolConstant(Node):
     value: bool = False
 
 
+@dc.dataclass(frozen=True)
+class IntConstant(Node):
+    value: int = None
+
+
+# output
+
+
 @dc.dataclass(frozen=True, repr=False)
-class Not(BoolNode, Op1Node):
+class Copy(Op1Node):
+    pass
+
+
+# placeholder
+
+
+@dc.dataclass(frozen=True, repr=False)
+class PlaceHolder(Node):
+    pass
+
+
+# bool operations
+
+
+@dc.dataclass(frozen=True, repr=False)
+class Not(Op1Node):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class And(BoolNode, OperationNode):
+class And(OperationNode):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Or(BoolNode, OperationNode):
+class Or(OperationNode):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Implies(BoolNode, Ord2Node):
+class Implies(Ord2Node):
+    pass
+
+
+# int operations
+
+
+@dc.dataclass(frozen=True, repr=False)
+class ToInt(OperationNode):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Equals(BoolNode, Op2Node):
-    def __post_init__(self):
-        super().__post_init__()
+class Sum(OperationNode):
+    pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class AtLeast(BoolNode, OperationNode):
+class AbsDiff(Ord2Node):
+    pass
+
+
+# comparison operations
+
+
+@dc.dataclass(frozen=True, repr=False)
+class Equals(Op2Node):
+    pass
+
+
+@dc.dataclass(frozen=True, repr=False)
+class AtLeast(OperationNode):
     value: int = None
 
 
 @dc.dataclass(frozen=True, repr=False)
-class AtMost(BoolNode, OperationNode):
+class AtMost(OperationNode):
     value: int = None
 
 
 @dc.dataclass(frozen=True, repr=False)
-class LessThan(BoolNode, Ord2Node):
+class LessThan(Ord2Node):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class LessEqualThan(BoolNode, Ord2Node):
+class LessEqualThan(Ord2Node):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class GreaterThan(BoolNode, Ord2Node):
+class GreaterThan(Ord2Node):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class GreaterEqualThan(BoolNode, Ord2Node):
+class GreaterEqualThan(Ord2Node):
     pass
 
 
+# branching operations
+
+
 @dc.dataclass(frozen=True, repr=False)
-class Multiplexer(BoolNode, Op3Node):
+class Multiplexer(Op3Node):
     @property
     def origin(self) -> str:
         return self.items[0]
@@ -205,7 +225,7 @@ class Multiplexer(BoolNode, Op3Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Switch(BoolNode, Op2Node):
+class Switch(Op2Node):
     value: bool = None
 
     @property
@@ -215,9 +235,6 @@ class Switch(BoolNode, Op2Node):
     @property
     def parameter(self) -> str:
         return self.items[1]
-
-
-# > generic
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -235,15 +252,7 @@ class If(Op3Node):
         return self.items[2]
 
 
-@dc.dataclass(frozen=True, repr=False)
-class Copy(Op1Node, BoolNode, IntNode):
-    pass
-
-
-@dc.dataclass(frozen=True, repr=False)
-class PlaceHolder(BoolNode, IntNode):
-    pass
-
+# > graphs
 
 class Graph:
     """Generic graph."""
