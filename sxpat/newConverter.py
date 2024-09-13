@@ -106,7 +106,7 @@ class DotConverter(Converter):
         TGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if n.in_subgraph else 'white',
     }
 
-    GRAPH_PATTERN = re.compile(r'strict digraph _(\w+) {((?:\n\s*\w+ \[.*\];)+)(?:\n\s*\w+ -> \w+;)+((?:\n\s*\/\/ \w+.*)*)\n}')
+    GRAPH_PATTERN = re.compile(r'strict digraph _(\w+) {(?:\n\s*node \[.*\];)?((?:\n\s*\w+ \[.*\];)+)(?:\n\s*\w+ -> \w+;)+((?:\n\s*\/\/ \w+.*)*)\n}')
     NODE_PATTERN = re.compile(r'\w+ \[label="(.*)".*\]')
     EXTRA_PATTERN = re.compile(r'\/\/ (\w+)\[([\w,]+)\]')
 
@@ -212,6 +212,7 @@ class DotConverter(Converter):
 
         return '\n'.join(it.chain(
             (f'strict digraph _{type(graph).__name__} {{',),
+            (f'    node [style=filled];',),
             (f'    {l}' for l in node_lines),
             (f'    {l}' for l in edge_lines),
             (f'    {l}' for l in extra_lines),

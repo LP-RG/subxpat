@@ -53,10 +53,10 @@ class IntNode(Node):
 class OperationNode(Node):
     items: Tuple[str, ...] = tuple()
 
-    def __post_init__(self, reqired_items_count: int = 0):
+    def __post_init__(self, required_items_count: int = 0):
         object.__setattr__(self, 'items',  tuple(i.name if isinstance(i, Node) else i for i in self.items))
-        if reqired_items_count > 0:
-            assert len(self.items) == 1, f'Wrong items count (expected {reqired_items_count}) in node {self.name} of class {type(self).__name__}'
+        if required_items_count > 0:
+            assert len(self.items) == required_items_count, f'Wrong items count (expected {required_items_count}) in node {self.name} of class {type(self).__name__}'
 
 
 @dc.dataclass(frozen=True, repr=False)
