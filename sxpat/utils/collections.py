@@ -1,8 +1,9 @@
 from __future__ import annotations
 from collections import UserDict
-from typing import Iterable, Iterator, Mapping, Sequence, Tuple, Type, TypeVar, Union
+from typing import Iterable, Iterator, Mapping, Tuple, Type, TypeVar
 
-import itertools
+
+__all__ = ['mapping_inv', 'flat', 'pairwise', 'MultiDict', 'InheritanceMapping']
 
 
 NOTHING = object()
@@ -37,6 +38,10 @@ def pairwise(iterable: Iterable[T]) -> Iterator[Tuple[T, T]]:
     for b in iterator:
         yield a, b
         a = b
+
+
+def unzip(iterable: Iterable) -> Iterable:
+    return zip(*iterable)
 
 
 class MultiDict(UserDict, Mapping[K, V]):
