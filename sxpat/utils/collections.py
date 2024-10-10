@@ -1,6 +1,6 @@
 from __future__ import annotations
 from collections import UserDict
-from typing import Iterable, Iterator, Mapping, Tuple, Type, TypeVar
+from typing import Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union
 
 
 __all__ = ['mapping_inv', 'flat', 'pairwise', 'MultiDict', 'InheritanceMapping']
@@ -19,7 +19,18 @@ def mapping_inv(mapping: Mapping[K, V], value: V, default: K = NOTHING) -> K:
     return key
 
 
-def flat(iterable: Iterable) -> Iterator:
+def flat(iterable:
+         Iterable[  # this abomination is to allow type hinting, recursive types don't really work (eg. R = Union[T, Iterable['R']) (maybe with newer python versions?)
+             Union[T, Iterable[
+                 Union[T, Iterable[
+                     Union[T, Iterable[
+                         Union[T, Iterable[
+                             Union[T, Iterable[
+                                 Union[T, Iterable[
+                                     Union[T, Iterable[
+                                         Union[T, Iterable[
+                                             T]]]]]]]]]]]]]]]]]
+         ) -> Iterator[T]:
     for i in iterable:
         if isinstance(i, Iterable):
             yield from flat(i)
