@@ -1,36 +1,31 @@
+from typing import Iterable, Iterator, List
+
+from tabulate import tabulate
+import functools as ft
 import csv
 import time
-from typing import Iterable, Iterator, List, Union
-import networkx as nx
-from tabulate import tabulate
-
 import math
+import networkx as nx
 
-from Z3Log.utils import *
 from Z3Log.config import path as z3logpath
 
 from sxpat.labeling import labeling_explicit
-from sxpat.templateCreator import Template_SOP1, Template_SOP1ShareLogic
-from sxpat.TempWrappers.subxpat_v2 import Template_V2
-
-from sxpat.templateSpecs import TemplateSpecs
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
 from sxpat.config.paths import *
 from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
 from sxpat.template_manager.template_manager import TemplateManager
 from sxpat.utils.filesystem import FS
 from sxpat.utils.name import NameData
-from sxpat.verification import erroreval_verification_explicit, erroreval_verification_wce
+from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 
-from z_marco.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subgraph
-from z_marco.utils import pprint, color
+from z_marco.utils import pprint
 
 
-def explore_grid(specs_obj: TemplateSpecs):
+def explore_grid(specs_obj: Specifications):
     previous_subgraphs = []
-    print(f'{specs_obj = }')
 
     labeling_time: float = -1
     subgraph_extraction_time: float = -1
@@ -39,224 +34,213 @@ def explore_grid(specs_obj: TemplateSpecs):
     toolname = get_toolname(specs_obj)
 
     # initial setup
-    total_iterations = specs_obj.iterations
     exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
-    exact_file_name = specs_obj.exact_benchmark
-    sum_wce_actual = 0
 
     # create stat and template object
     stats_obj = Stats(specs_obj)
 
-    # This line would cause a problem,
-    # current_population: Dict = {specs_obj.benchmark_name: -1}
-    # So I changed it into the following:
-    current_population: Dict = {specs_obj.benchmark_name: ('Area', 'Delay', 'Power', ('LPP', 'PPO'))}
-    next_generation: Dict = {}
-    total: Dict[Dict] = {}
-    available_error = specs_obj.et
     obtained_wce_exact = 0
-    i = 0
-    prev_actual_error = 0
+    specs_obj.iteration = 0
+    prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
 
-    while (obtained_wce_exact < available_error):
-        i += 1
+    while (obtained_wce_exact < specs_obj.max_error):
+        specs_obj.iteration += 1
 
         if not specs_obj.subxpat:
-            et = specs_obj.et
+            if prev_actual_error == 0:
+                break
+            specs_obj.et = specs_obj.max_error
 
-        elif specs_obj.et_partitioning == 'asc':
-            log2 = int(math.log2(specs_obj.et))
-            et = 2**(i-1)
-        elif specs_obj.et_partitioning == 'desc':
-            log2 = int(math.log2(specs_obj.et))
-            et = 2**(log2 - i - 2)
-        elif specs_obj.et_partitioning == 'smart_asc':
-            et = 1 if i == 1 else prev_given_error * (2 if prev_actual_error == 0 else 1)
-            prev_given_error = et
-        elif specs_obj.et_partitioning == 'smart_desc':
-            et = available_error if i == 1 else prev_given_error / (2 if prev_actual_error == 0 else 1)
-            prev_given_error = et
+        elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
+            specs_obj.et = 2 ** (specs_obj.iteration - 1)
+        elif specs_obj.error_partitioning is ErrorPartitioningType.DESCENDING:
+            log2 = int(math.log2(specs_obj.max_error))
+            specs_obj.et = 2 ** (log2 - specs_obj.iteration - 2)
+        elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_ASCENDING:
+            specs_obj.et = 1 if specs_obj.iteration == 1 else prev_given_error * (2 if prev_actual_error == 0 else 1)
+            prev_given_error = specs_obj.et
+        elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_DESCENDING:
+            specs_obj.et = specs_obj.max_error if specs_obj.iteration == 1 else math.ceil(prev_given_error / (2 if prev_actual_error == 0 else 1))
+            prev_given_error = specs_obj.et
         else:
             raise NotImplementedError('invalid status')
 
-        pprint.info1(f'iteration {i} with et {et}, available error {available_error}'
-                     if (specs_obj.subxpat or specs_obj.subxpat_v2) else
-                     f'Only one iteration with et {et}')
+        if specs_obj.et > specs_obj.max_error or specs_obj.et <= 0:
+            break
 
-        # for all candidates
-        for candidate in current_population:
+        pprint.info1(f'iteration {specs_obj.iteration} with et {specs_obj.et}, available error {specs_obj.max_error}'
+                     if (specs_obj.subxpat) else
+                     f'Only one iteration with et {specs_obj.et}')
 
-            pprint.info1(f'candidate {candidate}')
-            if candidate.endswith('.v'):
-                specs_obj.benchmark_name = candidate[:-2]
+        if specs_obj.current_benchmark.endswith('.v'):
+            specs_obj.current_benchmark = specs_obj.current_benchmark[:-2]
+        pprint.info1(f'benchmark {specs_obj.current_benchmark}')
 
-            # > grid step settings
+        # > grid step settings
 
-            # initialize context
-            specs_obj.et = et
+        # import the graph
+        current_graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
+        exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False)
 
-            # import the graph
-            current_graph = AnnotatedGraph(specs_obj.benchmark_name, is_clean=False, partitioning_percentage=1)
-            exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False, partitioning_percentage=0)
+        # label graph
+        if specs_obj.requires_labeling:
+            et_coefficient = 1
 
-            # label graph
-            if specs_obj.max_sensitivity > 0 or specs_obj.mode >= 3:
-                et_coefficient = 1
-
-                t_start = time.time()
-                label_graph(current_graph,
-                            min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
-                            et=et*et_coefficient, parallel=specs_obj.parallel)
-                labeling_time = time.time() - t_start
-                print(f'labeling_time = {labeling_time}')
-
-            # extract subgraph
             t_start = time.time()
-            subgraph_is_available = current_graph.extract_subgraph(specs_obj)
-            subgraph_extraction_time = time.time() - t_start
-            print(f'subgraph_extraction_time = {subgraph_extraction_time}')
+            label_graph(current_graph,
+                        min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
+                        et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel)
+            labeling_time = time.time() - t_start
+            print(f'labeling_time = {labeling_time}')
 
-            # store subgraph
-            previous_subgraphs.append(current_graph.subgraph)
-            # skip the iteration if the subraph is equal to the previous one
-            if (
-                len(previous_subgraphs) >= 2
-                and nx.utils.graphs_equal(previous_subgraphs[-2], previous_subgraphs[-1])
-            ):
-                pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
-                prev_actual_error = 0
+        # extract subgraph
+        t_start = time.time()
+        subgraph_is_available = current_graph.extract_subgraph(specs_obj)
+        subgraph_extraction_time = time.time() - t_start
+        print(f'subgraph_extraction_time = {subgraph_extraction_time}')
+        previous_subgraphs.append(current_graph.subgraph)
+
+        # todo:wip: export subgraph
+        folder = 'output/gv/subgraphs'
+        graph_path = f'{folder}/{specs_obj.current_benchmark}_et{specs_obj.et}_mode{specs_obj.extraction_mode}_omax{specs_obj.omax}.gv'
+        FS.mkdir(folder)
+        current_graph.export_annotated_graph(graph_path)
+        print(f'subgraph exported at {graph_path}')
+
+        # guard: skip if no subgraph was found
+        if not subgraph_is_available:
+            pprint.warning(f'No subgraph available.')
+            prev_actual_error = 0
+            continue
+
+        # guard: skip if the subraph is equal to the previous one
+        if (
+            len(previous_subgraphs) >= 2
+            and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
+        ):
+            pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
+            prev_actual_error = 0
+            continue
+
+        # explore the grid
+        pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
+        dominant_cells = []
+        for lpp, ppo in CellIterator.factory(specs_obj):
+            if is_dominated((lpp, ppo), dominant_cells):
+                pprint.info1(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> DOMINATED')
                 continue
 
-            # todo:wip:marco: export subgraph
-            folder = 'output/gv/subgraphs'
-            graph_path = f'{folder}/{specs_obj.benchmark_name}_et{specs_obj.et}_mode{specs_obj.mode}_omax{specs_obj.omax}_serr{specs_obj.sub_error_function}.gv'
-            FS.mkdir(folder)
-            current_graph.export_annotated_graph(graph_path)
-            print(f'subgraph exported at {graph_path}')
+            # > cell step settings
 
-            # guard
-            if not subgraph_is_available:
-                pprint.warning(f'No subgraph available.')
-                prev_actual_error = 0
-                if et == available_error:
-                    available_error = 0
-                continue
+            # update the context
+            update_context(specs_obj, lpp, ppo)
 
-            # explore the grid
-            pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
-            dominant_cells = []
-            for lpp, ppo in CellIterator.factory(specs_obj):
-                if is_dominated((lpp, ppo), dominant_cells):
-                    pprint.info1(f'Cell({lpp},{ppo}) at iteration {i} -> DOMINATED')
-                    continue
+            # run script
+            manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
+            start_time = time.time()
+            results = manager.run()
+            execution_time = time.time() - start_time
 
-                # > cell step settings
+            cur_status = results[0].status
+            if cur_status in (UNSAT, UNKNOWN):
+                pprint.warning(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {cur_status.upper()}')
 
-                # update the context
-                specs_obj = set_current_context(specs_obj, lpp, ppo, i)
+                # store model
+                this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=specs_obj.et, iteration=specs_obj.iteration,
+                                        labeling_time=labeling_time,
+                                        subgraph_extraction_time=subgraph_extraction_time,
+                                        subgraph_number_inputs=current_graph.subgraph_num_inputs,
+                                        subgraph_number_outputs=current_graph.subgraph_num_outputs,
+                                        subxpat_v1_time=execution_time)
+                stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
 
-                # run script
-                manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
-                start_time = time.time()
-                results = manager.run()
-                execution_time = time.time() - start_time
+                if cur_status == UNKNOWN:
+                    # store cell as dominant (to skip dominated subgrid)
+                    dominant_cells.append((lpp, ppo))
 
-                cur_status = results[0].status
-                if cur_status in (UNSAT, UNKNOWN):
-                    pprint.warning(f'Cell({lpp},{ppo}) at iteration {i} -> {cur_status.upper()}')
+            elif cur_status == SAT:
 
-                    # store model
-                    this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=et, iteration=i,
-                                            labeling_time=labeling_time,
-                                            subgraph_extraction_time=subgraph_extraction_time,
-                                            subgraph_number_inputs=current_graph.subgraph_num_inputs,
-                                            subgraph_number_outputs=current_graph.subgraph_num_outputs,
-                                            subxpat_v1_time=execution_time)
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
+                # synthesize all models and compute circuit specifications
+                synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
+                cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
+                for idx in range(synth_obj.num_of_models):
+                    synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
+                    synth_obj.export_verilog(idx=idx)
+                    synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
+                    cur_model_results[synth_obj.ver_out_name] = [
+                        synth_obj.estimate_area(),
+                        synth_obj.estimate_power(),
+                        synth_obj.estimate_delay(),
+                        (lpp, ppo),
+                        None,  # abs diff to exact
+                        None  # abs diff to previous
+                    ]
 
-                    if cur_status == UNKNOWN:
-                        # store cell as dominant (to skip dominated subgrid)
-                        dominant_cells.append((lpp, ppo))
+                # todo: should we refactor with pandas?
+                with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{toolname}.csv", 'w') as f:
+                    csvwriter = csv.writer(f)
 
-                elif cur_status == SAT:
-                    synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
-                    cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
-                    for idx in range(synth_obj.num_of_models):
-                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
-                        synth_obj.export_verilog(idx=idx)
-                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
-                        cur_model_results[synth_obj.ver_out_name] = (
-                            synth_obj.estimate_area(),
-                            synth_obj.estimate_power(),
-                            synth_obj.estimate_delay(),
-                            (lpp, ppo)
-                        )
+                    header = list(range(len(cur_model_results)))
+                    all = list(cur_model_results.values())
+                    content = [f for (f, *_) in all]
 
-                    # todo: should we refactor with pandas?
-                    with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.num_of_models}_{specs_obj.benchmark_name}_{specs_obj.et}_{toolname}.csv", 'w') as f:
-                        csvwriter = csv.writer(f)
+                    csvwriter.writerow(header)
+                    csvwriter.writerow(content)
 
-                        header = list(range(len(cur_model_results)))
-                        all = list(cur_model_results.values())
-                        content = [f for (f, _, _, _) in all]
-                        # print(f'{content = }')
+                # verify all models and store errors
+                pprint.success('verifying all approximate circuits -> ', end='')
+                for candidate_name, candidate_data in cur_model_results.items():
+                    candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
+                    candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
 
-                        csvwriter.writerow(header)
-                        csvwriter.writerow(content)
+                    if candidate_data[4] > specs_obj.et:
+                        pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
+                        stats_obj.store_grid()
+                        return stats_obj
+                pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {specs_obj.iteration} -> {cur_status} ({synth_obj.num_of_models} models found)')
 
-                    pprint.success('verifying all approximate circuits -> ', end='')
-                    for candidate in cur_model_results:
-                        approximate_benchmark = candidate[:-2]
+                # sort circuits
+                sorted_circuits = sorted(cur_model_results.items(), key=ft.cmp_to_key(model_compare))
 
-                        obtained_wce_exact = erroreval_verification_wce(exact_file_name, approximate_benchmark, et)
-                        obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, approximate_benchmark, et)
-                        prev_actual_error = obtained_wce_prev
+                # select best circuit
+                best_name, best_data = sorted_circuits[0]
+                obtained_wce_exact = best_data[4]
+                prev_actual_error = best_data[5]
 
-                        if obtained_wce_exact > et:
-                            stats_obj.store_grid()
-                            return stats_obj
-                            # raise Exception(color.error('ErrorEval Verification: FAILED!'))
+                specs_obj.current_benchmark = best_name
+                best_model_info = Model(id=0,
+                                        status=cur_status.upper(),
+                                        cell=(lpp, ppo),
+                                        et=best_data[4],
+                                        iteration=specs_obj.iteration,
+                                        area=best_data[0],
+                                        total_power=best_data[1],
+                                        delay=best_data[2],
+                                        labeling_time=labeling_time,
+                                        subgraph_extraction_time=subgraph_extraction_time,
+                                        subgraph_number_inputs=current_graph.subgraph_num_inputs,
+                                        subgraph_number_outputs=current_graph.subgraph_num_outputs,
+                                        subxpat_v1_time=execution_time)
 
-                    this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=obtained_wce_exact, iteration=i,
-                                            area=cur_model_results[synth_obj.ver_out_name][0],
-                                            total_power=cur_model_results[synth_obj.ver_out_name][1],
-                                            delay=cur_model_results[synth_obj.ver_out_name][2],
-                                            labeling_time=labeling_time,
-                                            subgraph_extraction_time=subgraph_extraction_time,
-                                            subgraph_number_inputs=current_graph.subgraph_num_inputs,
-                                            subgraph_number_outputs=current_graph.subgraph_num_outputs,
-                                            subxpat_v1_time=execution_time)
+                stats_obj.grid.cells[lpp][ppo].store_model_info(best_model_info)
+                pprint.success(f'ErrorEval PASS! with total wce = {best_data[4]}')
 
-                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
-                    pprint.success(f'ErrorEval PASS! with total wce = {obtained_wce_exact}')
+                synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
 
-                    specs_obj.benchmark_name = approximate_benchmark
+                exact_stats = [synth_obj.estimate_area(exact_file_path),
+                               synth_obj.estimate_power(exact_file_path),
+                               synth_obj.estimate_delay(exact_file_path)]
+                print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
+                store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.current_benchmark, et=specs_obj.et,
+                                    encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
 
-                    synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
+                break  # SAT found, stop grid exploration
 
-                    pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {i} -> {cur_status} ({synth_obj.num_of_models} models found)')
-                    exact_stats = [synth_obj.estimate_area(exact_file_path),
-                                   synth_obj.estimate_power(exact_file_path),
-                                   synth_obj.estimate_delay(exact_file_path)]
-                    print_current_model(cur_model_results, normalize=False, exact_stats=exact_stats)
+            prev_actual_error = 0
 
-                    store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.benchmark_name, et=specs_obj.et,
-                                        encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
-
-                    for key in cur_model_results.keys():
-                        next_generation[key] = cur_model_results[key]
-
-                    current_population = select_candidates_for_next_iteration(specs_obj, next_generation)
-                    total[i] = current_population
-
-                    next_generation = {}
-
-                    # SAT found, stop grid exploration
-                    break
-                prev_actual_error = 0
-
-        if exists_an_area_zero(current_population):
+        if cur_status == SAT and best_data[0] == 0:
+            pprint.info3('Area zero found!\nTerminated.')
             break
 
     stats_obj.store_grid()
@@ -265,14 +249,14 @@ def explore_grid(specs_obj: TemplateSpecs):
 
 class CellIterator:
     @classmethod
-    def factory(cls, specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def factory(cls, specs: Specifications) -> Iterator[Tuple[int, int]]:
         return {
-            True: cls.shared,
-            False: cls.non_shared,
-        }[specs.shared](specs)
+            TemplateType.NON_SHARED: cls.non_shared,
+            TemplateType.SHARED: cls.shared,
+        }[specs.template](specs)
 
     @staticmethod
-    def shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def shared(specs: Specifications) -> Iterator[Tuple[int, int]]:
         max_pit = specs.max_pit
 
         # special cell
@@ -284,7 +268,7 @@ class CellIterator:
                 yield (its, pit)
 
     @staticmethod
-    def non_shared(specs: TemplateSpecs) -> Iterator[Tuple[int, int]]:
+    def non_shared(specs: Specifications) -> Iterator[Tuple[int, int]]:
         max_lpp = specs.max_lpp
         max_ppo = specs.max_ppo
 
@@ -305,41 +289,36 @@ def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, in
     )
 
 
-def set_current_context(specs_obj: TemplateSpecs, lpp: int, ppo: int, iteration: int) -> TemplateSpecs:
+def update_context(specs_obj: Specifications, lpp: int, ppo: int):
     specs_obj.lpp = lpp
     specs_obj.ppo = specs_obj.pit = ppo
-    specs_obj.iterations = iteration
-    return specs_obj
 
 
-def print_current_model(cur_model_result: Dict, normalize: bool = True, exact_stats: List = None) -> None:
+def print_current_model(sorted_models: List[Tuple[str, List]], normalize: bool = True, exact_stats: List = None) -> None:
     data = []
 
     if exact_stats:
         # add exact circuit data
         e_area, e_power, e_delay, *_ = exact_stats
-        data.append(['Exact', e_area, e_power, e_delay])
+        data.append(['Exact', e_area, e_power, e_delay, 0])
 
         if normalize:
-            for stats in cur_model_result.values():
+            for _, stats in sorted_models:
                 stats[0] = (stats[0] / e_area) * 100
                 stats[1] = (stats[1] / e_power) * 100
                 stats[2] = (stats[2] / e_delay) * 100
 
     # keep wanted models
-    sorted_candidates = sorted(cur_model_result.items(), key=lambda x: x[1])
-    if len(cur_model_result) < 10:
-        wanted_candidates = sorted_candidates
-    else:
-        wanted_candidates = [sorted_candidates[0]]
+    if len(sorted_models) > 10:
+        sorted_models = sorted_models[0:10]
 
     # add candidates data
-    for c_name, c_stats in wanted_candidates:
+    for c_name, c_stats in sorted_models:
         c_id = NameData.from_filename(c_name).total_id
-        c_area, c_power, c_delay, *_ = c_stats
-        data.append([c_id, c_area, c_power, c_delay])
+        c_area, c_power, c_delay, _, c_error, _ = c_stats
+        data.append([c_id, c_area, c_power, c_delay, c_error])
 
-    pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay']))
+    pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
 
 def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, encoding: int, subgraph_extraction_time: float, labeling_time: float, exact_stats: List = None) -> None:
@@ -377,43 +356,6 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         csvwriter.writerow(approx_data)
 
 
-def exists_an_area_zero(candidates: Dict[str, float]) -> bool:
-    print(f'{candidates = }')
-    for key in candidates.keys():
-        if candidates[key][0] == 0:
-            pprint.info3('Area zero found!\nTerminated.')
-            return True
-    return False
-
-
-def select_candidates_for_next_iteration(spec_obj: TemplateSpecs, candidates: Dict[str, float]) -> Dict[str, float]:
-    # Check which alogirhtm we use for selection of the next generation
-    if spec_obj.population > 1:
-        return pick_k_best_k_worst(candidates, spec_obj.population // 2)
-    else:
-        selected_candidates = {}
-        for key in candidates.keys():
-            selected_candidates[key] = candidates[key]
-            break
-        return selected_candidates
-
-
-def pick_k_best_k_worst(candidates: Dict[str, float], k: int):
-    num_of_candidates: int = len(candidates)
-    if 2 * k >= num_of_candidates:
-        return candidates
-    else:
-        # sort the dict based on the value and remove everything but the k first and k last elements
-        sorted_candidates = sorted(candidates.items(), key=lambda x: x[1])
-        i = 0
-        selected_candidates: Dict = {}
-        for key in sorted_candidates:
-            if i < k or (i >= len(candidates) - k):
-                selected_candidates[key[0]] = candidates[key[0]]
-            i += 1
-        return selected_candidates
-
-
 def label_graph(current_graph: AnnotatedGraph,
                 min_labeling: bool = False,  partial: bool = False,
                 et: int = -1, parallel: bool = False):
@@ -425,21 +367,34 @@ def label_graph(current_graph: AnnotatedGraph,
         current_graph.graph.nodes[n][WEIGHT] = int(labels[n]) if n in labels else -1
 
 
-def get_toolname(specs_obj: TemplateSpecs) -> str:
-    if specs_obj.subxpat_v2:
-        pprint.info2('SubXPAT-V2 started...')
-        toolname = sxpatconfig.SUBXPAT_V2
-    elif specs_obj.subxpat and specs_obj.shared:
-        pprint.info2('Shared SubXPAT started...')
-        toolname = sxpatconfig.SHARED_SUBXPAT
-    elif specs_obj.subxpat and not specs_obj.shared:
-        pprint.info2('SubXPAT started...')
-        toolname = sxpatconfig.SUBXPAT
-    elif not specs_obj.subxpat and specs_obj.shared:
-        pprint.info2('Shared XPAT started...')
-        toolname = sxpatconfig.SHARED_XPAT
-    elif not specs_obj.subxpat and not specs_obj.shared:
-        pprint.info2('XPAT started...')
-        toolname = sxpatconfig.XPAT
+def get_toolname(specs_obj: Specifications) -> str:
+    message, toolname = {
+        (False, TemplateType.NON_SHARED): ('XPAT', sxpatconfig.XPAT),
+        (False, TemplateType.SHARED): ('Shared XPAT', sxpatconfig.SHARED_XPAT),
+        (True, TemplateType.NON_SHARED): ('SubXPAT', sxpatconfig.SUBXPAT),
+        (True, TemplateType.SHARED): ('Shared SubXPAT', sxpatconfig.SHARED_SUBXPAT),
+    }[(specs_obj.subxpat, specs_obj.template)]
 
+    pprint.info2(f'{message} started...')
     return toolname
+
+
+def node_matcher(n1: dict, n2: dict) -> bool:
+    """Return if two node data dicts represent the same semantic node"""
+    return (
+        n1.get('label') == n2.get('label')
+        and n1.get('subgraph', 0) == n2.get('subgraph', 0)
+    )
+
+
+def model_compare(a, b) -> bool:
+    if a[1][0] < b[1][0]:
+        return -1
+    elif a[1][0] > b[1][0]:
+        return +1
+    elif a[1][4] < b[1][4]:
+        return -1
+    elif a[1][4] > b[1][4]:
+        return +1
+    else:
+        return 0
