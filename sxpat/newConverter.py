@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import abstractmethod
 from typing import Dict, Type, Callable, List, Mapping, NoReturn, Optional, Union
 
 from collections import defaultdict
@@ -24,40 +25,62 @@ class Converter:
     def __new__(cls) -> NoReturn:
         raise TypeError(f'Cannot create instances of class {cls.__name__}')
 
+    @classmethod
+    @abstractmethod
+    def from_string(cls, string: str) -> Graph:
+        raise NotImplementedError(f'{cls.__name__}.from_string(...) is abstract.')
+
+    @classmethod
+    @abstractmethod
+    def to_string(cls, graph: Graph) -> str:
+        raise NotImplementedError(f'{cls.__name__}.to_string(...) is abstract.')
+
+    @classmethod
+    def load_file(cls, filename: str) -> Graph:
+        with open(filename, 'r') as f:
+            string = f.read()
+        return cls.from_string(string)
+
+    @classmethod
+    def save_file(cls, graph: Graph, filename: str) -> None:
+        string = cls.to_string(graph)
+        with open(filename, 'w') as f:
+            f.write(string)
+
 
 class DotConverter(Converter):
     NODE_SYMBOL = bidict({
         # inputs
         BoolInput: 'inB',
-        IntInput: 'inI',
+        IntInput:  'inI',
         # constants
         BoolConstant: 'constB',
-        IntConstant: 'constI',
+        IntConstant:  'constI',
         # output
         Copy: 'copy',
         # placeholder
         PlaceHolder: 'holder',
         # bool operations
-        Not: 'not',
-        And: 'and',
-        Or: 'or',
+        Not:     'not',
+        And:     'and',
+        Or:      'or',
         Implies: 'impl',
         # int operations
-        ToInt: 'toInt',
-        Sum: 'sum',
+        ToInt:   'toInt',
+        Sum:     'sum',
         AbsDiff: 'absdiff',
         # comparison operations
-        Equals: '==',
-        AtLeast: 'atleast',
-        AtMost: 'atmost',
-        LessThan: '<',
-        LessEqualThan: '<=',
-        GreaterThan: '>',
+        Equals:           '==',
+        AtLeast:          'atleast',
+        AtMost:           'atmost',
+        LessThan:         '<',
+        LessEqualThan:    '<=',
+        GreaterThan:      '>',
         GreaterEqualThan: '>=',
         # branching operations
         Multiplexer: 'mux',
-        Switch: 'switch',
-        If: 'if',
+        Switch:      'switch',
+        If:          'if',
     })
     NODE_SHAPE = MultiDict({
         # inputs
@@ -102,7 +125,7 @@ class DotConverter(Converter):
             string += rf'\nsub'
         if isinstance(node, OperationNode):
             string += rf'\ni={",".join(node.items)}'
-        if isinstance(node, (BoolConstant, IntConstant, Switch)):
+        if isinstance(node, ValuedNode):
             string += rf'\nv={node.value}'
 
         return string
@@ -130,7 +153,6 @@ class DotConverter(Converter):
             'in_subgraph': bool(m[4]),
             'value':  m[5] and {
                 BoolConstant: str_to_bool,
-                Switch: str_to_bool,
                 IntConstant: int,
             }[type](m[5]),
             'items': m[6] and m[6].split(','),
@@ -138,18 +160,6 @@ class DotConverter(Converter):
 
         # create Node using valid arguments
         return type(**{k: v for k, v in arguments.items() if v is not None})
-
-    @classmethod
-    def load_file(cls, filename: str) -> Graph:
-        with open(filename, 'r') as f:
-            string = f.read()
-        return cls.from_string(string)
-
-    @classmethod
-    def save_file(cls, graph: Graph, filename: str) -> None:
-        string = cls.to_string(graph)
-        with open(filename, 'w') as f:
-            f.write(string)
 
     @classmethod
     def from_string(cls, string: str) -> Graph:
@@ -297,6 +307,7 @@ class JSONConverter(Converter):
 
     _CLASS_F = 'class'
     _NODES_F = 'nodes'
+    _EXTRA_F = 'extra'
 
     @classmethod
     def dict_factory(cls, obj: object) -> dict:
@@ -307,34 +318,17 @@ class JSONConverter(Converter):
         return cls._N_CLSS[dct.pop(cls._CLASS_F)](**dct)
 
     @classmethod
-    def load_file(cls, filename: str) -> Graph:
-        with open(filename, 'r') as f:
-            string = f.read()
-        return cls.from_string(string)
-
-    @classmethod
-    def save_file(cls, graph: Graph, filename: str) -> None:
-        string = cls.to_string(graph)
-        with open(filename, 'w') as f:
-            f.write(string)
-
-    @classmethod
     def from_string(cls, string: str) -> Graph:
         _g: dict = cls.json.loads(string)
         nodes = [cls.node_factory(n) for n in _g.pop(cls._NODES_F)]
-        return cls._G_CLSS[_g.pop(cls._CLASS_F)](nodes=nodes, **_g)
+        return cls._G_CLSS[_g.pop(cls._CLASS_F)](nodes=nodes, **_g.pop(cls._EXTRA_F))
 
     @classmethod
     def to_string(cls, graph: Graph) -> str:
         _g = {
             cls._CLASS_F: graph.__class__.__name__,
             cls._NODES_F: [cls.dict_factory(node) for node in graph.nodes],
+            cls._EXTRA_F: {extra_name: getattr(graph, extra_name) for extra_name in graph.EXTRA},
         }
-
-        if isinstance(graph, GGraph):
-            _g['inputs_names'] = graph.inputs_names
-            _g['outputs_names'] = graph.outputs_names
-        if isinstance(graph, TGraph):
-            _g['parameters_names'] = graph.parameters_names
 
         return cls.json.dumps(_g, indent=4)
