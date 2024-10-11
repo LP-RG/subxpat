@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import FrozenSet, Iterable, Tuple, Union
+from typing import Collection, FrozenSet, Iterable, Sequence, Tuple, Union, Generic, TypeVar
 
 import dataclasses as dc
 
@@ -14,12 +14,15 @@ __all__ = list(it.chain(
     [
         'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolInput', 'Copy',
         'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
-        'IntInput', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'Not', 'Op1Node',
-        'Op2Node', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Switch', 'ToInt',
+        'IntInput', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'Not',
+        'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Switch', 'ToInt', 'ValuedNode',
     ],
     # graphs
     ['Graph', 'GGraph', 'CGraph', 'SGraph', 'TGraph'],
 ))
+
+
+T = TypeVar('T', int, bool)
 
 
 # > nodes
@@ -36,10 +39,15 @@ class Node:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, 'in_subgraph', bool(self.in_subgraph))
-        assert re.match(r'^\w+$', self.name), f'The name `{self.name}` is invalid, it must match regex `\w+`.'
+        # assert re.match(r'^\w+$', self.name), f'The name `{self.name}` is invalid, it must match regex `\w+`.'
 
     def copy(self, **update):
         return type(self)(**{**vars(self), **update})
+
+
+@dc.dataclass(frozen=True)
+class ValuedNode(Node, Generic[T]):
+    value: T = None
 
 
 @dc.dataclass(frozen=True)
@@ -102,14 +110,13 @@ class IntInput(Node):
 
 
 @dc.dataclass(frozen=True)
-class BoolConstant(Node):
-    value: bool = False
+class BoolConstant(ValuedNode[bool]):
+    pass
 
 
 @dc.dataclass(frozen=True)
-class IntConstant(Node):
-    value: int = None
-
+class IntConstant(ValuedNode[int]):
+    pass
 
 # output
 
@@ -178,12 +185,24 @@ class Equals(Op2Node):
 
 @dc.dataclass(frozen=True, repr=False)
 class AtLeast(OperationNode):
-    value: int = None
+    @property
+    def elements(self) -> str:
+        return self.items[:-1]
+
+    @property
+    def value(self) -> str:
+        return self.items[-1]
 
 
 @dc.dataclass(frozen=True, repr=False)
 class AtMost(OperationNode):
-    value: int = None
+    @property
+    def elements(self) -> str:
+        return self.items[:-1]
+
+    @property
+    def value(self) -> str:
+        return self.items[-1]
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -225,9 +244,7 @@ class Multiplexer(Op3Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Switch(Op2Node):
-    value: bool = None
-
+class Switch(Op3Node):
     @property
     def origin(self) -> str:
         return self.items[0]
@@ -235,6 +252,10 @@ class Switch(Op2Node):
     @property
     def parameter(self) -> str:
         return self.items[1]
+
+    @property
+    def off_value(self) -> str:
+        return self.items[2]
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -258,6 +279,7 @@ class Graph:
     """Generic graph."""
 
     K = object()
+    EXTRA: Sequence[str] = ()
 
     def __init__(self, nodes: Iterable[Node],
                  *, _inner: nx.DiGraph = None
@@ -283,16 +305,17 @@ class Graph:
     def __eq__(self, other: object) -> bool:
         return (
             type(self) == type(other)
-            and set(self.nodes) == set(other.nodes)
+            and frozenset(self.nodes) == frozenset(other.nodes)
         )
 
     @ft.cached_property
     def nodes(self) -> Tuple[Node, ...]:
-        return tuple(self._graph.nodes[name][self.K] for name in self._graph.nodes)
+        return tuple(self._graph.nodes[name][self.K] for name in nx.topological_sort(self._graph))
 
     def predecessors(self, node_or_name: Union[str, Node]) -> Tuple[Node, ...]:
         node_name = node_or_name.name if isinstance(node_or_name, Node) else node_or_name
         node = self._graph.nodes[node_name][self.K]
+        # we iterate over the .predecessors instead of the .items, so even if `node` is not an OperationNode it still works
         return tuple(sorted(
             (self._graph.nodes[_name][self.K] for _name in self._graph.predecessors(node_name)),
             key=lambda _n: node.items.index(_n.name)
@@ -302,9 +325,23 @@ class Graph:
         node_name = node_or_name.name if isinstance(node_or_name, Node) else node_or_name
         return tuple(self._graph.nodes[_name][self.K] for _name in self._graph.successors(node_name))
 
+    @ft.cached_property
+    def constants(self) -> Tuple[Node, ...]:
+        return tuple(node for node in self.nodes if isinstance(node, (BoolConstant, IntConstant)))
+
+    @ft.cached_property
+    def gates(self) -> Tuple[Node, ...]:
+        return tuple(node for node in self.nodes if isinstance(node, OperationNode))
+
+    @ft.cached_property
+    def non_gates(self) -> Tuple[Node, ...]:
+        return tuple(node for node in self.nodes if not isinstance(node, OperationNode))
+
 
 class GGraph(Graph):
     """Graph with inputs and outputs."""
+
+    EXTRA = ('inputs_names', 'outputs_names')
 
     def __init__(self, nodes: Iterable[Node],
                  inputs_names: Iterable[str] = (), outputs_names: Iterable[str] = (),
@@ -316,6 +353,7 @@ class GGraph(Graph):
         # freeze local instances
         self.inputs_names = tuple(inputs_names)
         self.outputs_names = tuple(outputs_names)
+        # self.int_result = next(node for node in self.nodes if isinstance(node, ToInt))
 
     def __eq__(self, other: object) -> bool:
         return (
@@ -337,14 +375,6 @@ class GGraph(Graph):
     @ft.cached_property
     def outputs(self) -> Tuple[Node, ...]:
         return tuple(self._graph.nodes[name][self.K] for name in self.outputs_names)
-
-    @ft.cached_property
-    def constants(self) -> Tuple[Node, ...]:
-        return tuple(node for node in self.nodes if isinstance(node, (BoolConstant, IntConstant)))
-
-    @ft.cached_property
-    def gates(self) -> Tuple[Node, ...]:
-        return tuple(node for node in self.nodes if isinstance(node, OperationNode))
 
     def with_prefix(self, prefix: str):
         """Returns a copy of the current graph with all nodes names (and items names) updated with the prefix (except the inputs)"""
@@ -391,6 +421,8 @@ class SGraph(GGraph):
 
 class TGraph(SGraph):
     """Graph with inputs, outputs and template (replacing subgraph)."""
+
+    EXTRA = (*SGraph.EXTRA, 'parameters_names')
 
     def __init__(self, nodes: Iterable[Node],
                  inputs_names: Iterable[str] = (), outputs_names: Iterable[str] = (),
