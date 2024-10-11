@@ -16,7 +16,7 @@ class SharedTemplate:
     @classmethod
     def define_template(cls, graph: SGraph, specs: Specifications) -> Tuple[TGraph, CGraph]:
         # get prefixed graph
-        a_graph = graph.with_prefix('a_')
+        a_graph: SGraph = graph.with_prefix('a_')
 
         # > Template Graph
 
@@ -40,6 +40,7 @@ class SharedTemplate:
             multiplexers.extend(_muxs)
 
         # construct sums and constant 0 switch
+        consts = {True: BoolConstant('ct', value=True), False: BoolConstant('cf', value=False)}
         sums = []
         sums_p: List[List[BoolInput]] = []
         switches = []
@@ -52,37 +53,40 @@ class SharedTemplate:
             sums_p.append([])
             for prod_i, prod_node in enumerate(products):
                 sums_p[-1].append(param := BoolInput(f'p_o{out_i}_p{prod_i}', in_subgraph=True))
-                _sws.append(Switch(f'sw_o{out_i}_p{prod_i}', in_subgraph=True, items=[prod_node, param], value=True))
+                _sws.append(Switch(f'sw_o{out_i}_p{prod_i}', in_subgraph=True, items=[prod_node, param, consts[True]]))
 
             # create the sum and constant 0 switch
             sums.append(_sum := Or(f'sum{out_i}', in_subgraph=True, items=_sws))
             switches.extend(_sws)
             outs_p.append(p_o := BoolInput(f'p_o{out_i}', in_subgraph=True))
-            outs.append(new_out_node := Switch(f'sw_o{out_i}', in_subgraph=True, items=(_sum, p_o), value=False))
+            outs.append(new_out_node := Switch(f'sw_o{out_i}', in_subgraph=True, items=(_sum, p_o, consts[False])))
 
             # update all output successors to descend from new outputs
             for succ in a_graph.successors(out_node):
-                i = succ.items.index(out_node.name)
-                new_items = succ.items[:i] + (new_out_node.name,) + succ.items[i+1:]
-                out_successors.append(succ.copy(items=new_items))
+                if not succ.in_subgraph:
+                    i = succ.items.index(out_node.name)
+                    new_items = succ.items[:i] + (new_out_node.name,) + succ.items[i+1:]
+                    out_successors.append(succ.copy(items=new_items))
 
         # create template graph
-        succs_names = set(s.name for s in out_successors)
+        succs_names = frozenset(s.name for s in out_successors)
         nodes = it.chain(
             (  # unchanged nodes
                 n
                 for n in a_graph.nodes
-                if n not in a_graph.subgraph_nodes
+                if not n.in_subgraph
                 if n.name not in succs_names
             ),
+            # constants
+            consts.values(),
             # products and relative items
-            products,
             flat(products_p),
             multiplexers,
+            products,
             # sums and relative items
-            sums,
             flat(sums_p),
             switches,
+            sums,
             outs_p,
             outs,
             # updated successors
@@ -100,7 +104,7 @@ class SharedTemplate:
         error_nodes = [
             cur_int := ToInt('cur_int', items=graph.outputs_names),
             tem_int := ToInt('tem_int', items=template_graph.outputs_names),
-            abs_diff := AbsDiff('abs_diff', items=(cur_int.name, tem_int.name,)),
+            abs_diff := AbsDiff('abs_diff', items=(cur_int, tem_int,)),
             et := IntConstant('et', value=specs.et),
             error_check := LessEqualThan('error_check', items=(abs_diff, et)),
         ]
@@ -136,16 +140,23 @@ class SharedTemplate:
             for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(prod_ints))
         ]
 
-        constraint_graph = CGraph(it.chain(
+        nodes = it.chain(
+            # placeholders
             (PlaceHolder(node.name) for node in flat((sums_p, products_p, outs_p, sums_p))),
             (PlaceHolder(name) for name in graph.outputs_names),
             (PlaceHolder(name) for name in template_graph.outputs_names),
+            # constants
+            consts.values(),
+            # ints and error
             error_nodes,
+            # its constraints
             its_nodes,
+            # redundancy constraints
             mux_red_nodes,
             const0_red_nodes,
             prod_ints,
             prod_ord_nodes,
-        ))
+        )
+        constraint_graph = CGraph(nodes)
 
         return (template_graph, constraint_graph)
