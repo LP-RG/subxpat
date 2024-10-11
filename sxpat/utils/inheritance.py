@@ -1,20 +1,20 @@
-from typing import Set, Type
+from typing import FrozenSet, Type
 
 
 __all__ = ['get_all_subclasses', 'get_all_leaves_subclasses']
 
 
-def get_all_subclasses(cls: Type) -> Set[Type]:
+def get_all_subclasses(cls: Type) -> FrozenSet[Type]:
     """Returns a collection of all subclasses (itself included)"""
 
     subclasses = [cls]
     for cls in subclasses:
         subclasses.extend(cls.__subclasses__())
 
-    return set(subclasses)
+    return frozenset(subclasses)
 
 
-def get_all_leaves_subclasses(cls: Type) -> Set[Type]:
+def get_all_leaves_subclasses(cls: Type) -> FrozenSet[Type]:
     """
     Returns a collection of all leaf subclasses (possibly included).  
     By leaf subclass we indend a subclass that has no subclasses of its own.
@@ -30,4 +30,4 @@ def get_all_leaves_subclasses(cls: Type) -> Set[Type]:
         else:
             to_check.extend(subclasses)
 
-    return set(leaves)
+    return frozenset(leaves)
