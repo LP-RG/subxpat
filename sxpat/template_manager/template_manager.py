@@ -14,7 +14,7 @@ import subprocess
 from sxpat.annotatedGraph import AnnotatedGraph
 import sxpat.config.config as sxpat_cfg
 import sxpat.config.paths as sxpat_paths
-from sxpat.specifications import EncodingType, Specifications, TemplateType
+from sxpat.specifications import EncodingType, Specifications, TemplateType, ConstantsType
 from .encoding import Encoding
 from sxpat.utils.collections import mapping_inv, pairwise_iter
 
@@ -239,7 +239,7 @@ class ProductTemplateManager(Z3TemplateManager):
         # is constant
         if node_name in self.current_constants.values():
             succs = list(self._current_graph.graph.successors(node_name))
-            if len(succs) == 1 and succs[0] in self._current_graph.output_dict.values():
+            if len(succs) == 1 and succs[0] in self._current_graph.output_dict.values() and self._specs.constants == ConstantsType.ALWAYS:
                 output_i = mapping_inv(self._current_graph.output_dict, succs[0])
                 return f'{sxpat_cfg.CONSTANT_PREFIX}{output_i}'
             else:
@@ -458,7 +458,7 @@ class SOPManager(ProductTemplateManager):
         # params_declaration and params_list
         params = list(itertools.chain(
             # constant outputs
-            self._generate_constants_parameters(),
+            self._generate_constants_parameters() if self._specs.constants == ConstantsType.ALWAYS else (),
             # output parameters
             (
                 self._output_parameter(output_i)
