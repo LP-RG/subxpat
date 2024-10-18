@@ -226,8 +226,6 @@ def explore_grid(specs_obj: Specifications):
                 stats_obj.grid.cells[lpp][ppo].store_model_info(best_model_info)
                 pprint.success(f'ErrorEval PASS! with total wce = {best_data[4]}')
 
-                synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
-
                 exact_stats = [synth_obj.estimate_area(exact_file_path),
                                synth_obj.estimate_power(exact_file_path),
                                synth_obj.estimate_delay(exact_file_path)]
