@@ -172,7 +172,14 @@ class Synthesis:
         if this_name is None:
             data = NameData.from_filename(self.benchmark_name)
             if data.is_origin:
-                data.root = f'{data.root}_{self.template_name}_enc{self.specs.encoding.value}'
+                data.root = '_'.join((
+                    data.root,
+                    self.template_name,
+                    f'et{self.specs.et}',
+                    f'enc{self.specs.encoding.value}',
+                    f'imax{self.specs.imax}',
+                    f'omax{self.specs.omax}',
+                ))
             this_name = str(data.get_successor(self.specs.iteration, id))
 
         folder, extenstion = this_path
