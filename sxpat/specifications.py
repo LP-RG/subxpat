@@ -25,6 +25,10 @@ class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
     SHARED = 'shared'
 
+class ConstantsType(enum.Enum):
+    NEVER = 'never'
+    OPTIMIZE = 'optimize'
+    ALWAYS = 'always'
 
 class EnumChoicesAction(argparse.Action):
     def __init__(self, *args, type: enum.Enum, **kwargs) -> None:
@@ -59,6 +63,7 @@ class Specifications:
     subxpat: bool
     template: TemplateType
     encoding: EncodingType
+    constants: ConstantsType
     wanted_models: int
     iteration: int = dc.field(init=False, default=None)  # rw
     # exploration (2)
@@ -217,6 +222,11 @@ class Specifications:
                                     default=1,
                                     help='Wanted number of models to generate for each step')
 
+        _consts = parser.add_argument('--constants',
+                                      type=ConstantsType,
+                                      action=EnumChoicesAction,
+                                      default=ConstantsType.NEVER,
+                                      help='The way we treat constants')
         # > error stuff
 
         _et = parser.add_argument('--max-error', '-e',

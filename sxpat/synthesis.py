@@ -16,7 +16,7 @@ from z_marco.utils import pprint, color
 from .annotatedGraph import AnnotatedGraph
 from .config import paths as sxpatpaths
 from .config import config as sxpatconfig
-from .specifications import Specifications, TemplateType
+from .specifications import Specifications, TemplateType, ConstantsType
 
 
 class Synthesis:
@@ -373,7 +373,7 @@ class Synthesis:
         # write constants that are not output constants
         for n_idx, n_name in self.graph.constant_dict.items():
             const_succs = list(self.graph.graph.successors(n_name))
-            if len(const_succs) == 1 and const_succs[0] in self.graph.output_dict.values():
+            if len(const_succs) == 1 and const_succs[0] in self.graph.output_dict.values() and self.__template_specs.constants == ConstantsType.ALWAYS:
                 # skip if it is a constant output
                 continue
 
@@ -694,7 +694,7 @@ class Synthesis:
             output_assigns = self.__output_assigns()
 
             #
-            json_model_constants_rewrite = self.__json_model_output_constants_assign(idx)
+            json_model_constants_rewrite = self.__json_model_output_constants_assign(idx) if self.__template_specs.constants == ConstantsType.ALWAYS else ''
 
             ver_str += (
                 module_signature
@@ -761,7 +761,7 @@ class Synthesis:
             json_model_and_subgraph_outputs_assigns = self.__json_model_lpp_and_subgraph_output_assigns(idx)
 
             #
-            json_model_constants_rewrite = self.__json_model_output_constants_assign(idx)
+            json_model_constants_rewrite = self.__json_model_output_constants_assign(idx) if self.__template_specs.constants == ConstantsType.ALWAYS else ''
 
             # 11. the intact assigns
             intact_assigns = self.__intact_part_assigns()
