@@ -1,9 +1,10 @@
 from __future__ import annotations
-from typing import Any, Mapping, Optional
+from typing import Optional
 from os import PathLike
 import dataclasses as dc
 
 import re
+from time import time_ns
 
 from Z3Log.config import path as z3logpath
 from sxpat.config.config import NameParameters
@@ -52,7 +53,7 @@ class NameData(PathLike):
     source_id: Optional[str] = None
     curr_id: Optional[str] = None
 
-    NAME_PATTERN = re.compile(r'(.+)_s(E|i\d+m\d+)_(i\d+m\d+)')
+    NAME_PATTERN = re.compile(r'(.+)_s(E|i\d+m\d+t\d+)_(i\d+m\d+t\d+)')
 
     def __post_init__(self):
         self.curr_id = self.curr_id or 'E'
@@ -65,7 +66,8 @@ class NameData(PathLike):
 
     @staticmethod
     def gen_id(iteration_number: int, model_number: int) -> str:
-        return f'i{iteration_number}m{model_number}'
+        timestamp = str(time_ns())[-15:]
+        return f'i{iteration_number}m{model_number}t{timestamp}'
 
     @property
     def is_origin(self) -> bool:
