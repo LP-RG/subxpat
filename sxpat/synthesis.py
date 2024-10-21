@@ -170,9 +170,25 @@ class Synthesis:
 
     def set_path(self, this_path: Tuple[str, str], this_name: Optional[str] = None, id: int = 0):
         if this_name is None:
+            # get data from name
             data = NameData.from_filename(self.benchmark_name)
+
+            # updte root if origin
             if data.is_origin:
-                data.root = f'{data.root}_{self.template_name}_enc{self.specs.encoding.value}'
+                data.root = '_'.join((
+                    data.root,
+                    self.template_name,
+                    f'et{self.specs.et}',
+                    f'enc{self.specs.encoding.value}',
+                    f'imax{self.specs.imax}',
+                    f'omax{self.specs.omax}',
+                ))
+            
+            # update et
+            ET_PATTERN = re.compile(r'_et\d+')
+            data.root = ET_PATTERN.sub(f'_et{self.specs.et}', data.root)
+
+            # generate successor path
             this_name = str(data.get_successor(self.specs.iteration, id))
 
         folder, extenstion = this_path
