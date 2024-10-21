@@ -182,6 +182,7 @@ class Synthesis:
                     f'enc{self.specs.encoding.value}',
                     f'imax{self.specs.imax}',
                     f'omax{self.specs.omax}',
+                    f'const{self.specs.constants.value}',
                 ))
             
             # update et
