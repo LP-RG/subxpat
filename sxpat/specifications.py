@@ -27,7 +27,6 @@ class TemplateType(enum.Enum):
 
 class ConstantsType(enum.Enum):
     NEVER = 'never'
-    OPTIMIZE = 'optimize'
     ALWAYS = 'always'
 
 class EnumChoicesAction(argparse.Action):
@@ -226,7 +225,7 @@ class Specifications:
                                       type=ConstantsType,
                                       action=EnumChoicesAction,
                                       default=ConstantsType.NEVER,
-                                      help='The way we treat constants')
+                                      help='The way constants are used')
         # > error stuff
 
         _et = parser.add_argument('--max-error', '-e',
