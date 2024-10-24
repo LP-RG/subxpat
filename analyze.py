@@ -2218,9 +2218,9 @@ def plot_report_best_area_for_local_global_et(args, best_per_local_global_et):
 # Others
 
 # MECALS ================================
-def get_mecals_area_error(args, folder):
+def get_mecals_area_error(args, folder, synth: bool = False):
     area_error: List[Tuple[float, int]] = []
-    relevant_files = _get_mecals_rel_files(args, folder)
+    relevant_files = _get_mecals_rel_files(args, folder, synth)
 
     if relevant_files:
         for rep in relevant_files:
@@ -2234,16 +2234,54 @@ def get_mecals_area_error(args, folder):
     else:
         return []
 
-def _get_mecals_rel_files(args, folder):
+def _get_mecals_rel_files(args, folder, synth: bool = False):
+    _fix_module_names(args, folder)
     # search the folder:
     if os.path.exists(folder):
         all_files = [f for f in os.listdir(folder)]
     else:
         return []
     relevant_files = []
+    file_wce_dict = {}
+
+
+    if not synth:
+
+        for file in all_files:
+            print(f'{file = }')
+            area_file = file[:-2] + '.area'
+            if not os.path.exists(f'{folder}/{area_file}') and file.endswith('.v') and not re.search('pdk45', file):
+                relevant_files.append(file)
+                input_file = f'{folder}/{file}'
+                temp_dir = f'{folder}'
+                report_dir = f'{folder}'
+                cur_wce = int(re.search('wce(\d+).', file).group(1))
+                file_wce_dict[file] = cur_wce
+                with open(f'{folder}/{file}', 'r') as f:
+                    content = f.readlines()
+                    if not content:
+                        continue
+                print(f'{cur_wce = }')
+                Synthesis.area(input_file, temp_dir, report_dir)
+
+
+
+        all_areas = [f for f in os.listdir(folder)]
+        print(f'{file_wce_dict = }')
+        print(f'{all_areas = }')
+
+        for area in all_areas:
+            if area.endswith('.area') and not re.search(r'_wce\d+', area):
+                base_name = area.replace('.area', '')
+                for file in file_wce_dict.keys():
+                    if file.startswith(base_name):
+                        os.rename(f'{folder}/{area}', f'{folder}/{base_name}_wce{file_wce_dict[file]}.area')
+    relevant_files = []
+    all_files = [f for f in os.listdir(folder)]
     for file in all_files:
-        if re.search(args.benchmark_name, file) and file.endswith('.area'):
+        if file.endswith('.area'):
             relevant_files.append(file)
+
     return relevant_files
 
 
