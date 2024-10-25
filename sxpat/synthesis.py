@@ -390,7 +390,7 @@ class Synthesis:
         # write constants that are not output constants
         for n_idx, n_name in self.graph.constant_dict.items():
             const_succs = list(self.graph.graph.successors(n_name))
-            if len(const_succs) == 1 and const_succs[0] in self.graph.output_dict.values() and self.specs.constants == ConstantsType.ALWAYS:
+            if len(const_succs) == 1 and const_succs[0] in self.graph.output_dict.values() and self.specs.use_constants:
                 # skip if it is a constant output
                 continue
 
@@ -711,7 +711,7 @@ class Synthesis:
             output_assigns = self.__output_assigns()
 
             #
-            json_model_constants_rewrite = self.__json_model_output_constants_assign(idx) if self.specs.constants == ConstantsType.ALWAYS else ''
+            json_model_constants_rewrite = self.__json_model_output_constants_assign(idx) if self.specs.use_constants else ''
 
             ver_str += (
                 module_signature
@@ -778,7 +778,7 @@ class Synthesis:
             json_model_and_subgraph_outputs_assigns = self.__json_model_lpp_and_subgraph_output_assigns(idx)
 
             #
-            json_model_constants_rewrite = self.__json_model_output_constants_assign(idx) if self.specs.constants == ConstantsType.ALWAYS else ''
+            json_model_constants_rewrite = self.__json_model_output_constants_assign(idx) if self.specs.use_constants else ''
 
             # 11. the intact assigns
             intact_assigns = self.__intact_part_assigns()

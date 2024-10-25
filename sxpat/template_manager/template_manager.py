@@ -239,7 +239,7 @@ class ProductTemplateManager(Z3TemplateManager):
         # is constant
         if node_name in self.current_constants.values():
             succs = list(self._current_graph.graph.successors(node_name))
-            if len(succs) == 1 and succs[0] in self._current_graph.output_dict.values() and self._specs.constants == ConstantsType.ALWAYS:
+            if len(succs) == 1 and succs[0] in self._current_graph.output_dict.values() and self._specs.use_constants:
                 output_i = mapping_inv(self._current_graph.output_dict, succs[0])
                 return f'{sxpat_cfg.CONSTANT_PREFIX}{output_i}'
             else:
@@ -458,7 +458,7 @@ class SOPManager(ProductTemplateManager):
         # params_declaration and params_list
         params = list(itertools.chain(
             # constant outputs
-            self._generate_constants_parameters() if self._specs.constants == ConstantsType.ALWAYS else (),
+            self._generate_constants_parameters() if self._specs.use_constants else (),
             # output parameters
             (
                 self._output_parameter(output_i)
