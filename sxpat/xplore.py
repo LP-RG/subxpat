@@ -10,7 +10,7 @@ import networkx as nx
 from Z3Log.config import path as z3logpath
 
 from sxpat.labeling import labeling_explicit
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
+from sxpat.specifications import ConstantsMode, Specifications, TemplateType, ErrorPartitioningType
 from sxpat.config.paths import *
 from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
@@ -136,7 +136,7 @@ def explore_grid(specs_obj: Specifications):
             # update the context
             update_context(specs_obj, lpp, ppo)
 
-            # run script
+            # run solver
             manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
             start_time = time.time()
             results = manager.run()
@@ -226,6 +226,54 @@ def explore_grid(specs_obj: Specifications):
                 stats_obj.grid.cells[lpp][ppo].store_model_info(best_model_info)
                 pprint.success(f'ErrorEval PASS! with total wce = {best_data[4]}')
 
+                # use the constants to minimize the error
+                if specs_obj.constants_mode is ConstantsMode.OPTIMIZE:
+                    # set state
+                    specs_obj.use_constants = True
+
+                    # load initial graph
+                    graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
+
+                    # minimize error
+                    error_threshold = best_data[4]
+                    while True:
+                        # update specifications
+                        specs_obj.et = error_threshold - 1
+
+                        # run solver
+                        manager = TemplateManager.factory(specs_obj, exact_graph, graph)
+                        results = manager.run()
+
+                        if results[0].status != SAT:
+                            break
+
+                        # synthesize model
+                        synth_obj = Synthesis(specs_obj, graph, [res.model for res in results])
+                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id='CC')
+                        synth_obj.export_verilog()
+                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
+                        verilog_filename = synth_obj.ver_out_name
+
+                        # compute actual error
+                        error_threshold = erroreval_verification_wce(specs_obj.exact_benchmark, verilog_filename)
+
+                        # load graph for next iteration
+                        graph = AnnotatedGraph(verilog_filename, is_clean=False)
+
+                    # store result
+                    cur_model_results[verilog_filename] = [
+                        best_data[0],
+                        best_data[1],
+                        best_data[2],
+                        best_data[3],
+                        error_threshold,
+                        erroreval_verification_wce(specs_obj.current_benchmark, verilog_filename)
+                    ]
+
+                    # revert state
+                    specs_obj.use_constants = False
+
+                # 
                 exact_stats = [synth_obj.estimate_area(exact_file_path),
                                synth_obj.estimate_power(exact_file_path),
                                synth_obj.estimate_delay(exact_file_path)]
