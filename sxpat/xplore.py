@@ -252,7 +252,7 @@ def explore_grid(specs_obj: Specifications):
                         synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id='CC')
                         synth_obj.export_verilog()
                         synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
-                        verilog_filename = synth_obj.ver_out_name
+                        verilog_filename = synth_obj.ver_out_name[:-2]
 
                         # compute actual error
                         error_threshold = erroreval_verification_wce(specs_obj.exact_benchmark, verilog_filename)
