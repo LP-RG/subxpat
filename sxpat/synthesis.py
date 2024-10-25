@@ -16,7 +16,7 @@ from z_marco.utils import pprint, color
 from .annotatedGraph import AnnotatedGraph
 from .config import paths as sxpatpaths
 from .config import config as sxpatconfig
-from .specifications import Specifications, TemplateType, ConstantsType
+from .specifications import Specifications, TemplateType, ConstantsMode
 
 
 class Synthesis:
@@ -182,10 +182,10 @@ class Synthesis:
                     f'enc{self.specs.encoding.value}',
                     f'imax{self.specs.imax}',
                     f'omax{self.specs.omax}',
-                    f'const{self.specs.constants.value}',
+                    f'const{self.specs.constants_mode.value}',
                 ))
             
-            # update et
+            # update inline data
             ET_PATTERN = re.compile(r'_et\d+')
             data.root = ET_PATTERN.sub(f'_et{self.specs.et}', data.root)
 

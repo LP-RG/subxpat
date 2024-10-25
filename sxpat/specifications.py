@@ -25,8 +25,9 @@ class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
     SHARED = 'shared'
 
-class ConstantsType(enum.Enum):
+class ConstantsMode(enum.Enum):
     NEVER = 'never'
+    OPTIMIZE = 'optimize'
     ALWAYS = 'always'
 
 class EnumChoicesAction(argparse.Action):
@@ -62,7 +63,8 @@ class Specifications:
     subxpat: bool
     template: TemplateType
     encoding: EncodingType
-    constants: ConstantsType
+    use_constants: bool #rw 
+    constants_mode: ConstantsMode
     wanted_models: int
     iteration: int = dc.field(init=False, default=None)  # rw
     # exploration (2)
@@ -221,10 +223,10 @@ class Specifications:
                                     default=1,
                                     help='Wanted number of models to generate for each step')
 
-        _consts = parser.add_argument('--constants',
-                                      type=ConstantsType,
+        _consts = parser.add_argument('--constants-mode',
+                                      type=ConstantsMode,
                                       action=EnumChoicesAction,
-                                      default=ConstantsType.NEVER,
+                                      default=ConstantsMode.NEVER,
                                       help='The way constants are used')
         # > error stuff
 
@@ -270,6 +272,7 @@ class Specifications:
         # custom defaults
         if raw_args.current_benchmark is None:
             raw_args.current_benchmark = raw_args.exact_benchmark
+        raw_args.use_constants = raw_args.constants_mode is ConstantsMode.ALWAYS
 
         # define dependencies
         dependencies: Dict[Tuple[argparse.Action, Optional[Any]], List[argparse.Action]] = defaultdict(list)
