@@ -339,8 +339,9 @@ def optimize_constants(specs_obj: Specifications, initial_error_threshold: int) 
 
     graph.extract_subgraph(specs_obj)
 
-    # save old state
-    old_extraction_mode = specs_obj.extraction_mode
+    # save original state
+    original_extraction_mode = specs_obj.extraction_mode
+    original_et = specs_obj.et
     # set new state
     specs_obj.use_constants = True
     specs_obj.extraction_mode = -1
@@ -379,7 +380,8 @@ def optimize_constants(specs_obj: Specifications, initial_error_threshold: int) 
 
     # revert state
     specs_obj.use_constants = False
-    specs_obj.extraction_mode = old_extraction_mode
+    specs_obj.extraction_mode = original_extraction_mode
+    specs_obj.et = original_et
 
     return (verilog_filename, error_threshold)
 
