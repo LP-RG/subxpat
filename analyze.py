@@ -49,15 +49,8 @@ def main():
 
     # uncomment for constant vs no constants available
     area_error_per_constants = get_subgraph_area_per_mode_num_models_and_imax_omax_constants(rel_files,folder)
-    print(f'{ area_error_per_constants = }')
-
-    # plot_area_constants_vs_no_constants(args, area_error_per_imax_omax_per_num_models_mode, area_error_per_constants,
-    #                                     None, None, None, None)
-    print(f'{mecals_area_error = }')
-    print(f'{muscat_area_error = }')
     plot_area_constants_vs_no_constants(args, area_error_per_imax_omax_per_num_models_mode, area_error_per_constants, mecals_area_error, evoapprox_area_error, muscat_area_error, blasys_area_error)
-    #
-    print(f'Blah Blah')
+    plot_scatter_area_constants_vs_no_constants(args, area_error_per_imax_omax_per_num_models_mode, area_error_per_constants, mecals_area_error, evoapprox_area_error, muscat_area_error, blasys_area_error)
     exit()
 
 
@@ -1454,6 +1447,162 @@ def plot_area_error_per_omax(args, area_error_mode_per_grid_dict: Dict, mecals_a
     plt.savefig(figname)
 
 
+def plot_scatter_area_constants_vs_no_constants(args, area_error_per_imax_omax_per_mode = None, area_error_constants = None, mecals_area_error = None,
+                                     evoapprox_area_error = None,
+                                     muscat_area_error = None,
+                                     blasys_area_error = None):
+    fig, ax = plt.subplots(figsize=(14, 10))
+
+
+    max_error = 2 ** (int(re.search('_o(\d+)', args.benchmark_name).group(1)) - 1)
+    x_threshold = max_error // 8
+    all_local_ets = []
+    all_global_ets = []
+    all_areas = []
+
+    subxpat_never_points = []
+    suxpat_always_points = []
+
+
+    for mode, num_models_dict in area_error_per_imax_omax_per_mode.items():
+        for num_models, imax_omax_dict in num_models_dict.items():
+            for (imax, omax), et_dict in imax_omax_dict.items():
+                for global_et, area_local_et_list in et_dict.items():
+                    areas, local_ets = zip(*area_local_et_list)
+                    all_local_ets.extend(local_ets)
+                    all_global_ets.append(global_et)
+
+
+
+
+    if area_error_per_imax_omax_per_mode:
+        for mode, num_models_dict in area_error_per_imax_omax_per_mode.items():
+            for num_models, imax_omax_dict in num_models_dict.items():
+                for (imax, omax), et_dict in imax_omax_dict.items():
+                    for global_et, area_local_et_list in et_dict.items():
+                        for point in area_local_et_list:
+                            subxpat_never_points.append(point)
+
+        subxpat_never_points = [item for item in subxpat_never_points if x_threshold <= item[1] <= max_error]
+        areas = [item[0] for item in subxpat_never_points]
+        errors = [item[1] for item in subxpat_never_points]
+        assert len(areas) == len(errors)
+        ax.scatter(errors, areas, marker= 'o', label='SubXPAT (never)', color='blue', alpha=0.4, s=100)
+
+    if area_error_constants:
+        for mode, num_models_dict in area_error_constants.items():
+            for num_models, imax_omax_dict in num_models_dict.items():
+                for (imax, omax), et_dict in imax_omax_dict.items():
+                    for global_et, area_local_et_list in et_dict.items():
+                        for point in area_local_et_list:
+                            suxpat_always_points.append(point)
+        suxpat_always_points = [item for item in suxpat_always_points if x_threshold <= item[1] <= max_error]
+        areas = [item[0] for item in suxpat_always_points]
+        errors = [item[1] for item in suxpat_always_points]
+
+
+        ax.scatter(errors, areas, marker='x', label='SubXPAT (always)', color='purple', alpha=0.4, s=200)
+
+
+    if muscat_area_error:
+
+        muscat_number_of_models_array = list(muscat_area_error.keys())
+        muscat_colors = {
+            1: 'green',
+            10: 'olive',
+            50: 'orange',
+            100: 'lawngreen'
+        }
+        muscat_size = {
+            1: 16,
+            10: 14,
+            50: 12,
+            100: 10
+        }
+        for nm in muscat_number_of_models_array:
+            muscat_area_error_pareto = _extract_pareto_front_muscat(muscat_area_error[nm])
+            muscat_area_error_pareto = [item for item in muscat_area_error_pareto if
+                                        x_threshold <= item[1] <= max_error]
+
+            muscat_areas = [item[0] for item in muscat_area_error_pareto]
+            muscat_errors = [item[1] for item in muscat_area_error_pareto]
+            all_areas.extend(muscat_areas)
+            ax.plot(muscat_errors, muscat_areas, 'd--', label=f'MUSCAT {nm} models', color=muscat_colors[nm],
+                    markersize=muscat_size[nm])
+    if mecals_area_error:
+        mecals_area_error = [item for item in mecals_area_error if item[1] >= x_threshold]
+
+        mecals_areas = [item[0] for item in mecals_area_error]
+        mecals_errors = [item[1] for item in mecals_area_error]
+        all_areas.extend(mecals_areas)
+        ax.plot(mecals_errors, mecals_areas, 's--', label='MECALS', color='black', markersize=10)
+    if blasys_area_error:
+        blasys_area_error_pareto = _extract_pareto_front_blasys(blasys_area_error)
+        blasys_area_error_pareto = [(area, wae) for area, wae in blasys_area_error_pareto if
+                                    x_threshold <= wae <= max_error]
+
+        # blasys_areas = [item[0] for item in blasys_area_error_pareto]
+        # blasys_errors = [item[1] for item in blasys_area_error_pareto]
+        blasys_areas = []
+        blasys_errors = []
+        for area, wae in blasys_area_error_pareto:
+            if wae < muscat_errors[-1]:
+                blasys_errors.append(wae)
+                blasys_areas.append(area)
+
+        all_areas.extend(blasys_areas)
+        # ax.plot(blasys_errors, blasys_areas, 'x--', label='BLASYS', color='violet', markersize=10)
+
+        # zero expansion of the line
+        zero_exapnsion_errors = []
+        for idx, error in enumerate(blasys_errors):
+            if blasys_areas[idx] == 0:
+                zero_exapnsion_errors.append(error)
+        zero_exapnsion_errors.append(max_error)
+        ax.plot(zero_exapnsion_errors, [0] * len(zero_exapnsion_errors), '--', color='violet', markersize=14)
+
+
+
+    if evoapprox_area_error:
+        evoapprox_area_error = [item for item in evoapprox_area_error if x_threshold <= item[1] <= max_error]
+
+        evoapprox_areas = [item[0] for item in evoapprox_area_error]
+        evoapprox_errors = [item[1] for item in evoapprox_area_error]
+        all_areas.extend(evoapprox_areas)
+        ax.plot(evoapprox_errors, evoapprox_areas, '^--', label='EVOApprox', color='red', markersize=10)
+
+        # zero expansion of the line
+        zero_exapnsion_errors = []
+        for idx, error in enumerate(evoapprox_errors):
+            if evoapprox_areas[idx] == 0:
+                zero_exapnsion_errors.append(error)
+        zero_exapnsion_errors.append(max_error)
+        ax.plot(zero_exapnsion_errors, [0] * len(zero_exapnsion_errors), '--', color='red')
+
+    # Set labels and title
+    ax.set_xlabel('ET', fontsize=24)
+    ax.set_ylabel(r'Area ($\mu m^2$)', fontsize=24)
+    plt.yticks(fontsize=24)
+    plt.xticks(fontsize=22)
+    # ax.set_title(f'{args.benchmark_name}', fontsize=26)
+    ax.legend(fontsize=24)
+    if all_global_ets[-1] > 1024:
+        plt.xticks(rotation=30)
+    # Set x-ticks to be the unique Local ET values
+
+    # ax.set_xticks(all_global_ets)
+    ax.set_xticks(list(range(max_error // 8, max_error + max_error // 8, max_error // 8)))
+
+    # ax.set_xticklabels(all_global_ets)
+    plt.tight_layout()
+
+    plt.grid(True)
+    folder, _ = OUTPUT_PATH['figure']
+
+    figname = f'{folder}/{args.benchmark_name}_constants_scatter.png'
+    plt.savefig(figname)
+
+
 def plot_area_constants_vs_no_constants(args, area_error_per_imax_omax_per_mode = None, area_error_constants = None, mecals_area_error = None,
                                      evoapprox_area_error = None,
                                      muscat_area_error = None,
@@ -1463,7 +1612,6 @@ def plot_area_constants_vs_no_constants(args, area_error_per_imax_omax_per_mode 
 
     max_error = 2 ** (int(re.search('_o(\d+)', args.benchmark_name).group(1)) - 1)
     x_threshold = max_error // 8
-    print(f'{x_threshold = }')
     all_local_ets = []
     all_global_ets = []
     all_areas = []
@@ -1478,8 +1626,8 @@ def plot_area_constants_vs_no_constants(args, area_error_per_imax_omax_per_mode 
                     all_global_ets.append(global_et)
     if area_error_per_imax_omax_per_mode:
         pareto_points = _extract_pareto_front_from_mode_imax_omax_num_models(area_error_per_imax_omax_per_mode)
-        # pareto_points = [item for item in pareto_points if x_threshold - 1 <= item[1] <= max_error]
-        pareto_points = [item for item in pareto_points if item[1] ]
+        pareto_points = [item for item in pareto_points if x_threshold  <= item[1] <= max_error]
+        # pareto_points = [item for item in pareto_points if item[1] ]
         pareto_area = [item[0] for item in pareto_points]
         pareto_error = [item[1] for item in pareto_points]
         ax.plot(pareto_error, pareto_area, 'o--', label='SubXPAT', color='blue', markersize=10)
@@ -1492,6 +1640,7 @@ def plot_area_constants_vs_no_constants(args, area_error_per_imax_omax_per_mode 
         ax.plot(zero_exapnsion_errors, [0] * len(zero_exapnsion_errors), '--', color='blue', linewidth=3)
 
     if muscat_area_error:
+
         muscat_number_of_models_array = list(muscat_area_error.keys())
         muscat_colors = {
             1: 'green',
@@ -1546,24 +1695,16 @@ def plot_area_constants_vs_no_constants(args, area_error_per_imax_omax_per_mode 
             if blasys_areas[idx] == 0:
                 zero_exapnsion_errors.append(error)
         zero_exapnsion_errors.append(max_error)
-        ax.plot(zero_exapnsion_errors, [0] * len(zero_exapnsion_errors), '--', color='violet', markersize=14)
+        # ax.plot(zero_exapnsion_errors, [0] * len(zero_exapnsion_errors), '--', color='violet', markersize=14)
 
     if area_error_constants:
-        for mode in area_error_constants.keys():
-            print(f'{mode = }')
-            for nm in area_error_constants[mode].keys():
-                print(f'{nm = }')
-                for (imax, omax) in area_error_constants[mode][nm].keys():
-                    print(f'{(imax, omax) = }')
         pareto_points = _extract_pareto_front_from_mode_imax_omax_num_models(area_error_constants)
-        print(f'{pareto_points = }')
-        # pareto_points = [item for item in pareto_points if x_threshold - 1 <= item[1] <= max_error]
-        pareto_points = [item for item in pareto_points if item[1]]
+        pareto_points = [item for item in pareto_points if x_threshold  <= item[1] <= max_error]
+        # pareto_points = [item for item in pareto_points if item[1]]
         pareto_area = [item[0] for item in pareto_points]
 
 
         pareto_error = [item[1] for item in pareto_points]
-        print(f'{pareto_error = }')
         ax.plot(pareto_error, pareto_area, 'X--', label='SubXPAT-Constants', color='purple', markersize=14, alpha=0.8)
         # zero expansion of the line
         zero_exapnsion_errors = []
@@ -1597,13 +1738,11 @@ def plot_area_constants_vs_no_constants(args, area_error_per_imax_omax_per_mode 
     plt.xticks(fontsize=22)
     # ax.set_title(f'{args.benchmark_name}', fontsize=26)
     ax.legend(fontsize=24)
-    print(f'{all_global_ets = }')
     if all_global_ets[-1] > 1024:
         plt.xticks(rotation=30)
     # Set x-ticks to be the unique Local ET values
 
     # ax.set_xticks(all_global_ets)
-    print(f'{max_error = }')
     ax.set_xticks(list(range(max_error // 8, max_error + max_error // 8, max_error // 8)))
 
     # ax.set_xticklabels(all_global_ets)
@@ -1666,11 +1805,6 @@ def plot_area_per_mode_and_imax_omax(args, area_error_per_imax_omax_per_mode, me
         muscat_areas = [item[0] for item in muscat_area_error_pareto]
         muscat_errors = [item[1] for item in muscat_area_error_pareto]
         ax.plot(muscat_errors, muscat_areas, 'd--', label='MUSCAT', color='green', markersize=10)
-    # if blasys_area_error:
-    #     blasys_area_error_pareto = _extract_pareto_front_blasys(blasys_area_error)
-    #     blasys_areas = [item[0] for item in blasys_area_error_pareto]
-    #     blasys_errors = [item[1] for item in blasys_area_error_pareto]
-    #     ax.plot(blasys_errors, blasys_areas, 'x--', label='BLASYS', color='violet', markersize=10)
 
     ax.set_xlabel('ET', fontsize=24)
     ax.set_ylabel(r'Area ($\mu m^2$)', fontsize=24)
@@ -1990,7 +2124,6 @@ def plot_area_per_mode_and_imax_omax_pareto(args, area_error_per_imax_omax_per_m
             all_areas.extend(muscat_areas)
             ax.plot(muscat_errors, muscat_areas, 'd--', label=f'MUSCAT {nm} models', color = muscat_colors[nm], markersize=10)
     if mecals_area_error:
-        print(f'{mecals_area_error = }')
         mecals_area_error = [item for item in mecals_area_error if item[1] >= (x_threshold - 1)]
 
         mecals_areas = [item[0] for item in mecals_area_error]
@@ -2248,7 +2381,6 @@ def _get_mecals_rel_files(args, folder, synth: bool = False):
     if not synth:
 
         for file in all_files:
-            print(f'{file = }')
             area_file = file[:-2] + '.area'
             if not os.path.exists(f'{folder}/{area_file}') and file.endswith('.v') and not re.search('pdk45', file):
                 relevant_files.append(file)
@@ -2261,14 +2393,11 @@ def _get_mecals_rel_files(args, folder, synth: bool = False):
                     content = f.readlines()
                     if not content:
                         continue
-                print(f'{cur_wce = }')
                 Synthesis.area(input_file, temp_dir, report_dir)
 
 
 
         all_areas = [f for f in os.listdir(folder)]
-        print(f'{file_wce_dict = }')
-        print(f'{all_areas = }')
 
         for area in all_areas:
             if area.endswith('.area') and not re.search(r'_wce\d+', area):
