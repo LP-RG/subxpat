@@ -14,7 +14,7 @@ import subprocess
 from sxpat.annotatedGraph import AnnotatedGraph
 import sxpat.config.config as sxpat_cfg
 import sxpat.config.paths as sxpat_paths
-from sxpat.specifications import EncodingType, Specifications, TemplateType, ConstantsType
+from sxpat.specifications import EncodingType, Specifications, TemplateType
 from .encoding import Encoding
 from sxpat.utils.collections import mapping_inv, pairwise_iter
 

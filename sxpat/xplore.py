@@ -232,7 +232,7 @@ def explore_grid(specs_obj: Specifications):
                     specs_obj.use_constants = True
 
                     # load initial graph
-                    graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
+                    graph = AnnotatedGraph(specs_obj.current_benchmark[:-2], is_clean=False)
 
                     # minimize error
                     error_threshold = best_data[4]
