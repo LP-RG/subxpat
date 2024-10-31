@@ -229,7 +229,7 @@ def explore_grid(specs_obj: Specifications):
                 obtained_wce_exact = best_data[4]
                 prev_actual_error = best_data[5]
 
-                specs_obj.current_benchmark = best_name
+                specs_obj.current_benchmark = best_name[:-2]
                 best_model_info = Model(id=0,
                                         status=cur_status.upper(),
                                         cell=(lpp, ppo),
@@ -249,52 +249,19 @@ def explore_grid(specs_obj: Specifications):
 
                 # use the constants to minimize the error
                 if specs_obj.constants_mode is ConstantsMode.OPTIMIZE:
-                    # set state
-                    specs_obj.use_constants = True
 
-                    # load initial graph
-                    graph = AnnotatedGraph(specs_obj.current_benchmark[:-2], is_clean=False)
-                    graph.subgraph = graph.get_empty_subgraph()
-
-                    # minimize error
-                    error_threshold = best_data[4]
-                    while True:
-                        # update specifications
-                        specs_obj.et = error_threshold - 1
-
-                        # run solver
-                        manager = TemplateManager.factory(specs_obj, exact_graph, graph)
-                        results = manager.run()
-
-                        if results[0].status != SAT:
-                            break
-
-                        # synthesize model
-                        synth_obj = Synthesis(specs_obj, graph, [res.model for res in results])
-                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id='CC')
-                        synth_obj.export_verilog()
-                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
-                        verilog_filename = synth_obj.ver_out_name[:-2]
-
-                        # compute actual error
-                        error_threshold = erroreval_verification_wce(specs_obj.exact_benchmark, verilog_filename)
-
-                        # load graph for next iteration
-                        graph = AnnotatedGraph(verilog_filename, is_clean=False)
-                        graph.subgraph = graph.get_empty_subgraph()
+                    verilog_filename, error_threshold = optimize_constants(specs_obj, best_data[4])
 
                     # store result
-                    cur_model_results[verilog_filename] = [
-                        best_data[0],
-                        best_data[1],
-                        best_data[2],
-                        best_data[3],
-                        error_threshold,
-                        erroreval_verification_wce(specs_obj.current_benchmark, verilog_filename)
-                    ]
-
-                    # revert state
-                    specs_obj.use_constants = False
+                    if verilog_filename is not None:
+                        cur_model_results[verilog_filename] = [
+                            best_data[0],
+                            best_data[1],
+                            best_data[2],
+                            best_data[3],
+                            error_threshold,
+                            erroreval_verification_wce(specs_obj.current_benchmark, verilog_filename)
+                        ]
 
                 #
                 exact_stats = [synth_obj.estimate_area(exact_file_path),
@@ -361,6 +328,60 @@ def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, in
 def update_context(specs_obj: Specifications, lpp: int, ppo: int):
     specs_obj.lpp = lpp
     specs_obj.ppo = specs_obj.pit = ppo
+
+
+def optimize_constants(specs_obj: Specifications, initial_error_threshold: int) -> Tuple[str, int]:
+    # load initial graph
+    exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False)
+    graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
+    if graph.num_gates == 0:
+        return (None, None)
+
+    graph.extract_subgraph(specs_obj)
+
+    # save old state
+    old_extraction_mode = specs_obj.extraction_mode
+    # set new state
+    specs_obj.use_constants = True
+    specs_obj.extraction_mode = -1
+
+    print("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBb")
+    print(specs_obj.extraction_mode)
+    print("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBb")
+
+    # minimize error
+    error_threshold = initial_error_threshold
+    verilog_filename = specs_obj.current_benchmark
+    while True:
+        # update specifications
+        specs_obj.et = error_threshold - 1
+
+        # run solver
+        manager = TemplateManager.factory(specs_obj, exact_graph, graph)
+        results = manager.run()
+
+        if results[0].status != SAT:
+            break
+
+        # synthesize model
+        synth_obj = Synthesis(specs_obj, graph, [res.model for res in results])
+        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id='CC')
+        synth_obj.export_verilog()
+        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
+        verilog_filename = synth_obj.ver_out_name[:-2]
+
+        # compute actual error
+        error_threshold = erroreval_verification_wce(specs_obj.exact_benchmark, verilog_filename)
+
+        # load graph for next iteration
+        graph = AnnotatedGraph(verilog_filename, is_clean=False)
+        graph.extract_subgraph(specs_obj)
+
+    # revert state
+    specs_obj.use_constants = False
+    specs_obj.extraction_mode = old_extraction_mode
+
+    return (verilog_filename, error_threshold)
 
 
 def print_current_model(sorted_models: List[Tuple[str, List]], normalize: bool = True, exact_stats: List = None) -> None:

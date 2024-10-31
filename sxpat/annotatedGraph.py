@@ -230,7 +230,10 @@ class AnnotatedGraph(Graph):
             return False
         else:
             if specs_obj.requires_subgraph_extraction:
-                if specs_obj.extraction_mode == 1:
+                if specs_obj.extraction_mode == -1:
+                    self.subgraph = self.get_empty_subgraph()
+
+                elif specs_obj.extraction_mode == 1:
                     pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
                     self.subgraph = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
                     cnt_nodes = 0
@@ -333,14 +336,15 @@ class AnnotatedGraph(Graph):
                             f"Partition with omax={specs_obj.omax} and soft feasibility constraints on subgraph outputs. Looking for largest partition")
                         self.subgraph = self.find_subgraph_feasible_soft_outputs(
                             specs_obj)  # Critian's subgraph extraction
-                    cnt_nodes = 0
-                    for gate_idx in self.gate_dict:
-                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                            cnt_nodes += 1
                 else:
                     raise Exception('invalid extraction mode!')
             else:
-                self.subgraph = self.entire_graph()
+                self.subgraph = self.get_full_subgraph()
+
+
+            print("AAAAAAAAAAAAAAAAAAAAAAAA")
+            print(specs_obj.use_constants)
+            print("AAAAAAAAAAAAAAAAAAAAAAAA")
 
             # Set new name for the subgraph
             self.subgraph_out_path = self.get_subgraph_path(specs_obj)
@@ -647,15 +651,6 @@ class AnnotatedGraph(Graph):
             else:
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
-
-    def get_empty_subgraph(self) -> nx.DiGraph:
-        tmp_graph: nx.DiGraph = self.graph.copy(as_view=False)
-
-        for gate_idx in self.gate_dict:
-            tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-            tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-
         return tmp_graph
 
     def find_subgraph_sensitivity(self, specs_obj: Specifications):
@@ -2782,11 +2777,19 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
-    def entire_graph(self):
-        tmp_graph = self.graph.copy()
+    def get_empty_subgraph(self) -> nx.DiGraph:
+        tmp_graph: nx.DiGraph = self.graph.copy()
 
         for gate_idx in self.gate_dict:
+            tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
+            tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
 
+        return tmp_graph
+
+    def get_full_subgraph(self):
+        tmp_graph: nx.DiGraph = self.graph.copy()
+
+        for gate_idx in self.gate_dict:
             tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
             tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
 
@@ -3008,7 +3011,6 @@ class AnnotatedGraph(Graph):
         :return: a dictionary; ex: subgraph_output_dict = {gate_idx0: gate_label0, ..., gate_idxn: gate_labeln}
         """
         tmp_output_dict: Dict[int, str] = {}
-        graph_gate_list: List[str] = list(self.gate_dict.values())
         idx = 0
         for n in self.subgraph.nodes:
             if self.is_subgraph_output(n):
