@@ -649,6 +649,15 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
         return tmp_graph
 
+    def get_empty_subgraph(self) -> nx.DiGraph:
+        tmp_graph: nx.DiGraph = self.graph.copy(as_view=False)
+
+        for gate_idx in self.gate_dict:
+            tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
+            tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
+
+        return tmp_graph
+
     def find_subgraph_sensitivity(self, specs_obj: Specifications):
         """
         extracts a colored subgraph from the original non-partitioned graph object

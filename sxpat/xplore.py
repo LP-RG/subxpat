@@ -233,6 +233,7 @@ def explore_grid(specs_obj: Specifications):
 
                     # load initial graph
                     graph = AnnotatedGraph(specs_obj.current_benchmark[:-2], is_clean=False)
+                    graph.subgraph = graph.get_empty_subgraph()
 
                     # minimize error
                     error_threshold = best_data[4]
@@ -259,6 +260,7 @@ def explore_grid(specs_obj: Specifications):
 
                         # load graph for next iteration
                         graph = AnnotatedGraph(verilog_filename, is_clean=False)
+                        graph.subgraph = graph.get_empty_subgraph()
 
                     # store result
                     cur_model_results[verilog_filename] = [
@@ -273,7 +275,7 @@ def explore_grid(specs_obj: Specifications):
                     # revert state
                     specs_obj.use_constants = False
 
-                # 
+                #
                 exact_stats = [synth_obj.estimate_area(exact_file_path),
                                synth_obj.estimate_power(exact_file_path),
                                synth_obj.estimate_delay(exact_file_path)]
