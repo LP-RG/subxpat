@@ -376,6 +376,8 @@ def optimize_constants(specs_obj: Specifications, initial_error_threshold: int) 
 
         # load graph for next iteration
         graph = AnnotatedGraph(verilog_filename, is_clean=False)
+        if graph.num_gates == 0:
+            break
         graph.extract_subgraph(specs_obj)
 
     # revert state
