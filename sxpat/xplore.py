@@ -354,6 +354,7 @@ def optimize_constants(specs_obj: Specifications, initial_error_threshold: int) 
     error_threshold = initial_error_threshold
     verilog_filename = specs_obj.current_benchmark
     while True:
+        print("Start of the consant loop")
         # update specifications
         specs_obj.et = error_threshold - 1
 
@@ -379,6 +380,7 @@ def optimize_constants(specs_obj: Specifications, initial_error_threshold: int) 
         if graph.num_gates == 0:
             break
         graph.extract_subgraph(specs_obj)
+        print("End of the consant loop")
 
     # revert state
     specs_obj.use_constants = False
