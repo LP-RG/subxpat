@@ -354,7 +354,7 @@ def optimize_constants(specs_obj: Specifications, initial_error_threshold: int) 
     error_threshold = initial_error_threshold
     verilog_filename = specs_obj.current_benchmark
     while True:
-        print("Start of the consant loop")
+        print("Start of the constant loop")
         # update specifications
         specs_obj.et = error_threshold - 1
 
@@ -378,9 +378,10 @@ def optimize_constants(specs_obj: Specifications, initial_error_threshold: int) 
         # load graph for next iteration
         graph = AnnotatedGraph(verilog_filename, is_clean=False)
         if graph.num_gates == 0:
+            print('Exiting of the constant loop because graph.num_gates == 0')
             break
         graph.extract_subgraph(specs_obj)
-        print("End of the consant loop")
+        print("End of the constant loop")
 
     # revert state
     specs_obj.use_constants = False

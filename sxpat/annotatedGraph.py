@@ -1878,7 +1878,8 @@ class AnnotatedGraph(Graph):
         omax = specs_obj.omax
         imax = specs_obj.imax
         feasibility_threshold = specs_obj.et
-
+        
+        set_param('sat.random_seed', 42)
         opt = Optimize()
 
         Node = Datatype('Node')
