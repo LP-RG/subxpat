@@ -87,6 +87,7 @@ while (len(found_data) < wanted_models and timeout > 0):
 		time_parameters_start = time_attempt_start
 
 		# solver used to get a set of parameters
+		set_param('sat.random_seed', 42)
 		forall_solver = {{{{solver}}}}
 		forall_solver.add(ForAll(
 			[{{{{inputs}}}}],
