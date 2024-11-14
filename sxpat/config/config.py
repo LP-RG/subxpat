@@ -199,7 +199,7 @@ BLASYS = 'blasys'
 SHARED_SUBXPAT = 'shared_subxpat'
 SHARED_XPAT = 'shared_xpat'
 SUBXPAT_V2 = 'subxpat_v2'
-
+EVOAPPROX = 'evoapprox'
 # for plotting
 BENCH_DICT = {'abs_diff_2': 'abs_diff_i4_o3', 'abs_diff_4': 'abs_diff_i8_o5', 'abs_diff_6': 'abs_diff_i12_o7',
               'adder_2': 'adder_i4_o3', 'adder_4': 'adder_i8_o5', 'adder_6': 'adder_i12_o7',
