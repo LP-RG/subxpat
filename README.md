@@ -1,5 +1,14 @@
 # SubXPAT
 
+This work presents a novel iterative approach to achieve effective and scalable approximate logic synthesis (ALS). The core idea is to perform circuit rewriting in a way that is both local, i.e., is applied piece-wise to selected subcircuits, and extensive, i.e., systematically explores the design space for good solutions. 
+
+## Prerequisits
+- Install the following tools:
+1. **Python**
+2. **Linux**
+3. **Yosys**: link (https://github.com/YosysHQ/yosys)
+**Note: add the binaries of Yosys to your PATH**
+
 ## Setup
 To prepare the system for execution you will need to follow a few steps:
 1. Initial system setup:
@@ -56,6 +65,7 @@ Here are all the arguments with their types and descriptions
 | `--min-subgraph-size`                     | `int`                                | Minimum valid size for the subgraph                                    |
 | `--num-subgraphs`                         | `int` > 0                            | The number of attempts for subgraph extraction                         |
 | `--subxpat`                               |                                      | Run the system as SubXPAT instead of XPat                              |
+| `--constants`                             | {never,always}                       | The way constants are used                                             |
 | `--template`                              | { nonshared, shared }                | Select template logic                                                  |
 | `--max-lpp` <br> `--literals-per-product` | `int` > 0                            | The max number of literals per product to use                          |
 | `--max-ppo` <br> `--products-per-output`  | `int` > 0                            | The max number of products per output to use                           |
@@ -82,6 +92,6 @@ To run SubXPat with the Shared template with BitVector logic encoding, using Sub
 python3 main.py adder_i8_o5 --subxpat --extraction-mode=5 --min-labeling --template=shared --max-pit=32 --encoding=z3bvec --max-error=16
 ```
 
-## Known problems
+## Known limitations
 - On Apple devices running M# architecture, you will have problems with some packages. \
     No support is given at the moment for this situation.
