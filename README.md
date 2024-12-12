@@ -65,7 +65,7 @@ Here are all the arguments with their types and descriptions
 | `--min-subgraph-size`                     | `int`                                | Minimum valid size for the subgraph                                    |
 | `--num-subgraphs`                         | `int` > 0                            | The number of attempts for subgraph extraction                         |
 | `--subxpat`                               |                                      | Run the system as SubXPAT instead of XPat                              |
-| `--constants`                             | {never,always}                       | The way constants are used                                             |
+| `--constants`                             | { never, always }                       | The way constants are used                                             |
 | `--template`                              | { nonshared, shared }                | Select template logic                                                  |
 | `--max-lpp` <br> `--literals-per-product` | `int` > 0                            | The max number of literals per product to use                          |
 | `--max-ppo` <br> `--products-per-output`  | `int` > 0                            | The max number of products per output to use                           |
@@ -76,18 +76,17 @@ Here are all the arguments with their types and descriptions
 | `--encoding`                              | { z3int, z3bvec, qbf }               | The encoding to use in solving the approximation                       |
 | `--timeout`                               | `float` > 0 (default: 3h)            | The maximum time each cell is given to run in seconds                  |
 | `--parallel`                              |                                      | Run in parallel what is possilbe                                       |
-| `--plot`                                  |                                      | The system will be run as plotter (DEPRECATED?)                        |
 | `--clean`                                 |                                      | Reset the output folder before running                                 |
 | `--help` <br> `-h`                        |                                      | Show the help message and exit                                         |
 
 ### Examples
 
-To run XPat with the Non-Shared template with Integer logic encoding
+To run XPAT with the Non-Shared template with Integer logic encoding
 ```
 python3 main.py adder_i8_o5 --template=nonshared --max-lpp=8 --max-ppo=32 --encoding=z3int --max-error=16
 ```
 
-To run SubXPat with the Shared template with BitVector logic encoding, using Subgraph Extraction 5 (all sub-outputs weight must be less than the error threshold) with Minimum Labeling.
+To run SubXPAT with the Shared template with BitVector logic encoding, using Subgraph Extraction 5 (all sub-outputs weight must be less than the error threshold) with Minimum Labeling.
 ```
 python3 main.py adder_i8_o5 --subxpat --extraction-mode=5 --min-labeling --template=shared --max-pit=32 --encoding=z3bvec --max-error=16
 ```
