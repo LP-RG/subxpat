@@ -83,12 +83,12 @@ Here are all the arguments with their types and descriptions
 
 To run XPAT with the Non-Shared template with Integer logic encoding
 ```
-python3 main.py adder_i8_o5 --template=nonshared --max-lpp=8 --max-ppo=32 --encoding=z3int --max-error=16
+python3 main.py adder_i8_o5 --max-lpp=8 --max-ppo=32 --max-error=16
 ```
 
 To run SubXPAT with the Shared template with BitVector logic encoding, using Subgraph Extraction 5 (all sub-outputs weight must be less than the error threshold) with Minimum Labeling.
 ```
-python3 main.py adder_i8_o5 --subxpat --extraction-mode=5 --min-labeling --template=shared --max-pit=32 --encoding=z3bvec --max-error=16
+python3 main.py adder_i8_o5 --subxpat --extraction-mode=5 --min-labeling --max-lpp=8 --max-ppo=10 --max-error=16
 ```
 Once the command is finished executing, you can find the outputs in the following directories:
 
