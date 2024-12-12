@@ -18,6 +18,7 @@
 
 #> generated
 /venv
+/.venv
 **/__pycache__
 **/yosys_graph.log
 **/yosys_log.txt

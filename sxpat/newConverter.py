@@ -15,7 +15,7 @@ from sxpat.utils.functions import str_to_bool
 from sxpat.utils.collections import MultiDict
 
 
-__all__ = ['DotConverter', 'JSONConverter']
+__all__ = ['DotConverter', 'JSONConverter', 'unpack_toint']
 
 
 class Converter:
@@ -332,3 +332,45 @@ class JSONConverter(Converter):
         }
 
         return cls.json.dumps(_g, indent=4)
+
+
+def unpack_toint(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
+    toint_nodes = tuple(
+        node
+        for node in graph.nodes
+        if isinstance(node, ToInt)
+    )
+    if len(toint_nodes) == 0:  # nothing to do
+        return graph
+
+    max_inputs = max(len(node.items) for node in toint_nodes)
+    int_consts = {
+        n: IntConstant(f'ic{n}', n)
+        for n in it.chain((0,), (2**i for i in range(max_inputs)))
+    }
+
+    sums = [
+        # create Sum node, copying relevant data from relative ToInt node
+        Sum(
+            toint.name,
+            in_subgraph=toint.in_subgraph,
+            # create If(bool, int, 0) for each predecessor
+            items=[
+                If(f'if_{toint.name}_{i}', items=(pred, int_consts[2**i], int_consts[0]))
+                for i, pred in enumerate(toint.items)
+            ]
+        )
+        for toint in toint_nodes
+    ]
+
+    nodes = it.chain(
+        int_consts,
+        (
+            node
+            for node in graph.nodes
+            if not isinstance(node, ToInt)
+        ),
+        sums,
+    )
+
+    return type(graph)(nodes, **{extra: getattr(graph, extra) for extra in graph.EXTRA})
