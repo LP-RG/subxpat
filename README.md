@@ -90,6 +90,11 @@ To run SubXPAT with the Shared template with BitVector logic encoding, using Sub
 ```
 python3 main.py adder_i8_o5 --subxpat --extraction-mode=5 --min-labeling --template=shared --max-pit=32 --encoding=z3bvec --max-error=16
 ```
+Once the command is finished executing, you can find the outputs in the following directories:
+`output/csv/` Contains the log of execution and every information at each it
+`output/ver/` Contains all the Verilog descriptions of all the approximate circuits found.
+`output/gv/` Contains the information about all the subgraphs that have been detected in a visual form.
+
 
 ## Known limitations
 - On Apple devices running M# architecture, you will have problems with some packages. \
