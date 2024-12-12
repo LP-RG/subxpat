@@ -25,9 +25,11 @@ class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
     SHARED = 'shared'
 
+
 class ConstantsType(enum.Enum):
     NEVER = 'never'
     ALWAYS = 'always'
+
 
 class EnumChoicesAction(argparse.Action):
     def __init__(self, *args, type: enum.Enum, **kwargs) -> None:
@@ -165,8 +167,9 @@ class Specifications:
         # > subgraph extraction stuff
 
         _ex_mode = parser.add_argument('--extraction-mode', '--mode',
-                                       choices=[1, 2, 3, 4, 5, 55, 11, 12],
                                        type=int,
+                                       choices=[1, 2, 3, 4, 5, 55, 11, 12],
+                                       default=55,
                                        help='Subgraph extraction algorithm to use')
 
         _imax = parser.add_argument('--input-max', '--imax',
@@ -200,8 +203,8 @@ class Specifications:
 
         _template = parser.add_argument('--template',
                                         type=TemplateType,
+                                        default=TemplateType.NON_SHARED,
                                         action=EnumChoicesAction,
-                                        required=True,
                                         help='Select template logic')
 
         _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
@@ -245,7 +248,6 @@ class Specifications:
                                    type=EncodingType,
                                    action=EnumChoicesAction,
                                    default=EncodingType.Z3_BITVECTOR,
-                                   required=True,
                                    help='The encoding to use in solving the approximation')
 
         _timeout = parser.add_argument('--timeout',
