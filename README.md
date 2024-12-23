@@ -1,5 +1,14 @@
 # SubXPAT
 
+This work presents a novel iterative approach to achieve effective and scalable approximate logic synthesis (ALS). The core idea is to perform circuit rewriting in a way that is both local, i.e., is applied piece-wise to selected subcircuits, and extensive, i.e., systematically explores the design space for good solutions. 
+
+## Prerequisits
+- Install the following tools:
+1. **Python**
+2. **Linux**
+3. **Yosys**: link (https://github.com/YosysHQ/yosys)
+**Note: add the binaries of Yosys to your PATH**
+
 ## Setup
 To prepare the system for execution you will need to follow a few steps:
 1. Initial system setup:
@@ -56,6 +65,7 @@ Here are all the arguments with their types and descriptions
 | `--min-subgraph-size`                     | `int`                                | Minimum valid size for the subgraph                                    |
 | `--num-subgraphs`                         | `int` > 0                            | The number of attempts for subgraph extraction                         |
 | `--subxpat`                               |                                      | Run the system as SubXPAT instead of XPat                              |
+| `--constants`                             | { never, always }                       | The way constants are used                                             |
 | `--template`                              | { nonshared, shared }                | Select template logic                                                  |
 | `--max-lpp` <br> `--literals-per-product` | `int` > 0                            | The max number of literals per product to use                          |
 | `--max-ppo` <br> `--products-per-output`  | `int` > 0                            | The max number of products per output to use                           |
@@ -66,22 +76,27 @@ Here are all the arguments with their types and descriptions
 | `--encoding`                              | { z3int, z3bvec, qbf }               | The encoding to use in solving the approximation                       |
 | `--timeout`                               | `float` > 0 (default: 3h)            | The maximum time each cell is given to run in seconds                  |
 | `--parallel`                              |                                      | Run in parallel what is possilbe                                       |
-| `--plot`                                  |                                      | The system will be run as plotter (DEPRECATED?)                        |
 | `--clean`                                 |                                      | Reset the output folder before running                                 |
 | `--help` <br> `-h`                        |                                      | Show the help message and exit                                         |
 
 ### Examples
 
-To run XPat with the Non-Shared template with Integer logic encoding
+To run XPAT with the Non-Shared template with Integer logic encoding
 ```
-python3 main.py adder_i8_o5 --template=nonshared --max-lpp=8 --max-ppo=32 --encoding=z3int --max-error=16
-```
-
-To run SubXPat with the Shared template with BitVector logic encoding, using Subgraph Extraction 5 (all sub-outputs weight must be less than the error threshold) with Minimum Labeling.
-```
-python3 main.py adder_i8_o5 --subxpat --extraction-mode=5 --min-labeling --template=shared --max-pit=32 --encoding=z3bvec --max-error=16
+python3 main.py adder_i8_o5 --max-lpp=8 --max-ppo=32 --max-error=16
 ```
 
-## Known problems
+To run SubXPAT with the Shared template with BitVector logic encoding, using Subgraph Extraction 5 (all sub-outputs weight must be less than the error threshold) with Minimum Labeling.
+```
+python3 main.py adder_i8_o5 --subxpat --extraction-mode=5 --min-labeling --max-lpp=8 --max-ppo=10 --max-error=16
+```
+Once the command is finished executing, you can find the outputs in the following directories:
+
+`output/csv/` Contains the log of execution and every information at each it.  
+`output/ver/` Contains all the Verilog descriptions of all the approximate circuits found.  
+`output/gv/` Contains the information about all the subgraphs that have been detected in a visual form.  
+
+
+## Known limitations
 - On Apple devices running M# architecture, you will have problems with some packages. \
     No support is given at the moment for this situation.
