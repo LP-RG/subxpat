@@ -142,7 +142,12 @@ def explore_grid(specs_obj: Specifications):
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
+        sat_ppo = 0
+        ppot = 3
         for lpp, ppo in CellIterator.factory(specs_obj):
+            if specs_obj.subxpat and ppo > sat_ppo + ppot:
+                break
+
             if is_dominated((lpp, ppo), dominant_cells):
                 pprint.info1(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> DOMINATED')
                 continue
@@ -176,9 +181,11 @@ def explore_grid(specs_obj: Specifications):
                     dominant_cells.append((lpp, ppo))
 
             elif cur_status == SAT:
-
+                if sat_ppo == 0: 
+                    sat_ppo = ppo
                 # synthesize all models and compute circuit specifications
                 synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
+                
                 cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
                 for idx in range(synth_obj.num_of_models):
                     synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
@@ -194,7 +201,7 @@ def explore_grid(specs_obj: Specifications):
                     ]
 
                 # todo: should we refactor with pandas?
-                with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{toolname}.csv", 'w') as f:
+                with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{lpp}x{ppo}_{toolname}.csv", 'w') as f:
                     csvwriter = csv.writer(f)
 
                     header = list(range(len(cur_model_results)))
@@ -208,7 +215,8 @@ def explore_grid(specs_obj: Specifications):
                 pprint.success('verifying all approximate circuits -> ', end='')
                 for candidate_name, candidate_data in cur_model_results.items():
                     candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
-                    candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
+                    if specs_obj.subxpat:
+                        candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
 
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
@@ -248,8 +256,9 @@ def explore_grid(specs_obj: Specifications):
                 print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
                 store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.current_benchmark, et=specs_obj.et,
                                     encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
-
-                break  # SAT found, stop grid exploration
+                
+                if specs_obj.subxpat:
+                    break  # SAT found, stop grid exploration
 
             prev_actual_error = 0
 
