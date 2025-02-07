@@ -14,7 +14,7 @@ from sxpat.specifications import Specifications, TemplateType, ErrorPartitioning
 from sxpat.config.paths import *
 from sxpat.config.config import *
 from sxpat.synthesis import Synthesis
-from sxpat.template_manager.template_manager import TemplateManager
+from sxpat.template_manager.template_manager import TemplateManager, Subxpat_v2
 from sxpat.utils.filesystem import FS
 from sxpat.utils.name import NameData
 from sxpat.verification import erroreval_verification_wce
@@ -22,6 +22,8 @@ from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 
 from z_marco.utils import pprint
+from z_marco.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subgraph
+from sxpat.template_manager.encoding import Encoding
 
 
 def explore_grid(specs_obj: Specifications):
@@ -45,6 +47,9 @@ def explore_grid(specs_obj: Specifications):
     persistance_limit = 2
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
+
+    #v2
+    sum_wce_actual = 0
 
     # Morteza added for local experiments ==================
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
@@ -144,6 +149,30 @@ def explore_grid(specs_obj: Specifications):
             prev_actual_error = 0
             continue
 
+        if specs_obj.template_name == 'V2':
+            # todo:wip:marco
+            encoding_temp = Encoding.factory(
+                specs_obj.encoding,
+                exact_graph.num_inputs,
+                exact_graph.num_outputs
+            )
+            manager = Subxpat_v2( exact_graph, current_graph,specs_obj, encoding_temp)
+            manager.set_new_context(specs_obj)
+            print(specs_obj)
+            full_magraph, sub_magraph = manager.set_graph_and_update_functions(current_graph)
+
+            p1_start = time.time()
+            success, message = manager.run_phase1([specs_obj.et, specs_obj.wanted_models, 1*60*60])
+            subxpat_phase1_time = time.time() - p1_start
+            print(f"p1_time = {subxpat_phase1_time:.6f}")
+
+            if not success:
+                # TODO: Look into this in v2
+                pprint.warning(f'phase 1 failed with message: {message}')
+                prev_actual_error = 0
+                continue
+
+
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
@@ -158,12 +187,22 @@ def explore_grid(specs_obj: Specifications):
             update_context(specs_obj, lpp, ppo)
 
             # run script
-            manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
-            start_time = time.time()
-            results = manager.run()
-            execution_time = time.time() - start_time
+            if specs_obj.template_name != 'V2':
+                manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
+                start_time = time.time()
+                results = manager.run()
+                execution_time = time.time() - start_time
 
-            cur_status = results[0].status
+                cur_status = results[0].status
+            else:
+                manager.set_new_context(specs_obj)
+                p2_start = time.time()
+                cur_status, model = manager.run_phase2()
+                subxpat_phase2_time = time.time() - p2_start
+                print(f"p2_time = {subxpat_phase2_time:.6f}")
+                execution_time = subxpat_phase2_time
+                manager.import_json_model()
+
             if cur_status in (UNSAT, UNKNOWN):
                 pprint.warning(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {cur_status.upper()}')
 
@@ -181,22 +220,65 @@ def explore_grid(specs_obj: Specifications):
                     dominant_cells.append((lpp, ppo))
 
             elif cur_status == SAT:
+                if specs_obj.template_name == 'V2':
+                    # remove sub-graph from the full-graph
+                    hole_magraph = remove_subgraph(full_magraph, sub_magraph)
+                    # convert the model to a circuit
+                    model_magraph = xpat_model_to_magraph(model, iter_id=specs_obj.iteration)
+                    # insert the subgraph into the hole-graph
+                    merged_magraph = insert_subgraph(hole_magraph, model_magraph)
 
-                # synthesize all models and compute circuit specifications
-                synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
-                cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
-                for idx in range(synth_obj.num_of_models):
-                    synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
-                    synth_obj.export_verilog(idx=idx)
-                    synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
+                    synth_obj = Synthesis(
+                        specs_obj,
+                        current_graph,  # not used if magraph is given
+                        manager.json_model,  # not used if magraph is given
+                        merged_magraph
+                    )
+
+                    # todo:marco: this seems to be working, lets make sure
+                    cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
+                    synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
+                    # print(f"{synth_obj.ver_out_path = }")
+                    synth_obj.export_verilog()
+                    synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
                     cur_model_results[synth_obj.ver_out_name] = [
                         synth_obj.estimate_area(),
                         synth_obj.estimate_power(),
                         synth_obj.estimate_delay(),
                         (lpp, ppo),
-                        None,  # abs diff to exact
-                        None  # abs diff to previous
+                        None,
+                        None
                     ]
+
+                    # Morteza: Here we create a Model object and then save it
+                    this_model = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=specs_obj.et, iteration=specs_obj.iteration,
+                                        area=cur_model_results[synth_obj.ver_out_name][0],
+                                        total_power=cur_model_results[synth_obj.ver_out_name][1],
+                                        delay=cur_model_results[synth_obj.ver_out_name][2],
+                                        labeling_time=labeling_time,
+                                        subgraph_extraction_time=subgraph_extraction_time,
+                                        subgraph_number_inputs=current_graph.subgraph_num_inputs,
+                                        subgraph_number_outputs=current_graph.subgraph_num_outputs,
+                                        subxpat_phase1_time=subxpat_phase1_time,
+                                        subxpat_phase2_time=subxpat_phase2_time)
+                    stats_obj.grid.cells[lpp][ppo].store_model_info(this_model)
+
+                else:
+                # synthesize all models and compute circuit specifications
+                    synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
+                    cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
+                    for idx in range(synth_obj.num_of_models):
+                        synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
+                        synth_obj.export_verilog(idx=idx)
+                        synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
+                        cur_model_results[synth_obj.ver_out_name] = [
+                            synth_obj.estimate_area(),
+                            synth_obj.estimate_power(),
+                            synth_obj.estimate_delay(),
+                            (lpp, ppo),
+                            None,  # abs diff to exact
+                            None  # abs diff to previous
+                        ]
 
                 # todo: should we refactor with pandas?
                 with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{toolname}.csv", 'w') as f:
@@ -215,6 +297,11 @@ def explore_grid(specs_obj: Specifications):
                     candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
                     candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
 
+                    #v2
+                    if specs_obj.template_name == 'V2':
+                        obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
+                        prev_actual_error = obtained_wce_prev
+                    
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
                         stats_obj.store_grid()
@@ -246,6 +333,9 @@ def explore_grid(specs_obj: Specifications):
 
                 stats_obj.grid.cells[lpp][ppo].store_model_info(best_model_info)
                 pprint.success(f'ErrorEval PASS! with total wce = {best_data[4]}')
+                if specs_obj.template_name == 'V2':
+                    sum_wce_actual += obtained_wce_prev
+                    pprint.success(f' and prev_wce = {obtained_wce_prev} with sum of prevs wce = {sum_wce_actual}')
 
                 exact_stats = [synth_obj.estimate_area(exact_file_path),
                                synth_obj.estimate_power(exact_file_path),
@@ -271,6 +361,7 @@ class CellIterator:
     def factory(cls, specs: Specifications) -> Iterator[Tuple[int, int]]:
         return {
             TemplateType.NON_SHARED: cls.non_shared,
+            TemplateType.V2: cls.non_shared,
             TemplateType.SHARED: cls.shared,
         }[specs.template](specs)
 
@@ -392,6 +483,7 @@ def get_toolname(specs_obj: Specifications) -> str:
         (False, TemplateType.SHARED): ('Shared XPAT', sxpatconfig.SHARED_XPAT),
         (True, TemplateType.NON_SHARED): ('SubXPAT', sxpatconfig.SUBXPAT),
         (True, TemplateType.SHARED): ('Shared SubXPAT', sxpatconfig.SHARED_SUBXPAT),
+        (True, TemplateType.V2): ('SubXPAT V2', sxpatconfig.SUBXPAT_V2),
     }[(specs_obj.subxpat, specs_obj.template)]
 
     pprint.info2(f'{message} started...')

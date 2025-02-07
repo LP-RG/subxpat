@@ -204,6 +204,9 @@ class Synthesis:
         :param use_json_model: if set to true, the json model is used
         :return: a Verilog description in the form of a String object
         """
+        if self.__magraph:
+            # todo:hack: temporary
+            return [self.__magraph_to_verilog()]
         verilog_generator = {
             TemplateType.NON_SHARED: self.__annotated_graph_to_verilog,  # XPat/SubXPat
             TemplateType.SHARED: self.__annotated_graph_to_verilog_shared,  # Shared XPat/SubXPat

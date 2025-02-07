@@ -11,6 +11,7 @@ ABC_SCRIPT_PATH = 'config/abc.script'
 # TemplateSpecs constants
 #   properties
 SUBXPAT = 'subxpat'
+SUBXPAT_V2 = 'subxpat_v2'
 TEMPLATE_SPEC_ET = 'et'
 
 # shared

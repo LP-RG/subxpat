@@ -24,6 +24,7 @@ class EncodingType(enum.Enum):
 class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
     SHARED = 'shared'
+    V2 = 'v2'
 
 
 class ConstantsType(enum.Enum):
@@ -81,6 +82,10 @@ class Specifications:
     et: int = dc.field(init=False, default=None)  # rw
     error_partitioning: ErrorPartitioningType
 
+    # v2
+    sub_error_function: int
+    # subxpat_v2: bool
+
     # other
     timeout: float
     parallel: bool
@@ -102,6 +107,7 @@ class Specifications:
         return {
             TemplateType.NON_SHARED: 'Sop1',
             TemplateType.SHARED: 'SharedLogic',
+            TemplateType.V2: 'V2'
         }[self.template]
 
     @property
@@ -121,6 +127,7 @@ class Specifications:
     def grid_param_1(self) -> int:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_lpp,
+            TemplateType.V2: lambda: self.max_lpp,
             TemplateType.SHARED: lambda: self.max_its,
         }[self.template]()
 
@@ -128,6 +135,7 @@ class Specifications:
     def grid_param_2(self) -> int:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_ppo,
+            TemplateType.V2: lambda: self.max_ppo,
             TemplateType.SHARED: lambda: self.max_pit,
         }[self.template]()
 
@@ -242,6 +250,16 @@ class Specifications:
                                   default=ErrorPartitioningType.ASCENDING,
                                   help='The error partitioning algorithm to use')
 
+        # > v2
+
+        _sub_er_func = parser.add_argument('--sub-error-function',
+                                           choices=['1', '2', '3'],
+                                           default=1)
+
+        # _subxpat_v2 = parser.add_argument('--subxpat-v2',
+        #                                action='store_true',
+        #                                help='Run the system as SubXPAT-v2 (require also --subxpat)')
+
         # > other stuff
 
         _enc = parser.add_argument('--encoding',
@@ -279,6 +297,7 @@ class Specifications:
             # (source_argument, value | None): [dependent_arguments],
             (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
+            (_template, TemplateType.V2): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
         }
 
