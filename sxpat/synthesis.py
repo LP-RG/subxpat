@@ -172,7 +172,6 @@ class Synthesis:
         if this_name is None:
             # get data from name
             data = NameData.from_filename(self.benchmark_name)
-
             # updte root if origin
             if data.is_origin:
                 data.root = '_'.join((

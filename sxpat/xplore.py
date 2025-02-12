@@ -142,10 +142,14 @@ def explore_grid(specs_obj: Specifications):
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
-        sat_ppo = 0
-        ppot = 3
+        sat_ppo = 100
+        sat_lpp = 100
+        ppot = 1
+        lppt = 3
         for lpp, ppo in CellIterator.factory(specs_obj):
-            if specs_obj.subxpat and ppo > sat_ppo + ppot:
+            if not specs_obj.subxpat and lpp > sat_lpp + lppt:
+                continue
+            if not specs_obj.subxpat and ppo > sat_ppo + ppot:
                 break
 
             if is_dominated((lpp, ppo), dominant_cells):
@@ -181,8 +185,9 @@ def explore_grid(specs_obj: Specifications):
                     dominant_cells.append((lpp, ppo))
 
             elif cur_status == SAT:
-                if sat_ppo == 0: 
+                if sat_ppo == 100: 
                     sat_ppo = ppo
+                    sat_lpp = lpp
                 # synthesize all models and compute circuit specifications
                 synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
                 
@@ -203,7 +208,6 @@ def explore_grid(specs_obj: Specifications):
                 # todo: should we refactor with pandas?
                 with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{lpp}x{ppo}_{toolname}.csv", 'w') as f:
                     csvwriter = csv.writer(f)
-
                     header = list(range(len(cur_model_results)))
                     all = list(cur_model_results.values())
                     content = [f for (f, *_) in all]
@@ -215,6 +219,7 @@ def explore_grid(specs_obj: Specifications):
                 pprint.success('verifying all approximate circuits -> ', end='')
                 for candidate_name, candidate_data in cur_model_results.items():
                     candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
+                    
                     if specs_obj.subxpat:
                         candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
 
