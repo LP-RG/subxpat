@@ -24,7 +24,7 @@ help:
 
 activate:
 	# warning: will not work (limitation of `make`), you need to run it manually
-	. venv/bin/activate
+	$(ACTIV_ENV)
 
 py_init:
 	@echo "\n[[ creating python environment if absent ]]"
