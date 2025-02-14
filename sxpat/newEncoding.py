@@ -14,8 +14,8 @@ ValidGraph = TypeVar('ValidGraph', SGraph, TGraph, CGraph)
 
 NOTE_TO_Z3INT: Dict[Type[Node], Callable[[Union[Node, OperationNode, ValuedNode], Sequence[str]], str]] = {
     # inputs
-    BoolInput: lambda n, items: n.name,
-    IntInput: lambda n, items:  n.name,
+    BoolVariable: lambda n, items: n.name,
+    IntVariable: lambda n, items:  n.name,
     # constants
     BoolConstant: lambda n, items: str(n.value),
     IntConstant: lambda n, items:  str(n.value),
@@ -77,8 +77,8 @@ class Z3InlinePartialEncoder(Z3PartialEncoder):
 class Z3IntFuncEncoder:
     NODE_TO_Z3: Dict[Type[Node], Callable[[Union[Node, OperationNode]], str]] = {
         # inputs
-        BoolInput: lambda n: n.name,
-        IntInput: lambda n:  n.name,
+        BoolVariable: lambda n: n.name,
+        IntVariable: lambda n:  n.name,
         # constants
         BoolConstant: lambda n: n.value,
         IntConstant: lambda n:  n.value,

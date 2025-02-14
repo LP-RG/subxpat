@@ -51,8 +51,8 @@ class Converter:
 class DotConverter(Converter):
     NODE_SYMBOL = bidict({
         # inputs
-        BoolInput: 'inB',
-        IntInput:  'inI',
+        BoolVariable: 'varB',
+        IntVariable:  'varI',
         # constants
         BoolConstant: 'constB',
         IntConstant:  'constI',
@@ -84,7 +84,7 @@ class DotConverter(Converter):
     })
     NODE_SHAPE = MultiDict({
         # inputs
-        (BoolInput, IntInput): 'circle',
+        (BoolVariable, IntVariable): 'circle',
         # constants
         (BoolConstant, IntConstant): 'square',
         # output
@@ -235,7 +235,7 @@ class DotConverter(Converter):
         EDGE_PATTERN = re.compile(r'^(\w+)\s*->\s*(\w+)$')
         SHAPE_FUNC_MAPPING = {
             'circle': {
-                'in': BoolInput
+                'in': BoolVariable
             },
             'square': {
                 'TRUE': ft.partial(BoolConstant, value=True),

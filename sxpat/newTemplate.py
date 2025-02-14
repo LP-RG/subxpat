@@ -22,7 +22,7 @@ class SharedTemplate:
 
         # construct products
         products: List[And] = []
-        products_p: List[List[Tuple[BoolInput, BoolInput]]] = []
+        products_p: List[List[Tuple[BoolVariable, BoolVariable]]] = []
         multiplexers: List[Multiplexer] = []
         for prod_i in range(specs.pit):
             # create all multiplexers for the product
@@ -30,8 +30,8 @@ class SharedTemplate:
             products_p.append([])
             for in_i, in_node in enumerate(a_graph.subgraph_inputs):
                 products_p[-1].append((
-                    (p_s := BoolInput(f'p_p{prod_i}_i{in_i}_s', in_subgraph=True)),
-                    (p_l := BoolInput(f'p_p{prod_i}_i{in_i}_l', in_subgraph=True)),
+                    (p_s := BoolVariable(f'p_p{prod_i}_i{in_i}_s', in_subgraph=True)),
+                    (p_l := BoolVariable(f'p_p{prod_i}_i{in_i}_l', in_subgraph=True)),
                 ))
                 _muxs.append(Multiplexer(f'mux_p{prod_i}_i{in_i}', in_subgraph=True, items=[in_node, p_s, p_l]))
 
@@ -42,9 +42,9 @@ class SharedTemplate:
         # construct sums and constant 0 switch
         consts = {True: BoolConstant('ct', value=True), False: BoolConstant('cf', value=False)}
         sums = []
-        sums_p: List[List[BoolInput]] = []
+        sums_p: List[List[BoolVariable]] = []
         switches = []
-        outs_p: List[BoolInput] = []
+        outs_p: List[BoolVariable] = []
         outs: List[Switch] = []
         out_successors: List[OperationNode] = []
         for out_i, out_node in enumerate(a_graph.subgraph_outputs):
@@ -52,13 +52,13 @@ class SharedTemplate:
             _sws = []
             sums_p.append([])
             for prod_i, prod_node in enumerate(products):
-                sums_p[-1].append(param := BoolInput(f'p_o{out_i}_p{prod_i}', in_subgraph=True))
+                sums_p[-1].append(param := BoolVariable(f'p_o{out_i}_p{prod_i}', in_subgraph=True))
                 _sws.append(Switch(f'sw_o{out_i}_p{prod_i}', in_subgraph=True, items=[prod_node, param, consts[True]]))
 
             # create the sum and constant 0 switch
             sums.append(_sum := Or(f'sum{out_i}', in_subgraph=True, items=_sws))
             switches.extend(_sws)
-            outs_p.append(p_o := BoolInput(f'p_o{out_i}', in_subgraph=True))
+            outs_p.append(p_o := BoolVariable(f'p_o{out_i}', in_subgraph=True))
             outs.append(new_out_node := Switch(f'sw_o{out_i}', in_subgraph=True, items=(_sum, p_o, consts[False])))
 
             # update all output successors to descend from new outputs
@@ -172,7 +172,7 @@ class SOPTemplate:
 
         # construct products
         products: List[And] = []
-        products_p: List[List[List[Tuple[BoolInput, BoolInput]]]] = []
+        products_p: List[List[List[Tuple[BoolVariable, BoolVariable]]]] = []
         multiplexers: List[Multiplexer] = []
         for out_i in range(a_graph.subgraph_outputs):
             products_p.append([])
@@ -182,8 +182,8 @@ class SOPTemplate:
                 products_p.append([])
                 for in_i, in_node in enumerate(a_graph.subgraph_inputs):
                     products_p[-1].append((
-                        (p_s := BoolInput(f'p_o{out_i}_t{prod_i}_i{in_i}_s', in_subgraph=True)),
-                        (p_l := BoolInput(f'p_o{out_i}_t{prod_i}_i{in_i}_l', in_subgraph=True)),
+                        (p_s := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_s', in_subgraph=True)),
+                        (p_l := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_l', in_subgraph=True)),
                     ))
                     _muxs.append(Multiplexer(f'mux_o{out_i}_t{prod_i}_i{in_i}', in_subgraph=True, items=[in_node, p_s, p_l]))
 
@@ -195,7 +195,7 @@ class SOPTemplate:
         consts = {True: BoolConstant('ct', value=True), False: BoolConstant('cf', value=False)}
         sums = []
         switches = []
-        outs_p: List[BoolInput] = []
+        outs_p: List[BoolVariable] = []
         outs: List[Switch] = []
         out_successors: List[OperationNode] = []
         for out_i, out_node in enumerate(a_graph.subgraph_outputs):
@@ -203,7 +203,7 @@ class SOPTemplate:
             _sws = []
             sums.append(_sum := Or(f'sum{out_i}', in_subgraph=True, items=_sws))
             switches.extend(_sws)
-            outs_p.append(p_o := BoolInput(f'p_o{out_i}', in_subgraph=True))
+            outs_p.append(p_o := BoolVariable(f'p_o{out_i}', in_subgraph=True))
             outs.append(new_out_node := Switch(f'sw_o{out_i}', in_subgraph=True, items=(_sum, p_o, consts[False])))
 
             # update all output successors to descend from new outputs

@@ -12,9 +12,9 @@ import re
 __all__ = list(it.chain(
     # nodes
     [
-        'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolInput', 'Copy',
+        'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolVariable', 'Copy',
         'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
-        'IntInput', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'Not',
+        'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'Not',
         'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Switch', 'ToInt', 'ValuedNode',
     ],
     # graphs
@@ -97,12 +97,12 @@ class Ord2Node(Op2Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class BoolInput(Node):
+class BoolVariable(Node):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class IntInput(Node):
+class IntVariable(Node):
     pass
 
 
@@ -382,7 +382,8 @@ class GGraph(Graph):
 
     @classmethod
     def from_Graph(cls, graph: Graph) -> GGraph:
-        inputs_names = (node.name for node in graph.nodes if isinstance(node, BoolInput))
+        """**WARNING**: this function makes (**possibly wrong**) assumptions for which nodes are inputs or outputs."""
+        inputs_names = (node.name for node in graph.nodes if isinstance(node, BoolVariable))
         outputs_names = (node.name for node in graph.nodes if isinstance(node, Copy))
         return cls(None, inputs_names, outputs_names, _inner=graph._graph)
 
