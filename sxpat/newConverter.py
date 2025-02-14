@@ -349,27 +349,32 @@ def unpack_toint(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
         for n in it.chain((0,), (2**i for i in range(max_inputs)))
     }
 
+    # create all if->int nodes (Dict[original_node_name, List[if_nodes_for_that_node]])
+    ifs: Dict[str, List[If]] = {
+        toint.name: [
+            If(f'if_{toint.name}_{i}', items=(pred, int_consts[2**i], int_consts[0]))
+            for i, pred in enumerate(toint.items)
+        ]
+        for toint in toint_nodes
+    }
+    # create the Sum nodes
     sums = [
-        # create Sum node, copying relevant data from relative ToInt node
         Sum(
             toint.name,
             in_subgraph=toint.in_subgraph,
-            # create If(bool, int, 0) for each predecessor
-            items=[
-                If(f'if_{toint.name}_{i}', items=(pred, int_consts[2**i], int_consts[0]))
-                for i, pred in enumerate(toint.items)
-            ]
+            items=ifs[toint.name]
         )
         for toint in toint_nodes
     ]
 
     nodes = it.chain(
-        int_consts,
+        int_consts.values(),
         (
             node
             for node in graph.nodes
             if not isinstance(node, ToInt)
         ),
+        *ifs.values(),
         sums,
     )
 
