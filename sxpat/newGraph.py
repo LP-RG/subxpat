@@ -286,6 +286,23 @@ class Graph:
                  ) -> None:
         # generate inner mutable structure
         if _inner is None:
+            nodes = tuple(nodes)
+
+            # check for graph correctness
+            defined_node_names = set(
+                node.name
+                for node in nodes
+            )
+            node_names_in_edges = set(
+                src_name
+                for node in nodes
+                if isinstance(node, OperationNode)
+                for src_name in node.items
+            )
+            if len(node_names_in_edges - defined_node_names) > 0:
+                raise RuntimeError("Some nodes are not defined")
+
+            # construct digraph
             _inner = nx.DiGraph()
             _inner.add_nodes_from(
                 (node.name, {self.K: node})
@@ -297,6 +314,7 @@ class Graph:
                 if isinstance(node := data[self.K], OperationNode)
                 for src_name in node.items
             )
+
         self._graph: nx.DiGraph = nx.freeze(_inner)
 
     def __getitem__(self, key: str) -> Node:
