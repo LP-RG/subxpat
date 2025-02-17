@@ -64,32 +64,32 @@ python3 main.py exact-benchmark [options]
 ```
 
 Here are all the parameters with their arguments and descriptions:
-| **parameter**                             | **argument**                         | **description**                                                        |
-| :---------------------------------------: | ------------------------------------ | ---------------------------------------------------------------------- |
-| `exact-benchmark`                         | Verilog file in `input/ver/`         | Circuit to approximate                                                 |
-| `--current-benchmark` <br> `--curr`       | Verilog file in `input/ver/`         | Approximated circuit used to continue the execution                    |
-| `--min-labeling`                          |                                      | Nodes are weighted using their minimum error, instead of maximum error |
-| `--partial-labeling`                      |                                      | Weights are assigned only to relevant nodes                            |
-| `--extraction-mode` <br> `--mode`         | { 1, 2, 3, 4, 5, 55, 11, 12 }        | Subgraph extraction algorithm to use                                   |
-| `--input-max` <br> `--imax`               | `int` > 0                            | Maximum allowed number of inputs to the subgraph                       |
-| `--output-max` <br> `--omax`              | `int` > 0                            | Maximum allowed number of outputs from the subgraph                    |
-| `--max-sensitivity`                       | `int` > 0                            | Maximum partitioning sensitivity                                       |
-| `--min-subgraph-size`                     | `int` > 0                            | Minimum valid size for the subgraph                                    |
-| `--num-subgraphs`                         | `int` > 0                            | The number of attempts for subgraph extraction                         |
-| `--subxpat`                               |                                      | Run SubXPAT iteratively, instead of standard XPAT                      |
-| `--constants`                             | { never, always }                    | Usage of constants                                                     |
-| `--template`                              | { nonshared, shared }                | Template logic                                                         |
-| `--max-lpp` <br> `--literals-per-product` | `int` > 0                            | The maximum number of literals per product                             |
-| `--max-ppo` <br> `--products-per-output`  | `int` > 0                            | The maximum number of products per output                              |
-| `--max-pit` <br> `--products-in-total`    | `int` > 0                            | The maximum number of products in total                                |
-| `--wanted-models`                         | `int` > 0                            | Wanted number of models to generate at each step                       |
-| `--max-error` <br> `-e`                   | `int` > 0                            | The maximum allowable error                                            |
-| `--error-partitioning` <br> `--epar`      | { asc, desc, smart_asc, smart_desc } | The error partitioning algorithm to use                                |
-| `--encoding`                              | { z3int, z3bvec, qbf }               | The encoding to use in solving                                         |
-| `--timeout`                               | `float` > 0 (default: 3h)            | The maximum time each cell is given to run (in seconds)                |
-| `--parallel`                              |                                      | Run in parallel whenever possible                                      |
-| `--clean`                                 |                                      | Reset the output folder before running                                 |
-| `--help` <br> `-h`                        |                                      | Show the help message and exit                                         |
+| **parameter**                             | **argument**                         | **default**       | **description**                                                        |
+| :---------------------------------------: | ------------------------------------ | ----------------- | ---------------------------------------------------------------------- |
+| `exact-benchmark`                         | Verilog file in `input/ver/`         |                   | Circuit to approximate                                                 |
+| `--current-benchmark` <br> `--curr`       | Verilog file in `input/ver/`         | `exact-benchmark` | Approximated circuit used to continue the execution                    |
+| `--min-labeling`                          |                                      |                   | Nodes are weighted using their minimum error, instead of maximum error |
+| `--partial-labeling`                      |                                      |                   | Weights are assigned only to relevant nodes                            |
+| `--extraction-mode` <br> `--mode`         | { 1, 2, 3, 4, 5, 55, 11, 12 }        | 55                | Subgraph extraction algorithm to use                                   |
+| `--input-max` <br> `--imax`               | `int` > 0                            |                   | Maximum allowed number of inputs to the subgraph                       |
+| `--output-max` <br> `--omax`              | `int` > 0                            |                   | Maximum allowed number of outputs from the subgraph                    |
+| `--max-sensitivity`                       | `int` > 0                            |                   | Maximum partitioning sensitivity                                       |
+| `--min-subgraph-size`                     | `int` > 0                            |                   | Minimum valid size for the subgraph                                    |
+| `--num-subgraphs`                         | `int` > 0                            | 1                 | The number of attempts for subgraph extraction                         |
+| `--subxpat`                               |                                      |                   | Run SubXPAT iteratively, instead of standard XPAT                      |
+| `--constants`                             | { never, always }                    | never             | Usage of constants                                                     |
+| `--template`                              | { nonshared, shared }                | nonshared         | Template logic                                                         |
+| `--max-lpp` <br> `--literals-per-product` | `int` > 0                            |                   | The maximum number of literals per product                             |
+| `--max-ppo` <br> `--products-per-output`  | `int` > 0                            |                   | The maximum number of products per output                              |
+| `--max-pit` <br> `--products-in-total`    | `int` > 0                            |                   | The maximum number of products in total                                |
+| `--wanted-models`                         | `int` > 0                            | 1                 | Wanted number of models to generate at each step                       |
+| `--max-error` <br> `-e`                   | `int` > 0                            |                   | The maximum allowable error                                            |
+| `--error-partitioning` <br> `--epar`      | { asc, desc, smart_asc, smart_desc } | asc               | The error partitioning algorithm to use                                |
+| `--encoding`                              | { z3int, z3bvec, qbf }               | z3bvec            | The encoding to use in solving                                         |
+| `--timeout`                               | `float` > 0 (default: 3h)            | 10800 (3h)        | The maximum time each cell is given to run (in seconds)                |
+| `--parallel`                              |                                      |                   | Run in parallel whenever possible                                      |
+| `--clean`                                 |                                      |                   | Reset the output folder before running                                 |
+| `--help` <br> `-h`                        |                                      |                   | Show the help message and exit                                         |
 
 ### Examples
 
