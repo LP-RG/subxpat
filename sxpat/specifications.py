@@ -147,12 +147,12 @@ class Specifications:
         _ex_bench = parser.add_argument(metavar='exact-benchmark',
                                         dest='exact_benchmark',
                                         type=str,
-                                        help='Circuit to approximate (verilog file in `input/ver/`)')
+                                        help='Circuit to approximate (Verilog file in `input/ver/`)')
 
         _cur_bench = parser.add_argument('--current-benchmark', '--curr',
                                          type=str,
                                          default=None,
-                                         help='Approximated circuit used to continue the execution (verilog file in `input/ver/`) (default: same as exact-benchmark)')
+                                         help='Approximated circuit used to continue the execution (Verilog file in `input/ver/`) (default: same as exact-benchmark)')
 
         # > graph labeling stuff
 
