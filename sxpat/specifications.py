@@ -162,7 +162,7 @@ class Specifications:
 
         _part_lab = parser.add_argument('--partial-labeling',
                                         action='store_true',
-                                        help='Assign weight only to relevant nodes')
+                                        help='Weights are assigned only to relevant nodes')
 
         # > subgraph extraction stuff
 
@@ -199,36 +199,37 @@ class Specifications:
 
         _subxpat = parser.add_argument('--subxpat',
                                        action='store_true',
-                                       help='Run the system as SubXPAT instead of XPat')
-
-        _template = parser.add_argument('--template',
-                                        type=TemplateType,
-                                        default=TemplateType.NON_SHARED,
-                                        action=EnumChoicesAction,
-                                        help='Select template logic')
-
-        _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
-                                   type=int,
-                                   help='The max number of literals per product to use')
-
-        _ppo = parser.add_argument('--max-ppo', '--products-per-output',
-                                   type=int,
-                                   help='The max number of products per output to use')
-
-        _pit = parser.add_argument('--max-pit', '--products-in-total',
-                                   type=int,
-                                   help='The max number of products to use in total')
-
-        _nmod = parser.add_argument('--wanted-models',
-                                    type=int,
-                                    default=1,
-                                    help='Wanted number of models to generate for each step')
+                                       help='Run SubXPAT iteratively, instead of standard XPAT')
 
         _consts = parser.add_argument('--constants',
                                       type=ConstantsType,
                                       action=EnumChoicesAction,
                                       default=ConstantsType.NEVER,
-                                      help='The way constants are used')
+                                      help='Usage of constants')
+        
+        _template = parser.add_argument('--template',
+                                        type=TemplateType,
+                                        default=TemplateType.NON_SHARED,
+                                        action=EnumChoicesAction,
+                                        help='Template logic')
+
+        _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
+                                   type=int,
+                                   help='The maximum number of literals per product')
+
+        _ppo = parser.add_argument('--max-ppo', '--products-per-output',
+                                   type=int,
+                                   help='The maximum number of products per output')
+
+        _pit = parser.add_argument('--max-pit', '--products-in-total',
+                                   type=int,
+                                   help='The maximum number of products in total')
+
+        _nmod = parser.add_argument('--wanted-models',
+                                    type=int,
+                                    default=1,
+                                    help='Wanted number of models to generate at each step')
+
         # > error stuff
 
         _et = parser.add_argument('--max-error', '-e',
@@ -248,16 +249,16 @@ class Specifications:
                                    type=EncodingType,
                                    action=EnumChoicesAction,
                                    default=EncodingType.Z3_BITVECTOR,
-                                   help='The encoding to use in solving the approximation')
+                                   help='The encoding to use in solving')
 
         _timeout = parser.add_argument('--timeout',
                                        type=float,
                                        default=10800,
-                                       help='The maximum time each cell is given to run in seconds (default: 3h)')
+                                       help='The maximum time each cell is given to run (in seconds) (default: 3h)')
 
         _parallel = parser.add_argument('--parallel',
                                         action='store_true',
-                                        help='Run in parallel what is possible')
+                                        help='Run in parallel whenever possible')
 
         _plt = parser.add_argument('--plot',
                                    action='store_true',
