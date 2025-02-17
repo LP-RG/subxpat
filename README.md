@@ -6,14 +6,14 @@ For details on the XPAT algorithm, please see our [DSN-W'23] paper.
 
 ## Dependencies
 
-SubXPAT has been developed for a **Linux** environment and requires the manual instalation of the following dependencies:
+SubXPAT has been developed for a **Linux** environment and requires the manual installation of the following dependencies:
 
-- [Python]
-- [Yosys]
+- [Python] (3.8 or higher)
+- [Yosys] (using apt: `sudo apt install yosys`)
+- [GraphViz] (you also need the headers for development) (using apt: `sudo apt install graphviz graphviz-dev`)
+- [OpenSTA] (using apt: `sudo apt install opensta`)
 
-All other dependencies will be automatically installed as part of the setup procedure.
-
-**Note:** the binaries of Yosys should be added to your PATH.
+**Note:** the binaries of Yosys and OpenSTA should be added to your PATH.
 
 ## Setup
 
@@ -22,11 +22,9 @@ To prepare the system for execution you will need to follow a few steps:
 1. Initial system setup:
     ```bash
     # bulk commands
-    make setup-all # everything
-    make setup     # everything except package dependencies
+    make setup     # everything
 
     # individual commands
-    make sftw_dep    # install package dependencies
     make py_init     # create python environment
     make py_dep      # install/update requirements
     make folders_dep # create folders (WIP)
@@ -35,7 +33,7 @@ To prepare the system for execution you will need to follow a few steps:
 
 2. Activate the python environment:
     ```bash
-    . venv/bin/activate
+    . .venv/bin/activate
     ```
 
 ### Other useful commands
@@ -117,3 +115,5 @@ Once a command is finished executing, you can find the outputs in the following 
 [DSN-W'23]: https://doi.org/10.1109/DSN-W58399.2023.00049
 [Python]: https://www.python.org/downloads
 [Yosys]: https://github.com/YosysHQ/yosys
+[GraphViz]: https://gitlab.com/graphviz/graphviz
+[OpenSTA]: https://github.com/The-OpenROAD-Project/OpenSTA
