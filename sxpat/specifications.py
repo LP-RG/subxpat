@@ -147,12 +147,12 @@ class Specifications:
         _ex_bench = parser.add_argument(metavar='exact-benchmark',
                                         dest='exact_benchmark',
                                         type=str,
-                                        help='Circuit to approximate. Must be in the input/ver/ folder')
+                                        help='Circuit to approximate (verilog file in `input/ver/`)')
 
         _cur_bench = parser.add_argument('--current-benchmark', '--curr',
                                          type=str,
                                          default=None,
-                                         help='Approximated circuit to continue from. Must be in the input/ver/ folder')
+                                         help='Approximated circuit used to continue the execution (verilog file in `input/ver/`) (default: same as exact-benchmark)')
 
         # > graph labeling stuff
 
@@ -170,7 +170,7 @@ class Specifications:
                                        type=int,
                                        choices=[1, 2, 3, 4, 5, 55, 11, 12],
                                        default=55,
-                                       help='Subgraph extraction algorithm to use')
+                                       help='Subgraph extraction algorithm to use (default: 55)')
 
         _imax = parser.add_argument('--input-max', '--imax',
                                     type=int,
@@ -193,7 +193,7 @@ class Specifications:
         _num_sub = parser.add_argument('--num-subgraphs',
                                        type=int,
                                        default=1,
-                                       help='The number of attempts for subgraph extraction')
+                                       help='The number of attempts for subgraph extraction (default: 1)')
 
         # > exploration stuff
 
@@ -205,13 +205,13 @@ class Specifications:
                                       type=ConstantsType,
                                       action=EnumChoicesAction,
                                       default=ConstantsType.NEVER,
-                                      help='Usage of constants')
+                                      help='Usage of constants (default: never)')
         
         _template = parser.add_argument('--template',
                                         type=TemplateType,
                                         default=TemplateType.NON_SHARED,
                                         action=EnumChoicesAction,
-                                        help='Template logic')
+                                        help='Template logic (default: nonshared)')
 
         _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
                                    type=int,
@@ -228,7 +228,7 @@ class Specifications:
         _nmod = parser.add_argument('--wanted-models',
                                     type=int,
                                     default=1,
-                                    help='Wanted number of models to generate at each step')
+                                    help='Wanted number of models to generate at each step (default: 1)')
 
         # > error stuff
 
@@ -241,7 +241,7 @@ class Specifications:
                                   type=ErrorPartitioningType,
                                   action=EnumChoicesAction,
                                   default=ErrorPartitioningType.ASCENDING,
-                                  help='The error partitioning algorithm to use')
+                                  help='The error partitioning algorithm to use (default: asc)')
 
         # > other stuff
 
