@@ -21,7 +21,7 @@ from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 
-from z_marco.utils import pprint
+from sxpat.utils.utils import pprint
 
 
 def explore_grid(specs_obj: Specifications):
