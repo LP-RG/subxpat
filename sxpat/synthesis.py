@@ -10,8 +10,8 @@ from Z3Log.config.config import *
 from Z3Log.config.path import *
 
 from sxpat.utils.name import NameData
-from z_marco.ma_graph import MaGraph
-from z_marco.utils import pprint, color
+from sxpat.ma_graph import MaGraph
+from sxpat.utils.utils import pprint, color
 
 from .annotatedGraph import AnnotatedGraph
 from .config import paths as sxpatpaths
