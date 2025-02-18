@@ -147,12 +147,12 @@ class Specifications:
         _ex_bench = parser.add_argument(metavar='exact-benchmark',
                                         dest='exact_benchmark',
                                         type=str,
-                                        help='Circuit to approximate. Must be in the input/ver/ folder')
+                                        help='Circuit to approximate (Verilog file in `input/ver/`)')
 
         _cur_bench = parser.add_argument('--current-benchmark', '--curr',
                                          type=str,
                                          default=None,
-                                         help='Approximated circuit to continue from. Must be in the input/ver/ folder')
+                                         help='Approximated circuit used to continue the execution (Verilog file in `input/ver/`) (default: same as exact-benchmark)')
 
         # > graph labeling stuff
 
@@ -162,7 +162,7 @@ class Specifications:
 
         _part_lab = parser.add_argument('--partial-labeling',
                                         action='store_true',
-                                        help='Assign weight only to relevant nodes')
+                                        help='Weights are assigned only to relevant nodes')
 
         # > subgraph extraction stuff
 
@@ -170,7 +170,7 @@ class Specifications:
                                        type=int,
                                        choices=[1, 2, 3, 4, 5, 55, 11, 12],
                                        default=55,
-                                       help='Subgraph extraction algorithm to use')
+                                       help='Subgraph extraction algorithm to use (default: 55)')
 
         _imax = parser.add_argument('--input-max', '--imax',
                                     type=int,
@@ -193,42 +193,43 @@ class Specifications:
         _num_sub = parser.add_argument('--num-subgraphs',
                                        type=int,
                                        default=1,
-                                       help='The number of attempts for subgraph extraction')
+                                       help='The number of attempts for subgraph extraction (default: 1)')
 
         # > exploration stuff
 
         _subxpat = parser.add_argument('--subxpat',
                                        action='store_true',
-                                       help='Run the system as SubXPAT instead of XPat')
-
-        _template = parser.add_argument('--template',
-                                        type=TemplateType,
-                                        default=TemplateType.NON_SHARED,
-                                        action=EnumChoicesAction,
-                                        help='Select template logic')
-
-        _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
-                                   type=int,
-                                   help='The max number of literals per product to use')
-
-        _ppo = parser.add_argument('--max-ppo', '--products-per-output',
-                                   type=int,
-                                   help='The max number of products per output to use')
-
-        _pit = parser.add_argument('--max-pit', '--products-in-total',
-                                   type=int,
-                                   help='The max number of products to use in total')
-
-        _nmod = parser.add_argument('--wanted-models',
-                                    type=int,
-                                    default=1,
-                                    help='Wanted number of models to generate for each step')
+                                       help='Run SubXPAT iteratively, instead of standard XPAT')
 
         _consts = parser.add_argument('--constants',
                                       type=ConstantsType,
                                       action=EnumChoicesAction,
                                       default=ConstantsType.NEVER,
-                                      help='The way constants are used')
+                                      help='Usage of constants (default: never)')
+        
+        _template = parser.add_argument('--template',
+                                        type=TemplateType,
+                                        default=TemplateType.NON_SHARED,
+                                        action=EnumChoicesAction,
+                                        help='Template logic (default: nonshared)')
+
+        _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
+                                   type=int,
+                                   help='The maximum number of literals per product')
+
+        _ppo = parser.add_argument('--max-ppo', '--products-per-output',
+                                   type=int,
+                                   help='The maximum number of products per output')
+
+        _pit = parser.add_argument('--max-pit', '--products-in-total',
+                                   type=int,
+                                   help='The maximum number of products in total')
+
+        _nmod = parser.add_argument('--wanted-models',
+                                    type=int,
+                                    default=1,
+                                    help='Wanted number of models to generate at each step (default: 1)')
+
         # > error stuff
 
         _et = parser.add_argument('--max-error', '-e',
@@ -240,7 +241,7 @@ class Specifications:
                                   type=ErrorPartitioningType,
                                   action=EnumChoicesAction,
                                   default=ErrorPartitioningType.ASCENDING,
-                                  help='The error partitioning algorithm to use')
+                                  help='The error partitioning algorithm to use (default: asc)')
 
         # > other stuff
 
@@ -248,16 +249,16 @@ class Specifications:
                                    type=EncodingType,
                                    action=EnumChoicesAction,
                                    default=EncodingType.Z3_BITVECTOR,
-                                   help='The encoding to use in solving the approximation')
+                                   help='The encoding to use in solving')
 
         _timeout = parser.add_argument('--timeout',
                                        type=float,
                                        default=10800,
-                                       help='The maximum time each cell is given to run in seconds (default: 3h)')
+                                       help='The maximum time each cell is given to run (in seconds) (default: 3h)')
 
         _parallel = parser.add_argument('--parallel',
                                         action='store_true',
-                                        help='Run in parallel what is possible')
+                                        help='Run in parallel whenever possible')
 
         _plt = parser.add_argument('--plot',
                                    action='store_true',
