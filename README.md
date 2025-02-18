@@ -8,9 +8,9 @@ For details on the XPAT algorithm, please see our [DSN-W'23] paper.
 
 SubXPAT has been developed for a **Linux** environment and requires the manual installation of the following dependencies:
 
-- [Python] (3.8 or higher)
+- [Python] (version 3.8 or higher)
 - [Yosys] (using apt: `sudo apt install yosys`)
-- [GraphViz] (you also need the headers for development) (using apt: `sudo apt install graphviz graphviz-dev`)
+- [GraphViz] (you also need the headers for development, using apt: `sudo apt install graphviz graphviz-dev`)
 - [OpenSTA] (using apt: `sudo apt install opensta`)
 
 **Note:** the binaries of Yosys and OpenSTA should be added to your PATH.
@@ -27,7 +27,6 @@ To prepare the system for execution you will need to follow a few steps:
     # individual commands
     make py_init     # create python environment
     make py_dep      # install/update requirements
-    make folders_dep # create folders (WIP)
     make local_dep   # create input folders and local files
     ```
 
@@ -62,7 +61,7 @@ python3 main.py exact-benchmark [options]
 ```
 
 Here are all the parameters with their arguments and descriptions:
-| **parameter**                             | **argument**                         | **default**                        | **description**                                                        |
+| **parameter**                             | **argument**                         | **default value**                  | **description**                                                        |
 | :---------------------------------------: | ------------------------------------ | ---------------------------------- | ---------------------------------------------------------------------- |
 | `exact-benchmark`                         | Verilog file in `input/ver/`         |                                    | Circuit to approximate                                                 |
 | `--current-benchmark` <br> `--curr`       | Verilog file in `input/ver/`         | the same as <br> `exact-benchmark` | Approximated circuit used to continue the execution                    |
