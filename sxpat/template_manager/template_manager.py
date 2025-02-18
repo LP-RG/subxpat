@@ -746,7 +746,7 @@ class Subxpat_v2(SOPManager):
         self.full_error_function = 1
         self.sub_error_function = specs.sub_error_function
     
-    def set_new_context(self, specs: Specifications):
+    def set_new_context(self, specs: Specifications, et):
         self.lpp = specs.lpp
         self.ppo = specs.ppo
         self.iterations = specs.iteration
@@ -755,7 +755,7 @@ class Subxpat_v2(SOPManager):
         self.exact_benchmark = specs.exact_benchmark
         self.json_out_path = self.data_path #self.set_path(sxpatpaths.OUTPUT_PATH['json'])
         self.z3_out_path = self.script_path #self.set_path(OUTPUT_PATH['z3'])
-        self.et = specs.et
+        self.et = et
         self.timeout = specs.timeout
         self.executor.set_context(self.exact_benchmark, self.et, self.lpp, self.ppo, self.iterations)
 

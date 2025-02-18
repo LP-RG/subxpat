@@ -156,13 +156,12 @@ def explore_grid(specs_obj: Specifications):
                 exact_graph.num_inputs,
                 exact_graph.num_outputs
             )
-            manager = Subxpat_v2( exact_graph, current_graph,specs_obj, encoding_temp)
-            manager.set_new_context(specs_obj)
-            print(specs_obj)
+            manager = Subxpat_v2(exact_graph, current_graph,specs_obj, encoding_temp)
+            manager.set_new_context(specs_obj, specs_obj.et - sum_wce_actual)
             full_magraph, sub_magraph = manager.set_graph_and_update_functions(current_graph)
 
             p1_start = time.time()
-            success, message = manager.run_phase1([specs_obj.et, specs_obj.wanted_models, 1*60*60])
+            success, message = manager.run_phase1([specs_obj.et - sum_wce_actual, specs_obj.wanted_models, 1*60*60])
             subxpat_phase1_time = time.time() - p1_start
             print(f"p1_time = {subxpat_phase1_time:.6f}")
 
@@ -195,7 +194,7 @@ def explore_grid(specs_obj: Specifications):
 
                 cur_status = results[0].status
             else:
-                manager.set_new_context(specs_obj)
+                manager.set_new_context(specs_obj, specs_obj.et - sum_wce_actual)
                 p2_start = time.time()
                 cur_status, model = manager.run_phase2()
                 subxpat_phase2_time = time.time() - p2_start
@@ -238,7 +237,6 @@ def explore_grid(specs_obj: Specifications):
                     # todo:marco: this seems to be working, lets make sure
                     cur_model_results: Dict[str: List[float, float, float, (int, int)]] = {}
                     synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'])
-                    # print(f"{synth_obj.ver_out_path = }")
                     synth_obj.export_verilog()
                     synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0])
                     cur_model_results[synth_obj.ver_out_name] = [
@@ -299,8 +297,9 @@ def explore_grid(specs_obj: Specifications):
 
                     #v2
                     if specs_obj.template_name == 'V2':
-                        obtained_wce_prev = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
-                        prev_actual_error = obtained_wce_prev
+                        # obtained_wce_prev = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
+                        prev_actual_error = candidate_data[5]
+                        obtained_wce_prev = candidate_data[5]
                     
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
