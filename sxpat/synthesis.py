@@ -1024,12 +1024,11 @@ class Synthesis:
         if idx < 0:
             idx = 0
 
-        if this_path:
-            with open(f'{this_path}/{self.ver_out_name}', 'w') as f:
-                f.writelines(self.verilog_string[idx])
-        else:
-            with open(self.ver_out_path, 'w') as f:
-                f.writelines(self.verilog_string[idx])
+        this_path = f'{this_path}/{self.ver_out_name}' if this_path else self.ver_out_path
+        
+        with open(this_path, 'w') as f:
+            f.write(f'/* model {idx} */ \n')
+            f.writelines(self.verilog_string[idx])
 
     def __repr__(self):
         return f'An object of class Synthesis:\n' \
