@@ -1,4 +1,3 @@
-
 from typing import Callable, Tuple, Container, Dict, Sequence, Type, Union, TypeVar
 
 import itertools as it
@@ -6,13 +5,10 @@ import itertools as it
 from sxpat.newGraph import *
 from sxpat.specifications import Specifications
 
-import z3
-# z3.lt
-
 
 ValidGraph = TypeVar('ValidGraph', SGraph, TGraph, CGraph)
 
-NOTE_TO_Z3INT: Dict[Type[Node], Callable[[Union[Node, OperationNode, ValuedNode], Sequence[str]], str]] = {
+NODE_TO_Z3INT: Dict[Type[Node], Callable[[Union[Node, OperationNode, Valued], Sequence[str]], str]] = {
     # inputs
     BoolVariable: lambda n, items: n.name,
     IntVariable: lambda n, items:  n.name,
@@ -34,8 +30,8 @@ NOTE_TO_Z3INT: Dict[Type[Node], Callable[[Union[Node, OperationNode, ValuedNode]
     AbsDiff: lambda n, items: f'If({items[0]} >= {items[1]}, {items[0]} - {items[1]}, {items[1]} - {items[0]})',
     # comparison operations
     Equals: lambda n, items:           f'({items[0]} == {items[1]})',
-    AtLeast: lambda n, items:          f'AtLeast({", ".join(items[:-1])}, {items[-1]})',
-    AtMost: lambda n, items:           f'AtMost({", ".join(items[:-1])}, {items[-1]})',
+    AtLeast: lambda n, items:          f'AtLeast({", ".join(items)}, {n.value})',
+    AtMost: lambda n, items:           f'AtMost({", ".join(items)}, {n.value})',
     LessThan: lambda n, items:         f'({items[0]} < {items[1]})',
     LessEqualThan: lambda n, items:    f'({items[0]} <= {items[1]})',
     GreaterThan: lambda n, items:      f'({items[0]} > {items[1]})',
@@ -45,14 +41,15 @@ NOTE_TO_Z3INT: Dict[Type[Node], Callable[[Union[Node, OperationNode, ValuedNode]
     Switch: lambda n, items:      f'If({items[1]}, {items[0]}, {n.off_value})',
     If: lambda n, items:          f'If({items[0]}, {items[1]}, {items[2]})',
 }
-NODE_TO_Z3BV: Dict[Type[Node], Callable[[Union[Node, OperationNode, ValuedNode], Sequence[str]], str]] = {
+NODE_TO_Z3BV: Dict[Type[Node], Callable[[Union[Node, OperationNode, Valued], Sequence[str]], str]] = {
     # TODO
 }
 
 
-class Z3InlinePartialEncoder(Z3PartialEncoder):
+# class Z3InlinePartialEncoder(Z3PartialEncoder):
+class Z3InlinePartialEncoder:
     @classmethod
-    def recursive_conversion(cls, graph: Graph, node: Union[Node, OperationNode, ValuedNode]) -> str:
+    def recursive_conversion(cls, graph: Graph, node: Union[Node, OperationNode, Valued]) -> str:
         return cls.NODE_TO_Z3INT[type(node)](
             node,
             [cls.recursive_conversion(graph, item) for item in graph.predecessors(node)]

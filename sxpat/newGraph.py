@@ -9,18 +9,17 @@ import itertools as it
 import re
 
 
-__all__ = list(it.chain(
+__all__ = [
     # nodes
-    [
-        'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolVariable', 'Copy',
-        'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
-        'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'Not',
-        'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Switch', 'ToInt', 'ValuedNode',
-    ],
+    'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolVariable', 'Copy',
+    'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
+    'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'Not',
+    'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Switch', 'Target', 'ToInt', 'Valued',
+    #
+    '_boolean_nodes', '_integer_nodes', '_untyped_nodes', '_contact_nodes',
     # graphs
-    ['Graph', 'GGraph', 'CGraph', 'SGraph', 'TGraph'],
-))
-
+    'Graph', 'GGraph', 'CGraph', 'SGraph', 'TGraph',
+]
 
 T = TypeVar('T', int, bool)
 
@@ -46,7 +45,7 @@ class Node:
 
 
 @dc.dataclass(frozen=True)
-class ValuedNode(Node, Generic[T]):
+class Valued(Generic[T]):
     value: T = None
 
 
@@ -110,12 +109,12 @@ class IntVariable(Node):
 
 
 @dc.dataclass(frozen=True)
-class BoolConstant(ValuedNode[bool]):
+class BoolConstant(Valued[bool], Node):
     pass
 
 
 @dc.dataclass(frozen=True)
-class IntConstant(ValuedNode[int]):
+class IntConstant(Valued[bool], Node):
     pass
 
 # output
@@ -123,6 +122,11 @@ class IntConstant(ValuedNode[int]):
 
 @dc.dataclass(frozen=True, repr=False)
 class Copy(Op1Node):
+    pass
+
+
+@dc.dataclass(frozen=True, repr=False)
+class Target(Copy):  # TODO:MARCO: or result/question/...?
     pass
 
 
@@ -184,25 +188,13 @@ class Equals(Op2Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class AtLeast(OperationNode):
-    @property
-    def elements(self) -> str:
-        return self.items[:-1]
-
-    @property
-    def value(self) -> str:
-        return self.items[-1]
+class AtLeast(Valued[int], OperationNode):
+    pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class AtMost(OperationNode):
-    @property
-    def elements(self) -> str:
-        return self.items[:-1]
-
-    @property
-    def value(self) -> str:
-        return self.items[-1]
+class AtMost(Valued[int], OperationNode):
+    pass
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -271,6 +263,25 @@ class If(Op3Node):
     @property
     def if_false(self) -> str:
         return self.items[2]
+
+# TODO:WIP: global nodes
+
+
+@dc.dataclass(frozen=True, repr=False)
+class Min(Op1Node):
+    pass
+
+
+@dc.dataclass(frozen=True, repr=False)
+class Max(Op1Node):
+    pass
+
+
+#
+_boolean_nodes = (BoolVariable, BoolConstant, Not, And, Or, Implies, Equals, AtLeast, AtMost, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,)
+_integer_nodes = (IntVariable, IntConstant, ToInt, Sum, AbsDiff,)
+_untyped_nodes = (Copy, Target, Multiplexer, Switch, If,)
+_contact_nodes = (PlaceHolder,)  # TODO:MARCO: what name should we use?
 
 
 # > graphs

@@ -15,7 +15,7 @@ from sxpat.utils.functions import str_to_bool
 from sxpat.utils.collections import MultiDict
 
 
-__all__ = ['DotConverter', 'JSONConverter', 'unpack_toint']
+__all__ = ['DotConverter', 'JSONConverter', 'unpack_toint', 'prune_unused']
 
 
 class Converter:
@@ -125,7 +125,7 @@ class DotConverter(Converter):
             string += rf'\nsub'
         if isinstance(node, OperationNode):
             string += rf'\ni={",".join(node.items)}'
-        if isinstance(node, ValuedNode):
+        if isinstance(node, Valued):
             string += rf'\nv={node.value}'
 
         return string
@@ -139,7 +139,7 @@ class DotConverter(Converter):
                 rf'\\n(\w+)'  # name
                 rf'(?:\\nw=([-+]?\d+))?'  # weight
                 rf'(?:\\n(sub))?'  # in_subgraph
-                rf'(?:\\nv=([-+]?\d+|True|False))?'  # value
+                rf'(?:\\nv=(?:([-+]?\d+)|(True|False)))?'  # value
                 rf'(?:\\ni=(\w+(?:,\w+)*))?'  # items
             ),
             string
@@ -151,11 +151,8 @@ class DotConverter(Converter):
             'name': m[2],
             'weight': m[3] and int(m[3]),
             'in_subgraph': bool(m[4]),
-            'value':  m[5] and {
-                BoolConstant: str_to_bool,
-                IntConstant: int,
-            }[type](m[5]),
-            'items': m[6] and m[6].split(','),
+            'value': (m[5] and int(m[5])) or (m[6] and str_to_bool(m[6])),
+            'items': m[7] and m[7].split(','),
         }
 
         # create Node using valid arguments
