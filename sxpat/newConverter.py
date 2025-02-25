@@ -376,3 +376,47 @@ def unpack_toint(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
     )
 
     return type(graph)(nodes, **{extra: getattr(graph, extra) for extra in graph.EXTRA})
+
+
+def prune_unused(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
+    """This function takes a graph and returns a new graph without any dangling nodes (recursive).  
+        Nodes counted as correct terminations are nodes of class `Copy` (or of subclasses) or of class Bool/IntVariable.
+    """
+
+    # TODO:MARCO: do we want to keep also the variables (probably yes)
+    termination_nodes = [node.name for node in graph.nodes if isinstance(node, (Copy, BoolVariable, IntVariable))]
+    # termination_nodes = [node.name for node in graph.nodes if isinstance(node, (Copy, ))]
+
+    # find reachable nodes from the terminations
+    visited_nodes = set()
+    while len(termination_nodes) > 0:
+        node_name = termination_nodes.pop()
+        visited_nodes.add(node_name)
+        termination_nodes.extend(_n.name for _n in graph.predecessors(node_name))
+
+    # filter out non visited nodes
+    nodes = (node for node in graph.nodes if node.name in visited_nodes)
+
+    return type(graph)(nodes, **{extra: getattr(graph, extra) for extra in graph.EXTRA})
+
+
+def get_nodes_type(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph], initial_mapping: Mapping[str, type] = dict()) -> Mapping[str, type]:
+    mapping = dict(initial_mapping)
+
+    for node in graph.nodes:
+        # TODO:MARCO: depending on how the encodings are implemented, this may need to be updated
+        # if the node is an operation node and not a copy node
+        if isinstance(node, OperationNode): #:
+            if isinstance(node, _boolean_nodes):
+                mapping[node.name] = bool
+            elif isinstance(node, _integer_nodes):
+                mapping[node.name] = int
+            elif isinstance(node, _contact_nodes):
+                continue
+            elif isinstance(node, _untyped_nodes):
+                last_pred = graph.predecessors(node)[-1]
+                mapping[node.name] = mapping[last_pred.name]
+            else:
+                raise TypeError("The node has an invalid type")
+
+    return mapping
