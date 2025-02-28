@@ -420,3 +420,23 @@ def get_nodes_type(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph], initial_
                 raise TypeError("The node has an invalid type")
 
     return mapping
+
+
+def set_bool_constants(graph: Graph, constants: Mapping[str, bool]) -> Graph:
+    """
+    Takes a graph and a mapping from names to bool in input
+    and returns a new graph with the nodes corresponding to the given names replaced with the wanted constant.
+
+    (*can be expanded to manage also int constansts*)
+    """
+
+    new_nodes = []
+    for (name, value) in constants:
+        node = graph[name]
+        if isinstance(node, OperationNode):
+            # TODO: can be implemented using prune_unused()
+            raise NotImplementedError('The logic to replace an OperationNode with a constant has not been implemented yet.')
+        else:
+            new_nodes.append(BoolConstant(node.name, node.weight, node.in_subgraph, value))
+
+    return type(graph)(new_nodes, **{extra: getattr(graph, extra) for extra in graph.EXTRA})
