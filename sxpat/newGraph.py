@@ -264,6 +264,7 @@ class If(Op3Node):
     def if_false(self) -> str:
         return self.items[2]
 
+
 # TODO:WIP: global nodes
 
 
@@ -339,6 +340,7 @@ class Graph:
 
     @ft.cached_property
     def nodes(self) -> Tuple[Node, ...]:
+        """Sequence of nodes in topological order."""
         return tuple(self._graph.nodes[name][self.K] for name in nx.topological_sort(self._graph))
 
     def predecessors(self, node_or_name: Union[str, Node]) -> Tuple[Node, ...]:
