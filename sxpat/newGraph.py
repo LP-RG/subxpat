@@ -370,7 +370,7 @@ class Graph:
 
     @ft.cached_property
     def operations(self) -> Tuple[OperationNode, ...]:
-        return tuple(node for node in self.nodes if not isinstance(node, (*contact_nodes, *origin_nodes, *end_nodes)))
+        return tuple(node for node in self.nodes if not isinstance(node, (*contact_nodes, *origin_nodes, Target)))
 
     @ft.cached_property
     def end_nodes(self) -> Tuple[Copy, ...]:
