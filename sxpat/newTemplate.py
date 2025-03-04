@@ -140,6 +140,12 @@ class SharedTemplate:
             for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(prod_ints))
         ]
 
+        # target definition
+        targets = [
+            Target(f't_{param.name}', items=(param.name,))
+            for param in flat((sums_p, products_p, outs_p, sums_p))
+        ]
+
         nodes = it.chain(
             # placeholders
             (PlaceHolder(node.name) for node in flat((sums_p, products_p, outs_p, sums_p))),
@@ -156,6 +162,7 @@ class SharedTemplate:
             const0_red_nodes,
             prod_ints,
             prod_ord_nodes,
+            targets,
         )
         constraint_graph = CGraph(nodes)
 
@@ -163,6 +170,8 @@ class SharedTemplate:
 
 
 class SOPTemplate:
+    """TODO: REVIEW AFTER PIPELINE CHANGES"""
+
     @classmethod
     def define_template(cls, graph: SGraph, specs: Specifications) -> Tuple[TGraph, CGraph]:
         # get prefixed graph
