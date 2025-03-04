@@ -111,8 +111,7 @@ class SharedTemplate:
         ]
         # its constraint
         its_nodes = [
-            its := IntConstant('its', value=specs.its),
-            at_most_its := AtMost('at_most_its', items=(*flat(sums_p), its)),
+            at_most_its := AtMost('at_most_its', items=flat(sums_p), value=specs.its),
         ]
         # multiplexer redundancy
         mux_red_nodes = [
@@ -264,14 +263,11 @@ class SOPTemplate:
         ]
 
         # lpp constraint
-        lpp_nodes = list(it.chain(
-            (lpp := IntConstant('lpp', value=specs.lpp),),
-            (
-                AtMost('at_most_lpp', items=([p[0] for p in prod_t], lpp))
-                for prod_o in products_p
-                for prod_t in prod_o
-            )
-        ))
+        lpp_nodes = [
+            AtMost('at_most_lpp', items=(p[0] for p in prod_t), value=specs.lpp)
+            for prod_o in products_p
+            for prod_t in prod_o
+        ]
 
         # multiplexer redundancy
         mux_red_nodes = [
