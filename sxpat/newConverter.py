@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import abstractmethod
-from typing import Dict, Type, Callable, List, Mapping, NoReturn, Optional, Union
+from typing import Dict, Iterable, Type, Callable, List, Mapping, NoReturn, Optional, Union
 
 from collections import defaultdict
 from bidict import bidict
@@ -58,6 +58,7 @@ class DotConverter(Converter):
         IntConstant:  'constI',
         # output
         Copy: 'copy',
+        Target: 'target',
         # placeholder
         PlaceHolder: 'holder',
         # bool operations
@@ -89,6 +90,8 @@ class DotConverter(Converter):
         (BoolConstant, IntConstant): 'square',
         # output
         (Copy,): 'doublecircle',
+        # target
+        (Target,): 'star',
         # placeholder
         (PlaceHolder,): 'octagon',
         # bool operations
@@ -400,24 +403,25 @@ def prune_unused(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
     return type(graph)(nodes, **{extra: getattr(graph, extra) for extra in graph.EXTRA})
 
 
-def get_nodes_type(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph], initial_mapping: Mapping[str, type] = dict()) -> Mapping[str, type]:
+def get_nodes_type(graphs: Iterable[Union[Graph, GGraph, SGraph, TGraph, CGraph]], initial_mapping: Mapping[str, type] = dict()) -> Dict[str, type]:
     mapping = dict(initial_mapping)
 
-    for node in graph.nodes:
-        # TODO:MARCO: depending on how the encodings are implemented, this may need to be updated
-        # if the node is an operation node and not a copy node
-        if isinstance(node, OperationNode): #:
-            if isinstance(node, _boolean_nodes):
-                mapping[node.name] = bool
-            elif isinstance(node, _integer_nodes):
-                mapping[node.name] = int
-            elif isinstance(node, _contact_nodes):
-                continue
-            elif isinstance(node, _untyped_nodes):
-                last_pred = graph.predecessors(node)[-1]
-                mapping[node.name] = mapping[last_pred.name]
-            else:
-                raise TypeError("The node has an invalid type")
+    for graph in graphs:
+        for node in graph.nodes:
+            # TODO:MARCO: depending on how the encodings are implemented, this may need to be updated
+            # if the node is an operation node and not a copy node
+            # if isinstance(node, OperationNode):  # :
+                if isinstance(node, boolean_nodes):
+                    mapping[node.name] = bool
+                elif isinstance(node, integer_nodes):
+                    mapping[node.name] = int
+                elif isinstance(node, contact_nodes):
+                    continue
+                elif isinstance(node, untyped_nodes):
+                    last_pred = graph.predecessors(node)[-1]
+                    mapping[node.name] = mapping[last_pred.name]
+                else:
+                    raise TypeError("The node has an invalid type")
 
     return mapping
 
