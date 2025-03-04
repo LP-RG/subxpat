@@ -345,7 +345,7 @@ def unpack_toint(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
 
     max_inputs = max(len(node.items) for node in toint_nodes)
     int_consts = {
-        n: IntConstant(f'ic{n}', n)
+        n: IntConstant(f'c{n}', value=n)
         for n in it.chain((0,), (2**i for i in range(max_inputs)))
     }
 
@@ -444,3 +444,27 @@ def set_bool_constants(graph: Graph, constants: Mapping[str, bool]) -> Graph:
             new_nodes.append(BoolConstant(node.name, node.weight, node.in_subgraph, value))
 
     return type(graph)(new_nodes, **{extra: getattr(graph, extra) for extra in graph.EXTRA})
+
+
+def set_prefix(graph: Graph, prefix: str):
+    """
+    Takes a graph and a prefix as input and returns a new graph with all operation nodes updated with the prefix
+    """
+
+    operations_names = frozenset(n.name for n in graph.operations)
+    update_name: Callable[[str], str] = lambda name: f'{prefix}{name}' if name in operations_names else name
+
+    nodes = []
+    for node in graph.nodes:
+        # if node in graph.inputs:
+        #     nodes.append(node)
+        if isinstance(node, OperationNode):
+            items = (update_name(name) for name in node.items)
+            nodes.append(node.copy(name=update_name(node.name), items=items))
+        else:
+            # nodes.append(node)
+            nodes.append(node.copy(name=update_name(node.name)))
+
+    outputs_names = (f'{prefix}{name}' for name in graph.outputs_names)
+
+    return type(graph)(nodes, graph.inputs_names, outputs_names)

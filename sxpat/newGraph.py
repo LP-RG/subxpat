@@ -424,23 +424,6 @@ class GGraph(Graph):
     def outputs(self) -> Tuple[Node, ...]:
         return tuple(self._graph.nodes[name][self.K] for name in self.outputs_names)
 
-    def with_prefix(self, prefix: str):
-        """Returns a copy of the current graph with all nodes names (and items names) updated with the prefix (except the inputs)"""
-
-        nodes = []
-        for node in self.nodes:
-            if node in self.inputs:
-                nodes.append(node)
-            elif isinstance(node, OperationNode):
-                items = (name if name in self.inputs_names else f'{prefix}{name}' for name in node.items)
-                nodes.append(node.copy(name=f'{prefix}{node.name}', items=items))
-            else:
-                nodes.append(node.copy(name=f'{prefix}{node.name}'))
-
-        outputs_names = (f'{prefix}{name}' for name in self.outputs_names)
-
-        return type(self)(nodes, self.inputs_names, outputs_names)
-
 
 class SGraph(GGraph):
     """Graph with inputs, outputs and subgraph."""

@@ -2,6 +2,7 @@ from typing import List, Tuple
 
 import itertools as it
 
+from sxpat.newConverter import set_prefix
 from sxpat.newGraph import *
 from sxpat.specifications import Specifications
 from sxpat.utils.collections import flat, pairwise
@@ -16,7 +17,7 @@ class SharedTemplate:
     @classmethod
     def define_template(cls, graph: SGraph, specs: Specifications) -> Tuple[TGraph, CGraph]:
         # get prefixed graph
-        a_graph: SGraph = graph.with_prefix('a_')
+        a_graph: SGraph = set_prefix(graph, 'a_')
 
         # > Template Graph
 
@@ -40,7 +41,7 @@ class SharedTemplate:
             multiplexers.extend(_muxs)
 
         # construct sums and constant 0 switch
-        consts = {True: BoolConstant('ct', value=True), False: BoolConstant('cf', value=False)}
+        consts = {True: BoolConstant('cT', value=True), False: BoolConstant('cF', value=False)}
         sums = []
         sums_p: List[List[BoolVariable]] = []
         switches = []
@@ -175,7 +176,7 @@ class SOPTemplate:
     @classmethod
     def define_template(cls, graph: SGraph, specs: Specifications) -> Tuple[TGraph, CGraph]:
         # get prefixed graph
-        a_graph: SGraph = graph.with_prefix('a_')
+        a_graph: SGraph = set_prefix(graph, 'a_')
 
         # > Template Graph
 
