@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Collection, FrozenSet, Iterable, Sequence, Tuple, Union, Generic, TypeVar
+from typing import FrozenSet, Iterable, Sequence, Tuple, Union, Generic, TypeVar
 
 import dataclasses as dc
 
@@ -16,7 +16,7 @@ __all__ = [
     'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'Not',
     'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Switch', 'Target', 'ToInt', 'Valued',
     #
-    '_boolean_nodes', '_integer_nodes', '_untyped_nodes', '_contact_nodes',
+    'boolean_nodes', 'integer_nodes', 'untyped_nodes', 'contact_nodes', 'origin_nodes', 'end_nodes',
     # graphs
     'Graph', 'GGraph', 'CGraph', 'SGraph', 'TGraph',
 ]
@@ -279,13 +279,17 @@ class Max(Op1Node):
 
 
 #
-_boolean_nodes = (BoolVariable, BoolConstant, Not, And, Or, Implies, Equals, AtLeast, AtMost, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,)
-_integer_nodes = (IntVariable, IntConstant, ToInt, Sum, AbsDiff,)
-_untyped_nodes = (Copy, Target, Multiplexer, Switch, If,)
-_contact_nodes = (PlaceHolder,)  # TODO:MARCO: what name should we use?
-
+boolean_nodes = (BoolVariable, BoolConstant, Not, And, Or, Implies, Equals, AtLeast, AtMost, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,)
+integer_nodes = (IntVariable, IntConstant, ToInt, Sum, AbsDiff,)
+untyped_nodes = (Copy, Target, Multiplexer, Switch, If,)
+#
+contact_nodes = (PlaceHolder,)  # TODO:MARCO: what name should we use?
+#
+origin_nodes = (BoolVariable, BoolConstant, IntVariable, IntConstant)
+end_nodes = (Copy, Target)
 
 # > graphs
+
 
 class Graph:
     """Generic graph."""
@@ -360,13 +364,25 @@ class Graph:
     def constants(self) -> Tuple[Node, ...]:
         return tuple(node for node in self.nodes if isinstance(node, (BoolConstant, IntConstant)))
 
-    @ft.cached_property
-    def gates(self) -> Tuple[Node, ...]:
-        return tuple(node for node in self.nodes if isinstance(node, OperationNode))
+    # @ft.cached_property
+    # def origins(self) -> Tuple[Node, ...]:
+    #     return tuple(node for node in self.nodes if isinstance(node, (BoolVariable, IntVariable, BoolConstant, IntConstant)))
 
     @ft.cached_property
-    def non_gates(self) -> Tuple[Node, ...]:
-        return tuple(node for node in self.nodes if not isinstance(node, OperationNode))
+    def operations(self) -> Tuple[OperationNode, ...]:
+        return tuple(node for node in self.nodes if not isinstance(node, (*contact_nodes, *origin_nodes, *end_nodes)))
+
+    @ft.cached_property
+    def end_nodes(self) -> Tuple[Copy, ...]:
+        return tuple(node for node in self.nodes if isinstance(node, (Copy, Target)))
+
+    # @ft.cached_property
+    # def non_gates(self) -> Tuple[Node, ...]:
+    #     return tuple(node for node in self.nodes if not isinstance(node, OperationNode))
+
+    @ft.cached_property
+    def targets(self) -> Tuple[Target, ...]:
+        return tuple(node for node in self.nodes if isinstance(node, Target))
 
 
 class GGraph(Graph):
