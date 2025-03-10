@@ -188,16 +188,6 @@ class Equals(Op2Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class AtLeast(Valued[int], OperationNode):
-    pass
-
-
-@dc.dataclass(frozen=True, repr=False)
-class AtMost(Valued[int], OperationNode):
-    pass
-
-
-@dc.dataclass(frozen=True, repr=False)
 class LessThan(Ord2Node):
     pass
 
@@ -214,6 +204,19 @@ class GreaterThan(Ord2Node):
 
 @dc.dataclass(frozen=True, repr=False)
 class GreaterEqualThan(Ord2Node):
+    pass
+
+
+# quantifier operations
+
+
+@dc.dataclass(frozen=True, repr=False)
+class AtLeast(Valued[int], OperationNode):
+    pass
+
+
+@dc.dataclass(frozen=True, repr=False)
+class AtMost(Valued[int], OperationNode):
     pass
 
 
