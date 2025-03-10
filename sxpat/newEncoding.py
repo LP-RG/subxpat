@@ -3,7 +3,7 @@ from typing import IO, Any, Callable, Container, Dict, Sequence, Type, Union, Ty
 import dataclasses as dc
 import itertools as it
 
-from sxpat.newConverter import unpack_toint, get_nodes_type
+from sxpat.newConverter import get_nodes_bitwidth, unpack_toint, get_nodes_type
 from sxpat.newGraph import *
 from sxpat.specifications import EncodingType, Specifications
 
@@ -29,7 +29,6 @@ NODE_TO_Z3INT: Dict[Type[Node], Callable[[Union[Node, OperationNode, Valued], Se
     Or: lambda n, items:      f'Or({", ".join(items)})',
     Implies: lambda n, items: f'Implies({items[0]}, {items[1]})',
     # int operations
-    ToInt: lambda n, items:   f'If({items[0]}, {items[1]}, {items[2]})',
     Sum: lambda n, items:     f'Sum({", ".join(items)})',
     AbsDiff: lambda n, items: f'If({items[0]} >= {items[1]}, {items[0]} - {items[1]}, {items[1]} - {items[0]})',
     # comparison operations
@@ -42,7 +41,6 @@ NODE_TO_Z3INT: Dict[Type[Node], Callable[[Union[Node, OperationNode, Valued], Se
     GreaterEqualThan: lambda n, items: f'({items[0]} >= {items[1]})',
     # branching operations
     Multiplexer: lambda n, items: f'If({items[1]}, If({items[2]}, {items[0]}, Not({items[0]})), {items[2]})',
-    Switch: lambda n, items:      f'If({items[1]}, {items[0]}, {n.off_value})',
     If: lambda n, items:          f'If({items[0]}, {items[1]}, {items[2]})',
 }
 NODE_TO_Z3BV: Dict[Type[Node], Callable[[Union[Node, OperationNode, Valued], Sequence[str]], str]] = {
@@ -116,7 +114,7 @@ class Z3FuncEncoder:
         return type(graph)(nodes, **extra)
 
     @classmethod
-    def encode(cls, s_graph: SGraph, t_graph: TGraph, c_graph: CGraph, specs: Specifications, destination: IO[str]) -> ...:
+    def encode(cls, s_graph: SGraph, t_graph: TGraph, c_graph: CGraph, specs: Specifications, destination: IO[str]) -> None:
         # select encoding type
         node_mapping = {
             EncodingType.Z3_INTEGER: NODE_TO_Z3INT,
@@ -134,10 +132,10 @@ class Z3FuncEncoder:
         s_graph = unpack_toint(s_graph)
         t_graph = unpack_toint(t_graph)
         c_graph = unpack_toint(c_graph)
-        # aggregate grapgs
+        # aggregate graphs
         graphs = (s_graph, t_graph, c_graph)
-        # get node types
-        node_types = get_nodes_type(graphs)
+        # compute acessories
+        nodes_types = get_nodes_type(graphs)
 
         # init
         # TODO: maybe returns a string (which would be used outside, either written to file or other)
@@ -185,7 +183,7 @@ class Z3FuncEncoder:
         destination.write('\n'.join((
             '# nodes (circuits and constraints)',
             *(
-                function_string.format(name=node.name, sort=type_mapping[node_types[node.name]](output_count))
+                function_string.format(name=node.name, sort=type_mapping[nodes_types[node.name]](output_count))
                 for graph in graphs
                 for node in graph.operations
             ),
@@ -194,7 +192,9 @@ class Z3FuncEncoder:
 
         # preparation
         inputs_string = ','.join(s_graph.inputs_names)
-        non_gates_names = frozenset(node.name for node in it.chain(s_graph.inputs, t_graph.parameters, (g.constants for g in graphs)))
+        non_gates_names = frozenset(node.name for node in it.chain(s_graph.inputs,
+                                                                   t_graph.parameters,
+                                                                   *(g.constants for g in graphs)))
         call_graphs = tuple(
             cls.graph_as_function_calls(graph, inputs_string, non_gates_names)
             for graph in graphs

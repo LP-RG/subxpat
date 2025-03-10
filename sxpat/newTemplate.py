@@ -46,7 +46,7 @@ class SharedTemplate:
         sums_p: List[List[BoolVariable]] = []
         switches = []
         outs_p: List[BoolVariable] = []
-        outs: List[Switch] = []
+        outs: List[If] = []
         out_successors: List[OperationNode] = []
         for out_i, out_node in enumerate(a_graph.subgraph_outputs):
             # create all switches for the output
@@ -54,13 +54,13 @@ class SharedTemplate:
             sums_p.append([])
             for prod_i, prod_node in enumerate(products):
                 sums_p[-1].append(param := BoolVariable(f'p_o{out_i}_p{prod_i}', in_subgraph=True))
-                _sws.append(Switch(f'sw_o{out_i}_p{prod_i}', in_subgraph=True, items=[prod_node, param, consts[True]]))
+                _sws.append(If(f'sw_o{out_i}_p{prod_i}', in_subgraph=True, items=(param, prod_node, consts[True])))
 
             # create the sum and constant 0 switch
             sums.append(_sum := Or(f'sum{out_i}', in_subgraph=True, items=_sws))
             switches.extend(_sws)
             outs_p.append(p_o := BoolVariable(f'p_o{out_i}', in_subgraph=True))
-            outs.append(new_out_node := Switch(f'sw_o{out_i}', in_subgraph=True, items=(_sum, p_o, consts[False])))
+            outs.append(new_out_node := If(f'sw_o{out_i}', in_subgraph=True, items=(p_o, _sum, consts[False])))
 
             # update all output successors to descend from new outputs
             for succ in a_graph.successors(out_node):
@@ -205,7 +205,7 @@ class SOPTemplate:
         sums = []
         switches = []
         outs_p: List[BoolVariable] = []
-        outs: List[Switch] = []
+        outs: List[If] = []
         out_successors: List[OperationNode] = []
         for out_i, out_node in enumerate(a_graph.subgraph_outputs):
             # create the sum and constant 0 switch
@@ -213,7 +213,7 @@ class SOPTemplate:
             sums.append(_sum := Or(f'sum{out_i}', in_subgraph=True, items=_sws))
             switches.extend(_sws)
             outs_p.append(p_o := BoolVariable(f'p_o{out_i}', in_subgraph=True))
-            outs.append(new_out_node := Switch(f'sw_o{out_i}', in_subgraph=True, items=(_sum, p_o, consts[False])))
+            outs.append(new_out_node := If(f'sw_o{out_i}', in_subgraph=True, items=(p_o, _sum, consts[False])))
 
             # update all output successors to descend from new outputs
             for succ in a_graph.successors(out_node):

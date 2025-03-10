@@ -80,7 +80,6 @@ class DotConverter(Converter):
         GreaterEqualThan: '>=',
         # branching operations
         Multiplexer: 'mux',
-        Switch:      'switch',
         If:          'if',
     })
     NODE_SHAPE = MultiDict({
@@ -102,7 +101,7 @@ class DotConverter(Converter):
         (Equals, AtLeast, AtMost, LessThan,
          LessEqualThan, GreaterThan, GreaterEqualThan): 'invtriangle',
         # branching operations
-        (Multiplexer, Switch, If): 'diamond',
+        (Multiplexer, If): 'diamond',
     })
     NODE_COLOR: Mapping[Type[Graph], Callable[[Graph, Node], Optional[str]]] = {
         Graph: lambda g, n: 'red' if n.in_subgraph else 'white',

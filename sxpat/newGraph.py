@@ -14,7 +14,7 @@ __all__ = [
     'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolVariable', 'Copy',
     'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
     'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'Not',
-    'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Switch', 'Target', 'ToInt', 'Valued',
+    'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Target', 'ToInt', 'Valued',
     #
     'boolean_nodes', 'integer_nodes', 'untyped_nodes', 'contact_nodes', 'origin_nodes', 'end_nodes',
     # graphs
@@ -236,21 +236,6 @@ class Multiplexer(Op3Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Switch(Op3Node):
-    @property
-    def origin(self) -> str:
-        return self.items[0]
-
-    @property
-    def parameter(self) -> str:
-        return self.items[1]
-
-    @property
-    def off_value(self) -> str:
-        return self.items[2]
-
-
-@dc.dataclass(frozen=True, repr=False)
 class If(Op3Node):
     @property
     def contition(self) -> str:
@@ -266,27 +251,26 @@ class If(Op3Node):
 
 
 # TODO:WIP: global nodes
-
-
-@dc.dataclass(frozen=True, repr=False)
-class Min(Op1Node):
-    pass
-
-
-@dc.dataclass(frozen=True, repr=False)
-class Max(Op1Node):
-    pass
+# @dc.dataclass(frozen=True, repr=False)
+# class Min(Op1Node):
+#     pass
+# @dc.dataclass(frozen=True, repr=False)
+# class Max(Op1Node):
+#     pass
+# @dc.dataclass(frozen=True, repr=False)
+# class ForAll(OperationNode):
+#     pass
 
 
 #
-boolean_nodes = (BoolVariable, BoolConstant, Not, And, Or, Implies, Equals, AtLeast, AtMost, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,)
+boolean_nodes = (BoolVariable, BoolConstant, Not, And, Or, Implies, Equals, AtLeast, AtMost, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan, Multiplexer,)
 integer_nodes = (IntVariable, IntConstant, ToInt, Sum, AbsDiff,)
-untyped_nodes = (Copy, Target, Multiplexer, Switch, If,)
+untyped_nodes = (Copy, Target, If,)
 #
 contact_nodes = (PlaceHolder,)  # TODO:MARCO: what name should we use?
 #
-origin_nodes = (BoolVariable, BoolConstant, IntVariable, IntConstant)
-end_nodes = (Copy, Target)
+origin_nodes = (BoolVariable, BoolConstant, IntVariable, IntConstant,)
+end_nodes = (Copy, Target,)
 
 # > graphs
 
