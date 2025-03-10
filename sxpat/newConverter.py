@@ -15,7 +15,7 @@ from sxpat.utils.functions import str_to_bool
 from sxpat.utils.collections import MultiDict
 
 
-__all__ = ['DotConverter', 'JSONConverter', 'unpack_toint', 'prune_unused']
+__all__ = ['DotConverter', 'JSONConverter', 'unpack_ToInt', 'prune_unused']
 
 
 class Converter:
@@ -333,7 +333,7 @@ class JSONConverter(Converter):
         return cls.json.dumps(_g, indent=4)
 
 
-def unpack_toint(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
+def unpack_ToInt(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
     toint_nodes = tuple(
         node
         for node in graph.nodes
@@ -342,16 +342,19 @@ def unpack_toint(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
     if len(toint_nodes) == 0:  # nothing to do
         return graph
 
-    max_inputs = max(len(node.items) for node in toint_nodes)
+    # generate constants for each sum
     int_consts = {
-        n: IntConstant(f'c{n}', value=n)
-        for n in it.chain((0,), (2**i for i in range(max_inputs)))
+        toint.name: {
+            n: IntConstant(f'{toint.name}_c{n}', value=n)
+            for n in it.chain((0,), (2**i for i in range(len(toint.items))))
+        }
+        for toint in toint_nodes
     }
 
     # create all if->int nodes (Dict[original_node_name, List[if_nodes_for_that_node]])
     ifs: Dict[str, List[If]] = {
         toint.name: [
-            If(f'if_{toint.name}_{i}', items=(pred, int_consts[2**i], int_consts[0]))
+            If(f'if_{toint.name}_{i}', items=(pred, int_consts[toint.name][2**i], int_consts[toint.name][0]))
             for i, pred in enumerate(toint.items)
         ]
         for toint in toint_nodes
@@ -367,7 +370,7 @@ def unpack_toint(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
     ]
 
     nodes = it.chain(
-        int_consts.values(),
+        *(consts.values() for consts in int_consts.values()),
         (
             node
             for node in graph.nodes
@@ -439,30 +442,33 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
                        initial_mapping: Mapping[str, int] = dict()
                        ) -> Dict[str, int]:
     """
-        Computes the bitwidth of each node.  
-        The function will repeat itself if some widths change, this is to force all nodes that are part of the same chains to have the same bitwidth.
+        Computes the bitwidth of each node.
+
+        The function will repeat itself if any width changes, 
+        this is to force all nodes that are part of the same chains to have the same bitwidth.
     """
 
     bitwidth_of = dict(initial_mapping)
 
     def manage_node(node: Node):
-        # skip if not integer
+        # deferred case (all predecessors of a node should have the same bitwidth)
         if nodes_types[node.name] is not int:
-            return
+            if isinstance(node, OperationNode):
+                max_bitwidth = max(bitwidth_of.get(n.name, 0) for n in graph.predecessors(node))
+                for n in graph.predecessors(node):
+                    bitwidth_of[n.name] = max_bitwidth
 
         # trivial case
-        if isinstance(node, ToInt) and node.name not in bitwidth_of:
+        elif isinstance(node, ToInt) and node.name not in bitwidth_of:
             bitwidth_of[node.name] = len(graph.predecessors(node))
 
         # dynamic case
         else:
             max_bitwidth = max(
-                bitwidth_of.get(succ.name, 0)
-                for succ in it.chain(graph.predecessors(node),
-                                     graph.successors(node))
+                bitwidth_of.get(n.name, 0)
+                for n in it.chain(graph.predecessors(node), graph.successors(node), (node,))
             )
-            if max_bitwidth > 0:
-                bitwidth_of[node.name] = max_bitwidth
+            bitwidth_of[node.name] = max_bitwidth
 
     # forward update (optimally updates decreasing chains)
     for graph in graphs:
@@ -475,7 +481,12 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
             manage_node(node)
 
     if bitwidth_of == initial_mapping:
-        return bitwidth_of
+        # remove 0
+        return {
+            k: v
+            for k, v in bitwidth_of.items()
+            if v != 0
+        }
     else:
         return get_nodes_bitwidth(graphs, nodes_types, bitwidth_of)
 
@@ -502,7 +513,7 @@ def set_bool_constants(graph: Graph, constants: Mapping[str, bool]) -> Graph:
 
 def set_prefix(graph: Graph, prefix: str):
     """
-    Takes a graph and a prefix as input and returns a new graph with all operation nodes updated with the prefix
+    Takes a graph and a prefix as input and returns a new graph with all operation nodes updated with the prefix.
     """
 
     operations_names = frozenset(n.name for n in graph.operations)
