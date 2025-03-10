@@ -3,7 +3,7 @@ from typing import IO, Any, Callable, Container, Dict, Sequence, Type, Union, Ty
 import dataclasses as dc
 import itertools as it
 
-from sxpat.newConverter import get_nodes_bitwidth, unpack_toint, get_nodes_type
+from sxpat.newConverter import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.newGraph import *
 from sxpat.specifications import EncodingType, Specifications
 
@@ -11,55 +11,63 @@ from sxpat.specifications import EncodingType, Specifications
 ValidGraph = TypeVar('ValidGraph', SGraph, TGraph, CGraph)
 
 
-NODE_TO_Z3INT: Dict[Type[Node], Callable[[Union[Node, OperationNode, Valued], Sequence[str]], str]] = {
-    # inputs
-    BoolVariable: lambda n, items: f'Bool(\'{n.name}\')',
-    IntVariable: lambda n, items:  f'Int(\'{n.name}\')',
+NODE_TO_Z3INT: Dict[Type[Node], Callable[[Union[Node, OperationNode, Valued], Sequence[str], Sequence[Any]], str]] = {
+    # variables
+    BoolVariable: lambda n, items, accs: f'Bool(\'{n.name}\')',
+    IntVariable: lambda n, items, accs:  f'Int(\'{n.name}\')',
     # constants
-    BoolConstant: lambda n, items: f'BoolVal({n.value})',
-    IntConstant: lambda n, items:  f'IntVal({n.value})',
+    BoolConstant: lambda n, items, accs: f'BoolVal({n.value})',
+    IntConstant: lambda n, items, accs:  f'IntVal({n.value})',
     # output
-    Copy: lambda n, items:   items[0],
-    Target: lambda n, items: items[0],
+    Copy: lambda n, items, accs:   items[0],
+    Target: lambda n, items, accs: items[0],
     # placeholder
-    PlaceHolder: lambda n, items: n.name,
-    # bool operations
-    Not: lambda n, items:     f'Not({items[0]})',
-    And: lambda n, items:     f'And({", ".join(items)})',
-    Or: lambda n, items:      f'Or({", ".join(items)})',
-    Implies: lambda n, items: f'Implies({items[0]}, {items[1]})',
-    # int operations
-    Sum: lambda n, items:     f'Sum({", ".join(items)})',
-    AbsDiff: lambda n, items: f'If({items[0]} >= {items[1]}, {items[0]} - {items[1]}, {items[1]} - {items[0]})',
+    PlaceHolder: lambda n, items, accs: n.name,
+    # boolean operations
+    Not: lambda n, items, accs:     f'Not({items[0]})',
+    And: lambda n, items, accs:     f'And({", ".join(items)})',
+    Or: lambda n, items, accs:      f'Or({", ".join(items)})',
+    Implies: lambda n, items, accs: f'Implies({items[0]}, {items[1]})',
+    # integer operations
+    Sum: lambda n, items, accs:     f'Sum({", ".join(items)})',
+    AbsDiff: lambda n, items, accs: f'If({items[0]} >= {items[1]}, {items[0]} - {items[1]}, {items[1]} - {items[0]})',
     # comparison operations
-    Equals: lambda n, items:           f'({items[0]} == {items[1]})',
-    AtLeast: lambda n, items:          f'AtLeast({", ".join(items)}, {n.value})',
-    AtMost: lambda n, items:           f'AtMost({", ".join(items)}, {n.value})',
-    LessThan: lambda n, items:         f'({items[0]} < {items[1]})',
-    LessEqualThan: lambda n, items:    f'({items[0]} <= {items[1]})',
-    GreaterThan: lambda n, items:      f'({items[0]} > {items[1]})',
-    GreaterEqualThan: lambda n, items: f'({items[0]} >= {items[1]})',
+    Equals: lambda n, items, accs:           f'({items[0]} == {items[1]})',
+    LessThan: lambda n, items, accs:         f'({items[0]} < {items[1]})',
+    LessEqualThan: lambda n, items, accs:    f'({items[0]} <= {items[1]})',
+    GreaterThan: lambda n, items, accs:      f'({items[0]} > {items[1]})',
+    GreaterEqualThan: lambda n, items, accs: f'({items[0]} >= {items[1]})',
+    # quantifier operations
+    AtLeast: lambda n, items, accs:          f'AtLeast({", ".join(items)}, {n.value})',
+    AtMost: lambda n, items, accs:           f'AtMost({", ".join(items)}, {n.value})',
     # branching operations
-    Multiplexer: lambda n, items: f'If({items[1]}, If({items[2]}, {items[0]}, Not({items[0]})), {items[2]})',
-    If: lambda n, items:          f'If({items[0]}, {items[1]}, {items[2]})',
+    Multiplexer: lambda n, items, accs: f'If({items[1]}, If({items[2]}, {items[0]}, Not({items[0]})), {items[2]})',
+    If: lambda n, items, accs:          f'If({items[0]}, {items[1]}, {items[2]})',
 }
 NODE_TO_Z3BV: Dict[Type[Node], Callable[[Union[Node, OperationNode, Valued], Sequence[str]], str]] = {
     **NODE_TO_Z3INT,
-    # inputs
-    IntVariable: lambda n, items:  f'Bv(\'{n.name}\')',  # TODO
+    # variables
+    IntVariable: lambda n, items, accs:  f'BitVec(\'{n.name}\', {accs[0]})',
     # constants
-    IntConstant: lambda n, items:  str(n.value),
-    #
+    IntConstant: lambda n, items, accs:  f'BitVecVal({n.value}, {accs[0]})',
+    # integer operations
+    AbsDiff: lambda n, items, accs: f'If(UGE({items[0]}, {items[1]}), {items[0]} - {items[1]}, {items[1]} - {items[0]})',
+    # comparison operations
+    Equals: lambda n, items, accs:           f'({items[0]} == {items[1]})',
     # TODO
+    LessThan: lambda n, items, accs:         f'ULT({items[0]}, {items[1]})',
+    LessEqualThan: lambda n, items, accs:    f'ULE({items[0]}, {items[1]})',
+    GreaterThan: lambda n, items, accs:      f'UGT({items[0]}, {items[1]})',
+    GreaterEqualThan: lambda n, items, accs: f'UGE({items[0]}, {items[1]})',
 }
 
-TYPE_TO_INTSORT: Dict[Type[Union[int, bool]], Callable[..., str]] = {
-    bool: lambda *args: 'BoolSort()',
-    int: lambda *args: 'IntSort()',
+TYPE_TO_INTSORT: Dict[Type[Union[int, bool]], Callable[[Sequence[Any]], str]] = {
+    bool: lambda accs: 'BoolSort()',
+    int: lambda accs: 'IntSort()',
 }
-TYPE_TO_BVSORT: Dict[Type[Union[int, bool]], Callable[..., str]] = {
-    bool: lambda *args: 'BoolSort()',
-    int: lambda *args: f'BitVecSort({args[0]})',
+TYPE_TO_BVSORT: Dict[Type[Union[int, bool]], Callable[[Sequence[Any]], str]] = {
+    **TYPE_TO_INTSORT,
+    int: lambda accs: f'BitVecSort({accs[0]})',
 }
 
 
@@ -128,17 +136,26 @@ class Z3FuncEncoder:
             EncodingType.Z3_INTEGER: 'Solver()',
             EncodingType.Z3_BITVECTOR: 'SolverFor(\'BV\')',
         }[specs.encoding]
-        # digest graphs
-        s_graph = unpack_toint(s_graph)
-        t_graph = unpack_toint(t_graph)
-        c_graph = unpack_toint(c_graph)
-        # aggregate graphs
+        # compute initial accessories
         graphs = (s_graph, t_graph, c_graph)
-        # compute acessories
         nodes_types = get_nodes_type(graphs)
+        nodes_bitwidths = get_nodes_bitwidth((s_graph, t_graph, c_graph), nodes_types)
+        # digest graphs
+        s_graph = unpack_ToInt(s_graph)
+        t_graph = unpack_ToInt(t_graph)
+        c_graph = unpack_ToInt(c_graph)
+        # compute refined acessories
+        graphs = (s_graph, t_graph, c_graph)
+        nodes_types = get_nodes_type(graphs, nodes_types)
+        nodes_bitwidths = get_nodes_bitwidth(graphs, nodes_types, nodes_bitwidths)
+
+        #
+        accs: Callable[[Node], Sequence[Any]] = {
+            EncodingType.Z3_INTEGER: lambda n: (),
+            EncodingType.Z3_BITVECTOR: lambda n: (nodes_bitwidths.get(n.name, None),),
+        }[specs.encoding]
 
         # init
-        # TODO: maybe returns a string (which would be used outside, either written to file or other)
         destination.write('\n'.join((
             'from z3 import *',
             *('',) * 2,
@@ -154,7 +171,7 @@ class Z3FuncEncoder:
         destination.write('\n'.join((
             '# variables (inputs, parameters)',
             *(
-                f'{name} = {node_mapping[type(node)](node, None)}'
+                f'{name} = {node_mapping[type(node)](node, None, accs(node))}'
                 for (name, node) in variables.items()
             ),
             *('',) * 2,
@@ -170,7 +187,7 @@ class Z3FuncEncoder:
         destination.write('\n'.join((
             '# constants',
             *(
-                f'{name} = {node_mapping[type(node)](node, None)}'
+                f'{name} = {node_mapping[type(node)](node, None,accs(node))}'
                 for (name, node) in constants.items()
             ),
             *('',) * 2,
@@ -183,7 +200,7 @@ class Z3FuncEncoder:
         destination.write('\n'.join((
             '# nodes (circuits and constraints)',
             *(
-                function_string.format(name=node.name, sort=type_mapping[nodes_types[node.name]](output_count))
+                function_string.format(name=node.name, sort=type_mapping[nodes_types[node.name]](accs(node)))
                 for graph in graphs
                 for node in graph.operations
             ),
@@ -205,7 +222,7 @@ class Z3FuncEncoder:
             '# behaviour',
             'constraints = And(',
             *(
-                f'    {node.name} == {node_mapping[type(node)](node, node.items)},'
+                f'    {node.name} == {node_mapping[type(node)](node, node.items, accs(node))},'
                 for graph in call_graphs
                 for node in graph.operations
             ),
