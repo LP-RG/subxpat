@@ -382,7 +382,7 @@ def unpack_toint(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
 
 
 def prune_unused(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
-    """This function takes a graph and returns a new graph without any dangling nodes (recursive).  
+    """This function takes a graph and returns a new graph without any dangling nodes (recursive).
         Nodes counted as correct terminations are nodes of class `Copy` (or of subclasses) or of class Bool/IntVariable.
     """
 
@@ -403,27 +403,82 @@ def prune_unused(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
     return type(graph)(nodes, **{extra: getattr(graph, extra) for extra in graph.EXTRA})
 
 
-def get_nodes_type(graphs: Iterable[Union[Graph, GGraph, SGraph, TGraph, CGraph]], initial_mapping: Mapping[str, type] = dict()) -> Dict[str, type]:
-    mapping = dict(initial_mapping)
+def get_nodes_type(graphs: Iterable[Union[Graph, GGraph, SGraph, TGraph, CGraph]],
+                   initial_mapping: Mapping[str, type] = dict()
+                   ) -> Dict[str, type]:
+
+    type_of = dict(initial_mapping)
 
     for graph in graphs:
         for node in graph.nodes:
-            # TODO:MARCO: depending on how the encodings are implemented, this may need to be updated
-            # if the node is an operation node and not a copy node
-            # if isinstance(node, OperationNode):  # :
-                if isinstance(node, boolean_nodes):
-                    mapping[node.name] = bool
-                elif isinstance(node, integer_nodes):
-                    mapping[node.name] = int
-                elif isinstance(node, contact_nodes):
-                    continue
-                elif isinstance(node, untyped_nodes):
-                    last_pred = graph.predecessors(node)[-1]
-                    mapping[node.name] = mapping[last_pred.name]
-                else:
-                    raise TypeError("The node has an invalid type")
+            # skip if already computed
+            if node.name in type_of:
+                continue
 
-    return mapping
+            # direct cases
+            if isinstance(node, boolean_nodes):
+                type_of[node.name] = bool
+            elif isinstance(node, integer_nodes):
+                type_of[node.name] = int
+
+            # dynamic cases
+            elif isinstance(node, untyped_nodes):
+                last_pred = graph.predecessors(node)[-1]
+                type_of[node.name] = type_of[last_pred.name]
+
+            # special cases
+            elif isinstance(node, contact_nodes):
+                continue
+            else:
+                raise TypeError("The node has an invalid type")
+
+    return type_of
+
+
+def get_nodes_bitwidth(graphs: Iterable[Graph],
+                       nodes_types: Mapping[str, type],
+                       initial_mapping: Mapping[str, int] = dict()
+                       ) -> Dict[str, int]:
+    """
+        Computes the bitwidth of each node.  
+        The function will repeat itself if some widths change, this is to force all nodes that are part of the same chains to have the same bitwidth.
+    """
+
+    bitwidth_of = dict(initial_mapping)
+
+    def manage_node(node: Node):
+        # skip if not integer
+        if nodes_types[node.name] is not int:
+            return
+
+        # trivial case
+        if isinstance(node, ToInt) and node.name not in bitwidth_of:
+            bitwidth_of[node.name] = len(graph.predecessors(node))
+
+        # dynamic case
+        else:
+            max_bitwidth = max(
+                bitwidth_of.get(succ.name, 0)
+                for succ in it.chain(graph.predecessors(node),
+                                     graph.successors(node))
+            )
+            if max_bitwidth > 0:
+                bitwidth_of[node.name] = max_bitwidth
+
+    # forward update (optimally updates decreasing chains)
+    for graph in graphs:
+        for node in graph.nodes:
+            manage_node(node)
+
+    # backward update (optimally updates increasing chains)
+    for graph in reversed(graphs):
+        for node in reversed(graph.nodes):
+            manage_node(node)
+
+    if bitwidth_of == initial_mapping:
+        return bitwidth_of
+    else:
+        return get_nodes_bitwidth(graphs, nodes_types, bitwidth_of)
 
 
 def set_bool_constants(graph: Graph, constants: Mapping[str, bool]) -> Graph:
