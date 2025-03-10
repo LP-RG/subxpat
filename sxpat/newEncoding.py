@@ -124,18 +124,23 @@ class Z3FuncEncoder:
     @classmethod
     def encode(cls, s_graph: SGraph, t_graph: TGraph, c_graph: CGraph, specs: Specifications, destination: IO[str]) -> None:
         # select encoding type
-        node_mapping = {
+        node_mapping = {  # Node to Z3 expression
             EncodingType.Z3_INTEGER: NODE_TO_Z3INT,
             EncodingType.Z3_BITVECTOR: NODE_TO_Z3BV,
         }[specs.encoding]
-        type_mapping = {
+        type_mapping = {  # bool/int to Z3 sorts
             EncodingType.Z3_INTEGER: TYPE_TO_INTSORT,
             EncodingType.Z3_BITVECTOR: TYPE_TO_BVSORT,
         }[specs.encoding]
-        solver_construct = {
-            EncodingType.Z3_INTEGER: 'Solver()',
+        solver_construct = {  # solver object creation
+            EncodingType.Z3_INTEGER: 'Solver()',  # 'SolverFor(\'LIA\')',
             EncodingType.Z3_BITVECTOR: 'SolverFor(\'BV\')',
         }[specs.encoding]
+        accs = {  # node accessories
+            EncodingType.Z3_INTEGER: lambda n: (),
+            EncodingType.Z3_BITVECTOR: lambda n: (nodes_bitwidths.get(n.name, None),),
+        }[specs.encoding]
+
         # compute initial accessories
         graphs = (s_graph, t_graph, c_graph)
         nodes_types = get_nodes_type(graphs)
@@ -149,13 +154,17 @@ class Z3FuncEncoder:
         nodes_types = get_nodes_type(graphs, nodes_types)
         nodes_bitwidths = get_nodes_bitwidth(graphs, nodes_types, nodes_bitwidths)
 
-        #
-        accs: Callable[[Node], Sequence[Any]] = {
-            EncodingType.Z3_INTEGER: lambda n: (),
-            EncodingType.Z3_BITVECTOR: lambda n: (nodes_bitwidths.get(n.name, None),),
-        }[specs.encoding]
+        # create call graphs (graphs where each node name has been replaced with the relative function call)
+        inputs_string = ','.join(s_graph.inputs_names)
+        non_gates_names = frozenset(node.name for node in it.chain(s_graph.inputs,
+                                                                   t_graph.parameters,
+                                                                   *(g.constants for g in graphs)))
+        call_graphs = tuple(
+            cls.graph_as_function_calls(graph, inputs_string, non_gates_names)
+            for graph in graphs
+        )
 
-        # init
+        # initialization
         destination.write('\n'.join((
             'from z3 import *',
             *('',) * 2,
@@ -207,16 +216,6 @@ class Z3FuncEncoder:
             *('',) * 2,
         )))
 
-        # preparation
-        inputs_string = ','.join(s_graph.inputs_names)
-        non_gates_names = frozenset(node.name for node in it.chain(s_graph.inputs,
-                                                                   t_graph.parameters,
-                                                                   *(g.constants for g in graphs)))
-        call_graphs = tuple(
-            cls.graph_as_function_calls(graph, inputs_string, non_gates_names)
-            for graph in graphs
-        )
-
         # gates behavior
         destination.write('\n'.join((
             '# behaviour',
@@ -227,12 +226,6 @@ class Z3FuncEncoder:
                 for node in graph.operations
             ),
             ')',
-            # 'gates_behavior = And(',
-            # '    # Current circuit',
-            # *(f'    {node.name} == {cls.NODE_TO_Z3[type(node)](node)},' for node in _s_graph.gates),
-            # '    # Template circuit',
-            # *(f'    {node.name} == {cls.NODE_TO_Z3[type(node)](node)},' for node in _t_graph.gates),
-            # ')',
             *('',) * 2,
         )))
 
