@@ -74,7 +74,7 @@ class Z3FuncEncoder:
         nodes_bitwidths = get_nodes_bitwidth(graphs, nodes_types, nodes_bitwidths)
 
         # finalize node accessories
-        accs = accs(nodes_bitwidths)
+        accs = accs((nodes_bitwidths,))
 
         # create call graphs (graphs where each node name has been replaced with the relative function call)
         inputs_string = ','.join(s_graph.inputs_names)
@@ -291,9 +291,9 @@ class Z3Solver(Solver):
             }
 
 
-class Z3IntSolver(Solver):
+class Z3IntSolver(Z3Solver):
     encoder = Z3IntFuncEncoder
 
 
-class Z3BitVecSolver(Solver):
+class Z3BitVecSolver(Z3Solver):
     encoder = Z3BitVecFuncEncoder
