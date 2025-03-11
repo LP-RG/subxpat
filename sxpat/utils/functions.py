@@ -25,3 +25,10 @@ STR_TO_BOOL = {
 
 def str_to_bool(string: str) -> bool:
     return STR_TO_BOOL[string.lower()]
+
+
+def str_to_int_or_bool(string: str) -> bool:
+    if string.isdigit():
+        return int(string)
+    else:
+        return str_to_bool(string)
