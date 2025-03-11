@@ -1,14 +1,10 @@
-from typing import IO, Any, Callable, Container, Dict, Sequence, Type, Union, TypeVar
+from typing import IO, Any, Callable, Container, Dict, Sequence, Type, Union
 
-import dataclasses as dc
 import itertools as it
 
 from sxpat.newConverter import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.newGraph import *
 from sxpat.specifications import EncodingType, Specifications
-
-
-ValidGraph = TypeVar('ValidGraph', SGraph, TGraph, CGraph)
 
 
 NODE_TO_Z3INT: Dict[Type[Node], Callable[[Union[Node, OperationNode, Valued], Sequence[str], Sequence[Any]], str]] = {
@@ -71,30 +67,11 @@ TYPE_TO_BVSORT: Dict[Type[Union[int, bool]], Callable[[Sequence[Any]], str]] = {
 }
 
 
-# class Z3InlinePartialEncoder:
-#     @classmethod
-#     def recursive_conversion(cls, graph: Graph, node: Union[Node, OperationNode, Valued]) -> str:
-#         return NODE_TO_Z3INT[type(node)](
-#             node,
-#             [cls.recursive_conversion(graph, item) for item in graph.predecessors(node)]
-#         )
-#     @classmethod
-#     def encode(cls, graph: Graph) -> Tuple[str]:
-#         leaves = [
-#             node
-#             for node in graph.nodes
-#             if len(graph.successors(node)) == 0
-#         ]
-#         graph = unpack_toint(graph)
-#         return tuple(
-#             cls.recursive_conversion(graph, leaf)
-#             for leaf in leaves
-#         )
-
-
 class Z3FuncEncoder:
     @classmethod
-    def graph_as_function_calls(cls, graph: ValidGraph, inputs_string: str, non_gates_names: Container[str]):
+    def graph_as_function_calls(cls, graph: Union[SGraph, TGraph, CGraph],
+                                inputs_string: str,
+                                non_gates_names: Container[str]):
         """
             This method takes a graph in input and returns a new graph with all nodes updated
             to have their name being the equivalent z3 uninterpreted function call.
@@ -122,7 +99,8 @@ class Z3FuncEncoder:
         return type(graph)(nodes, **extra)
 
     @classmethod
-    def encode(cls, s_graph: SGraph, t_graph: TGraph, c_graph: CGraph, specs: Specifications, destination: IO[str]) -> None:
+    def encode(cls, s_graph: SGraph, t_graph: TGraph, c_graph: CGraph,
+               specs: Specifications, destination: IO[str]) -> None:
         # select encoding type
         node_mapping = {  # Node to Z3 expression
             EncodingType.Z3_INTEGER: NODE_TO_Z3INT,
