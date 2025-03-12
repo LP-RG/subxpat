@@ -446,7 +446,7 @@ class Stats:
         technique_specific = f'{self.tool_name}_{self.specs.error_partitioning.value}_'
         technique_specific += f'enc{self.specs.encoding.value}_'
 
-        tail = f'mode{self.specs.extraction_mode}_omax{self.specs.omax}_imax{self.specs.imax}_'
+        tail = f'mode{self.specs.extraction_mode}_omax{self.specs.omax}_imax{self.specs.imax}_const{self.specs.constants.value}_'
         tail += f'{self.template_name}_time'
 
         # Get the current date and time

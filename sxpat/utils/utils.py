@@ -1,5 +1,7 @@
+# typing
+from typing import Iterable, Callable, Any
+
 import time
-from typing import Any, Callable, Iterable
 import colorama
 
 

@@ -21,7 +21,7 @@ from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 
-from z_marco.utils import pprint
+from sxpat.utils.utils import pprint
 
 
 def explore_grid(specs_obj: Specifications):
@@ -41,17 +41,35 @@ def explore_grid(specs_obj: Specifications):
 
     obtained_wce_exact = 0
     specs_obj.iteration = 0
-    prev_actual_error = 0
+    persistance = 0
+    persistance_limit = 2
+    prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
+
+    if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
+        orig_et = specs_obj.max_error
+        if orig_et <= 8:
+            et_array = iter(list(range(1, orig_et +1, 1)))
+        else:
+            step = orig_et // 8 if orig_et // 8 > 0 else 1
+            et_array = iter(list(range(step, orig_et + step, step)))
 
     while (obtained_wce_exact < specs_obj.max_error):
         specs_obj.iteration += 1
-
         if not specs_obj.subxpat:
+            if prev_actual_error == 0:
+                break
             specs_obj.et = specs_obj.max_error
-
         elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
-            specs_obj.et = 2 ** (specs_obj.iteration - 1)
+            if (persistance == persistance_limit or prev_actual_error == 0):
+                persistance = 0
+                try:
+                    specs_obj.et = next(et_array)
+                except StopIteration:
+                    pprint.warning('The error space is exhausted!')
+                    break
+            else:
+                persistance += 1
         elif specs_obj.error_partitioning is ErrorPartitioningType.DESCENDING:
             log2 = int(math.log2(specs_obj.max_error))
             specs_obj.et = 2 ** (log2 - specs_obj.iteration - 2)
@@ -203,6 +221,7 @@ def explore_grid(specs_obj: Specifications):
 
                 # select best circuit
                 best_name, best_data = sorted_circuits[0]
+                obtained_wce_exact = best_data[4]
                 prev_actual_error = best_data[5]
 
                 specs_obj.current_benchmark = best_name
@@ -222,8 +241,6 @@ def explore_grid(specs_obj: Specifications):
 
                 stats_obj.grid.cells[lpp][ppo].store_model_info(best_model_info)
                 pprint.success(f'ErrorEval PASS! with total wce = {best_data[4]}')
-
-                synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], list(cur_model_results.keys())[0])
 
                 exact_stats = [synth_obj.estimate_area(exact_file_path),
                                synth_obj.estimate_power(exact_file_path),

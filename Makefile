@@ -1,13 +1,7 @@
 # settings
 
 PY := python3
-ENV_NAME := venv
-
-SFTW_DEP := graphviz graphviz-dev yosys opensta
-
-# This will not be needed as the main.py already creates the folders
-EXTRA_FOLDERS := test/ver test/z3
-EXTRA_FOLDERS += output/aig output/area output/delay output/figure output/gv output/json output/log output/report output/ver output/z3
+ENV_NAME := .venv
 
 # computed
 
@@ -35,21 +29,11 @@ py_dep: py_init
 	$(IN_ENV) python3 -m pip install --upgrade pip
 	$(IN_ENV) pip install --upgrade -r requirements.txt
 
-sftw_dep:
-	@echo "\n[[ installing/upgrading software dependencies ]]"
-	sudo apt install --yes --upgrade $(SFTW_DEP)
-
-folders_dep:
-	@echo "\n[[ creating required folders ]]"
-	$(if $(strip $(EXTRA_FOLDERS)),mkdir -p $(EXTRA_FOLDERS),# nothing to create)
-
 local_dep:
 	@echo "\n[[ generating local files ]]"
 	mkdir -p input/ver/ && cp -r input/ver.bak/* input/ver/
-	touch -a local.mk
 
-setup: folders_dep py_init py_dep local_dep
-setup-all: sftw_dep setup
+setup: py_init py_dep local_dep
 
 rm_cache:
 	@echo "\n[[ removing all pycache folders ]]"

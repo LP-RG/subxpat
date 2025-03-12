@@ -16,7 +16,7 @@ import networkx.drawing as nx_draw
 from Z3Log.graph import Graph
 from sxpat.annotatedGraph import AnnotatedGraph
 
-from z_marco.utils import static, pprint
+from sxpat.utils.utils import static, pprint
 
 
 # class Operation(Enum):

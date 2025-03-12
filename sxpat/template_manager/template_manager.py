@@ -14,7 +14,7 @@ import subprocess
 from sxpat.annotatedGraph import AnnotatedGraph
 import sxpat.config.config as sxpat_cfg
 import sxpat.config.paths as sxpat_paths
-from sxpat.specifications import EncodingType, Specifications, TemplateType
+from sxpat.specifications import EncodingType, Specifications, TemplateType, ConstantsType
 from .encoding import Encoding
 from sxpat.utils.collections import mapping_inv, pairwise
 
@@ -238,7 +238,12 @@ class ProductTemplateManager(Z3TemplateManager):
 
         # is constant
         if node_name in self.current_constants.values():
-            return sxpat_cfg.Z3_GATES_DICTIONARY[self._current_graph.graph.nodes[node_name][sxpat_cfg.LABEL]]
+            succs = list(self._current_graph.graph.successors(node_name))
+            if len(succs) == 1 and succs[0] in self._current_graph.output_dict.values() and self._specs.constants == ConstantsType.ALWAYS:
+                output_i = mapping_inv(self._current_graph.output_dict, succs[0])
+                return f'{sxpat_cfg.CONSTANT_PREFIX}{output_i}'
+            else:
+                return sxpat_cfg.Z3_GATES_DICTIONARY[self._current_graph.graph.nodes[node_name][sxpat_cfg.LABEL]]
 
         # is gate
         if node_name in self.current_gates.values():
@@ -286,6 +291,14 @@ class ProductTemplateManager(Z3TemplateManager):
             # self._use_approx_var
             multiplexers.append(f'Or(Not({p_s}), {p_l} == {(input_name)})')
         return f'And({", ".join(multiplexers)})'
+
+    def _generate_constants_parameters(self) -> Iterable[str]:
+        def get_single_predecessor(out_name): return next(self._current_graph.graph.predecessors(out_name))
+        return (
+            f'{sxpat_cfg.CONSTANT_PREFIX}{output_i}'
+            for output_i, output_name in self.outputs.items()
+            if get_single_predecessor(output_name) in self.current_constants.values()
+        )
 
     #
 
@@ -444,10 +457,14 @@ class SOPManager(ProductTemplateManager):
 
         # params_declaration and params_list
         params = list(itertools.chain(
+            # constant outputs
+            self._generate_constants_parameters() if self._specs.constants == ConstantsType.ALWAYS else (),
+            # output parameters
             (
                 self._output_parameter(output_i)
                 for output_i in self.subgraph_outputs.keys()
             ),
+            # input parameters
             itertools.chain.from_iterable(
                 self._input_parameters(output_i, product_i, input_i)
                 for output_i in self.subgraph_outputs.keys()
@@ -587,16 +604,21 @@ class SOPSManager(ProductTemplateManager):
 
         # params_declaration and params_list
         params = list(itertools.chain(
-            (  # p_o#
+            # constant outputs
+            self._generate_constants_parameters(),
+            # p_o#
+            (
                 self._output_parameter(output_i)
                 for output_i in self.subgraph_outputs.keys()
             ),
-            itertools.chain.from_iterable(  # p_pr#_i#
+            # p_pr#_i#
+            itertools.chain.from_iterable(
                 self._input_parameters(None, product_i, input_i)
                 for product_i in range(self._specs.pit)
                 for input_i in self.subgraph_inputs.keys()
             ),
-            (  # p_pr#_o#
+            # p_pr#_o#
+            (
                 self._product_parameter(output_i, product_i)
                 for output_i in self.subgraph_outputs.keys()
                 for product_i in range(self._specs.pit)
