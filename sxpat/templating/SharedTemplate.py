@@ -5,7 +5,7 @@ import itertools as it
 from .Template import Template
 
 from sxpat.converting import set_prefix
-from sxpat.newGraph import *
+from sxpat.graph import *
 from sxpat.specifications import Specifications
 from sxpat.utils.collections import flat, pairwise
 

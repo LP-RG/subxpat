@@ -1,7 +1,7 @@
 from typing import Tuple
 from abc import abstractmethod
 
-from sxpat.newGraph import SGraph, TGraph, CGraph
+from sxpat.graph import SGraph, TGraph, CGraph
 from sxpat.specifications import Specifications
 
 

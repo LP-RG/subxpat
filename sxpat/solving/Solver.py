@@ -1,7 +1,7 @@
 from typing import Any, Mapping, Optional
 from abc import abstractmethod
 
-from sxpat.newGraph import CGraph, SGraph, TGraph
+from sxpat.graph import CGraph, SGraph, TGraph
 
 
 __all__ = ['Solver']

@@ -6,7 +6,7 @@ from bidict import bidict
 import itertools as it
 import re
 
-from sxpat.newGraph import *
+from sxpat.graph import *
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
 from sxpat.utils.functions import str_to_bool
 from sxpat.utils.collections import MultiDict

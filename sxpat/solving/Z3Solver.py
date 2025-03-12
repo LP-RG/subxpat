@@ -8,7 +8,7 @@ from sxpat.utils.functions import str_to_int_or_bool
 from .Solver import Solver
 
 from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
-from sxpat.newGraph import *
+from sxpat.graph import *
 
 import sxpat.config.config as sxpat_cfg
 

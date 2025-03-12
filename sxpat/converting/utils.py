@@ -2,7 +2,7 @@ from typing import Callable, Dict, Iterable, List, Mapping, Union
 
 import itertools as it
 
-from sxpat.newGraph import *
+from sxpat.graph import *
 
 
 __all__ = [
