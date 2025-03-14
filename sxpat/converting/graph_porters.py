@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from typing import Type, Callable, Mapping, NoReturn, Optional
+from typing import Type, Callable, Mapping, NoReturn, Optional, Union, TypeVar, Generic
+import dataclasses as dc
 
 from bidict import bidict
 
@@ -12,40 +13,48 @@ from sxpat.utils.functions import str_to_bool
 from sxpat.utils.collections import MultiDict
 
 
-__all__ = ['DotConverter', 'JSONConverter']
+__all__ = ['GraphImporter', 'GraphExporter',
+           'DotPorter', 'JSONPorter', 'VerilogExporter']
+
+T = TypeVar('T')
 
 
-class FileConverter:
-    _G_CLSS = {c.__name__: c for c in get_all_subclasses(Graph)}
-    _N_CLSS = {c.__name__: c for c in get_all_leaves_subclasses(Node)}
+_G_CLSS = {c.__name__: c for c in get_all_subclasses(Graph)}
+_N_CLSS = {c.__name__: c for c in get_all_leaves_subclasses(Node)}
 
+
+class GraphImporter(Generic[T]):
+    def __new__(cls) -> NoReturn:
+        raise TypeError(f'Cannot create instances of class {cls.__name__}')
+
+    @classmethod
+    def from_string(cls, string: str) -> T:
+        raise NotImplementedError(f'{cls.__name__}.from_string(...) is abstract.')
+
+    @classmethod
+    def from_file(cls, filename: str) -> T:
+        with open(filename, 'r') as f:
+            string = f.read()
+        return cls.from_string(string)
+
+
+class GraphExporter(Generic[T]):
     def __new__(cls) -> NoReturn:
         raise TypeError(f'Cannot create instances of class {cls.__name__}')
 
     @classmethod
     @abstractmethod
-    def from_string(cls, string: str) -> Graph:
-        raise NotImplementedError(f'{cls.__name__}.from_string(...) is abstract.')
-
-    @classmethod
-    @abstractmethod
-    def to_string(cls, graph: Graph) -> str:
+    def to_string(cls, graph: T) -> str:
         raise NotImplementedError(f'{cls.__name__}.to_string(...) is abstract.')
 
     @classmethod
-    def load_file(cls, filename: str) -> Graph:
-        with open(filename, 'r') as f:
-            string = f.read()
-        return cls.from_string(string)
-
-    @classmethod
-    def save_file(cls, graph: Graph, filename: str) -> None:
+    def to_file(cls, graph: T, filename: str) -> None:
         string = cls.to_string(graph)
         with open(filename, 'w') as f:
             f.write(string)
 
 
-class DotConverter(FileConverter):
+class DotPorter(GraphImporter[Graph], GraphExporter[Graph]):
     NODE_SYMBOL = bidict({
         # inputs
         BoolVariable: 'varB',
@@ -160,7 +169,7 @@ class DotConverter(FileConverter):
     @classmethod
     def from_string(cls, string: str) -> Graph:
         match = cls.GRAPH_PATTERN.match(string)
-        _type = cls._G_CLSS[match[1]]
+        _type = _G_CLSS[match[1]]
         _nodes = [
             cls._parse_label(cls.NODE_PATTERN.search(l)[1])
             for l in match[2].split('\n')
@@ -298,7 +307,7 @@ class DotConverter(FileConverter):
     #     return Graph(nodes.values())
 
 
-class JSONConverter(FileConverter):
+class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
     import json
 
     _CLASS_F = 'class'
@@ -306,25 +315,84 @@ class JSONConverter(FileConverter):
     _EXTRA_F = 'extra'
 
     @classmethod
-    def dict_factory(cls, obj: object) -> dict:
+    def _dict_factory(cls, obj: object) -> dict:
         return {cls._CLASS_F: obj.__class__.__name__, **vars(obj)}
 
     @classmethod
-    def node_factory(cls, dct: dict) -> Node:
-        return cls._N_CLSS[dct.pop(cls._CLASS_F)](**dct)
+    def _node_factory(cls, dct: dict) -> Node:
+        return _N_CLSS[dct.pop(cls._CLASS_F)](**dct)
 
     @classmethod
     def from_string(cls, string: str) -> Graph:
         _g: dict = cls.json.loads(string)
-        nodes = [cls.node_factory(n) for n in _g.pop(cls._NODES_F)]
-        return cls._G_CLSS[_g.pop(cls._CLASS_F)](nodes=nodes, **_g.pop(cls._EXTRA_F))
+        nodes = [cls._node_factory(n) for n in _g.pop(cls._NODES_F)]
+        return _G_CLSS[_g.pop(cls._CLASS_F)](nodes=nodes, **_g.pop(cls._EXTRA_F))
 
     @classmethod
     def to_string(cls, graph: Graph) -> str:
         _g = {
             cls._CLASS_F: graph.__class__.__name__,
-            cls._NODES_F: [cls.dict_factory(node) for node in graph.nodes],
+            cls._NODES_F: [cls._dict_factory(node) for node in graph.nodes],
             cls._EXTRA_F: {extra_name: getattr(graph, extra_name) for extra_name in graph.EXTRA},
         }
-
         return cls.json.dumps(_g, indent=4)
+
+
+class VerilogExporter(GraphExporter[GGraph]):
+    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued]], str]] = {
+        # variables
+        # BoolVariable: lambda n: None,
+        # IntVariable: lambda n: None,
+        # constants
+        BoolConstant: lambda n: f'{int(n.value)}',
+        # IntConstant: lambda n: f'({n.value')',
+        # output
+        Copy: lambda n: n.item,
+        # Target: lambda n: None,
+        # bool-bool operations
+        Not: lambda n: f'(~{n.item})',
+        And: lambda n: f'({" & ".join(n.items)})',
+        Or: lambda n: f'({" | ".join(n.items)})',
+        Implies: lambda n: f'(~{n.left} | {n.right})',
+        # int-int operations
+        Sum: lambda n: f'({" + ".join(n.items)})',
+        AbsDiff: lambda n: f'(({n.left} > {n.right}) ? ({n.left} - {n.right}) : ({n.right} - {n.left}))',
+        # bool-int operations
+        # ToInt: lambda n: None,
+        # int-bool operations
+        Equals: lambda n: f'({n.left} === {n.right})',
+        LessThan: lambda n: f'({n.left} < {n.right})',
+        LessEqualThan: lambda n: f'({n.left} <= {n.right})',
+        GreaterThan: lambda n: f'({n.left} > {n.right})',
+        GreaterEqualThan: lambda n: f'({n.left} >= {n.right})',
+        # quantifier operations
+        # AtLeast: lambda n: None,
+        # AtMost: lambda n: None,
+        # branching operations
+        Multiplexer: lambda n: f'({n.parameter_1} ? ({n.parameter_2} ? {n.origin} : ~{n.origin}) : {n.parameter_2})',
+        If: lambda n: f'({n.contition} ? {n.if_true} : {n.if_false})',
+    }
+
+    @dc.dataclass(repr=False, eq=False)
+    class VerilogInfo:
+        graph_name: str
+        model_number: int
+
+    @classmethod
+    def to_string(cls, graph: GGraph, info: VerilogInfo = None) -> str:
+        info = info or cls.VerilogInfo(graph, -1)
+
+        return '\n'.join(filter(bool, (
+            f'/* model {info.model_number} */' if info.model_number >= 0 else None,
+            f'module {info.graph_name} ({", ".join((*graph.inputs_names, *graph.outputs_names))});',
+            # declarations
+            f'input {", ".join(graph.inputs_names)};',
+            f'output {", ".join(graph.outputs_names)};',
+            f'wire {", ".join(n.name for n in graph.inners)};',
+            # assignments
+            * (
+                f'assign {node.name} = {cls.NODE_EXPORT[type(node)](node)};'
+                for node in graph.nodes
+            ),
+            'endmodule',
+        )))
