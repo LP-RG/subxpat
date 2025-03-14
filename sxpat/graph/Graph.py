@@ -120,7 +120,6 @@ class GGraph(Graph):
         # freeze local instances
         self.inputs_names = tuple(inputs_names)
         self.outputs_names = tuple(outputs_names)
-        # self.int_result = next(node for node in self.nodes if isinstance(node, ToInt))
 
     def __eq__(self, other: object) -> bool:
         return (
@@ -143,6 +142,11 @@ class GGraph(Graph):
     @ft.cached_property
     def outputs(self) -> Tuple[Node, ...]:
         return tuple(self._graph.nodes[name][self.K] for name in self.outputs_names)
+
+    @ft.cached_property
+    def inners(self) -> Tuple[Node, ...]:
+        in_out_set = frozenset((*self.inputs_names, *self.outputs_names))
+        return tuple(n for n in self.nodes if n.name not in in_out_set)
 
 
 class SGraph(GGraph):
