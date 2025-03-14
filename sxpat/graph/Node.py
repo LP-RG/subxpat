@@ -63,15 +63,6 @@ class Op2Node(OperationNode):
     def __post_init__(self):
         super().__post_init__(2)
 
-
-@dc.dataclass(frozen=True, repr=False)
-class Op3Node(OperationNode):
-    def __post_init__(self):
-        super().__post_init__(3)
-
-
-@dc.dataclass(frozen=True, repr=False)
-class Ord2Node(Op2Node):
     @property
     def left(self) -> str:
         return self.items[0]
@@ -81,7 +72,13 @@ class Ord2Node(Op2Node):
         return self.items[1]
 
 
-# inputs
+@dc.dataclass(frozen=True, repr=False)
+class Op3Node(OperationNode):
+    def __post_init__(self):
+        super().__post_init__(3)
+
+
+# variables
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -146,7 +143,7 @@ class Or(OperationNode):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Implies(Ord2Node):
+class Implies(Op2Node):
     pass
 
 
@@ -159,7 +156,7 @@ class Sum(OperationNode):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class AbsDiff(Ord2Node):
+class AbsDiff(Op2Node):
     pass
 
 
@@ -180,22 +177,22 @@ class Equals(Op2Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class LessThan(Ord2Node):
+class LessThan(Op2Node):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class LessEqualThan(Ord2Node):
+class LessEqualThan(Op2Node):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class GreaterThan(Ord2Node):
+class GreaterThan(Op2Node):
     pass
 
 
 @dc.dataclass(frozen=True, repr=False)
-class GreaterEqualThan(Ord2Node):
+class GreaterEqualThan(Op2Node):
     pass
 
 
