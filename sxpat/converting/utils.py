@@ -1,4 +1,5 @@
-from typing import Callable, Dict, Iterable, List, Mapping, Union
+import re
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Union
 
 import itertools as it
 
@@ -176,7 +177,7 @@ def set_bool_constants(graph: Graph, constants: Mapping[str, bool]) -> Graph:
     Takes a graph and a mapping from names to bool in input
     and returns a new graph with the nodes corresponding to the given names replaced with the wanted constant.
 
-    (*can be expanded to manage also int constansts*)
+    (*TODO: can be expanded to manage also int constansts*)
     """
 
     new_nodes = []
@@ -213,3 +214,41 @@ def set_prefix(graph: Graph, prefix: str):
     outputs_names = (f'{prefix}{name}' for name in graph.outputs_names)
 
     return type(graph)(nodes, graph.inputs_names, outputs_names)
+
+
+def prevent_combination(c_graph: CGraph, assignments: Mapping[str, bool], assignment_id: Any = None) -> CGraph:
+    """
+    Takes a constraints graph and expands it to prevent the given assignment.  
+    It will allow any change, but at least one change is required.
+
+    (*TODO: can be expanded to manage also integers (be careful of bitwidth)*)
+    """
+
+    # get initial nodes
+    nodes = list(c_graph.nodes)
+
+    # add constants (duplicates will be removed internally by the graph)
+    const = ['ccF', 'ccT']  # False/0, True:1
+    nodes.append(BoolConstant(f'ccT', value=True))
+    nodes.append(BoolConstant(f'ccF', value=False))
+
+    # add placeholders (duplicates will be removed internally by the graph)
+    nodes.extend(PlaceHolder(name) for name in assignments)
+
+    # add NotEquals nodes (duplicates will be removed internally by the graph)
+    old_assignment = tuple(
+        NotEquals(f'{name}_neq_{value}', items=(name, const[value]))
+        for name, value in assignments.items()
+    )
+    nodes.extend(old_assignment)
+
+    # add Or aggregate
+    if assignment_id is None:
+        assignment_id = max(it.chain((
+            int(m.group(1))
+            for n in c_graph.nodes
+            if (m := re.match(r'prevent_assignment_(\d+)', n.name))
+        ), (0,)))
+    nodes.append(Or(f'prevent_assignment_{assignment_id}', items=old_assignment))
+
+    return CGraph(nodes)
