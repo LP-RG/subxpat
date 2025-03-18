@@ -202,6 +202,7 @@ class Z3IntFuncEncoder(Z3FuncEncoder):
         AbsDiff: lambda n, items, accs: f'If({items[0]} >= {items[1]}, {items[0]} - {items[1]}, {items[1]} - {items[0]})',
         # comparison operations
         Equals: lambda n, items, accs:           f'({items[0]} == {items[1]})',
+        NotEquals: lambda n, items, accs:        f'({items[0]} != {items[1]})',
         LessThan: lambda n, items, accs:         f'({items[0]} < {items[1]})',
         LessEqualThan: lambda n, items, accs:    f'({items[0]} <= {items[1]})',
         GreaterThan: lambda n, items, accs:      f'({items[0]} > {items[1]})',

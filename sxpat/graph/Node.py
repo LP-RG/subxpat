@@ -7,8 +7,8 @@ __all__ = [
     # nodes
     'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolVariable', 'Copy',
     'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
-    'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'Not',
-    'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Target', 'ToInt', 'Valued',
+    'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'NotEquals',
+    'Not', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Target', 'ToInt', 'Valued',
     # nodes groups
     'boolean_nodes', 'integer_nodes', 'untyped_nodes', 'contact_nodes', 'origin_nodes', 'end_nodes',
 ]
@@ -177,6 +177,11 @@ class Equals(Op2Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
+class NotEquals(Op2Node):
+    pass
+
+
+@dc.dataclass(frozen=True, repr=False)
 class LessThan(Op2Node):
     pass
 
@@ -255,7 +260,7 @@ class If(Op3Node):
 
 
 #
-boolean_nodes = (BoolVariable, BoolConstant, Not, And, Or, Implies, Equals, AtLeast, AtMost, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan, Multiplexer,)
+boolean_nodes = (BoolVariable, BoolConstant, Not, And, Or, Implies, Equals, NotEquals, AtLeast, AtMost, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan, Multiplexer,)
 integer_nodes = (IntVariable, IntConstant, ToInt, Sum, AbsDiff,)
 untyped_nodes = (Copy, Target, If,)
 #

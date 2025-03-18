@@ -53,8 +53,11 @@ class Graph:
 
         self._graph: nx.DiGraph = nx.freeze(_inner)
 
-    def __getitem__(self, key: str) -> Node:
-        return self._graph.nodes[key][self.K]
+    def __getitem__(self, name: str) -> Node:
+        return self._graph.nodes[name][self.K]
+
+    def __contains__(self, name: str) -> bool:
+        return name in self._graph
 
     def __eq__(self, other: object) -> bool:
         return (
