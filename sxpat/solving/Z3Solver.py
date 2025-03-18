@@ -81,9 +81,10 @@ class Z3FuncEncoder:
         non_gates_names = frozenset(node.name for node in it.chain(s_graph.inputs,
                                                                    t_graph.parameters,
                                                                    *(g.constants for g in graphs)))
-        call_graphs = tuple(
-            cls.graph_as_function_calls(graph, inputs_string, non_gates_names)
-            for graph in graphs
+        call_graphs = (
+            call_s_graph := cls.graph_as_function_calls(s_graph, inputs_string, non_gates_names),
+            call_t_graph := cls.graph_as_function_calls(t_graph, inputs_string, non_gates_names),
+            call_c_graph := cls.graph_as_function_calls(c_graph, inputs_string, non_gates_names),
         )
 
         # initialization
@@ -138,14 +139,27 @@ class Z3FuncEncoder:
             *('',) * 2,
         )))
 
-        # gates behavior
+        # nodes behavior
         destination.write('\n'.join((
             '# behaviour',
-            'constraints = And(',
+            'behaviour = And(',
             *(
                 f'    {node.name} == {node_mapping[type(node)](node, node.items, accs(node))},'
                 for graph in call_graphs
                 for node in graph.operations
+            ),
+            ')',
+            *('',) * 2,
+        )))
+
+        # nodes usage
+        destination.write('\n'.join((
+            '# usage',
+            'usage = And(',
+            *(
+                f'    {call_node.name},'
+                for node, call_node in zip(c_graph.operations, call_c_graph.operations)
+                if not c_graph.successors(node) and nodes_types[node.name] is bool
             ),
             ')',
             *('',) * 2,
@@ -157,7 +171,7 @@ class Z3FuncEncoder:
             f'solver = {solver_construct}',
             f'solver.add(ForAll(',
             f'    [{",".join(s_graph.inputs_names)}],',
-            f'    constraints',
+            f'    And(behaviour, usage)',
             f'))',
             f'status = solver.check()',
             *('',) * 2,
