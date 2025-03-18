@@ -1,4 +1,4 @@
-from typing import IO, Any, Callable, Container, Mapping, Optional, Sequence, Type, Union
+from typing import IO, Any, Callable, Container, Mapping, Optional, Sequence, Tuple, Type, Union
 
 import itertools as it
 import subprocess
@@ -207,8 +207,8 @@ class Z3IntFuncEncoder(Z3FuncEncoder):
         GreaterThan: lambda n, items, accs:      f'({items[0]} > {items[1]})',
         GreaterEqualThan: lambda n, items, accs: f'({items[0]} >= {items[1]})',
         # quantifier operations
-        AtLeast: lambda n, items, accs:          f'AtLeast({", ".join(items)}, {n.value})',
-        AtMost: lambda n, items, accs:           f'AtMost({", ".join(items)}, {n.value})',
+        AtLeast: lambda n, items, accs: f'AtLeast({", ".join(items)}, {n.value})',
+        AtMost: lambda n, items, accs:  f'AtMost({", ".join(items)}, {n.value})',
         # branching operations
         Multiplexer: lambda n, items, accs: f'If({items[1]}, If({items[2]}, {items[0]}, Not({items[0]})), {items[2]})',
         If: lambda n, items, accs:          f'If({items[0]}, {items[1]}, {items[2]})',
@@ -216,7 +216,7 @@ class Z3IntFuncEncoder(Z3FuncEncoder):
     # bool/int to Z3 sorts
     type_mapping = {
         bool: lambda accs: 'BoolSort()',
-        int: lambda accs: 'IntSort()',
+        int: lambda accs:  'IntSort()',
     }
     # solver object creation
     solver_construct = 'Solver()'  # 'SolverFor(\'LIA\')',
@@ -229,9 +229,9 @@ class Z3BitVecFuncEncoder(Z3FuncEncoder):
     node_mapping = {
         **Z3IntFuncEncoder.node_mapping,
         # variables
-        IntVariable: lambda n, items, accs:  f'BitVec(\'{n.name}\', {accs[0]})',
+        IntVariable: lambda n, items, accs: f'BitVec(\'{n.name}\', {accs[0]})',
         # constants
-        IntConstant: lambda n, items, accs:  f'BitVecVal({n.value}, {accs[0]})',
+        IntConstant: lambda n, items, accs: f'BitVecVal({n.value}, {accs[0]})',
         # integer operations
         AbsDiff: lambda n, items, accs: f'If(UGE({items[0]}, {items[1]}), {items[0]} - {items[1]}, {items[1]} - {items[0]})',
         # comparison operations
@@ -256,8 +256,7 @@ class Z3Solver(Solver):
     encoder: Z3FuncEncoder
 
     @classmethod
-    def solve(cls, s_graph: SGraph, t_graph: TGraph, c_graph: CGraph) -> Optional[Mapping[str, Any]]:
-
+    def solve(cls, s_graph: SGraph, t_graph: TGraph, c_graph: CGraph) -> Tuple[str, Optional[Mapping[str, Any]]]:
         # encode
         # TODO: how do we get the name?
         script_path = 'testing.py'
@@ -283,12 +282,12 @@ class Z3Solver(Solver):
         #     p_someint 7
 
         if status in ('unsat', 'unknown'):
-            return None
+            return (status, None)
         else:
-            return {
+            return (status, {
                 (splt := pair.split(' '))[0]: str_to_int_or_bool(splt[1])
                 for pair in raw_model
-            }
+            })
 
 
 class Z3IntSolver(Z3Solver):
