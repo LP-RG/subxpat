@@ -338,7 +338,7 @@ class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
         return cls.json.dumps(_g, indent=4)
 
 
-class VerilogExporter(GraphExporter[GGraph]):
+class VerilogExporter(GraphExporter[Union[GGraph, SGraph]]):
     NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued]], str]] = {
         # variables
         # BoolVariable: lambda n: None,
