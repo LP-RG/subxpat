@@ -9,7 +9,7 @@ import re
 
 from sxpat.graph import *
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
-from sxpat.utils.functions import str_to_bool
+from sxpat.utils.functions import is_exact_instance_of, str_to_bool
 from sxpat.utils.collections import MultiDict
 
 
@@ -344,7 +344,7 @@ class VerilogExporter(GraphExporter[GGraph]):
         # BoolVariable: lambda n: None,
         # IntVariable: lambda n: None,
         # constants
-        BoolConstant: lambda n: f'{int(n.value)}',
+        BoolConstant: lambda n: f'1\'b{int(n.value)}',
         # IntConstant: lambda n: f'({n.value')',
         # output
         Copy: lambda n: n.item,
@@ -380,7 +380,11 @@ class VerilogExporter(GraphExporter[GGraph]):
 
     @classmethod
     def to_string(cls, graph: GGraph, info: VerilogInfo = None) -> str:
-        info = info or cls.VerilogInfo(graph, -1)
+        # supported classes (SGraph, GGraph)
+        assert is_exact_instance_of(graph, (GGraph, SGraph)), \
+            f'{cls.__qualname__}.to_string() only works for instances of GGraph and SGraph, not all subclasses are supported'
+
+        info = info or cls.VerilogInfo('graph', -1)
 
         return '\n'.join(filter(bool, (
             f'/* model {info.model_number} */' if info.model_number >= 0 else None,
@@ -393,6 +397,7 @@ class VerilogExporter(GraphExporter[GGraph]):
             * (
                 f'assign {node.name} = {cls.NODE_EXPORT[type(node)](node)};'
                 for node in graph.nodes
+                if node.name not in graph.inputs_names
             ),
             'endmodule',
         )))
