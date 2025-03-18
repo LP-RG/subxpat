@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 import re
 import subprocess
 
@@ -37,11 +39,13 @@ class MetricsEstimator:
         f'exit',
     ))
 
+    Metrics = NamedTuple('Metrics', [('area', float), ('power', float), ('delay', float)])
+
     def __new__(cls):
         raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     @classmethod
-    def estimate_metrics(cls, verilog_path: str) -> float:
+    def estimate_metrics(cls, verilog_path: str) -> Metrics:
         # compute names and paths
         metrics_verilog_path = f'{verilog_path[:-2]}_for_metrics.v'
         module_name = cls._extract_module_name(verilog_path)
@@ -94,7 +98,7 @@ class MetricsEstimator:
             pprint.warning('OpenSTA Warning! Design has 0 delay!')
             delay = 0.0
 
-        return (area, power, delay)
+        return cls.Metrics(area, power, delay)
 
     @classmethod
     def _extract_module_name(cls, verilog_path: str):
