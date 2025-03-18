@@ -7,7 +7,8 @@ from .NonSharedTemplate import NonSharedTemplate
 
 
 __all__ = ['get_specialized',
-           'SharedTemplate', 'NonSharedTemplate']
+           'Template',
+           'SharedTemplate', 'NonSharedTemplate',]
 
 
 def get_specialized(specs: Specifications) -> Type[Template]:

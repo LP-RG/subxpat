@@ -7,7 +7,8 @@ from .Z3Solver import Z3IntSolver, Z3BitVecSolver
 
 
 __all__ = ['get_specialized',
-           'Z3IntSolver', 'Z3BitVecSolver']
+           'Solver',
+           'Z3IntSolver', 'Z3BitVecSolver',]
 
 
 def get_specialized(specs: Specifications) -> Type[Solver]:
