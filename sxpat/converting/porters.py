@@ -9,7 +9,7 @@ import re
 
 from sxpat.graph import *
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
-from sxpat.utils.functions import is_exact_instance_of, str_to_bool
+from sxpat.utils.functions import str_to_bool
 from sxpat.utils.collections import MultiDict
 
 
@@ -381,7 +381,7 @@ class VerilogExporter(GraphExporter[Union[GGraph, SGraph]]):
     @classmethod
     def to_string(cls, graph: GGraph, info: VerilogInfo = None) -> str:
         # supported classes (SGraph, GGraph)
-        assert is_exact_instance_of(graph, (GGraph, SGraph)), \
+        assert graph in (GGraph, SGraph), \
             f'{cls.__qualname__}.to_string() only works for instances of GGraph and SGraph, not all subclasses are supported'
 
         info = info or cls.VerilogInfo('graph', -1)
