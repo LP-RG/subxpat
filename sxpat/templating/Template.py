@@ -1,7 +1,7 @@
 from typing import Tuple
 from abc import abstractmethod
 
-from sxpat.graph import SGraph, TGraph, CGraph
+from sxpat.graph import SGraph, PGraph, CGraph
 from sxpat.specifications import Specifications
 
 
@@ -11,7 +11,7 @@ __all__ = ['Template']
 class Template:
     @classmethod
     @abstractmethod
-    def define(cls, graph: SGraph, specs: Specifications) -> Tuple[TGraph, CGraph]:
+    def define(cls, graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:
         """
             Given a graph with subgraph informations and the specifications,
             returns the graph with the subgraph replaced with the template 

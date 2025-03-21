@@ -14,7 +14,7 @@ __all__ = [
 ]
 
 
-def unpack_ToInt(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
+def unpack_ToInt(graph: Union[Graph, IOGraph, SGraph, PGraph, CGraph]):
     toint_nodes = tuple(
         node
         for node in graph.nodes
@@ -64,7 +64,7 @@ def unpack_ToInt(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
     return type(graph)(nodes, **{extra: getattr(graph, extra) for extra in graph.EXTRA})
 
 
-def prune_unused(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
+def prune_unused(graph: Union[Graph, IOGraph, SGraph, PGraph, CGraph]):
     """This function takes a graph and returns a new graph without any dangling nodes (recursive).
         Nodes counted as correct terminations are nodes of class `Copy` (or of subclasses) or of class Bool/IntVariable.
     """
@@ -86,7 +86,7 @@ def prune_unused(graph: Union[Graph, GGraph, SGraph, TGraph, CGraph]):
     return type(graph)(nodes, **{extra: getattr(graph, extra) for extra in graph.EXTRA})
 
 
-def get_nodes_type(graphs: Iterable[Union[Graph, GGraph, SGraph, TGraph, CGraph]],
+def get_nodes_type(graphs: Iterable[Union[Graph, IOGraph, SGraph, PGraph, CGraph]],
                    initial_mapping: Mapping[str, type] = dict()
                    ) -> Dict[str, type]:
 

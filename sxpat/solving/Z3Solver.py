@@ -23,7 +23,7 @@ class Z3FuncEncoder:
     node_accessories: Callable[[Sequence[Any]], Callable[[Node], Sequence[Any]]]
 
     @classmethod
-    def graph_as_function_calls(cls, graph: Union[SGraph, TGraph, CGraph],
+    def graph_as_function_calls(cls, graph: Union[SGraph, PGraph, CGraph],
                                 inputs_string: str,
                                 non_gates_names: Container[str]):
         """
@@ -47,13 +47,13 @@ class Z3FuncEncoder:
         if isinstance(graph, SGraph):
             extra['inputs_names'] = graph.inputs_names
             extra['outputs_names'] = (update_name(name) for name in graph.outputs_names)
-        if isinstance(graph, TGraph):
+        if isinstance(graph, PGraph):
             extra['parameters_names'] = graph.parameters_names
 
         return type(graph)(nodes, **extra)
 
     @classmethod
-    def encode(cls, s_graph: SGraph, t_graph: TGraph, c_graph: CGraph, destination: IO[str]) -> None:
+    def encode(cls, s_graph: SGraph, t_graph: PGraph, c_graph: CGraph, destination: IO[str]) -> None:
         # localize fields
         node_mapping = cls.node_mapping
         type_mapping = cls.type_mapping
@@ -271,7 +271,7 @@ class Z3Solver(Solver):
     encoder: Z3FuncEncoder
 
     @classmethod
-    def solve(cls, s_graph: SGraph, t_graph: TGraph, c_graph: CGraph) -> Tuple[str, Optional[Mapping[str, Any]]]:
+    def solve(cls, s_graph: SGraph, t_graph: PGraph, c_graph: CGraph) -> Tuple[str, Optional[Mapping[str, Any]]]:
         # encode
         # TODO: how do we get the name?
         script_path = 'testing.py'

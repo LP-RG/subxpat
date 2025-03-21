@@ -15,7 +15,7 @@ __all__ = ['SharedTemplate']
 
 class SharedTemplate(Template):
     @classmethod
-    def define(cls, graph: SGraph, specs: Specifications) -> Tuple[TGraph, CGraph]:
+    def define(cls, graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:
         # get prefixed graph
         a_graph: SGraph = set_prefix(graph, 'a_')
 
@@ -93,7 +93,7 @@ class SharedTemplate(Template):
             # updated successors
             out_successors,
         )
-        template_graph = TGraph(
+        template_graph = PGraph(
             nodes,
             a_graph.inputs_names, a_graph.outputs_names,
             (n.name for n in flat((products_p, sums_p, outs_p)))

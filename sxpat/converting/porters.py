@@ -111,10 +111,10 @@ class DotPorter(GraphImporter[Graph], GraphExporter[Graph]):
     })
     NODE_COLOR: Mapping[Type[Graph], Callable[[Graph, Node], Optional[str]]] = {
         Graph: lambda g, n: 'red' if n.in_subgraph else 'white',
-        GGraph: lambda g, n: 'red' if n.in_subgraph else 'white',
+        IOGraph: lambda g, n: 'red' if n.in_subgraph else 'white',
         CGraph: lambda g, n: 'red' if n.in_subgraph else 'white',
         SGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if n.in_subgraph else 'white',
-        TGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if n.in_subgraph else 'white',
+        PGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if n.in_subgraph else 'white',
     }
 
     GRAPH_PATTERN = re.compile(r'strict digraph _(\w+) {(?:\n\s*node \[.*\];)?((?:\n\s*\w+ \[.*\];)+)(?:\n\s*\w+ -> \w+;)+((?:\n\s*\/\/ \w+.*)*)\n}')
@@ -199,10 +199,10 @@ class DotPorter(GraphImporter[Graph], GraphExporter[Graph]):
 
         # extra data
         extra_lines = []
-        if isinstance(graph, GGraph):
+        if isinstance(graph, IOGraph):
             extra_lines.append(f'// inputs_names[{",".join(graph.inputs_names)}]')
             extra_lines.append(f'// outputs_names[{",".join(graph.outputs_names)}]')
-        if isinstance(graph, TGraph):
+        if isinstance(graph, PGraph):
             extra_lines.append(f'// parameters_names[{",".join(graph.parameters_names)}]')
 
         return '\n'.join(it.chain(
@@ -338,7 +338,7 @@ class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
         return cls.json.dumps(_g, indent=4)
 
 
-class VerilogExporter(GraphExporter[Union[GGraph, SGraph]]):
+class VerilogExporter(GraphExporter[Union[IOGraph, SGraph]]):
     NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued]], str]] = {
         # variables
         # BoolVariable: lambda n: None,
@@ -379,9 +379,9 @@ class VerilogExporter(GraphExporter[Union[GGraph, SGraph]]):
         model_number: int
 
     @classmethod
-    def to_string(cls, graph: GGraph, info: VerilogInfo = None) -> str:
+    def to_string(cls, graph: IOGraph, info: VerilogInfo = None) -> str:
         # supported classes (SGraph, GGraph)
-        assert graph in (GGraph, SGraph), \
+        assert graph in (IOGraph, SGraph), \
             f'{cls.__qualname__}.to_string() only works for instances of GGraph and SGraph, not all subclasses are supported'
 
         info = info or cls.VerilogInfo('graph', -1)

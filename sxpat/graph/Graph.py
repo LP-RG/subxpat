@@ -8,7 +8,7 @@ import itertools as it
 from .Node import *
 
 
-__all__ = ['Graph', 'GGraph', 'CGraph', 'SGraph', 'TGraph']
+__all__ = ['Graph', 'IOGraph', 'CGraph', 'SGraph', 'PGraph']
 
 
 class Graph:
@@ -51,13 +51,13 @@ class Graph:
                 for src_name in node.items
             )
 
-        self._graph: nx.DiGraph = nx.freeze(_inner)
+        self._inner: nx.DiGraph = nx.freeze(_inner)
 
     def __getitem__(self, name: str) -> Node:
-        return self._graph.nodes[name][self.K]
+        return self._inner.nodes[name][self.K]
 
     def __contains__(self, name: str) -> bool:
-        return name in self._graph
+        return name in self._inner
 
     def __eq__(self, other: object) -> bool:
         return (
@@ -68,20 +68,20 @@ class Graph:
     @ft.cached_property
     def nodes(self) -> Tuple[Node, ...]:
         """Sequence of nodes in topological order."""
-        return tuple(self._graph.nodes[name][self.K] for name in nx.topological_sort(self._graph))
+        return tuple(self._inner.nodes[name][self.K] for name in nx.topological_sort(self._inner))
 
     def predecessors(self, node_or_name: Union[str, Node]) -> Tuple[Node, ...]:
         node_name = node_or_name.name if isinstance(node_or_name, Node) else node_or_name
-        node = self._graph.nodes[node_name][self.K]
+        node = self._inner.nodes[node_name][self.K]
         # we iterate over the .predecessors instead of the .items, so even if `node` is not an OperationNode it still works
         return tuple(sorted(
-            (self._graph.nodes[_name][self.K] for _name in self._graph.predecessors(node_name)),
+            (self._inner.nodes[_name][self.K] for _name in self._inner.predecessors(node_name)),
             key=lambda _n: node.items.index(_n.name)
         ))
 
     def successors(self, node_or_name: Union[str, Node]) -> Tuple[OperationNode, ...]:
         node_name = node_or_name.name if isinstance(node_or_name, Node) else node_or_name
-        return tuple(self._graph.nodes[_name][self.K] for _name in self._graph.successors(node_name))
+        return tuple(self._inner.nodes[_name][self.K] for _name in self._inner.successors(node_name))
 
     @ft.cached_property
     def constants(self) -> Tuple[Node, ...]:
@@ -108,7 +108,7 @@ class Graph:
         return tuple(node for node in self.nodes if isinstance(node, Target))
 
 
-class GGraph(Graph):
+class IOGraph(Graph):
     """Graph with inputs and outputs."""
 
     EXTRA = ('inputs_names', 'outputs_names')
@@ -132,19 +132,19 @@ class GGraph(Graph):
         )
 
     @classmethod
-    def from_Graph(cls, graph: Graph) -> GGraph:
+    def from_Graph(cls, graph: Graph) -> IOGraph:
         """**WARNING**: this function makes (**possibly wrong**) assumptions for which nodes are inputs or outputs."""
         inputs_names = (node.name for node in graph.nodes if isinstance(node, BoolVariable))
         outputs_names = (node.name for node in graph.nodes if isinstance(node, Copy))
-        return cls(None, inputs_names, outputs_names, _inner=graph._graph)
+        return cls(None, inputs_names, outputs_names, _inner=graph._inner)
 
     @ft.cached_property
     def inputs(self) -> Tuple[Node, ...]:
-        return tuple(self._graph.nodes[name][self.K] for name in self.inputs_names)
+        return tuple(self._inner.nodes[name][self.K] for name in self.inputs_names)
 
     @ft.cached_property
     def outputs(self) -> Tuple[Node, ...]:
-        return tuple(self._graph.nodes[name][self.K] for name in self.outputs_names)
+        return tuple(self._inner.nodes[name][self.K] for name in self.outputs_names)
 
     @ft.cached_property
     def inners(self) -> Tuple[Node, ...]:
@@ -152,7 +152,7 @@ class GGraph(Graph):
         return tuple(n for n in self.nodes if n.name not in in_out_set)
 
 
-class SGraph(GGraph):
+class SGraph(IOGraph):
     """Graph with inputs, outputs and subgraph."""
 
     @ft.cached_property
@@ -177,7 +177,7 @@ class SGraph(GGraph):
         )
 
 
-class TGraph(SGraph):
+class PGraph(SGraph):
     """Graph with inputs, outputs and template (replacing subgraph)."""
 
     EXTRA = (*SGraph.EXTRA, 'parameters_names')
@@ -200,7 +200,7 @@ class TGraph(SGraph):
 
     @ft.cached_property
     def parameters(self) -> Tuple[Node, ...]:
-        return tuple(self._graph.nodes[name][self.K] for name in self.parameters_names)
+        return tuple(self._inner.nodes[name][self.K] for name in self.parameters_names)
 
 
 class CGraph(Graph):
