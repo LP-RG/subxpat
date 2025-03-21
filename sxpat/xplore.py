@@ -157,11 +157,11 @@ def explore_grid(specs_obj: Specifications):
                 exact_graph.num_outputs
             )
             manager = Subxpat_v2(exact_graph, current_graph,specs_obj, encoding_temp)
-            manager.set_new_context(specs_obj, specs_obj.et - sum_wce_actual)
+            manager.set_new_context(specs_obj, specs_obj.et - obtained_wce_exact)
             full_magraph, sub_magraph = manager.set_graph_and_update_functions(current_graph)
 
             p1_start = time.time()
-            success, message = manager.run_phase1([specs_obj.et - sum_wce_actual, specs_obj.wanted_models, 1*60*60])
+            success, message = manager.run_phase1([specs_obj.et - obtained_wce_exact, specs_obj.wanted_models, 1*60*60])
             subxpat_phase1_time = time.time() - p1_start
             print(f"p1_time = {subxpat_phase1_time:.6f}")
 
@@ -194,7 +194,7 @@ def explore_grid(specs_obj: Specifications):
 
                 cur_status = results[0].status
             else:
-                manager.set_new_context(specs_obj, specs_obj.et - sum_wce_actual)
+                manager.set_new_context(specs_obj, specs_obj.et - obtained_wce_exact)
                 p2_start = time.time()
                 cur_status, model = manager.run_phase2()
                 subxpat_phase2_time = time.time() - p2_start
