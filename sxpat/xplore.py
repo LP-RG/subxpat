@@ -144,8 +144,8 @@ def explore_grid(specs_obj: Specifications):
         dominant_cells = []
         sat_ppo = 100
         sat_lpp = 100
-        ppot = 1
-        lppt = 3
+        ppot = 0
+        lppt = 0
         for lpp, ppo in CellIterator.factory(specs_obj):
             if not specs_obj.subxpat and lpp > sat_lpp + lppt:
                 continue
@@ -286,13 +286,14 @@ class CellIterator:
     @staticmethod
     def shared(specs: Specifications) -> Iterator[Tuple[int, int]]:
         max_pit = specs.max_pit
+        print(f'{specs.outputs}: outputs of the exact bench')
 
         # special cell
         yield (0, 1)
 
         # grid cells
         for pit in range(1, max_pit + 1):
-            for its in range(pit, pit + 3 + 1):
+            for its in range(max(pit, specs.outputs), max(pit + 3 + 1, specs.outputs+1)):
                 yield (its, pit)
 
     @staticmethod
