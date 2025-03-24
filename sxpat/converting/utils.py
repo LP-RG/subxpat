@@ -183,16 +183,16 @@ def set_bool_constants(graph: Graph, constants: Mapping[str, bool]) -> Graph:
     (*TODO: can be expanded to manage also int constansts*)
     """
 
-    new_nodes = []
-    for (name, value) in constants:
+    new_nodes = {n.name: n for n in graph.nodes}
+    for (name, value) in constants.items():
         node = graph[name]
         if isinstance(node, OperationNode):
             # TODO: can be implemented using prune_unused()
             raise NotImplementedError('The logic to replace an OperationNode with a constant has not been implemented yet.')
         else:
-            new_nodes.append(BoolConstant(node.name, node.weight, node.in_subgraph, value))
+            new_nodes[node.name] = BoolConstant(node.name, node.weight, node.in_subgraph, value)
 
-    return type(graph)(new_nodes, **{extra: getattr(graph, extra) for extra in graph.EXTRA})
+    return type(graph)(new_nodes.values(), **{extra: getattr(graph, extra) for extra in graph.EXTRA})
 
 
 def set_prefix(graph: Graph, prefix: str):

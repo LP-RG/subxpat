@@ -178,7 +178,7 @@ class SGraph(IOGraph):
 
 
 class PGraph(SGraph):
-    """Graph with inputs, outputs and template (replacing subgraph)."""
+    """Graph with inputs, outputs and parameters (for example, parameters of a template)."""
 
     EXTRA = (*SGraph.EXTRA, 'parameters_names')
 

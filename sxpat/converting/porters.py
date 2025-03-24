@@ -338,7 +338,7 @@ class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
         return cls.json.dumps(_g, indent=4)
 
 
-class VerilogExporter(GraphExporter[Union[IOGraph, SGraph]]):
+class VerilogExporter(GraphExporter[IOGraph]):
     NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued]], str]] = {
         # variables
         # BoolVariable: lambda n: None,
@@ -373,17 +373,13 @@ class VerilogExporter(GraphExporter[Union[IOGraph, SGraph]]):
         If: lambda n: f'({n.contition} ? {n.if_true} : {n.if_false})',
     }
 
-    @dc.dataclass(repr=False, eq=False)
+    @dc.dataclass(frozen=True, eq=False)
     class VerilogInfo:
         graph_name: str
         model_number: int
 
     @classmethod
     def to_string(cls, graph: IOGraph, info: VerilogInfo = None) -> str:
-        # supported classes (SGraph, GGraph)
-        assert graph in (IOGraph, SGraph), \
-            f'{cls.__qualname__}.to_string() only works for instances of GGraph and SGraph, not all subclasses are supported'
-
         info = info or cls.VerilogInfo('graph', -1)
 
         return '\n'.join(filter(bool, (

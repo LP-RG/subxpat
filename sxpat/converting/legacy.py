@@ -14,8 +14,6 @@ def sgraph_from_legacy(l_graph: AnnotatedGraph) -> SGraph:
 
     # convert nodes
     nodes = list()
-    inputs_names = list()
-    outputs_names = list()
     for (name, value) in inner_graph.nodes(True):
         # get features
         label = value.get('label')
@@ -25,10 +23,8 @@ def sgraph_from_legacy(l_graph: AnnotatedGraph) -> SGraph:
 
         # create node
         if label.startswith('in'):  # input
-            inputs_names.append(name)
             nodes.append(BoolVariable(name, weight, in_subgraph))
         elif label.startswith('out'):  # output
-            outputs_names.append(name)
             nodes.append(Copy(name, weight, in_subgraph, items))
         elif label in ('and', 'not'):  # and/not
             cls = {'not': Not, 'and': And}[label]
@@ -38,4 +34,6 @@ def sgraph_from_legacy(l_graph: AnnotatedGraph) -> SGraph:
         else:
             raise RuntimeError(f'Unable to parse node {name} from AnnotatedGraph ({value})')
 
-    return SGraph(nodes, inputs_names, outputs_names)
+    return SGraph(nodes,
+                  l_graph.input_dict.values(),
+                  l_graph.output_dict.values())
