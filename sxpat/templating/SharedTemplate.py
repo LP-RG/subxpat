@@ -63,11 +63,14 @@ class SharedTemplate(Template):
             outs.append(new_out_node := If(f'sw_o{out_i}', in_subgraph=True, items=(p_o, _sum, consts[False])))
 
             # update all output successors to descend from new outputs
+            tmp_out_successors = dict()
             for succ in a_graph.successors(out_node):
                 if not succ.in_subgraph:
+                    succ = tmp_out_successors.get(succ.name, succ)
                     i = succ.items.index(out_node.name)
                     new_items = succ.items[:i] + (new_out_node.name,) + succ.items[i+1:]
-                    out_successors.append(succ.copy(items=new_items))
+                    tmp_out_successors[succ.name] = succ.copy(items=new_items)
+            out_successors.extend(tmp_out_successors.values())
 
         # create template graph
         succs_names = frozenset(s.name for s in out_successors)
