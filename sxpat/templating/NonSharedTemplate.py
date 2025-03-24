@@ -1,3 +1,4 @@
+import json
 from typing import List, Tuple
 
 import itertools as it
@@ -24,38 +25,36 @@ class NonSharedTemplate(Template):
         # > Template Graph
 
         # construct products
-        products: List[And] = []
+        products: List[List[And]] = []
         products_p: List[List[List[Tuple[BoolVariable, BoolVariable]]]] = []
         multiplexers: List[Multiplexer] = []
-        for out_i in range(a_graph.subgraph_outputs):
+        for out_i, out in enumerate(a_graph.subgraph_outputs):
+            products.append([])
             products_p.append([])
             for prod_i in range(specs.ppo):
                 # create all multiplexers for the product
                 _muxs = []
-                products_p.append([])
+                products_p[-1].append([])
                 for in_i, in_node in enumerate(a_graph.subgraph_inputs):
-                    products_p[-1].append((
+                    products_p[-1][-1].append((
                         (p_s := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_s', in_subgraph=True)),
                         (p_l := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_l', in_subgraph=True)),
                     ))
                     _muxs.append(Multiplexer(f'mux_o{out_i}_t{prod_i}_i{in_i}', in_subgraph=True, items=[in_node, p_s, p_l]))
 
                 # create the product (and store multiplexers)
-                products.append(And(f'prod{prod_i}', in_subgraph=True, items=_muxs))
+                products[-1].append(And(f'o{out_i}_p{prod_i}', in_subgraph=True, items=_muxs))
                 multiplexers.extend(_muxs)
 
         # construct sums and constant 0 switch
-        consts = {True: BoolConstant('ct', value=True), False: BoolConstant('cf', value=False)}
+        consts = {True: BoolConstant('cT', value=True), False: BoolConstant('cF', value=False)}
         sums = []
-        switches = []
         outs_p: List[BoolVariable] = []
         outs: List[If] = []
         out_successors: List[OperationNode] = []
         for out_i, out_node in enumerate(a_graph.subgraph_outputs):
             # create the sum and constant 0 switch
-            _sws = []
-            sums.append(_sum := Or(f'sum{out_i}', in_subgraph=True, items=_sws))
-            switches.extend(_sws)
+            sums.append(_sum := Or(f'sum{out_i}', in_subgraph=True, items=products[out_i]))
             outs_p.append(p_o := BoolVariable(f'p_o{out_i}', in_subgraph=True))
             outs.append(new_out_node := If(f'sw_o{out_i}', in_subgraph=True, items=(p_o, _sum, consts[False])))
 
@@ -80,9 +79,8 @@ class NonSharedTemplate(Template):
             # products and relative items
             flat(products_p),
             multiplexers,
-            products,
+            flat(products),
             # sums and relative items
-            switches,
             sums,
             outs_p,
             outs,
@@ -108,9 +106,9 @@ class NonSharedTemplate(Template):
 
         # lpp constraint
         lpp_nodes = [
-            AtMost('at_most_lpp', items=(p[0] for p in prod_t), value=specs.lpp)
-            for prod_o in products_p
-            for prod_t in prod_o
+            AtMost(f'at_most_lpp_o{out_i}_p{prod_i}', items=(p[0] for p in prod_t), value=specs.lpp)
+            for (out_i, prod_o) in enumerate(products_p)
+            for (prod_i, prod_t) in enumerate(prod_o)
         ]
 
         # multiplexer redundancy
@@ -124,7 +122,7 @@ class NonSharedTemplate(Template):
         const0_red_nodes = list(flat(
             (
                 not_p_o := Not(f'not_{p_o.name}', items=(p_o.name,)),
-                or_ps := Or(f'or_sum_in_{sum_i}', items=(n.name for p_o_t_isl in p_o_t for n in p_o_t_isl)),
+                or_ps := Or(f'or_sum_in_{sum_i}', items=(n.name for n in flat(p_o_t))),
                 not_or := Not(f'not_{or_ps.name}', items=(or_ps.name,)),
                 impl := Implies(f'impl_sum_{sum_i}', items=(not_p_o.name, not_or.name)),
             )
@@ -139,6 +137,12 @@ class NonSharedTemplate(Template):
         prod_ord_nodes = [
             GreaterThan(f'gt_{idx_a}_{idx_b}', items=(prod_a, prod_b))
             for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(prod_ints))
+        ]
+
+        # target definition
+        targets = [
+            Target(f't_{param.name}', items=(param.name,))
+            for param in flat((products_p, outs_p))
         ]
 
         nodes = it.chain(
@@ -157,6 +161,7 @@ class NonSharedTemplate(Template):
             const0_red_nodes,
             prod_ints,
             prod_ord_nodes,
+            targets,
         )
         constraint_graph = CGraph(nodes)
 

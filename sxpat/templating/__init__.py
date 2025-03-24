@@ -16,4 +16,4 @@ def get_specialized(specs: Specifications) -> Type[Template]:
     return {
         TemplateType.SHARED: SharedTemplate,
         TemplateType.NON_SHARED: NonSharedTemplate,
-    }[specs.encoding]
+    }[specs.template]
