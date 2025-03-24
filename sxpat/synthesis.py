@@ -182,16 +182,11 @@ class Synthesis:
                     f'imax{self.specs.imax}',
                     f'omax{self.specs.omax}',
                     f'const{self.specs.constants.value}',
-                    f'cell{self.specs.lpp}x{self.specs.ppo}'
                 ))
             
             # update et
             ET_PATTERN = re.compile(r'_et\d+')
             data.root = ET_PATTERN.sub(f'_et{self.specs.et}', data.root)
-
-            # update lppxppo
-            LPP_PPO_PATTERN = re.compile(r'_cell\d+x\d+')
-            data.root = LPP_PPO_PATTERN.sub(f'_cell{self.specs.lpp}x{self.specs.ppo}', data.root)
 
             # generate successor path
             this_name = str(data.get_successor(self.specs.iteration, id))
