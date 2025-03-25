@@ -14,6 +14,12 @@ __all__ = ['SharedTemplate']
 
 
 class SharedTemplate(Template):
+    """
+        TODO: When moving to shared, some of the constraints will need to be checked:
+            - constant 0 redundancy for outputs 
+            - constant 0 redundancy for products
+    """
+
     @classmethod
     def define(cls, graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:
         # get prefixed graph
@@ -135,10 +141,15 @@ class SharedTemplate(Template):
             ToInt(f'prod{prod_i}_id', items=flat(prod_p))
             for (prod_i, prod_p) in enumerate(products_p)
         ]
-        prod_ord_nodes = [
-            GreaterThan(f'id_order_{idx_a}_{idx_b}', items=(prod_a, prod_b))
-            for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(prod_ids))
-        ]
+        if len(prod_ids) >= 2:
+            prod_ids = prod_ids
+            prod_ord_nodes = [
+                GreaterThan(f'id_order_{idx_a}_{idx_b}', items=(prod_a, prod_b))
+                for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(prod_ids))
+            ]
+        else:
+            prod_ids = []
+            prod_ord_nodes = []
 
         # target definition
         targets = [

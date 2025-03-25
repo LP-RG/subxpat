@@ -1,6 +1,4 @@
-import json
 from typing import Dict, List, Tuple
-import dataclasses as dc
 
 import itertools as it
 
@@ -121,7 +119,7 @@ class NonSharedTemplate(Template):
         const0_red_nodes = list(flat(
             (
                 not_p_o := Not(f'not_{p_o.name}', items=(p_o.name,)),
-                or_ps := Or(f'or_sum_in_{sum_i}', items=(n.name for n in flat(p_o_t))),
+                or_ps := Or(f'or_sum_in_{sum_i}', items=(p_usage.name for prods_p in p_o_t for (p_usage, p_assert) in prods_p)),
                 not_or := Not(f'not_{or_ps.name}', items=(or_ps.name,)),
                 impl := Implies(f'impl_sum_{sum_i}', items=(not_p_o.name, not_or.name)),
             )
@@ -129,15 +127,18 @@ class NonSharedTemplate(Template):
         ))
 
         # order of products redundancy
-        prod_ids = [
-            ToInt(f'out{out_i}_prod{prod_i}_id', items=flat(prod_p))
-            for (out_i, prod_o) in enumerate(products_p)
-            for (prod_i, prod_p) in enumerate(prod_o)
-        ]
-        prod_ord_nodes = [
-            GreaterThan(f'id_order_{idx_a}_{idx_b}', items=(prod_a, prod_b))
-            for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(prod_ids))
-        ]
+        prod_ids = []
+        prod_ord_nodes = []
+        if len(products_p[0]) >= 2:
+            for (out_i, prod_o) in enumerate(products_p):
+                prod_ids.extend(_prod_ids := [
+                    ToInt(f'out{out_i}_prod{prod_i}_id', items=flat(prod_p))
+                    for (prod_i, prod_p) in enumerate(prod_o)
+                ])
+                prod_ord_nodes.extend(
+                    GreaterEqualThan(f'id_order_{idx_a}_{idx_b}', items=(prod_a, prod_b))
+                    for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(_prod_ids))
+                )
 
         # target definition
         targets = [
