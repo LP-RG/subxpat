@@ -5,6 +5,7 @@ import itertools as it
 import subprocess
 
 from sxpat.converting.porters import DotPorter
+from sxpat.specifications import Specifications
 from sxpat.utils.functions import str_to_int_or_bool
 
 from .Solver import Solver
@@ -408,11 +409,12 @@ class Z3Solver(Solver):
 
     @classmethod
     def solve(cls, reference_graph: IOGraph, parametric_graph: PGraph,
-              constraints_graph: CGraph) -> Tuple[str, Optional[Mapping[str, Any]]]:
+              constraints_graph: CGraph,
+              specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Any]]]:
 
         # encode
         # TODO:#15: how do we generate a name here
-        script_path = 'testing.py'
+        script_path = f'output/z3/{specifications.exact_benchmark}_iter{specifications.iteration}.py'
         with open(script_path, 'w') as f:
             cls.encoder.encode(reference_graph, parametric_graph, constraints_graph, f)
 

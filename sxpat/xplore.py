@@ -171,7 +171,7 @@ def explore_grid(specs_obj: Specifications):
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
             models = []
             for _ in range(specs_obj.wanted_models):
-                status, model = solve(e_graph, p_graph, c_graph)
+                status, model = solve(e_graph, p_graph, c_graph, specs_obj)
                 if status != 'sat': break
                 models.append(model)
                 c_graph = prevent_combination(c_graph, model)
