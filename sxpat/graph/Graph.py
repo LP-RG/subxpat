@@ -36,7 +36,8 @@ class Graph:
                 for src_name in node.items
             )
             if len(node_names_in_edges - defined_node_names) > 0:
-                raise RuntimeError("Some nodes are not defined")
+                print(*(node_names_in_edges - defined_node_names), sep='\n')
+                raise RuntimeError('Some nodes are not defined')
 
             # construct digraph
             _inner = nx.DiGraph()
@@ -162,10 +163,10 @@ class SGraph(IOGraph):
     @ft.cached_property
     def subgraph_inputs(self) -> Tuple[Node, ...]:
         # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
-        return tuple(it.chain.from_iterable(
+        return tuple(frozenset(it.chain.from_iterable(
             (pred for pred in self.predecessors(node) if not pred.in_subgraph)
             for node in self.subgraph_nodes
-        ))
+        )))
 
     @ft.cached_property
     def subgraph_outputs(self) -> Tuple[Node, ...]:
