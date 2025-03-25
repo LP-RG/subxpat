@@ -203,8 +203,8 @@ def set_prefix(graph: G, prefix: str) -> G:
     Takes a graph and a prefix as input and returns a new graph with all operation nodes updated with the prefix.
     """
 
-    operations_names = frozenset(n.name for n in graph.operations)
-    update_name: Callable[[str], str] = lambda name: f'{prefix}{name}' if name in operations_names else name
+    to_be_updated = frozenset(n.name for n in it.chain(graph.operations, graph.constants))
+    update_name: Callable[[str], str] = lambda name: f'{prefix}{name}' if name in to_be_updated else name
 
     nodes = []
     for node in graph.nodes:
