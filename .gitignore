@@ -22,6 +22,7 @@
 **/__pycache__
 **/yosys_graph.log
 **/yosys_log.txt
+.history_sta
 # input
 /input/*
 !/input/ver.bak
