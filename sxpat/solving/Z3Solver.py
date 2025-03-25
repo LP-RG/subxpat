@@ -1,8 +1,10 @@
-from typing import IO, Any, Callable, Container, Mapping, Optional, Sequence, Tuple, Type, Union
+from abc import abstractmethod
+from typing import IO, Any, Callable, Container, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union
 
 import itertools as it
 import subprocess
 
+from sxpat.converting.porters import DotPorter
 from sxpat.utils.functions import str_to_int_or_bool
 
 from .Solver import Solver
@@ -20,10 +22,17 @@ __all__ = [
 
 
 class Z3Encoder:
+    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
+
     node_mapping: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued], Sequence[str], Sequence[Any]], str]]
     type_mapping: Mapping[Type[Union[int, bool]], Callable[[Sequence[Any]], str]]
     solver_construct: str
     node_accessories: Callable[[Sequence[Any]], Callable[[Node], Sequence[Any]]]
+
+    @classmethod
+    @abstractmethod
+    def encode(cls, s_graph: SGraph, t_graph: PGraph, c_graph: CGraph, destination: IO[str]) -> None:
+        raise NotImplementedError(f'{cls.__qualname__}.encode(...) is abstract')
 
     @classmethod
     def simplification_and_accessories(cls, s_graph: SGraph, t_graph: PGraph, c_graph: CGraph
@@ -383,7 +392,7 @@ class Z3DirectBitVecEncoder(Z3DirectEncoder):
 
 
 class Z3Solver(Solver):
-    encoder: Z3FuncEncoder
+    encoder: Z3Encoder
 
     @classmethod
     def solve(cls, s_graph: SGraph, t_graph: PGraph, c_graph: CGraph) -> Tuple[str, Optional[Mapping[str, Any]]]:

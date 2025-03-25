@@ -1,4 +1,4 @@
-from typing import NamedTuple
+from typing import NamedTuple, NoReturn
 
 import re
 import subprocess
@@ -11,6 +11,8 @@ __all__ = ['MetricsEstimator']
 
 
 class MetricsEstimator:
+    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
+
     MODULE_NAME_PATTERN = re.compile(r'module\s+([a-zA-Z0-9_$]+)\s*\(')
 
     AREA_ANY_PATTERN = re.compile(r'Chip area for module .*?: (\S+)$', re.M)
@@ -41,9 +43,6 @@ class MetricsEstimator:
 
     Metrics = NamedTuple('Metrics', [('area', float), ('power', float), ('delay', float)])
 
-    def __new__(cls):
-        raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
-
     @classmethod
     def estimate_metrics(cls, verilog_path: str) -> Metrics:
         # compute names and paths
@@ -71,11 +70,6 @@ class MetricsEstimator:
             raise Exception(color.error(f'Yosys ERROR!\n{yosys_result.stderr}'))
         if sta_result.returncode != 0:
             raise Exception(color.error(f'OpenSTA ERROR!\n{sta_result.stderr}'))
-
-        with open('yosys.log', 'w') as f:
-            f.write(yosys_result.stdout)
-        with open('sta.log', 'w') as f:
-            f.write(sta_result.stdout)
 
         # > parse results
         # area

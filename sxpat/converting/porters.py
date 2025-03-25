@@ -24,8 +24,7 @@ _N_CLSS = {c.__name__: c for c in get_all_leaves_subclasses(Node)}
 
 
 class GraphImporter(Generic[T]):
-    def __new__(cls) -> NoReturn:
-        raise TypeError(f'Cannot create instances of class {cls.__name__}')
+    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     @classmethod
     def from_string(cls, string: str) -> T:
@@ -39,8 +38,7 @@ class GraphImporter(Generic[T]):
 
 
 class GraphExporter(Generic[T]):
-    def __new__(cls) -> NoReturn:
-        raise TypeError(f'Cannot create instances of class {cls.__name__}')
+    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     @classmethod
     @abstractmethod
