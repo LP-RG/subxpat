@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import itertools as it
 
@@ -31,10 +31,10 @@ class SharedTemplate(Template):
             products_p.append([])
             for in_i, in_node in enumerate(a_graph.subgraph_inputs):
                 products_p[-1].append((
-                    (p_s := BoolVariable(f'p_p{prod_i}_i{in_i}_s', in_subgraph=True)),
-                    (p_l := BoolVariable(f'p_p{prod_i}_i{in_i}_l', in_subgraph=True)),
+                    (p_usage := BoolVariable(f'p_p{prod_i}_i{in_i}_u', in_subgraph=True)),
+                    (p_assert := BoolVariable(f'p_p{prod_i}_i{in_i}_a', in_subgraph=True)),
                 ))
-                _muxs.append(Multiplexer(f'mux_p{prod_i}_i{in_i}', in_subgraph=True, items=[in_node, p_s, p_l]))
+                _muxs.append(Multiplexer(f'mux_p{prod_i}_i{in_i}', in_subgraph=True, items=[in_node, p_usage, p_assert]))
 
             # create the product (and store multiplexers)
             products.append(And(f'prod{prod_i}', in_subgraph=True, items=_muxs))
@@ -47,7 +47,7 @@ class SharedTemplate(Template):
         switches = []
         outs_p: List[BoolVariable] = []
         outs: List[If] = []
-        out_successors: List[OperationNode] = []
+        out_successors: Dict[str, OperationNode] = dict()
         for out_i, out_node in enumerate(a_graph.subgraph_outputs):
             # create all switches for the output
             _sws = []
@@ -63,23 +63,20 @@ class SharedTemplate(Template):
             outs.append(new_out_node := If(f'sw_o{out_i}', in_subgraph=True, items=(p_o, _sum, consts[False])))
 
             # update all output successors to descend from new outputs
-            tmp_out_successors = dict()
             for succ in a_graph.successors(out_node):
                 if not succ.in_subgraph:
-                    succ = tmp_out_successors.get(succ.name, succ)
-                    i = succ.items.index(out_node.name)
-                    new_items = succ.items[:i] + (new_out_node.name,) + succ.items[i+1:]
-                    tmp_out_successors[succ.name] = succ.copy(items=new_items)
-            out_successors.extend(tmp_out_successors.values())
+                    succ = out_successors.get(succ.name, succ)
+                    new_out_index = succ.items.index(out_node.name)
+                    new_items = succ.items[:new_out_index] + (new_out_node.name,) + succ.items[new_out_index + 1:]
+                    out_successors[succ.name] = succ.copy(items=new_items)
 
         # create template graph
-        succs_names = frozenset(s.name for s in out_successors)
         nodes = it.chain(
             (  # unchanged nodes
                 n
                 for n in a_graph.nodes
                 if not n.in_subgraph
-                if n.name not in succs_names
+                if n.name not in out_successors
             ),
             # constants
             consts.values(),
@@ -94,7 +91,7 @@ class SharedTemplate(Template):
             outs_p,
             outs,
             # updated successors
-            out_successors,
+            out_successors.values(),
         )
         template_graph = PGraph(
             nodes,
@@ -118,9 +115,9 @@ class SharedTemplate(Template):
         ]
         # multiplexer redundancy
         mux_red_nodes = [
-            Implies(f'impl_mux_{im_i}', items=(p_l.name, p_s.name))
-            for im_i, prod_p in enumerate(products_p)
-            for p_s, p_l in prod_p
+            Or(f'prevent_constF_{prod_i}', items=(p_usage.name, p_assert.name))
+            for (prod_i, prod_p) in enumerate(products_p)
+            for (p_usage, p_assert) in prod_p
         ]
         # constant zero redundancy
         const0_red_nodes = list(flat(
@@ -134,13 +131,13 @@ class SharedTemplate(Template):
         ))
 
         # order of products redundancy
-        prod_ints = [
-            ToInt(f'prod{prod_i}_int', items=flat(prod_p))
-            for prod_i, prod_p in enumerate(products_p)
+        prod_ids = [
+            ToInt(f'prod{prod_i}_id', items=flat(prod_p))
+            for (prod_i, prod_p) in enumerate(products_p)
         ]
         prod_ord_nodes = [
-            GreaterThan(f'gt_{idx_a}_{idx_b}', items=(prod_a, prod_b))
-            for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(prod_ints))
+            GreaterThan(f'id_order_{idx_a}_{idx_b}', items=(prod_a, prod_b))
+            for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(prod_ids))
         ]
 
         # target definition
@@ -163,7 +160,7 @@ class SharedTemplate(Template):
             # redundancy constraints
             mux_red_nodes,
             const0_red_nodes,
-            prod_ints,
+            prod_ids,
             prod_ord_nodes,
             targets,
         )
