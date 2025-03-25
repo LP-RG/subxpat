@@ -2,19 +2,24 @@ from typing import Type
 
 from sxpat.specifications import Specifications, EncodingType
 
-from .Solver import Solver
-from .Z3Solver import Z3IntSolver, Z3BitVecSolver
+from .Solver import *
+from .Z3Solver import *
 
 
-__all__ = ['get_specialized',
-           'Solver',
-           'Z3IntSolver', 'Z3BitVecSolver',]
+__all__ = [
+    'get_specialized',
+    'Solver',
+    'Z3FuncIntSolver', 'Z3FuncBitVecSolver',
+    'Z3DirectIntSolver', 'Z3DirectBitVecSolver',
+]
 
 
 def get_specialized(specs: Specifications) -> Type[Solver]:
     # NOTE: If we change the system to a pipeline approach, this method will not be used
     return {
-        EncodingType.Z3_INTEGER: Z3IntSolver,
-        EncodingType.Z3_BITVECTOR: Z3BitVecSolver,
+        EncodingType.Z3_FUNC_INTEGER: Z3FuncIntSolver,
+        EncodingType.Z3_FUNC_BITVECTOR: Z3FuncBitVecSolver,
+        EncodingType.Z3_DIRECT_INTEGER: Z3DirectIntSolver,
+        EncodingType.Z3_DIRECT_BITVECTOR: Z3DirectBitVecSolver,
         # EncodingType.QBF: SomethingSolver,
     }[specs.encoding]

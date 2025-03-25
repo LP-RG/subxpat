@@ -40,10 +40,10 @@ class TemplateManager:
 
         # select and return TemplateManager object
         return {
-            (TemplateType.NON_SHARED, EncodingType.Z3_INTEGER): SOPManager,
-            (TemplateType.NON_SHARED, EncodingType.Z3_BITVECTOR): SOPManager,
-            (TemplateType.SHARED, EncodingType.Z3_INTEGER): SOPSManager,
-            (TemplateType.SHARED, EncodingType.Z3_BITVECTOR): SOPSManager,
+            (TemplateType.NON_SHARED, EncodingType.Z3_FUNC_INTEGER): SOPManager,
+            (TemplateType.NON_SHARED, EncodingType.Z3_FUNC_BITVECTOR): SOPManager,
+            (TemplateType.SHARED, EncodingType.Z3_FUNC_INTEGER): SOPSManager,
+            (TemplateType.SHARED, EncodingType.Z3_FUNC_BITVECTOR): SOPSManager,
             (TemplateType.NON_SHARED, EncodingType.QBF): SOP_QBF_Manager,
         }[specs.template, specs.encoding](
             exact_graph,

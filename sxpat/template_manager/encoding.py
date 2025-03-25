@@ -24,8 +24,8 @@ class Encoding:
                 ) -> Encoding:
         # select and return Encoding object
         return {
-            EncodingType.Z3_INTEGER: IntegerEncoding,
-            EncodingType.Z3_BITVECTOR: BitVectorEncoding,
+            EncodingType.Z3_FUNC_INTEGER: IntegerEncoding,
+            EncodingType.Z3_FUNC_BITVECTOR: BitVectorEncoding,
         }[encoding_type](
             inputs_count,
             outputs_count

@@ -16,8 +16,10 @@ class ErrorPartitioningType(enum.Enum):
 
 
 class EncodingType(enum.Enum):
-    Z3_INTEGER = 'z3int'
-    Z3_BITVECTOR = 'z3bvec'
+    Z3_FUNC_INTEGER = 'z3int'
+    Z3_FUNC_BITVECTOR = 'z3bvec'
+    Z3_DIRECT_INTEGER = 'z3dint'
+    Z3_DIRECT_BITVECTOR = 'z3dbvec'
     QBF = 'qbf'
 
 
@@ -248,7 +250,7 @@ class Specifications:
         _enc = parser.add_argument('--encoding',
                                    type=EncodingType,
                                    action=EnumChoicesAction,
-                                   default=EncodingType.Z3_BITVECTOR,
+                                   default=EncodingType.Z3_FUNC_BITVECTOR,
                                    help='The encoding to use in solving')
 
         _timeout = parser.add_argument('--timeout',
