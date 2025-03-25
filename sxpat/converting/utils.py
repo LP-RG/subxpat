@@ -1,6 +1,6 @@
-import re
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, TypeVar, Union
 
+import re
 import itertools as it
 
 from sxpat.graph import *
@@ -15,6 +15,9 @@ __all__ = [
     # expand constraints
     'prevent_combination',
 ]
+
+
+G = TypeVar('G', Graph, IOGraph, SGraph, PGraph, CGraph)
 
 
 def unpack_ToInt(graph: Union[Graph, IOGraph, SGraph, PGraph, CGraph]):
@@ -175,7 +178,7 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
         return get_nodes_bitwidth(graphs, nodes_types, bitwidth_of)
 
 
-def set_bool_constants(graph: Graph, constants: Mapping[str, bool]) -> Graph:
+def set_bool_constants(graph: G, constants: Mapping[str, bool]) -> G:
     """
     Takes a graph and a mapping from names to bool in input
     and returns a new graph with the nodes corresponding to the given names replaced with the wanted constant.
@@ -195,7 +198,7 @@ def set_bool_constants(graph: Graph, constants: Mapping[str, bool]) -> Graph:
     return type(graph)(new_nodes.values(), **{extra: getattr(graph, extra) for extra in graph.EXTRA})
 
 
-def set_prefix(graph: Graph, prefix: str):
+def set_prefix(graph: G, prefix: str) -> G:
     """
     Takes a graph and a prefix as input and returns a new graph with all operation nodes updated with the prefix.
     """
@@ -219,7 +222,9 @@ def set_prefix(graph: Graph, prefix: str):
     return type(graph)(nodes, graph.inputs_names, outputs_names)
 
 
-def prevent_combination(c_graph: CGraph, assignments: Mapping[str, bool], assignment_id: Any = None) -> CGraph:
+def prevent_combination(c_graph: CGraph,
+                        assignments: Mapping[str, bool],
+                        assignment_id: Optional[Any] = None) -> CGraph:
     """
     Takes a constraints graph and expands it to prevent the given assignment.  
     It will allow any change, but at least one change is required.
