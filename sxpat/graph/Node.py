@@ -224,11 +224,13 @@ class Multiplexer(Op3Node):
         return self.items[0]
 
     @property
-    def parameter_1(self) -> str:
+    def parameter_usage(self) -> str:
+        """If this parameter is true, the origin will be used, otherwise a constant will be produced"""
         return self.items[1]
 
     @property
-    def parameter_2(self) -> str:
+    def parameter_assertion(self) -> str:
+        """If this parameter is true, the node will produce the asserted origin or the constant true, otherwise will produce the negated origin or the constant False"""
         return self.items[2]
 
 

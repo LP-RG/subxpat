@@ -369,7 +369,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         # AtLeast: lambda n: None,
         # AtMost: lambda n: None,
         # branching operations
-        Multiplexer: lambda n: f'({n.parameter_1} ? ({n.parameter_2} ? {n.origin} : ~{n.origin}) : {n.parameter_2})',
+        Multiplexer: lambda n: f'({n.parameter_usage} ? ({n.parameter_assertion} ? {n.origin} : ~{n.origin}) : {n.parameter_assertion})',
         If: lambda n: f'({n.contition} ? {n.if_true} : {n.if_false})',
     }
 
