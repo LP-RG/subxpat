@@ -342,8 +342,8 @@ class VerilogExporter(GraphExporter[IOGraph]):
         # BoolVariable: lambda n: None,
         # IntVariable: lambda n: None,
         # constants
-        BoolConstant: lambda n: f'1\'b{int(n.value)}',
-        # IntConstant: lambda n: f'({n.value')',
+        BoolConstant: lambda n: f'{int(n.value)}',
+        # IntConstant: lambda n: f'{n.value}',
         # output
         Copy: lambda n: n.item,
         # Target: lambda n: None,

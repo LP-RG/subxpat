@@ -31,24 +31,28 @@ class Z3Encoder:
 
     @classmethod
     @abstractmethod
-    def encode(cls, s_graph: SGraph, t_graph: PGraph, c_graph: CGraph, destination: IO[str]) -> None:
+    def encode(cls, reference_graph: IOGraph, parametric_graph: PGraph,
+               constraints_graph: CGraph,
+               destination: IO[str]) -> None:
+
         raise NotImplementedError(f'{cls.__qualname__}.encode(...) is abstract')
 
     @classmethod
-    def simplification_and_accessories(cls, s_graph: SGraph, t_graph: PGraph, c_graph: CGraph
-                                       ) -> Tuple[SGraph, PGraph, CGraph, Mapping[str, type], Callable[[Node], Sequence[Any]]]:
+    def simplification_and_accessories(cls, reference_graph: IOGraph, parametric_graph: PGraph,
+                                       constraints_graph: CGraph) -> Tuple[IOGraph, PGraph, CGraph, Mapping[str, type], Callable[[Node], Sequence[Any]]]:
+
         # compute initial graph accessories
-        graphs = (s_graph, t_graph, c_graph)
+        graphs = (reference_graph, parametric_graph, constraints_graph)
         nodes_types = get_nodes_type(graphs)
-        nodes_bitwidths = get_nodes_bitwidth((s_graph, t_graph, c_graph), nodes_types)
+        nodes_bitwidths = get_nodes_bitwidth((reference_graph, parametric_graph, constraints_graph), nodes_types)
 
         # simplify graphs
-        s_graph = unpack_ToInt(s_graph)
-        t_graph = unpack_ToInt(t_graph)
-        c_graph = unpack_ToInt(c_graph)
+        reference_graph = unpack_ToInt(reference_graph)
+        parametric_graph = unpack_ToInt(parametric_graph)
+        constraints_graph = unpack_ToInt(constraints_graph)
 
         # compute refined graph accessories
-        graphs = (s_graph, t_graph, c_graph)
+        graphs = (reference_graph, parametric_graph, constraints_graph)
         nodes_types = get_nodes_type(graphs, nodes_types)
         nodes_bitwidths = get_nodes_bitwidth(graphs, nodes_types, nodes_bitwidths)
 
@@ -56,7 +60,7 @@ class Z3Encoder:
         accessories = cls.node_accessories((nodes_bitwidths,))
 
         return (
-            s_graph, t_graph, c_graph,
+            reference_graph, parametric_graph, constraints_graph,
             nodes_types, accessories,
         )
 
@@ -69,7 +73,7 @@ class Z3Encoder:
 
     @classmethod
     def inject_variables(cls, destination: IO[str],
-                         graphs: Tuple[SGraph, PGraph, CGraph],
+                         graphs: Tuple[IOGraph, PGraph, CGraph],
                          accessories: Callable[[Node], Sequence[Any]]) -> None:
         variables = {  # ignore duplicates
             node.name: node
@@ -88,7 +92,7 @@ class Z3Encoder:
 
     @classmethod
     def inject_constants(cls, destination: IO[str],
-                         graphs: Tuple[SGraph, PGraph, CGraph],
+                         graphs: Tuple[IOGraph, PGraph, CGraph],
                          accessories: Callable[[Node], Sequence[Any]]) -> None:
         constants = {  # ignore duplicates
             node.name: node
@@ -107,7 +111,7 @@ class Z3Encoder:
 
     @classmethod
     def inject_result_writing(cls, destination: IO[str],
-                              graphs: Tuple[SGraph, PGraph, CGraph]) -> None:
+                              graphs: Tuple[IOGraph, PGraph, CGraph]) -> None:
         destination.write('\n'.join((
             f'# results',
             f'print(status)',
@@ -124,7 +128,7 @@ class Z3Encoder:
 
 class Z3FuncEncoder(Z3Encoder):
     @classmethod
-    def graph_as_function_calls(cls, graph: Union[SGraph, PGraph, CGraph],
+    def graph_as_function_calls(cls, graph: Union[IOGraph, PGraph, CGraph],
                                 inputs_string: str,
                                 non_gates_names: Container[str]):
         """
@@ -145,7 +149,7 @@ class Z3FuncEncoder(Z3Encoder):
         ]
 
         extra = dict()
-        if isinstance(graph, SGraph):
+        if isinstance(graph, IOGraph):
             extra['inputs_names'] = graph.inputs_names
             extra['outputs_names'] = (update_name(name) for name in graph.outputs_names)
         if isinstance(graph, PGraph):
@@ -154,23 +158,27 @@ class Z3FuncEncoder(Z3Encoder):
         return type(graph)(nodes, **extra)
 
     @classmethod
-    def encode(cls, s_graph: SGraph, t_graph: PGraph, c_graph: CGraph, destination: IO[str]) -> None:
+    def encode(cls, reference_graph: IOGraph, parametric_graph: PGraph,
+               constraints_graph: CGraph,
+               destination: IO[str]) -> None:
+
         # initial computations
         node_mapping = cls.node_mapping
         type_mapping = cls.type_mapping
         solver_construct = cls.solver_construct
-        (s_graph, t_graph, c_graph, nodes_types, accessories) = cls.simplification_and_accessories(s_graph, t_graph, c_graph)
-        graphs = (s_graph, t_graph, c_graph)
+        (reference_graph, parametric_graph, constraints_graph, nodes_types, accessories
+         ) = cls.simplification_and_accessories(reference_graph, parametric_graph, constraints_graph)
+        graphs = (reference_graph, parametric_graph, constraints_graph)
 
         # create call graphs (graphs where each node name has been replaced with the relative function call)
-        inputs_string = ','.join(s_graph.inputs_names)
-        non_gates_names = frozenset(node.name for node in it.chain(s_graph.inputs,
-                                                                   t_graph.parameters,
+        inputs_string = ','.join(reference_graph.inputs_names)
+        non_gates_names = frozenset(node.name for node in it.chain(reference_graph.inputs,
+                                                                   parametric_graph.parameters,
                                                                    *(g.constants for g in graphs)))
         call_graphs = (
-            call_s_graph := cls.graph_as_function_calls(s_graph, inputs_string, non_gates_names),
-            call_t_graph := cls.graph_as_function_calls(t_graph, inputs_string, non_gates_names),
-            call_c_graph := cls.graph_as_function_calls(c_graph, inputs_string, non_gates_names),
+            call_r_graph := cls.graph_as_function_calls(reference_graph, inputs_string, non_gates_names),
+            call_p_graph := cls.graph_as_function_calls(parametric_graph, inputs_string, non_gates_names),
+            call_c_graph := cls.graph_as_function_calls(constraints_graph, inputs_string, non_gates_names),
         )
 
         # initialization
@@ -183,7 +191,7 @@ class Z3FuncEncoder(Z3Encoder):
         cls.inject_constants(destination, graphs, accessories)
 
         # gates functions
-        inputs_count = len(s_graph.inputs)
+        inputs_count = len(reference_graph.inputs)
         function_string = f'{{name}} = Function(\'{{name}}\', {", ".join(("BoolSort()",) * inputs_count)}, {{sort}})'
         destination.write('\n'.join((
             '# nodes (circuits and constraints)',
@@ -213,8 +221,8 @@ class Z3FuncEncoder(Z3Encoder):
             '# usage',
             'usage = And(', *(
                 f'    {call_node.name},'
-                for node, call_node in zip(c_graph.operations, call_c_graph.operations)
-                if not c_graph.successors(node) and nodes_types[node.name] is bool
+                for node, call_node in zip(constraints_graph.operations, call_c_graph.operations)
+                if not constraints_graph.successors(node) and nodes_types[node.name] is bool
             ), ')',
             *('',) * 2,
         )))
@@ -224,7 +232,7 @@ class Z3FuncEncoder(Z3Encoder):
             f'# solver',
             f'solver = {solver_construct}',
             f'solver.add(ForAll(',
-            f'    [{",".join(s_graph.inputs_names)}],',
+            f'    [{",".join(reference_graph.inputs_names)}],',
             f'    And(behaviour, usage)',
             f'))',
             f'status = solver.check()',
@@ -238,13 +246,17 @@ class Z3FuncEncoder(Z3Encoder):
 class Z3DirectEncoder(Z3Encoder):
 
     @classmethod
-    def encode(cls, s_graph: SGraph, t_graph: PGraph, c_graph: CGraph, destination: IO[str]) -> None:
+    def encode(cls, reference_graph: IOGraph, parametric_graph: PGraph,
+               constraints_graph: CGraph,
+               destination: IO[str]) -> None:
+
         # initial computations
         node_mapping = cls.node_mapping
         type_mapping = cls.type_mapping
         solver_construct = cls.solver_construct
-        (s_graph, t_graph, c_graph, nodes_types, accessories) = cls.simplification_and_accessories(s_graph, t_graph, c_graph)
-        graphs = (s_graph, t_graph, c_graph)
+        (reference_graph, parametric_graph, constraints_graph, nodes_types, accessories
+         ) = cls.simplification_and_accessories(reference_graph, parametric_graph, constraints_graph)
+        graphs = (reference_graph, parametric_graph, constraints_graph)
 
         # initialization
         cls.inject_initialization(destination)
@@ -271,8 +283,8 @@ class Z3DirectEncoder(Z3Encoder):
             '# usage',
             'usage = And(', *(
                 f'    {node.name},'
-                for node in c_graph.operations
-                if not c_graph.successors(node) and nodes_types[node.name] is bool
+                for node in constraints_graph.operations
+                if not constraints_graph.successors(node) and nodes_types[node.name] is bool
             ), ')',
             *('',) * 2,
         )))
@@ -282,7 +294,7 @@ class Z3DirectEncoder(Z3Encoder):
             f'# solver',
             f'solver = {solver_construct}',
             f'solver.add(ForAll(',
-            f'    [{",".join(s_graph.inputs_names)}],',
+            f'    [{",".join(reference_graph.inputs_names)}],',
             f'    usage',
             f'))',
             f'status = solver.check()',
@@ -395,12 +407,14 @@ class Z3Solver(Solver):
     encoder: Z3Encoder
 
     @classmethod
-    def solve(cls, s_graph: SGraph, t_graph: PGraph, c_graph: CGraph) -> Tuple[str, Optional[Mapping[str, Any]]]:
+    def solve(cls, reference_graph: IOGraph, parametric_graph: PGraph,
+              constraints_graph: CGraph) -> Tuple[str, Optional[Mapping[str, Any]]]:
+
         # encode
-        # TODO: how do we get the name?
+        # TODO:#15: how do we generate a name here
         script_path = 'testing.py'
         with open(script_path, 'w') as f:
-            cls.encoder.encode(s_graph, t_graph, c_graph, f)
+            cls.encoder.encode(reference_graph, parametric_graph, constraints_graph, f)
 
         # run
         process = subprocess.run(
