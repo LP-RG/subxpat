@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, NamedTuple
 from collections import defaultdict
 import enum
 import dataclasses as dc
@@ -41,6 +41,37 @@ class EnumChoicesAction(argparse.Action):
     def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace,
                  value: str, option_string: str = None) -> None:
         setattr(namespace, self.dest, self.enum(value))
+
+
+class Paths:
+    _Output = NamedTuple('Output', [
+        ('graphviz', str),
+        ('verilog', str),
+        ('solver_scripts', str),
+    ])
+    _output_graphviz_postdir = 'graphviz'
+    _output_verilog_postdir = 'verilog'
+    _output_solver_scripts_postdir = 'scripts'
+
+    _Config = NamedTuple('Config', [
+        ('liberty', str),
+        ('abc_script', str),
+    ])
+    _config_default_base = 'config'
+    _config_liberty_default = 'gscl45nm.lib'
+    _config_abc_script_default = 'abc.script'
+
+    def __init__(self, output_base: str) -> None:
+        output_base = output_base.rstrip('/')
+        self.output = self._Output(
+            f'{output_base}/{self._output_graphviz_postdir}',
+            f'{output_base}/{self._output_verilog_postdir}',
+            f'{output_base}/{self._output_solver_scripts_postdir}',
+        )
+        self.config = self._Config(
+            f'{self._config_default_base}/{self._config_liberty_default}',
+            f'{self._config_default_base}/{self._config_abc_script_default}',
+        )
 
 
 @dc.dataclass
@@ -208,7 +239,7 @@ class Specifications:
                                       action=EnumChoicesAction,
                                       default=ConstantsType.NEVER,
                                       help='Usage of constants (default: never)')
-        
+
         _template = parser.add_argument('--template',
                                         type=TemplateType,
                                         default=TemplateType.NON_SHARED,
