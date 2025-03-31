@@ -16,7 +16,8 @@ class Solver:
     @classmethod
     @abstractmethod
     def solve(cls,
-              reference_graph: IOGraph, parametric_graph: PGraph, constraints_graph: CGraph,
+              graphs: _Graphs,
+              #   reference_graph: IOGraph, parametric_graph: PGraph, constraints_graph: CGraph,
               specifications: Specifications
               ) -> Tuple[str, Optional[Mapping[str, Any]]]:
         """
