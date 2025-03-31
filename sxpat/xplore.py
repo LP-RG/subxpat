@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable, Iterator, List, TypeVar
+from typing import Dict, Iterable, Iterator, List, Tuple, TypeVar
 import dataclasses as dc
 
 from tabulate import tabulate
@@ -14,7 +14,7 @@ from Z3Log.config import path as z3logpath
 from sxpat.labeling import labeling_explicit
 from sxpat.metrics import MetricsEstimator
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
-from sxpat.config.paths import *
+from sxpat.config import paths as sxpatpaths
 from sxpat.config.config import *
 from sxpat.utils.filesystem import FS
 from sxpat.utils.name import NameData
@@ -42,7 +42,7 @@ def explore_grid(specs_obj: Specifications):
     toolname = get_toolname(specs_obj)
 
     # initial setup
-    exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
+    exact_file_path = f'{sxpatpaths.INPUT_PATH["ver"][0]}/{specs_obj.exact_benchmark}.v'
 
     # create stat and template object
     stats_obj = Stats(specs_obj)
