@@ -13,6 +13,14 @@ T = TypeVar('T')
 
 
 def mapping_inv(mapping: Mapping[K, V], value: V, default: K = NOTHING) -> K:
+    """
+        Given a mapping, returns the key associated to the first occurrance of the value.
+        If the value never occurs in the mapping, returns the default if given or raise an exception.
+
+        @note: if we move to an invertible mapping (eg. bidict) this will not be needed anymore
+
+        @authors: Marco Biasion
+    """
     key = next((k for (k, v) in mapping.items() if v == value), default)
     if key is NOTHING:
         raise ValueError('The value does not match with any pair in the mapping.')
@@ -40,8 +48,8 @@ def flat(iterable:
 
 def pairwise(iterable: Iterable[T]) -> Iterator[Tuple[T, T]]:
     """
-    example: `pairwise((1,2,3,4))` -> `(1,2) (2,3) (3,4)`.  
-    credits: https://docs.python.org/3.12/library/itertools.html#itertools.pairwise
+        example: `pairwise((1,2,3,4))` -> `(1,2) (2,3) (3,4)`.  
+        credits: https://docs.python.org/3.12/library/itertools.html#itertools.pairwise
     """
 
     iterator = iter(iterable)
@@ -55,7 +63,13 @@ def unzip(iterable: Iterable) -> Iterable:
     return zip(*iterable)
 
 
-class MultiDict(UserDict, Mapping[K, V]):
+class MultiDict(UserDict[K, V]):
+    """
+        A dictionary-like mapping that allows multiple keys to be associated with the same value.
+
+        @authors: Marco Biasion
+    """
+
     def __init__(self, mapping: Mapping[Iterable[K], V] = None) -> None:
         super().__init__()
 
@@ -69,6 +83,12 @@ class MultiDict(UserDict, Mapping[K, V]):
 
 
 class InheritanceMapping(MultiDict[Type, V]):
+    """
+        A dictionary-like mapping from a type to a value, implicitly mapping all subclasses to the same value.
+
+        @authors: Marco Biasion
+    """
+
     def __init__(self, mapping: Mapping[Type, V] = None) -> None:
         super().__init__(mapping)
 
