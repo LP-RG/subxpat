@@ -1,11 +1,12 @@
 from abc import abstractmethod
-from typing import Type, Callable, Mapping, NoReturn, Optional, Union, TypeVar, Generic
+from typing import Type, Callable, Mapping, NoReturn, Optional, Union, Generic
 import dataclasses as dc
 
 from bidict import bidict
 
 import itertools as it
 import re
+import json
 
 from sxpat.graph import *
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
@@ -13,78 +14,90 @@ from sxpat.utils.functions import str_to_bool
 from sxpat.utils.collections import MultiDict
 
 
-__all__ = ['GraphImporter', 'GraphExporter',
-           'DotPorter', 'JSONPorter', 'VerilogExporter']
-
-T = TypeVar('T')
+__all__ = [
+    # interfaces
+    'GraphImporter', 'GraphExporter',
+    # concrete implementations
+    'GraphVizPorter', 'JSONPorter', 'VerilogExporter',
+]
 
 
 _G_CLSS = {c.__name__: c for c in get_all_subclasses(Graph)}
 _N_CLSS = {c.__name__: c for c in get_all_leaves_subclasses(Node)}
 
 
-class GraphImporter(Generic[T]):
+class GraphImporter(Generic[_Graph]):
+    """Abstract class for importing a Graph from a string/file."""
+
     def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     @classmethod
-    def from_string(cls, string: str) -> T:
+    def from_string(cls, string: str) -> _Graph:
         raise NotImplementedError(f'{cls.__name__}.from_string(...) is abstract.')
 
     @classmethod
-    def from_file(cls, filename: str) -> T:
+    def from_file(cls, filename: str) -> _Graph:
         with open(filename, 'r') as f:
             string = f.read()
         return cls.from_string(string)
 
 
-class GraphExporter(Generic[T]):
+class GraphExporter(Generic[_Graph]):
+    """Abstract class for exporting a Graph to a string/file."""
+
     def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     @classmethod
     @abstractmethod
-    def to_string(cls, graph: T) -> str:
+    def to_string(cls, graph: _Graph) -> str:
         raise NotImplementedError(f'{cls.__name__}.to_string(...) is abstract.')
 
     @classmethod
-    def to_file(cls, graph: T, filename: str) -> None:
+    def to_file(cls, graph: _Graph, filename: str) -> None:
         string = cls.to_string(graph)
         with open(filename, 'w') as f:
             f.write(string)
 
 
-class DotPorter(GraphImporter[Graph], GraphExporter[Graph]):
+class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
+    """
+        Allows for dumping/loading of a Graph to/from a GraphViz (aka Dot) string/file.
+
+        @authors: Marco Biasion
+    """
+
     NODE_SYMBOL = bidict({
         # inputs
         BoolVariable: 'varB',
-        IntVariable:  'varI',
+        IntVariable: 'varI',
         # constants
         BoolConstant: 'constB',
-        IntConstant:  'constI',
+        IntConstant: 'constI',
         # output
         Copy: 'copy',
         Target: 'target',
         # placeholder
         PlaceHolder: 'holder',
         # bool operations
-        Not:     'not',
-        And:     'and',
-        Or:      'or',
+        Not: 'not',
+        And: 'and',
+        Or: 'or',
         Implies: 'impl',
         # int operations
-        ToInt:   'toInt',
-        Sum:     'sum',
+        ToInt: 'toInt',
+        Sum: 'sum',
         AbsDiff: 'absdiff',
         # comparison operations
-        Equals:           '==',
-        AtLeast:          'atleast',
-        AtMost:           'atmost',
-        LessThan:         '<',
-        LessEqualThan:    '<=',
-        GreaterThan:      '>',
+        Equals: '==',
+        AtLeast: 'atleast',
+        AtMost: 'atmost',
+        LessThan: '<',
+        LessEqualThan: '<=',
+        GreaterThan: '>',
         GreaterEqualThan: '>=',
         # branching operations
         Multiplexer: 'mux',
-        If:          'if',
+        If: 'if',
     })
     NODE_SHAPE = MultiDict({
         # inputs
@@ -306,7 +319,11 @@ class DotPorter(GraphImporter[Graph], GraphExporter[Graph]):
 
 
 class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
-    import json
+    """
+        Allows for dumping and loading of a Graph to and from a JSON string/file.
+
+        @authors: Marco Biasion
+    """
 
     _CLASS_F = 'class'
     _NODES_F = 'nodes'
@@ -322,7 +339,7 @@ class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
 
     @classmethod
     def from_string(cls, string: str) -> Graph:
-        _g: dict = cls.json.loads(string)
+        _g: dict = json.loads(string)
         nodes = [cls._node_factory(n) for n in _g.pop(cls._NODES_F)]
         return _G_CLSS[_g.pop(cls._CLASS_F)](nodes=nodes, **_g.pop(cls._EXTRA_F))
 
@@ -331,12 +348,18 @@ class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
         _g = {
             cls._CLASS_F: graph.__class__.__name__,
             cls._NODES_F: [cls._dict_factory(node) for node in graph.nodes],
-            cls._EXTRA_F: {extra_name: getattr(graph, extra_name) for extra_name in graph.EXTRA},
+            cls._EXTRA_F: dict(graph.extras),
         }
-        return cls.json.dumps(_g, indent=4)
+        return json.dumps(_g, indent='\t')
 
 
 class VerilogExporter(GraphExporter[IOGraph]):
+    """
+        Allows for dumping of an IOGraph to a Verilog string/file.
+
+        @authors: Marco Biasion
+    """
+
     NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued]], str]] = {
         # variables
         # BoolVariable: lambda n: None,
@@ -388,7 +411,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
             f'output {", ".join(graph.outputs_names)};',
             f'wire {", ".join(n.name for n in graph.inners)};',
             # assignments
-            * (
+            *(
                 f'assign {node.name} = {cls.NODE_EXPORT[type(node)](node)};'
                 for node in graph.nodes
                 if node.name not in graph.inputs_names

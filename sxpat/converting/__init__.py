@@ -4,8 +4,8 @@ from .legacy import *
 
 __all__ = [
     # file converters
-    'GraphImporter', 'GraphExporter',
-    'DotPorter', 'JSONPorter', 'VerilogExporter',
+    'GraphImporter', 'GraphExporter', # interfaces
+    'GraphVizPorter', 'JSONPorter', 'VerilogExporter', # concrete implementations
 
     # digest/update graph
     'unpack_ToInt', 'prune_unused', 'set_bool_constants', 'set_prefix',

@@ -4,7 +4,6 @@ from typing import IO, Any, Callable, Container, Mapping, NoReturn, Optional, Se
 import itertools as it
 import subprocess
 
-from sxpat.converting.porters import DotPorter
 from sxpat.specifications import Specifications
 from sxpat.utils.functions import str_to_int_or_bool
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from collections import UserDict
-from typing import Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union
+from typing import Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union
 
 
 __all__ = ['mapping_inv', 'flat', 'pairwise', 'MultiDict', 'InheritanceMapping']
@@ -63,7 +63,7 @@ def unzip(iterable: Iterable) -> Iterable:
     return zip(*iterable)
 
 
-class MultiDict(UserDict[K, V]):
+class MultiDict(UserDict, Generic[K, V]):
     """
         A dictionary-like mapping that allows multiple keys to be associated with the same value.
 

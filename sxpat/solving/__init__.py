@@ -15,7 +15,7 @@ __all__ = [
 
 
 def get_specialized(specs: Specifications) -> Type[Solver]:
-    # NOTE: If we change the system to a pipeline approach, this method will not be used
+    # NOTE: If we change the system to a pipeline approach, this method will not be necessary
     return {
         EncodingType.Z3_FUNC_INTEGER: Z3FuncIntSolver,
         EncodingType.Z3_FUNC_BITVECTOR: Z3FuncBitVecSolver,

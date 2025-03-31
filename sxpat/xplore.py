@@ -25,7 +25,7 @@ from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.templating import get_specialized as get_templater
 from sxpat.solving import get_specialized as get_solver
 
-from sxpat.converting import VerilogExporter, DotPorter
+from sxpat.converting import VerilogExporter
 from sxpat.converting import iograph_from_legacy, sgraph_from_legacy
 from sxpat.converting import set_bool_constants, prevent_combination
 

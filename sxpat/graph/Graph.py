@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import FrozenSet, Iterable, Sequence, Tuple, Union
+from types import MappingProxyType
+from typing_extensions import Self
+from typing import Any, FrozenSet, Iterable, Mapping, Sequence, Tuple, TypeVar, Union
 
 import networkx as nx
 import functools as ft
@@ -8,57 +10,62 @@ import itertools as it
 from .Node import *
 
 
-__all__ = ['Graph', 'IOGraph', 'CGraph', 'SGraph', 'PGraph']
+__all__ = ['Graph', 'IOGraph', 'CGraph', 'SGraph', 'PGraph',
+           '_Graph']
 
 
 class Graph:
     """Generic graph."""
 
     K = object()
-    EXTRA: Sequence[str] = ()
+    EXTRAS: Sequence[str] = ()
 
-    def __init__(self, nodes: Iterable[Node],
-                 *, _inner: nx.DiGraph = None
-                 ) -> None:
+    def __init__(self, nodes: Iterable[Node]) -> None:
         """
             Creates a new graph from the given nodes.
 
             @authors: Marco Biasion
         """
 
-        # generate inner mutable structure
-        if _inner is None:
-            nodes = tuple(nodes)
+        nodes = tuple(nodes)
 
-            # check for graph correctness
-            defined_node_names = set(
-                node.name
-                for node in nodes
-            )
-            node_names_in_edges = set(
-                src_name
-                for node in nodes
-                if isinstance(node, OperationNode)
-                for src_name in node.items
-            )
-            if len(node_names_in_edges - defined_node_names) > 0:
-                print(*(node_names_in_edges - defined_node_names), sep='\n')
-                raise RuntimeError('Some nodes are not defined')
+        # check for graph correctness
+        defined_node_names = set(
+            node.name
+            for node in nodes
+        )
+        node_names_in_edges = set(
+            src_name
+            for node in nodes
+            if isinstance(node, OperationNode)
+            for src_name in node.items
+        )
+        if len(node_names_in_edges - defined_node_names) > 0:
+            print(*(node_names_in_edges - defined_node_names), sep='\n')
+            raise RuntimeError('Some nodes are not defined')
 
-            # construct digraph
-            _inner = nx.DiGraph()
-            _inner.add_nodes_from(
-                (node.name, {self.K: node})
-                for node in nodes
-            )
-            _inner.add_edges_from(
-                (src_name, dst_name)
-                for dst_name, data in _inner.nodes(data=True)
-                if isinstance(node := data[self.K], OperationNode)
-                for src_name in node.items
-            )
+        # construct digraph
+        _inner = nx.DiGraph()
+        _inner.add_nodes_from(
+            (node.name, {self.K: node})
+            for node in nodes
+        )
+        _inner.add_edges_from(
+            (src_name, dst_name)
+            for dst_name, data in _inner.nodes(data=True)
+            if isinstance(node := data[self.K], OperationNode)
+            for src_name in node.items
+        )
 
+        # freeze inner structure
         self._inner: nx.DiGraph = nx.freeze(_inner)
+
+    def copy(self, nodes: Iterable[Node] = None, **extras) -> Self:
+        return type(self)(self.nodes if nodes is None else nodes, **{**self.extras, **extras})
+
+    @ft.cached_property
+    def extras(self) -> Mapping[str, Any]:
+        return MappingProxyType({_ex: getattr(self, _ex) for _ex in self.EXTRAS})
 
     def __getitem__(self, name: str) -> Node:
         return self._inner.nodes[name][self.K]
@@ -115,17 +122,19 @@ class Graph:
         return tuple(node for node in self.nodes if isinstance(node, Target))
 
 
+_Graph = TypeVar('_Graph', bound=Graph)
+
+
 class IOGraph(Graph):
     """Graph with inputs and outputs."""
 
-    EXTRA = ('inputs_names', 'outputs_names')
+    EXTRAS = ('inputs_names', 'outputs_names')
 
     def __init__(self, nodes: Iterable[Node],
-                 inputs_names: Iterable[str] = (), outputs_names: Iterable[str] = (),
-                 *, _inner: nx.DiGraph = None,
+                 inputs_names: Iterable[str] = (), outputs_names: Iterable[str] = ()
                  ) -> None:
         # construct base
-        super().__init__(nodes, _inner=_inner)
+        super().__init__(nodes)
 
         # freeze local instances
         self.inputs_names = tuple(inputs_names)
@@ -137,13 +146,6 @@ class IOGraph(Graph):
             and self.inputs_names == other.inputs_names
             and self.outputs_names == other.outputs_names
         )
-
-    @classmethod
-    def from_Graph(cls, graph: Graph) -> IOGraph:
-        """**WARNING**: this function makes (**possibly wrong**) assumptions for which nodes are inputs or outputs."""
-        inputs_names = (node.name for node in graph.nodes if isinstance(node, BoolVariable))
-        outputs_names = (node.name for node in graph.nodes if isinstance(node, Copy))
-        return cls(None, inputs_names, outputs_names, _inner=graph._inner)
 
     @ft.cached_property
     def inputs(self) -> Tuple[Node, ...]:
@@ -187,7 +189,7 @@ class SGraph(IOGraph):
 class PGraph(SGraph):
     """Graph with inputs, outputs and parameters (for example, parameters of a template)."""
 
-    EXTRA = (*SGraph.EXTRA, 'parameters_names')
+    EXTRAS = (*SGraph.EXTRAS, 'parameters_names')
 
     def __init__(self, nodes: Iterable[Node],
                  inputs_names: Iterable[str] = (), outputs_names: Iterable[str] = (),

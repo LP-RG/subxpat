@@ -11,4 +11,5 @@ __all__ = [
     'boolean_nodes', 'integer_nodes', 'untyped_nodes', 'contact_nodes', 'origin_nodes', 'end_nodes',
     # graphs
     'Graph', 'IOGraph', 'CGraph', 'SGraph', 'PGraph',
+    '_Graph',
 ]
