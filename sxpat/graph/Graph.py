@@ -81,8 +81,8 @@ class Graph:
 
     @ft.cached_property
     def nodes(self) -> Tuple[Node, ...]:
-        """Sequence of nodes in topological order."""
-        return tuple(self._inner.nodes[name][self.K] for name in nx.topological_sort(self._inner))
+        """Sequence of nodes in the unique lexicographical topological order."""
+        return tuple(self._inner.nodes[name][self.K] for name in nx.lexicographical_topological_sort(self._inner))
 
     def predecessors(self, node_or_name: Union[str, Node]) -> Tuple[Node, ...]:
         node_name = node_or_name.name if isinstance(node_or_name, Node) else node_or_name
