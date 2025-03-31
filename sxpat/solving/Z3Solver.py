@@ -23,6 +23,12 @@ __all__ = [
 
 
 class Z3Encoder:
+    """
+        Base class for Z3 encoders, including some common functions.
+
+        @authors: Marco Biasion
+    """
+
     def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     node_mapping: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued], Sequence[str], Sequence[Any]], str]]
@@ -128,6 +134,12 @@ class Z3Encoder:
 
 
 class Z3FuncEncoder(Z3Encoder):
+    """
+        Z3 encoder using the uninterpreted functions approach.
+
+        @authors: Marco Biasion
+    """
+
     @classmethod
     def graph_as_function_calls(cls, graph: Union[IOGraph, PGraph, CGraph],
                                 inputs_string: str,
@@ -135,6 +147,8 @@ class Z3FuncEncoder(Z3Encoder):
         """
             This method takes a graph in input and returns a new graph with all nodes updated
             to have their name being the equivalent z3 uninterpreted function call.
+
+            @authors: Marco Biasion
         """
 
         # function to compute the new name
@@ -245,6 +259,11 @@ class Z3FuncEncoder(Z3Encoder):
 
 
 class Z3DirectEncoder(Z3Encoder):
+    """
+        Z3 encoder using the direct definition approach.
+
+        @authors: Marco Biasion
+    """
 
     @classmethod
     def encode(cls, reference_graph: IOGraph, parametric_graph: PGraph,
@@ -405,6 +424,12 @@ class Z3DirectBitVecEncoder(Z3DirectEncoder):
 
 
 class Z3Solver(Solver):
+    """
+        Base class for solving using z3, implements all logic but the encoding.
+
+        @authors: Marco Biasion
+    """
+
     encoder: Z3Encoder
 
     @classmethod

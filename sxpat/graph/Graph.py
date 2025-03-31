@@ -20,6 +20,12 @@ class Graph:
     def __init__(self, nodes: Iterable[Node],
                  *, _inner: nx.DiGraph = None
                  ) -> None:
+        """
+            Creates a new graph from the given nodes.
+
+            @authors: Marco Biasion
+        """
+
         # generate inner mutable structure
         if _inner is None:
             nodes = tuple(nodes)

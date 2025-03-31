@@ -14,6 +14,12 @@ __all__ = ['NonSharedTemplate']
 
 
 class NonSharedTemplate(Template):
+    """
+        Base class for defining the non-shared template in a subgraph annotated graph.
+
+        @authors: Marco Biasion, Francesco Costa
+    """
+
     @classmethod
     def define(cls, graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:
         # get prefixed graph
