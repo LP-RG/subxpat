@@ -2,6 +2,7 @@
 
 PY := python3
 ENV_NAME := .venv
+DELETION_DELAY ?= 10
 
 # computed
 
@@ -34,6 +35,11 @@ local_dep:
 	mkdir -p input/ver/ && cp -r input/ver.bak/* input/ver/
 
 setup: py_init py_dep local_dep
+
+rm_data:
+	@echo "\n[[   deleting all final and intermediary data   ]]\n[[ YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION ]]"
+	@sleep $(DELETION_DELAY)
+	rm -rf output/ test/
 
 rm_cache:
 	@echo "\n[[ removing all pycache folders ]]"
