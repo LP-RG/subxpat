@@ -1,7 +1,7 @@
 from __future__ import annotations
-from types import MappingProxyType
 from typing_extensions import Self
 from typing import Any, FrozenSet, Iterable, Mapping, Sequence, Tuple, TypeVar, Union
+from types import MappingProxyType
 
 import networkx as nx
 import functools as ft
@@ -38,7 +38,7 @@ class Graph:
             src_name
             for node in nodes
             if isinstance(node, OperationNode)
-            for src_name in node.items
+            for src_name in node.operands
         )
         if len(node_names_in_edges - defined_node_names) > 0:
             print(*(node_names_in_edges - defined_node_names), sep='\n')
@@ -54,7 +54,7 @@ class Graph:
             (src_name, dst_name)
             for dst_name, data in _inner.nodes(data=True)
             if isinstance(node := data[self.K], OperationNode)
-            for src_name in node.items
+            for src_name in node.operands
         )
 
         # freeze inner structure
@@ -76,7 +76,7 @@ class Graph:
     def __eq__(self, other: object) -> bool:
         return (
             type(self) == type(other)
-            and frozenset(self.nodes) == frozenset(other.nodes)
+            and self.nodes == other.nodes
         )
 
     @ft.cached_property
@@ -87,10 +87,10 @@ class Graph:
     def predecessors(self, node_or_name: Union[str, Node]) -> Tuple[Node, ...]:
         node_name = node_or_name.name if isinstance(node_or_name, Node) else node_or_name
         node = self._inner.nodes[node_name][self.K]
-        # we iterate over the .predecessors instead of the .items, so even if `node` is not an OperationNode it still works
+        # we iterate over the .predecessors instead of the .operands, so even if `node` is not an OperationNode it still works
         return tuple(sorted(
             (self._inner.nodes[_name][self.K] for _name in self._inner.predecessors(node_name)),
-            key=lambda _n: node.items.index(_n.name)
+            key=lambda _n: node.operands.index(_n.name)
         ))
 
     def successors(self, node_or_name: Union[str, Node]) -> Tuple[OperationNode, ...]:

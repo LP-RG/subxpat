@@ -15,16 +15,16 @@ def _nodes_from_inner_legacy(inner_graph):
         label = value.get('label')
         weight = value.get('weight', None)
         in_subgraph = bool(value.get('subgraph', False))
-        items = inner_graph.predecessors(name)
+        operands = inner_graph.predecessors(name)
 
         # create node
         if label.startswith('in'):  # input
             nodes.append(BoolVariable(name, weight, in_subgraph))
         elif label.startswith('out'):  # output
-            nodes.append(Copy(name, weight, in_subgraph, items))
+            nodes.append(Copy(name, weight, in_subgraph, operands))
         elif label in ('and', 'not'):  # and/not
             cls = {'not': Not, 'and': And}[label]
-            nodes.append(cls(name, weight, in_subgraph, items))
+            nodes.append(cls(name, weight, in_subgraph, operands))
         elif label in ('FALSE', 'TRUE'):  # constant
             nodes.append(BoolConstant(name, weight, in_subgraph, str_to_bool(label)))
         else:

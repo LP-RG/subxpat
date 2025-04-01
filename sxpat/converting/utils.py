@@ -36,7 +36,7 @@ def unpack_ToInt(graph: _Graph) -> _Graph:
     int_consts = {
         toint.name: {
             n: IntConstant(f'{toint.name}_c{n}', value=n)
-            for n in it.chain((0,), (2**i for i in range(len(toint.items))))
+            for n in it.chain((0,), (2**i for i in range(len(toint.operands))))
         }
         for toint in toint_nodes
     }
@@ -44,8 +44,8 @@ def unpack_ToInt(graph: _Graph) -> _Graph:
     # create all if->int nodes (Dict[original_node_name, List[if_nodes_for_that_node]])
     ifs: Dict[str, List[If]] = {
         toint.name: [
-            If(f'if_{toint.name}_{i}', items=(pred, int_consts[toint.name][2**i], int_consts[toint.name][0]))
-            for i, pred in enumerate(toint.items)
+            If(f'if_{toint.name}_{i}', operands=(pred, int_consts[toint.name][2**i], int_consts[toint.name][0]))
+            for i, pred in enumerate(toint.operands)
         ]
         for toint in toint_nodes
     }
@@ -54,7 +54,7 @@ def unpack_ToInt(graph: _Graph) -> _Graph:
         Sum(
             toint.name,
             in_subgraph=toint.in_subgraph,
-            items=ifs[toint.name]
+            operands=ifs[toint.name]
         )
         for toint in toint_nodes
     ]
@@ -222,8 +222,8 @@ def set_prefix(graph: _Graph, prefix: str) -> _Graph:
     nodes = []
     for node in graph.nodes:
         if isinstance(node, OperationNode):
-            items = (update_name(name) for name in node.items)
-            nodes.append(node.copy(name=update_name(node.name), items=items))
+            operands = (update_name(name) for name in node.operands)
+            nodes.append(node.copy(name=update_name(node.name), operands=operands))
         else:
             nodes.append(node.copy(name=update_name(node.name)))
 
@@ -258,8 +258,8 @@ def prevent_combination(c_graph: CGraph,
 
     # add NotEquals nodes (duplicates will be removed internally by the graph)
     old_assignment = tuple(
-        NotEquals(f'{name}_neq_{value}', items=(name, const[value]))
-        for name, value in assignments.items()
+        NotEquals(f'{name}_neq_{value}', operands=(name, const[value]))
+        for (name, value) in assignments.items()
     )
     nodes.extend(old_assignment)
 
@@ -270,6 +270,6 @@ def prevent_combination(c_graph: CGraph,
             for n in c_graph.nodes
             if (m := re.match(r'prevent_assignment_(\d+)', n.name))
         ), (0,)))
-    nodes.append(Or(f'prevent_assignment_{assignment_id}', items=old_assignment))
+    nodes.append(Or(f'prevent_assignment_{assignment_id}', operands=old_assignment))
 
     return CGraph(nodes)

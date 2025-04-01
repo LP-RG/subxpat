@@ -49,12 +49,12 @@ class OperationNode(Node):
         A node representing an operation given some operands.
     """
 
-    items: Tuple[str, ...] = tuple()
+    operands: Tuple[str, ...] = tuple()
 
-    def __post_init__(self, required_items_count: int = None):
-        object.__setattr__(self, 'items', tuple(i.name if isinstance(i, Node) else i for i in self.items))
-        if required_items_count is not None and len(self.items) != required_items_count:
-            raise RuntimeError(f'Wrong items count (expected {required_items_count}) in node {self.name} of class {type(self).__name__}')
+    def __post_init__(self, required_operands_count: int = None):
+        object.__setattr__(self, 'operands', tuple(i.name if isinstance(i, Node) else i for i in self.operands))
+        if required_operands_count is not None and len(self.operands) != required_operands_count:
+            raise RuntimeError(f'Wrong operands count (expected {required_operands_count}) in node {self.name} of class {type(self).__name__} but {len(self.operands)} were given.')
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -68,8 +68,8 @@ class Op1Node(OperationNode):
         super().__post_init__(1)
 
     @property
-    def item(self) -> str:
-        return self.items[0]
+    def operand(self) -> str:
+        return self.operands[0]
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -84,11 +84,11 @@ class Op2Node(OperationNode):
 
     @property
     def left(self) -> str:
-        return self.items[0]
+        return self.operands[0]
 
     @property
     def right(self) -> str:
-        return self.items[1]
+        return self.operands[1]
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -313,17 +313,17 @@ class Multiplexer(Op3Node):
 
     @property
     def origin(self) -> str:
-        return self.items[0]
+        return self.operands[0]
 
     @property
     def parameter_usage(self) -> str:
         """If this parameter is true, the origin will be used, otherwise a constant will be produced"""
-        return self.items[1]
+        return self.operands[1]
 
     @property
     def parameter_assertion(self) -> str:
         """If this parameter is true, the node will produce the origin or the constant true, otherwise will produce the negated origin or the constant false"""
-        return self.items[2]
+        return self.operands[2]
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -335,15 +335,15 @@ class If(Op3Node):
 
     @property
     def contition(self) -> str:
-        return self.items[0]
+        return self.operands[0]
 
     @property
     def if_true(self) -> str:
-        return self.items[1]
+        return self.operands[1]
 
     @property
     def if_false(self) -> str:
-        return self.items[2]
+        return self.operands[2]
 
 
 # TODO:WIP: global operations

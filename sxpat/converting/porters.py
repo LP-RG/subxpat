@@ -143,7 +143,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         if node.in_subgraph:
             string += rf'\nsub'
         if isinstance(node, OperationNode):
-            string += rf'\ni={",".join(node.items)}'
+            string += rf'\ni={",".join(node.operands)}'
         if isinstance(node, Valued):
             string += rf'\nv={node.value}'
 
@@ -159,7 +159,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
                 rf'(?:\\nw=([-+]?\d+))?'  # weight
                 rf'(?:\\n(sub))?'  # in_subgraph
                 rf'(?:\\nv=(?:([-+]?\d+)|(True|False)))?'  # value
-                rf'(?:\\ni=(\w+(?:,\w+)*))?'  # items
+                rf'(?:\\ni=(\w+(?:,\w+)*))?'  # operands
             ),
             string
         )
@@ -171,7 +171,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
             'weight': m[3] and int(m[3]),
             'in_subgraph': bool(m[4]),
             'value': (m[5] and int(m[5])) or (m[6] and str_to_bool(m[6])),
-            'items': m[7] and m[7].split(','),
+            'operands': m[7] and m[7].split(','),
         }
 
         # create Node using valid arguments
@@ -205,7 +205,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
             f'{src_name} -> {dst.name};'
             for dst in graph.nodes
             if isinstance(dst, OperationNode)
-            for src_name in dst.items
+            for src_name in dst.operands
         ]
 
         # extra data
@@ -312,7 +312,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     #                 nodes[dst] = func(dst)
 
     #             elif all(p in nodes.keys() for p in preds):  # operation node
-    #                 nodes[dst] = func(dst, items=(nodes[p].name for p in preds))
+    #                 nodes[dst] = func(dst, operands=(nodes[p].name for p in preds))
 
     #     # construct graph
     #     return Graph(nodes.values())
@@ -368,15 +368,15 @@ class VerilogExporter(GraphExporter[IOGraph]):
         BoolConstant: lambda n: f'{int(n.value)}',
         # IntConstant: lambda n: f'{n.value}',
         # output
-        Copy: lambda n: n.item,
+        Copy: lambda n: n.operand,
         # Target: lambda n: None,
         # bool-bool operations
-        Not: lambda n: f'(~{n.item})',
-        And: lambda n: f'({" & ".join(n.items)})',
-        Or: lambda n: f'({" | ".join(n.items)})',
+        Not: lambda n: f'(~{n.operand})',
+        And: lambda n: f'({" & ".join(n.operands)})',
+        Or: lambda n: f'({" | ".join(n.operands)})',
         Implies: lambda n: f'(~{n.left} | {n.right})',
         # int-int operations
-        Sum: lambda n: f'({" + ".join(n.items)})',
+        Sum: lambda n: f'({" + ".join(n.operands)})',
         AbsDiff: lambda n: f'(({n.left} > {n.right}) ? ({n.left} - {n.right}) : ({n.right} - {n.left}))',
         # bool-int operations
         # ToInt: lambda n: None,

@@ -122,7 +122,7 @@ class Z3Encoder:
             f'if status == sat:',
             f'    model = solver.model()',
             *(
-                f'    print(\'{target.item}\', model.eval({target.item}))'
+                f'    print(\'{target.operand}\', model.eval({target.operand}))'
                 for graph in graphs
                 for target in graph.targets
             ),
@@ -153,7 +153,7 @@ class Z3FuncEncoder(Z3Encoder):
         # node conversion
         nodes = [
             (
-                node.copy(name=update_name(node.name), items=(update_name(name) for name in node.items))
+                node.copy(name=update_name(node.name), operands=(update_name(name) for name in node.operands))
                 if isinstance(node, OperationNode) else
                 node.copy(name=update_name(node.name))
             )
@@ -215,7 +215,7 @@ class Z3FuncEncoder(Z3Encoder):
             '# behaviour',
             'behaviour = And(',
             *(
-                f'    {node.name} == {node_mapping[type(node)](node, node.items, accessories(node))},'
+                f'    {node.name} == {node_mapping[type(node)](node, node.operands, accessories(node))},'
                 for graph in call_graphs
                 for node in graph.operations
             ),
@@ -280,7 +280,7 @@ class Z3DirectEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# behaviour',
             *(
-                f'{node.name} = {node_mapping[type(node)](node, node.items, accessories(node))}'
+                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
                 for graph in graphs
                 for node in graph.operations
             ),
@@ -317,52 +317,52 @@ class Z3DirectEncoder(Z3Encoder):
 # Node to Z3 expression
 Z3_INT_NODE_MAPPING = {
     # variables
-    BoolVariable: lambda n, items, accs: f'Bool(\'{n.name}\')',
-    IntVariable: lambda n, items, accs: f'Int(\'{n.name}\')',
+    BoolVariable: lambda n, operands, accs: f'Bool(\'{n.name}\')',
+    IntVariable: lambda n, operands, accs: f'Int(\'{n.name}\')',
     # constants
-    BoolConstant: lambda n, items, accs: f'BoolVal({n.value})',
-    IntConstant: lambda n, items, accs: f'IntVal({n.value})',
+    BoolConstant: lambda n, operands, accs: f'BoolVal({n.value})',
+    IntConstant: lambda n, operands, accs: f'IntVal({n.value})',
     # output
-    Copy: lambda n, items, accs: items[0],
-    Target: lambda n, items, accs: items[0],
+    Copy: lambda n, operands, accs: operands[0],
+    Target: lambda n, operands, accs: operands[0],
     # placeholder
-    PlaceHolder: lambda n, items, accs: n.name,
+    PlaceHolder: lambda n, operands, accs: n.name,
     # boolean operations
-    Not: lambda n, items, accs: f'Not({items[0]})',
-    And: lambda n, items, accs: f'And({", ".join(items)})',
-    Or: lambda n, items, accs: f'Or({", ".join(items)})',
-    Implies: lambda n, items, accs: f'Implies({items[0]}, {items[1]})',
+    Not: lambda n, operands, accs: f'Not({operands[0]})',
+    And: lambda n, operands, accs: f'And({", ".join(operands)})',
+    Or: lambda n, operands, accs: f'Or({", ".join(operands)})',
+    Implies: lambda n, operands, accs: f'Implies({operands[0]}, {operands[1]})',
     # integer operations
-    Sum: lambda n, items, accs: f'Sum({", ".join(items)})',
-    AbsDiff: lambda n, items, accs: f'If({items[0]} >= {items[1]}, {items[0]} - {items[1]}, {items[1]} - {items[0]})',
+    Sum: lambda n, operands, accs: f'Sum({", ".join(operands)})',
+    AbsDiff: lambda n, operands, accs: f'If({operands[0]} >= {operands[1]}, {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
     # comparison operations
-    Equals: lambda n, items, accs: f'({items[0]} == {items[1]})',
-    NotEquals: lambda n, items, accs: f'({items[0]} != {items[1]})',
-    LessThan: lambda n, items, accs: f'({items[0]} < {items[1]})',
-    LessEqualThan: lambda n, items, accs: f'({items[0]} <= {items[1]})',
-    GreaterThan: lambda n, items, accs: f'({items[0]} > {items[1]})',
-    GreaterEqualThan: lambda n, items, accs: f'({items[0]} >= {items[1]})',
+    Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
+    NotEquals: lambda n, operands, accs: f'({operands[0]} != {operands[1]})',
+    LessThan: lambda n, operands, accs: f'({operands[0]} < {operands[1]})',
+    LessEqualThan: lambda n, operands, accs: f'({operands[0]} <= {operands[1]})',
+    GreaterThan: lambda n, operands, accs: f'({operands[0]} > {operands[1]})',
+    GreaterEqualThan: lambda n, operands, accs: f'({operands[0]} >= {operands[1]})',
     # quantifier operations
-    AtLeast: lambda n, items, accs: f'AtLeast({", ".join(items)}, {n.value})',
-    AtMost: lambda n, items, accs: f'AtMost({", ".join(items)}, {n.value})',
+    AtLeast: lambda n, operands, accs: f'AtLeast({", ".join(operands)}, {n.value})',
+    AtMost: lambda n, operands, accs: f'AtMost({", ".join(operands)}, {n.value})',
     # branching operations
-    Multiplexer: lambda n, items, accs: f'If({items[1]}, If({items[2]}, {items[0]}, Not({items[0]})), {items[2]})',
-    If: lambda n, items, accs: f'If({items[0]}, {items[1]}, {items[2]})',
+    Multiplexer: lambda n, operands, accs: f'If({operands[1]}, If({operands[2]}, {operands[0]}, Not({operands[0]})), {operands[2]})',
+    If: lambda n, operands, accs: f'If({operands[0]}, {operands[1]}, {operands[2]})',
 }
 Z3_BITVEC_NODE_MAPPING = {
     **Z3_INT_NODE_MAPPING,
     # variables
-    IntVariable: lambda n, items, accs: f'BitVec(\'{n.name}\', {accs[0]})',
+    IntVariable: lambda n, operands, accs: f'BitVec(\'{n.name}\', {accs[0]})',
     # constants
-    IntConstant: lambda n, items, accs: f'BitVecVal({n.value}, {accs[0]})',
+    IntConstant: lambda n, operands, accs: f'BitVecVal({n.value}, {accs[0]})',
     # integer operations
-    AbsDiff: lambda n, items, accs: f'If(UGE({items[0]}, {items[1]}), {items[0]} - {items[1]}, {items[1]} - {items[0]})',
+    AbsDiff: lambda n, operands, accs: f'If(UGE({operands[0]}, {operands[1]}), {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
     # comparison operations
-    Equals: lambda n, items, accs: f'({items[0]} == {items[1]})',
-    LessThan: lambda n, items, accs: f'ULT({items[0]}, {items[1]})',
-    LessEqualThan: lambda n, items, accs: f'ULE({items[0]}, {items[1]})',
-    GreaterThan: lambda n, items, accs: f'UGT({items[0]}, {items[1]})',
-    GreaterEqualThan: lambda n, items, accs: f'UGE({items[0]}, {items[1]})',
+    Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
+    LessThan: lambda n, operands, accs: f'ULT({operands[0]}, {operands[1]})',
+    LessEqualThan: lambda n, operands, accs: f'ULE({operands[0]}, {operands[1]})',
+    GreaterThan: lambda n, operands, accs: f'UGT({operands[0]}, {operands[1]})',
+    GreaterEqualThan: lambda n, operands, accs: f'UGE({operands[0]}, {operands[1]})',
 }
 
 # bool/int to Z3 sorts
