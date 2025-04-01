@@ -40,21 +40,14 @@ class Z3Encoder:
 
     @classmethod
     @abstractmethod
-    def encode(cls,
-               graphs: _Graphs,
-               #   reference_graph: IOGraph, parametric_graph: PGraph, constraints_graph: CGraph,
-               destination: IO[str]) -> None:
-
+    def encode(cls, graphs: _Graphs, destination: IO[str]) -> None:
         raise NotImplementedError(f'{cls.__qualname__}.encode(...) is abstract')
 
     @classmethod
-    def simplification_and_accessories(cls,
-                                       graphs: _Graphs,
-                                       #   reference_graph: IOGraph, parametric_graph: PGraph, constraints_graph: CGraph,
+    def simplification_and_accessories(cls, graphs: _Graphs,
                                        ) -> Tuple[_Graphs, Sequence[str], Sequence[str], Mapping[str, type], Callable[[Node], Sequence[Any]]]:
 
         # compute initial graph accessories
-        # graphs = (reference_graph, parametric_graph, constraints_graph)
         nodes_types = get_nodes_type(graphs)
         nodes_bitwidths = get_nodes_bitwidth(graphs, nodes_types)
 
@@ -86,8 +79,7 @@ class Z3Encoder:
         )))
 
     @classmethod
-    def inject_variables(cls, destination: IO[str],
-                         graphs: _Graphs,
+    def inject_variables(cls, destination: IO[str], graphs: _Graphs,
                          accessories: Callable[[Node], Sequence[Any]]) -> None:
         variables = {  # ignore duplicates
             node.name: node
@@ -105,8 +97,7 @@ class Z3Encoder:
         )))
 
     @classmethod
-    def inject_constants(cls, destination: IO[str],
-                         graphs: _Graphs,
+    def inject_constants(cls, destination: IO[str], graphs: _Graphs,
                          accessories: Callable[[Node], Sequence[Any]]) -> None:
         constants = {  # ignore duplicates
             node.name: node
@@ -124,8 +115,7 @@ class Z3Encoder:
         )))
 
     @classmethod
-    def inject_result_writing(cls, destination: IO[str],
-                              graphs: Tuple[IOGraph, PGraph, CGraph]) -> None:
+    def inject_result_writing(cls, destination: IO[str], graphs: Tuple[IOGraph, PGraph, CGraph]) -> None:
         destination.write('\n'.join((
             f'# results',
             f'print(status)',
@@ -177,10 +167,7 @@ class Z3FuncEncoder(Z3Encoder):
         return graph.copy(nodes, **extra)
 
     @classmethod
-    def encode(cls,
-               graphs: _Graphs,
-               #   reference_graph: IOGraph, parametric_graph: PGraph, constraints_graph: CGraph,
-               destination: IO[str]) -> None:
+    def encode(cls, graphs: _Graphs, destination: IO[str]) -> None:
 
         # initial computations
         node_mapping = cls.node_mapping
@@ -272,10 +259,7 @@ class Z3DirectEncoder(Z3Encoder):
     """
 
     @classmethod
-    def encode(cls,
-               graphs: _Graphs,
-               #   reference_graph: IOGraph, parametric_graph: PGraph, constraints_graph: CGraph,
-               destination: IO[str]) -> None:
+    def encode(cls, graphs: _Graphs, destination: IO[str]) -> None:
 
         # initial computations
         node_mapping = cls.node_mapping
@@ -438,10 +422,7 @@ class Z3Solver(Solver):
     encoder: Z3Encoder
 
     @classmethod
-    def solve(cls,
-              graphs: _Graphs,
-              #   reference_graph: IOGraph, parametric_graph: PGraph, constraints_graph: CGraph,
-              specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Any]]]:
+    def solve(cls, graphs: _Graphs, specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Any]]]:
 
         # encode
         # TODO:#15: how do we generate a name here

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Iterable, Iterator, List, Tuple, TypeVar
+from typing import Callable, Dict, Iterable, Iterator, List, Tuple, TypeVar
 import dataclasses as dc
 
 from tabulate import tabulate
@@ -111,19 +111,17 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.requires_labeling:
             et_coefficient = 1
 
-            t_start = time.time()
-            label_graph(current_graph,
-                        min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
-                        et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel)
-            labeling_time = time.time() - t_start
-            print(f'labeling_time = {labeling_time}')
+            label_timer, _label_graph = Timer.from_function(label_graph)
+            _label_graph(current_graph,
+                         min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
+                         et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel)
+            print(f'labeling_time = {(labeling_time := label_timer.total)}')
 
         # extract subgraph
-        t_start = time.time()
-        subgraph_is_available = current_graph.extract_subgraph(specs_obj)
-        subgraph_extraction_time = time.time() - t_start
-        print(f'subgraph_extraction_time = {subgraph_extraction_time}')
+        subex_timer, extract_subgraph = Timer.from_function(current_graph.extract_subgraph)
+        subgraph_is_available = extract_subgraph(specs_obj)
         previous_subgraphs.append(current_graph.subgraph)
+        print(f'subgraph_extraction_time = {(subgraph_extraction_time := subex_timer.total)}')
 
         # todo:wip: export subgraph
         FS.mkdir(folder := 'output/gv/subgraphs')
@@ -177,7 +175,7 @@ def explore_grid(specs_obj: Specifications):
                 c_graph = prevent_combination(c_graph, model)
 
             # legacy adaptation
-            execution_time = template_timer + solve_timer
+            execution_time = template_timer.total + solve_timer.total
 
             if len(models) == 0:
                 pprint.warning(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()}')
@@ -428,31 +426,28 @@ def node_matcher(n1: dict, n2: dict) -> bool:
 
 
 def model_compare(a, b) -> bool:
-    if a[1][0] < b[1][0]:
-        return -1
-    elif a[1][0] > b[1][0]:
-        return +1
-    elif a[1][4] < b[1][4]:
-        return -1
-    elif a[1][4] > b[1][4]:
-        return +1
-    else:
-        return 0
+    if a[1][0] < b[1][0]: return -1
+    elif a[1][0] > b[1][0]: return +1
+    elif a[1][4] < b[1][4]: return -1
+    elif a[1][4] > b[1][4]: return +1
+    else: return 0
 
 
 @dc.dataclass(init=False, repr=False, eq=False, frozen=True)
 class Timer:
     from time import time as now
-    _C = TypeVar('_C')
+    _C = TypeVar('_C', bound=Callable)
 
-    value: float = 0
+    total: float = 0
+    last: float = 0
 
     def wrap(self, function: _C) -> _C:
         @ft.wraps(function)
         def wrapper(*args, **kwds):
             start_time = self.now()
             result = function(*args, **kwds)
-            object.__setattr__(self, 'value', self.value + (self.now() - start_time))
+            object.__setattr__(self, 'last', self.now() - start_time)
+            object.__setattr__(self, 'total', self.total + self.last)
             return result
         return wrapper
 
@@ -461,6 +456,3 @@ class Timer:
         timer = Timer()
         wrapped = timer.wrap(function)
         return (timer, wrapped)
-
-    def __float__(self) -> float: return self.value
-    def __add__(self, other: Timer, /) -> float: return float(self) + float(other)
