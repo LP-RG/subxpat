@@ -15,7 +15,7 @@ __all__ = ['SharedTemplate']
 
 class SharedTemplate(Template):
     """
-        Base class for defining the shared template in a subgraph annotated graph.
+        Class for defining the shared template in a subgraph annotated graph.
 
         TODO: When moving to shared, some of the constraints will need to be checked:
             - constant 0 redundancy for outputs
