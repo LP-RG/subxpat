@@ -20,6 +20,7 @@ class SharedTemplate(Template):
         TODO: When moving to shared, some of the constraints will need to be checked:
             - constant 0 redundancy for outputs
             - constant 0 redundancy for products
+            - add usage of ConstantsType for constant rewriting
 
         @authors: Marco Biasion
     """

@@ -6,7 +6,7 @@ from .Template import Template
 
 from sxpat.converting import set_prefix
 from sxpat.graph import *
-from sxpat.specifications import Specifications
+from sxpat.specifications import ConstantsType, Specifications
 from sxpat.utils.collections import flat, pairwise
 
 
@@ -54,7 +54,7 @@ class NonSharedTemplate(Template):
         sums = []
         outs_p: List[BoolVariable] = []
         outs: List[If] = []
-        out_successors: Dict[str, OperationNode] = dict()
+        updated_nodes: Dict[str, OperationNode] = dict()
         for out_i, out_node in enumerate(a_graph.subgraph_outputs):
             # create the sum and constant 0 switch
             sums.append(_sum := Or(f'sum{out_i}', in_subgraph=True, operands=products[out_i]))
@@ -64,10 +64,19 @@ class NonSharedTemplate(Template):
             # update all output successors to descend from new outputs
             for succ in a_graph.successors(out_node):
                 if not succ.in_subgraph:
-                    succ = out_successors.get(succ.name, succ)
+                    succ = updated_nodes.get(succ.name, succ)
                     new_out_index = succ.operands.index(out_node.name)
                     new_operands = succ.operands[:new_out_index] + (new_out_node.name,) + succ.operands[new_out_index + 1:]
-                    out_successors[succ.name] = succ.copy(operands=new_operands)
+                    updated_nodes[succ.name] = succ.copy(operands=new_operands)
+
+        # constants rewriting
+        constants_rewriting = []
+        if specs.constants is ConstantsType.ALWAYS:
+            for const in graph.constants:
+                # if the constants is at the graph output
+                if len(succs := graph.successors(const)) == 1 and (out_i := graph.output_index_of(succ := succs[0])) >= 0:
+                    constants_rewriting.append(const_rew := BoolVariable(f'p_c{out_i}'))
+                    updated_nodes[succ.name] = succ.copy(operands=(const_rew))  # by definition, the output node has no other operand
 
         # create template graph
         nodes = it.chain(
@@ -75,8 +84,11 @@ class NonSharedTemplate(Template):
                 n
                 for n in a_graph.nodes
                 if not n.in_subgraph
-                if n.name not in out_successors
+                if n.name not in updated_nodes
             ),
+            # changed nodes
+            updated_nodes.values(),
+
             # constants
             consts.values(),
             # products and relative operands
@@ -87,8 +99,8 @@ class NonSharedTemplate(Template):
             sums,
             outs_p,
             outs,
-            # updated successors
-            out_successors.values(),
+            # constant output rewriting
+            constants_rewriting,
         )
         template_graph = PGraph(
             nodes,
