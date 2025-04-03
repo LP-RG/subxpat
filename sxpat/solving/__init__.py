@@ -4,6 +4,7 @@ from sxpat.specifications import Specifications, EncodingType
 
 from .Solver import *
 from .Z3Solver import *
+from .QbfSolver import *
 
 
 __all__ = [
@@ -21,5 +22,5 @@ def get_specialized(specs: Specifications) -> Type[Solver]:
         EncodingType.Z3_FUNC_BITVECTOR: Z3FuncBitVecSolver,
         EncodingType.Z3_DIRECT_INTEGER: Z3DirectIntSolver,
         EncodingType.Z3_DIRECT_BITVECTOR: Z3DirectBitVecSolver,
-        # EncodingType.QBF: SomethingSolver,
+        EncodingType.QBF: QbfSolver,
     }[specs.encoding]

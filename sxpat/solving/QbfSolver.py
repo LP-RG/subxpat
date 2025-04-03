@@ -1,4 +1,4 @@
-from typing import IO, Any, Callable, Container, Mapping, NoReturn, Optional, Sequence, Tuple, Type, TypeVar, Union
+from typing import IO, Any, Callable, Container, Mapping, NoReturn, Optional, Sequence, Tuple, Type, TypeVar, Union, Dict, List
 
 import subprocess
 
@@ -26,64 +26,102 @@ FALSE = '92'
 def free(a):
     return f'4{a}'
 
+def next_temporary(a):
+    a[0] += 1
+    return free(a[0] - 1)
+
 def _and(a,b, next_free, destination : IO[str]):
-    destination.write(f'{free(next_free)} = and({a}, {b})\n')
-    return (free(next_free), next_free + 1)
+    destination.write(f'{free(next_free[0])} = and({a}, {b})\n')
+    next_free[0] += 1
+    return free(next_free[0]-1)
 
 def _or(a,b, next_free, destination : IO[str]):
-    destination.write(f'{free(next_free)} = or({a}, {b})\n')
-    return (free(next_free), next_free + 1)
+    destination.write(f'{free(next_free[0])} = or({a}, {b})\n')
+    next_free[0] += 1
+    return free(next_free[0]-1)
 
 def _xor(a,b, next_free, destination : IO[str]):
-    destination.write(f'{free(next_free)} = xor({a}, {b})\n')
-    return (free(next_free), next_free + 1)
+    destination.write(f'{free(next_free[0])} = xor({a}, {b})\n')
+    next_free[0] += 1
+    return free(next_free[0]-1)
 
 def _adder_bit3(a,b,c, next_free, destination : IO[str]):
     results = []
-    partial_xor, next_free = _xor(a,b,next_free, destination)
-    temp, next_free = _xor(partial_xor,c, next_free, destination)
-    results.append(temp)
-    partial_and1, next_free = _and(a,b,next_free, destination)
-    partial_and2, next_free = _and(c,partial_xor, next_free, destination)
-    temp, next_free = _or(partial_and1,partial_and2, next_free, destination)
-    results.append(temp)
-    return (results, next_free)
+    partial_xor = _xor(a,b,next_free, destination)
+    results.append(_xor(partial_xor,c, next_free, destination))
+    partial_and1 = _and(a,b,next_free, destination)
+    partial_and2 = _and(c,partial_xor, next_free, destination)
+    results.append( _or(partial_and1,partial_and2, next_free, destination))
+    return results
 
-def _unsigned_adder(a : list, b : list, next_free, destination : IO[str]) -> list:
-        if len(a) < len(b):
-            a,b = a,a
-        while len(b) < len(a):
-            b.append(FALSE)
-        
-        temp, next_free = _xor(a[0],b[0],next_free, destination)
-        results = [temp]
-        carry_in = free(next_free)
-        destination.write(f'{free(next_free)} = and({a[0]}, {b[0]})\n')
-        next_free += 1
-        for i in range(1,len(a)):
-            next_and_carry_in, next_free = _adder_bit3(a[i],b[i],carry_in, next_free, destination)
-            next, carry_in = next_and_carry_in
-            results.append(next)
-        return (results, next_free)
+def _adder(a : list, b : list, next_free, destination : IO[str]) -> list:
+    if len(a) < len(b):
+        a,b = a,a
+    while len(b) < len(a):
+        b.append(FALSE)
+    
+    results = [_xor(a[0],b[0],next_free, destination)]
+    carry_in = free(next_free[0])
+    destination.write(f'{free(next_free[0])} = and({a[0]}, {b[0]})\n')
+    next_free[0] += 1
+    for i in range(1,len(a)):
+        next, carry_in = _adder_bit3(a[i],b[i],carry_in, next_free, destination)
+        results.append(next)
+    return results
 
-# with open('sxpat/solving/temp.txt', 'w') as f:
-#     print(_unsigned_adder([1, 2], [3], 0, f))
-# #     # print(_adder_bit3(1,2,3,0,f))
+def _inverse(a : list, next_free, destination : IO[str]) -> list:
+    results = []
+    for x in a:
+        results.append(next_temporary(next_free))
+        destination.write(f'{results[-1]} = and(-{x})\n')
+    return results
 
-def process_BoolVariable(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : dict[str, list[str]]):
-    return ('', [f'1{bisect(inputs, n.name)}'], next_free)
 
-def process_IntVariable(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : dict[str, list[str]]):
+def _increment(a : list,next_free, destination : IO[str], carry=False) -> list:
+    assert len(a) > 0, "lenght of a should be higher than 0"
+
+    if carry:
+        a.append(a[-1])
+    results = [next_temporary(next_free)]
+    destination.write(f'{results[0]} = and(-{a[0]})\n')
+    last_and = a[0]
+    for i in range(1,len(a)):
+        results.append(_xor(last_and, a[i], next_free, destination))
+        temp = next_temporary(next_free)
+        destination.write(f'{temp} = and({last_and}, {a[i]})\n')
+        last_and = temp
+    return results
+
+def _test_equality_bits(a,b, next_free, destination: IO[str]):
+    and1 = next_temporary(next_free)
+    and2 = next_temporary(next_free)
+    destination.write(f'{and1} = and({a}, {b})\n')
+    destination.write(f'{and2} = and(-{a}, -{b})\n')
+    result_gate_name = next_temporary(next_free)
+    destination.write(f'{result_gate_name} = or({and1}, {and2})\n')
+    return result_gate_name
+
+
+
+
+# with open("sxpat/solving/temp.txt", 'w') as f:
+#     print(_comparator_greater_then([1,2],[3,4], [0], f))
+
+def process_BoolVariable(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    return next_free
+
+def process_IntVariable(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     raise NotImplementedError(f'this function isn\'t yet implemented')
 
-def process_BoolConstant(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : dict[str, list[str]]):
+def process_BoolConstant(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     if n.value:
         first = TRUE
     else:
         first = FALSE
-    return ('', [first], next_free)
+    mapping[n.name] = [first]
+    return next_free
 
-def process_IntConstant(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : dict[str, list[str]]):
+def process_IntConstant(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = n.value
     res = []
     while temp > 0:
@@ -92,39 +130,70 @@ def process_IntConstant(n : Node, operands: list, accs: list, inputs: list, para
         else:
             res.append(FALSE)
         temp >>= 1
-    return ('', res, next_free)
+    mapping[n.name] = res
+    return next_free
 
-def process_Copy(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : dict[str, list[str]]):
-    return ('', mapping[n.name], next_free)
+def process_Copy(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    mapping[n.name] = mapping[operands[0]]
+    return next_free
 
-def process_Target(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : dict[str, list[str]]):
-    return ('', [], next_free)
+def process_Target(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    return next_free
 
-def process_PlaceHolder(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : dict[str, list[str]]):
-    return ('', [], next_free)
+def process_PlaceHolder(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    return next_free
 
-def process_Not(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : dict[str, list[str]]):
-    return (f'{free(next_free)} = and(-{mapping[operands[0]][0]})', [free(next_free)], next_free + 1)
+def process_Not(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    destination.write(f'{free(next_free)} = and(-{mapping[operands[0]][0]})\n')
+    mapping[n.name] = [free(next_free)]
+    return next_free
 
-def process_And(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : dict[str, list[str]]):
-    return (f'{free(next_free)} = and({mapping[operands[0]][0]}, {mapping[operands[1]][0]})', [free(next_free)], next_free + 1)
+def _process_f(operands: list, mapping : Dict[str, List[str]], destination: IO[str]):
+    first = True
+    for x in operands:
+        if not first:
+            destination.write(', ')
+        first = False
+        destination.write(f'{mapping[x][0]}')
+    destination.write(')\n')
 
-def process_Or(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : dict[str, list[str]]):
-    return (f'{free(next_free)} = or({mapping[operands[0]][0]}, {mapping[operands[1]][0]})', [free(next_free)], next_free + 1)
+def process_And(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    mapping[n.name] = [free(next_free)]
+    destination.write(f'{free(next_free)} = and(')
+    _process_f(operands, mapping, destination)
+    return next_free + 1
 
-def process_Implies(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : dict[str, list[str]]):
+def process_Or(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    mapping[n.name] = [free(next_free)]
+    destination.write(f'{free(next_free)} = or(')
+    _process_f(operands, mapping, destination)
+    return next_free + 1
+
+def process_Implies(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     write = f'{free(next_free)} = and({mapping[operands[0]][0]}, -{mapping[operands[1]][0]})\n'
-    write += f'{free(next_free+1)} = and(-{free(next_free)})'
-    return (write, [free(next_free+1)], next_free + 2)
+    write += f'{free(next_free+1)} = and(-{free(next_free)})\n'
+    return next_free + 2
 
-def process_Sum(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : dict[str, list[str]]):
+def process_Sum(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     if len(operands) == 0:
-        return ('', [FALSE], next_free)
+        mapping[n.name] = [FALSE]
+        return next_free
     
     num = mapping[operands[0]]
     for i in range(1,len(operands)):
-        _
+        temp = [next_free]
+        num = _adder(num, operands[i], temp, destination)
+        next_free = temp[0]
+
+    mapping[n.name] = num
+    return next_free
     
+def process_AbsDiff(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    temp = [next_free]
+    sub = _increment(_inverse(mapping[operands[1]], temp, destination), temp, destination)
+    mapping[n.name] = _adder(mapping[operands[0]], mapping[operands[1]], temp, destination)
+    return temp[0]
+
 
 Node_Mapping = {
     # variables
@@ -144,21 +213,8 @@ Node_Mapping = {
     Or: process_Or,
     Implies: process_Implies,
     # integer operations
-    Sum: lambda n, operands, accs: f'Sum({", ".join(operands)})',
-    AbsDiff: lambda n, operands, accs: f'If({operands[0]} >= {operands[1]}, {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
-    # comparison operations
-    Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
-    NotEquals: lambda n, operands, accs: f'({operands[0]} != {operands[1]})',
-    LessThan: lambda n, operands, accs: f'({operands[0]} < {operands[1]})',
-    LessEqualThan: lambda n, operands, accs: f'({operands[0]} <= {operands[1]})',
-    GreaterThan: lambda n, operands, accs: f'({operands[0]} > {operands[1]})',
-    GreaterEqualThan: lambda n, operands, accs: f'({operands[0]} >= {operands[1]})',
-    # quantifier operations
-    AtLeast: lambda n, operands, accs: f'AtLeast({", ".join(operands)}, {n.value})',
-    AtMost: lambda n, operands, accs: f'AtMost({", ".join(operands)}, {n.value})',
-    # branching operations
-    Multiplexer: lambda n, operands, accs: f'If({operands[1]}, If({operands[2]}, {operands[0]}, Not({operands[0]})), {operands[2]})',
-    If: lambda n, operands, accs: f'If({operands[0]}, {operands[1]}, {operands[2]})',
+    Sum: process_Sum,
+    AbsDiff: process_AbsDiff,
 }
 
 class QbfSolver(Solver):
@@ -169,6 +225,7 @@ class QbfSolver(Solver):
         
         script_path = f'output/z3/{specifications.exact_benchmark}_iter{specifications.iteration}.py'
 
+        mapping = {}
         inputs = list(set(name for graph in graphs if isinstance(graph, IOGraph) for name in graph.inputs_names))
         variables = [node.name for graph in graphs if isinstance(graph, PGraph) for node in graph.nodes if isinstance(node, BoolVariable) and node.name not in inputs]
         inputs.sort()
@@ -191,10 +248,14 @@ class QbfSolver(Solver):
                     f.write(', ')
                 first = False
                 f.write(f'1{x}')
-            f.write(')\noutput(90)#\n')
+            f.write(')\noutput(90)\n#\n')
 
-
-            
+            next_free = 0
+            for graph in graphs:
+                for node in graph.nodes:
+                    #TODO : add accessories (accs)
+                    next_free = Node_Mapping[type(node)](node, node.operands,[] , inputs, variables, next_free, mapping, f)
+            exit()
 
 
 
