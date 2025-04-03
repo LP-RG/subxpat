@@ -304,7 +304,7 @@ class GreaterEqualThan(Op2Node):
 # quantifier operations
 
 
-@dc.dataclass(frozen=True, repr=False)
+@dc.dataclass(frozen=True)
 class AtLeast(Valued[int], OperationNode):
     """
         Special solver node: represents a lower limit to the number of operands that must be true.  
@@ -312,7 +312,7 @@ class AtLeast(Valued[int], OperationNode):
     """
 
 
-@dc.dataclass(frozen=True, repr=False)
+@dc.dataclass(frozen=True)
 class AtMost(Valued[int], OperationNode):
     """
         Special solver node: represents an upper limit to the number of operands that can be true.  
