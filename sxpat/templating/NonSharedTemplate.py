@@ -199,12 +199,6 @@ class NonSharedTemplate(Template, _NonSharedBase):
 
         # > Constraints Graph
 
-        # error constraint
-        error_nodes = cls.error_constraint(s_graph, template_graph, specs.et)
-
-        # lpp constraint
-        lpp_nodes = cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp)
-
         # multiplexer redundancy
         mux_red_nodes = [
             Or(f'prevent_constF_{out_i}_{prod_i}_{in_i}', operands=(p_usage.name, p_assert.name))
@@ -224,9 +218,6 @@ class NonSharedTemplate(Template, _NonSharedBase):
             for sum_i, (p_o, p_o_t) in enumerate(zip(outs_p, out_prod_mux_params))
         ))
 
-        # order of products redundancy
-        (prod_ids, prod_ord_nodes) = cls.products_order_redundancy(out_prod_mux_params)
-
         # target definition
         targets = [
             Target(f't_{param.name}', operands=(param.name,))
@@ -240,14 +231,13 @@ class NonSharedTemplate(Template, _NonSharedBase):
                 (PlaceHolder(node.name) for node in flat((out_prod_mux_params, outs_p))),
                 (PlaceHolder(name) for name in s_graph.outputs_names),
                 (PlaceHolder(name) for name in template_graph.outputs_names),
-                # ints and error
-                error_nodes,
-                # its constraints
-                lpp_nodes,
+                # behavioural constraints
+                cls.error_constraint(s_graph, template_graph, specs.et),
+                cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
                 # redundancy constraints
                 mux_red_nodes,
                 const0_red_nodes,
-                prod_ids, prod_ord_nodes,
+                *cls.products_order_redundancy(out_prod_mux_params),
                 # targets
                 targets,
             )

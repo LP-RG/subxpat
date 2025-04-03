@@ -3,7 +3,6 @@ from typing import NamedTuple, NoReturn
 import re
 import subprocess
 
-from sxpat.utils.utils import pprint, color
 from .config import config as sxpatconfig
 
 
@@ -66,40 +65,26 @@ class MetricsEstimator:
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         # > guards for failures
-        if yosys_result.returncode != 0:
-            raise Exception(color.error(f'Yosys ERROR!\n{yosys_result.stderr}'))
-        if sta_result.returncode != 0:
-            raise Exception(color.error(f'OpenSTA ERROR!\n{sta_result.stderr}'))
+        if yosys_result.returncode != 0: raise Exception(f'Yosys ERROR!\n{yosys_result.stderr}')
+        if sta_result.returncode != 0: raise Exception(f'OpenSTA ERROR!\n{sta_result.stderr}')
 
         # > parse results
         # area
-        if m := cls.AREA_ANY_PATTERN.search(yosys_result.stdout):
-            area = float(m.group(1))
-        elif m := cls.AREA_ZERO_PATTERN.search(yosys_result.stdout):
-            area = 0.0
-        else:
-            raise Exception(color.error('Yosys ERROR!\nNo useful information in the stats log!'))
+        if m := cls.AREA_ANY_PATTERN.search(yosys_result.stdout): area = float(m.group(1))
+        elif m := cls.AREA_ZERO_PATTERN.search(yosys_result.stdout): area = 0.0
+        else: raise Exception('Yosys ERROR!\nNo useful information in the stats log!')
         # power
-        if m := cls.POWER_PATTERN.search(sta_result.stdout):
-            power = float(m.group(1))
-        else:
-            pprint.warning('OpenSTA Warning! Design has 0 power consumption!')
-            power = 0.0
+        if m := cls.POWER_PATTERN.search(sta_result.stdout): power = float(m.group(1))
+        else: power = 0.0
         # delay
-        if m := cls.DELAY_PATTERN.search(sta_result.stdout):
-            delay = float(m.group(1))
-        else:
-            pprint.warning('OpenSTA Warning! Design has 0 delay!')
-            delay = 0.0
+        if m := cls.DELAY_PATTERN.search(sta_result.stdout): delay = float(m.group(1))
+        else: delay = 0.0
 
         return cls.Metrics(area, power, delay)
 
     @classmethod
     def _extract_module_name(cls, verilog_path: str):
-        with open(verilog_path, 'r') as f:
-            verilog_str = f.read()
+        with open(verilog_path, 'r') as f: verilog_str = f.read()
 
-        if m := cls.MODULE_NAME_PATTERN.search(verilog_str):
-            return m.group(1)
-        else:
-            raise RuntimeError(f'No module name found in {verilog_path}')
+        if m := cls.MODULE_NAME_PATTERN.search(verilog_str): return m.group(1)
+        else: raise RuntimeError(f'No module name found in {verilog_path}')
