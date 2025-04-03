@@ -422,7 +422,7 @@ class Z3Solver(Solver):
     encoder: Z3Encoder
 
     @classmethod
-    def solve(cls, graphs: _Graphs, specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Any]]]:
+    def solve(cls, graphs: _Graphs, specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
 
         # encode
         # TODO:#15: how do we generate a name here
@@ -440,10 +440,10 @@ class Z3Solver(Solver):
             raise RuntimeError(f'Solver execution FAILED. Failed to run file {script_path}')
 
         # decode
-        # documentation: the result is not saved to a json for multiple models and so on
-        #                each Solver.solve call can returns at most one model
-        #                the timing must be computed at a higher level, same with the multimodel logic
-        #                the new format is as follows
+        # documentation: the result is not saved to a json for multiple models and so on.
+        #                each Solver.solve call must return at most one model.
+        #                the timing must be computed at a higher level, same with the multimodel logic.
+        #                the new format is as follows:
         # example sat:
         # sat\n
         # p_somebool True\n

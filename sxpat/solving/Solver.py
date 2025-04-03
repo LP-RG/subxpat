@@ -15,7 +15,7 @@ class Solver:
 
     @classmethod
     @abstractmethod
-    def solve(cls, graphs: _Graphs, specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Any]]]:
+    def solve(cls, graphs: _Graphs, specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve the required problem defined by the given graphs.
 
