@@ -109,11 +109,11 @@ class Graph:
 
     @ft.cached_property
     def operations(self) -> Sequence[OperationNode]:
-        return tuple(node for node in self.nodes if not isinstance(node, (*contact_nodes, *origin_nodes, Target)))
+        return tuple(node for node in self.nodes if not isinstance(node, (*contact_nodes, *origin_nodes, Target, Constraint)))
 
     # @ft.cached_property
     # def end_nodes(self) -> Sequence[Copy]:
-    #     return tuple(node for node in self.nodes if isinstance(node, (Copy, Target)))
+    #     return tuple(node for node in self.nodes if isinstance(node, (Copy, Target, Constraint)))
 
     # @ft.cached_property
     # def non_gates(self) -> Sequence[Node]:
