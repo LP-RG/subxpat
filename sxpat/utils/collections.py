@@ -1,6 +1,8 @@
 from __future__ import annotations
 from collections import UserDict
-from typing import Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union
+from typing import Any, Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union
+
+import itertools as it
 
 
 __all__ = ['mapping_inv', 'flat', 'pairwise', 'MultiDict', 'InheritanceMapping']
@@ -22,9 +24,23 @@ def mapping_inv(mapping: Mapping[K, V], value: V, default: K = NOTHING) -> K:
         @authors: Marco Biasion
     """
     key = next((k for (k, v) in mapping.items() if v == value), default)
-    if key is NOTHING:
-        raise ValueError('The value does not match with any pair in the mapping.')
+    if key is NOTHING: raise ValueError('The value does not match with any pair in the mapping.')
     return key
+
+
+def iterable_replace(iterable: Iterable[T], index: int, value: T) -> Iterator[T]:
+    """
+        Given an iterable, and a value to be replaced at a certain index, 
+        returns an iterator with the value at the index replaced with the given one.  
+        If the iterable ends before reaching index, the given value is appended at the end.
+
+        @authors: Marco Biasion
+    """
+    iterable = iter(iterable)
+    yield from it.islice(iterable, index)
+    yield value
+    next(iterable)
+    yield from iterable
 
 
 def flat(iterable:

@@ -76,7 +76,7 @@ class Graph:
     def __eq__(self, other: object) -> bool:
         return (
             type(self) == type(other)
-            and self.nodes == other.nodes
+            and self.nodes == other.nodes  # no need to cast to set before comparison (see .nodes)
         )
 
     @ft.cached_property
@@ -85,7 +85,7 @@ class Graph:
         return tuple(self._inner.nodes[name][self.K] for name in nx.lexicographical_topological_sort(self._inner))
 
     def predecessors(self, node_or_name: Union[str, Node]) -> Tuple[Node, ...]:
-        node_name = node_or_name.name if isinstance(node_or_name, Node) else node_or_name
+        node_name = self._get_name(node_or_name)
         node = self._inner.nodes[node_name][self.K]
         # we iterate over the .predecessors instead of the .operands, so even if `node` is not an OperationNode it still works
         return tuple(sorted(
@@ -94,8 +94,10 @@ class Graph:
         ))
 
     def successors(self, node_or_name: Union[str, Node]) -> Tuple[OperationNode, ...]:
-        node_name = node_or_name.name if isinstance(node_or_name, Node) else node_or_name
-        return tuple(self._inner.nodes[_name][self.K] for _name in self._inner.successors(node_name))
+        return tuple(
+            self._inner.nodes[_name][self.K]
+            for _name in self._inner.successors(self._get_name(node_or_name))
+        )
 
     @ft.cached_property
     def constants(self) -> Tuple[Node, ...]:
@@ -120,6 +122,10 @@ class Graph:
     @ft.cached_property
     def targets(self) -> Tuple[Target, ...]:
         return tuple(node for node in self.nodes if isinstance(node, Target))
+
+    def _get_name(self, node_or_name: Union[str, Node]) -> str:
+        """Given a node or a node name, returns the node name."""
+        return node_or_name.name if isinstance(node_or_name, Node) else node_or_name
 
 
 _Graph = TypeVar('_Graph', bound=Graph)
@@ -151,9 +157,19 @@ class IOGraph(Graph):
     def inputs(self) -> Tuple[Node, ...]:
         return tuple(self._inner.nodes[name][self.K] for name in self.inputs_names)
 
+    def input_index_of(self, node_or_name: Union[str, Node]) -> int:
+        """Returns the index of the node in the inputs, -1 if the node is not an input."""
+        try: return self.inputs_names.index(self._get_name(node_or_name))
+        except: return -1
+
     @ft.cached_property
     def outputs(self) -> Tuple[Node, ...]:
         return tuple(self._inner.nodes[name][self.K] for name in self.outputs_names)
+
+    def output_index_of(self, node_or_name: Union[str, Node]) -> int:
+        """Returns the index of the node in the outputs, -1 if the node is not an output."""
+        try: return self.outputs_names.index(self._get_name(node_or_name))
+        except: return -1
 
     @ft.cached_property
     def inners(self) -> Tuple[Node, ...]:

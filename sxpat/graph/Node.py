@@ -1,4 +1,6 @@
-from typing import Tuple, Generic, TypeVar
+from __future__ import annotations
+from typing import Iterable, Tuple, Generic, TypeVar
+from typing_extensions import Self
 
 import dataclasses as dc
 
@@ -30,7 +32,10 @@ class Node:
         object.__setattr__(self, 'in_subgraph', bool(self.in_subgraph))
         # assert re.match(r'^\w+$', self.name), f'The name `{self.name}` is invalid, it must match regex `\w+`.'
 
-    def copy(self, **update):
+    def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None, **update) -> Self:
+        if name is not None: update['name'] = name
+        if weight is not None: update['weight'] = weight
+        if in_subgraph is not None: update['in_subgraph'] = in_subgraph
         return type(self)(**{**vars(self), **update})
 
 
@@ -56,6 +61,10 @@ class OperationNode(Node):
         if required_operands_count is not None and len(self.operands) != required_operands_count:
             raise RuntimeError(f'Wrong operands count (expected {required_operands_count}) in node {self.name} of class {type(self).__name__} but {len(self.operands)} were given.')
 
+    def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None, operands: Iterable[Node] = None, **update) -> Self:
+        if operands is not None: update['operands'] = operands
+        return super().copy(name, weight, in_subgraph, **update)
+
 
 @dc.dataclass(frozen=True, repr=False)
 class Op1Node(OperationNode):
@@ -70,6 +79,11 @@ class Op1Node(OperationNode):
     @property
     def operand(self) -> str:
         return self.operands[0]
+
+    def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None,
+             operand: Node = None, **update) -> Self:
+        if operand is not None: update['operands'] = (operand,)
+        return super().copy(name, weight, in_subgraph, **update)
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -89,6 +103,11 @@ class Op2Node(OperationNode):
     @property
     def right(self) -> str:
         return self.operands[1]
+
+    def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None,
+             left: Node = None, right: Node = None, **update) -> Self:
+        if left is not None or right is not None: update['operands'] = (left or self.left, right or self.right,)
+        return super().copy(name, weight, in_subgraph, **update)
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -129,7 +148,7 @@ class BoolConstant(Valued[bool], Node):
 
 
 @dc.dataclass(frozen=True)
-class IntConstant(Valued[bool], Node):
+class IntConstant(Valued[int], Node):
     """
         Integer constant.
     """
@@ -285,7 +304,7 @@ class GreaterEqualThan(Op2Node):
 # quantifier operations
 
 
-@dc.dataclass(frozen=True, repr=False)
+@dc.dataclass(frozen=True)
 class AtLeast(Valued[int], OperationNode):
     """
         Special solver node: represents a lower limit to the number of operands that must be true.  
@@ -293,7 +312,7 @@ class AtLeast(Valued[int], OperationNode):
     """
 
 
-@dc.dataclass(frozen=True, repr=False)
+@dc.dataclass(frozen=True)
 class AtMost(Valued[int], OperationNode):
     """
         Special solver node: represents an upper limit to the number of operands that can be true.  

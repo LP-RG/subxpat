@@ -156,7 +156,7 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
 
         # trivial case
         elif isinstance(node, ToInt) and node.name not in bitwidth_of:
-            bitwidth_of[node.name] = len(graph.predecessors(node))
+            bitwidth_of[node.name] = len(node.operands)
 
         # dynamic case
         else:
