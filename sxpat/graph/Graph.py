@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing_extensions import Self
-from typing import Any, FrozenSet, Iterable, Mapping, Sequence, Tuple, TypeVar, Union
+from typing import Any, Iterable, Mapping, Sequence, TypeVar, Union
 from types import MappingProxyType
 
 import networkx as nx
@@ -80,11 +80,11 @@ class Graph:
         )
 
     @ft.cached_property
-    def nodes(self) -> Tuple[Node, ...]:
+    def nodes(self) -> Sequence[Node]:
         """Sequence of nodes in the unique lexicographical topological order."""
         return tuple(self._inner.nodes[name][self.K] for name in nx.lexicographical_topological_sort(self._inner))
 
-    def predecessors(self, node_or_name: Union[str, Node]) -> Tuple[Node, ...]:
+    def predecessors(self, node_or_name: Union[str, Node]) -> Sequence[Node]:
         node_name = self._get_name(node_or_name)
         node = self._inner.nodes[node_name][self.K]
         # we iterate over the .predecessors instead of the .operands, so even if `node` is not an OperationNode it still works
@@ -93,34 +93,34 @@ class Graph:
             key=lambda _n: node.operands.index(_n.name)
         ))
 
-    def successors(self, node_or_name: Union[str, Node]) -> Tuple[OperationNode, ...]:
+    def successors(self, node_or_name: Union[str, Node]) -> Sequence[OperationNode]:
         return tuple(
             self._inner.nodes[_name][self.K]
             for _name in self._inner.successors(self._get_name(node_or_name))
         )
 
     @ft.cached_property
-    def constants(self) -> Tuple[Node, ...]:
+    def constants(self) -> Sequence[Node]:
         return tuple(node for node in self.nodes if isinstance(node, (BoolConstant, IntConstant)))
 
     # @ft.cached_property
-    # def origins(self) -> Tuple[Node, ...]:
+    # def origins(self) -> Sequence[Node]:
     #     return tuple(node for node in self.nodes if isinstance(node, (BoolVariable, IntVariable, BoolConstant, IntConstant)))
 
     @ft.cached_property
-    def operations(self) -> Tuple[OperationNode, ...]:
+    def operations(self) -> Sequence[OperationNode]:
         return tuple(node for node in self.nodes if not isinstance(node, (*contact_nodes, *origin_nodes, Target)))
 
-    @ft.cached_property
-    def end_nodes(self) -> Tuple[Copy, ...]:
-        return tuple(node for node in self.nodes if isinstance(node, (Copy, Target)))
+    # @ft.cached_property
+    # def end_nodes(self) -> Sequence[Copy]:
+    #     return tuple(node for node in self.nodes if isinstance(node, (Copy, Target)))
 
     # @ft.cached_property
-    # def non_gates(self) -> Tuple[Node, ...]:
+    # def non_gates(self) -> Sequence[Node]:
     #     return tuple(node for node in self.nodes if not isinstance(node, OperationNode))
 
     @ft.cached_property
-    def targets(self) -> Tuple[Target, ...]:
+    def targets(self) -> Sequence[Target]:
         return tuple(node for node in self.nodes if isinstance(node, Target))
 
     def _get_name(self, node_or_name: Union[str, Node]) -> str:
@@ -137,7 +137,7 @@ class IOGraph(Graph):
     EXTRAS = ('inputs_names', 'outputs_names')
 
     def __init__(self, nodes: Iterable[Node],
-                 inputs_names: Iterable[str] = (), outputs_names: Iterable[str] = ()
+                 inputs_names: Sequence[str], outputs_names: Sequence[str]
                  ) -> None:
         # construct base
         super().__init__(nodes)
@@ -154,7 +154,7 @@ class IOGraph(Graph):
         )
 
     @ft.cached_property
-    def inputs(self) -> Tuple[Node, ...]:
+    def inputs(self) -> Sequence[Node]:
         return tuple(self._inner.nodes[name][self.K] for name in self.inputs_names)
 
     def input_index_of(self, node_or_name: Union[str, Node]) -> int:
@@ -163,7 +163,7 @@ class IOGraph(Graph):
         except: return -1
 
     @ft.cached_property
-    def outputs(self) -> Tuple[Node, ...]:
+    def outputs(self) -> Sequence[Node]:
         return tuple(self._inner.nodes[name][self.K] for name in self.outputs_names)
 
     def output_index_of(self, node_or_name: Union[str, Node]) -> int:
@@ -172,34 +172,38 @@ class IOGraph(Graph):
         except: return -1
 
     @ft.cached_property
-    def inners(self) -> Tuple[Node, ...]:
+    def inners(self) -> Sequence[Node]:
         in_out_set = frozenset((*self.inputs_names, *self.outputs_names))
         return tuple(n for n in self.nodes if n.name not in in_out_set)
 
 
 class SGraph(IOGraph):
-    """Graph with inputs, outputs and subgraph."""
+    """Graph with inputs, outputs and a subgraph."""
 
     @ft.cached_property
-    def subgraph_nodes(self) -> Tuple[Node, ...]:
+    def subgraph_nodes(self) -> Sequence[Node]:
         return tuple(node for node in self.nodes if node.in_subgraph)
 
     @ft.cached_property
-    def subgraph_inputs(self) -> Tuple[Node, ...]:
+    def subgraph_inputs(self) -> Sequence[Node]:
         # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
-        return tuple(frozenset(it.chain.from_iterable(
+        return tuple(dict.fromkeys(it.chain.from_iterable(
             (pred for pred in self.predecessors(node) if not pred.in_subgraph)
             for node in self.subgraph_nodes
         )))
 
     @ft.cached_property
-    def subgraph_outputs(self) -> Tuple[Node, ...]:
+    def subgraph_outputs(self) -> Sequence[Node]:
         # a node is a subgraph output if it is in the subgraph and at least one successor is not in the subgraph
         return tuple(
             node
             for node in self.subgraph_nodes
             if any(not succ.in_subgraph for succ in self.successors(node))
         )
+
+    def node_edges_to_subgraph(self, node_or_name: Union[str, Node]) -> int:
+        """Returns the number of edges from this node to a node in the subgraph."""
+        return sum(n.in_subgraph for n in self.successors(self._get_name(node_or_name)))
 
 
 class PGraph(SGraph):
@@ -208,8 +212,8 @@ class PGraph(SGraph):
     EXTRAS = (*SGraph.EXTRAS, 'parameters_names')
 
     def __init__(self, nodes: Iterable[Node],
-                 inputs_names: Iterable[str] = (), outputs_names: Iterable[str] = (),
-                 parameters_names: Iterable[str] = (),
+                 inputs_names: Sequence[str], outputs_names: Sequence[str],
+                 parameters_names: Sequence[str],
                  ) -> None:
 
         super().__init__(nodes, inputs_names, outputs_names)
@@ -224,17 +228,18 @@ class PGraph(SGraph):
         )
 
     @ft.cached_property
-    def parameters(self) -> Tuple[Node, ...]:
+    def parameters(self) -> Sequence[BoolVariable]:
         return tuple(self._inner.nodes[name][self.K] for name in self.parameters_names)
 
 
 class CGraph(Graph):
     """Graph containing the constraints."""
 
-    @staticmethod
-    def is_placeholder(node: Node) -> bool:
-        return isinstance(node, PlaceHolder)
+    # @ft.cached_property
+    # def placeholders(self) -> FrozenSet[PlaceHolder]:
+    #     return frozenset(node for node in self.nodes if CGraph.is_placeholder(node))
 
     @ft.cached_property
-    def placeholders(self) -> FrozenSet[PlaceHolder]:
-        return frozenset(node for node in self.nodes if CGraph.is_placeholder(node))
+    def constraints(self) -> Sequence[Constraint]:
+        """The sequence of all `Constraint` node in the graph."""
+        return tuple(node for node in self.nodes if isinstance(node, Constraint))
