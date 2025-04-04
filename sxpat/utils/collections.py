@@ -37,10 +37,10 @@ def iterable_replace(iterable: Iterable[T], index: int, value: T) -> Iterator[T]
         @authors: Marco Biasion
     """
     iterable = iter(iterable)
-    yield from it.islice(iterable, index)
-    yield value
-    next(iterable)
-    yield from iterable
+    yield from it.islice(iterable, index)  # yield from the iterable up to index (excluded)
+    yield value  # yield the value
+    next(iterable)  # skip a value from the iterable
+    yield from iterable  # yield the remaining from the iterable (restarts at index + 1)
 
 
 def flat(iterable:
@@ -56,10 +56,8 @@ def flat(iterable:
                                              T]]]]]]]]]]]]]]]]]
          ) -> Iterator[T]:
     for i in iterable:
-        if isinstance(i, Iterable):
-            yield from flat(i)
-        else:
-            yield i
+        if isinstance(i, Iterable): yield from flat(i)
+        else: yield i
 
 
 def pairwise(iterable: Iterable[T]) -> Iterator[Tuple[T, T]]:
@@ -89,13 +87,11 @@ class MultiDict(UserDict, Generic[K, V]):
     def __init__(self, mapping: Mapping[Iterable[K], V] = None) -> None:
         super().__init__()
 
-        if mapping is not None:
-            for ks, v in mapping.items():
-                self.__setitem__(ks, v)
+        if mapping is None: return
+        for ks, v in mapping.items(): self.__setitem__(ks, v)
 
     def __setitem__(self, key: Iterable[K], value: V) -> None:
-        for k in key:
-            self.data[k] = value
+        for k in key: self.data[k] = value
 
 
 class InheritanceMapping(MultiDict[Type, V]):
@@ -110,7 +106,5 @@ class InheritanceMapping(MultiDict[Type, V]):
 
     def __setitem__(self, key: Type, value: V) -> None:
         subtypes = [key]
-        for t in subtypes:
-            subtypes.extend(t.__subclasses__())
-
-        super().__setitem__(subtypes, value)
+        for t in subtypes: subtypes.extend(t.__subclasses__())
+        super().__setitem__(frozenset(subtypes), value)
