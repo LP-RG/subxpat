@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Sequence, Tuple, Union
 
 import itertools as it
 
@@ -15,7 +15,8 @@ __all__ = ['NonSharedTemplate']
 
 class _NonSharedBase:
     """
-       Base class for non shared utilities.
+       Base class for non shared templates.  
+       Includes common utilities.
 
        @authors: Marco Biasion
     """
@@ -89,51 +90,54 @@ class _NonSharedBase:
         return constants_rewriting
 
     @classmethod
-    def error_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int) -> List[Node]:
-        return [
+    def error_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int) -> Sequence[Union[Node, Constraint]]:
+        return (
             cur_int := ToInt('cur_int', operands=s_graph.outputs_names),
             tem_int := ToInt('tem_int', operands=t_graph.outputs_names),
             abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
             et := IntConstant('et', value=error_threshold),
             error_check := LessEqualThan('error_check', operands=(abs_diff, et)),
-        ]
+            Constraint.of(error_check),
+        )
 
     @classmethod
     def atmost_lpp_constraints(cls, out_prod_mux_params: List[List[List[Tuple[BoolVariable, BoolVariable]]]], literals_per_product: int
-                               ) -> List[AtMost]:
-        return [
-            AtMost(f'at_most_lpp_o{out_i}_p{prod_i}', operands=(p[0] for p in prod_params), value=literals_per_product)
+                               ) -> Sequence[Union[AtMost, Constraint]]:
+        return tuple(flat(
+            (
+                at_most := AtMost(f'at_most_lpp_o{out_i}_p{prod_i}', operands=(p[0] for p in prod_params), value=literals_per_product),
+                Constraint.of(at_most),
+            )
             for (out_i, out_params) in enumerate(out_prod_mux_params)
             for (prod_i, prod_params) in enumerate(out_params)
-        ]
+        ))
 
     @classmethod
     def products_order_redundancy(cls, out_prod_mux_params: List[List[List[Tuple[BoolVariable, BoolVariable]]]]
-                                  ) -> Tuple[List[ToInt], List[GreaterEqualThan]]:
+                                  ) -> Sequence[Union[Node, Constraint]]:
 
         # skip if we have only one product
-        if len(out_prod_mux_params[0]) < 2: return ([], [])
+        if len(out_prod_mux_params[0]) < 2: return []
 
-        prod_ids: List[ToInt] = []
-        prod_ord_nodes: List[GreaterEqualThan] = []
+        nodes: List[Node] = []
 
         # for all outputs
         for (out_i, out_params) in enumerate(out_prod_mux_params):
             # generate an integer identifier for each product
-            prod_ids.extend(_prod_ids := [
+            nodes.extend(_prod_ids := [
                 ToInt(f'out{out_i}_prod{prod_i}_id', operands=flat(prod_params))
                 for (prod_i, prod_params) in enumerate(out_params)
             ])
             # set the order of the identifiers ( a >= b >= c ... )
-            prod_ord_nodes.extend(
-                GreaterEqualThan(f'id_order_{idx_a}_{idx_b}', operands=(prod_a, prod_b))
+            nodes.extend(flat(
+                (
+                    gt := GreaterEqualThan(f'id_order_{idx_a}_{idx_b}', operands=(prod_a, prod_b)),
+                    Constraint.of(gt),
+                )
                 for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(_prod_ids))
-            )
+            ))
 
-        return (
-            prod_ids,
-            prod_ord_nodes,
-        )
+        return nodes
 
 
 class NonSharedTemplate(Template, _NonSharedBase):
@@ -200,12 +204,15 @@ class NonSharedTemplate(Template, _NonSharedBase):
         # > Constraints Graph
 
         # multiplexer redundancy
-        mux_red_nodes = [
-            Or(f'prevent_constF_{out_i}_{prod_i}_{in_i}', operands=(p_usage.name, p_assert.name))
+        mux_red_nodes = tuple(flat((
+            (
+                prevent_n := Or(f'prevent_constF_{out_i}_{prod_i}_{in_i}', operands=(p_usage.name, p_assert.name)),
+                Constraint.of(prevent_n),
+            )
             for (out_i, prod_o) in enumerate(out_prod_mux_params)
             for (prod_i, prod_p) in enumerate(prod_o)
             for (in_i, (p_usage, p_assert)) in enumerate(prod_p)
-        ]
+        )))
 
         # constant zero redundancy
         const0_red_nodes = list(flat(
@@ -214,6 +221,7 @@ class NonSharedTemplate(Template, _NonSharedBase):
                 or_ps := Or(f'or_sum_in_{sum_i}', operands=(p_usage.name for prods_p in p_o_t for (p_usage, p_assert) in prods_p)),
                 not_or := Not(f'not_{or_ps.name}', operands=(or_ps.name,)),
                 impl := Implies(f'impl_sum_{sum_i}', operands=(not_p_o.name, not_or.name)),
+                Constraint.of(impl),
             )
             for sum_i, (p_o, p_o_t) in enumerate(zip(outs_p, out_prod_mux_params))
         ))
@@ -237,11 +245,10 @@ class NonSharedTemplate(Template, _NonSharedBase):
                 # redundancy constraints
                 mux_red_nodes,
                 const0_red_nodes,
-                *cls.products_order_redundancy(out_prod_mux_params),
+                cls.products_order_redundancy(out_prod_mux_params),
                 # targets
                 targets,
             )
         )
 
         return (template_graph, constraint_graph)
-
