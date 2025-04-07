@@ -393,7 +393,7 @@ class If(Op3Node):
 
 #
 boolean_nodes = (BoolVariable, BoolConstant, Not, And, Or, Implies, Equals, NotEquals, AtLeast, AtMost, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan, Multiplexer,)
-integer_nodes = (IntVariable, IntConstant, ToInt, Sum, AbsDiff, UDiv, Mul, ZeroExt)
+integer_nodes = (IntVariable, IntConstant, ToInt, Sum, AbsDiff, UDiv, Mul)
 untyped_nodes = (Copy, Target, If,)
 #
 contact_nodes = (PlaceHolder,)  # TODO:MARCO: what name should we use?
