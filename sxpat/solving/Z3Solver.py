@@ -50,6 +50,8 @@ class Z3Encoder:
         # compute initial graph accessories
         nodes_types = get_nodes_type(graphs)
         nodes_bitwidths = get_nodes_bitwidth(graphs, nodes_types)
+        for key in nodes_bitwidths.keys():
+            nodes_bitwidths[key] = nodes_bitwidths[key] + 7
 
         # simplify graphs
         graphs = tuple(unpack_ToInt(graph) for graph in graphs)
@@ -357,6 +359,8 @@ Z3_BITVEC_NODE_MAPPING = {
     IntConstant: lambda n, operands, accs: f'BitVecVal({n.value}, {accs[0]})',
     # integer operations
     AbsDiff: lambda n, operands, accs: f'If(UGE({operands[0]}, {operands[1]}), {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
+    UDiv: lambda n, operands, accs: f'UDiv({operands[0]}, {operands[1]})',
+    Mul: lambda n, operands, accs: f'{operands[0]} * {operands[1]}',
     # comparison operations
     Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
     LessThan: lambda n, operands, accs: f'ULT({operands[0]}, {operands[1]})',

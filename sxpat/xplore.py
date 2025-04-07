@@ -114,7 +114,7 @@ def explore_grid(specs_obj: Specifications):
             label_timer, _label_graph = Timer.from_function(label_graph)
             _label_graph(current_graph,
                          min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
-                         et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel)
+                         et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel, metric = specs_obj.metric)
             print(f'labeling_time = {(labeling_time := label_timer.total)}')
 
         # extract subgraph
@@ -232,8 +232,8 @@ def explore_grid(specs_obj: Specifications):
                 # verify all models and store errors
                 pprint.info1('verifying all approximate circuits ...')
                 for candidate_name, candidate_data in cur_model_results.items():
-                    candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
-                    candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
+                    candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2], specs_obj.metric)
+                    candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2], specs_obj.metric)
 
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
@@ -396,10 +396,10 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
 
 def label_graph(current_graph: AnnotatedGraph,
                 min_labeling: bool = False, partial: bool = False,
-                et: int = -1, parallel: bool = False):
+                et: int = -1, parallel: bool = False, metric: str = 'wae'):
     labels, _ = labeling_explicit(current_graph.name, current_graph.name,
                                   constant_value=0, min_labeling=min_labeling,
-                                  partial=partial, et=et, parallel=parallel)
+                                  partial=partial, et=et, parallel=parallel, metric=metric)
 
     for n in current_graph.graph.nodes:
         current_graph.graph.nodes[n][WEIGHT] = int(labels[n]) if n in labels else -1

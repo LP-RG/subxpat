@@ -10,7 +10,7 @@ from Z3Log.graph import Graph
 from Z3Log.z3solver import Z3solver
 
 
-def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark: str) -> int:
+def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark: str, metric: str) -> int:
 
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()
@@ -27,7 +27,7 @@ def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark:
     graph_obj_exact.export_graph()
     graph_obj_approx.export_graph()
 
-    z3py_obj_qor = Z3solver(exact_benchmark_name, approximate_benchmark)
+    z3py_obj_qor = Z3solver(exact_benchmark_name, approximate_benchmark, metric= metric)
     z3py_obj_qor.convert_gv_to_z3pyscript_maxerror_qor()
 
     z3py_obj_qor.export_z3pyscript()
@@ -42,7 +42,10 @@ def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark:
                 csvreader = csv.reader(rf)
                 for row in csvreader:
                     if row[0] == z3logcfg.WCE:
-                        obtained_wce = int(row[1])
+                        if(metric == 'wae'):
+                            obtained_wce = int(row[1])
+                        elif(metric == 'wre'):
+                            obtained_wce = int(float(row[1]))
                         os.remove(report_file)
                         break
 

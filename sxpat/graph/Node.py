@@ -10,7 +10,7 @@ __all__ = [
     'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolVariable', 'Copy',
     'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
     'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'NotEquals',
-    'Not', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Target', 'ToInt', 'Valued',
+    'Not', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'UDiv', 'Mul', 'Target', 'ToInt', 'Valued',
     # nodes groups
     'boolean_nodes', 'integer_nodes', 'untyped_nodes', 'contact_nodes', 'origin_nodes', 'end_nodes',
 ]
@@ -232,6 +232,20 @@ class Sum(OperationNode):
 
 
 @dc.dataclass(frozen=True, repr=False)
+class UDiv(Op2Node):
+    """
+        Integer Divsion ( `a / b ` ) operation.  
+        This node can have two operands.
+    """
+@dc.dataclass(frozen=True, repr=False)
+class Mul(Op2Node):
+    """
+        Integer Multiplication ( `a * b ` ) operation.  
+        This node can have two operands.
+    """
+
+
+@dc.dataclass(frozen=True, repr=False)
 class AbsDiff(Op2Node):
     """
         Integer absolute difference ( `| a - b |` ) operation.  
@@ -379,7 +393,7 @@ class If(Op3Node):
 
 #
 boolean_nodes = (BoolVariable, BoolConstant, Not, And, Or, Implies, Equals, NotEquals, AtLeast, AtMost, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan, Multiplexer,)
-integer_nodes = (IntVariable, IntConstant, ToInt, Sum, AbsDiff,)
+integer_nodes = (IntVariable, IntConstant, ToInt, Sum, AbsDiff, UDiv, Mul, ZeroExt)
 untyped_nodes = (Copy, Target, If,)
 #
 contact_nodes = (PlaceHolder,)  # TODO:MARCO: what name should we use?

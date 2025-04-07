@@ -79,7 +79,9 @@ class Specifications:
     # files
     exact_benchmark: str
     current_benchmark: str  # rw
-
+    # metric
+    metric: str
+    
     # labeling
     min_labeling: bool
     partial_labeling: bool
@@ -186,6 +188,12 @@ class Specifications:
                                          type=str,
                                          default=None,
                                          help='Approximated circuit used to continue the execution (Verilog file in `input/ver/`) (default: same as exact-benchmark)')
+
+        _metric = parser.add_argument('--metric',
+                                       choices=['wae', 'wre'],
+                                       default='wae',
+                                       help='Metric used in subXPat execution, either absolute or relative error')
+        
 
         # > graph labeling stuff
 

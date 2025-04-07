@@ -97,6 +97,22 @@ class _NonSharedBase:
             et := IntConstant('et', value=error_threshold),
             error_check := LessEqualThan('error_check', operands=(abs_diff, et)),
         ]
+    @classmethod
+    def relative_error_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int, zone_constraint: int) -> List[Node]:
+        return [
+            cur_int := ToInt('cur_int', operands=s_graph.outputs_names),
+            tem_int := ToInt('tem_int', operands=t_graph.outputs_names),
+            abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
+            et := IntConstant('et', value=error_threshold),
+            zero := IntConstant('zero', value = 0),
+            one := IntConstant('one', value = 1),
+            hundred := IntConstant('hundred', value = 100),
+            condition := Equals('condition', operands = (cur_int, zero)),
+            divider := If("divider", operands=(condition, one, cur_int)),
+            abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
+            rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),
+            error_check := LessEqualThan('error_check', operands=(rel_diff, et)),
+        ]
 
     @classmethod
     def atmost_lpp_constraints(cls, out_prod_mux_params: List[List[List[Tuple[BoolVariable, BoolVariable]]]], literals_per_product: int
@@ -232,7 +248,7 @@ class NonSharedTemplate(Template, _NonSharedBase):
                 (PlaceHolder(name) for name in s_graph.outputs_names),
                 (PlaceHolder(name) for name in template_graph.outputs_names),
                 # behavioural constraints
-                cls.error_constraint(s_graph, template_graph, specs.et),
+                cls.error_constraint(s_graph, template_graph, specs.et) if(specs.metric == 'wae') else cls.relative_error_constraint(s_graph, template_graph, specs.et, specs.zone_constraint),
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
                 # redundancy constraints
                 mux_red_nodes,

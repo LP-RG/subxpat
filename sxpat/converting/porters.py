@@ -86,6 +86,8 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # int operations
         ToInt: 'toInt',
         Sum: 'sum',
+        UDiv: 'UDiv',
+        Mul: 'Mul',
         AbsDiff: 'absdiff',
         # comparison operations
         Equals: '==',

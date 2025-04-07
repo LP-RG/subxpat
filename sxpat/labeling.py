@@ -52,7 +52,7 @@ def labeling(exact_benchmark_name: str,
 
 
 def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str, constant_value: 0, min_labeling: bool,
-                      partial: bool = False, et: int = -1, parallel: bool = False) -> Dict:
+                      partial: bool = False, et: int = -1, parallel: bool = False, metric: str = 'wae') -> Dict:
     # 1) create a clean verilog out of exact and approximate circuits
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()
@@ -69,16 +69,15 @@ def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str, con
 
     graph_obj_exact.export_graph()
     graph_obj_approx.export_graph()
-
     # convert gv to z3 expression
     if min_labeling:
-        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, style='min', parallel=parallel)
+        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, style='min', parallel=parallel, metric = metric)
     else:
-        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, parallel=parallel)
+        z3py_obj = Z3solver(exact_benchmark_name, approximate_benchmark, experiment=SINGLE, optimization=MAXIMIZE, parallel=parallel, metric = metric)
 
 
     if constant_value == 0:
-        labels_false = z3py_obj.label_circuit(False, partial=partial, et=et)
+        labels_false = z3py_obj.label_circuit(False, partial=partial, et=et, metric = metric)
 
         # cleanup (folder report/)
         report_folder, _ = OUTPUT_PATH['report']
