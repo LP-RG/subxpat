@@ -340,6 +340,10 @@ def process_ToInt(n : Node, operands: list, accs: list, inputs: list, param: lis
     mapping[n.name] = res
     return next_free
 
+def process_Constraint(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    mapping[n.name] = mapping[operands[0]]
+    return next_free
+
 Node_Mapping = {
     # variables
     BoolVariable: process_BoolVariable,
@@ -375,6 +379,7 @@ Node_Mapping = {
     If: process_If,
 
     ToInt: process_ToInt,
+    Constraint: process_Constraint,
 }
 
 class QbfSolver(Solver):
@@ -420,7 +425,7 @@ class QbfSolver(Solver):
                     #TODO : add accessories (accs)
                     # print(node)
                     next_free = Node_Mapping[type(node)](node, getattr(node, "operands", []),[] , inputs, variables, next_free, mapping, f)
-                    if isinstance(graph,CGraph) and not graph.successors(node) and not isinstance(node, Target) and not isinstance(node, BoolConstant) and not isinstance(node, IntConstant):
+                    if isinstance(graph,CGraph) and isinstance(node, Constraint):
                         assert(len(mapping[node.name]) == 1)
                         in_the_output.append(node.name)
                 # print()
