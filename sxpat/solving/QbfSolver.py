@@ -421,6 +421,7 @@ class QbfSolver(Solver):
                     # print(node)
                     next_free = Node_Mapping[type(node)](node, getattr(node, "operands", []),[] , inputs, variables, next_free, mapping, f)
                     if isinstance(graph,CGraph) and not graph.successors(node) and not isinstance(node, Target) and not isinstance(node, BoolConstant) and not isinstance(node, IntConstant):
+                        assert(len(mapping[node.name]) == 1)
                         in_the_output.append(node.name)
                 # print()
                 f.write('#\n')
