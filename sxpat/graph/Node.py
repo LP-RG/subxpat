@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable, Tuple, Generic, TypeVar
+from typing import ClassVar, Iterable, Tuple, Generic, TypeVar
 from typing_extensions import Self
 
 import dataclasses as dc
@@ -7,8 +7,8 @@ import dataclasses as dc
 
 __all__ = [
     # nodes
-    'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolVariable', 'Copy',
-    'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
+    'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolVariable', 'Constraint',
+    'Copy', 'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
     'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'NotEquals',
     'Not', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Target', 'ToInt', 'Valued',
     # nodes groups
@@ -164,12 +164,29 @@ class Copy(Op1Node):
         The only operand represents the node to copy.
     """
 
+    @classmethod
+    def of(cls, operand: Node) -> Self:
+        """Helper constructor with automatic naming."""
+        return cls(
+            f'{cls.__name__.lower()}_{operand.name}',
+            weight=operand.weight, in_subgraph=operand.in_subgraph,
+            operands=(operand,)
+        )
+
 
 @dc.dataclass(frozen=True, repr=False)
-class Target(Copy):  # TODO:MARCO: or result/question/...?
+class Target(Copy):
     """
         Special solver node: specifies a node which value must be returned when solving.  
         The only operand represents the wanted value.
+    """
+
+
+@dc.dataclass(frozen=True, repr=False)
+class Constraint(Copy):
+    """
+        Special solver node: specifies a node which value must be asserted when solving.  
+        The only operand represents the value to assert.
     """
 
 

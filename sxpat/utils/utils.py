@@ -1,6 +1,7 @@
 # typing
 from typing import Iterable, Callable, Any
 
+import functools as ft
 import time
 import colorama
 
@@ -71,9 +72,7 @@ def augment(extra_parameters: Iterable[str]):
 
     def decorator(function):
         wrapper = function
-        for key in extra_parameters:
-            wrapper = decorators[key](wrapper)
-
+        for key in extra_parameters: wrapper = decorators[key](wrapper)
         return unpacker(wrapper, len(extra_parameters))
 
     return decorator
@@ -81,24 +80,27 @@ def augment(extra_parameters: Iterable[str]):
 
 def static(**vars):
     def decorate(func):
-        for k, v in vars.items():
-            setattr(func, k, v)
+        for (k, v) in vars.items(): setattr(func, k, v)
         return func
-
     return decorate
 
 
-if __name__ == "__main__":
-    pprint.e("ERROR", "some other", "message", [1, True, dict()])
-    pprint.w("WARNING", "some other", "message", [1, True, dict()])
-    pprint.s("SUCCESS", "some other", "message", [1, True, dict()])
-    pprint.i1("INFO 1", "some other", "message", [1, True, dict()])
-    pprint.i2("INFO 2", "some other", "message", [1, True, dict()])
-    pprint.i3("INFO 3", "some other", "message", [1, True, dict()])
+def cached(func):
+    """This decorator caches all results of the function, so that repeated calls do not run the computation again."""
+    return ft.wraps(func)(ft.lru_cache(maxsize=None)(func))
 
-    print(color.e("ERROR"), "some other", "message", [1, True, dict()])
-    print(color.w("WARNING"), "some other", "message", [1, True, dict()])
-    print(color.s("SUCCESS"), "some other", "message", [1, True, dict()])
-    print(color.i1("INFO 1"), "some other", "message", [1, True, dict()])
-    print(color.i2("INFO 2"), "some other", "message", [1, True, dict()])
-    print(color.i3("INFO 3"), "some other", "message", [1, True, dict()])
+
+if __name__ == '__main__':
+    pprint.e('ERROR', 'some other', 'message', [1, True, dict()])
+    pprint.w('WARNING', 'some other', 'message', [1, True, dict()])
+    pprint.s('SUCCESS', 'some other', 'message', [1, True, dict()])
+    pprint.i1('INFO 1', 'some other', 'message', [1, True, dict()])
+    pprint.i2('INFO 2', 'some other', 'message', [1, True, dict()])
+    pprint.i3('INFO 3', 'some other', 'message', [1, True, dict()])
+
+    print(color.e('ERROR'), 'some other', 'message', [1, True, dict()])
+    print(color.w('WARNING'), 'some other', 'message', [1, True, dict()])
+    print(color.s('SUCCESS'), 'some other', 'message', [1, True, dict()])
+    print(color.i1('INFO 1'), 'some other', 'message', [1, True, dict()])
+    print(color.i2('INFO 2'), 'some other', 'message', [1, True, dict()])
+    print(color.i3('INFO 3'), 'some other', 'message', [1, True, dict()])

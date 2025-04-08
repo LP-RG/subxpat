@@ -227,10 +227,9 @@ class Z3FuncEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# usage',
             'usage = And(', *(
-                f'    {call_node.name},'
-                for (graph, call_graph) in zip(c_graphs, call_c_graphs)
-                for (node, call_node) in zip(graph.operations, call_graph.operations)
-                if not graph.successors(node) and nodes_types[node.name] is bool
+                f'    {constraint_node.operand},'
+                for call_graph in call_c_graphs
+                for constraint_node in call_graph.constraints
             ), ')',
             *('',) * 2,
         )))
