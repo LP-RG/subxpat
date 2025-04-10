@@ -232,8 +232,8 @@ def explore_grid(specs_obj: Specifications):
                 # verify all models and store errors
                 pprint.info1('verifying all approximate circuits ...')
                 for candidate_name, candidate_data in cur_model_results.items():
-                    candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2], specs_obj.metric)
-                    candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2], specs_obj.metric)
+                    candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2], specs_obj.metric, specs_obj.zone_constraint)
+                    candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2], specs_obj.metric, specs_obj.zone_constraint)
 
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')

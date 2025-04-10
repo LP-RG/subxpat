@@ -82,6 +82,9 @@ class Specifications:
     # metric
     metric: str
     
+    #zone constraint
+    zone_constraint: int
+
     # labeling
     min_labeling: bool
     partial_labeling: bool
@@ -193,7 +196,10 @@ class Specifications:
                                        choices=['wae', 'wre'],
                                        default='wae',
                                        help='Metric used in subXPat execution, either absolute or relative error')
-        
+        _zone_constraint = parser.add_argument('--zone-constraint',
+                                       type=int,
+                                       default=None,
+                                       help='')#TODO HELP
 
         # > graph labeling stuff
 
