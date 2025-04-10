@@ -45,7 +45,7 @@ def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark:
                         if(metric == 'wae'):
                             obtained_wce = int(row[1])
                         elif(metric == 'wre'):
-                            obtained_wce = int(float(row[1]))
+                            obtained_wce = int(float(row[1]) * 100) 
                         os.remove(report_file)
                         break
 
