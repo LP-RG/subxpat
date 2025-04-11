@@ -74,7 +74,14 @@ def explore_grid(specs_obj: Specifications):
             log2 = int(math.log2(specs_obj.max_error))
             specs_obj.et = 2 ** (log2 - specs_obj.iteration - 2)
         elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_ASCENDING:
-            specs_obj.et = 1 if specs_obj.iteration == 1 else prev_given_error * (2 if prev_actual_error == 0 else 1)
+            if specs_obj.iteration == 1:
+                specs_obj.et = 1
+            else:
+                if prev_actual_error == 0 or persistance == persistance_limit:
+                    specs_obj.et = prev_given_error * 2
+                else:
+                    specs_obj.et = prev_given_error
+                    persistance += 1
             prev_given_error = specs_obj.et
         elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_DESCENDING:
             specs_obj.et = specs_obj.max_error if specs_obj.iteration == 1 else math.ceil(prev_given_error / (2 if prev_actual_error == 0 else 1))
