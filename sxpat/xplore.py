@@ -41,8 +41,8 @@ def explore_grid(specs_obj: Specifications):
 
     obtained_wce_exact = 0
     specs_obj.iteration = 0
-    persistance = 0
-    persistance_limit = 2
+    persistence = 0
+    persistence_limit = 2
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
 
@@ -61,15 +61,15 @@ def explore_grid(specs_obj: Specifications):
                 break
             specs_obj.et = specs_obj.max_error
         elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
-            if (persistance == persistance_limit or prev_actual_error == 0):
-                persistance = 0
+            if (persistence == persistence_limit or prev_actual_error == 0):
+                persistence = 0
                 try:
                     specs_obj.et = next(et_array)
                 except StopIteration:
                     pprint.warning('The error space is exhausted!')
                     break
             else:
-                persistance += 1
+                persistence += 1
         elif specs_obj.error_partitioning is ErrorPartitioningType.DESCENDING:
             log2 = int(math.log2(specs_obj.max_error))
             specs_obj.et = 2 ** (log2 - specs_obj.iteration - 2)
@@ -77,11 +77,11 @@ def explore_grid(specs_obj: Specifications):
             if specs_obj.iteration == 1:
                 specs_obj.et = 1
             else:
-                if prev_actual_error == 0 or persistance == persistance_limit:
+                if prev_actual_error == 0 or persistence == persistence_limit:
                     specs_obj.et = prev_given_error * 2
                 else:
                     specs_obj.et = prev_given_error
-                    persistance += 1
+                    persistence += 1
             prev_given_error = specs_obj.et
         elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_DESCENDING:
             specs_obj.et = specs_obj.max_error if specs_obj.iteration == 1 else math.ceil(prev_given_error / (2 if prev_actual_error == 0 else 1))
