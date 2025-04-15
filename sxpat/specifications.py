@@ -168,7 +168,7 @@ class Specifications:
 
         _ex_mode = parser.add_argument('--extraction-mode', '--mode',
                                        type=int,
-                                       choices=[1, 2, 3, 4, 5, 55, 11, 12],
+                                       choices=[1, 2, 3, 4, 5, 55, 6, 11, 12],
                                        default=55,
                                        help='Subgraph extraction algorithm to use (default: 55)')
 

@@ -304,14 +304,24 @@ class AnnotatedGraph(Graph):
                     pprint.success(f" (#ofNodes={cnt_nodes})")
 
                 elif specs_obj.extraction_mode == 55:
-                    pprint.info2(
-                        f"Partition with omax={specs_obj.omax} and hard constraints, imax, omax, assumptions, and BitVec, DataType. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(
-                        specs_obj)  # Critian's subgraph extraction
+                    pprint.info2(f"Partition with omax={specs_obj.omax} and hard constraints, imax, omax, assumptions, and BitVec, DataType. Looking for largest partition")
+                    self.subgraph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)  # Critian's subgraph extraction
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
+                    pprint.success(f" (#ofNodes={cnt_nodes})")
+
+                elif specs_obj.extraction_mode == 6:
+                    pprint.info2(f"Partition with hard constraints, imax={specs_obj.imax}, omax={specs_obj.omax}, assumptions, and BitVec, DataType. Looking for largest partition for smallest possible threshold")
+
+                    self.subgraph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(specs_obj)
+
+                    # log count
+                    cnt_nodes = sum(
+                        self.subgraph.nodes[gate_name][SUBGRAPH] == 1
+                        for gate_name in self.gate_dict.values()
+                    )
                     pprint.success(f" (#ofNodes={cnt_nodes})")
 
                 elif specs_obj.extraction_mode == 11:
@@ -2078,6 +2088,54 @@ class AnnotatedGraph(Graph):
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
 
         return tmp_graph
+
+    def get_null_subgraph(self) -> nx.DiGraph:
+        """Returns a graph with subgraph information for the null subgraph"""
+        subgraph = self.graph.copy()
+        for gate_name in self.gate_dict.values():
+            subgraph.nodes[gate_name][SUBGRAPH] = 0
+            subgraph.nodes[gate_name][COLOR] = WHITE
+        return subgraph
+
+    def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(self, specs_obj: Specifications) -> nx.DiGraph:
+        # store parameters that will be updated
+        saved_et = specs_obj.et
+
+        # get graph weights, then min/max (bounded)
+        weights = sorted(frozenset(
+            weight
+            for gate_name in self.gate_dict.values()
+            if (weight := self.graph.nodes[gate_name][WEIGHT]) >= 0
+        ))
+        if len(weights) == 0: return self.get_null_subgraph()
+        min_weight = max(0, min(weights))
+        max_weight = min(saved_et, max(weights))
+        print(weights, min_weight, max_weight, saved_et)
+
+        # use linear partition to find best match in weights
+        partition_step = (max_weight - min_weight) / (8 - 1)
+        linear_partition = [min_weight + partition_step * i for i in range(8)]
+        print(linear_partition, partition_step)
+        actual_partition = sorted(frozenset(
+            min(weights, key=lambda w: abs(w - p))
+            for p in linear_partition
+        ))
+        print(actual_partition)
+
+        # find subgraph
+        # NOTE: given that the node with the smallest weight is a valid subgraph, this loop should only iterate once
+        for (i, specs_obj.et) in enumerate(actual_partition):
+            found_subgraph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)  # Critian's subgraph extraction
+            cnt_nodes = sum(
+                found_subgraph.nodes[gate_name][SUBGRAPH] == 1
+                for gate_name in self.gate_dict.values()
+            )
+            if cnt_nodes > 0: break
+
+        # restore updated parameters
+        specs_obj.et = saved_et
+
+        return found_subgraph
 
     def find_subgraph_feasible_soft(self, specs_obj: Specifications):
         """

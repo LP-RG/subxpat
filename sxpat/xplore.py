@@ -138,13 +138,13 @@ def explore_grid(specs_obj: Specifications):
             continue
 
         # guard: skip if the subraph is equal to the previous one
-        if (
-            len(previous_subgraphs) >= 2
-            and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
-        ):
-            pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
-            prev_actual_error = 0
-            continue
+        # if (
+        #     len(previous_subgraphs) >= 2
+        #     and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
+        # ):
+        #     pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
+        #     prev_actual_error = 0
+        #     continue
 
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
