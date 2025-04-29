@@ -296,7 +296,7 @@ def test(fro, et, needed_inputs, needed_outputs, timeout):
             timed_out = True
             result = 'timed_out'
     else:
-        result = subprocess.run(['../../../../../cqesto-master/build/cqesto', f'{fro}_{et}.txt'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout.decode('utf-8')
+        result = subprocess.run(['../../../../cqesto-master/build/cqesto', f'{fro}_{et}.txt'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout.decode('utf-8')
         timed_out = False
 
     os.remove(f'{fro}_{et}.txt')
