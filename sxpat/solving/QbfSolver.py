@@ -449,7 +449,7 @@ class QbfSolver(Solver):
                 f.write(f'{mapping[x][0]}')
             f.write(')\n')
 
-        result = subprocess.run(["../../../../cqesto-master/build/cqesto", script_path], capture_output=True, text=True)
+        result = subprocess.run(["../../../../../cqesto-master/build/cqesto", script_path], capture_output=True, text=True)
 
         if iterative_node:
             execute_path = f'output/z3/{specifications.exact_benchmark}_iter{specifications.iteration}_it.txt'

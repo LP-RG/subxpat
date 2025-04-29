@@ -61,8 +61,9 @@ def explore_grid(specs_obj: Specifications):
         else:
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
-
-    while (obtained_wce_exact < specs_obj.max_error):
+    don = False
+    while (not don):
+        don = True
         specs_obj.iteration += 1
         if not specs_obj.subxpat:
             if prev_actual_error == 0:
@@ -90,6 +91,7 @@ def explore_grid(specs_obj: Specifications):
         else:
             raise NotImplementedError('invalid status')
 
+        specs_obj.et = specs_obj.max_error
         if specs_obj.et > specs_obj.max_error or specs_obj.et <= 0:
             break
 
