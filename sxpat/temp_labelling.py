@@ -349,7 +349,7 @@ def labeling(exact_graph_name: str, app_graph_name: str ,et,  already_labeled = 
                     # stack.append(x)
                 continue
 
-            output = open(f'./experiments/labeling_{cur_node}.txt','w')
+            output = open(f'./sxpat/solving/labeling_{cur_node}.txt','w')
             output.write('#QCIR-14\nexists(')
             first = True
             for x in exact_graph.input_dict.values():
@@ -493,7 +493,7 @@ def labeling(exact_graph_name: str, app_graph_name: str ,et,  already_labeled = 
             maximum_time = 0
             while True:
                 start = time.perf_counter()
-                timed_out, res = test(f'./experiments/labeling_{cur_node}', l, list(exact_graph.input_dict.values()), list(exact_graph.output_dict.values()), -1 )
+                timed_out, res = test(f'./sxpat/solving/labeling_{cur_node}', l, list(exact_graph.input_dict.values()), list(exact_graph.output_dict.values()), -1 )
                 tot = time.perf_counter() - start
                 # print(tot,max(0.1,maximum_time * stop_multi), timed_out)
                 maximum_time = max(maximum_time,tot)
@@ -511,7 +511,7 @@ def labeling(exact_graph_name: str, app_graph_name: str ,et,  already_labeled = 
 
             # while l<r:
             #     m = (l + r)//2
-            #     timed_out, res = test(f'./experiments/labeling_{cur_node}', m, list(exact_graph.input_dict.values()), list(exact_graph.output_dict.values()))
+            #     timed_out, res = test(f'./sxpat/solving/labeling_{cur_node}', m, list(exact_graph.input_dict.values()), list(exact_graph.output_dict.values()))
             #     if res.strip()[-1] == '1':
             #         l = m + 1
             #     else:
@@ -524,7 +524,7 @@ def labeling(exact_graph_name: str, app_graph_name: str ,et,  already_labeled = 
             # for x in graph.graph.successors(cur_node):
             #     stack.append(x)
 
-            os.remove(f'./experiments/labeling_{cur_node}.txt')
+            os.remove(f'./sxpat/solving/labeling_{cur_node}.txt')
 
     # graph.graph.remove_node('7')
     return labels
@@ -536,7 +536,7 @@ def labeling(exact_graph_name: str, app_graph_name: str ,et,  already_labeled = 
         
 if __name__ == "__main__":
     pass
-    # test('experiments/labeling_g6', 1, ['in0','in1','in2','in3'], ['out0','out1','out2'])
+    # test('sxpat/solving/labeling_g6', 1, ['in0','in1','in2','in3'], ['out0','out1','out2'])
     print(labeling('mul_i32_o32','mul_i32_o32', 1e100))
     print()
     # print(labeling('abs_diff_i32_o16_V2_et20_encz3bvec_imax4_omax2_constnever_si8m0t577158511434387_i10m0t577320055037163','abs_diff_i32_o16_V2_et20_encz3bvec_imax4_omax2_constnever_si8m0t577158511434387_i10m0t577320055037163', 20))
