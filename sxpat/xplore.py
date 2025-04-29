@@ -11,6 +11,7 @@ import networkx as nx
 
 from Z3Log.config import path as z3logpath
 
+from sxpat.converting.porters import GraphVizPorter
 from sxpat.labeling import labeling_explicit
 from sxpat.metrics import MetricsEstimator
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
@@ -31,6 +32,8 @@ from sxpat.converting import set_bool_constants, prevent_combination
 
 from sxpat.utils.utils import pprint
 
+
+from sxpat.solving.QbfSolver import *
 
 def explore_grid(specs_obj: Specifications):
     previous_subgraphs = []
@@ -169,9 +172,24 @@ def explore_grid(specs_obj: Specifications):
 
             # solve
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
+            solve2 = QbfSolver.solve
             models = []
             for _ in range(specs_obj.wanted_models):
+                start = time.perf_counter()
                 status, model = solve((e_graph, p_graph, c_graph), specs_obj)
+                print('z3Solver =',time.perf_counter() - start)
+                start = time.perf_counter()
+                status2, model2 = solve2((e_graph, p_graph, c_graph), specs_obj)
+                print('qbfSolver =',time.perf_counter() - start)
+                try:
+                    assert(status == status2)
+                except:
+                    print('failed',status, status2)
+                    print(model)
+                    GraphVizPorter.to_file(e_graph, 'e_graph')
+                    GraphVizPorter.to_file(p_graph, 'p_graph')
+                    GraphVizPorter.to_file(c_graph, 'c_graph')
+                    # exit()
                 if status != 'sat': break
                 models.append(model)
                 c_graph = prevent_combination(c_graph, model)
