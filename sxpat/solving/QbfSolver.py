@@ -166,7 +166,8 @@ def process_BoolVariable(n : Node, operands: list, accs: list, inputs: list, par
     return next_free
 
 def process_IntVariable(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
-    raise NotImplementedError(f'this function isn\'t yet implemented')
+    # raise NotImplementedError(f'this function isn\'t yet implemented')
+    return next_free
 
 def process_BoolConstant(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     if n.value:
@@ -344,6 +345,9 @@ def process_Constraint(n : Node, operands: list, accs: list, inputs: list, param
     mapping[n.name] = mapping[operands[0]]
     return next_free
 
+def process_Maximize(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    pass
+
 Node_Mapping = {
     # variables
     BoolVariable: process_BoolVariable,
@@ -396,6 +400,7 @@ class QbfSolver(Solver):
         inputs.sort()
         variables.sort()
         # print(inputs,variables)
+        iterative_node = False
 
         with open(script_path, 'w') as f:
 
@@ -425,13 +430,16 @@ class QbfSolver(Solver):
                     #TODO : add accessories (accs)
                     # print(node)
                     next_free = Node_Mapping[type(node)](node, getattr(node, "operands", []),[] , inputs, variables, next_free, mapping, f)
-                    if isinstance(graph,CGraph) and isinstance(node, Constraint):
+                    if isinstance(graph,CGraph) and isinstance(node, Constraint): # and not instance of iterative_node
                         assert(len(mapping[node.name]) == 1)
                         in_the_output.append(node.name)
+                    # if isinstance(node, Maximixe)  or isinstance(node, Minimize):
+                    #     iterative_node = True
                 # print()
                 f.write('#\n')
             
             # print(in_the_output)
+            # if not iterative_node
             f.write(f'90 = and(')
             first = True
             for x in in_the_output:
@@ -442,6 +450,15 @@ class QbfSolver(Solver):
             f.write(')\n')
 
         result = subprocess.run(["../../../../cqesto-master/build/cqesto", script_path], capture_output=True, text=True)
+
+        if iterative_node:
+            execute_path = f'output/z3/{specifications.exact_benchmark}_iter{specifications.iteration}_it.txt'
+            var = 0
+            while True:
+                # add function corresponding to the iterative node
+                # then add result to final and (90)
+                # result of an iteration is either true or false, if true update var else break the loop
+                pass
 
         if result.stdout.strip()[-1] == '1':
             answer = {}
