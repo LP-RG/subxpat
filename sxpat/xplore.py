@@ -22,6 +22,7 @@ from sxpat.utils.name import NameData
 from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
+from sxpat.temp_labelling import labeling
 
 from sxpat.templating import get_specialized as get_templater
 from sxpat.solving import get_specialized as get_solver
@@ -422,8 +423,7 @@ def label_graph(current_graph: AnnotatedGraph,
     # labels, _ = labeling_explicit(current_graph.name, current_graph.name,
     #                               constant_value=0, min_labeling=min_labeling,
     #                               partial=partial, et=et, parallel=parallel)
-    import experiments.temp_labelling
-    labels = experiments.temp_labelling.labeling(current_graph.name, current_graph.name, et)
+    labels = labeling(current_graph.name, current_graph.name, et)
 
     for n in current_graph.graph.nodes:
         current_graph.graph.nodes[n][WEIGHT] = int(labels[n]) if n in labels else -1
