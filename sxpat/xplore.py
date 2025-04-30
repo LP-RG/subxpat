@@ -1,4 +1,6 @@
-from typing import Iterable, Iterator, List
+from __future__ import annotations
+from typing import Callable, Dict, Iterable, Iterator, List, Tuple, TypeVar
+import dataclasses as dc
 
 from tabulate import tabulate
 import functools as ft
@@ -10,16 +12,22 @@ import networkx as nx
 from Z3Log.config import path as z3logpath
 
 from sxpat.labeling import labeling_explicit
+from sxpat.metrics import MetricsEstimator
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
-from sxpat.config.paths import *
+from sxpat.config import paths as sxpatpaths
 from sxpat.config.config import *
-from sxpat.synthesis import Synthesis
-from sxpat.template_manager.template_manager import TemplateManager
 from sxpat.utils.filesystem import FS
 from sxpat.utils.name import NameData
 from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
+
+from sxpat.templating import get_specialized as get_templater
+from sxpat.solving import get_specialized as get_solver
+
+from sxpat.converting import VerilogExporter
+from sxpat.converting import iograph_from_legacy, sgraph_from_legacy
+from sxpat.converting import set_bool_constants, prevent_combination
 
 from sxpat.utils.utils import pprint
 
@@ -34,7 +42,7 @@ def explore_grid(specs_obj: Specifications):
     toolname = get_toolname(specs_obj)
 
     # initial setup
-    exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
+    exact_file_path = f'{sxpatpaths.INPUT_PATH["ver"][0]}/{specs_obj.exact_benchmark}.v'
 
     # create stat and template object
     stats_obj = Stats(specs_obj)
@@ -49,7 +57,7 @@ def explore_grid(specs_obj: Specifications):
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
         if orig_et <= 8:
-            et_array = iter(list(range(1, orig_et +1, 1)))
+            et_array = iter(list(range(1, orig_et + 1, 1)))
         else:
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
@@ -103,31 +111,28 @@ def explore_grid(specs_obj: Specifications):
         # > grid step settings
 
         # import the graph
-        current_graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
         exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False)
+        current_graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
 
         # label graph
         if specs_obj.requires_labeling:
             et_coefficient = 1
 
-            t_start = time.time()
-            label_graph(current_graph,
-                        min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
-                        et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel)
-            labeling_time = time.time() - t_start
-            print(f'labeling_time = {labeling_time}')
+            label_timer, _label_graph = Timer.from_function(label_graph)
+            _label_graph(current_graph,
+                         min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
+                         et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel)
+            print(f'labeling_time = {(labeling_time := label_timer.total)}')
 
         # extract subgraph
-        t_start = time.time()
-        subgraph_is_available = current_graph.extract_subgraph(specs_obj)
-        subgraph_extraction_time = time.time() - t_start
-        print(f'subgraph_extraction_time = {subgraph_extraction_time}')
+        subex_timer, extract_subgraph = Timer.from_function(current_graph.extract_subgraph)
+        subgraph_is_available = extract_subgraph(specs_obj)
         previous_subgraphs.append(current_graph.subgraph)
+        print(f'subgraph_extraction_time = {(subgraph_extraction_time := subex_timer.total)}')
 
         # todo:wip: export subgraph
-        folder = 'output/gv/subgraphs'
+        FS.mkdir(folder := 'output/gv/subgraphs')
         graph_path = f'{folder}/{specs_obj.current_benchmark}_et{specs_obj.et}_mode{specs_obj.extraction_mode}_omax{specs_obj.omax}.gv'
-        FS.mkdir(folder)
         current_graph.export_annotated_graph(graph_path)
         print(f'subgraph exported at {graph_path}')
 
@@ -159,18 +164,31 @@ def explore_grid(specs_obj: Specifications):
             # update the context
             update_context(specs_obj, lpp, ppo)
 
-            # run script
-            manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
-            start_time = time.time()
-            results = manager.run()
-            execution_time = time.time() - start_time
+            # convert from legacy graph to new architecture graph
+            e_graph = iograph_from_legacy(exact_graph)
+            s_graph = sgraph_from_legacy(current_graph)
 
-            cur_status = results[0].status
-            if cur_status in (UNSAT, UNKNOWN):
-                pprint.warning(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {cur_status.upper()}')
+            # define template (and constraints)
+            template_timer, define_template = Timer.from_function(get_templater(specs_obj).define)
+            p_graph, c_graph = define_template(s_graph, specs_obj)
+
+            # solve
+            solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
+            models = []
+            for _ in range(specs_obj.wanted_models):
+                status, model = solve((e_graph, p_graph, c_graph), specs_obj)
+                if status != 'sat': break
+                models.append(model)
+                c_graph = prevent_combination(c_graph, model)
+
+            # legacy adaptation
+            execution_time = template_timer.total + solve_timer.total
+
+            if len(models) == 0:
+                pprint.warning(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()}')
 
                 # store model
-                this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=specs_obj.et, iteration=specs_obj.iteration,
+                this_model_info = Model(id=0, status=status.upper(), cell=(lpp, ppo), et=specs_obj.et, iteration=specs_obj.iteration,
                                         labeling_time=labeling_time,
                                         subgraph_extraction_time=subgraph_extraction_time,
                                         subgraph_number_inputs=current_graph.subgraph_num_inputs,
@@ -178,30 +196,37 @@ def explore_grid(specs_obj: Specifications):
                                         subxpat_v1_time=execution_time)
                 stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
 
-                if cur_status == UNKNOWN:
+                if status == UNKNOWN:
                     # store cell as dominant (to skip dominated subgrid)
                     dominant_cells.append((lpp, ppo))
 
-            elif cur_status == SAT:
+            else:
+                pprint.success(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()} ({len(models)} models found)')
 
-                # synthesize all models and compute circuit specifications
-                synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
                 cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
-                for idx in range(synth_obj.num_of_models):
-                    synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
-                    synth_obj.export_verilog(idx=idx)
-                    synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
-                    cur_model_results[synth_obj.ver_out_name] = [
-                        synth_obj.estimate_area(),
-                        synth_obj.estimate_power(),
-                        synth_obj.estimate_delay(),
+                for _, model in enumerate(models):
+                    # finalize approximate graph
+                    a_graph = set_bool_constants(p_graph, model)
+
+                    # export approximate graph as verilog
+                    # TODO:#15: use serious name generator
+                    verilog_path = f'input/ver/{specs_obj.exact_benchmark}_{int(time.time())}.v'
+                    VerilogExporter.to_file(a_graph, verilog_path)
+
+                    # compute metrics
+                    metrics = MetricsEstimator.estimate_metrics(verilog_path)
+                    verilog_filename = verilog_path[10:]  # TODO: this should be kept as the path, we should update the usages to use the path instead of the name
+                    cur_model_results[verilog_filename] = [
+                        metrics.area,
+                        metrics.power,
+                        metrics.delay,
                         (lpp, ppo),
                         None,  # abs diff to exact
                         None  # abs diff to previous
                     ]
 
                 # todo: should we refactor with pandas?
-                with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{toolname}.csv", 'w') as f:
+                with open(f'{z3logpath.OUTPUT_PATH["report"][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{toolname}.csv', 'w') as f:
                     csvwriter = csv.writer(f)
 
                     header = list(range(len(cur_model_results)))
@@ -212,7 +237,7 @@ def explore_grid(specs_obj: Specifications):
                     csvwriter.writerow(content)
 
                 # verify all models and store errors
-                pprint.success('verifying all approximate circuits -> ', end='')
+                pprint.info1('verifying all approximate circuits ...')
                 for candidate_name, candidate_data in cur_model_results.items():
                     candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
                     candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
@@ -221,7 +246,8 @@ def explore_grid(specs_obj: Specifications):
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
                         stats_obj.store_grid()
                         return stats_obj
-                pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {specs_obj.iteration} -> {cur_status} ({synth_obj.num_of_models} models found)')
+
+                pprint.success('ErrorEval Verification PASSED')
 
                 # sort circuits
                 sorted_circuits = sorted(cur_model_results.items(), key=ft.cmp_to_key(model_compare))
@@ -233,7 +259,7 @@ def explore_grid(specs_obj: Specifications):
 
                 specs_obj.current_benchmark = best_name
                 best_model_info = Model(id=0,
-                                        status=cur_status.upper(),
+                                        status=status.upper(),
                                         cell=(lpp, ppo),
                                         et=best_data[4],
                                         iteration=specs_obj.iteration,
@@ -249,9 +275,7 @@ def explore_grid(specs_obj: Specifications):
                 stats_obj.grid.cells[lpp][ppo].store_model_info(best_model_info)
                 pprint.success(f'ErrorEval PASS! with total wce = {best_data[4]}')
 
-                exact_stats = [synth_obj.estimate_area(exact_file_path),
-                               synth_obj.estimate_power(exact_file_path),
-                               synth_obj.estimate_delay(exact_file_path)]
+                exact_stats = MetricsEstimator.estimate_metrics(exact_file_path)
                 print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
                 store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.current_benchmark, et=specs_obj.et,
                                     encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
@@ -260,7 +284,7 @@ def explore_grid(specs_obj: Specifications):
 
             prev_actual_error = 0
 
-        if cur_status == SAT and best_data[0] == 0:
+        if status == SAT and best_data[0] == 0:
             pprint.info3('Area zero found!\nTerminated.')
             break
 
@@ -378,7 +402,7 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
 
 
 def label_graph(current_graph: AnnotatedGraph,
-                min_labeling: bool = False,  partial: bool = False,
+                min_labeling: bool = False, partial: bool = False,
                 et: int = -1, parallel: bool = False):
     labels, _ = labeling_explicit(current_graph.name, current_graph.name,
                                   constant_value=0, min_labeling=min_labeling,
@@ -409,13 +433,33 @@ def node_matcher(n1: dict, n2: dict) -> bool:
 
 
 def model_compare(a, b) -> bool:
-    if a[1][0] < b[1][0]:
-        return -1
-    elif a[1][0] > b[1][0]:
-        return +1
-    elif a[1][4] < b[1][4]:
-        return -1
-    elif a[1][4] > b[1][4]:
-        return +1
-    else:
-        return 0
+    if a[1][0] < b[1][0]: return -1
+    elif a[1][0] > b[1][0]: return +1
+    elif a[1][4] < b[1][4]: return -1
+    elif a[1][4] > b[1][4]: return +1
+    else: return 0
+
+
+@dc.dataclass(init=False, repr=False, eq=False, frozen=True)
+class Timer:
+    from time import time as now
+    _C = TypeVar('_C', bound=Callable)
+
+    total: float = 0
+    last: float = 0
+
+    def wrap(self, function: _C) -> _C:
+        @ft.wraps(function)
+        def wrapper(*args, **kwds):
+            start_time = self.now()
+            result = function(*args, **kwds)
+            object.__setattr__(self, 'last', self.now() - start_time)
+            object.__setattr__(self, 'total', self.total + self.last)
+            return result
+        return wrapper
+
+    @classmethod
+    def from_function(cls, function: _C) -> Tuple[Timer, _C]:
+        timer = Timer()
+        wrapped = timer.wrap(function)
+        return (timer, wrapped)

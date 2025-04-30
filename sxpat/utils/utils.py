@@ -1,50 +1,9 @@
 # typing
-from __future__ import annotations
 from typing import Iterable, Callable, Any
 
+import functools as ft
 import time
 import colorama
-
-
-# Z3Log libs
-from Z3Log.config.config import TAB
-
-
-def indent_lines(lines: Iterable[str], indent_amount: int = 1) -> Iterable[str]:
-    """Indent the lines by the wanted amound."""
-    return (TAB * indent_amount + line for line in lines)
-
-
-def format_lines(lines: Iterable[str], indent_amount: int = 0, extra_newlines: int = 0) -> str:
-    """Join lines into a single string, indenting each line by the wanted amount and adding extra newlines at the end if needed."""
-    return "\n".join(indent_lines(lines, indent_amount)) + "\n" * (1 + extra_newlines)
-
-
-def unzip(it: Iterable) -> Iterable:
-    return zip(*it)
-
-
-# > Z3 functions
-def declare_z3_function(name: str, input_count: int, input_type: str, output_type: str) -> str:
-    """NOTE: If the input count is 0, then the result will be a variable and not a function"""
-    if input_count == 0:
-        # remove the sort-ref part, keep the pure type
-        output_type = output_type.replace("Sort()", "")
-        return f"{name} = {output_type}('{name}')"
-    else:
-        return f"{name} = z3.Function('{name}', {', '.join([input_type]*input_count)}, {output_type})"
-
-
-def declare_z3_gate(name: str) -> str:
-    return f"{name} = z3.Bool('{name}')"
-
-
-def call_z3_function(name: str, arguments: Iterable[str]) -> str:
-    """NOTE: If the arguments count is 0, then the result will be a variable use and not a function call"""
-    if len(arguments) == 0:
-        return name
-    else:
-        return f"{name}({', '.join(arguments)})"
 
 
 class color:
@@ -113,9 +72,7 @@ def augment(extra_parameters: Iterable[str]):
 
     def decorator(function):
         wrapper = function
-        for key in extra_parameters:
-            wrapper = decorators[key](wrapper)
-
+        for key in extra_parameters: wrapper = decorators[key](wrapper)
         return unpacker(wrapper, len(extra_parameters))
 
     return decorator
@@ -123,24 +80,27 @@ def augment(extra_parameters: Iterable[str]):
 
 def static(**vars):
     def decorate(func):
-        for k, v in vars.items():
-            setattr(func, k, v)
+        for (k, v) in vars.items(): setattr(func, k, v)
         return func
-
     return decorate
 
 
-if __name__ == "__main__":
-    pprint.e("ERROR", "some other", "message", [1, True, dict()])
-    pprint.w("WARNING", "some other", "message", [1, True, dict()])
-    pprint.s("SUCCESS", "some other", "message", [1, True, dict()])
-    pprint.i1("INFO 1", "some other", "message", [1, True, dict()])
-    pprint.i2("INFO 2", "some other", "message", [1, True, dict()])
-    pprint.i3("INFO 3", "some other", "message", [1, True, dict()])
+def cached(func):
+    """This decorator caches all results of the function, so that repeated calls do not run the computation again."""
+    return ft.wraps(func)(ft.lru_cache(maxsize=None)(func))
 
-    print(color.e("ERROR"), "some other", "message", [1, True, dict()])
-    print(color.w("WARNING"), "some other", "message", [1, True, dict()])
-    print(color.s("SUCCESS"), "some other", "message", [1, True, dict()])
-    print(color.i1("INFO 1"), "some other", "message", [1, True, dict()])
-    print(color.i2("INFO 2"), "some other", "message", [1, True, dict()])
-    print(color.i3("INFO 3"), "some other", "message", [1, True, dict()])
+
+if __name__ == '__main__':
+    pprint.e('ERROR', 'some other', 'message', [1, True, dict()])
+    pprint.w('WARNING', 'some other', 'message', [1, True, dict()])
+    pprint.s('SUCCESS', 'some other', 'message', [1, True, dict()])
+    pprint.i1('INFO 1', 'some other', 'message', [1, True, dict()])
+    pprint.i2('INFO 2', 'some other', 'message', [1, True, dict()])
+    pprint.i3('INFO 3', 'some other', 'message', [1, True, dict()])
+
+    print(color.e('ERROR'), 'some other', 'message', [1, True, dict()])
+    print(color.w('WARNING'), 'some other', 'message', [1, True, dict()])
+    print(color.s('SUCCESS'), 'some other', 'message', [1, True, dict()])
+    print(color.i1('INFO 1'), 'some other', 'message', [1, True, dict()])
+    print(color.i2('INFO 2'), 'some other', 'message', [1, True, dict()])
+    print(color.i3('INFO 3'), 'some other', 'message', [1, True, dict()])
