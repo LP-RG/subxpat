@@ -49,7 +49,7 @@ def explore_grid(specs_obj: Specifications):
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
         if orig_et <= 8:
-            et_array = iter(list(range(1, orig_et +1, 1)))
+            et_array = iter(list(range(1, orig_et + 1, 1)))
         else:
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
@@ -138,13 +138,15 @@ def explore_grid(specs_obj: Specifications):
             continue
 
         # guard: skip if the subraph is equal to the previous one
-        # if (
-        #     len(previous_subgraphs) >= 2
-        #     and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
-        # ):
-        #     pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
-        #     prev_actual_error = 0
-        #     continue
+        # note:  does not apply for extraction mode 6
+        if (
+            specs_obj.extraction_mode != 6
+            and len(previous_subgraphs) >= 2
+            and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
+        ):
+            pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
+            prev_actual_error = 0
+            continue
 
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
@@ -378,7 +380,7 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
 
 
 def label_graph(current_graph: AnnotatedGraph,
-                min_labeling: bool = False,  partial: bool = False,
+                min_labeling: bool = False, partial: bool = False,
                 et: int = -1, parallel: bool = False):
     labels, _ = labeling_explicit(current_graph.name, current_graph.name,
                                   constant_value=0, min_labeling=min_labeling,

@@ -2110,17 +2110,14 @@ class AnnotatedGraph(Graph):
         if len(weights) == 0: return self.get_null_subgraph()
         min_weight = max(0, min(weights))
         max_weight = min(saved_et, max(weights))
-        print(weights, min_weight, max_weight, saved_et)
 
         # use linear partition to find best match in weights
         partition_step = (max_weight - min_weight) / (8 - 1)
         linear_partition = [min_weight + partition_step * i for i in range(8)]
-        print(linear_partition, partition_step)
         actual_partition = sorted(frozenset(
             min(weights, key=lambda w: abs(w - p))
             for p in linear_partition
         ))
-        print(actual_partition)
 
         # find subgraph
         # NOTE: given that the node with the smallest weight is a valid subgraph, this loop should only iterate once
