@@ -49,6 +49,7 @@ class Paths:
         ('verilog', str),
         ('solver_scripts', str),
     ])
+    _output_default_base = 'output'
     _output_graphviz_postdir = 'graphviz'
     _output_verilog_postdir = 'verilog'
     _output_solver_scripts_postdir = 'scripts'
@@ -57,11 +58,10 @@ class Paths:
         ('liberty', str),
         ('abc_script', str),
     ])
-    _config_default_base = 'config'
-    _config_liberty_default = 'gscl45nm.lib'
-    _config_abc_script_default = 'abc.script'
+    _config_liberty_default = 'config/gscl45nm.lib'
+    _config_abc_script_default = 'config/abc.script'
 
-    def __init__(self, output_base: str) -> None:
+    def __init__(self, output_base: str = _output_default_base) -> None:
         output_base = output_base.rstrip('/')
         self.output = self._Output(
             f'{output_base}/{self._output_graphviz_postdir}',
@@ -69,14 +69,14 @@ class Paths:
             f'{output_base}/{self._output_solver_scripts_postdir}',
         )
         self.config = self._Config(
-            f'{self._config_default_base}/{self._config_liberty_default}',
-            f'{self._config_default_base}/{self._config_abc_script_default}',
+            self._config_liberty_default,
+            self._config_abc_script_default,
         )
 
 
 @dc.dataclass
 class Specifications:
-    # files
+    # benchmark
     exact_benchmark: str
     current_benchmark: str  # rw
 
@@ -115,6 +115,7 @@ class Specifications:
     error_partitioning: ErrorPartitioningType
 
     # other
+    # path: Paths
     timeout: float
     parallel: bool
     plot: bool
@@ -131,7 +132,7 @@ class Specifications:
         return self.max_pit + 3
 
     @property
-    def template_name(self):
+    def template_name(self) -> str:
         return {
             TemplateType.NON_SHARED: 'Sop1',
             TemplateType.SHARED: 'SharedLogic',
@@ -175,7 +176,7 @@ class Specifications:
                                          epilog='Developed by Prof. Pozzi research team',
                                          formatter_class=argparse.RawTextHelpFormatter)
 
-        # > files stuff
+        # > benchmark
 
         _ex_bench = parser.add_argument(metavar='exact-benchmark',
                                         dest='exact_benchmark',
@@ -242,8 +243,8 @@ class Specifications:
 
         _template = parser.add_argument('--template',
                                         type=TemplateType,
-                                        default=TemplateType.NON_SHARED,
                                         action=EnumChoicesAction,
+                                        default=TemplateType.NON_SHARED,
                                         help='Template logic (default: nonshared)')
 
         _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
