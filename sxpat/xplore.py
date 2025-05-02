@@ -22,7 +22,7 @@ from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 
-from sxpat.templating import NonSharedTemplate, NonShared2Template, get_specialized as get_templater
+from sxpat.templating import NonSharedFOutTemplate, NonSharedFProdTemplate, get_specialized as get_templater
 from sxpat.solving import get_specialized as get_solver
 
 from sxpat.converting import VerilogExporter
@@ -289,7 +289,6 @@ class CellIterator:
     def factory(cls, specs: Specifications) -> Iterator[Tuple[int, int]]:
         return {
             TemplateType.NON_SHARED: cls.non_shared,
-            TemplateType.NON_SHARED_2: cls.non_shared,
             TemplateType.SHARED: cls.shared,
         }[specs.template](specs)
 
@@ -410,7 +409,6 @@ def get_toolname(specs_obj: Specifications) -> str:
         (False, TemplateType.NON_SHARED): ('XPAT', sxpatconfig.XPAT),
         (False, TemplateType.SHARED): ('Shared XPAT', sxpatconfig.SHARED_XPAT),
         (True, TemplateType.NON_SHARED): ('SubXPAT', sxpatconfig.SUBXPAT),
-        (True, TemplateType.NON_SHARED_2): ('SubXPAT NS2', sxpatconfig.SUBXPAT),
         (True, TemplateType.SHARED): ('Shared SubXPAT', sxpatconfig.SHARED_SUBXPAT),
     }[(specs_obj.subxpat, specs_obj.template)]
 

@@ -10,7 +10,7 @@ from sxpat.specifications import ConstantsType, Specifications
 from sxpat.utils.collections import flat, iterable_replace, pairwise
 
 
-__all__ = ['NonSharedTemplate', 'NonShared2Template']
+__all__ = ['NonSharedFOutTemplate', 'NonSharedFProdTemplate']
 
 
 class _NonSharedBase:
@@ -140,7 +140,7 @@ class _NonSharedBase:
         return nodes
 
 
-class NonSharedTemplate(Template, _NonSharedBase):
+class NonSharedFOutTemplate(Template, _NonSharedBase):
     """
         Class for defining the non-shared template in a subgraph annotated graph.
 
@@ -254,7 +254,7 @@ class NonSharedTemplate(Template, _NonSharedBase):
         return (template_graph, constraint_graph)
 
 
-class NonShared2Template(Template, _NonSharedBase):
+class NonSharedFProdTemplate(Template, _NonSharedBase):
     """
         Base class for defining the non-shared template in a subgraph annotated graph.
         This variant changes how the constant false can appear.

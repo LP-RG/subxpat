@@ -25,13 +25,17 @@ class EncodingType(enum.Enum):
 
 class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
-    NON_SHARED_2 = 'nonshared2'
     SHARED = 'shared'
 
 
 class ConstantsType(enum.Enum):
     NEVER = 'never'
     ALWAYS = 'always'
+
+
+class ConstantFalseType(enum.Enum):
+    OUTPUT = 'output'
+    PRODUCT = 'product'
 
 
 class EnumChoicesAction(argparse.Action):
@@ -99,6 +103,7 @@ class Specifications:
     template: TemplateType
     encoding: EncodingType
     constants: ConstantsType
+    constant_false: ConstantFalseType
     wanted_models: int
     iteration: int = dc.field(init=False, default=None)  # rw
     # exploration (2)
@@ -136,7 +141,6 @@ class Specifications:
     def template_name(self) -> str:
         return {
             TemplateType.NON_SHARED: 'Sop1',
-            TemplateType.NON_SHARED_2: 'Sop2',
             TemplateType.SHARED: 'SharedLogic',
         }[self.template]
 
@@ -161,7 +165,6 @@ class Specifications:
     def grid_param_1(self) -> int:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_lpp,
-            TemplateType.NON_SHARED_2: lambda: self.max_lpp,
             TemplateType.SHARED: lambda: self.max_its,
         }[self.template]()
 
@@ -169,7 +172,6 @@ class Specifications:
     def grid_param_2(self) -> int:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_ppo,
-            TemplateType.NON_SHARED_2: lambda: self.max_ppo,
             TemplateType.SHARED: lambda: self.max_pit,
         }[self.template]()
 
@@ -248,6 +250,12 @@ class Specifications:
                                       action=EnumChoicesAction,
                                       default=ConstantsType.NEVER,
                                       help='Usage of constants (default: never)')
+
+        _const_f = parser.add_argument('--constant-false',
+                                       type=ConstantFalseType,
+                                       action=EnumChoicesAction,
+                                       default=ConstantFalseType.OUTPUT,
+                                       help='Representation of false constants from the subgraph (default: output)')
 
         _template = parser.add_argument('--template',
                                         type=TemplateType,
