@@ -189,9 +189,8 @@ def explore_grid(specs_obj: Specifications):
                                         subxpat_v1_time=execution_time)
                 stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
 
-                if status == UNKNOWN:
-                    # store cell as dominant (to skip dominated subgrid)
-                    dominant_cells.append((lpp, ppo))
+                # store cell as dominant (to skip dominated subgrid)
+                if status == UNKNOWN: dominant_cells.append((lpp, ppo))
 
             else:
                 pprint.success(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()} ({len(models)} models found)')
