@@ -78,16 +78,16 @@ class _NonSharedBase:
         # skip if constant rewriting is not needed
         if specs.constants is not ConstantsType.ALWAYS: return []
 
-        constants_rewriting = []
+        constants_parameters = []
 
         # for all constants
         for const in a_graph.constants:
             # if the constants is at the graph output
             if len(succs := a_graph.successors(const)) == 1 and (out_i := a_graph.output_index_of(succ := succs[0])) >= 0:
-                constants_rewriting.append(const_rew := BoolVariable(f'p_c{out_i}'))
+                constants_parameters.append(const_rew := BoolVariable(f'p_c{out_i}'))
                 updated_nodes[succ.name] = succ.copy(operands=(const_rew,))  # by definition, the output node has no other operand
 
-        return constants_rewriting
+        return constants_parameters
 
     @classmethod
     def error_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int) -> Sequence[Union[Node, Constraint]]:
@@ -198,7 +198,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                 constants_rewriting,
             ),
             a_graph.inputs_names, a_graph.outputs_names,
-            (n.name for n in flat((out_prod_mux_params, outs_p)))
+            (n.name for n in flat((out_prod_mux_params, outs_p, constants_rewriting)))
         )
 
         # > Constraints Graph
@@ -229,14 +229,14 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         # target definition
         targets = [
             Target(f't_{param.name}', operands=(param.name,))
-            for param in flat((out_prod_mux_params, outs_p))
+            for param in flat((out_prod_mux_params, outs_p, constants_rewriting))
         ]
 
         # create constraints graph
         constraint_graph = CGraph(
             it.chain(  # nodes
                 # placeholders
-                (PlaceHolder(node.name) for node in flat((out_prod_mux_params, outs_p))),
+                (PlaceHolder(node.name) for node in flat((out_prod_mux_params, outs_p, constants_rewriting))),
                 (PlaceHolder(name) for name in s_graph.outputs_names),
                 (PlaceHolder(name) for name in template_graph.outputs_names),
                 # behavioural constraints
