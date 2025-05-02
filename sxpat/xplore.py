@@ -37,6 +37,9 @@ from sxpat.utils.utils import pprint
 from sxpat.solving.QbfSolver import *
 
 def explore_grid(specs_obj: Specifications):
+    divide_et_for_slash = 4
+    used_et_for_slash = specs_obj.max_error // divide_et_for_slash
+
     previous_subgraphs = []
 
     labeling_time: float = -1
@@ -65,9 +68,8 @@ def explore_grid(specs_obj: Specifications):
         else:
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
-    don = False
-    while (not don):
-        don = True
+
+    while (obtained_wce_exact < specs_obj.max_error):
         specs_obj.iteration += 1
         if not specs_obj.subxpat:
             if prev_actual_error == 0:
@@ -95,7 +97,6 @@ def explore_grid(specs_obj: Specifications):
         else:
             raise NotImplementedError('invalid status')
 
-        specs_obj.et = specs_obj.max_error
         if specs_obj.et > specs_obj.max_error or specs_obj.et <= 0:
             break
 
@@ -107,6 +108,8 @@ def explore_grid(specs_obj: Specifications):
             specs_obj.current_benchmark = specs_obj.current_benchmark[:-2]
         pprint.info1(f'benchmark {specs_obj.current_benchmark}')
 
+        if specs_obj.iteration > 1 and specs_obj.et < used_et_for_slash:
+            continue
         # > grid step settings
 
         # import the graph
@@ -124,10 +127,16 @@ def explore_grid(specs_obj: Specifications):
             print(f'labeling_time = {(labeling_time := label_timer.total)}')
 
         # extract subgraph
+        if specs_obj.iteration == 1:
+            saved_et = specs_obj.et
+            saved_mode = specs_obj.extraction_mode
+            specs_obj.et = used_et_for_slash
+            specs_obj.extraction_mode = 100
         subex_timer, extract_subgraph = Timer.from_function(current_graph.extract_subgraph)
         subgraph_is_available = extract_subgraph(specs_obj)
         previous_subgraphs.append(current_graph.subgraph)
         print(f'subgraph_extraction_time = {(subgraph_extraction_time := subex_timer.total)}')
+        specs_obj.extraction_mode = saved_mode
 
         # todo:wip: export subgraph
         FS.mkdir(folder := 'output/gv/subgraphs')
@@ -173,24 +182,24 @@ def explore_grid(specs_obj: Specifications):
 
             # solve
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
-            solve2 = QbfSolver.solve
+            # solve2 = QbfSolver.solve
             models = []
             for _ in range(specs_obj.wanted_models):
                 start = time.perf_counter()
                 status, model = solve((e_graph, p_graph, c_graph), specs_obj)
-                print('z3Solver =',time.perf_counter() - start)
-                start = time.perf_counter()
-                status2, model2 = solve2((e_graph, p_graph, c_graph), specs_obj)
-                print('qbfSolver =',time.perf_counter() - start)
-                try:
-                    assert(status == status2)
-                except:
-                    print('failed',status, status2)
-                    print(model)
-                    GraphVizPorter.to_file(e_graph, 'e_graph')
-                    GraphVizPorter.to_file(p_graph, 'p_graph')
-                    GraphVizPorter.to_file(c_graph, 'c_graph')
-                    # exit()
+                print('Solver =',time.perf_counter() - start)
+                # start = time.perf_counter()
+                # status2, model2 = solve2((e_graph, p_graph, c_graph), specs_obj)
+                # print('qbfSolver =',time.perf_counter() - start)
+                # try:
+                #     assert(status == status2)
+                # except:
+                #     print('failed',status, status2)
+                #     print(model)
+                #     GraphVizPorter.to_file(e_graph, 'e_graph')
+                #     GraphVizPorter.to_file(p_graph, 'p_graph')
+                #     GraphVizPorter.to_file(c_graph, 'c_graph')
+                #     # exit()
                 if status != 'sat': break
                 models.append(model)
                 c_graph = prevent_combination(c_graph, model)
