@@ -1,6 +1,7 @@
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional
 
 import re
+import math
 import itertools as it
 
 from sxpat.graph import *
@@ -154,11 +155,13 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
                 for n in graph.predecessors(node):
                     bitwidth_of[n.name] = max_bitwidth
 
-        # trivial case
+        # trivial cases
+        elif isinstance(node, IntConstant) and node.name not in bitwidth_of:
+            bitwidth_of[node.name] = math.ceil(math.log(node.value, 2))
         elif isinstance(node, ToInt) and node.name not in bitwidth_of:
             bitwidth_of[node.name] = len(node.operands)
 
-        # dynamic case
+        # dynamic case (the bitwidth of the current node must be larger or equal to that of the largest predecessor/successor)
         else:
             max_bitwidth = max(
                 bitwidth_of.get(n.name, 0)
