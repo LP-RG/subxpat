@@ -10,7 +10,7 @@ from sxpat.specifications import ConstantsType, Specifications
 from sxpat.utils.collections import flat, iterable_replace, pairwise
 
 
-__all__ = ['NonSharedTemplate']
+__all__ = ['NonSharedTemplate', 'NonShared2Template']
 
 
 class _NonSharedBase:
@@ -246,6 +246,121 @@ class NonSharedTemplate(Template, _NonSharedBase):
                 mux_red_nodes,
                 const0_red_nodes,
                 cls.products_order_redundancy(out_prod_mux_params),
+                # targets
+                targets,
+            )
+        )
+
+        return (template_graph, constraint_graph)
+
+
+class NonShared2Template(Template, _NonSharedBase):
+    """
+        Base class for defining the non-shared template in a subgraph annotated graph.
+        This variant changes how the constant false can appear.
+
+        @authors: Marco Biasion, Francesco Costa
+    """
+
+    @classmethod
+    def define(cls, s_graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:
+        # get prefixed graph
+        a_graph: SGraph = set_prefix(s_graph, 'a_')
+
+        # > Template Graph
+
+        # construct products
+        (products, out_prod_mux_params, multiplexers) = cls.construct_products(a_graph, specs.ppo)
+
+        # construct sums
+        sums = cls.construct_sums(a_graph, products)
+
+        # update all output successors to descend from new outputs (sums)
+        updated_nodes: Dict[str, OperationNode] = dict()
+        for (out_node, sum_node) in zip(a_graph.subgraph_outputs, sums):
+            for succ in filter(lambda n: not n.in_subgraph, a_graph.successors(out_node)):
+                succ = updated_nodes.get(succ.name, succ)
+                new_operands = iterable_replace(succ.operands, succ.operands.index(out_node.name), sum_node.name)
+                updated_nodes[succ.name] = succ.copy(operands=new_operands)
+
+        # create template graph
+        template_graph = PGraph(
+            it.chain(  # nodes
+                (  # unchanged nodes
+                    n
+                    for n in a_graph.nodes
+                    if not n.in_subgraph
+                    if n.name not in updated_nodes
+                ),
+                # changed nodes
+                updated_nodes.values(),
+                # products and relative operands
+                multiplexers, flat(products),
+                flat(out_prod_mux_params),
+                # sums and relative operands
+                sums,
+                # output constant rewriting
+                cls.constants_rewriting(a_graph, updated_nodes, specs),
+            ),
+            a_graph.inputs_names, a_graph.outputs_names,
+            (n.name for n in flat(out_prod_mux_params))
+        )
+
+        # > Constraints Graph
+
+        # multiplexer constF redundancy and product constF redundancy
+        prevent_mux_constF = []
+        constF_red_nodes = []
+        for (out_i, prod_o) in enumerate(out_prod_mux_params):
+            firsts_false: List[Node] = []
+            for (prod_i, prod_p) in enumerate(prod_o):
+                first, *rest = enumerate(prod_p)
+
+                # prevent multiplexer constF for all except first
+                for (in_i, (p_usage, p_assert)) in rest:
+                    prevent_mux_constF.append(Or(f'prevent_constF_o{out_i}_p{prod_i}_i{in_i}', operands=(p_usage, p_assert)))
+
+                # if the first multiplexer outputs constF, force all other multiplexers to output the constant too
+                (_, (first_usage_p, first_assert_p)) = first
+                constF_red_nodes.extend((
+                    # first is const false
+                    is_not_constF := Or(f'is_not_constF_o{out_i}_p{prod_i}', operands=(first_usage_p, first_assert_p)),
+                    is_first_false := Not(f'first_false_o{out_i}_p{prod_i}', operands=(is_not_constF,)),
+                    # rest is constant
+                    any_use := Or(f'any_usage_o{out_i}_p{prod_i}', operands=(p_usage for (p_usage, _) in prod_p)),
+                    not_any_use := Not(f'not_{any_use.name}', operands=(any_use,)),
+                    force_if_false := Implies(f'force_o{out_i}_p{prod_i}_const_if_first_mux_false', operands=(is_first_false, not_any_use)),
+                ))
+                firsts_false.append(is_first_false)
+
+            # force products to be either all constants or noone constant
+            constF_red_nodes.extend((
+                all_prods_const := And(f'all_prods_const_o{out_i}', operands=firsts_false),
+                some_prods_const := Or(f'some_prods_const_o{out_i}', operands=firsts_false),
+                none_prod_const := Not(f'none_prod_const_o{out_i}', operands=(some_prods_const,)),
+                all_or_none := Or(f'all_or_none_const_o{out_i}', operands=(all_prods_const, none_prod_const)),
+            ))
+
+        # target definition
+        targets = [
+            Target(f't_{param.name}', operands=(param.name,))
+            for param in flat(out_prod_mux_params)
+        ]
+
+        # create constraints graph
+        constraint_graph = CGraph(
+            it.chain(  # nodes
+                # placeholders
+                (PlaceHolder(node.name) for node in flat(out_prod_mux_params)),
+                (PlaceHolder(name) for name in s_graph.outputs_names),
+                (PlaceHolder(name) for name in template_graph.outputs_names),
+                # behavioural constraints
+                cls.error_constraint(s_graph, template_graph, specs.et),
+                cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
+                # redundancy constraints
+                prevent_mux_constF,
+                constF_red_nodes,
+                *cls.products_order_redundancy(out_prod_mux_params),
                 # targets
                 targets,
             )

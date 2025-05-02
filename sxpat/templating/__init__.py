@@ -3,12 +3,12 @@ from sxpat.specifications import Specifications, TemplateType
 
 from .Template import Template
 from .SharedTemplate import SharedTemplate
-from .NonSharedTemplate import NonSharedTemplate
+from .NonSharedTemplate import NonSharedTemplate, NonShared2Template
 
 
 __all__ = ['get_specialized',
            'Template',
-           'SharedTemplate', 'NonSharedTemplate',]
+           'SharedTemplate', 'NonSharedTemplate', 'NonShared2Template']
 
 
 def get_specialized(specs: Specifications) -> Type[Template]:
@@ -16,4 +16,5 @@ def get_specialized(specs: Specifications) -> Type[Template]:
     return {
         TemplateType.SHARED: SharedTemplate,
         TemplateType.NON_SHARED: NonSharedTemplate,
+        TemplateType.NON_SHARED_2: NonShared2Template,
     }[specs.template]

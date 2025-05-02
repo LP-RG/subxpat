@@ -185,6 +185,7 @@ class Cell:
         self.__approximate_name: str = spec_obj.current_benchmark
         self.__lpp, self.__ppo = {
             TemplateType.NON_SHARED: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
+            TemplateType.NON_SHARED_2: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
             TemplateType.SHARED: lambda: (spec_obj.max_its, spec_obj.max_pit),
         }[spec_obj.template]()
 
@@ -233,6 +234,7 @@ class Grid:
 
         self.__lpp, self.__ppo = {
             TemplateType.NON_SHARED: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
+            TemplateType.NON_SHARED_2: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
             TemplateType.SHARED: lambda: (spec_obj.max_its, spec_obj.max_pit),
         }[spec_obj.template]()
 
@@ -284,6 +286,7 @@ class Stats:
 
         self.__lpp, self.__ppo = {
             TemplateType.NON_SHARED: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
+            TemplateType.NON_SHARED_2: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
             TemplateType.SHARED: lambda: (spec_obj.max_its, spec_obj.max_pit),
         }[spec_obj.template]()
 
@@ -293,6 +296,7 @@ class Stats:
             (False, TemplateType.NON_SHARED): sxpatconfig.XPAT,
             (False, TemplateType.SHARED): sxpatconfig.SHARED_XPAT,
             (True, TemplateType.NON_SHARED): sxpatconfig.SUBXPAT,
+            (True, TemplateType.NON_SHARED_2): sxpatconfig.SUBXPAT,
             (True, TemplateType.SHARED): sxpatconfig.SHARED_SUBXPAT,
         }[(spec_obj.subxpat, spec_obj.template)]
 

@@ -25,6 +25,7 @@ class EncodingType(enum.Enum):
 
 class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
+    NON_SHARED_2 = 'nonshared2'
     SHARED = 'shared'
 
 
@@ -135,8 +136,13 @@ class Specifications:
     def template_name(self) -> str:
         return {
             TemplateType.NON_SHARED: 'Sop1',
+            TemplateType.NON_SHARED_2: 'Sop2',
             TemplateType.SHARED: 'SharedLogic',
         }[self.template]
+
+    # @property
+    # def tool_name(self) -> str:
+    #     return f'{"Sub" if self.subxpat else ""}XPAT'
 
     @property
     def requires_subgraph_extraction(self) -> bool:
@@ -155,6 +161,7 @@ class Specifications:
     def grid_param_1(self) -> int:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_lpp,
+            TemplateType.NON_SHARED_2: lambda: self.max_lpp,
             TemplateType.SHARED: lambda: self.max_its,
         }[self.template]()
 
@@ -162,6 +169,7 @@ class Specifications:
     def grid_param_2(self) -> int:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_ppo,
+            TemplateType.NON_SHARED_2: lambda: self.max_ppo,
             TemplateType.SHARED: lambda: self.max_pit,
         }[self.template]()
 

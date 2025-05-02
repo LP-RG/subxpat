@@ -187,6 +187,7 @@ class AnnotatedGraph(Graph):
             (False, TemplateType.NON_SHARED): XPAT,
             (False, TemplateType.SHARED): SHARED_XPAT,
             (True, TemplateType.NON_SHARED): SUBXPAT,
+            (True, TemplateType.NON_SHARED_2): SUBXPAT,
             (True, TemplateType.SHARED): SHARED_SUBXPAT,
         }[(specs_obj.subxpat, specs_obj.template)]
 
