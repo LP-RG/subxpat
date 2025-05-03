@@ -37,6 +37,7 @@ from sxpat.utils.utils import pprint
 from sxpat.solving.QbfSolver import *
 
 def explore_grid(specs_obj: Specifications):
+    lollo_start = time.perf_counter()
     divide_et_for_slash = 4
     used_et_for_slash = specs_obj.max_error // divide_et_for_slash
 
@@ -108,6 +109,10 @@ def explore_grid(specs_obj: Specifications):
             specs_obj.current_benchmark = specs_obj.current_benchmark[:-2]
         pprint.info1(f'benchmark {specs_obj.current_benchmark}')
 
+        if specs_obj.iteration == 2:
+            specs_obj.min_labeling = True
+        else:
+            specs_obj.min_labeling = False
         if specs_obj.iteration > 1 and specs_obj.et < used_et_for_slash:
             continue
         # > grid step settings
@@ -314,6 +319,7 @@ def explore_grid(specs_obj: Specifications):
             break
 
     stats_obj.store_grid()
+    print(f'Lollo_total = {time.perf_counter() - lollo_start}')
     return stats_obj
 
 
