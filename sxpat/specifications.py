@@ -215,8 +215,8 @@ class Specifications:
         _consts = parser.add_argument('--constants',
                                       type=ConstantsType,
                                       action=EnumChoicesAction,
-                                      default=ConstantsType.NEVER,
-                                      help='Usage of constants (default: never)')
+                                      default=ConstantsType.ALWAYS,
+                                      help='Usage of constants (default: always)')
 
         _template = parser.add_argument('--template',
                                         type=TemplateType,
