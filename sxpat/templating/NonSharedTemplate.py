@@ -15,7 +15,7 @@ __all__ = ['NonSharedFOutTemplate', 'NonSharedFProdTemplate']
 
 class _NonSharedBase:
     """
-       Base class for non shared templates.  
+       Base class for non shared templates.
        Includes common utilities.
 
        @authors: Marco Biasion
@@ -178,6 +178,8 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         # constants rewriting
         constants_rewriting = cls.constants_rewriting(a_graph, updated_nodes, specs)
 
+        parameters = list(it.chain(flat(out_prod_mux_params), outs_p, constants_rewriting))
+
         # create template graph
         template_graph = PGraph(
             it.chain(  # nodes
@@ -198,13 +200,13 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                 constants_rewriting,
             ),
             a_graph.inputs_names, a_graph.outputs_names,
-            (n.name for n in flat((out_prod_mux_params, outs_p, constants_rewriting)))
+            (n.name for n in parameters)
         )
 
         # > Constraints Graph
 
         # multiplexer redundancy
-        mux_red_nodes = tuple(flat((
+        mux_red_nodes = tuple(it.chain.from_iterable(
             (
                 prevent_n := Or(f'prevent_constF_{out_i}_{prod_i}_{in_i}', operands=(p_usage.name, p_assert.name)),
                 Constraint.of(prevent_n),
@@ -212,10 +214,10 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
             for (out_i, prod_o) in enumerate(out_prod_mux_params)
             for (prod_i, prod_p) in enumerate(prod_o)
             for (in_i, (p_usage, p_assert)) in enumerate(prod_p)
-        )))
+        ))
 
         # constant zero redundancy
-        const0_red_nodes = list(flat(
+        const0_red_nodes = list(it.chain.from_iterable(
             (
                 not_p_o := Not(f'not_{p_o.name}', operands=(p_o.name,)),
                 or_ps := Or(f'or_sum_in_{sum_i}', operands=(p_usage.name for prods_p in p_o_t for (p_usage, p_assert) in prods_p)),
@@ -226,19 +228,15 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
             for sum_i, (p_o, p_o_t) in enumerate(zip(outs_p, out_prod_mux_params))
         ))
 
-        # target definition
-        targets = [
-            Target(f't_{param.name}', operands=(param.name,))
-            for param in flat((out_prod_mux_params, outs_p, constants_rewriting))
-        ]
-
         # create constraints graph
         constraint_graph = CGraph(
             it.chain(  # nodes
                 # placeholders
-                (PlaceHolder(node.name) for node in flat((out_prod_mux_params, outs_p, constants_rewriting))),
-                (PlaceHolder(name) for name in s_graph.outputs_names),
-                (PlaceHolder(name) for name in template_graph.outputs_names),
+                (PlaceHolder(name) for name in it.chain(
+                    (p.name for p in parameters),
+                    s_graph.outputs_names,
+                    template_graph.outputs_names
+                )),
                 # behavioural constraints
                 cls.error_constraint(s_graph, template_graph, specs.et),
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
@@ -247,7 +245,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                 const0_red_nodes,
                 cls.products_order_redundancy(out_prod_mux_params),
                 # targets
-                targets,
+                (Target.of(param) for param in parameters),
             )
         )
 
@@ -283,6 +281,11 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
                 new_operands = iterable_replace(succ.operands, succ.operands.index(out_node.name), sum_node.name)
                 updated_nodes[succ.name] = succ.copy(operands=new_operands)
 
+        # constants rewriting
+        constants_rewriting = cls.constants_rewriting(a_graph, updated_nodes, specs)
+
+        parameters = list(it.chain(flat(out_prod_mux_params), constants_rewriting))
+
         # create template graph
         template_graph = PGraph(
             it.chain(  # nodes
@@ -300,10 +303,10 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
                 # sums and relative operands
                 sums,
                 # output constant rewriting
-                cls.constants_rewriting(a_graph, updated_nodes, specs),
+                constants_rewriting,
             ),
             a_graph.inputs_names, a_graph.outputs_names,
-            (n.name for n in flat(out_prod_mux_params))
+            (n.name for n in parameters)
         )
 
         # > Constraints Graph
@@ -341,28 +344,24 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
                 all_or_none := Or(f'all_or_none_const_o{out_i}', operands=(all_prods_const, none_prod_const)),
             ))
 
-        # target definition
-        targets = [
-            Target(f't_{param.name}', operands=(param.name,))
-            for param in flat(out_prod_mux_params)
-        ]
-
         # create constraints graph
         constraint_graph = CGraph(
             it.chain(  # nodes
                 # placeholders
-                (PlaceHolder(node.name) for node in flat(out_prod_mux_params)),
-                (PlaceHolder(name) for name in s_graph.outputs_names),
-                (PlaceHolder(name) for name in template_graph.outputs_names),
+                (PlaceHolder(name) for name in it.chain(
+                    (p.name for p in parameters),
+                    s_graph.outputs_names,
+                    template_graph.outputs_names
+                )),
                 # behavioural constraints
                 cls.error_constraint(s_graph, template_graph, specs.et),
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
                 # redundancy constraints
                 prevent_mux_constF,
                 constF_red_nodes,
-                *cls.products_order_redundancy(out_prod_mux_params),
+                cls.products_order_redundancy(out_prod_mux_params),
                 # targets
-                targets,
+                (Target.of(param) for param in parameters),
             )
         )
 
