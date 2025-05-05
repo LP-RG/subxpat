@@ -59,7 +59,7 @@ class OperationNode(Node):
     def __post_init__(self, required_operands_count: int = None):
         object.__setattr__(self, 'operands', tuple(i.name if isinstance(i, Node) else i for i in self.operands))
         if required_operands_count is not None and len(self.operands) != required_operands_count:
-            raise RuntimeError(f'Wrong operands count (expected {required_operands_count}) in node {self.name} of class {type(self).__name__} but {len(self.operands)} were given.')
+            raise RuntimeError(f'Wrong operands count: {len(self.operands)} were given (expected {required_operands_count}) in node {self.name} of class {type(self).__name__}.')
 
     def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None, operands: Iterable[Node] = None, **update) -> Self:
         if operands is not None: update['operands'] = operands
