@@ -15,8 +15,8 @@ __all__ = [
 
 
 class Dependency:
-    SrcItem = Union[argparse.Action, Tuple[argparse.Action, Any]]
-    TrgtItem = Union[argparse.Action, Tuple[argparse.Action, List[Any]]]
+    SourceItem = Union[argparse.Action, Tuple[argparse.Action, Any]]
+    TargetItem = Union[argparse.Action, Tuple[argparse.Action, List[Any]]]
 
 
 class ErrorPartitioningType(enum.Enum):
@@ -338,55 +338,57 @@ class Specifications:
         # the structure for each dependency is:
         # - source: [target0, ..., targetN]
         # a source must be either:
-        # - (argument_object, value) # here the dependency is checked only if the argument has the given value
-        # - argument_object          # here the dependency is checked no matter the actual value
+        # - (argument_object, value) # the dependency is checked only if the argument has the given value
+        # - argument_object          # the dependency is checked no matter the actual value
         # a target must be either:
-        # - (argument_object, value) # here the dependency is accepted only if the argument has the given value
-        # - argument_object          # here the dependency is accepted if the argument is present
-        dependencies: Dict[Dependency.SrcItem, List[Dependency.TrgtItem]] = {
+        # - (argument_object, value) # the dependency is accepted if the argument has the given value
+        # - argument_object          # the dependency is accepted if the argument is present
+        dependencies: Dict[Dependency.SourceItem, List[Dependency.TargetItem]] = {
             (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
+            # template variants only implemented by some templates
+            (_const_f, ConstantFalseType.PRODUCT): [(_template, [TemplateType.NON_SHARED])],
         }
 
         # check dependencies
         for (source, targets) in dependencies.items():
-            src_has_value = isinstance(source, tuple)
-            src_action = source[0] if src_has_value else source
-            if src_has_value: src_value = source[1]
+            source_has_value = isinstance(source, tuple)
+            source_action = source[0] if source_has_value else source
+            if source_has_value: source_value = source[1]
 
             # skip if source not present
-            if not hasattr(raw_args, src_action.dest): continue
+            if not hasattr(raw_args, source_action.dest): continue
             # skip if source wants a specific value which is not the current one
-            if src_has_value and src_value != getattr(raw_args, src_action.dest): continue
+            if source_has_value and source_value != getattr(raw_args, source_action.dest): continue
 
-            src_message = ''.join((
-                f'missing or wrong argument: argument `{src_action.option_strings[0]}`',
-                f' with value {arg_value_to_string(src_value)}' if src_has_value else '',
+            source_message = ''.join((
+                f'missing or wrong argument: argument `{source_action.option_strings[0]}`',
+                f' with value {arg_value_to_string(source_value)}' if source_has_value else '',
                 ' requires argument',
             ))
 
             # verify targets
             for target in targets:
-                trgt_has_values = isinstance(target, tuple)
-                trgt_action = target[0] if trgt_has_values else target
-                if trgt_has_values: trgt_values = target[1]
+                target_has_values = isinstance(target, tuple)
+                target_action = target[0] if target_has_values else target
+                if target_has_values: target_values = target[1]
 
-                # target not present
-                if not hasattr(raw_args, trgt_action.dest):
-                    parser.error(f'{src_message} `{trgt_action.option_strings[0]}`')
-
-                # target has wrong value
-                if trgt_has_values and getattr(raw_args, trgt_action.dest) not in trgt_values:
-                    # improved messages error messages
-                    if len(trgt_values) == 1:
-                        if trgt_action.const == True: msg = 'to not be used'
-                        elif trgt_action.const == False: msg = 'to be used'
-                        else: msg = f'to have the following value: {arg_value_to_string(trgt_values[0])}'
+                if (
+                    # target not present
+                    not hasattr(raw_args, target_action.dest)
+                    # target has wrong value
+                    or target_has_values and getattr(raw_args, target_action.dest) not in target_values
+                ):
+                    # improved error message
+                    if len(target_values) == 1:
+                        if target_action.const == True: msg = 'to not be used'
+                        elif target_action.const == False: msg = 'to be used'
+                        else: msg = f'to have the following value: {arg_value_to_string(target_values[0])}'
                     else:
-                        msg = f'to have one of the following values: {", ".join(map(arg_value_to_string, trgt_values))}'
+                        msg = f'to have one of the following values: {", ".join(map(arg_value_to_string, target_values))}'
 
-                    parser.error(f'{src_message} `{trgt_action.option_strings[0]}` {msg}')
+                    parser.error(f'{source_message} `{target_action.option_strings[0]}` {msg}')
 
         # construct instance
         return cls(**vars(raw_args))
