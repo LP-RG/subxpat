@@ -22,7 +22,7 @@ from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 
-from sxpat.templating import get_specialized as get_templater
+from sxpat.templating import NonSharedFOutTemplate, NonSharedFProdTemplate, get_specialized as get_templater
 from sxpat.solving import get_specialized as get_solver
 
 from sxpat.converting import VerilogExporter
