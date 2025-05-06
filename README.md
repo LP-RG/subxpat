@@ -65,8 +65,8 @@ Here are all the parameters with their arguments and descriptions:
 | :---------------------------------------: | ------------------------------------ | ---------------------------------- | ---------------------------------------------------------------------- |
 | `exact-benchmark`                         | Verilog file in `input/ver/`         |                                    | Circuit to approximate                                                 |
 | `--current-benchmark` <br> `--curr`       | Verilog file in `input/ver/`         | the same as <br> `exact-benchmark` | Approximated circuit used to continue the execution                    |
-| `--min-labeling`                          |                                      |                                    | Nodes are weighted using their minimum error, instead of maximum error |
-| `--partial-labeling`                      |                                      |                                    | Weights are assigned only to relevant nodes                            |
+| `--max-labeling`                          |                                      |                                    | Nodes are weighted using their maximum error, instead of minimum error |
+| `--no-partial-labeling`                   |                                      |                                    | Weights are assigned to all nodes, not only the relevant ones          |
 | `--extraction-mode` <br> `--mode`         | { 1, 2, 3, 4, 5, 55, 11, 12 }        | 55                                 | Subgraph extraction algorithm to use                                   |
 | `--input-max` <br> `--imax`               | `int` > 0                            |                                    | Maximum allowed number of inputs to the subgraph                       |
 | `--output-max` <br> `--omax`              | `int` > 0                            |                                    | Maximum allowed number of outputs from the subgraph                    |
@@ -87,6 +87,14 @@ Here are all the parameters with their arguments and descriptions:
 | `--parallel`                              |                                      |                                    | Run in parallel whenever possible                                      |
 | `--clean`                                 |                                      |                                    | Reset the output folder before running                                 |
 | `--help` <br> `-h`                        |                                      |                                    | Show the help message and exit                                         |
+
+
+### Papers examples
+#### SubXPAT blablabla
+To execute the framework with the SubXPAT algorithm as in the paper [][], run the following command:
+```
+python3 main.py CIRCUIT --max-error=ERROR --subxpat --imax=6 --omax=3 --max-lpp=6 --max-ppo=6
+```
 
 ### Examples
 
@@ -112,6 +120,7 @@ Once a command is finished executing, you can find the outputs in the following 
   No support is given at the moment for this situation.
 
 [DSN-W'23]: https://doi.org/10.1109/DSN-W58399.2023.00049
+[]: 
 [Python]: https://www.python.org/downloads
 [Yosys]: https://github.com/YosysHQ/yosys
 [GraphViz]: https://gitlab.com/graphviz/graphviz
