@@ -38,7 +38,7 @@ from sxpat.solving.QbfSolver import *
 
 def explore_grid(specs_obj: Specifications):
     lollo_start = time.perf_counter()
-    divide_et_for_slash = 4
+    divide_et_for_slash = 2
     used_et_for_slash = specs_obj.max_error // divide_et_for_slash
 
     previous_subgraphs = []
