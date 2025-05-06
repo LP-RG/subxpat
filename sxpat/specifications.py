@@ -167,13 +167,15 @@ class Specifications:
 
         # > graph labeling stuff
 
-        _min_lab = parser.add_argument('--min-labeling',
-                                       action='store_true',
-                                       help='Nodes are weighted using their minimum error, instead of maximum error')
+        _max_lab = parser.add_argument('--max-labeling',
+                                       action='store_false',
+                                       dest='min_labeling',
+                                       help='Nodes are weighted using their maximum error, instead of minimum error')
 
-        _part_lab = parser.add_argument('--partial-labeling',
-                                        action='store_true',
-                                        help='Weights are assigned only to relevant nodes')
+        _part_lab = parser.add_argument('--no-partial-labeling',
+                                        action='store_false',
+                                        dest='partial_labeling',
+                                        help='Weights are assigned to all nodes, not only the relevant ones')
 
         # > subgraph extraction stuff
 
@@ -260,7 +262,7 @@ class Specifications:
                                    type=EncodingType,
                                    action=EnumChoicesAction,
                                    default=EncodingType.Z3_BITVECTOR,
-                                   help='The encoding to use in solving')
+                                   help='The encoding to use in solving (default: z3bvec)')
 
         _timeout = parser.add_argument('--timeout',
                                        type=float,
