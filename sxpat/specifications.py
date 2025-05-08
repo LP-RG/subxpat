@@ -119,6 +119,7 @@ class Specifications:
     parallel: bool
     plot: bool
     clean: bool
+    divide_et_for_slash: int
 
     def __post_init__(self):
         object.__setattr__(self, 'exact_benchmark', Path(self.exact_benchmark).stem)
@@ -300,6 +301,11 @@ class Specifications:
         _clean = parser.add_argument('--clean',
                                      action='store_true',
                                      help='Reset the output folder before running')
+        
+        _divide_et = parser.add_argument('--divide-et-for-slash',
+                                     type=int,
+                                     default=4,
+                                     help='gg')
 
         raw_args = parser.parse_args()
 

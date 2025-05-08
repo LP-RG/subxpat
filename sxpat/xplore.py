@@ -38,7 +38,7 @@ from sxpat.solving.QbfSolver import *
 
 def explore_grid(specs_obj: Specifications):
     lollo_start = time.perf_counter()
-    divide_et_for_slash = 2
+    divide_et_for_slash = specs_obj.divide_et_for_slash
     used_et_for_slash = specs_obj.max_error // divide_et_for_slash
 
     previous_subgraphs = []
@@ -126,7 +126,7 @@ def explore_grid(specs_obj: Specifications):
             et_coefficient = 1
 
             label_timer, _label_graph = Timer.from_function(label_graph)
-            _label_graph(current_graph,
+            _label_graph(exact_graph, current_graph, 
                          min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
                          et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel)
             print(f'labeling_time = {(labeling_time := label_timer.total)}')
@@ -432,13 +432,14 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         csvwriter.writerow(approx_data)
 
 
-def label_graph(current_graph: AnnotatedGraph,
+def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph,
                 min_labeling: bool = False, partial: bool = False,
                 et: int = -1, parallel: bool = False):
     # labels, _ = labeling_explicit(current_graph.name, current_graph.name,
     #                               constant_value=0, min_labeling=min_labeling,
     #                               partial=partial, et=et, parallel=parallel)
-    labels = labeling(current_graph.name, current_graph.name, et)
+
+    labels = labeling(exact_graph.name, current_graph.name, et)
 
     for n in current_graph.graph.nodes:
         current_graph.graph.nodes[n][WEIGHT] = int(labels[n]) if n in labels else -1
