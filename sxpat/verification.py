@@ -8,7 +8,7 @@ from Z3Log.utils import convert_verilog_to_gv
 from Z3Log.verilog import Verilog
 from Z3Log.graph import Graph
 from Z3Log.z3solver import Z3solver
-from specifications import MetricType
+from sxpat.specifications import MetricType
 
 
 def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark: str, metric: str, zone_constraint: int) -> int:
