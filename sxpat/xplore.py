@@ -50,12 +50,12 @@ def explore_grid(specs_obj: Specifications):
     obtained_wce_exact = 0
     specs_obj.iteration = 0
     persistance = 0
-    persistance_limit = 2
+    persistance_limit = 1
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
 
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
-        orig_et = specs_obj.max_error
+        orig_et = specs_obj.max_error if specs_obj.zone_constraint is None else 100
         if orig_et <= 8:
             et_array = iter(list(range(1, orig_et + 1, 1)))
         else:
@@ -234,8 +234,8 @@ def explore_grid(specs_obj: Specifications):
                 for candidate_name, candidate_data in cur_model_results.items():
                     candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2], specs_obj.metric, specs_obj.zone_constraint)
                     candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2], specs_obj.metric, specs_obj.zone_constraint)
-
-                    if candidate_data[4] > specs_obj.et:
+                    error = specs_obj.et if specs_obj.metric == 'wae' else specs_obj.max_error
+                    if candidate_data[4] > error:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
                         stats_obj.store_grid()
                         return stats_obj
