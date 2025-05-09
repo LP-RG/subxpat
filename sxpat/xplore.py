@@ -13,7 +13,7 @@ from Z3Log.config import path as z3logpath
 
 from sxpat.labeling import labeling_explicit
 from sxpat.metrics import MetricsEstimator
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, MetricType
 from sxpat.config import paths as sxpatpaths
 from sxpat.config.config import *
 from sxpat.utils.filesystem import FS
@@ -91,7 +91,7 @@ def explore_grid(specs_obj: Specifications):
         else:
             raise NotImplementedError('invalid status')
 
-        if (specs_obj.et > specs_obj.max_error and specs_obj.metric != 'wre') or specs_obj.et <= 0:
+        if (specs_obj.et > specs_obj.max_error and specs_obj.metric != MetricType.RELATIVE) or specs_obj.et <= 0:
             break
 
         pprint.info1(f'iteration {specs_obj.iteration} with et {specs_obj.et}, available error {specs_obj.max_error}'

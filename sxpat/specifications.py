@@ -32,6 +32,9 @@ class ConstantsType(enum.Enum):
     NEVER = 'never'
     ALWAYS = 'always'
 
+class MetricType(enum.Enum):
+    ABSOLUTE = 'wae'
+    RELATIVE = 'wre'
 
 class EnumChoicesAction(argparse.Action):
     def __init__(self, *args, type: enum.Enum, **kwargs) -> None:
@@ -193,9 +196,11 @@ class Specifications:
                                          help='Approximated circuit used to continue the execution (Verilog file in `input/ver/`) (default: same as exact-benchmark)')
 
         _metric = parser.add_argument('--metric',
-                                       choices=['wae', 'wre'],
-                                       default='wae',
+                                       type=MetricType,
+                                       action=EnumChoicesAction,
+                                       default=MetricType.ABSOLUTE,
                                        help='Metric used in subXPat execution, either absolute or relative error')
+
         _zone_constraint = parser.add_argument('--zone-constraint',
                                        type=int,
                                        default=None,

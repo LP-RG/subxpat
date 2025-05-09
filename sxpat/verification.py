@@ -8,6 +8,7 @@ from Z3Log.utils import convert_verilog_to_gv
 from Z3Log.verilog import Verilog
 from Z3Log.graph import Graph
 from Z3Log.z3solver import Z3solver
+from specifications import MetricType
 
 
 def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark: str, metric: str, zone_constraint: int) -> int:
@@ -42,9 +43,9 @@ def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark:
                 csvreader = csv.reader(rf)
                 for row in csvreader:
                     if row[0] == z3logcfg.WCE:
-                        if(metric == 'wae'):
+                        if metric == MetricType.ABSOLUTE:
                             obtained_wce = int(row[1])
-                        elif(metric == 'wre'):
+                        elif metric == MetricType.RELAVITVE:
                             obtained_wce = int(float(row[1]) * 100) 
                         os.remove(report_file)
                         break
