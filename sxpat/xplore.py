@@ -50,7 +50,7 @@ def explore_grid(specs_obj: Specifications):
     obtained_wce_exact = 0
     specs_obj.iteration = 0
     persistance = 0
-    persistance_limit = 1
+    persistance_limit = 0
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
 
@@ -59,10 +59,11 @@ def explore_grid(specs_obj: Specifications):
         if orig_et <= 8:
             et_array = iter(list(range(1, orig_et + 1, 1)))
         else:
-            step = orig_et // 8 if orig_et // 8 > 0 else 1
-            et_array = iter(list(range(step, orig_et + step, step)))
+            step = orig_et // 2 if orig_et // 2 > 0 else 1
+            list_values = list(range(step, orig_et + step, step))
+            et_array = iter(list_values)
 
-    while (obtained_wce_exact < specs_obj.max_error):
+    while (obtained_wce_exact <= specs_obj.max_error):
         specs_obj.iteration += 1
         if not specs_obj.subxpat:
             if prev_actual_error == 0:
@@ -90,7 +91,7 @@ def explore_grid(specs_obj: Specifications):
         else:
             raise NotImplementedError('invalid status')
 
-        if specs_obj.et > specs_obj.max_error or specs_obj.et <= 0:
+        if (specs_obj.et > specs_obj.max_error and specs_obj.metric != 'wre') or specs_obj.et <= 0:
             break
 
         pprint.info1(f'iteration {specs_obj.iteration} with et {specs_obj.et}, available error {specs_obj.max_error}'
@@ -110,7 +111,7 @@ def explore_grid(specs_obj: Specifications):
         # label graph
         if specs_obj.requires_labeling:
             et_coefficient = 1
-
+            print(f"Started labeling with et = {specs_obj.et}")
             label_timer, _label_graph = Timer.from_function(label_graph)
             _label_graph(current_graph,
                          min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
