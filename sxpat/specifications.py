@@ -108,6 +108,7 @@ class Specifications:
     constants: ConstantsType
     wanted_models: int
     iteration: int = dc.field(init=False, default=None)  # rw
+    persistance: int 
     # exploration (2)
     max_lpp: int
     lpp: int = dc.field(init=False, default=None)  # rw
@@ -282,6 +283,10 @@ class Specifications:
                                     default=1,
                                     help='Wanted number of models to generate at each step (default: 1)')
 
+        _persistance = parser.add_argument('--persistance',
+                                    type=int,
+                                    default=2,
+                                    help='The number of attempts made with partial ET (default: 2)')
         # > error stuff
 
         _et = parser.add_argument('--max-error', '-e',

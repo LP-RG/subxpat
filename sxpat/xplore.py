@@ -50,7 +50,7 @@ def explore_grid(specs_obj: Specifications):
     obtained_wce_exact = 0
     specs_obj.iteration = 0
     persistance = 0
-    persistance_limit = 0
+    persistance_limit = specs_obj.persistance
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
 
