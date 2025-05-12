@@ -49,7 +49,7 @@ def explore_grid(specs_obj: Specifications):
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
         if orig_et <= 8:
-            et_array = iter(list(range(1, orig_et +1, 1)))
+            et_array = iter(list(range(1, orig_et + 1, 1)))
         else:
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
@@ -176,7 +176,7 @@ def explore_grid(specs_obj: Specifications):
                     dominant_cells.append((lpp, ppo))
 
             elif cur_status == SAT:
-                
+
                 # synthesize all models and compute circuit specifications
                 synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
                 cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
@@ -247,7 +247,7 @@ def explore_grid(specs_obj: Specifications):
                 print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
                 store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.current_benchmark, et=specs_obj.et,
                                     encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
-                
+
                 break  # SAT found, stop grid exploration
 
             prev_actual_error = 0
@@ -277,7 +277,7 @@ class CellIterator:
 
         # grid cells
         for pit in range(1, max_pit + 1):
-            for its in range(max(pit, specs.outputs), max(pit + 3 + 1, specs.outputs+1)):
+            for its in range(max(pit, specs.outputs), max(pit + 3 + 1, specs.outputs + 1)):
                 yield (its, pit)
 
     @staticmethod
@@ -370,7 +370,7 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
 
 
 def label_graph(current_graph: AnnotatedGraph,
-                min_labeling: bool = False,  partial: bool = False,
+                min_labeling: bool = False, partial: bool = False,
                 et: int = -1, parallel: bool = False):
     labels, _ = labeling_explicit(current_graph.name, current_graph.name,
                                   constant_value=0, min_labeling=min_labeling,
