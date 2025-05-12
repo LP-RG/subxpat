@@ -45,15 +45,18 @@ def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str,
     )
 
     if constant_value == 0:
-        labels_false = z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff)
-        labels_pair = (labels_false, labels_false)
+        labels_pair = (
+            z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
+        ) * 2
     elif constant_value == 1:
-        labels_true = z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff)
-        labels_pair = (labels_true, labels_true)
+        labels_pair = (
+            z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
+        ) * 2
     else:
-        labels_false = z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff)
-        labels_true = z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff)
-        labels_pair = (labels_true, labels_false)
+        labels_pair = (
+            z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
+            z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
+        )
 
     # cleanup (folder report/ and z3/)
     for folder in [paths.OUTPUT_PATH['report'][0], paths.OUTPUT_PATH['z3'][0]]:
