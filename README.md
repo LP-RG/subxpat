@@ -67,7 +67,7 @@ Here are all the parameters with their arguments and descriptions:
 | `--current-benchmark` <br> `--curr`       | Verilog file in `input/ver/`         | the same as <br> `exact-benchmark` | Approximated circuit used to continue the execution                    |
 | `--max-labeling`                          |                                      |                                    | Nodes are weighted using their maximum error, instead of minimum error |
 | `--no-partial-labeling`                   |                                      |                                    | Weights are assigned to all nodes, not only the relevant ones          |
-| `--extraction-mode` <br> `--mode`         | { 1, 2, 3, 4, 5, 55, 11, 12 }        | 55                                 | Subgraph extraction algorithm to use                                   |
+| `--extraction-mode` <br> `--mode`         | { 1, 2, 3, 4, 5, 55, 6, 11, 12 }     | 55                                 | Subgraph extraction algorithm to use                                   |
 | `--input-max` <br> `--imax`               | `int` > 0                            |                                    | Maximum allowed number of inputs to the subgraph                       |
 | `--output-max` <br> `--omax`              | `int` > 0                            |                                    | Maximum allowed number of outputs from the subgraph                    |
 | `--max-sensitivity`                       | `int` > 0                            |                                    | Maximum partitioning sensitivity                                       |

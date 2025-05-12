@@ -49,7 +49,7 @@ def explore_grid(specs_obj: Specifications):
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
         if orig_et <= 8:
-            et_array = iter(list(range(1, orig_et +1, 1)))
+            et_array = iter(list(range(1, orig_et + 1, 1)))
         else:
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
@@ -134,8 +134,10 @@ def explore_grid(specs_obj: Specifications):
             continue
 
         # guard: skip if the subraph is equal to the previous one
+        # note:  does not apply for extraction mode 6
         if (
-            len(previous_subgraphs) >= 2
+            specs_obj.extraction_mode != 6
+            and len(previous_subgraphs) >= 2
             and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
         ):
             pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
