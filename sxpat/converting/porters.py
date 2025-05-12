@@ -142,7 +142,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
             string += rf'\nw={node.weight}'
         if node.in_subgraph:
             string += rf'\nsub'
-        if isinstance(node, OperationNode):
+        if isinstance(node, ExpressionNode):
             string += rf'\ni={",".join(node.operands)}'
         if isinstance(node, Valued):
             string += rf'\nv={node.value}'
@@ -204,7 +204,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         edge_lines = [
             f'{src_name} -> {dst.name};'
             for dst in graph.nodes
-            if isinstance(dst, OperationNode)
+            if isinstance(dst, ExpressionNode)
             for src_name in dst.operands
         ]
 
@@ -360,7 +360,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         @authors: Marco Biasion
     """
 
-    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued]], str]] = {
+    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, ExpressionNode, Valued]], str]] = {
         # variables
         # BoolVariable: lambda n: None,
         # IntVariable: lambda n: None,

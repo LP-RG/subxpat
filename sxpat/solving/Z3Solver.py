@@ -33,7 +33,7 @@ class Z3Encoder:
 
     def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
-    node_mapping: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued], Sequence[str], Sequence[Any]], str]]
+    node_mapping: Mapping[Type[Node], Callable[[Union[Node, ExpressionNode, Valued], Sequence[str], Sequence[Any]], str]]
     type_mapping: Mapping[Type[Union[int, bool]], Callable[[Sequence[Any]], str]]
     solver_construct: str
     node_accessories: Callable[[Sequence[Any]], Callable[[Node], Sequence[Any]]]
@@ -154,7 +154,7 @@ class Z3FuncEncoder(Z3Encoder):
         nodes = [
             (
                 node.copy(name=update_name(node.name), operands=(update_name(name) for name in node.operands))
-                if isinstance(node, OperationNode) else
+                if isinstance(node, ExpressionNode) else
                 node.copy(name=update_name(node.name))
             )
             for node in graph.nodes

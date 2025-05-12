@@ -6,7 +6,7 @@ __all__ = [
     'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolVariable', 'Constraint',
     'Copy', 'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
     'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'NotEquals',
-    'Not', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Target', 'ToInt', 'Valued',
+    'Not', 'ExpressionNode', 'Or', 'PlaceHolder', 'Sum', 'Target', 'ToInt', 'Valued',
     # nodes groups
     'boolean_nodes', 'integer_nodes', 'untyped_nodes', 'contact_nodes', 'origin_nodes', 'end_nodes',
     # graphs

@@ -37,7 +37,7 @@ class Graph:
         node_names_in_edges = set(
             src_name
             for node in nodes
-            if isinstance(node, OperationNode)
+            if isinstance(node, ExpressionNode)
             for src_name in node.operands
         )
         if len(node_names_in_edges - defined_node_names) > 0:
@@ -53,7 +53,7 @@ class Graph:
         _inner.add_edges_from(
             (src_name, dst_name)
             for dst_name, data in _inner.nodes(data=True)
-            if isinstance(node := data[self.K], OperationNode)
+            if isinstance(node := data[self.K], ExpressionNode)
             for src_name in node.operands
         )
 
@@ -93,7 +93,7 @@ class Graph:
             key=lambda _n: node.operands.index(_n.name)
         ))
 
-    def successors(self, node_or_name: Union[str, Node]) -> Sequence[OperationNode]:
+    def successors(self, node_or_name: Union[str, Node]) -> Sequence[ExpressionNode]:
         return tuple(
             self._inner.nodes[_name][self.K]
             for _name in self._inner.successors(self._get_name(node_or_name))
@@ -108,7 +108,7 @@ class Graph:
     #     return tuple(node for node in self.nodes if isinstance(node, (BoolVariable, IntVariable, BoolConstant, IntConstant)))
 
     @ft.cached_property
-    def operations(self) -> Sequence[OperationNode]:
+    def operations(self) -> Sequence[ExpressionNode]:
         return tuple(node for node in self.nodes if not isinstance(node, (*contact_nodes, *origin_nodes, Target, Constraint)))
 
     # @ft.cached_property

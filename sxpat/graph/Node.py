@@ -10,7 +10,7 @@ __all__ = [
     'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolVariable', 'Constraint',
     'Copy', 'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
     'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'NotEquals',
-    'Not', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Target', 'ToInt', 'Valued',
+    'Not', 'ExpressionNode', 'Or', 'PlaceHolder', 'Sum', 'Target', 'ToInt', 'Valued',
     # nodes groups
     'boolean_nodes', 'integer_nodes', 'untyped_nodes', 'contact_nodes', 'origin_nodes', 'end_nodes',
 ]
@@ -66,35 +66,29 @@ class OperationNode(Node):
         return super().copy(name, weight, in_subgraph, **update)
 
 
-@dc.dataclass(frozen=True, repr=False)
-class Op1Node(OperationNode):
+@dc.dataclass(frozen=True)
+class ExpressionNode(OperationNode):
     """
-        A node that must have only one operand.  
-        With getter for it.
+        A node representing an expression.
     """
 
+
+@dc.dataclass(init=False, repr=False, eq=False)
+class Limited1:
     def __post_init__(self):
-        super().__post_init__(1)
+        if len(self.operands) != 1:
+            raise RuntimeError(f'Wrong operands count: {len(self.operands)} were given (expected 1) in node {self.name} of class {type(self).__name__}.')
 
     @property
     def operand(self) -> str:
         return self.operands[0]
 
-    def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None,
-             operand: Node = None, **update) -> Self:
-        if operand is not None: update['operands'] = (operand,)
-        return super().copy(name, weight, in_subgraph, **update)
 
-
-@dc.dataclass(frozen=True, repr=False)
-class Op2Node(OperationNode):
-    """
-        A node that must have two operands.  
-        With getters for left and right.
-    """
-
+@dc.dataclass(init=False, repr=False, eq=False)
+class Limited2:
     def __post_init__(self):
-        super().__post_init__(2)
+        if len(self.operands) != 2:
+            raise RuntimeError(f'Wrong operands count: {len(self.operands)} were given (expected 2) in node {self.name} of class {type(self).__name__}.')
 
     @property
     def left(self) -> str:
@@ -104,20 +98,54 @@ class Op2Node(OperationNode):
     def right(self) -> str:
         return self.operands[1]
 
-    def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None,
-             left: Node = None, right: Node = None, **update) -> Self:
-        if left is not None or right is not None: update['operands'] = (left or self.left, right or self.right,)
-        return super().copy(name, weight, in_subgraph, **update)
 
-
-@dc.dataclass(frozen=True, repr=False)
-class Op3Node(OperationNode):
-    """
-        A node that must have three operands.
-    """
-
+@dc.dataclass(init=False, repr=False, eq=False)
+class Limited3:
     def __post_init__(self):
-        super().__post_init__(3)
+        if len(self.operands) != 3:
+            raise RuntimeError(f'Wrong operands count: {len(self.operands)} were given (expected 3) in node {self.name} of class {type(self).__name__}.')
+
+
+# @dc.dataclass(frozen=True, repr=False)
+# class Op1Node(ExpressionNode):
+#     """
+#         A node that must have only one operand.
+#         With getter for it.
+#     """
+#     def __post_init__(self):
+#         super().__post_init__(1)
+#     @property
+#     def operand(self) -> str:
+#         return self.operands[0]
+#     def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None,
+#              operand: Node = None, **update) -> Self:
+#         if operand is not None: update['operands'] = (operand,)
+#         return super().copy(name, weight, in_subgraph, **update)
+# @dc.dataclass(frozen=True, repr=False)
+# class Op2Node(ExpressionNode):
+#     """
+#         A node that must have two operands.
+#         With getters for left and right.
+#     """
+#     def __post_init__(self):
+#         super().__post_init__(2)
+#     @property
+#     def left(self) -> str:
+#         return self.operands[0]
+#     @property
+#     def right(self) -> str:
+#         return self.operands[1]
+#     def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None,
+#              left: Node = None, right: Node = None, **update) -> Self:
+#         if left is not None or right is not None: update['operands'] = (left or self.left, right or self.right,)
+#         return super().copy(name, weight, in_subgraph, **update)
+# @dc.dataclass(frozen=True, repr=False)
+# class Op3Node(ExpressionNode):
+#     """
+#         A node that must have three operands.
+#     """
+#     def __post_init__(self):
+#         super().__post_init__(3)
 
 
 # variables
@@ -158,7 +186,7 @@ class IntConstant(Valued[int], Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Copy(Op1Node):
+class Copy(ExpressionNode, Limited1):
     """
         Special node: the copy of another node.  
         The only operand represents the node to copy.
@@ -206,7 +234,7 @@ class PlaceHolder(Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Not(Op1Node):
+class Not(ExpressionNode, Limited1):
     """
         Boolean not ( `not a` ) operation.  
         This node must have only one operand.
@@ -214,7 +242,7 @@ class Not(Op1Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class And(OperationNode):
+class And(ExpressionNode):
     """
         Boolean and ( `a and b and ...` ) operation.  
         This node can have any amount of operands.
@@ -222,7 +250,7 @@ class And(OperationNode):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Or(OperationNode):
+class Or(ExpressionNode):
     """
         Boolean or ( `a or b or ...` ) operation.  
         This node can have any amount of operands.
@@ -230,7 +258,7 @@ class Or(OperationNode):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Implies(Op2Node):
+class Implies(ExpressionNode, Limited2):
     """
         Boolean implies ( `a => b` ) operation.  
         This node must have two ordered operands: left, right.
@@ -241,7 +269,7 @@ class Implies(Op2Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Sum(OperationNode):
+class Sum(ExpressionNode):
     """
         Integer sum ( `a + b + ...` ) operation.  
         This node can have any amount of operands.
@@ -249,7 +277,7 @@ class Sum(OperationNode):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class AbsDiff(Op2Node):
+class AbsDiff(ExpressionNode, Limited2):
     """
         Integer absolute difference ( `| a - b |` ) operation.  
         This node must have two operands.
@@ -260,7 +288,7 @@ class AbsDiff(Op2Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class ToInt(OperationNode):
+class ToInt(ExpressionNode):
     """
         Special integer node: represents the convertion to an integer from a sequence of booleans (the bits).  
         This node can have any amount of ordered operands, where the first represents the least significant bit.
@@ -271,7 +299,7 @@ class ToInt(OperationNode):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Equals(Op2Node):
+class Equals(ExpressionNode, Limited2):
     """
         Equality ( `a == b` ) operation.  
         This node must have two operands.
@@ -279,7 +307,7 @@ class Equals(Op2Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class NotEquals(Op2Node):
+class NotEquals(ExpressionNode, Limited2):
     """
         Inequality ( `a != b` ) operation.  
         This node must have two operands.
@@ -287,7 +315,7 @@ class NotEquals(Op2Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class LessThan(Op2Node):
+class LessThan(ExpressionNode, Limited2):
     """
         Less than ( `a < b` ) operation.  
         This node must have two ordered operands: left, right.
@@ -295,7 +323,7 @@ class LessThan(Op2Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class LessEqualThan(Op2Node):
+class LessEqualThan(ExpressionNode, Limited2):
     """
         Less or equal than ( `a <= b` ) operation.  
         This node must have two ordered operands: left, right.
@@ -303,7 +331,7 @@ class LessEqualThan(Op2Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class GreaterThan(Op2Node):
+class GreaterThan(ExpressionNode, Limited2):
     """
         Greater than ( `a > b` ) operation.  
         This node must have two ordered operands: left, right.
@@ -311,7 +339,7 @@ class GreaterThan(Op2Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class GreaterEqualThan(Op2Node):
+class GreaterEqualThan(ExpressionNode, Limited2):
     """
         Greater or equal than ( `a >= b` ) operation.  
         This node must have two ordered operands: left, right.
@@ -322,7 +350,7 @@ class GreaterEqualThan(Op2Node):
 
 
 @dc.dataclass(frozen=True)
-class AtLeast(Valued[int], OperationNode):
+class AtLeast(Valued[int], ExpressionNode):
     """
         Special solver node: represents a lower limit to the number of operands that must be true.  
         This node can have any amount of operands.
@@ -330,18 +358,18 @@ class AtLeast(Valued[int], OperationNode):
 
 
 @dc.dataclass(frozen=True)
-class AtMost(Valued[int], OperationNode):
+class AtMost(Valued[int], ExpressionNode):
     """
         Special solver node: represents an upper limit to the number of operands that can be true.  
         This node can have any amount of operands.
     """
 
 
-# branching operations
+# branching expressions
 
 
 @dc.dataclass(frozen=True, repr=False)
-class Multiplexer(Op3Node):
+class Multiplexer(ExpressionNode, Limited3):
     """
         Special boolean node: represents a multiplexer (not origin, origin, false, true) indexed by two parameters.  
         This node must have three ordered operands: origin, usage parameter (origin/constant), assertion parameter (asserted/negated).
@@ -363,7 +391,7 @@ class Multiplexer(Op3Node):
 
 
 @dc.dataclass(frozen=True, repr=False)
-class If(Op3Node):
+class If(ExpressionNode, Limited3):
     """
         Special node: represents a selection ( `if a then b else c` ) operation.  
         This node must have three ordered operands: condition, if true, if false.
