@@ -1,10 +1,12 @@
 from __future__ import annotations
-from typing import Any, Dict, List, NamedTuple, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 import enum
 import dataclasses as dc
 
 import argparse
 from pathlib import Path
+import os.path
+
 
 __all__ = [
     'Specifications',
@@ -52,6 +54,33 @@ class EnumChoicesAction(argparse.Action):
         setattr(namespace, self.dest, self.enum(value))
 
 
+class Paths:
+    @dc.dataclass(frozen=True)
+    class Output:
+        base_folder: str = 'output'
+        graphviz: str = dc.field(default='graphviz', init=False)
+        verilog: str = dc.field(default='verilog', init=False)
+        solver_scripts: str = dc.field(default='scripts', init=False)
+
+        def __post_init__(self) -> None:
+            object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, self.graphviz))
+            object.__setattr__(self, 'verilog', os.path.join(self.base_folder, self.verilog))
+            object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, self.solver_scripts))
+
+    @dc.dataclass(frozen=True)
+    class Synthesis:
+        cell_library: str = 'config/gscl45nm.lib'
+        abc_script: str = dc.field(default='config/abc.script', init=False)
+
+    def __init__(self, output_base: str, cell_library: str) -> None:
+        self.output = self.Output(output_base)
+        self.synthesis = self.Synthesis(cell_library)
+
+    def __repr__(self):
+        params = ', '.join(f'{name}={getattr(self, name)!r}' for name in vars(self).keys())
+        return f'{self.__class__.__qualname__}({params})'
+
+
 @dc.dataclass
 class Specifications:
     # files
@@ -91,6 +120,9 @@ class Specifications:
     max_error: int
     et: int = dc.field(init=False, default=None)  # rw
     error_partitioning: ErrorPartitioningType
+
+    # config
+    path: Paths
 
     # other
     timeout: float
@@ -266,6 +298,19 @@ class Specifications:
                                         default=ErrorPartitioningType.ASCENDING,
                                         help='The error partitioning algorithm to use (default: asc)')
 
+        # > config
+        _cfg_group = parser.add_argument_group('Configuration')
+
+        _out_fold = _cfg_group.add_argument('--output',
+                                            type=str,
+                                            default=Paths.Output.base_folder,
+                                            help=f'(WIP) The base directory for the output (default: {Paths.Output.base_folder})')
+
+        _cfg_lib = _cfg_group.add_argument('--cell-library',
+                                           type=str,
+                                           default=Paths.Synthesis.cell_library,
+                                           help=f'The path to the cell library file (default: {Paths.Synthesis.cell_library})')
+
         # > other stuff
         _misc_group = parser.add_argument_group('Miscellaneous')
 
@@ -346,6 +391,9 @@ class Specifications:
                     parser.error(f'{src_message} `{trgt_action.option_strings[0]}` {msg}')
 
         # construct instance
+        raw_args.path = Paths(getdelattr(raw_args, _out_fold.dest),
+                              getdelattr(raw_args, _cfg_lib.dest))
+
         return cls(**vars(raw_args))
 
     def __repr__(self):
@@ -360,3 +408,9 @@ class Specifications:
 def arg_value_to_string(value: Union[str, int, bool, enum.Enum, Any]) -> str:
     if isinstance(value, enum.Enum): value = value.value
     return repr(value)
+
+
+def getdelattr(o: object, name: str):
+    val = getattr(o, name)
+    delattr(o, name)
+    return val
