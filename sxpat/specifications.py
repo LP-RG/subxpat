@@ -1,12 +1,23 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Tuple
-from collections import defaultdict
+from typing import Any, Dict, List, Tuple, Union
 import enum
 import dataclasses as dc
 
 import re
 import argparse
 from pathlib import Path
+
+__all__ = [
+    'Specifications',
+    # enums
+    'ErrorPartitioningType', 'EncodingType',
+    'TemplateType', 'ConstantsType',
+]
+
+
+class Dependency:
+    SrcItem = Union[argparse.Action, Tuple[argparse.Action, Any]]
+    TrgtItem = Union[argparse.Action, Tuple[argparse.Action, List[Any]]]
 
 
 class ErrorPartitioningType(enum.Enum):
@@ -213,7 +224,7 @@ class Specifications:
                                       action=EnumChoicesAction,
                                       default=ConstantsType.NEVER,
                                       help='Usage of constants (default: never)')
-        
+
         _template = parser.add_argument('--template',
                                         type=TemplateType,
                                         default=TemplateType.NON_SHARED,
@@ -278,36 +289,74 @@ class Specifications:
         raw_args = parser.parse_args()
 
         # custom defaults
-        if raw_args.current_benchmark is None:
-            raw_args.current_benchmark = raw_args.exact_benchmark
+        if raw_args.current_benchmark is None: raw_args.current_benchmark = raw_args.exact_benchmark
 
         # define dependencies
-        dependencies: Dict[Tuple[argparse.Action, Optional[Any]], List[argparse.Action]] = defaultdict(list)
-        dependencies = {
-            # (source_argument, value | None): [dependent_arguments],
+        # the structure for each dependency is:
+        # - source: [target0, ..., targetN]
+        # a source must be either:
+        # - (argument_object, value) # here the dependency is checked only if the argument has the given value
+        # - argument_object          # here the dependency is checked no matter the actual value
+        # a target must be either:
+        # - (argument_object, value) # here the dependency is accepted only if the argument has the given value
+        # - argument_object          # here the dependency is accepted if the argument is present
+        dependencies: Dict[Dependency.SrcItem, List[Dependency.TrgtItem]] = {
             (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
         }
 
         # check dependencies
-        for (source, value), dependents in dependencies.items():
-            if value is None and getattr(raw_args, source.dest, None) is not None:
-                for dep in dependents:
-                    if getattr(raw_args, dep.dest, None) is None:
-                        parser.error(f'missing argument: argument `{source.option_strings[0]}` requires argument `{dep.option_strings[0]}`')
+        for (source, targets) in dependencies.items():
+            src_has_value = isinstance(source, tuple)
+            src_action = source[0] if src_has_value else source
+            if src_has_value: src_value = source[1]
 
-            elif value is not None and getattr(raw_args, source.dest, None) == value:
-                for dep in dependents:
-                    if getattr(raw_args, dep.dest, None) is None:
-                        parser.error(f'missing argument: argument `{source.option_strings[0]}` with value {value!r} requires argument `{dep.option_strings[0]}`')
+            # skip if source not present
+            if not hasattr(raw_args, src_action.dest): continue
+            # skip if source wants a specific value which is not the current one
+            if src_has_value and src_value != getattr(raw_args, src_action.dest): continue
 
+            src_message = ''.join((
+                f'missing or wrong argument: argument `{src_action.option_strings[0]}`',
+                f' with value {arg_value_to_string(src_value)}' if src_has_value else '',
+                ' requires argument',
+            ))
+
+            # verify targets
+            for target in targets:
+                trgt_has_values = isinstance(target, tuple)
+                trgt_action = target[0] if trgt_has_values else target
+                if trgt_has_values: trgt_values = target[1]
+
+                # target not present
+                if not hasattr(raw_args, trgt_action.dest):
+                    parser.error(f'{src_message} `{trgt_action.option_strings[0]}`')
+
+                # target has wrong value
+                if trgt_has_values and getattr(raw_args, trgt_action.dest) not in trgt_values:
+                    # improved messages error messages
+                    if len(trgt_values) == 1:
+                        if trgt_action.const == True: msg = 'to not be used'
+                        elif trgt_action.const == False: msg = 'to be used'
+                        else: msg = f'to have the following value: {arg_value_to_string(trgt_values[0])}'
+                    else:
+                        msg = f'to have one of the following values: {", ".join(map(arg_value_to_string, trgt_values))}'
+
+                    parser.error(f'{src_message} `{trgt_action.option_strings[0]}` {msg}')
+
+        # construct instance
         return cls(**vars(raw_args))
 
     def __repr__(self):
         """
-        Procedurally generates the string representation of the object.  
-        The string will contain the name of the class, followed by one line for each field (name/value pair).
+            Procedurally generates the string representation of the object.  
+            The string will contain the name of the class, followed by one line for each field (name/value pair).
         """
         fields = ''.join(f'   {k} = {v},\n' for k, v in vars(self).items())
         return f'{self.__class__.__name__}(\n{fields})'
+
+
+def arg_value_to_string(value: Union[str, int, bool, enum.Enum, Any]) -> str:
+    if isinstance(value, enum.Enum): value = value.value
+    return repr(value)
