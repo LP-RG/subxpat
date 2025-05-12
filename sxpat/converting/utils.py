@@ -150,7 +150,7 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
     def manage_node(node: Node):
         # deferred case (all predecessors of a node should have the same bitwidth)
         if nodes_types[node.name] is not int:
-            if isinstance(node, ExpressionNode):
+            if isinstance(node, OperationNode):
                 max_bitwidth = max(bitwidth_of.get(n.name, 0) for n in graph.predecessors(node))
                 for n in graph.predecessors(node):
                     bitwidth_of[n.name] = max_bitwidth
@@ -203,7 +203,7 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool]) -> _Graph:
     new_nodes = {n.name: n for n in graph.nodes}
     for (name, value) in constants.items():
         node = graph[name]
-        if isinstance(node, ExpressionNode):
+        if isinstance(node, OperationNode):
             # could be implemented using prune_unused()
             raise NotImplementedError('The logic to replace an OperationNode with a constant has not been implemented yet.')
         else:
@@ -224,7 +224,7 @@ def set_prefix(graph: _Graph, prefix: str) -> _Graph:
 
     nodes = []
     for node in graph.nodes:
-        if isinstance(node, ExpressionNode):
+        if isinstance(node, OperationNode):
             operands = (update_name(name) for name in node.operands)
             nodes.append(node.copy(name=update_name(node.name), operands=operands))
         else:

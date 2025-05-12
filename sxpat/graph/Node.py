@@ -1,17 +1,42 @@
 from __future__ import annotations
-from typing import ClassVar, Iterable, Tuple, Generic, TypeVar
+from typing import Iterable, Tuple, Generic, TypeVar
 from typing_extensions import Self
 
 import dataclasses as dc
 
 
 __all__ = [
-    # nodes
-    'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolVariable', 'Constraint',
-    'Copy', 'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
-    'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'NotEquals',
-    'Not', 'ExpressionNode', 'Or', 'PlaceHolder', 'Sum', 'Target', 'ToInt', 'Valued',
-    # nodes groups
+    # > abstracts
+    'Node', 'Valued', 'OperationNode',
+    # > variables
+    'BoolVariable', 'IntVariable',
+    # > constants
+    'BoolConstant', 'IntConstant',
+    # > placeholder
+    'PlaceHolder',
+    # > expressions
+    'ExpressionNode',
+    # bool-bool expressions
+    'Not', 'And', 'Or', 'Implies',
+    # int-int expressions
+    'Sum', 'AbsDiff',
+    # bool-int expressions
+    'ToInt',
+    # int-bool expressions
+    'Equals', 'NotEquals', 'LessThan', 'LessEqualThan', 'GreaterThan', 'GreaterEqualThan',
+    # branching expressions
+    'Multiplexer', 'If',
+    # > copy
+    'Copy',
+    # > solver nodes
+    'SolverNode',
+    # quantifier operations
+    'AtLeast', 'AtMost',
+    # targets
+    'Target', 'Constraint',
+    # global nodes
+    'GlobalNode', 'Min', 'Max', 'ForAll',
+    # > nodes groups
     'boolean_nodes', 'integer_nodes', 'untyped_nodes', 'contact_nodes', 'origin_nodes', 'end_nodes',
 ]
 
@@ -19,11 +44,17 @@ __all__ = [
 T = TypeVar('T', int, bool)
 
 
-# abstracts
+# > abstracts
 
 
 @dc.dataclass(frozen=True)
 class Node:
+    """
+        A node.
+
+        *abstract*
+    """
+
     name: str
     weight: int = None
     in_subgraph: bool = False
@@ -52,6 +83,8 @@ class Valued(Generic[T]):
 class OperationNode(Node):
     """
         A node representing an operation given some operands.
+
+        *abstract*
     """
 
     operands: Tuple[str, ...] = tuple()
@@ -64,13 +97,6 @@ class OperationNode(Node):
     def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None, operands: Iterable[Node] = None, **update) -> Self:
         if operands is not None: update['operands'] = operands
         return super().copy(name, weight, in_subgraph, **update)
-
-
-@dc.dataclass(frozen=True)
-class ExpressionNode(OperationNode):
-    """
-        A node representing an expression.
-    """
 
 
 @dc.dataclass(init=False, repr=False, eq=False)
@@ -106,49 +132,7 @@ class Limited3:
             raise RuntimeError(f'Wrong operands count: {len(self.operands)} were given (expected 3) in node {self.name} of class {type(self).__name__}.')
 
 
-# @dc.dataclass(frozen=True, repr=False)
-# class Op1Node(ExpressionNode):
-#     """
-#         A node that must have only one operand.
-#         With getter for it.
-#     """
-#     def __post_init__(self):
-#         super().__post_init__(1)
-#     @property
-#     def operand(self) -> str:
-#         return self.operands[0]
-#     def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None,
-#              operand: Node = None, **update) -> Self:
-#         if operand is not None: update['operands'] = (operand,)
-#         return super().copy(name, weight, in_subgraph, **update)
-# @dc.dataclass(frozen=True, repr=False)
-# class Op2Node(ExpressionNode):
-#     """
-#         A node that must have two operands.
-#         With getters for left and right.
-#     """
-#     def __post_init__(self):
-#         super().__post_init__(2)
-#     @property
-#     def left(self) -> str:
-#         return self.operands[0]
-#     @property
-#     def right(self) -> str:
-#         return self.operands[1]
-#     def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None,
-#              left: Node = None, right: Node = None, **update) -> Self:
-#         if left is not None or right is not None: update['operands'] = (left or self.left, right or self.right,)
-#         return super().copy(name, weight, in_subgraph, **update)
-# @dc.dataclass(frozen=True, repr=False)
-# class Op3Node(ExpressionNode):
-#     """
-#         A node that must have three operands.
-#     """
-#     def __post_init__(self):
-#         super().__post_init__(3)
-
-
-# variables
+# > variables
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -165,7 +149,7 @@ class IntVariable(Node):
     """
 
 
-# constants
+# > constants
 
 
 @dc.dataclass(frozen=True)
@@ -182,43 +166,7 @@ class IntConstant(Valued[int], Node):
     """
 
 
-# output
-
-
-@dc.dataclass(frozen=True, repr=False)
-class Copy(ExpressionNode, Limited1):
-    """
-        Special node: the copy of another node.  
-        The only operand represents the node to copy.
-    """
-
-    @classmethod
-    def of(cls, operand: Node) -> Self:
-        """Helper constructor with automatic naming."""
-        return cls(
-            f'{cls.__name__.lower()}_{operand.name}',
-            weight=operand.weight, in_subgraph=operand.in_subgraph,
-            operands=(operand,)
-        )
-
-
-@dc.dataclass(frozen=True, repr=False)
-class Target(Copy):
-    """
-        Special solver node: specifies a node which value must be returned when solving.  
-        The only operand represents the wanted value.
-    """
-
-
-@dc.dataclass(frozen=True, repr=False)
-class Constraint(Copy):
-    """
-        Special solver node: specifies a node which value must be asserted when solving.  
-        The only operand represents the value to assert.
-    """
-
-
-# placeholder
+# > placeholder
 
 
 @dc.dataclass(frozen=True, repr=False)
@@ -230,13 +178,23 @@ class PlaceHolder(Node):
     """
 
 
-# bool-bool operations
+# > expressions
+
+
+@dc.dataclass(frozen=True)
+class ExpressionNode(OperationNode):
+    """
+        A node representing an expression.
+    """
+
+
+# bool-bool expressions
 
 
 @dc.dataclass(frozen=True, repr=False)
 class Not(ExpressionNode, Limited1):
     """
-        Boolean not ( `not a` ) operation.  
+        Boolean negation ( `not a` ) expression.  
         This node must have only one operand.
     """
 
@@ -244,7 +202,7 @@ class Not(ExpressionNode, Limited1):
 @dc.dataclass(frozen=True, repr=False)
 class And(ExpressionNode):
     """
-        Boolean and ( `a and b and ...` ) operation.  
+        Boolean conjunction ( `a and b and ...` ) expression.  
         This node can have any amount of operands.
     """
 
@@ -252,7 +210,7 @@ class And(ExpressionNode):
 @dc.dataclass(frozen=True, repr=False)
 class Or(ExpressionNode):
     """
-        Boolean or ( `a or b or ...` ) operation.  
+        Boolean disjunction ( `a or b or ...` ) expression.  
         This node can have any amount of operands.
     """
 
@@ -260,18 +218,18 @@ class Or(ExpressionNode):
 @dc.dataclass(frozen=True, repr=False)
 class Implies(ExpressionNode, Limited2):
     """
-        Boolean implies ( `a => b` ) operation.  
+        Boolean implication ( `a => b` ) expression.  
         This node must have two ordered operands: left, right.
     """
 
 
-# int-int operations
+# int-int expressions
 
 
 @dc.dataclass(frozen=True, repr=False)
 class Sum(ExpressionNode):
     """
-        Integer sum ( `a + b + ...` ) operation.  
+        Integer addition ( `a + b + ...` ) expression.  
         This node can have any amount of operands.
     """
 
@@ -279,29 +237,29 @@ class Sum(ExpressionNode):
 @dc.dataclass(frozen=True, repr=False)
 class AbsDiff(ExpressionNode, Limited2):
     """
-        Integer absolute difference ( `| a - b |` ) operation.  
+        Integer absolute difference ( `| a - b |` ) expression.  
         This node must have two operands.
     """
 
 
-# bool-int operations
+# bool-int expressions
 
 
 @dc.dataclass(frozen=True, repr=False)
 class ToInt(ExpressionNode):
     """
-        Special integer node: represents the convertion to an integer from a sequence of booleans (the bits).  
+        Special integer node: represents the creation of an integer given a sequence of booleans (the bits).  
         This node can have any amount of ordered operands, where the first represents the least significant bit.
     """
 
 
-# int-bool operations
+# int-bool expressions
 
 
 @dc.dataclass(frozen=True, repr=False)
 class Equals(ExpressionNode, Limited2):
     """
-        Equality ( `a == b` ) operation.  
+        Equality ( `a == b` ) expression.  
         This node must have two operands.
     """
 
@@ -309,7 +267,7 @@ class Equals(ExpressionNode, Limited2):
 @dc.dataclass(frozen=True, repr=False)
 class NotEquals(ExpressionNode, Limited2):
     """
-        Inequality ( `a != b` ) operation.  
+        Inequality ( `a != b` ) expression.  
         This node must have two operands.
     """
 
@@ -317,7 +275,7 @@ class NotEquals(ExpressionNode, Limited2):
 @dc.dataclass(frozen=True, repr=False)
 class LessThan(ExpressionNode, Limited2):
     """
-        Less than ( `a < b` ) operation.  
+        Less than ( `a < b` ) expression.  
         This node must have two ordered operands: left, right.
     """
 
@@ -325,7 +283,7 @@ class LessThan(ExpressionNode, Limited2):
 @dc.dataclass(frozen=True, repr=False)
 class LessEqualThan(ExpressionNode, Limited2):
     """
-        Less or equal than ( `a <= b` ) operation.  
+        Less or equal than ( `a <= b` ) expression.  
         This node must have two ordered operands: left, right.
     """
 
@@ -333,7 +291,7 @@ class LessEqualThan(ExpressionNode, Limited2):
 @dc.dataclass(frozen=True, repr=False)
 class GreaterThan(ExpressionNode, Limited2):
     """
-        Greater than ( `a > b` ) operation.  
+        Greater than ( `a > b` ) expression.  
         This node must have two ordered operands: left, right.
     """
 
@@ -341,27 +299,8 @@ class GreaterThan(ExpressionNode, Limited2):
 @dc.dataclass(frozen=True, repr=False)
 class GreaterEqualThan(ExpressionNode, Limited2):
     """
-        Greater or equal than ( `a >= b` ) operation.  
+        Greater or equal than ( `a >= b` ) expression.  
         This node must have two ordered operands: left, right.
-    """
-
-
-# quantifier operations
-
-
-@dc.dataclass(frozen=True)
-class AtLeast(Valued[int], ExpressionNode):
-    """
-        Special solver node: represents a lower limit to the number of operands that must be true.  
-        This node can have any amount of operands.
-    """
-
-
-@dc.dataclass(frozen=True)
-class AtMost(Valued[int], ExpressionNode):
-    """
-        Special solver node: represents an upper limit to the number of operands that can be true.  
-        This node can have any amount of operands.
     """
 
 
@@ -410,24 +349,117 @@ class If(ExpressionNode, Limited3):
         return self.operands[2]
 
 
-# TODO:WIP: global operations
-# @dc.dataclass(frozen=True, repr=False)
-# class Min(Op1Node):
-#     pass
-# @dc.dataclass(frozen=True, repr=False)
-# class Max(Op1Node):
-#     pass
-# @dc.dataclass(frozen=True, repr=False)
-# class ForAll(OperationNode):
-#     pass
+# > copy
+
+
+@dc.dataclass(frozen=True, repr=False)
+class Copy(OperationNode, Limited1):
+    """
+        Special node: the copy of another node.  
+        The only operand represents the node to copy.  
+    """
+
+    @classmethod
+    def of(cls, operand: Node) -> Self:
+        """Helper constructor with automatic naming."""
+        return cls(
+            f'{cls.__name__.lower()}_{operand.name}',
+            weight=operand.weight, in_subgraph=operand.in_subgraph,
+            operands=(operand,)
+        )
+
+
+# solver nodes
+
+
+@dc.dataclass(init=False, frozen=True, repr=False, eq=False)
+class SolverNode(OperationNode):
+    """
+        A node representing some Solver construct.
+
+        *abstract*
+    """
+
+
+# quantifier operations
+
+
+@dc.dataclass(frozen=True)
+class AtLeast(Valued[int], SolverNode):
+    """
+        Special solver node: represents a lower limit to the number of operands that must be true.  
+        This node can have any amount of operands.
+    """
+
+
+@dc.dataclass(frozen=True)
+class AtMost(Valued[int], SolverNode):
+    """
+        Special solver node: represents an upper limit to the number of operands that can be true.  
+        This node can have any amount of operands.
+    """
+
+# targets
+
+
+@dc.dataclass(frozen=True, repr=False)
+class Target(SolverNode, Copy):
+    """
+        Special solver node: specifies a node which value must be returned when solving.  
+        The only operand represents the wanted value.
+    """
+
+
+@dc.dataclass(frozen=True, repr=False)
+class Constraint(SolverNode, Copy):
+    """
+        Special solver node: specifies a node which value must be asserted when solving.  
+        The only operand represents the value to assert.
+    """
+
+# global nodes
+
+
+@dc.dataclass(frozen=True, repr=False)
+class GlobalNode(SolverNode):
+    """
+        Special nodes representing a global task, it being min/maximization or a ForAll quantifier.
+
+        *abstract*
+    """
+
+
+@dc.dataclass(frozen=True, repr=False)
+class Min(GlobalNode, Limited1):
+    """
+        Special solver global node: specifies a node which value must be minimized.  
+        The only operand represents the value to minimize.
+    """
+
+
+@dc.dataclass(frozen=True, repr=False)
+class Max(GlobalNode, Limited1):
+    """
+        Special solver global node: specifies a node which value must be maximized.  
+        The only operand represents the value to maximized.
+    """
+
+
+@dc.dataclass(frozen=True, repr=False)
+class ForAll(GlobalNode):
+    """
+        Special solver global node: specifies that all constraints must be asserted for each permutation of the operands.  
+    """
 
 
 #
 boolean_nodes = (BoolVariable, BoolConstant, Not, And, Or, Implies, Equals, NotEquals, AtLeast, AtMost, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan, Multiplexer,)
-integer_nodes = (IntVariable, IntConstant, ToInt, Sum, AbsDiff,)
+integer_nodes = (IntVariable, IntConstant, ToInt, Sum, AbsDiff, Min, Max)
 untyped_nodes = (Copy, Target, If,)
 #
-contact_nodes = (PlaceHolder,)  # TODO:MARCO: what name should we use?
+contact_nodes = (PlaceHolder,)
 #
 origin_nodes = (BoolVariable, BoolConstant, IntVariable, IntConstant,)
-end_nodes = (Copy, Target,)
+end_nodes = (Copy, Target, Constraint)
+#
+global_solver_nodes = (Min, Max, ForAll)

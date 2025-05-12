@@ -69,7 +69,7 @@ class _NonSharedBase:
         ]
 
     @classmethod
-    def constants_rewriting(cls, a_graph: SGraph, updated_nodes: Dict[str, ExpressionNode], specs: Specifications
+    def constants_rewriting(cls, a_graph: SGraph, updated_nodes: Dict[str, OperationNode], specs: Specifications
                             ) -> List[BoolVariable]:
         """
             Generates the nodes for constants rewriting, will update `updated_nodes` inplace with the changed successors (if any).
@@ -163,7 +163,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         # construct output switches (for constant False output)
         outs_p: List[BoolVariable] = []
         outs: List[If] = []
-        updated_nodes: Dict[str, ExpressionNode] = dict()
+        updated_nodes: Dict[str, OperationNode] = dict()
         for (out_i, (out_node, sum_node)) in enumerate(zip(a_graph.subgraph_outputs, sums)):
             # create the constant False switch
             outs_p.append(p_o := BoolVariable(f'p_o{out_i}', in_subgraph=True))
@@ -274,7 +274,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
         sums = cls.construct_sums(a_graph, products)
 
         # update all output successors to descend from new outputs (sums)
-        updated_nodes: Dict[str, ExpressionNode] = dict()
+        updated_nodes: Dict[str, OperationNode] = dict()
         for (out_node, sum_node) in zip(a_graph.subgraph_outputs, sums):
             for succ in filter(lambda n: not n.in_subgraph, a_graph.successors(out_node)):
                 succ = updated_nodes.get(succ.name, succ)
