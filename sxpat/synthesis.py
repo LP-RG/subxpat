@@ -184,7 +184,7 @@ class Synthesis:
                     f'omax{self.specs.omax}',
                     f'const{self.specs.constants.value}',
                 ))
-            
+
             # update et
             ET_PATTERN = re.compile(r'_et\d+')
             data.root = ET_PATTERN.sub(f'_et{self.specs.et}', data.root)
@@ -886,8 +886,8 @@ class Synthesis:
                         f"synth -flatten;\n" \
                         f"opt;\n" \
                         f"opt_clean -purge;\n" \
-                        f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
-                        f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+                        f"abc -liberty {self.specs.path.synthesis.cell_library} -script {self.specs.path.synthesis.abc_script};\n" \
+                        f"stat -liberty {self.specs.path.synthesis.cell_library};\n"
 
         process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
         if process.stderr:
@@ -914,7 +914,7 @@ class Synthesis:
                         f"synth -flatten;\n" \
                         f"opt;\n" \
                         f"opt_clean -purge;\n" \
-                        f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                        f"abc -liberty {self.specs.path.synthesis.cell_library} -script {self.specs.path.synthesis.abc_script};\n" \
                         f"write_verilog -noattr {design_out_path}"
         process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
         if process.stderr:
@@ -931,7 +931,7 @@ class Synthesis:
         design_out_path = f'{design_in_path[:-2]}_for_metrics.v'
         delay_script = f'{design_in_path[:-2]}_for_delay.script'
         self.__synthesize_for_circuit_metrics(design_in_path)
-        sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+        sta_command = f"read_liberty {self.specs.path.synthesis.cell_library}\n" \
                       f"read_verilog {design_out_path}\n" \
                       f"link_design {module_name}\n" \
                       f"create_clock -name clk -period 1\n" \
@@ -978,7 +978,7 @@ class Synthesis:
         design_out_path = f'{design_in_path[:-2]}_for_metrics.v'
         power_script = f'{design_in_path[:-2]}_for_power.script'
         self.__synthesize_for_circuit_metrics(design_in_path)
-        sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+        sta_command = f"read_liberty {self.specs.path.synthesis.cell_library}\n" \
                       f"read_verilog {design_out_path}\n" \
                       f"link_design {module_name}\n" \
                       f"create_clock -name clk -period 1\n" \
@@ -1025,7 +1025,7 @@ class Synthesis:
             idx = 0
 
         this_path = f'{this_path}/{self.ver_out_name}' if this_path else self.ver_out_path
-        
+
         with open(this_path, 'w') as f:
             f.write(f'/* model {idx} */ \n')
             f.writelines(self.verilog_string[idx])

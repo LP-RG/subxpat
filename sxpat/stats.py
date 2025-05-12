@@ -274,42 +274,42 @@ class Grid:
 
 
 class Stats:
-    def __init__(self, spec_obj: Specifications):
+    def __init__(self, specs: Specifications):
         """
         stores the stats of an experiment (grid or cell) into an object
         """
-        self.__template_name = spec_obj.template_name
-        self.__exact_name: str = spec_obj.exact_benchmark
-        self.__approximate_name: str = spec_obj.current_benchmark
+        self.__template_name = specs.template_name
+        self.__exact_name: str = specs.exact_benchmark
+        self.__approximate_name: str = specs.current_benchmark
 
         self.__lpp, self.__ppo = {
-            TemplateType.NON_SHARED: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
-            TemplateType.SHARED: lambda: (spec_obj.max_its, spec_obj.max_pit),
-        }[spec_obj.template]()
+            TemplateType.NON_SHARED: lambda: (specs.max_lpp, specs.max_ppo),
+            TemplateType.SHARED: lambda: (specs.max_its, specs.max_pit),
+        }[specs.template]()
 
-        self.__et: int = spec_obj.max_error
+        self.__et: int = specs.max_error
 
         self.__tool_name = {
             (False, TemplateType.NON_SHARED): sxpatconfig.XPAT,
             (False, TemplateType.SHARED): sxpatconfig.SHARED_XPAT,
             (True, TemplateType.NON_SHARED): sxpatconfig.SUBXPAT,
             (True, TemplateType.SHARED): sxpatconfig.SHARED_SUBXPAT,
-        }[(spec_obj.subxpat, spec_obj.template)]
+        }[(specs.subxpat, specs.template)]
 
-        self.__max_sensitivity: int = spec_obj.max_sensitivity
-        self.__min_subgraph_size: int = spec_obj.min_subgraph_size
+        self.__max_sensitivity: int = specs.max_sensitivity
+        self.__min_subgraph_size: int = specs.min_subgraph_size
 
-        self.__imax: int = spec_obj.imax
-        self.__omax: int = spec_obj.omax
-        self.__mode: int = spec_obj.extraction_mode
+        self.__imax: int = specs.imax
+        self.__omax: int = specs.omax
+        self.__mode: int = specs.extraction_mode
 
         # This property should be assigned before calling the funciton "self.get_grid_name()"
-        self.__specs_obj: Specifications = spec_obj
+        self.__specs: Specifications = specs
 
         self.__grid_name: str = self.get_grid_name()
         self.__grid_path: str = self.get_grid_path()
 
-        self.__grid = Grid(spec_obj)
+        self.__grid = Grid(specs)
 
     @property
     def tool_name(self):
@@ -321,7 +321,7 @@ class Stats:
 
     @property
     def specs(self):
-        return self.__specs_obj
+        return self.__specs
 
     @property
     def mode(self):
@@ -515,13 +515,13 @@ class Stats:
                             csvwriter.writerow(row)
 
     def gather_results(self):
-        mecals = Result(self.exact_name, sxpatconfig.MECALS)
+        mecals = Result(self.specs, self.exact_name, sxpatconfig.MECALS)
 
-        muscat = Result(self.exact_name, sxpatconfig.MUSCAT)
+        muscat = Result(self.specs, self.exact_name, sxpatconfig.MUSCAT)
         mecals.status = False
         muscat.status = False
-        shared_xpat = Result(self.exact_name, sxpatconfig.SHARED_XPAT)
-        xpat = Result(self.exact_name, sxpatconfig.XPAT)
+        shared_xpat = Result(self.specs, self.exact_name, sxpatconfig.SHARED_XPAT)
+        xpat = Result(self.specs, self.exact_name, sxpatconfig.XPAT)
 
         #
         shared_subxpat = []
@@ -961,12 +961,12 @@ class Stats:
         # plt.savefig(figurename_pdf)
 
     def plot_partitioning(self, metric: str = sxpatconfig.AREA):
-        subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
+        subxpat = Result(self.specs, self.exact_name, sxpatconfig.SUBXPAT)
         self._get_partitioning_characteristics(subxpat)
         # for an error, extract the grid for each partitioning approach
 
     def plot_iterations(self, metric: str = sxpatconfig.AREA):
-        subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
+        subxpat = Result(self.specs, self.exact_name, sxpatconfig.SUBXPAT)
         self._get_iteration_characteristcs(subxpat)
 
         fig, ax = plt.subplots()
@@ -999,7 +999,7 @@ class Stats:
             print(Fore.RED + f'ERROR!!! no iterations found => iteration_list variable is empty' + Style.RESET_ALL)
 
     def _get_num_iterations(self):
-        subxpat = Result(self.exact_name, sxpatconfig.SUBXPAT)
+        subxpat = Result(self.specs, self.exact_name, sxpatconfig.SUBXPAT)
         iterations = -1
 
         folder, _ = OUTPUT_PATH['report']
@@ -1073,10 +1073,10 @@ class Stats:
                                         cur_power = float(result[4])
                                         cur_delay = float(result[3])
 
-                                        if cur_area < cur_area_list[iteration-1]:
-                                            cur_area_list[iteration-1] = cur_area
-                                            cur_power_list[iteration-1] = cur_power
-                                            cur_delay_list[iteration-1] = cur_delay
+                                        if cur_area < cur_area_list[iteration - 1]:
+                                            cur_area_list[iteration - 1] = cur_area
+                                            cur_power_list[iteration - 1] = cur_power
+                                            cur_delay_list[iteration - 1] = cur_delay
                 area_iteration_dict[error] = cur_area_list
                 power_iteration_dict[error] = cur_power_list
                 delay_iteration_dict[error] = cur_delay_list
@@ -1096,14 +1096,18 @@ class Stats:
 
 
 class Result:
+    # TODO:MARCO:HERE: 12-05
     def __init__(self,
-                 benchname: 'str',
-                 toolname: 'str',
+                 specs: Specifications,
+                 benchname: str,
+                 toolname: str,
                  mode: int = 1,
                  imax: int = 0,
                  omax: int = 0,
-                 subgraphsize: int = 5) -> None:
+                 subgraphsize: int = 5,
+                 ) -> None:
         self.__tool = str(toolname)
+        self.specs = specs
 
         if self.tool_name == sxpatconfig.MECALS or self.tool_name == sxpatconfig.SUBXPAT or self.tool_name == sxpatconfig.XPAT or self.tool_name == sxpatconfig.SHARED_SUBXPAT or self.tool_name == sxpatconfig.SHARED_XPAT:
             if benchname in list(sxpatconfig.BENCH_DICT.keys()):
@@ -1487,7 +1491,7 @@ class Result:
                             f"synth -flatten;\n" \
                             f"opt;\n" \
                             f"opt_clean -purge;\n" \
-                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                            f"abc -liberty {self.specs.path.synthesis.cell_library} -script {self.specs.path.synthesis.abc_script};\n" \
                             f"write_verilog -noattr {design_out_path}"
 
             process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
@@ -1508,7 +1512,7 @@ class Result:
                             f"synth -flatten;\n" \
                             f"opt;\n" \
                             f"opt_clean -purge;\n" \
-                            f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
+                            f"abc -liberty {self.specs.path.synthesis.cell_library} -script {self.specs.path.synthesis.abc_script};\n" \
                             f"write_verilog -noattr {design_out_path}"
 
             process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
@@ -1549,13 +1553,13 @@ class Result:
                     i += 1
                     printProgressBar(i, len(self.verilog_files), prefix=f'Synthesizing ({self.tool_name}):', suffix='Complete', length=50)
                     syn_file = self.synthesized_files[error]
-                    yosys_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                    yosys_command = f"read_liberty {self.specs.path.synthesis.cell_library}\n" \
                                     f"read_verilog {syn_file};\n" \
                                     f"synth -flatten;\n" \
                                     f"opt;\n" \
                                     f"opt_clean -purge;\n" \
-                                    f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
-                                    f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+                                    f"abc -liberty {self.specs.path.synthesis.cell_library} -script {self.specs.path.synthesis.abc_script};\n" \
+                                    f"stat -liberty {self.specs.path.synthesis.cell_library};\n"
 
                     process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
                     if process.stderr:
@@ -1583,13 +1587,13 @@ class Result:
                     i += 1
                     printProgressBar(i, len(self.verilog_files), prefix=f'Synthesizing ({self.tool_name}):', suffix='Complete', length=50)
                     ver_file = folder = f'experiments/{self.tool_name}/ver/{self.benchmark}/{ver_file}'
-                    yosys_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                    yosys_command = f"read_liberty {self.specs.path.synthesis.cell_library}\n" \
                                     f"read_verilog {ver_file};\n" \
                                     f"synth -flatten;\n" \
                                     f"opt;\n" \
                                     f"opt_clean -purge;\n" \
-                                    f"abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH};\n" \
-                                    f"stat -liberty {sxpatconfig.LIB_PATH};\n"
+                                    f"abc -liberty {self.specs.path.synthesis.cell_library} -script {self.specs.path.synthesis.abc_script};\n" \
+                                    f"stat -liberty {self.specs.path.synthesis.cell_library};\n"
 
                     process = subprocess.run([YOSYS, '-p', yosys_command], stdout=PIPE, stderr=PIPE)
                     if process.stderr:
@@ -1640,7 +1644,7 @@ class Result:
                     syn_file = self.synthesized_files[error]
                     power_script = f'{syn_file[:-2]}_for_power.script'
                     module_name = self.extract_module_name(syn_file)
-                    sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                    sta_command = f"read_liberty {self.specs.path.synthesis.cell_library}\n" \
                                   f"read_verilog {syn_file}\n" \
                                   f"link_design {module_name}\n" \
                                   f"create_clock -name clk -period 1\n" \
@@ -1686,7 +1690,7 @@ class Result:
 
             delay_script = f'{ver_file[:-2]}_for_delay.script'
             module_name = self.extract_module_name(ver_file)
-            sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+            sta_command = f"read_liberty {self.specs.path.synthesis.cell_library}\n" \
                           f"read_verilog {ver_file}\n" \
                           f"link_design {module_name}\n" \
                           f"create_clock -name clk -period 1\n" \
@@ -1739,7 +1743,7 @@ class Result:
                     syn_file = self.synthesized_files[error]
                     delay_script = f'{syn_file[:-2]}_for_delay.script'
                     module_name = self.extract_module_name(syn_file)
-                    sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+                    sta_command = f"read_liberty {self.specs.path.synthesis.cell_library}\n" \
                                   f"read_verilog {syn_file}\n" \
                                   f"link_design {module_name}\n" \
                                   f"create_clock -name clk -period 1\n" \
@@ -1771,7 +1775,7 @@ class Result:
 
             delay_script = f'{ver_file[:-2]}_for_delay.script'
             module_name = self.extract_module_name(ver_file)
-            sta_command = f"read_liberty {sxpatconfig.LIB_PATH}\n" \
+            sta_command = f"read_liberty {self.specs.path.synthesis.cell_library}\n" \
                           f"read_verilog {ver_file}\n" \
                           f"link_design {module_name}\n" \
                           f"create_clock -name clk -period 1\n" \
