@@ -105,9 +105,7 @@ class Graph:
 
     @ft.cached_property
     def expressions(self) -> Sequence[ExpressionNode]:
-        # TODO:MARCO: THIS METHOD IS IMPORTANT, USED A LOT, MAKE SURE IT WORKS
         return tuple(node for node in self.nodes if isinstance(node, ExpressionNode))
-        # return tuple(node for node in self.nodes if not isinstance(node, (*contact_nodes, *origin_nodes, Target, Constraint)))
 
     @ft.cached_property
     def targets(self) -> Sequence[Target]:
