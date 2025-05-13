@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Tuple, Union
 import enum
 import dataclasses as dc
 
+import re
 import argparse
 from pathlib import Path
 
@@ -107,6 +108,12 @@ class Specifications:
     @property
     def max_its(self) -> int:
         return self.max_pit + 3
+
+    @property
+    def outputs(self) -> int:
+        """Get the number of outputs of the circuit."""
+        # TODO: Temporary implementation.
+        return int(re.search('_o(\d+)', self.exact_benchmark)[1])
 
     @property
     def template_name(self):
