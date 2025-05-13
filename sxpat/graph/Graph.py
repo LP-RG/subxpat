@@ -7,7 +7,7 @@ import networkx as nx
 import functools as ft
 import itertools as it
 
-from .Node import Node, OperationNode, BoolConstant, IntConstant, Target, Constraint, BoolVariable, contact_nodes, origin_nodes
+from .Node import ExpressionNode, Node, Operation, Constant, ConstantNode, OperationNode, Target, Constraint, BoolVariable
 
 
 __all__ = ['Graph', 'IOGraph', 'CGraph', 'SGraph', 'PGraph',
@@ -37,7 +37,7 @@ class Graph:
         node_names_in_edges = set(
             src_name
             for node in nodes
-            if isinstance(node, OperationNode)
+            if isinstance(node, Operation)
             for src_name in node.operands
         )
         if len(node_names_in_edges - defined_node_names) > 0:
@@ -53,7 +53,7 @@ class Graph:
         _inner.add_edges_from(
             (src_name, dst_name)
             for dst_name, data in _inner.nodes(data=True)
-            if isinstance(node := data[self.K], OperationNode)
+            if isinstance(node := data[self.K], Operation)
             for src_name in node.operands
         )
 
@@ -87,7 +87,7 @@ class Graph:
     def predecessors(self, node_or_name: Union[str, Node]) -> Sequence[Node]:
         node_name = self._get_name(node_or_name)
         node = self._inner.nodes[node_name][self.K]
-        # we iterate over the .predecessors instead of the .operands, so even if `node` is not an OperationNode it still works
+        # we iterate over the .predecessors instead of the .operands, so even if `node` is not an Operation it still works
         return tuple(sorted(
             (self._inner.nodes[_name][self.K] for _name in self._inner.predecessors(node_name)),
             key=lambda _n: node.operands.index(_n.name)
@@ -100,24 +100,14 @@ class Graph:
         )
 
     @ft.cached_property
-    def constants(self) -> Sequence[Node]:
-        return tuple(node for node in self.nodes if isinstance(node, (BoolConstant, IntConstant)))
-
-    # @ft.cached_property
-    # def origins(self) -> Sequence[Node]:
-    #     return tuple(node for node in self.nodes if isinstance(node, (BoolVariable, IntVariable, BoolConstant, IntConstant)))
+    def constants(self) -> Sequence[ConstantNode]:
+        return tuple(node for node in self.nodes if isinstance(node, Constant))
 
     @ft.cached_property
-    def operations(self) -> Sequence[OperationNode]:
-        return tuple(node for node in self.nodes if not isinstance(node, (*contact_nodes, *origin_nodes, Target, Constraint)))
-
-    # @ft.cached_property
-    # def end_nodes(self) -> Sequence[Copy]:
-    #     return tuple(node for node in self.nodes if isinstance(node, (Copy, Target, Constraint)))
-
-    # @ft.cached_property
-    # def non_gates(self) -> Sequence[Node]:
-    #     return tuple(node for node in self.nodes if not isinstance(node, OperationNode))
+    def expressions(self) -> Sequence[ExpressionNode]:
+        # TODO:MARCO: THIS METHOD IS IMPORTANT, USED A LOT, MAKE SURE IT WORKS
+        return tuple(node for node in self.nodes if isinstance(node, ExpressionNode))
+        # return tuple(node for node in self.nodes if not isinstance(node, (*contact_nodes, *origin_nodes, Target, Constraint)))
 
     @ft.cached_property
     def targets(self) -> Sequence[Target]:
@@ -234,10 +224,6 @@ class PGraph(SGraph):
 
 class CGraph(Graph):
     """Graph containing the constraints."""
-
-    # @ft.cached_property
-    # def placeholders(self) -> FrozenSet[PlaceHolder]:
-    #     return frozenset(node for node in self.nodes if CGraph.is_placeholder(node))
 
     @ft.cached_property
     def constraints(self) -> Sequence[Constraint]:

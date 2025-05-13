@@ -74,7 +74,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         BoolConstant: 'constB',
         IntConstant: 'constI',
         # output
-        Copy: 'copy',
+        Identity: 'copy',
         Target: 'target',
         # placeholder
         PlaceHolder: 'holder',
@@ -105,7 +105,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # constants
         (BoolConstant, IntConstant): 'square',
         # output
-        (Copy,): 'doublecircle',
+        (Identity,): 'doublecircle',
         # target
         (Target,): 'star',
         # placeholder
@@ -142,7 +142,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
             string += rf'\nw={node.weight}'
         if node.in_subgraph:
             string += rf'\nsub'
-        if isinstance(node, OperationNode):
+        if isinstance(node, Operation):
             string += rf'\ni={",".join(node.operands)}'
         if isinstance(node, Valued):
             string += rf'\nv={node.value}'
@@ -204,7 +204,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         edge_lines = [
             f'{src_name} -> {dst.name};'
             for dst in graph.nodes
-            if isinstance(dst, OperationNode)
+            if isinstance(dst, Operation)
             for src_name in dst.operands
         ]
 
@@ -360,7 +360,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         @authors: Marco Biasion
     """
 
-    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued]], str]] = {
+    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, ValuedNode]], str]] = {
         # variables
         # BoolVariable: lambda n: None,
         # IntVariable: lambda n: None,
@@ -368,7 +368,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         BoolConstant: lambda n: f'{int(n.value)}',
         # IntConstant: lambda n: f'{n.value}',
         # output
-        Copy: lambda n: n.operand,
+        Identity: lambda n: n.operand,
         # Target: lambda n: None,
         # bool-bool operations
         Not: lambda n: f'(~{n.operand})',
