@@ -2,14 +2,52 @@ from .Node import *
 from .Graph import *
 
 __all__ = [
-    # nodes
-    'AbsDiff', 'And', 'AtLeast', 'AtMost', 'BoolConstant', 'BoolVariable', 'Constraint',
-    'Copy', 'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
-    'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'NotEquals',
-    'Not', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'Target', 'ToInt', 'Valued',
-    # nodes groups
-    'boolean_nodes', 'integer_nodes', 'untyped_nodes', 'contact_nodes', 'origin_nodes', 'end_nodes',
-    # graphs
+    # > abstracts
+    'Node',
+    # variable
+    'Variable',
+    # valued
+    'Valued',
+    # constant
+    'Constant',
+    # operation
+    'Operation', 'Limited1Operation', 'Limited2Operation', 'Limited3Operation',
+    # resulting type
+    'BoolResType', 'IntResType', 'DynamicResType',
+    # > variables
+    'BoolVariable', 'IntVariable',
+    # > constants
+    'BoolConstant', 'IntConstant',
+    # > placeholder
+    'PlaceHolder',
+    # > expressions
+    'ExpressionNode',
+    # bool to bool
+    'Not', 'And', 'Or', 'Implies',
+    # int to int
+    'Sum', 'AbsDiff',
+    # bool to int
+    'ToInt',
+    # int to bool
+    'Equals', 'NotEquals', 'LessThan', 'LessEqualThan', 'GreaterThan', 'GreaterEqualThan',
+    # identity
+    'Identity',
+    # branch
+    'Multiplexer', 'If',
+    # quantify
+    'AtLeast', 'AtMost',
+    # > solver nodes
+    'Target', 'Constraint',
+    # global nodes
+    'GlobalNode', 'Min', 'Max', 'ForAll',
+
+    # > aliases
+    'OperationNode', 'ValuedNode', 'ConstantNode', 'VariableNode',
+
+    # > nodes groups
+    'contact_nodes', 'origin_nodes', 'end_nodes',
+
+    # > graphs
     'Graph', 'IOGraph', 'CGraph', 'SGraph', 'PGraph',
     '_Graph',
 ]
