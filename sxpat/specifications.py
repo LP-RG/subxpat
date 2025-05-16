@@ -101,6 +101,9 @@ class Specifications:
     max_sensitivity: int
     sensitivity: int = dc.field(init=False, default=None)  # rw
 
+    _persistence_counter: int = dc.field(init=False, default=0)  # rw
+    out_node: int = dc.field(init=False, default=0)  # rw\
+
     # exploration (1)
     subxpat: bool
     template: TemplateType
@@ -123,7 +126,6 @@ class Specifications:
     max_error: int
     et: int = dc.field(init=False, default=None)  # rw
     error_partitioning: ErrorPartitioningType
-
     # other
     timeout: float
     parallel: bool
@@ -222,7 +224,7 @@ class Specifications:
 
         _ex_mode = parser.add_argument('--extraction-mode', '--mode',
                                        type=int,
-                                       choices=[1, 2, 3, 4, 5, 55, 11, 12],
+                                       choices=[0,1, 2, 3, 4, 5, 55, 11, 12],
                                        default=55,
                                        help='Subgraph extraction algorithm to use (default: 55)')
 

@@ -31,3 +31,5 @@
 Laura/
 *.xlsx
 .DS_Store
+nohup.out
+.gitignore
