@@ -13,7 +13,7 @@ class ErrorPartitioningType(enum.Enum):
     DESCENDING = 'desc'
     SMART_ASCENDING = 'smart_asc'
     SMART_DESCENDING = 'smart_desc'
-
+    EXPONENTIAL = 'exp'
 
 class EncodingType(enum.Enum):
     Z3_FUNC_INTEGER = 'z3int'

@@ -62,6 +62,8 @@ def explore_grid(specs_obj: Specifications):
             step = orig_et // specs_obj.partition_divider if orig_et // specs_obj.partition_divider > 0 else 1
             list_values = list(range(step, orig_et + step, step))
             et_array = iter(list_values)
+    elif specs_obj.error_partitioning is ErrorPartitioningType.EXPONENTIAL:
+        et_array = iter([2**i for i in range(8)])
 
     while (obtained_wce_exact <= specs_obj.max_error):
         specs_obj.iteration += 1
@@ -69,7 +71,10 @@ def explore_grid(specs_obj: Specifications):
             if prev_actual_error == 0:
                 break
             specs_obj.et = specs_obj.max_error
-        elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
+        elif (
+            specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING
+            or specs_obj.error_partitioning is ErrorPartitioningType.EXPONENTIAL
+        ):
             if (persistance == persistance_limit or prev_actual_error == 0):
                 persistance = 0
                 try:
