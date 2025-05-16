@@ -59,7 +59,7 @@ def explore_grid(specs_obj: Specifications):
         if orig_et <= 8:
             et_array = iter(list(range(1, orig_et + 1, 1)))
         else:
-            step = orig_et // 2 if orig_et // 2 > 0 else 1
+            step = orig_et // specs_obj.partition_divider if orig_et // specs_obj.partition_divider > 0 else 1
             list_values = list(range(step, orig_et + step, step))
             et_array = iter(list_values)
 

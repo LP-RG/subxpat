@@ -109,6 +109,7 @@ class Specifications:
     wanted_models: int
     iteration: int = dc.field(init=False, default=None)  # rw
     persistance: int 
+    partition_divider: int
     # exploration (2)
     max_lpp: int
     lpp: int = dc.field(init=False, default=None)  # rw
@@ -300,6 +301,11 @@ class Specifications:
                                   default=ErrorPartitioningType.ASCENDING,
                                   help='The error partitioning algorithm to use (default: asc)')
 
+        _parition_divider = parser.add_argument('--partition-divider', '--pardiv', 
+                                                type=int, 
+                                                default=8,
+                                                help="The number that is used to divied the et to create the step when creating the linear partition (default: 8)")
+
         # > other stuff
 
         _enc = parser.add_argument('--encoding',
@@ -338,6 +344,7 @@ class Specifications:
             (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
+            (_ep, ErrorPartitioningType.ASCENDING): [_parition_divider],
         }
 
         # check dependencies
