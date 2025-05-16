@@ -120,7 +120,7 @@ def explore_grid(specs_obj: Specifications):
             label_timer, _label_graph = Timer.from_function(label_graph)
             _label_graph(current_graph,
                          min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
-                         et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel, metric = specs_obj.metric)
+                         et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel, metric=specs_obj.metric)
             print(f'labeling_time = {(labeling_time := label_timer.total)}')
 
         # extract subgraph
