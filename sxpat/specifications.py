@@ -83,7 +83,7 @@ class Specifications:
     exact_benchmark: str
     current_benchmark: str  # rw
     # metric
-    metric: str
+    metric: MetricType
     
     #zone constraint
     zone_constraint: int

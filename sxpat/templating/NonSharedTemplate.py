@@ -6,7 +6,7 @@ from .Template import Template
 
 from sxpat.converting import set_prefix
 from sxpat.graph import *
-from sxpat.specifications import ConstantsType, Specifications
+from sxpat.specifications import ConstantsType, MetricType, Specifications
 from sxpat.utils.collections import flat, iterable_replace, pairwise
 
 
@@ -299,7 +299,7 @@ class NonSharedTemplate(Template, _NonSharedBase):
                 (PlaceHolder(name) for name in s_graph.outputs_names),
                 (PlaceHolder(name) for name in template_graph.outputs_names),
                 # behavioural constraints
-                cls.error_constraint(s_graph, template_graph, specs.et) if(specs.metric == 'wae') else cls.relative_error_constraint(s_graph, template_graph, specs.max_error) if(specs.zone_constraint == None) else cls.relative_error_zone_constraint(s_graph, template_graph, specs.max_error, specs.zone_constraint),
+                cls.error_constraint(s_graph, template_graph, specs.et) if(specs.metric is MetricType.ABSOLUTE) else cls.relative_error_constraint(s_graph, template_graph, specs.max_error) if(specs.zone_constraint == None) else cls.relative_error_zone_constraint(s_graph, template_graph, specs.max_error, specs.zone_constraint),
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
                 # redundancy constraints
                 mux_red_nodes,

@@ -235,7 +235,7 @@ def explore_grid(specs_obj: Specifications):
                 for candidate_name, candidate_data in cur_model_results.items():
                     candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2], specs_obj.metric, specs_obj.zone_constraint)
                     candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2], specs_obj.metric, specs_obj.zone_constraint)
-                    error = specs_obj.et if specs_obj.metric == 'wae' else specs_obj.max_error
+                    error = specs_obj.et if specs_obj.metric is MetricType.ABSOLUTE else specs_obj.max_error
                     if candidate_data[4] > error:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
                         stats_obj.store_grid()
@@ -397,7 +397,7 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
 
 def label_graph(current_graph: AnnotatedGraph,
                 min_labeling: bool = False, partial: bool = False,
-                et: int = -1, parallel: bool = False, metric: str = 'wae'):
+                et: int = -1, parallel: bool = False, metric: MetricType = MetricType.ABSOLUTE):
     labels, _ = labeling_explicit(current_graph.name, current_graph.name,
                                   constant_value=0, min_labeling=min_labeling,
                                   partial=partial, et=et, parallel=parallel, metric=metric)

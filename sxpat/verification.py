@@ -11,7 +11,7 @@ from Z3Log.z3solver import Z3solver
 from sxpat.specifications import MetricType
 
 
-def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark: str, metric: str, zone_constraint: int) -> int:
+def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark: str, metric: MetricType, zone_constraint: int) -> int:
 
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()
@@ -28,7 +28,7 @@ def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark:
     graph_obj_exact.export_graph()
     graph_obj_approx.export_graph()
 
-    z3py_obj_qor = Z3solver(exact_benchmark_name, approximate_benchmark, metric= metric)
+    z3py_obj_qor = Z3solver(exact_benchmark_name, approximate_benchmark, metric=metric.value)
     z3py_obj_qor.convert_gv_to_z3pyscript_maxerror_qor(zone_constraint = zone_constraint)
 
     z3py_obj_qor.export_z3pyscript()
@@ -45,7 +45,7 @@ def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark:
                     if row[0] == z3logcfg.WCE:
                         if metric == MetricType.ABSOLUTE:
                             obtained_wce = int(row[1])
-                        elif metric == MetricType.RELAVITVE:
+                        elif metric == MetricType.RELATIVE:
                             obtained_wce = int(float(row[1]) * 100) 
                         os.remove(report_file)
                         break
