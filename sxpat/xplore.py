@@ -202,15 +202,20 @@ def explore_grid(specs_obj: Specifications):
             else:
                 pprint.success(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()} ({len(models)} models found)')
 
+                base_path = f'input/ver/{specs_obj.exact_benchmark}_{int(time.time())}_{{model_number}}.v'
                 cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
-                for _, model in enumerate(models):
+
+                for model_number, model in enumerate(models):
                     # finalize approximate graph
                     a_graph = set_bool_constants(p_graph, model)
 
                     # export approximate graph as verilog
                     # TODO:#15: use serious name generator
-                    verilog_path = f'input/ver/{specs_obj.exact_benchmark}_{int(time.time())}.v'
-                    VerilogExporter.to_file(a_graph, verilog_path)
+                    verilog_path = base_path.format(model_number=model_number)
+                    VerilogExporter.to_file(
+                        a_graph, verilog_path,
+                        VerilogExporter.Info(model_number=model_number),
+                    )
 
                     # compute metrics
                     metrics = MetricsEstimator.estimate_metrics(verilog_path)
