@@ -22,7 +22,7 @@ from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 
-from sxpat.templating import NonSharedFOutTemplate, NonSharedFProdTemplate, get_specialized as get_templater
+from sxpat.templating import get_specialized as get_templater
 from sxpat.solving import get_specialized as get_solver
 
 from sxpat.converting import VerilogExporter
@@ -202,7 +202,8 @@ def explore_grid(specs_obj: Specifications):
             else:
                 pprint.success(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()} ({len(models)} models found)')
 
-                base_path = f'input/ver/{specs_obj.exact_benchmark}_{int(time.time())}_{{model_number}}.v'
+                # TODO:#15: use serious name generator
+                base_path = f'input/ver/{specs_obj.exact_benchmark}_{specs_obj.time_id}_i{specs_obj.iteration}_{{model_number}}.v'
                 cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
 
                 for model_number, model in enumerate(models):
