@@ -3,8 +3,12 @@ from typing import Any, Dict, List, Tuple, Union, NamedTuple
 import enum
 import dataclasses as dc
 
+import time
 import argparse
 from pathlib import Path
+
+from sxpat.utils.functions import int_to_strbase
+
 
 __all__ = [
     'Specifications',
@@ -137,6 +141,7 @@ class Specifications:
     parallel: bool
     plot: bool
     clean: bool
+    time_id: str = dc.field(init=False, default_factory=lambda: int_to_strbase(time.time_ns()))
 
     def __post_init__(self):
         object.__setattr__(self, 'exact_benchmark', Path(self.exact_benchmark).stem)
