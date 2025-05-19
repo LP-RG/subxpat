@@ -29,7 +29,7 @@ from sxpat.converting import VerilogExporter
 from sxpat.converting import iograph_from_legacy, sgraph_from_legacy
 from sxpat.converting import set_bool_constants, prevent_combination
 
-from sxpat.utils.utils import pprint
+from sxpat.utils.print import pprint
 
 
 def explore_grid(specs_obj: Specifications):

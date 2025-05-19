@@ -1,5 +1,5 @@
 from sxpat.specifications import Specifications
-from sxpat.utils.utils import pprint
+from sxpat.utils.print import pprint
 
 
 def main():
