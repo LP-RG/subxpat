@@ -27,7 +27,11 @@ from sxpat.template_manager.encoding import Encoding
 
 
 def explore_grid(specs_obj: Specifications):
+    exp_start = time.perf_counter()
     previous_subgraphs = []
+    previous_current_benchmark = ''
+    previous_checked_error = 1
+    previous_available_subgraph = 0
 
     labeling_time: float = -1
     subgraph_extraction_time: float = -1
@@ -74,8 +78,9 @@ def explore_grid(specs_obj: Specifications):
                 try:
                     specs_obj.et = next(et_array)
                 except StopIteration:
-                    pprint.warning('The error space is exhausted!')
-                    break
+                    pprint.warning('The error space is exhausted! continuing for now')
+                    specs_obj.et = specs_obj.max_error
+                    # break
             else:
                 persistance += 1
             print("persistance is: ",persistance)
@@ -106,24 +111,39 @@ def explore_grid(specs_obj: Specifications):
         # > grid step settings
 
         # import the graph
-        current_graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
+        if specs_obj.current_benchmark != previous_current_benchmark:
+            current_graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
         exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False)
 
         # label graph
-        if specs_obj.requires_labeling:
+        if specs_obj.requires_labeling and not previous_available_subgraph or specs_obj.current_benchmark != previous_current_benchmark:
             et_coefficient = 1
 
-            t_start = time.time()
-            label_graph(current_graph,
+            t_start = time.perf_counter()
+            label_graph(exact_graph, current_graph, obtained_wce_exact, specs_obj.exact_labeling,
                         min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
-                        et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel)
-            labeling_time = time.time() - t_start
+                        et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel,
+                        incremental_labeling=specs_obj.current_benchmark == previous_current_benchmark)
+            labeling_time = time.perf_counter() - t_start
             print(f'labeling_time = {labeling_time}')
+        else:
+            print('skipped labeling\n')
+        
+
+        mini = 1e100
+        for n in current_graph.graph.nodes:
+            x = current_graph.graph.nodes[n][WEIGHT]
+            lab = current_graph.graph.nodes[n]['label']
+            if x != -1 and lab != 'TRUE' and lab != 'FALSE':
+                mini = min(x,mini)
+        if mini + obtained_wce_exact > specs_obj.max_error:
+            print("impossible to conclude any iteration, stopping")
+            break
 
         # extract subgraph
-        t_start = time.time()
+        t_start = time.perf_counter()
         subgraph_is_available = current_graph.extract_subgraph(specs_obj)
-        subgraph_extraction_time = time.time() - t_start
+        subgraph_extraction_time = time.perf_counter() - t_start
         print(f'subgraph_extraction_time = {subgraph_extraction_time}')
         previous_subgraphs.append(current_graph.subgraph)
 
@@ -140,14 +160,14 @@ def explore_grid(specs_obj: Specifications):
             prev_actual_error = 0
             continue
 
-        # guard: skip if the subraph is equal to the previous one
-        if (
-            len(previous_subgraphs) >= 2
-            and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
-        ):
-            pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
-            prev_actual_error = 0
-            continue
+        # guard: don't skip if the subraph is equal to the previous one
+        # if (
+        #     len(previous_subgraphs) >= 2
+        #     and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
+        # ):
+        #     pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
+        #     prev_actual_error = 0
+        #     continue
 
         if specs_obj.template_name == 'V2':
             # todo:wip:marco
@@ -160,9 +180,9 @@ def explore_grid(specs_obj: Specifications):
             manager.set_new_context(specs_obj, specs_obj.et - obtained_wce_exact)
             full_magraph, sub_magraph = manager.set_graph_and_update_functions(current_graph)
 
-            p1_start = time.time()
+            p1_start = time.perf_counter()
             success, message = manager.run_phase1([specs_obj.et - obtained_wce_exact, specs_obj.wanted_models, 1*60*60])
-            subxpat_phase1_time = time.time() - p1_start
+            subxpat_phase1_time = time.perf_counter() - p1_start
             print(f"p1_time = {subxpat_phase1_time:.6f}")
 
             if not success:
@@ -188,17 +208,18 @@ def explore_grid(specs_obj: Specifications):
             # run script
             if specs_obj.template_name != 'V2':
                 manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
-                start_time = time.time()
+                start_time = time.perf_counter()
                 results = manager.run()
-                execution_time = time.time() - start_time
+                execution_time = time.perf_counter() - start_time
 
                 cur_status = results[0].status
             else:
                 manager.set_new_context(specs_obj, specs_obj.et - obtained_wce_exact)
-                p2_start = time.time()
+                p2_start = time.perf_counter()
                 cur_status, model = manager.run_phase2()
-                subxpat_phase2_time = time.time() - p2_start
+                subxpat_phase2_time = time.perf_counter() - p2_start
                 print(f"p2_time = {subxpat_phase2_time:.6f}")
+                phase2_tot += subxpat_phase2_time
                 execution_time = subxpat_phase2_time
                 manager.import_json_model()
 
@@ -291,6 +312,7 @@ def explore_grid(specs_obj: Specifications):
 
                 # verify all models and store errors
                 pprint.success('verifying all approximate circuits -> ', end='')
+                start_error_eval = time.perf_counter()
                 for candidate_name, candidate_data in cur_model_results.items():
                     candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
                     candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
@@ -306,6 +328,8 @@ def explore_grid(specs_obj: Specifications):
                         stats_obj.store_grid()
                         return stats_obj
                 pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {specs_obj.iteration} -> {cur_status} ({synth_obj.num_of_models} models found)')
+                error_eval_time = time.perf_counter() - start_error_eval
+                print(f"p1_time = {error_eval_time:.6f}") 
 
                 # sort circuits
                 sorted_circuits = sorted(cur_model_results.items(), key=ft.cmp_to_key(model_compare))
@@ -352,6 +376,8 @@ def explore_grid(specs_obj: Specifications):
             break
 
     stats_obj.store_grid()
+    total_time = time.perf_counter() - exp_start
+    print(f'total_time = {total_time}')
     return stats_obj
 
 
@@ -465,12 +491,28 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         csvwriter.writerow(approx_data)
 
 
-def label_graph(current_graph: AnnotatedGraph,
+def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, substract: int, exact_labeling: bool,
                 min_labeling: bool = False,  partial: bool = False,
-                et: int = -1, parallel: bool = False):
+                et: int = -1, parallel: bool = False, incremental_labeling = False):
     labels, _ = labeling_explicit(current_graph.name, current_graph.name,
                                   constant_value=0, min_labeling=min_labeling,
                                   partial=partial, et=et, parallel=parallel)
+
+
+    # already_labeled = {}
+    # if incremental_labeling:
+    #     for n in current_graph.graph.nodes:
+    #         x = current_graph.graph.nodes[n][WEIGHT]
+    #         if x != -1:
+    #             already_labeled[n] = x
+    # if exact_labeling:
+    #     labels = lollo.temp_labelling.labeling(exact_graph.name, current_graph.name, et, already_labeled)
+
+    #     for n in current_graph.graph.nodes:
+    #         current_graph.graph.nodes[n][WEIGHT] = max(1,int(labels[n]) - substract) if n in labels else -1
+
+    # else:
+    #     labels = lollo.temp_labelling.labeling(current_graph.name, current_graph.name, et, already_labeled)
 
     for n in current_graph.graph.nodes:
         current_graph.graph.nodes[n][WEIGHT] = int(labels[n]) if n in labels else -1
