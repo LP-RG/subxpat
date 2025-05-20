@@ -47,8 +47,8 @@ def explore_grid(specs_obj: Specifications):
 
     obtained_wce_exact = 0
     specs_obj.iteration = 0
-    persistance = 0
-    persistance_limit = 2
+    persistence = 0
+    persistence_limit = 2
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
 
@@ -58,7 +58,7 @@ def explore_grid(specs_obj: Specifications):
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
         if orig_et <= 8:
-            et_array = iter(list(range(1, orig_et +1, 1)))
+            et_array = iter(list(range(1, orig_et + 1, 1)))
         else:
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
@@ -70,8 +70,8 @@ def explore_grid(specs_obj: Specifications):
                 break
             specs_obj.et = specs_obj.max_error
         elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
-            if (persistance == persistance_limit or prev_actual_error == 0):
-                persistance = 0
+            if (persistence == persistence_limit or prev_actual_error == 0):
+                persistence = 0
                 try:
                     specs_obj.et = next(et_array)
                 except StopIteration:
@@ -79,12 +79,19 @@ def explore_grid(specs_obj: Specifications):
                     specs_obj.et = specs_obj.max_error
                     # break
             else:
-                persistance += 1
+                persistence += 1
         elif specs_obj.error_partitioning is ErrorPartitioningType.DESCENDING:
             log2 = int(math.log2(specs_obj.max_error))
             specs_obj.et = 2 ** (log2 - specs_obj.iteration - 2)
         elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_ASCENDING:
-            specs_obj.et = 1 if specs_obj.iteration == 1 else prev_given_error * (2 if prev_actual_error == 0 else 1)
+            if specs_obj.iteration == 1:
+                specs_obj.et = 1
+            else:
+                if prev_actual_error == 0 or persistence == persistence_limit:
+                    specs_obj.et = prev_given_error * 2
+                else:
+                    specs_obj.et = prev_given_error
+                    persistence += 1
             prev_given_error = specs_obj.et
         elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_DESCENDING:
             specs_obj.et = specs_obj.max_error if specs_obj.iteration == 1 else math.ceil(prev_given_error / (2 if prev_actual_error == 0 else 1))
@@ -155,14 +162,16 @@ def explore_grid(specs_obj: Specifications):
             prev_actual_error = 0
             continue
 
-        # guard: don't skip if the subraph is equal to the previous one
-        # if (
-        #     len(previous_subgraphs) >= 2
-        #     and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
-        # ):
-        #     pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
-        #     prev_actual_error = 0
-        #     continue
+        # guard: skip if the subraph is equal to the previous one
+        # note:  does not apply for extraction mode 6
+        if (
+            specs_obj.extraction_mode != 6
+            and len(previous_subgraphs) >= 2
+            and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
+        ):
+            pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
+            prev_actual_error = 0
+            continue
 
         if specs_obj.template_name == 'V2':
             # todo:wip:marco
@@ -185,7 +194,6 @@ def explore_grid(specs_obj: Specifications):
                 pprint.warning(f'phase 1 failed with message: {message}')
                 prev_actual_error = 0
                 continue
-
 
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
@@ -297,7 +305,6 @@ def explore_grid(specs_obj: Specifications):
                 # todo: should we refactor with pandas?
                 with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{toolname}.csv", 'w') as f:
                     csvwriter = csv.writer(f)
-
                     header = list(range(len(cur_model_results)))
                     all = list(cur_model_results.values())
                     content = [f for (f, *_) in all]
@@ -394,7 +401,7 @@ class CellIterator:
 
         # grid cells
         for pit in range(1, max_pit + 1):
-            for its in range(pit, pit + 3 + 1):
+            for its in range(max(pit, specs.outputs), max(pit + 3 + 1, specs.outputs + 1)):
                 yield (its, pit)
 
     @staticmethod
