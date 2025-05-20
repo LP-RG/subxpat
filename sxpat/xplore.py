@@ -201,7 +201,6 @@ def explore_grid(specs_obj: Specifications):
                 # todo: should we refactor with pandas?
                 with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{toolname}.csv", 'w') as f:
                     csvwriter = csv.writer(f)
-
                     header = list(range(len(cur_model_results)))
                     all = list(cur_model_results.values())
                     content = [f for (f, *_) in all]
@@ -283,7 +282,7 @@ class CellIterator:
 
         # grid cells
         for pit in range(1, max_pit + 1):
-            for its in range(pit, pit + 3 + 1):
+            for its in range(max(pit, specs.outputs), max(pit + 3 + 1, specs.outputs + 1)):
                 yield (its, pit)
 
     @staticmethod
