@@ -395,13 +395,13 @@ class VerilogExporter(GraphExporter[IOGraph]):
     }
 
     @dc.dataclass(frozen=True, eq=False)
-    class VerilogInfo:
-        graph_name: str
-        model_number: int
+    class Info:
+        graph_name: str = 'graph'
+        model_number: int = -1
 
     @classmethod
-    def to_string(cls, graph: IOGraph, info: VerilogInfo = None) -> str:
-        info = info or cls.VerilogInfo('graph', -1)
+    def to_string(cls, graph: IOGraph, info: Info = None) -> str:
+        info = info or cls.Info()
 
         return '\n'.join(filter(bool, (
             f'/* model {info.model_number} */' if info.model_number >= 0 else None,
@@ -418,3 +418,9 @@ class VerilogExporter(GraphExporter[IOGraph]):
             ),
             'endmodule',
         )))
+
+    @classmethod
+    def to_file(cls, graph: _Graph, filename: str, info: Info = None) -> None:
+        string = cls.to_string(graph, info)
+        with open(filename, 'w') as f:
+            f.write(string)

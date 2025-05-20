@@ -22,14 +22,14 @@ from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 
-from sxpat.templating import NonSharedFOutTemplate, NonSharedFProdTemplate, get_specialized as get_templater
+from sxpat.templating import get_specialized as get_templater
 from sxpat.solving import get_specialized as get_solver
 
 from sxpat.converting import VerilogExporter
 from sxpat.converting import iograph_from_legacy, sgraph_from_legacy
 from sxpat.converting import set_bool_constants, prevent_combination
 
-from sxpat.utils.utils import pprint
+from sxpat.utils.print import pprint
 
 
 def explore_grid(specs_obj: Specifications):
@@ -202,15 +202,21 @@ def explore_grid(specs_obj: Specifications):
             else:
                 pprint.success(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()} ({len(models)} models found)')
 
+                # TODO:#15: use serious name generator
+                base_path = f'input/ver/{specs_obj.exact_benchmark}_{specs_obj.time_id}_i{specs_obj.iteration}_{{model_number}}.v'
                 cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
-                for _, model in enumerate(models):
+
+                for model_number, model in enumerate(models):
                     # finalize approximate graph
                     a_graph = set_bool_constants(p_graph, model)
 
                     # export approximate graph as verilog
                     # TODO:#15: use serious name generator
-                    verilog_path = f'input/ver/{specs_obj.exact_benchmark}_{int(time.time())}.v'
-                    VerilogExporter.to_file(a_graph, verilog_path)
+                    verilog_path = base_path.format(model_number=model_number)
+                    VerilogExporter.to_file(
+                        a_graph, verilog_path,
+                        VerilogExporter.Info(model_number=model_number),
+                    )
 
                     # compute metrics
                     metrics = MetricsEstimator.estimate_metrics(verilog_path)
