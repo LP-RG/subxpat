@@ -94,7 +94,7 @@ def explore_grid(specs_obj: Specifications):
 
         # slash to kill
         if specs_obj.slash_to_kill:
-            
+
             if specs_obj.iteration == 1:
                 saved_min_labeling = specs_obj.min_labeling
                 saved_exctraction_mode = specs_obj.extraction_mode
@@ -104,6 +104,8 @@ def explore_grid(specs_obj: Specifications):
 
                 specs_obj.min_labeling = False
                 specs_obj.extraction_mode = 100
+                specs_obj.et = used_et_for_slash
+
 
             if specs_obj.iteration == 2:
                 specs_obj.min_labeling = saved_min_labeling
