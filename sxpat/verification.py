@@ -9,7 +9,7 @@ from Z3Log.verilog import Verilog
 from Z3Log.graph import Graph
 from Z3Log.z3solver import Z3solver
 
-from z_marco.utils import pprint
+from sxpat.utils.utils import pprint
 
 
 def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark: str) -> int:

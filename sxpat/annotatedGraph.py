@@ -12,7 +12,7 @@ from z3 import *
 
 from .specifications import Specifications, TemplateType
 
-from z_marco.utils import pprint
+from sxpat.utils.utils import pprint
 
 
 class AnnotatedGraph(Graph):

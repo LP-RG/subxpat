@@ -7,7 +7,7 @@ from sxpat.config import paths as sxpatpaths
 from sxpat.xplore import explore_grid
 from sxpat.stats import Stats
 
-from z_marco.utils import pprint
+from sxpat.utils.utils import pprint
 from sxpat.utils.filesystem import FS
 
 

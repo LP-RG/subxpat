@@ -21,8 +21,8 @@ from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 
-from z_marco.utils import pprint
-from z_marco.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subgraph
+from sxpat.utils.utils import pprint
+from sxpat.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subgraph
 from sxpat.template_manager.encoding import Encoding
 
 
@@ -55,7 +55,6 @@ def explore_grid(specs_obj: Specifications):
     #v2
     sum_wce_actual = 0
 
-    # Morteza added for local experiments ==================
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
         if orig_et <= 8:
@@ -63,7 +62,6 @@ def explore_grid(specs_obj: Specifications):
         else:
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
-    # Ends here ============================================
 
     while (obtained_wce_exact < specs_obj.max_error):
         specs_obj.iteration += 1
@@ -72,7 +70,6 @@ def explore_grid(specs_obj: Specifications):
                 break
             specs_obj.et = specs_obj.max_error
         elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
-            # Morteza added for local experiments ==================
             if (persistance == persistance_limit or prev_actual_error == 0):
                 persistance = 0
                 try:
@@ -83,8 +80,6 @@ def explore_grid(specs_obj: Specifications):
                     # break
             else:
                 persistance += 1
-            print("persistance is: ",persistance)
-            # Ends here ============================================
         elif specs_obj.error_partitioning is ErrorPartitioningType.DESCENDING:
             log2 = int(math.log2(specs_obj.max_error))
             specs_obj.et = 2 ** (log2 - specs_obj.iteration - 2)

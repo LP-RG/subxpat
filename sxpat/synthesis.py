@@ -10,8 +10,8 @@ from Z3Log.config.config import *
 from Z3Log.config.path import *
 
 from sxpat.utils.name import NameData
-from z_marco.ma_graph import MaGraph
-from z_marco.utils import pprint, color
+from sxpat.ma_graph import MaGraph
+from sxpat.utils.utils import pprint, color
 
 from .annotatedGraph import AnnotatedGraph
 from .config import paths as sxpatpaths
@@ -1027,12 +1027,11 @@ class Synthesis:
         if idx < 0:
             idx = 0
 
-        if this_path:
-            with open(f'{this_path}/{self.ver_out_name}', 'w') as f:
-                f.writelines(self.verilog_string[idx])
-        else:
-            with open(self.ver_out_path, 'w') as f:
-                f.writelines(self.verilog_string[idx])
+        this_path = f'{this_path}/{self.ver_out_name}' if this_path else self.ver_out_path
+        
+        with open(this_path, 'w') as f:
+            f.write(f'/* model {idx} */ \n')
+            f.writelines(self.verilog_string[idx])
 
     def __repr__(self):
         return f'An object of class Synthesis:\n' \
