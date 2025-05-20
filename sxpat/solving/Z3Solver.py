@@ -33,7 +33,7 @@ class Z3Encoder:
 
     def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
-    node_mapping: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued], Sequence[str], Sequence[Any]], str]]
+    node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Sequence[str], Sequence[Any]], str]]
     type_mapping: Mapping[Type[Union[int, bool]], Callable[[Sequence[Any]], str]]
     solver_construct: str
     node_accessories: Callable[[Sequence[Any]], Callable[[Node], Sequence[Any]]]
@@ -85,7 +85,7 @@ class Z3Encoder:
             node.name: node
             for graph in graphs
             for node in graph.nodes
-            if isinstance(node, (BoolVariable, IntVariable))
+            if isinstance(node, Variable)
         }
         destination.write('\n'.join((
             '# variables (inputs, parameters)',
@@ -103,7 +103,7 @@ class Z3Encoder:
             node.name: node
             for graph in graphs
             for node in graph.nodes
-            if isinstance(node, (BoolConstant, IntConstant))
+            if isinstance(node, Constant)
         }
         destination.write('\n'.join((
             '# constants',
@@ -148,21 +148,24 @@ class Z3FuncEncoder(Z3Encoder):
             @authors: Marco Biasion
         """
 
-        # function to compute the new name
-        update_name: Callable[[str], str] = lambda name: name if name in non_gates_names else f'{name}({inputs_string})'
+        updated_names: Mapping[str, str] = {
+            n.name: n.name if n.name in non_gates_names else f'{n.name}({inputs_string})'
+            for n in graph.nodes
+        }
+
         # node conversion
         nodes = [
             (
-                node.copy(name=update_name(node.name), operands=(update_name(name) for name in node.operands))
-                if isinstance(node, OperationNode) else
-                node.copy(name=update_name(node.name))
+                node.copy(name=updated_names[node.name], operands=(updated_names[name] for name in node.operands))
+                if isinstance(node, Operation) else
+                node.copy(name=updated_names[node.name])
             )
             for node in graph.nodes
         ]
 
         # update extras (if needed)
         extra = dict()
-        if isinstance(graph, IOGraph): extra['outputs_names'] = (update_name(name) for name in graph.outputs_names)
+        if isinstance(graph, IOGraph): extra['outputs_names'] = (updated_names[name] for name in graph.outputs_names)
 
         return graph.copy(nodes, **extra)
 
@@ -205,7 +208,7 @@ class Z3FuncEncoder(Z3Encoder):
             *(
                 function_string.format(name=node.name, sort=type_mapping[nodes_types[node.name]](accessories(node)))
                 for graph in graphs
-                for node in graph.operations
+                for node in graph.expressions
             ),
             *('',) * 2,
         )))
@@ -217,7 +220,7 @@ class Z3FuncEncoder(Z3Encoder):
             *(
                 f'    {node.name} == {node_mapping[type(node)](node, node.operands, accessories(node))},'
                 for graph in call_graphs
-                for node in graph.operations
+                for node in graph.expressions
             ),
             ')',
             *('',) * 2,
@@ -281,7 +284,7 @@ class Z3DirectEncoder(Z3Encoder):
             *(
                 f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
                 for graph in graphs
-                for node in graph.operations
+                for node in graph.expressions
             ),
             *('',) * 2,
         )))
@@ -292,7 +295,7 @@ class Z3DirectEncoder(Z3Encoder):
             'usage = And(', *(
                 f'    {node.name},'
                 for graph in graphs if isinstance(graph, CGraph)
-                for node in graph.operations if not graph.successors(node) and nodes_types[node.name] is bool
+                for node in graph.expressions if not graph.successors(node) and nodes_types[node.name] is bool
             ), ')',
             *('',) * 2,
         )))
@@ -322,7 +325,7 @@ Z3_INT_NODE_MAPPING = {
     BoolConstant: lambda n, operands, accs: f'BoolVal({n.value})',
     IntConstant: lambda n, operands, accs: f'IntVal({n.value})',
     # output
-    Copy: lambda n, operands, accs: operands[0],
+    Identity: lambda n, operands, accs: operands[0],
     Target: lambda n, operands, accs: operands[0],
     # placeholder
     PlaceHolder: lambda n, operands, accs: n.name,
