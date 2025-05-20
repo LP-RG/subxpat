@@ -98,6 +98,8 @@ class Specifications:
     parallel: bool
     plot: bool
     clean: bool
+    slash_to_kill: bool
+    divide_et_for_slash: int
 
     def __post_init__(self):
         object.__setattr__(self, 'exact_benchmark', Path(self.exact_benchmark).stem)
@@ -285,6 +287,15 @@ class Specifications:
         _clean = parser.add_argument('--clean',
                                      action='store_true',
                                      help='Reset the output folder before running')
+        
+        _slash = parser.add_argument('--slash-to-kill',
+                                action='store_true',
+                                help='First iteration in the exploration is a slash')
+        
+        _divide_et = parser.add_argument('--divide-et-for-slash',
+                                type=int,
+                                default=4,
+                                help='the fraction of the total error to use for the first slash')
 
         raw_args = parser.parse_args()
 
