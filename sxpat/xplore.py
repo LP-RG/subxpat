@@ -99,19 +99,16 @@ def explore_grid(specs_obj: Specifications):
                 saved_min_labeling = specs_obj.min_labeling
                 saved_exctraction_mode = specs_obj.extraction_mode
 
-                divide_et_for_slash = specs_obj.divide_et_for_slash
-                used_et_for_slash = specs_obj.max_error // divide_et_for_slash
-
                 specs_obj.min_labeling = False
                 specs_obj.extraction_mode = 100
-                specs_obj.et = used_et_for_slash
+                specs_obj.et = specs_obj.error_for_slash
 
 
             if specs_obj.iteration == 2:
                 specs_obj.min_labeling = saved_min_labeling
                 specs_obj.extraction_mode = saved_exctraction_mode
 
-            if specs_obj.iteration > 1 and specs_obj.et < used_et_for_slash:
+            if specs_obj.iteration > 1 and specs_obj.et < specs_obj.error_for_slash:
                 continue
 
         pprint.info1(f'iteration {specs_obj.iteration} with et {specs_obj.et}, available error {specs_obj.max_error}'

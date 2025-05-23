@@ -71,6 +71,8 @@ class Specifications:
     num_subgraphs: int
     max_sensitivity: int
     sensitivity: int = dc.field(init=False, default=None)  # rw
+    slash_to_kill: bool
+    error_for_slash: int
 
     # exploration (1)
     subxpat: bool
@@ -98,8 +100,6 @@ class Specifications:
     parallel: bool
     plot: bool
     clean: bool
-    slash_to_kill: bool
-    divide_et_for_slash: int
 
     def __post_init__(self):
         object.__setattr__(self, 'exact_benchmark', Path(self.exact_benchmark).stem)
@@ -214,6 +214,14 @@ class Specifications:
                                        type=int,
                                        default=1,
                                        help='The number of attempts for subgraph extraction (default: 1)')
+        
+        _slash = parser.add_argument('--slash-to-kill',
+                                action='store_true',
+                                help='First iteration in the exploration is a slash')
+        
+        _error_slash = parser.add_argument('--error-for-slash',
+                                type=int,
+                                help='The error to use for the slash to kill')
 
         # > exploration stuff
 
@@ -288,14 +296,6 @@ class Specifications:
                                      action='store_true',
                                      help='Reset the output folder before running')
         
-        _slash = parser.add_argument('--slash-to-kill',
-                                action='store_true',
-                                help='First iteration in the exploration is a slash')
-        
-        _divide_et = parser.add_argument('--divide-et-for-slash',
-                                type=int,
-                                default=4,
-                                help='the fraction of the total error to use for the first slash')
 
         raw_args = parser.parse_args()
 
@@ -315,6 +315,7 @@ class Specifications:
             (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
+            (_slash, True): [_error_slash]
         }
 
         # check dependencies

@@ -302,6 +302,17 @@ class AnnotatedGraph(Graph):
                             cnt_nodes += 1
 
                     pprint.success(f" (#ofNodes={cnt_nodes})")
+                
+                elif specs_obj.extraction_mode == 55:
+                    pprint.info2(
+                        f"Partition with omax={specs_obj.omax} and hard constraints, imax, omax, assumptions, and BitVec, DataType. Looking for largest partition")
+                    self.subgraph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(
+                        specs_obj)  # Critian's subgraph extraction
+                    cnt_nodes = 0
+                    for gate_idx in self.gate_dict:
+                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
+                            cnt_nodes += 1
+                    pprint.success(f" (#ofNodes={cnt_nodes})")
 
                 elif specs_obj.extraction_mode == 6:
                     pprint.info2(f"Partition with hard constraints, imax={specs_obj.imax}, omax={specs_obj.omax}, assumptions, and BitVec, DataType. Looking for largest partition for smallest possible threshold")
@@ -313,17 +324,6 @@ class AnnotatedGraph(Graph):
                         self.subgraph.nodes[gate_name][SUBGRAPH] == 1
                         for gate_name in self.gate_dict.values()
                     )
-                    pprint.success(f" (#ofNodes={cnt_nodes})")
-
-                elif specs_obj.extraction_mode == 55:
-                    pprint.info2(
-                        f"Partition with omax={specs_obj.omax} and hard constraints, imax, omax, assumptions, and BitVec, DataType. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(
-                        specs_obj)  # Critian's subgraph extraction
-                    cnt_nodes = 0
-                    for gate_idx in self.gate_dict:
-                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                            cnt_nodes += 1
                     pprint.success(f" (#ofNodes={cnt_nodes})")
 
                 elif specs_obj.extraction_mode == 100:
@@ -2147,6 +2147,7 @@ class AnnotatedGraph(Graph):
 
         return found_subgraph
 
+    # TODO: bitvectors's size shouldn't be hardcoded
     def test_find_subgraph(self, specs_obj: Specifications):
         """
         extracts a colored subgraph from the original non-partitioned graph object
