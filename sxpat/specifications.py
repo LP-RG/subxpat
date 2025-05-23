@@ -214,14 +214,14 @@ class Specifications:
                                        type=int,
                                        default=1,
                                        help='The number of attempts for subgraph extraction (default: 1)')
-        
+
         _slash = parser.add_argument('--slash-to-kill',
-                                action='store_true',
-                                help='First iteration in the exploration is a slash')
-        
+                                     action='store_true',
+                                     help='First iteration in the exploration is a slash')
+
         _error_slash = parser.add_argument('--error-for-slash',
-                                type=int,
-                                help='The error to use for the slash to kill')
+                                           type=int,
+                                           help='The error to use for the slash to kill')
 
         # > exploration stuff
 
@@ -295,7 +295,6 @@ class Specifications:
         _clean = parser.add_argument('--clean',
                                      action='store_true',
                                      help='Reset the output folder before running')
-        
 
         raw_args = parser.parse_args()
 

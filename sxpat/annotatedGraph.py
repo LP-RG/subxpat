@@ -239,6 +239,7 @@ class AnnotatedGraph(Graph):
                             cnt_nodes += 1
 
                     pprint.success(f" (#ofNodes={cnt_nodes})")
+
                 elif specs_obj.extraction_mode == 2:
                     pprint.info2(f"Partition with sensitivity start... Using imax={specs_obj.imax}, omax={specs_obj.omax},"
                                  f"and min_subgraph_size={specs_obj.min_subgraph_size}")
@@ -262,6 +263,7 @@ class AnnotatedGraph(Graph):
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
+
                 elif specs_obj.extraction_mode == 3:
                     pprint.info2(f"Partition with sensitivity start... Using only min_subgraph_size={specs_obj.min_subgraph_size} parameter")
                     iteration = 1
@@ -284,6 +286,7 @@ class AnnotatedGraph(Graph):
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
+
                 elif specs_obj.extraction_mode == 4:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition")
                     self.subgraph = self.find_subgraph_feasible(specs_obj)  # Cristian's subgraph extraction
@@ -293,6 +296,7 @@ class AnnotatedGraph(Graph):
                             cnt_nodes += 1
 
                     pprint.success(f" (#ofNodes={cnt_nodes})")
+
                 elif specs_obj.extraction_mode == 5:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and hard feasibility constraints. Looking for largest partition")
                     self.subgraph = self.find_subgraph_feasible_hard(specs_obj)  # Critian's subgraph extraction
@@ -325,10 +329,8 @@ class AnnotatedGraph(Graph):
                     pprint.success(f" (#ofNodes={cnt_nodes})")
 
                 elif specs_obj.extraction_mode == 100:
-                    pprint.info2(
-                        f"Test with no imax, omax")
-                    self.subgraph = self.test_find_subgraph(
-                        specs_obj)  # Critian's subgraph extraction
+                    pprint.info2(f"Test with no imax, omax")
+                    self.subgraph = self.test_find_subgraph(specs_obj)
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
@@ -344,6 +346,7 @@ class AnnotatedGraph(Graph):
                             cnt_nodes += 1
 
                     pprint.success(f" (#ofNodes={cnt_nodes})")
+
                 elif specs_obj.extraction_mode == 12:
                     if self.subgraph_candidates:
                         pprint.info2(
@@ -358,6 +361,7 @@ class AnnotatedGraph(Graph):
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
+
                 else:
                     raise Exception('invalid extraction mode!')
             else:
@@ -2289,7 +2293,6 @@ class AnnotatedGraph(Graph):
         ])
 
         opt.add(feasibility_sum <= BitVecVal(feasibility_threshold, 130))
-
 
         opt.maximize(Sum(max_nodes))
 
