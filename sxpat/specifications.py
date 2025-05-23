@@ -71,6 +71,8 @@ class Specifications:
     num_subgraphs: int
     max_sensitivity: int
     sensitivity: int = dc.field(init=False, default=None)  # rw
+    slash_to_kill: bool
+    error_for_slash: int
 
     # exploration (1)
     subxpat: bool
@@ -213,6 +215,14 @@ class Specifications:
                                        default=1,
                                        help='The number of attempts for subgraph extraction (default: 1)')
 
+        _slash = parser.add_argument('--slash-to-kill',
+                                     action='store_true',
+                                     help='First iteration in the exploration is a slash')
+
+        _error_slash = parser.add_argument('--error-for-slash',
+                                           type=int,
+                                           help='The error to use for the slash to kill')
+
         # > exploration stuff
 
         _subxpat = parser.add_argument('--subxpat',
@@ -304,6 +314,7 @@ class Specifications:
             (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
+            (_slash, True): [_error_slash]
         }
 
         # check dependencies
