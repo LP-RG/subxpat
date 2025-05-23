@@ -94,20 +94,24 @@ def explore_grid(specs_obj: Specifications):
 
         # slash to kill
         if specs_obj.slash_to_kill:
-
+            # first iteration: apply slash
             if specs_obj.iteration == 1:
+                # store relevant specifications values
                 saved_min_labeling = specs_obj.min_labeling
                 saved_exctraction_mode = specs_obj.extraction_mode
 
+                # update specifications
                 specs_obj.min_labeling = False
                 specs_obj.extraction_mode = 100
                 specs_obj.et = specs_obj.error_for_slash
 
-
-            if specs_obj.iteration == 2:
+            # second iteration: restore state
+            elif specs_obj.iteration == 2:
+                # restore specifications values
                 specs_obj.min_labeling = saved_min_labeling
                 specs_obj.extraction_mode = saved_exctraction_mode
 
+            # skip all iterations implicitly achieved through the slash to kill step
             if specs_obj.iteration > 1 and specs_obj.et < specs_obj.error_for_slash:
                 continue
 
