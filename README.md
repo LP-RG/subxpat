@@ -73,6 +73,8 @@ Here are all the parameters with their arguments and descriptions:
 | `--max-sensitivity`                       | `int` > 0                            |                                    | Maximum partitioning sensitivity                                       |
 | `--min-subgraph-size`                     | `int` > 0                            |                                    | Minimum valid size for the subgraph                                    |
 | `--num-subgraphs`                         | `int` > 0                            | 1                                  | The number of attempts for subgraph extraction                         |
+| `--slash-to-kill`                         |                                      |                                    | First iteration in the exploration is a slash                          |
+| `--error-for-slash`                       | `int` > 0                            |                                    | The error to use for the slash to kill                                 |
 | `--subxpat`                               |                                      |                                    | Run SubXPAT iteratively, instead of standard XPAT                      |
 | `--constants`                             | { never, always }                    | never                              | Usage of constants                                                     |
 | `--template`                              | { nonshared, shared }                | nonshared                          | Template logic                                                         |
