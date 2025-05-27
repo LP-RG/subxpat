@@ -75,6 +75,7 @@ Here are all the parameters with their arguments and descriptions:
 | `--num-subgraphs`                         | `int` > 0                               | 1                                  | The number of attempts for subgraph extraction                         |
 | `--subxpat`                               |                                         |                                    | Run SubXPAT iteratively, instead of standard XPAT                      |
 | `--constants`                             | { never, always }                       | never                              | Usage of constants                                                     |
+| `--constant-false`                        | { output, product }                     | output                             | Representation of false constants from the subgraph                    |
 | `--template`                              | { nonshared, shared }                   | nonshared                          | Template logic                                                         |
 | `--max-lpp` <br> `--literals-per-product` | `int` > 0                               |                                    | The maximum number of literals per product                             |
 | `--max-ppo` <br> `--products-per-output`  | `int` > 0                               |                                    | The maximum number of products per output                              |

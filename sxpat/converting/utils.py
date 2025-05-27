@@ -1,6 +1,7 @@
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional
 
 import re
+import math
 import itertools as it
 
 from sxpat.graph import *
@@ -76,14 +77,13 @@ def unpack_ToInt(graph: _Graph) -> _Graph:
 def prune_unused(graph: _Graph) -> _Graph:
     """
         Given a graph, returns a new graph without any dangling nodes (recursive).
-        Nodes counted as correct terminations are nodes of class `Copy` (or of subclasses) or of class Bool/IntVariable.
+        Nodes counted as correct terminations are nodes of class `Identity` or of subclasses of `Variable`.
 
         @authors: Marco Biasion
     """
 
-    # TODO:MARCO: do we want to keep also the variables (probably yes)
-    # termination_nodes = [node.name for node in graph.nodes if isinstance(node, (Copy, ))]
-    termination_nodes = [node.name for node in graph.nodes if isinstance(node, (Copy, BoolVariable, IntVariable))]
+    # TODO: better to match termination by input/outputs instead of Variable/Identity
+    termination_nodes = [node.name for node in graph.nodes if isinstance(node, (Variable, Identity))]
 
     # find reachable nodes from the terminations
     visited_nodes = set()
@@ -116,17 +116,18 @@ def get_nodes_type(graphs: Iterable[Graph],
             if node.name in type_of: continue
 
             # direct cases
-            if isinstance(node, boolean_nodes): type_of[node.name] = bool
-            elif isinstance(node, integer_nodes): type_of[node.name] = int
+            if isinstance(node, BoolResType): type_of[node.name] = bool
+            elif isinstance(node, IntResType): type_of[node.name] = int
 
             # dynamic cases
-            elif isinstance(node, untyped_nodes):
+            elif isinstance(node, DynamicResType):
                 last_pred = graph.predecessors(node)[-1]
                 type_of[node.name] = type_of[last_pred.name]
 
             # special cases
             elif isinstance(node, contact_nodes): continue
-            else: raise TypeError('The node has an invalid type')
+            elif isinstance(node, (Target, Constraint)): continue
+            else: raise TypeError(f'Node {node.name} has an invalid type ({type(node)}).')
 
     return type_of
 
@@ -147,18 +148,23 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
     bitwidth_of = dict(initial_mapping)
 
     def manage_node(node: Node):
+        # skippable
+        if isinstance(node, (Target, Constraint)): return
+
         # deferred case (all predecessors of a node should have the same bitwidth)
-        if nodes_types[node.name] is not int:
-            if isinstance(node, OperationNode):
+        elif nodes_types[node.name] is not int:
+            if isinstance(node, Operation):
                 max_bitwidth = max(bitwidth_of.get(n.name, 0) for n in graph.predecessors(node))
                 for n in graph.predecessors(node):
                     bitwidth_of[n.name] = max_bitwidth
 
-        # trivial case
+        # trivial cases
+        elif isinstance(node, IntConstant) and node.name not in bitwidth_of:
+            bitwidth_of[node.name] = math.ceil(math.log(node.value + 1, 2))
         elif isinstance(node, ToInt) and node.name not in bitwidth_of:
             bitwidth_of[node.name] = len(node.operands)
 
-        # dynamic case
+        # dynamic case (the bitwidth of the current node must be larger or equal to that of the largest predecessor/successor)
         else:
             max_bitwidth = max(
                 bitwidth_of.get(n.name, 0)
@@ -200,9 +206,10 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool]) -> _Graph:
     new_nodes = {n.name: n for n in graph.nodes}
     for (name, value) in constants.items():
         node = graph[name]
-        if isinstance(node, OperationNode):
-            # could be implemented using prune_unused()
-            raise NotImplementedError('The logic to replace an OperationNode with a constant has not been implemented yet.')
+        if isinstance(node, Operation):
+            # TODO: could be implemented using prune_unused()
+            # NOTE: we do not really need prune_unused as this function should only care about setting constants
+            raise NotImplementedError('The logic to replace an Operation with a constant has not been implemented yet.')
         else:
             new_nodes[node.name] = BoolConstant(node.name, node.weight, node.in_subgraph, value)
 
@@ -216,16 +223,19 @@ def set_prefix(graph: _Graph, prefix: str) -> _Graph:
         @authors: Marco Biasion
     """
 
-    to_be_updated = frozenset(n.name for n in it.chain(graph.operations, graph.constants))
-    update_name: Callable[[str], str] = lambda name: f'{prefix}{name}' if name in to_be_updated else name
+    to_be_updated = frozenset(n.name for n in it.chain(graph.expressions, graph.constants))
+    updated_names: Mapping[str, str] = {
+        n.name: f'{prefix}{n.name}' if n.name in to_be_updated else n.name
+        for n in graph.nodes
+    }
 
     nodes = []
     for node in graph.nodes:
-        if isinstance(node, OperationNode):
-            operands = (update_name(name) for name in node.operands)
-            nodes.append(node.copy(name=update_name(node.name), operands=operands))
+        if isinstance(node, Operation):
+            operands = (updated_names[name] for name in node.operands)
+            nodes.append(node.copy(name=updated_names[node.name], operands=operands))
         else:
-            nodes.append(node.copy(name=update_name(node.name)))
+            nodes.append(node.copy(name=updated_names[node.name]))
 
     outputs_names = (f'{prefix}{name}' for name in graph.outputs_names)
 

@@ -29,7 +29,7 @@ from sxpat.converting import VerilogExporter
 from sxpat.converting import iograph_from_legacy, sgraph_from_legacy
 from sxpat.converting import set_bool_constants, prevent_combination
 
-from sxpat.utils.utils import pprint
+from sxpat.utils.print import pprint
 
 
 def explore_grid(specs_obj: Specifications):
@@ -49,8 +49,8 @@ def explore_grid(specs_obj: Specifications):
 
     obtained_wce_exact = 0
     specs_obj.iteration = 0
-    persistance = 0
-    persistance_limit = 2
+    persistence = 0
+    persistence_limit = 2
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
 
@@ -69,20 +69,27 @@ def explore_grid(specs_obj: Specifications):
                 break
             specs_obj.et = specs_obj.max_error
         elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
-            if (persistance == persistance_limit or prev_actual_error == 0):
-                persistance = 0
+            if (persistence == persistence_limit or prev_actual_error == 0):
+                persistence = 0
                 try:
                     specs_obj.et = next(et_array)
                 except StopIteration:
                     pprint.warning('The error space is exhausted!')
                     break
             else:
-                persistance += 1
+                persistence += 1
         elif specs_obj.error_partitioning is ErrorPartitioningType.DESCENDING:
             log2 = int(math.log2(specs_obj.max_error))
             specs_obj.et = 2 ** (log2 - specs_obj.iteration - 2)
         elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_ASCENDING:
-            specs_obj.et = 1 if specs_obj.iteration == 1 else prev_given_error * (2 if prev_actual_error == 0 else 1)
+            if specs_obj.iteration == 1:
+                specs_obj.et = 1
+            else:
+                if prev_actual_error == 0 or persistence == persistence_limit:
+                    specs_obj.et = prev_given_error * 2
+                else:
+                    specs_obj.et = prev_given_error
+                    persistence += 1
             prev_given_error = specs_obj.et
         elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_DESCENDING:
             specs_obj.et = specs_obj.max_error if specs_obj.iteration == 1 else math.ceil(prev_given_error / (2 if prev_actual_error == 0 else 1))
@@ -189,22 +196,27 @@ def explore_grid(specs_obj: Specifications):
                                         subxpat_v1_time=execution_time)
                 stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
 
-                if status == UNKNOWN:
-                    # store cell as dominant (to skip dominated subgrid)
-                    dominant_cells.append((lpp, ppo))
+                # store cell as dominant (to skip dominated subgrid)
+                if status == UNKNOWN: dominant_cells.append((lpp, ppo))
 
             else:
                 pprint.success(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()} ({len(models)} models found)')
 
+                # TODO:#15: use serious name generator
+                base_path = f'input/ver/{specs_obj.exact_benchmark}_{specs_obj.time_id}_i{specs_obj.iteration}_{{model_number}}.v'
                 cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
-                for _, model in enumerate(models):
+
+                for model_number, model in enumerate(models):
                     # finalize approximate graph
                     a_graph = set_bool_constants(p_graph, model)
 
                     # export approximate graph as verilog
                     # TODO:#15: use serious name generator
-                    verilog_path = f'input/ver/{specs_obj.exact_benchmark}_{int(time.time())}.v'
-                    VerilogExporter.to_file(a_graph, verilog_path)
+                    verilog_path = base_path.format(model_number=model_number)
+                    VerilogExporter.to_file(
+                        a_graph, verilog_path,
+                        VerilogExporter.Info(model_number=model_number),
+                    )
 
                     # compute metrics
                     metrics = MetricsEstimator.estimate_metrics(verilog_path)

@@ -74,7 +74,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         BoolConstant: 'constB',
         IntConstant: 'constI',
         # output
-        Copy: 'copy',
+        Identity: 'copy',
         Target: 'target',
         # placeholder
         PlaceHolder: 'holder',
@@ -105,7 +105,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # constants
         (BoolConstant, IntConstant): 'square',
         # output
-        (Copy,): 'doublecircle',
+        (Identity,): 'doublecircle',
         # target
         (Target,): 'star',
         # placeholder
@@ -142,7 +142,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
             string += rf'\nw={node.weight}'
         if node.in_subgraph:
             string += rf'\nsub'
-        if isinstance(node, OperationNode):
+        if isinstance(node, Operation):
             string += rf'\ni={",".join(node.operands)}'
         if isinstance(node, Valued):
             string += rf'\nv={node.value}'
@@ -204,7 +204,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         edge_lines = [
             f'{src_name} -> {dst.name};'
             for dst in graph.nodes
-            if isinstance(dst, OperationNode)
+            if isinstance(dst, Operation)
             for src_name in dst.operands
         ]
 
@@ -360,7 +360,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         @authors: Marco Biasion
     """
 
-    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued]], str]] = {
+    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, ValuedNode]], str]] = {
         # variables
         # BoolVariable: lambda n: None,
         # IntVariable: lambda n: None,
@@ -368,7 +368,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         BoolConstant: lambda n: f'{int(n.value)}',
         # IntConstant: lambda n: f'{n.value}',
         # output
-        Copy: lambda n: n.operand,
+        Identity: lambda n: n.operand,
         # Target: lambda n: None,
         # bool-bool operations
         Not: lambda n: f'(~{n.operand})',
@@ -395,13 +395,13 @@ class VerilogExporter(GraphExporter[IOGraph]):
     }
 
     @dc.dataclass(frozen=True, eq=False)
-    class VerilogInfo:
-        graph_name: str
-        model_number: int
+    class Info:
+        graph_name: str = 'graph'
+        model_number: int = -1
 
     @classmethod
-    def to_string(cls, graph: IOGraph, info: VerilogInfo = None) -> str:
-        info = info or cls.VerilogInfo('graph', -1)
+    def to_string(cls, graph: IOGraph, info: Info = None) -> str:
+        info = info or cls.Info()
 
         return '\n'.join(filter(bool, (
             f'/* model {info.model_number} */' if info.model_number >= 0 else None,
@@ -418,3 +418,9 @@ class VerilogExporter(GraphExporter[IOGraph]):
             ),
             'endmodule',
         )))
+
+    @classmethod
+    def to_file(cls, graph: _Graph, filename: str, info: Info = None) -> None:
+        string = cls.to_string(graph, info)
+        with open(filename, 'w') as f:
+            f.write(string)

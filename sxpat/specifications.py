@@ -1,11 +1,26 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Tuple, NamedTuple
-from collections import defaultdict
+from typing import Any, Dict, List, Tuple, Union, NamedTuple
 import enum
 import dataclasses as dc
 
+import time
 import argparse
 from pathlib import Path
+
+from sxpat.utils.functions import int_to_strbase
+
+
+__all__ = [
+    'Specifications',
+    # enums
+    'ErrorPartitioningType', 'EncodingType',
+    'TemplateType', 'ConstantsType',
+]
+
+
+class Dependency:
+    SourceItem = Union[argparse.Action, Tuple[argparse.Action, Any]]
+    TargetItem = Union[argparse.Action, Tuple[argparse.Action, List[Any]]]
 
 
 class ErrorPartitioningType(enum.Enum):
@@ -33,6 +48,11 @@ class ConstantsType(enum.Enum):
     ALWAYS = 'always'
 
 
+class ConstantFalseType(enum.Enum):
+    OUTPUT = 'output'
+    PRODUCT = 'product'
+
+
 class EnumChoicesAction(argparse.Action):
     def __init__(self, *args, type: enum.Enum, **kwargs) -> None:
         super().__init__(*args, **kwargs, choices=[e.value for e in type])
@@ -49,6 +69,7 @@ class Paths:
         ('verilog', str),
         ('solver_scripts', str),
     ])
+    _output_default_base = 'output'
     _output_graphviz_postdir = 'graphviz'
     _output_verilog_postdir = 'verilog'
     _output_solver_scripts_postdir = 'scripts'
@@ -57,11 +78,10 @@ class Paths:
         ('liberty', str),
         ('abc_script', str),
     ])
-    _config_default_base = 'config'
-    _config_liberty_default = 'gscl45nm.lib'
-    _config_abc_script_default = 'abc.script'
+    _config_liberty_default = 'config/gscl45nm.lib'
+    _config_abc_script_default = 'config/abc.script'
 
-    def __init__(self, output_base: str) -> None:
+    def __init__(self, output_base: str = _output_default_base) -> None:
         output_base = output_base.rstrip('/')
         self.output = self._Output(
             f'{output_base}/{self._output_graphviz_postdir}',
@@ -69,14 +89,14 @@ class Paths:
             f'{output_base}/{self._output_solver_scripts_postdir}',
         )
         self.config = self._Config(
-            f'{self._config_default_base}/{self._config_liberty_default}',
-            f'{self._config_default_base}/{self._config_abc_script_default}',
+            self._config_liberty_default,
+            self._config_abc_script_default,
         )
 
 
 @dc.dataclass
 class Specifications:
-    # files
+    # benchmark
     exact_benchmark: str
     current_benchmark: str  # rw
 
@@ -98,6 +118,7 @@ class Specifications:
     template: TemplateType
     encoding: EncodingType
     constants: ConstantsType
+    constant_false: ConstantFalseType
     wanted_models: int
     iteration: int = dc.field(init=False, default=None)  # rw
     # exploration (2)
@@ -115,10 +136,12 @@ class Specifications:
     error_partitioning: ErrorPartitioningType
 
     # other
+    # path: Paths
     timeout: float
     parallel: bool
     plot: bool
     clean: bool
+    time_id: str = dc.field(init=False, default_factory=lambda: int_to_strbase(time.time_ns()))
 
     def __post_init__(self):
         object.__setattr__(self, 'exact_benchmark', Path(self.exact_benchmark).stem)
@@ -131,11 +154,15 @@ class Specifications:
         return self.max_pit + 3
 
     @property
-    def template_name(self):
+    def template_name(self) -> str:
         return {
             TemplateType.NON_SHARED: 'Sop1',
             TemplateType.SHARED: 'SharedLogic',
         }[self.template]
+
+    # @property
+    # def tool_name(self) -> str:
+    #     return f'{"Sub" if self.subxpat else ""}XPAT'
 
     @property
     def requires_subgraph_extraction(self) -> bool:
@@ -175,7 +202,7 @@ class Specifications:
                                          epilog='Developed by Prof. Pozzi research team',
                                          formatter_class=argparse.RawTextHelpFormatter)
 
-        # > files stuff
+        # > benchmark
 
         _ex_bench = parser.add_argument(metavar='exact-benchmark',
                                         dest='exact_benchmark',
@@ -240,10 +267,16 @@ class Specifications:
                                       default=ConstantsType.NEVER,
                                       help='Usage of constants (default: never)')
 
+        _const_f = parser.add_argument('--constant-false',
+                                       type=ConstantFalseType,
+                                       action=EnumChoicesAction,
+                                       default=ConstantFalseType.OUTPUT,
+                                       help='Representation of false constants from the subgraph (default: output)')
+
         _template = parser.add_argument('--template',
                                         type=TemplateType,
-                                        default=TemplateType.NON_SHARED,
                                         action=EnumChoicesAction,
+                                        default=TemplateType.NON_SHARED,
                                         help='Template logic (default: nonshared)')
 
         _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
@@ -304,36 +337,76 @@ class Specifications:
         raw_args = parser.parse_args()
 
         # custom defaults
-        if raw_args.current_benchmark is None:
-            raw_args.current_benchmark = raw_args.exact_benchmark
+        if raw_args.current_benchmark is None: raw_args.current_benchmark = raw_args.exact_benchmark
 
         # define dependencies
-        dependencies: Dict[Tuple[argparse.Action, Optional[Any]], List[argparse.Action]] = defaultdict(list)
-        dependencies = {
-            # (source_argument, value | None): [dependent_arguments],
+        # the structure for each dependency is:
+        # - source: [target0, ..., targetN]
+        # a source must be either:
+        # - (argument_object, value) # the dependency is checked only if the argument has the given value
+        # - argument_object          # the dependency is checked no matter the actual value
+        # a target must be either:
+        # - (argument_object, value) # the dependency is accepted if the argument has the given value
+        # - argument_object          # the dependency is accepted if the argument is present
+        dependencies: Dict[Dependency.SourceItem, List[Dependency.TargetItem]] = {
             (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
+            # template variants only implemented by some templates
+            (_const_f, ConstantFalseType.PRODUCT): [(_template, [TemplateType.NON_SHARED])],
         }
 
         # check dependencies
-        for (source, value), dependents in dependencies.items():
-            if value is None and getattr(raw_args, source.dest, None) is not None:
-                for dep in dependents:
-                    if getattr(raw_args, dep.dest, None) is None:
-                        parser.error(f'missing argument: argument `{source.option_strings[0]}` requires argument `{dep.option_strings[0]}`')
+        for (source, targets) in dependencies.items():
+            source_has_value = isinstance(source, tuple)
+            source_action = source[0] if source_has_value else source
+            if source_has_value: source_value = source[1]
 
-            elif value is not None and getattr(raw_args, source.dest, None) == value:
-                for dep in dependents:
-                    if getattr(raw_args, dep.dest, None) is None:
-                        parser.error(f'missing argument: argument `{source.option_strings[0]}` with value {value!r} requires argument `{dep.option_strings[0]}`')
+            # skip if source not present
+            if not hasattr(raw_args, source_action.dest): continue
+            # skip if source wants a specific value which is not the current one
+            if source_has_value and source_value != getattr(raw_args, source_action.dest): continue
 
+            source_message = ''.join((
+                f'missing or wrong argument: argument `{source_action.option_strings[0]}`',
+                f' with value {arg_value_to_string(source_value)}' if source_has_value else '',
+                ' requires argument',
+            ))
+
+            # verify targets
+            for target in targets:
+                target_has_values = isinstance(target, tuple)
+                target_action = target[0] if target_has_values else target
+                if target_has_values: target_values = target[1]
+
+                if (
+                    # target not present
+                    not hasattr(raw_args, target_action.dest)
+                    # target has wrong value
+                    or target_has_values and getattr(raw_args, target_action.dest) not in target_values
+                ):
+                    # improved error message
+                    if len(target_values) == 1:
+                        if target_action.const == True: msg = 'to not be used'
+                        elif target_action.const == False: msg = 'to be used'
+                        else: msg = f'to have the following value: {arg_value_to_string(target_values[0])}'
+                    else:
+                        msg = f'to have one of the following values: {", ".join(map(arg_value_to_string, target_values))}'
+
+                    parser.error(f'{source_message} `{target_action.option_strings[0]}` {msg}')
+
+        # construct instance
         return cls(**vars(raw_args))
 
     def __repr__(self):
         """
-        Procedurally generates the string representation of the object.  
-        The string will contain the name of the class, followed by one line for each field (name/value pair).
+            Procedurally generates the string representation of the object.  
+            The string will contain the name of the class, followed by one line for each field (name/value pair).
         """
         fields = ''.join(f'   {k} = {v},\n' for k, v in vars(self).items())
         return f'{self.__class__.__name__}(\n{fields})'
+
+
+def arg_value_to_string(value: Union[str, int, bool, enum.Enum, Any]) -> str:
+    if isinstance(value, enum.Enum): value = value.value
+    return repr(value)
