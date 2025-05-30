@@ -83,6 +83,7 @@ Here are all the parameters with their arguments and descriptions:
 | `--max-error` <br> `-e`                   | `int` > 0                            |                                    | The maximum allowable error                                            |
 | `--error-partitioning` <br> `--epar`      | { asc, desc, smart_asc, smart_desc } | asc                                | The error partitioning algorithm to use                                |
 | `--encoding`                              | { z3int, z3bvec, qbf }               | z3bvec                             | The encoding to use in solving                                         |
+| `--cell-library`                          |                                      | `config/gscl45nm.lib`              | The cell library file to use in the metrics estimation                 |
 | `--timeout`                               | `float` > 0                          | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
 | `--parallel`                              |                                      |                                    | Run in parallel whenever possible                                      |
 | `--clean`                                 |                                      |                                    | Reset the output folder before running                                 |
@@ -90,11 +91,12 @@ Here are all the parameters with their arguments and descriptions:
 
 
 ### Papers examples
-#### SubXPAT blablabla
-To execute the framework with the SubXPAT algorithm as in the paper [][], run the following command:
+#### SubXPAT
+To run the framework with the SubXPAT algorithm as in the paper [][], run the following command:
 ```
 python3 main.py CIRCUIT --max-error=ERROR --subxpat --imax=6 --omax=3 --max-lpp=6 --max-ppo=6
 ```
+Note: for the results in the paper we used a proprietary cell library used by many others. To use the same cell library, download the FreePDK45nm from [SI2](https://si2.org/open-cell-and-free-pdk-libraries/), and set the `--cell-library` command line argument.
 
 ### Examples
 

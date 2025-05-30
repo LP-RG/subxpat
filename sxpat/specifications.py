@@ -308,6 +308,7 @@ class Specifications:
         # > config
         _cfg_group = parser.add_argument_group('Configuration')
 
+        # NOTE: this is not yet documented in the README as it currently does nothing
         _out_fold = _cfg_group.add_argument('--output',
                                             type=str,
                                             default=Paths.Output.base_folder,
@@ -316,7 +317,7 @@ class Specifications:
         _cfg_lib = _cfg_group.add_argument('--cell-library',
                                            type=str,
                                            default=Paths.Synthesis.cell_library,
-                                           help=f'The path to the cell library file (default: {Paths.Synthesis.cell_library})')
+                                           help=f'The cell library file to use in the metrics estimation (default: {Paths.Synthesis.cell_library})')
 
         # > other stuff
         _misc_group = parser.add_argument_group('Miscellaneous')
