@@ -24,6 +24,7 @@ from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.utils.utils import pprint
 from sxpat.ma_graph import insert_subgraph, xpat_model_to_magraph, remove_subgraph
 from sxpat.template_manager.encoding import Encoding
+from sxpat.qbf_labelling import labeling
 
 
 def explore_grid(specs_obj: Specifications):
@@ -496,10 +497,17 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
 def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, substract: int, exact_labeling: bool,
                 min_labeling: bool = False,  partial: bool = False,
                 et: int = -1, parallel: bool = False, incremental_labeling = False):
-    labels, _ = labeling_explicit(current_graph.name, current_graph.name,
-                                  constant_value=0, min_labeling=min_labeling,
-                                  partial=partial, et=et, parallel=parallel)
-
+    
+    if exact_labeling:
+        # labels, _ = labeling_explicit(exact_graph.name, current_graph.name,
+        #                           constant_value=0, min_labeling=min_labeling,
+        #                           partial=partial, et=et, parallel=parallel)
+        labels = labeling(exact_graph.name, current_graph.name, et)
+    else:
+        # labels, _ = labeling_explicit(current_graph.name, current_graph.name,
+        #                           constant_value=0, min_labeling=min_labeling,
+        #                           partial=partial, et=et, parallel=parallel)
+        labels = labeling(current_graph.name, current_graph.name, et)
 
     # already_labeled = {}
     # if incremental_labeling:

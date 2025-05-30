@@ -13,7 +13,7 @@ from Z3Log.config import path as z3logpath
 from sxpat.config.config import *
 from sxpat.config import paths as sxpatpaths
 from sxpat.distance_function import DistanceFunction
-from z_marco.ma_graph import MaGraph
+from sxpat.ma_graph import MaGraph
 
 # package
 from .runner_creator import RunnerCreator

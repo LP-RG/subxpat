@@ -22,7 +22,7 @@ from sxpat.utils.collections import mapping_inv, pairwise_iter
 from sxpat.distance_function import WeightedAbsoluteDifference, HammingDistance, WeightedHammingDistance
 from sxpat.executor.subxpat2_executor import SubXPatV2Executor
 from sxpat.config import paths as sxpatpaths
-from z_marco.ma_graph import MaGraph, extract_subgraph
+from sxpat.ma_graph import MaGraph, extract_subgraph
 
 
 @dc.dataclass

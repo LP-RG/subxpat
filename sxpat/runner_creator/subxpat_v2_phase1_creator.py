@@ -15,7 +15,7 @@ from sxpat.config.config import *
 # from sxpat.config import paths as sxpatpaths
 from sxpat.distance_function import DistanceFunction
 # from sxpat.runner_creator.xpat_creator_direct import XPatRunnerCreator
-from z_marco.ma_graph import MaGraph
+from sxpat.ma_graph import MaGraph
 
 # package
 from .runner_creator import RunnerCreator

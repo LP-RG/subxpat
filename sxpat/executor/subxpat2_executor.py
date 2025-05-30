@@ -4,13 +4,13 @@ import subprocess
 from time import time
 from typing import Any, Dict, Tuple
 from sxpat.distance_function import DistanceFunction
-from z_marco.ma_graph import MaGraph
+from sxpat.ma_graph import MaGraph
 from sxpat.runner_creator.subxpat_v2_phase1_creator import SubXPatV2Phase1RunnerCreator
 from sxpat.runner_creator.xpat_creator_function import XPatRunnerCreator
 
 from Z3Log.config.config import PYTHON3
 from sxpat.config.config import ResultFields as rf
-from z_marco.utils import pprint
+from sxpat.utils.utils import pprint
 
 
 NOTHING = object()

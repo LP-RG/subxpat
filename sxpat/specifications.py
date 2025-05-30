@@ -63,6 +63,7 @@ class Specifications:
     # labeling
     min_labeling: bool
     partial_labeling: bool
+    exact_labeling: bool
 
     # subgraph extraction
     extraction_mode: int
@@ -189,6 +190,10 @@ class Specifications:
         _part_lab = parser.add_argument('--partial-labeling',
                                         action='store_true',
                                         help='Weights are assigned only to relevant nodes')
+        
+        _exact_lab = parser.add_argument('--exact-labeling',
+                                        action='store_true',
+                                        help='Use exact graph for labeling, use with care')
 
         # > subgraph extraction stuff
 

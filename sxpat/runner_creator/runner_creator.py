@@ -5,7 +5,7 @@ from abc import abstractmethod
 
 # sxpat libs
 from sxpat.config.config import AND, NOT, OR, TO_Z3_GATE_DICT
-from z_marco.ma_graph import MaGraph
+from sxpat.ma_graph import MaGraph
 
 
 class RunnerCreator:
