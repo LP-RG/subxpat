@@ -1,6 +1,6 @@
 from typing import IO, Any, Callable, Container, Mapping, NoReturn, Optional, Sequence, Tuple, Type, TypeVar, Union, Dict, List
 from collections import deque
-import subprocess
+import subprocess, copy
 
 from sxpat.specifications import Specifications
 
@@ -104,6 +104,27 @@ def _test_equality_bits(a,b, next_free, destination: IO[str]):
     destination.write(f'{result_gate_name} = or({and1}, {and2})\n')
     return result_gate_name
 
+def _test_equality_list(a: list, b: list, next_free, destination : IO[str]):
+    while len(a) < len(b):
+        a.append(FALSE)
+    while len(b) < len(a):
+        b.append(FALSE)
+    
+    equals = []
+    for i in range(len(a)):
+        equals.append(_test_equality_bits(a[i],b[i],next_free,destination))
+    
+    res = next_temporary(next_free)
+    destination.write(f'{res} = and(')
+    first = True
+    for x in equals:
+        if not first:
+            destination.write(', ')
+        first = False
+        destination.write(x)
+    
+    return res
+
 # TODO: many other versions of comparator
 def _comparator_greater_than(a : list, b : list, next_free, destination : IO[str], or_equal = False):
     while len(a) < len(b):
@@ -189,7 +210,7 @@ def process_IntConstant(n : Node, operands: list, accs: list, inputs: list, para
     mapping[n.name] = res
     return next_free
 
-def process_Copy(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_Identity(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     mapping[n.name] = mapping[operands[0]]
     return next_free
 
@@ -258,6 +279,31 @@ def process_AbsDiff(n : Node, operands: list, accs: list, inputs: list, param: l
     mapping[operands[1]].pop()
     return temp[0]
 
+def process_Equals(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    temp = [next_free]
+    res = _test_equality_list(mapping[operands[0]], mapping[operands[1]], temp, destination)
+    mapping[n.name] = [res]
+
+    return temp[0]
+
+def process_NotEquals(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    temp = [next_free]
+    ans = _test_equality_list(mapping[operands[0]], mapping[operands[1]], temp, destination)
+    res = next_temporary(temp)
+    destination.write(f'{res} = and(-{ans})\n')
+    mapping[n.name] = [res]
+
+    return temp[0]
+
+def process_LessThan(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    temp = [next_free]
+    ans = _comparator_greater_than(mapping[operands[0]], mapping[operands[1]], temp, destination, or_equal=True)
+    res = next_temporary(temp)
+    destination.write(f'{res} = and(-{ans})\n')
+    mapping[n.name] = [res]
+
+    return temp[0]
+
 def process_LessEqualThan(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     ans = _comparator_greater_than(mapping[operands[0]], mapping[operands[1]], temp, destination)
@@ -266,10 +312,41 @@ def process_LessEqualThan(n : Node, operands: list, accs: list, inputs: list, pa
     mapping[n.name] = [res]
     return temp[0]
 
+def process_GreaterThan(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    temp = [next_free]
+    ans = _comparator_greater_than(mapping[operands[0]], mapping[operands[1]], temp, destination)
+    mapping[n.name] = [ans]
+    return temp[0]
+
 def process_GreaterEqualThan(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     ans = _comparator_greater_than(mapping[operands[0]], mapping[operands[1]], temp, destination, or_equal=True)
     mapping[n.name] = [ans]
+    return temp[0]
+
+def process_AtLeast(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    temp = [next_free]
+    remaining = deque()
+    for x in operands:
+        remaining.append(mapping[x])
+    
+    while len(remaining) > 1:
+        a = remaining.popleft()
+        b = remaining.popleft()
+        remaining.append(_adder(a,b,temp,destination, True))
+    
+    sum = remaining.popleft()
+    num = []
+    rem = n.value
+    while rem > 0:
+        if rem % 2 == 1:
+            num.append(TRUE)
+        else:
+            num.append(FALSE)
+        rem >>= 1
+
+    mapping[n.name] = [_comparator_greater_than(sum, num, temp, destination, True)]
+
     return temp[0]
 
 # TODO: optimize for various numbers
@@ -320,17 +397,44 @@ def process_Multiplexer(n : Node, operands: list, accs: list, inputs: list, para
 #TODO: implement If for integers also (now working only for booleans)
 def process_If(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
-    monos = []
+    # monos = []
 
-    monos.append(next_temporary(temp))
-    destination.write(f'{monos[-1]} = and({mapping[operands[0]][0]}, {mapping[operands[1]][0]})\n')
+    # monos.append(next_temporary(temp))
+    # destination.write(f'{monos[-1]} = and({mapping[operands[0]][0]}, {mapping[operands[1]][0]})\n')
 
-    monos.append(next_temporary(temp))
-    destination.write(f'{monos[-1]} = and(-{mapping[operands[0]][0]}, {mapping[operands[2]][0]})\n')
+    # monos.append(next_temporary(temp))
+    # destination.write(f'{monos[-1]} = and(-{mapping[operands[0]][0]}, {mapping[operands[2]][0]})\n')
 
-    res = next_temporary(temp)
-    destination.write(f'{res} = or({monos[0]}, {monos[1]})\n')
-    mapping[n.name] = [res]
+    # res = next_temporary(temp)
+    # destination.write(f'{res} = or({monos[0]}, {monos[1]})\n')
+    # mapping[n.name] = [res]
+
+    # return temp[0]
+
+    op1 = copy.copy(mapping[operands[1]])
+    op2 = copy.copy(mapping[operands[2]])
+
+    while len(op1) < len(op2):
+        op1.append(FALSE)
+    while len(op2) < len(op1):
+        op2.append(FALSE) 
+
+    ifTrue = []
+    for x in op1:
+        ifTrue.append(next_temporary(temp))
+        destination.write(f'{ifTrue[-1]} = and({mapping[operands[0]][0]}, {x}')
+    
+    ifFalse = []
+    for x in op2:
+        ifFalse.append(next_temporary(temp))
+        destination.write(f'{ifFalse[-1]} = and(-{mapping[operands[0]][0]}, {x}')
+    
+    res = []
+    for i in range(len(op1)):
+        res.append(next_temporary(temp))
+        destination.write(f'{res[-1]} = or({ifTrue[i]}, {ifFalse[i]})\n')
+    
+    mapping[n.name] = res
 
     return temp[0]
 
@@ -356,7 +460,7 @@ Node_Mapping = {
     BoolConstant: process_BoolConstant,
     IntConstant: process_IntConstant,
     # output
-    Copy: process_Copy,
+    Identity: process_Identity,
     Target: process_Target,
     # placeholder
     PlaceHolder: process_PlaceHolder,
@@ -369,19 +473,18 @@ Node_Mapping = {
     Sum: process_Sum,
     AbsDiff: process_AbsDiff,
     # comparison operations
-    # Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
-    # NotEquals: lambda n, operands, accs: f'({operands[0]} != {operands[1]})',
-    # LessThan: lambda n, operands, accs: f'({operands[0]} < {operands[1]})',
+    Equals: process_Equals, # Needs testing
+    NotEquals: process_NotEquals, # Needs testing
+    LessThan: process_LessThan, # Needs testing
     LessEqualThan: process_LessEqualThan,
-    # GreaterThan: lambda n, operands, accs: f'({operands[0]} > {operands[1]})',
+    GreaterThan: process_GreaterThan,
     GreaterEqualThan: process_GreaterEqualThan,
     # quantifier operations
-    # AtLeast: lambda n, operands, accs: f'AtLeast({", ".join(operands)}, {n.value})',
+    AtLeast: process_AtLeast,
     AtMost: process_AtMost,
     # branching operations
     Multiplexer: process_Multiplexer,
-    If: process_If,
-
+    If: process_If, # Needs testing for Integers
     ToInt: process_ToInt,
     Constraint: process_Constraint,
 }
@@ -399,8 +502,6 @@ class QbfSolver(Solver):
         variables = [node.name for graph in graphs if isinstance(graph, PGraph) for node in graph.nodes if isinstance(node, BoolVariable) and node.name not in inputs]
         inputs.sort()
         variables.sort()
-        # print(inputs,variables)
-        iterative_node = False
 
         with open(script_path, 'w') as f:
 
@@ -430,16 +531,12 @@ class QbfSolver(Solver):
                     #TODO : add accessories (accs)
                     # print(node)
                     next_free = Node_Mapping[type(node)](node, getattr(node, "operands", []),[] , inputs, variables, next_free, mapping, f)
-                    if isinstance(graph,CGraph) and isinstance(node, Constraint): # and not instance of iterative_node
+                    if isinstance(graph,CGraph) and isinstance(node, Constraint):
                         assert(len(mapping[node.name]) == 1)
                         in_the_output.append(node.name)
-                    # if isinstance(node, Maximixe)  or isinstance(node, Minimize):
-                    #     iterative_node = True
-                # print()
+
                 f.write('#\n')
             
-            # print(in_the_output)
-            # if not iterative_node
             f.write(f'90 = and(')
             first = True
             for x in in_the_output:
@@ -450,15 +547,6 @@ class QbfSolver(Solver):
             f.write(')\n')
 
         result = subprocess.run(["../../../../cqesto-master/build/cqesto", script_path], capture_output=True, text=True)
-
-        if iterative_node:
-            execute_path = f'output/z3/{specifications.exact_benchmark}_iter{specifications.iteration}_it.txt'
-            var = 0
-            while True:
-                # add function corresponding to the iterative node
-                # then add result to final and (90)
-                # result of an iteration is either true or false, if true update var else break the loop
-                pass
 
         if result.stdout.strip()[-1] == '1':
             answer = {}
