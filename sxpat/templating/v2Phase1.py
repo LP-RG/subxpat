@@ -92,9 +92,6 @@ class v2Phase1:
                 (Target.of(param) for param in variables),
             )
         )
-
-        exit(0)
-        #  python3 -u main.py adder_i4_o3 --subxpat -e=2 --mode=55 --imax=4 --omax=2 --max-lpp=5 --max-ppo=5 --template=temp --clean
         
 
 
