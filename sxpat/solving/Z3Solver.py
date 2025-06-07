@@ -1,11 +1,12 @@
 from abc import abstractmethod
-from typing import IO, Any, Callable, Container, Mapping, NoReturn, Optional, Sequence, Tuple, Type, TypeVar, Union
+from typing import IO, Any, Callable, Container, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union
 
 import itertools as it
 import subprocess
 
 from sxpat.specifications import Specifications
 from sxpat.utils.functions import str_to_int_or_bool
+from sxpat.utils.decorators import make_utility_class
 
 from .Solver import Solver
 
@@ -24,14 +25,13 @@ __all__ = [
 _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, PGraph, SGraph]])
 
 
+@make_utility_class
 class Z3Encoder:
     """
         Base class for Z3 encoders, including some common functions.
 
         @authors: Marco Biasion
     """
-
-    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Sequence[str], Sequence[Any]], str]]
     type_mapping: Mapping[Type[Union[int, bool]], Callable[[Sequence[Any]], str]]

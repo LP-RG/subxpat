@@ -1,16 +1,16 @@
-from typing import NoReturn, Tuple
+from typing import Tuple
 from abc import abstractmethod
 
 from sxpat.graph import SGraph, PGraph, CGraph
 from sxpat.specifications import Specifications
+from sxpat.utils.decorators import make_utility_class
 
 
 __all__ = ['Template']
 
 
+@make_utility_class
 class Template:
-    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
-
     @classmethod
     @abstractmethod
     def define(cls, graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:

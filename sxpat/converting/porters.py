@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Type, Callable, Mapping, NoReturn, Optional, Union, Generic
+from typing import Type, Callable, Mapping, Optional, Union, Generic
 import dataclasses as dc
 
 from bidict import bidict
@@ -12,6 +12,7 @@ from sxpat.graph import *
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
 from sxpat.utils.functions import str_to_bool
 from sxpat.utils.collections import MultiDict
+from sxpat.utils.decorators import make_utility_class
 
 
 __all__ = [
@@ -26,10 +27,9 @@ _G_CLSS = {c.__name__: c for c in get_all_subclasses(Graph)}
 _N_CLSS = {c.__name__: c for c in get_all_leaves_subclasses(Node)}
 
 
+@make_utility_class
 class GraphImporter(Generic[_Graph]):
     """Abstract class for importing a Graph from a string/file."""
-
-    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     @classmethod
     def from_string(cls, string: str) -> _Graph:
@@ -42,10 +42,9 @@ class GraphImporter(Generic[_Graph]):
         return cls.from_string(string)
 
 
+@make_utility_class
 class GraphExporter(Generic[_Graph]):
     """Abstract class for exporting a Graph to a string/file."""
-
-    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     @classmethod
     @abstractmethod

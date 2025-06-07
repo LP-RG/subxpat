@@ -3,6 +3,11 @@ from typing import Callable, Type, TypeVar
 from .functions import get_raiser
 
 
+__all__ = [
+    'make_uninstantiable', 'make_utility_class',
+]
+
+
 T = TypeVar('T', bound=Type)
 
 
@@ -22,3 +27,7 @@ def make_uninstantiable(message: str) -> Callable[[T], T]:
         return cls
 
     return wrapper
+
+
+def make_utility_class(cls: T) -> T:
+    return make_uninstantiable('{qualname} is a utility class and as such cannot be instantiated')(cls)

@@ -4,13 +4,13 @@ import re
 import subprocess
 
 from .config import config as sxpatconfig
+from sxpat.utils.decorators import make_utility_class
 
 
 __all__ = ['MetricsEstimator']
 
-
+@make_utility_class
 class MetricsEstimator:
-    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     MODULE_NAME_PATTERN = re.compile(r'module\s+([a-zA-Z0-9_$]+)\s*\(')
 

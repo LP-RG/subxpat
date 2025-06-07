@@ -1,15 +1,16 @@
-from typing import Any, Mapping, NoReturn, Optional, Sequence, Tuple, Union, TypeVar
+from typing import Mapping, Optional, Sequence, Tuple, Union, TypeVar
 from abc import abstractmethod
 
 from sxpat.graph import IOGraph, PGraph, CGraph
 from sxpat.specifications import Specifications
+from sxpat.utils.decorators import make_utility_class
 
 
 __all__ = ['Solver']
 
 
+@make_utility_class
 class Solver:
-    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, PGraph, CGraph]])
 
