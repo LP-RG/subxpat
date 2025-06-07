@@ -268,11 +268,11 @@ class Specifications:
                                                action=EnumChoicesAction,
                                                help='Template logic (default: nonshared)')
 
-        _lpp = _explor_group.add_argument('--max-lpp', '--literals-per-product',
+        _lpp = _explor_group.add_argument('--max-lpp', '--max-literals-per-product',
                                           type=int,
                                           help='The maximum number of literals per product')
 
-        _ppo = _explor_group.add_argument('--max-ppo', '--products-per-output',
+        _ppo = _explor_group.add_argument('--max-ppo', '--max-products-per-output',
                                           type=int,
                                           help='The maximum number of products per output')
 
