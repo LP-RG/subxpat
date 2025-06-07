@@ -4,6 +4,7 @@ SubXPAT is a fully automated framework for approximate logic synthesis (ALS) bas
 
 For details on the XPAT algorithm, please see our [DSN-W'23] paper.
 
+
 ## Dependencies
 
 SubXPAT has been developed for a **Linux** environment and requires the manual installation of the following dependencies:
@@ -14,6 +15,12 @@ SubXPAT has been developed for a **Linux** environment and requires the manual i
 - [OpenSTA] (using apt: `sudo apt install opensta`)
 
 **Note:** the binaries of Yosys and OpenSTA should be added to your PATH.
+
+### Optional
+
+- Cell libraries (by default our cell library is `TODO`, this can be replaced by having the following dependencies and by using the `--cell-library` argument):
+  - [SI2 `FreePDK45nm`][FreePDK45nm]
+
 
 ## Setup
 
@@ -35,6 +42,7 @@ To prepare the system for execution you will need to follow a few steps:
     . .venv/bin/activate
     ```
 
+
 ### Other useful commands
 
 - To remove temporary files and the virtual python environment:
@@ -53,10 +61,11 @@ To prepare the system for execution you will need to follow a few steps:
     make help
     ```
 
+
 ## Usage
 
 SubXPAT is used by running the following command:
-```
+```bash
 python3 main.py exact-benchmark [options]
 ```
 
@@ -76,8 +85,8 @@ Here are all the parameters with their arguments and descriptions:
 | `--subxpat`                               |                                      |                                    | Run SubXPAT iteratively, instead of standard XPAT                      |
 | `--constants`                             | { never, always }                    | always                             | Usage of constants                                                     |
 | `--template`                              | { nonshared, shared }                | nonshared                          | Template logic                                                         |
-| `--max-lpp` <br> `--literals-per-product` | `int` > 0                            |                                    | The maximum number of literals per product                             |
-| `--max-ppo` <br> `--products-per-output`  | `int` > 0                            |                                    | The maximum number of products per output                              |
+| `--max-lpp` <br> `--max-literals-per-product` | `int` > 0                            |                                    | The maximum number of literals per product                             |
+| `--max-ppo` <br> `--max-products-per-output`  | `int` > 0                            |                                    | The maximum number of products per output                              |
 | `--max-pit` <br> `--products-in-total`    | `int` > 0                            |                                    | The maximum number of products in total                                |
 | `--wanted-models`                         | `int` > 0                            | 1                                  | Wanted number of models to generate at each step                       |
 | `--max-error` <br> `-e`                   | `int` > 0                            |                                    | The maximum allowable error                                            |
@@ -90,25 +99,18 @@ Here are all the parameters with their arguments and descriptions:
 | `--help` <br> `-h`                        |                                      |                                    | Show the help message and exit                                         |
 
 
-### Papers examples
-#### SubXPAT
-To run the framework with the SubXPAT algorithm as in the paper [][], run the following command:
-```
-python3 main.py CIRCUIT --max-error=ERROR --subxpat --imax=6 --omax=3 --max-lpp=6 --max-ppo=6
-```
-Note: for the results in the paper we used a proprietary cell library used by many others. To use the same cell library, download the FreePDK45nm from [SI2](https://si2.org/open-cell-and-free-pdk-libraries/), and set the `--cell-library` command line argument.
-
 ### Examples
 
 To execute the framework with the XPAT algorithm in the standard configuration, run the following command:
-```
+```bash
 python3 main.py adder_i8_o5 --max-lpp=8 --max-ppo=32 --max-error=16
 ```
 
-To execute the framework with SubXPAT iterations, bit-vector logic encoding, subgraph extraction mode 5 (all sub-outputs weight must be less than the error threshold), and minimum labeling, run the following command:
+To execute the framework with SubXPAT iterations, bit-vector logic encoding, subgraph extraction mode 5 (all sub-outputs weight must be less than the error threshold), and maximum labeling, run the following command:
+```bash
+python3 main.py adder_i8_o5 --subxpat --encoding=z3bvec --extraction-mode=5 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=16
 ```
-python3 main.py adder_i8_o5 --subxpat --encoding=z3bvec --extraction-mode=5 --min-labeling --max-lpp=8 --max-ppo=10 --max-error=16
-```
+
 
 Once a command is finished executing, you can find the outputs in the following directories:
 
@@ -116,14 +118,21 @@ Once a command is finished executing, you can find the outputs in the following 
 `output/ver/` contains the Verilog descriptions of all the approximate circuits found.
 `output/gv/` contains the information of all the subgraphs that have been selected, in a visual form.
 
+
 ## Known limitations
 
 - On Apple devices running M# architecture, you will have problems with some packages. \
   No support is given at the moment for this situation.
 
+
+## Reproducing results
+To reproduce results as in the papers written on this tool, look at [`REPRODUCING_PAPERS.md`](./REPRODUCING_PAPERS.md)
+
+
+<!-- links -->
 [DSN-W'23]: https://doi.org/10.1109/DSN-W58399.2023.00049
-[]: 
 [Python]: https://www.python.org/downloads
 [Yosys]: https://github.com/YosysHQ/yosys
 [GraphViz]: https://gitlab.com/graphviz/graphviz
 [OpenSTA]: https://github.com/The-OpenROAD-Project/OpenSTA
+[FreePDK45nm]: https://si2.org/open-cell-and-free-pdk-libraries/
