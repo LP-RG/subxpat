@@ -89,7 +89,8 @@ class v2Phase1:
                 )),
                 ifl,
                 others,
-                (Target.of(param) for param in variables),
+                # (Target.of(param) for param in variables),
+                (Target.of(min),)
             )
         )
         
