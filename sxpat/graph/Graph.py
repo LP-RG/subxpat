@@ -1,17 +1,19 @@
 from __future__ import annotations
 from typing_extensions import Self
-from typing import Any, Iterable, Mapping, Sequence, TypeVar, Union
+from typing import AbstractSet, Any, Iterable, Mapping, Sequence, TypeVar, Union
 from types import MappingProxyType
 
 import networkx as nx
 import functools as ft
 import itertools as it
 
-from .Node import ExpressionNode, Node, Operation, Constant, ConstantNode, OperationNode, Target, Constraint, BoolVariable
+from .Node import ExpressionNode, Node, Operation, Constant, ConstantNode, OperationNode, Target, Constraint, BoolVariable, GlobalNode
 
 
-__all__ = ['Graph', 'IOGraph', 'CGraph', 'SGraph', 'PGraph',
-           '_Graph']
+__all__ = [
+    'Graph', 'IOGraph', 'CGraph', 'SGraph', 'PGraph',
+    '_Graph',
+]
 
 
 class Graph:
@@ -227,3 +229,8 @@ class CGraph(Graph):
     def constraints(self) -> Sequence[Constraint]:
         """The sequence of all `Constraint` node in the graph."""
         return tuple(node for node in self.nodes if isinstance(node, Constraint))
+
+    @ft.cached_property
+    def global_nodes(self) -> AbstractSet[GlobalNode]:
+        """The set of all `GlobalNode` in the graph."""
+        return frozenset(node for node in self.node if isinstance(node, GlobalNode))

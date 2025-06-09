@@ -18,12 +18,16 @@ __all__ = [
     'Operation', 'Limited1Operation', 'Limited2Operation', 'Limited3Operation',
     # resulting type
     'BoolResType', 'IntResType', 'DynamicResType',
+
     # > variables
     'BoolVariable', 'IntVariable',
+
     # > constants
     'BoolConstant', 'IntConstant',
+
     # > placeholder
     'PlaceHolder',
+
     # > expressions
     'ExpressionNode',
     # bool to bool
@@ -40,6 +44,7 @@ __all__ = [
     'Multiplexer', 'If',
     # quantify
     'AtLeast', 'AtMost',
+
     # > solver nodes
     'Target', 'Constraint',
     # global nodes
