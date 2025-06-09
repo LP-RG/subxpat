@@ -42,6 +42,8 @@ class Solver:
 
         To improve the performance for the solver being implemented you can define a `singlepass` 
         variant for each of the first 3 categories (eg. `._solve_forall_singlepass(...)`).
+
+        @authors: Marco Biasion
     """
 
     _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, PGraph, CGraph]])
@@ -122,7 +124,7 @@ class Solver:
             Solve a forall quantified (and non optimization) problem iteratively without requiring solver-specific features.
         """
         # TODO: here we can implement the custom forall approach as for the initial implementations of XPAT (in year ~2021)
-        raise NotImplementedError(f'{cls.__qualname__}._solve_forall_multipass(...) is abstract')
+        raise NotImplementedError(f'{cls.__qualname__}._solve_forall_multipass(...) is work in progress')
 
     @classmethod
     @abstractmethod
