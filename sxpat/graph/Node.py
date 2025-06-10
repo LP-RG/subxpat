@@ -48,7 +48,7 @@ __all__ = [
     # > solver nodes
     'Target', 'Constraint',
     # global nodes
-    'GlobalNode', 'Min', 'Max', 'ForAll',
+    'GlobalTask', 'Min', 'Max', 'ForAll',
 
     # > aliases
     'OperationNode', 'ValuedNode', 'ConstantNode', 'VariableNode',
@@ -529,7 +529,7 @@ class Constraint(Limited1Operation, Node):
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class GlobalNode(Node):
+class GlobalTask(Node):
     """
         Special nodes representing a global task, it being min/maximization or a ForAll.
 
@@ -538,7 +538,7 @@ class GlobalNode(Node):
 
 
 @dc.dataclass(frozen=True)
-class Min(Limited1Operation, GlobalNode):
+class Min(Limited1Operation, GlobalTask):
     """
         Special solver global node: specifies a node which value must be minimized.  
         The only operand represents the value to minimize.
@@ -546,7 +546,7 @@ class Min(Limited1Operation, GlobalNode):
 
 
 @dc.dataclass(frozen=True)
-class Max(Limited1Operation, GlobalNode):
+class Max(Limited1Operation, GlobalTask):
     """
         Special solver global node: specifies a node which value must be maximized.  
         The only operand represents the value to maximized.
@@ -554,7 +554,7 @@ class Max(Limited1Operation, GlobalNode):
 
 
 @dc.dataclass(frozen=True)
-class ForAll(Operation, GlobalNode):
+class ForAll(Operation, GlobalTask):
     """
         Special solver global node: specifies that all constraints must be asserted for each permutation of the operands.  
     """

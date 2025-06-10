@@ -9,7 +9,7 @@ from sxpat.specifications import Specifications
 from sxpat.utils.functions import str_to_int_or_bool
 from sxpat.utils.decorators import make_utility_class
 
-from .Solver import GlobalTargets, Solver
+from .Solver import GlobalTasks, Solver
 
 from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.graph import *
@@ -483,7 +483,7 @@ class Z3Solver(Solver):
     @override
     def solve_forall(cls, graphs: _Graphs,
                      specifications: Specifications,
-                     global_targets: GlobalTargets,
+                     global_targets: GlobalTasks,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         return cls._z3_solve(graphs, specifications, global_targets.forall)
 
@@ -491,7 +491,7 @@ class Z3Solver(Solver):
     @override
     def solve_optimize(cls, graphs: _Graphs,
                        specifications: Specifications,
-                       global_targets: GlobalTargets,
+                       global_targets: GlobalTasks,
                        ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         return cls._z3_solve(graphs, specifications, global_targets.optimize)
 
