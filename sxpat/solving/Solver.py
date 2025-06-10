@@ -1,6 +1,6 @@
-from typing import Mapping, Optional, Sequence, Tuple, Union, TypeVar
-import dataclasses as dc
-from abc import abstractmethod
+from typing import Mapping, Optional, Sequence, Tuple, Union, TypeVar, NamedTuple
+from typing_extensions import final
+from abc import abstractmethod, ABCMeta
 
 import itertools as it
 
@@ -9,22 +9,22 @@ from sxpat.specifications import Specifications
 from sxpat.utils.decorators import make_utility_class
 
 from sxpat.config import SolverConstants as SC
+from sxpat.utils.print import pprint
 
 
 __all__ = [
     'Solver',
-    'GlobalGroup',
+    'GlobalTargets',
 ]
 
 
-@dc.dataclass(frozen=True)
-class GlobalTargets:
+class GlobalTargets(NamedTuple):
     optimize: Optional[Union[Min, Max]] = None
     forall: Optional[ForAll] = None
 
 
 @make_utility_class
-class Solver:
+class Solver(metaclass=ABCMeta):
     """
         Guide: inheriting from `Solver`.
 
@@ -49,10 +49,11 @@ class Solver:
     _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, PGraph, CGraph]])
 
     @classmethod
+    @final
     def solve(cls, graphs: _Graphs,
               specifications: Specifications,
               *,
-              _global_targets: GlobalTargets = None,
+              __global_targets: GlobalTargets = None,
               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve the required problem defined by the given graphs.
@@ -66,98 +67,108 @@ class Solver:
         """
 
         # compute global targets if not already given
-        if _global_targets is not None:
-            _global_targets = cls.get_global_targets(graphs)
+        if __global_targets is None:
+            __global_targets = cls.get_global_targets(graphs)
 
-        # solve an optimization and forall quantified problem
-        if _global_targets.optimize is not None and _global_targets.forall is not None:
-            try:  # try solving with solver-specific singlepass approach
-                return cls._solve_optimize_forall_singlepass(graphs, specifications, _global_targets)
-            except NotImplementedError:  # solve with multipass approach
-                return cls._solve_optimize_forall_multipass(graphs, specifications, _global_targets)
-
-        # solve an optimization (not forall quantified) problem
-        if _global_targets.optimize is not None and _global_targets.forall is None:
-            try:  # try solving with solver-specific singlepass approach
-                return cls._solve_optimize_singlepass(graphs, specifications, _global_targets)
-            except NotImplementedError:  # solve with multipass approach
-                return cls._solve_optimize_multipass(graphs, specifications, _global_targets)
-
-        # solve a forall quantified (and non optimization) problem
-        if _global_targets.optimize is None and _global_targets.forall is not None:
-            try:  # try solving with solver-specific singlepass approach
-                return cls._solve_forall_singlepass(graphs, specifications, _global_targets)
-            except NotImplementedError:  # solve with multipass approach
-                return cls._solve_forall_multipass(graphs, specifications, _global_targets)
-
-        # solve a non optimization and not forall quantified problem.
-        return cls._solve(graphs, specifications, _global_targets)
+        if __global_targets.optimize is not None and __global_targets.forall is not None:
+            # solve an optimization and forall quantified problem
+            return cls._solve_optimize_forall(
+                graphs, specifications,
+                __global_targets.optimize, __global_targets.forall,
+            )
+        elif __global_targets.optimize is not None and __global_targets.forall is None:
+            # solve an optimization (not forall quantified) problem
+            return cls._solve_optimize(
+                graphs, specifications,
+                __global_targets.optimize,
+            )
+        elif __global_targets.optimize is None and __global_targets.forall is not None:
+            # solve a forall quantified (and non optimization) problem
+            return cls._solve_forall(
+                graphs, specifications,
+                __global_targets.forall,
+            )
+        else:
+            # solve a non optimization and not forall quantified problem.
+            return cls.solve_exists(
+                graphs, specifications,
+            )
 
     @classmethod
     @abstractmethod
-    def _solve(cls, graphs: _Graphs,
-               specifications: Specifications,
-               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+    def solve_exists(cls, graphs: _Graphs,
+                     specifications: Specifications,
+                     ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve a non optimization and not forall quantified problem.
         """
         raise NotImplementedError(f'{cls.__qualname__}._solve(...) is abstract')
 
     @classmethod
-    @abstractmethod
-    def _solve_forall_singlepass(cls, graphs: _Graphs,
-                                 specifications: Specifications,
-                                 global_targets: GlobalTargets,
-                                 ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+    def solve_forall(cls, graphs: _Graphs,
+                     specifications: Specifications,
+                     forall_target: ForAll,
+                     ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
-            Solve a forall quantified (and non optimization) problem in a single pass using solver-specific features.
+            Solve a forall quantified (and non optimization) problem.
         """
-        raise NotImplementedError(f'{cls.__qualname__}._solve_forall_singlepass(...) is abstract')
+        pprint.warning(f'[WARNING] using default (iterative) implementation for {cls.__qualname__}.solve_forall(...)')
+        cls._solve_forall(graphs, specifications, forall_target)
+
+    @classmethod
+    def solve_optimize(cls, graphs: _Graphs,
+                       specifications: Specifications,
+                       optimize_target: Union[Min, Max],
+                       ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+        """
+            Solve an optimization (not forall quantified) problem.
+        """
+        pprint.warning(f'[WARNING] using default (iterative) implementation for {cls.__qualname__}._solve_optimize(...)')
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, None)
+
+    @classmethod
+    def solve_optimize_forall(cls, graphs: _Graphs,
+                              specifications: Specifications,
+                              optimize_target: Union[Min, Max],
+                              forall_target: ForAll,
+                              ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+        """
+            Solve an optimization and forall quantified problem.
+        """
+        pprint.warning(f'[WARNING] using default (iterative) implementation for {cls.__qualname__}._solve_optimize_forall(...)')
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)
 
     @classmethod
     @abstractmethod
-    def _solve_forall_multipass(cls, graphs: _Graphs,
-                                specifications: Specifications,
-                                global_targets: GlobalTargets,
-                                ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        """
-            Solve a forall quantified (and non optimization) problem iteratively without requiring solver-specific features.
-        """
+    def _solve_forall(cls, graphs: _Graphs,
+                      specifications: Specifications,
+                      forall_target: ForAll,
+                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         # TODO: here we can implement the custom forall approach as for the initial implementations of XPAT (in year ~2021)
-        raise NotImplementedError(f'{cls.__qualname__}._solve_forall_multipass(...) is work in progress')
+        raise NotImplementedError(f'{cls.__qualname__}._solve_forall(...) is work in progress')
 
     @classmethod
-    @abstractmethod
-    def _solve_optimize_singlepass(cls, graphs: _Graphs,
-                                   specifications: Specifications,
-                                   global_targets: GlobalTargets,
-                                   ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+    @final
+    def _solve_optimize_forall_iterative(cls, graphs: _Graphs,
+                                         specifications: Specifications,
+                                         optimize_target: Union[Min, Max],
+                                         forall_target: Optional[ForAll],
+                                         ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
-            Solve an optimization (not forall quantified) problem in a single pass using solver-specific features.
-        """
-        raise NotImplementedError(f'{cls.__qualname__}._solve_optimize_singlepass(...) is abstract')
-
-    @classmethod
-    def _solve_optimize_multipass(cls, graphs: _Graphs,
-                                  specifications: Specifications,
-                                  global_targets: GlobalTargets,
-                                  *, _accept_forall: bool = False
-                                  ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        """
-            Solve an optimization (not forall quantified) problem iteratively without requiring solver-specific features.
+            Solve an optimization (optionally forall quantified) problem iteratively without requiring solver-specific features.
         """
 
         # define common extra nodes
         extra_nodes = (
-            PlaceHolder(global_targets.optimize.operand),
-            Identity(SC.optimization_identity, operands=(global_targets.optimize.operand,)),
+            PlaceHolder(optimize_target.operand),
+            Identity(SC.optimization_identity, operands=(optimize_target.operand,)),
             Target(SC.optimization_target, operands=(SC.optimization_identity,)),
         )
         # define node class for the optimization comparison
         comparison_class = {
             Max: GreaterThan,
             Min: LessThan,
-        }[type(global_targets.optimize)]
+        }[type(optimize_target)]
 
         # iteratively optimize the value
         last_model = None
@@ -176,15 +187,15 @@ class Solver:
             _graphs = tuple(*graphs, CGraph(_extra_nodes))
 
             # solve
-            _global_targets = GlobalTargets(forall=(global_targets.forall if _accept_forall else None))
-            status, model = cls.solve(_graphs, specifications, _global_targets=_global_targets)
+            _global_targets = GlobalTargets(forall=forall_target)
+            status, model = cls.solve(_graphs, specifications, __global_targets=_global_targets)
 
             # break if termination condition is reached
             if status == 'unknown': return ('unknown', None)
             if status == 'unsat': break
 
             # update previous value and model
-            previouss_value = model.pop(SC.optimization_identity)
+            previous_value = model.pop(SC.optimization_identity)
             last_model = model
 
         # return the status and model
@@ -192,27 +203,7 @@ class Solver:
         else: return ('sat', last_model)
 
     @classmethod
-    @abstractmethod
-    def _solve_optimize_forall_singlepass(cls, graphs: _Graphs,
-                                          specifications: Specifications,
-                                          global_targets: GlobalTargets,
-                                          ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        """
-            Solve an optimization and forall quantified problem in a single pass using solver-specific features.
-        """
-        raise NotImplementedError(f'{cls.__qualname__}._solve_forall_optimize_singlepass(...) is abstract')
-
-    @classmethod
-    def _solve_optimize_forall_multipass(cls, graphs: _Graphs,
-                                         specifications: Specifications,
-                                         global_targets: GlobalTargets,
-                                         ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        """
-            Solve an optimization and forall quantified problem iteratively without requiring solver-specific features.
-        """
-        return cls._solve_optimize_multipass(graphs, specifications, global_targets, _accept_forall=True)
-
-    @classmethod
+    @final
     def get_global_targets(cls, graphs: _Graphs) -> GlobalTargets:
         """
             Returns the `ForAll` and `Min`/`Max` nodes from the given graphs, if present.

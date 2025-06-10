@@ -1,4 +1,5 @@
 from typing import IO, Any, Callable, Container, Dict, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union
+from typing_extensions import override, final
 from abc import abstractmethod
 
 import itertools as it
@@ -472,23 +473,26 @@ class Z3Solver(Solver):
     encoder: Z3Encoder
 
     @classmethod
-    def _solve(cls, graphs: _Graphs,
-               specifications: Specifications,
-               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+    @override
+    def solve_exists(cls, graphs: _Graphs,
+                     specifications: Specifications,
+                     ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         return cls._z3_solve(graphs, specifications, None)
 
     @classmethod
-    def _solve_forall_singlepass(cls, graphs: _Graphs,
-                                 specifications: Specifications,
-                                 global_targets: GlobalTargets,
-                                 ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+    @override
+    def solve_forall(cls, graphs: _Graphs,
+                     specifications: Specifications,
+                     global_targets: GlobalTargets,
+                     ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         return cls._z3_solve(graphs, specifications, global_targets.forall)
 
     @classmethod
-    def _solve_optimize_singlepass(cls, graphs: _Graphs,
-                                   specifications: Specifications,
-                                   global_targets: GlobalTargets,
-                                   ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+    @override
+    def solve_optimize(cls, graphs: _Graphs,
+                       specifications: Specifications,
+                       global_targets: GlobalTargets,
+                       ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         return cls._z3_solve(graphs, specifications, global_targets.optimize)
 
     @classmethod
