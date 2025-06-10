@@ -357,6 +357,7 @@ class Specifications:
             (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
+            (_ex_mode, 55): [_imax, _omax],
         }
 
         # check dependencies
@@ -383,7 +384,7 @@ class Specifications:
                 if trgt_has_values: trgt_values = target[1]
 
                 # target not present
-                if not hasattr(raw_args, trgt_action.dest):
+                if not hasattr(raw_args, trgt_action.dest) or getattr(raw_args, trgt_action.dest) is None:
                     parser.error(f'{src_message} `{trgt_action.option_strings[0]}`')
 
                 # target has wrong value
