@@ -1,4 +1,4 @@
-from solver_constants import *
+from .solver_constants import *
 
 
 __all__ = [

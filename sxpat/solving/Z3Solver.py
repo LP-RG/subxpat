@@ -560,7 +560,7 @@ class Z3Solver(Solver):
 
         # parse model
         model = None
-        if status in ('unsat', 'unknown'):
+        if status == 'sat':
             model = {
                 (splt := pair.split(' '))[0]: str_to_int_or_bool(splt[1])
                 for pair in raw_model

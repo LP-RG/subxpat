@@ -233,4 +233,4 @@ class CGraph(Graph):
     @ft.cached_property
     def global_nodes(self) -> AbstractSet[GlobalNode]:
         """The set of all `GlobalNode` in the graph."""
-        return frozenset(node for node in self.node if isinstance(node, GlobalNode))
+        return frozenset(node for node in self.nodes if isinstance(node, GlobalNode))
