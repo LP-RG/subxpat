@@ -15,7 +15,7 @@ from Z3Log.z3solver import Z3solver
 def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str,
                       min_labeling: bool,
                       partial_labeling: bool, partial_cutoff: int,
-                      constant_value: int = 0,
+                      constant_value: bool = False,
                       parallel: bool = False,
                       ) -> Tuple[Dict[str, int], Dict[str, int]]:
 
@@ -44,11 +44,11 @@ def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str,
         partial=partial_labeling, parallel=parallel
     )
 
-    if constant_value == 0:
+    if constant_value is False:
         labels_pair = (
             z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
         ) * 2
-    elif constant_value == 1:
+    elif constant_value is True:
         labels_pair = (
             z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
         ) * 2
