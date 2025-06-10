@@ -6,6 +6,8 @@ import dataclasses as dc
 import re
 import argparse
 from pathlib import Path
+import os.path
+
 
 __all__ = [
     'Specifications',
@@ -53,6 +55,33 @@ class EnumChoicesAction(argparse.Action):
         setattr(namespace, self.dest, self.enum(value))
 
 
+class Paths:
+    @dc.dataclass(frozen=True)
+    class Output:
+        base_folder: str = 'output'
+        graphviz: str = dc.field(default='graphviz', init=False)
+        verilog: str = dc.field(default='verilog', init=False)
+        solver_scripts: str = dc.field(default='scripts', init=False)
+
+        def __post_init__(self) -> None:
+            object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, self.graphviz))
+            object.__setattr__(self, 'verilog', os.path.join(self.base_folder, self.verilog))
+            object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, self.solver_scripts))
+
+    @dc.dataclass(frozen=True)
+    class Synthesis:
+        cell_library: str = 'config/gscl45nm.lib'
+        abc_script: str = dc.field(default='config/abc.script', init=False)
+
+    def __init__(self, output_base: str, cell_library: str) -> None:
+        self.output = self.Output(output_base)
+        self.synthesis = self.Synthesis(cell_library)
+
+    def __repr__(self):
+        params = ', '.join(f'{name}={getattr(self, name)!r}' for name in vars(self).keys())
+        return f'{self.__class__.__qualname__}({params})'
+
+
 @dc.dataclass
 class Specifications:
     # files
@@ -94,6 +123,9 @@ class Specifications:
     max_error: int
     et: int = dc.field(init=False, default=None)  # rw
     error_partitioning: ErrorPartitioningType
+
+    # config
+    path: Paths
 
     # other
     timeout: float
@@ -174,127 +206,148 @@ class Specifications:
                                          default=None,
                                          help='Approximated circuit used to continue the execution (Verilog file in `input/ver/`) (default: same as exact-benchmark)')
 
-        # > graph labeling stuff
+        # > graph labeling
+        _lab_group = parser.add_argument_group('Labeling')
 
-        _min_lab = parser.add_argument('--min-labeling',
-                                       action='store_true',
-                                       help='Nodes are weighted using their minimum error, instead of maximum error')
+        _max_lab = _lab_group.add_argument('--max-labeling',
+                                           action='store_false',
+                                           dest='min_labeling',
+                                           help='Nodes are weighted using their maximum error, instead of minimum error')
 
-        _part_lab = parser.add_argument('--partial-labeling',
-                                        action='store_true',
-                                        help='Weights are assigned only to relevant nodes')
+        _part_lab = _lab_group.add_argument('--no-partial-labeling',
+                                            action='store_false',
+                                            dest='partial_labeling',
+                                            help='Weights are assigned to all nodes, not only to the relevant ones')
 
         # > subgraph extraction stuff
+        _subex_group = parser.add_argument_group('Subgraph extraction')
 
-        _ex_mode = parser.add_argument('--extraction-mode', '--mode',
-                                       type=int,
-                                       choices=[1, 2, 3, 4, 5, 55, 6, 11, 12],
-                                       default=55,
-                                       help='Subgraph extraction algorithm to use (default: 55)')
+        _ex_mode = _subex_group.add_argument('--extraction-mode', '--mode',
+                                             type=int,
+                                             choices=[1, 2, 3, 4, 5, 55, 6, 11, 12],
+                                             default=55,
+                                             help='Subgraph extraction algorithm to use (default: 55)')
 
-        _imax = parser.add_argument('--input-max', '--imax',
-                                    type=int,
-                                    dest='imax',
-                                    help='Maximum allowed number of inputs to the subgraph')
+        _imax = _subex_group.add_argument('--input-max', '--imax',
+                                          type=int,
+                                          dest='imax',
+                                          help='Maximum allowed number of inputs to the subgraph')
 
-        _omax = parser.add_argument('--output-max', '--omax',
-                                    type=int,
-                                    dest='omax',
-                                    help='Maximum allowed number of outputs from the subgraph')
+        _omax = _subex_group.add_argument('--output-max', '--omax',
+                                          type=int,
+                                          dest='omax',
+                                          help='Maximum allowed number of outputs from the subgraph')
 
-        _msens = parser.add_argument('--max-sensitivity',
-                                     type=int,
-                                     help='Maximum partitioning sensitivity')
-
-        _msub_size = parser.add_argument('--min-subgraph-size',
-                                         type=int,
-                                         help='Minimum valid size for the subgraph')
-
-        _num_sub = parser.add_argument('--num-subgraphs',
-                                       type=int,
-                                       default=1,
-                                       help='The number of attempts for subgraph extraction (default: 1)')
-
-        _slash = parser.add_argument('--slash-to-kill',
-                                     action='store_true',
-                                     help='First iteration in the exploration is a slash')
-
-        _error_slash = parser.add_argument('--error-for-slash',
+        _msens = _subex_group.add_argument('--max-sensitivity',
                                            type=int,
-                                           help='The error to use for the slash to kill')
+                                           help='Maximum partitioning sensitivity')
 
-        # > exploration stuff
+        _msub_size = _subex_group.add_argument('--min-subgraph-size',
+                                               type=int,
+                                               help='Minimum valid size for the subgraph')
 
-        _subxpat = parser.add_argument('--subxpat',
-                                       action='store_true',
-                                       help='Run SubXPAT iteratively, instead of standard XPAT')
+        _num_sub = _subex_group.add_argument('--num-subgraphs',
+                                             type=int,
+                                             default=1,
+                                             help='The number of attempts for subgraph extraction (default: 1)')
 
-        _consts = parser.add_argument('--constants',
-                                      type=ConstantsType,
-                                      action=EnumChoicesAction,
-                                      default=ConstantsType.NEVER,
-                                      help='Usage of constants (default: never)')
+        _slash = _subex_group.add_argument('--slash-to-kill',
+                                           action='store_true',
+                                           help='Enable the slash pass for the first iteration')
 
-        _template = parser.add_argument('--template',
-                                        type=TemplateType,
-                                        default=TemplateType.NON_SHARED,
-                                        action=EnumChoicesAction,
-                                        help='Template logic (default: nonshared)')
+        _error_slash = _subex_group.add_argument('--error-for-slash',
+                                                 type=int,
+                                                 help='The error to use for the slash pass')
 
-        _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
-                                   type=int,
-                                   help='The maximum number of literals per product')
+        # > execution stuff
+        _explor_group = parser.add_argument_group('Execution')
 
-        _ppo = parser.add_argument('--max-ppo', '--products-per-output',
-                                   type=int,
-                                   help='The maximum number of products per output')
+        _subxpat = _explor_group.add_argument('--subxpat',
+                                              action='store_true',
+                                              help='Run SubXPAT iteratively, instead of standard XPAT')
 
-        _pit = parser.add_argument('--max-pit', '--products-in-total',
-                                   type=int,
-                                   help='The maximum number of products in total')
+        _consts = _explor_group.add_argument('--constants',
+                                             type=ConstantsType,
+                                             action=EnumChoicesAction,
+                                             default=ConstantsType.ALWAYS,
+                                             help='Usage of constants (default: always)')
 
-        _nmod = parser.add_argument('--wanted-models',
-                                    type=int,
-                                    default=1,
-                                    help='Wanted number of models to generate at each step (default: 1)')
+        _template = _explor_group.add_argument('--template',
+                                               type=TemplateType,
+                                               default=TemplateType.NON_SHARED,
+                                               action=EnumChoicesAction,
+                                               help='Template logic (default: nonshared)')
+
+        _lpp = _explor_group.add_argument('--max-lpp', '--max-literals-per-product',
+                                          type=int,
+                                          help='The maximum number of literals per product')
+
+        _ppo = _explor_group.add_argument('--max-ppo', '--max-products-per-output',
+                                          type=int,
+                                          help='The maximum number of products per output')
+
+        _pit = _explor_group.add_argument('--max-pit', '--products-in-total',
+                                          type=int,
+                                          help='The maximum number of products in total')
+
+        _nmod = _explor_group.add_argument('--wanted-models',
+                                           type=int,
+                                           default=1,
+                                           help='Wanted number of models to generate at each step (default: 1)')
+
+        _enc = _explor_group.add_argument('--encoding',
+                                          type=EncodingType,
+                                          action=EnumChoicesAction,
+                                          default=EncodingType.Z3_BITVECTOR,
+                                          help='The encoding to use in solving (default: z3bvec)')
 
         # > error stuff
+        _error_group = parser.add_argument_group('Error')
 
-        _et = parser.add_argument('--max-error', '-e',
-                                  type=int,
-                                  required=True,
-                                  help='The maximum allowable error')
+        _et = _error_group.add_argument('--max-error', '-e',
+                                        type=int,
+                                        required=True,
+                                        help='The maximum allowable error')
 
-        _ep = parser.add_argument('--error-partitioning', '--epar',
-                                  type=ErrorPartitioningType,
-                                  action=EnumChoicesAction,
-                                  default=ErrorPartitioningType.ASCENDING,
-                                  help='The error partitioning algorithm to use (default: asc)')
+        _ep = _error_group.add_argument('--error-partitioning', '--epar',
+                                        type=ErrorPartitioningType,
+                                        action=EnumChoicesAction,
+                                        default=ErrorPartitioningType.ASCENDING,
+                                        help='The error partitioning algorithm to use (default: asc)')
+
+        # > config
+        _cfg_group = parser.add_argument_group('Configuration')
+
+        # NOTE: this is not yet documented in the README as it currently does nothing
+        _out_fold = _cfg_group.add_argument('--output',
+                                            type=str,
+                                            default=Paths.Output.base_folder,
+                                            help=f'(WIP) The base directory for the output (default: {Paths.Output.base_folder})')
+
+        _cfg_lib = _cfg_group.add_argument('--cell-library',
+                                           type=str,
+                                           default=Paths.Synthesis.cell_library,
+                                           help=f'The cell library file to use in the metrics estimation (default: {Paths.Synthesis.cell_library})')
 
         # > other stuff
+        _misc_group = parser.add_argument_group('Miscellaneous')
 
-        _enc = parser.add_argument('--encoding',
-                                   type=EncodingType,
-                                   action=EnumChoicesAction,
-                                   default=EncodingType.Z3_BITVECTOR,
-                                   help='The encoding to use in solving')
+        _timeout = _misc_group.add_argument('--timeout',
+                                            type=float,
+                                            default=10800,
+                                            help='The maximum time each cell is given to run (in seconds) (default: 3h)')
 
-        _timeout = parser.add_argument('--timeout',
-                                       type=float,
-                                       default=10800,
-                                       help='The maximum time each cell is given to run (in seconds) (default: 3h)')
+        _parallel = _misc_group.add_argument('--parallel',
+                                             action='store_true',
+                                             help='Run in parallel whenever possible')
 
-        _parallel = parser.add_argument('--parallel',
+        _plt = _misc_group.add_argument('--plot',
                                         action='store_true',
-                                        help='Run in parallel whenever possible')
+                                        help='The system will be run as plotter (DEPRECATED?)')
 
-        _plt = parser.add_argument('--plot',
-                                   action='store_true',
-                                   help='The system will be run as plotter (DEPRECATED?)')
-
-        _clean = parser.add_argument('--clean',
-                                     action='store_true',
-                                     help='Reset the output folder before running')
+        _clean = _misc_group.add_argument('--clean',
+                                          action='store_true',
+                                          help='Reset the output folder before running')
 
         raw_args = parser.parse_args()
 
@@ -314,7 +367,8 @@ class Specifications:
             (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
-            (_slash, True): [_error_slash]
+            (_ex_mode, 55): [_imax, _omax],
+            (_slash, True): [_error_slash],
         }
 
         # check dependencies
@@ -341,7 +395,7 @@ class Specifications:
                 if trgt_has_values: trgt_values = target[1]
 
                 # target not present
-                if not hasattr(raw_args, trgt_action.dest):
+                if not hasattr(raw_args, trgt_action.dest) or getattr(raw_args, trgt_action.dest) is None:
                     parser.error(f'{src_message} `{trgt_action.option_strings[0]}`')
 
                 # target has wrong value
@@ -357,6 +411,9 @@ class Specifications:
                     parser.error(f'{src_message} `{trgt_action.option_strings[0]}` {msg}')
 
         # construct instance
+        raw_args.path = Paths(getdelattr(raw_args, _out_fold.dest),
+                              getdelattr(raw_args, _cfg_lib.dest))
+
         return cls(**vars(raw_args))
 
     def __repr__(self):
@@ -371,3 +428,9 @@ class Specifications:
 def arg_value_to_string(value: Union[str, int, bool, enum.Enum, Any]) -> str:
     if isinstance(value, enum.Enum): value = value.value
     return repr(value)
+
+
+def getdelattr(o: object, name: str):
+    val = getattr(o, name)
+    delattr(o, name)
+    return val

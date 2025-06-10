@@ -131,12 +131,8 @@ def explore_grid(specs_obj: Specifications):
 
         # label graph
         if specs_obj.requires_labeling:
-            et_coefficient = 1
-
             t_start = time.time()
-            label_graph(current_graph,
-                        min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
-                        et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel)
+            label_graph(current_graph, specs_obj)
             labeling_time = time.time() - t_start
             print(f'labeling_time = {labeling_time}')
 
@@ -401,15 +397,22 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         csvwriter.writerow(approx_data)
 
 
-def label_graph(current_graph: AnnotatedGraph,
-                min_labeling: bool = False, partial: bool = False,
-                et: int = -1, parallel: bool = False):
-    labels, _ = labeling_explicit(current_graph.name, current_graph.name,
-                                  constant_value=0, min_labeling=min_labeling,
-                                  partial=partial, et=et, parallel=parallel)
+def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
+    """This function adds the labels inplace to the given graph"""
 
-    for n in current_graph.graph.nodes:
-        current_graph.graph.nodes[n][WEIGHT] = int(labels[n]) if n in labels else -1
+    # compute weights
+    ET_COEFFICIENT = 1
+    weights, _ = labeling_explicit(
+        graph.name, graph.name,
+        min_labeling=specs_obj.min_labeling,
+        partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
+        parallel=specs_obj.parallel
+    )
+
+    # apply weights to graph
+    inner_graph: nx.DiGraph = graph.graph
+    for (node_name, node_data) in inner_graph.nodes.items():
+        node_data[WEIGHT] = weights.get(node_name, -1)
 
 
 def get_toolname(specs_obj: Specifications) -> str:
