@@ -1096,7 +1096,6 @@ class Stats:
 
 
 class Result:
-    # TODO:MARCO:HERE: 12-05
     def __init__(self,
                  specs: Specifications,
                  benchname: str,
