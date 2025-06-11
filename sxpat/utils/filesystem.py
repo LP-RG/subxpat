@@ -1,21 +1,22 @@
-from typing import Iterable, NoReturn
+from typing import Iterable
 
 import os
 import shutil
 import tempfile
 
+from sxpat.utils.decorators import make_utility_class
+
 
 __all__ = ['FS']
 
 
+@make_utility_class
 class FS:
     """
         Utility class for filesystem operations.
 
         @authors: Marco Biasion
     """
-
-    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     @classmethod
     def exists(cls, path: str) -> bool:

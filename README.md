@@ -39,13 +39,15 @@ To prepare the system for execution you will need to follow a few steps:
 
 - To remove temporary files and the virtual python environment:
     ```bash
-    # all together
-    make clean
-
     # individually
     make rm_cache # remove the pycache folders
     make rm_temp  # remove temporary files
     make rm_pyenv # remove the virtual python environment
+    make rm_data  # remove the output results
+
+    # all together
+    make clean     # rm_cache, rm_temp
+    make clean-all # clean, rm_pyenv, rm_data
     ```
 
 - To display the program help:

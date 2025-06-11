@@ -14,12 +14,16 @@ __all__ = [
     'Operation', 'Limited1Operation', 'Limited2Operation', 'Limited3Operation',
     # resulting type
     'BoolResType', 'IntResType', 'DynamicResType',
+
     # > variables
     'BoolVariable', 'IntVariable',
+
     # > constants
     'BoolConstant', 'IntConstant',
+
     # > placeholder
     'PlaceHolder',
+
     # > expressions
     'ExpressionNode',
     # bool to bool
@@ -36,10 +40,13 @@ __all__ = [
     'Multiplexer', 'If',
     # quantify
     'AtLeast', 'AtMost',
+
     # > solver nodes
+    'ObjectiveNode',
+    # termination nodes
     'Target', 'Constraint',
     # global nodes
-    'GlobalNode', 'Min', 'Max', 'ForAll',
+    'GlobalTask', 'Min', 'Max', 'ForAll',
 
     # > aliases
     'OperationNode', 'ValuedNode', 'ConstantNode', 'VariableNode',
@@ -48,6 +55,10 @@ __all__ = [
     'contact_nodes', 'origin_nodes', 'end_nodes',
 
     # > graphs
-    'Graph', 'IOGraph', 'CGraph', 'SGraph', 'PGraph',
+    'Graph',
+    #
+    'IOGraph', 'SGraph', 'PGraph',
+    'CGraph',
+    #
     '_Graph',
 ]

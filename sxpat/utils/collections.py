@@ -1,11 +1,16 @@
 from __future__ import annotations
 from collections import UserDict
-from typing import Any, Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union
+from typing import Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union
 
 import itertools as it
 
 
-__all__ = ['mapping_inv', 'flat', 'pairwise', 'MultiDict', 'InheritanceMapping']
+__all__ = [
+    # methods
+    'mapping_inv', 'flat', 'pairwise',
+    # classes
+    'MultiDict', 'InheritanceMapping',
+]
 
 
 NOTHING = object()
