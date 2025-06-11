@@ -42,6 +42,8 @@ __all__ = [
     'AtLeast', 'AtMost',
 
     # > solver nodes
+    'ObjectiveNode',
+    # termination nodes
     'Target', 'Constraint',
     # global nodes
     'GlobalTask', 'Min', 'Max', 'ForAll',
