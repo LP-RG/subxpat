@@ -394,7 +394,6 @@ def process_Multiplexer(n : Node, operands: list, accs: list, inputs: list, para
 
     return temp[0]
 
-#TODO: implement If for integers also (now working only for booleans)
 def process_If(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     # monos = []
@@ -491,7 +490,7 @@ Node_Mapping = {
 
 class QbfSolver(Solver):
     @classmethod
-    def solve(cls,
+    def _solve(cls,
               graphs: _Graphs,
               specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Any]]]:
         
@@ -529,7 +528,7 @@ class QbfSolver(Solver):
             for graph in graphs:
                 for node in graph.nodes:
                     #TODO : add accessories (accs)
-                    # print(node)
+                    print(node)
                     next_free = Node_Mapping[type(node)](node, getattr(node, "operands", []),[] , inputs, variables, next_free, mapping, f)
                     if isinstance(graph,CGraph) and isinstance(node, Constraint):
                         assert(len(mapping[node.name]) == 1)
