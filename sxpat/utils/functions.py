@@ -1,15 +1,11 @@
 from __future__ import annotations
-from typing import Callable, TypeVar
-
-import string
-
-from sxpat.utils._augments import static
+from typing import Any, Callable, NoReturn, TypeVar
 
 
 __all__ = [
-    'get_producer', 'identity',
-    'str_to_bool', 'str_to_int_or_bool',
-    'to_alphanum_base',
+    'get_producer', 'get_raiser',
+    'identity', 'str_to_bool', 'str_to_int_or_bool',
+    'int_to_strbase',
 ]
 
 
@@ -18,6 +14,11 @@ T = TypeVar('T')
 
 def get_producer(value: T) -> Callable[[], T]:
     return lambda: value
+
+
+def get_raiser(obj: Any) -> Callable[..., NoReturn]:
+    def raiser(*args, **kwargs): raise obj
+    return raiser
 
 
 def identity(value: T) -> T:

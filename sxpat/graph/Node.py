@@ -18,12 +18,16 @@ __all__ = [
     'Operation', 'Limited1Operation', 'Limited2Operation', 'Limited3Operation',
     # resulting type
     'BoolResType', 'IntResType', 'DynamicResType',
+
     # > variables
     'BoolVariable', 'IntVariable',
+
     # > constants
     'BoolConstant', 'IntConstant',
+
     # > placeholder
     'PlaceHolder',
+
     # > expressions
     'ExpressionNode',
     # bool to bool
@@ -40,10 +44,13 @@ __all__ = [
     'Multiplexer', 'If',
     # quantify
     'AtLeast', 'AtMost',
+
     # > solver nodes
+    'ObjectiveNode',
+    # termination nodes
     'Target', 'Constraint',
     # global nodes
-    'GlobalNode', 'Min', 'Max', 'ForAll',
+    'GlobalTask', 'Min', 'Max', 'ForAll',
 
     # > aliases
     'OperationNode', 'ValuedNode', 'ConstantNode', 'VariableNode',
@@ -505,8 +512,20 @@ class AtMost(Valued[int], Operation, BoolResType, ExpressionNode):
 # > solver nodes
 
 
+@dc.dataclass(frozen=True, init=False, repr=False, eq=False)
+class ObjectiveNode(Node):
+    """
+        Special nodes representing a task/objective for the solver.
+
+        *abstract*
+    """
+
+
+# termination nodes
+
+
 @dc.dataclass(frozen=True)
-class Target(Limited1Operation, Node):
+class Target(Limited1Operation, ObjectiveNode):
     """
         Special solver node: specifies a node which value must be returned when solving.  
         The only operand represents the value to return.
@@ -514,26 +533,27 @@ class Target(Limited1Operation, Node):
 
 
 @dc.dataclass(frozen=True)
-class Constraint(Limited1Operation, Node):
+class Constraint(Limited1Operation, ObjectiveNode):
     """
         Special solver node: specifies a node which value must be asserted when solving.  
         The only operand represents the value to assert.
     """
 
+
 # global nodes
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class GlobalNode(Node):
+class GlobalTask(ObjectiveNode):
     """
-        Special nodes representing a global task, it being min/maximization or a ForAll.
+        Special nodes representing a global solver task, it being min/maximization or a ForAll.
 
         *abstract*
     """
 
 
 @dc.dataclass(frozen=True)
-class Min(Limited1Operation, GlobalNode):
+class Min(Limited1Operation, GlobalTask):
     """
         Special solver global node: specifies a node which value must be minimized.  
         The only operand represents the value to minimize.
@@ -541,7 +561,7 @@ class Min(Limited1Operation, GlobalNode):
 
 
 @dc.dataclass(frozen=True)
-class Max(Limited1Operation, GlobalNode):
+class Max(Limited1Operation, GlobalTask):
     """
         Special solver global node: specifies a node which value must be maximized.  
         The only operand represents the value to maximized.
@@ -549,7 +569,7 @@ class Max(Limited1Operation, GlobalNode):
 
 
 @dc.dataclass(frozen=True)
-class ForAll(Operation, GlobalNode):
+class ForAll(Operation, GlobalTask):
     """
         Special solver global node: specifies that all constraints must be asserted for each permutation of the operands.  
     """
