@@ -183,14 +183,14 @@ def _absolute_value(a, next_free, destination : IO[str]) -> list:
 # with open("sxpat/solving/temp.txt", 'w') as f:
 #     print(_comparator_greater_than([1,2],[3,4], [0], f))
 
-def process_BoolVariable(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_BoolVariable(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     return next_free
 
-def process_IntVariable(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_IntVariable(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     # raise NotImplementedError(f'this function isn\'t yet implemented')
     return next_free
 
-def process_BoolConstant(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_BoolConstant(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     if n.value:
         first = TRUE
     else:
@@ -198,7 +198,7 @@ def process_BoolConstant(n : Node, operands: list, accs: list, inputs: list, par
     mapping[n.name] = [first]
     return next_free
 
-def process_IntConstant(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_IntConstant(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = n.value
     res = []
     while temp > 0:
@@ -210,17 +210,17 @@ def process_IntConstant(n : Node, operands: list, accs: list, inputs: list, para
     mapping[n.name] = res
     return next_free
 
-def process_Identity(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_Identity(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     mapping[n.name] = mapping[operands[0]]
     return next_free
 
-def process_Target(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_Target(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     return next_free
 
-def process_PlaceHolder(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_PlaceHolder(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     return next_free
 
-def process_Not(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_Not(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     destination.write(f'{free(next_free)} = and(-{mapping[operands[0]][0]})\n')
     mapping[n.name] = [free(next_free)]
     return next_free + 1
@@ -234,25 +234,25 @@ def _process_f(operands: list, mapping : Dict[str, List[str]], destination: IO[s
         destination.write(f'{mapping[x][0]}')
     destination.write(')\n')
 
-def process_And(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_And(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     mapping[n.name] = [free(next_free)]
     destination.write(f'{free(next_free)} = and(')
     _process_f(operands, mapping, destination)
     return next_free + 1
 
-def process_Or(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_Or(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     mapping[n.name] = [free(next_free)]
     destination.write(f'{free(next_free)} = or(')
     _process_f(operands, mapping, destination)
     return next_free + 1
 
-def process_Implies(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_Implies(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     mapping[n.name] = [free(next_free+1)]
     destination.write(f'{free(next_free)} = and({mapping[operands[0]][0]}, -{mapping[operands[1]][0]})\n')
     destination.write(f'{free(next_free+1)} = and(-{free(next_free)})\n')
     return next_free + 2
 
-def process_Sum(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_Sum(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     if len(operands) == 0:
         mapping[n.name] = [FALSE]
         return next_free
@@ -267,7 +267,7 @@ def process_Sum(n : Node, operands: list, accs: list, inputs: list, param: list,
     return next_free
 
 # TODO: remove one bit
-def process_AbsDiff(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_AbsDiff(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     mapping[operands[0]].append(FALSE)
     mapping[operands[1]].append(FALSE)
@@ -279,14 +279,14 @@ def process_AbsDiff(n : Node, operands: list, accs: list, inputs: list, param: l
     mapping[operands[1]].pop()
     return temp[0]
 
-def process_Equals(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_Equals(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     res = _test_equality_list(mapping[operands[0]], mapping[operands[1]], temp, destination)
     mapping[n.name] = [res]
 
     return temp[0]
 
-def process_NotEquals(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_NotEquals(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     ans = _test_equality_list(mapping[operands[0]], mapping[operands[1]], temp, destination)
     res = next_temporary(temp)
@@ -295,7 +295,7 @@ def process_NotEquals(n : Node, operands: list, accs: list, inputs: list, param:
 
     return temp[0]
 
-def process_LessThan(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_LessThan(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     ans = _comparator_greater_than(mapping[operands[0]], mapping[operands[1]], temp, destination, or_equal=True)
     res = next_temporary(temp)
@@ -304,7 +304,7 @@ def process_LessThan(n : Node, operands: list, accs: list, inputs: list, param: 
 
     return temp[0]
 
-def process_LessEqualThan(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_LessEqualThan(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     ans = _comparator_greater_than(mapping[operands[0]], mapping[operands[1]], temp, destination)
     res = next_temporary(temp)
@@ -312,19 +312,19 @@ def process_LessEqualThan(n : Node, operands: list, accs: list, inputs: list, pa
     mapping[n.name] = [res]
     return temp[0]
 
-def process_GreaterThan(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_GreaterThan(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     ans = _comparator_greater_than(mapping[operands[0]], mapping[operands[1]], temp, destination)
     mapping[n.name] = [ans]
     return temp[0]
 
-def process_GreaterEqualThan(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_GreaterEqualThan(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     ans = _comparator_greater_than(mapping[operands[0]], mapping[operands[1]], temp, destination, or_equal=True)
     mapping[n.name] = [ans]
     return temp[0]
 
-def process_AtLeast(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_AtLeast(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     remaining = deque()
     for x in operands:
@@ -350,7 +350,7 @@ def process_AtLeast(n : Node, operands: list, accs: list, inputs: list, param: l
     return temp[0]
 
 # TODO: optimize for various numbers
-def process_AtMost(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_AtMost(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     remaining = deque()
     for x in operands:
@@ -375,7 +375,7 @@ def process_AtMost(n : Node, operands: list, accs: list, inputs: list, param: li
 
     return temp[0]
 
-def process_Multiplexer(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_Multiplexer(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     monos = []
 
@@ -394,7 +394,7 @@ def process_Multiplexer(n : Node, operands: list, accs: list, inputs: list, para
 
     return temp[0]
 
-def process_If(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_If(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
     # monos = []
 
@@ -437,18 +437,18 @@ def process_If(n : Node, operands: list, accs: list, inputs: list, param: list, 
 
     return temp[0]
 
-def process_ToInt(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_ToInt(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     res = []
     for x in operands:
         res.append(mapping[x][0])
     mapping[n.name] = res
     return next_free
 
-def process_Constraint(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_Constraint(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     mapping[n.name] = mapping[operands[0]]
     return next_free
 
-def process_Maximize(n : Node, operands: list, accs: list, inputs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+def process_Maximize(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     pass
 
 Node_Mapping = {
@@ -492,15 +492,15 @@ class QbfSolver(Solver):
     @classmethod
     def _solve(cls,
               graphs: _Graphs,
-              specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Any]]]:
+              specifications: Specifications,
+              forall = []) -> Tuple[str, Optional[Mapping[str, Any]]]:
         
         script_path = f'output/z3/{specifications.exact_benchmark}_iter{specifications.iteration}.txt'
 
         mapping = {}
-        inputs = list(set(name for graph in graphs if isinstance(graph, IOGraph) for name in graph.inputs_names))
-        variables = [node.name for graph in graphs if isinstance(graph, PGraph) for node in graph.nodes if isinstance(node, BoolVariable) and node.name not in inputs]
-        inputs.sort()
+        variables = [node.name for graph in graphs if isinstance(graph, PGraph) for node in graph.nodes if isinstance(node, BoolVariable)]
         variables.sort()
+        forall.sort()
 
         with open(script_path, 'w') as f:
 
@@ -515,12 +515,12 @@ class QbfSolver(Solver):
 
             f.write(')\nforall(')
             first = True
-            for i in range(len(inputs)):
+            for i in range(len(forall)):
                 if not first:
                     f.write(', ')
                 first = False
                 f.write(f'1{i}')
-                mapping[inputs[i]] = [f'1{i}']
+                mapping[forall[i]] = [f'1{i}']
             f.write(')\noutput(90)\n91 = and()\n92 = or()\n#\n')
 
             in_the_output = []
@@ -528,8 +528,8 @@ class QbfSolver(Solver):
             for graph in graphs:
                 for node in graph.nodes:
                     #TODO : add accessories (accs)
-                    print(node)
-                    next_free = Node_Mapping[type(node)](node, getattr(node, "operands", []),[] , inputs, variables, next_free, mapping, f)
+                    # print(node)
+                    next_free = Node_Mapping[type(node)](node, getattr(node, "operands", []),[], variables, next_free, mapping, f)
                     if isinstance(graph,CGraph) and isinstance(node, Constraint):
                         assert(len(mapping[node.name]) == 1)
                         in_the_output.append(node.name)
@@ -556,3 +556,16 @@ class QbfSolver(Solver):
         
         else:
             return ('unsat', None)
+    
+    @classmethod
+    def solve_exists(cls,
+              graphs: _Graphs,
+              specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Any]]]:
+        return cls._solve(graphs, specifications, [])
+    
+    @classmethod
+    def _solve_forall(cls, graphs: _Graphs,
+                     specifications: Specifications,
+                     forall_target: ForAll,
+                     ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+        return cls._solve(graphs, specifications, list(forall_target.operands))
