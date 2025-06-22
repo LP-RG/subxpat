@@ -76,8 +76,7 @@ class Solver(metaclass=ABCMeta):
 
         # compute global targets if not already given
         if __global_targets is None:
-            __global_targets = cls.get_global_tasks(graphs)
-            graphs = cls.remove_global_tasks(graphs)
+            __global_targets, graphs = cls._pop_global_tasks(graphs)
 
         if __global_targets.optimize is not None and __global_targets.forall is not None:
             # solve an optimization and forall quantified problem
@@ -222,58 +221,59 @@ class Solver(metaclass=ABCMeta):
 
     @classmethod
     @final
-    def get_global_tasks(cls, graphs: _Graphs) -> GlobalTasks:
+    def _pop_global_tasks(cls, graphs: _Graphs) -> Tuple[GlobalTasks, _Graphs]:
         """
-            Returns the `ForAll` and `Min`/`Max` nodes from the given graphs, if present.
+            Pops all `GlobalTask` nodes from the graphs.
+
+            Returns
+             - `ForAll` and `Min`/`Max` nodes from the given graphs, if present.
+             - Sequence of graphs where `CGraphs` are updated/dropped based on their `GlobalTask` content (partial/only).
         """
 
-        # extract global nodes
-        global_nodes = tuple(it.chain.from_iterable(
-            g.global_tasks
-            for g in graphs
-            if isinstance(g, CGraph)
-        ))
-        foralls = tuple(n for n in global_nodes if isinstance(n, ForAll))
-        optimizes = tuple(n for n in global_nodes if isinstance(n, (Min, Max)))
+        _graphs = []
+        _global_tasks = []
+        for graph in graphs:
+            if (not isinstance(graph, CGraph)) or (len(graph.global_tasks) == 0):
+                # nothing to extract
+                # keep as-is if not a CGraph or not containing any GlobalTask
+                pass
 
+            else:
+                # extract tasks
+                _global_tasks.extend(graph.global_tasks)
+
+                # drop graph if all nodes are GlobalTask and PlaceHolder
+                if all(isinstance(n, (PlaceHolder, GlobalTask)) for n in graph.nodes):
+                    continue
+
+                # update CGraph without GlobalTask (and relative PlaceHolder)
+                else:
+                    task_names = frozenset(n.name for n in graph.global_tasks)
+                    placeholder_names = frozenset(
+                        n.name for n in graph.placeholders
+                        if len(succ := graph.successors(n)) == 1 and succ[0].name in task_names
+                    )
+
+                    graph = CGraph(
+                        n for n in graph.nodes
+                        if n.name not in task_names and n.name not in placeholder_names
+                    )
+
+            _graphs.append(graph)
+
+        # categorize tasks
+        foralls = tuple(n for n in _global_tasks if isinstance(n, ForAll))
+        optimizes = tuple(n for n in _global_tasks if isinstance(n, (Min, Max)))
+
+        # guard for multiple forall quantifiers or multiple optimizations
         # NOTE: the check for the foralls could be removed, as we could treat multiple ForAll as a single ForAll with all the inputs
         if len(foralls) > 1: raise RuntimeError('Too many ForAll nodes in the graphs')
         if len(optimizes) > 1: raise RuntimeError('Too many Min/Max nodes in the graphs')
 
-        return GlobalTasks(
-            optimize=(optimizes[0] if optimizes else None),
-            forall=(foralls[0] if foralls else None),
+        return (
+            GlobalTasks(
+                optimize=(optimizes[0] if optimizes else None),
+                forall=(foralls[0] if foralls else None),
+            ),
+            tuple(_graphs)
         )
-
-    @classmethod
-    @final
-    def remove_global_tasks(cls, graphs: _Graphs) -> _Graphs:
-        """
-            Removes all `GlobalTask` nodes from the graphs.
-
-            Returns the sequence of:
-            - original graph if not containing `GlobalTask`
-            - an updated copy of the graph if it contained `GlobalTask`
-        """
-
-        _graphs = []
-        for g in graphs:
-            # keep as-is if not a CGraph or not containing any GlobalTask
-            if (not isinstance(g, CGraph)) or (len(g.global_tasks) == 0):
-                pass
-
-            # drop graph if all nodes are GlobalTask or PlaceHolder
-            elif all(isinstance(n, (GlobalTask, PlaceHolder)) for n in g.nodes):
-                continue
-
-            # keep updated CGraph without GlobalTask
-            else:
-                g = CGraph(
-                    n
-                    for n in g.nodes
-                    if not isinstance(n, GlobalTask)
-                )
-
-            _graphs.append(g)
-
-        return tuple(_graphs)
