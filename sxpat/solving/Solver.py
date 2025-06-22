@@ -50,7 +50,6 @@ class Solver(metaclass=ABCMeta):
         to suppress this warning simply overload the method in your subclass
         using the internal call to the `protected` function.
 
-
         @authors: Marco Biasion
     """
 
@@ -72,6 +71,8 @@ class Solver(metaclass=ABCMeta):
             - CGraph (and subclasses): for applicable constraints
 
             Returns the status of the resolution (`sat`, `unsat`, `unknown`) and the model evaluated from the `Target` nodes if `sat`.
+
+            @authors: Marco Biasion
         """
 
         # compute global targets if not already given
@@ -173,6 +174,8 @@ class Solver(metaclass=ABCMeta):
                                          ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve an optimization (optionally forall quantified) problem iteratively without requiring solver specific features.
+
+            @authors: Marco Biasion
         """
 
         # define common extra nodes
@@ -228,6 +231,8 @@ class Solver(metaclass=ABCMeta):
             Returns
              - `ForAll` and `Min`/`Max` nodes from the given graphs, if present.
              - Sequence of graphs where `CGraphs` are updated/dropped based on their `GlobalTask` content (partial/only).
+
+            @authors: Marco Biasion
         """
 
         _graphs = []
