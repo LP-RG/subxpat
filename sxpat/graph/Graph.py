@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing_extensions import Self, override, final
+from typing_extensions import Self, final
 from typing import AbstractSet, Any, Iterable, Mapping, Sequence, TypeVar, Union
 from types import MappingProxyType
 
@@ -7,7 +7,7 @@ import networkx as nx
 import functools as ft
 import itertools as it
 
-from .Node import ExpressionNode, Node, Operation, Constant, ConstantNode, OperationNode, Target, Constraint, BoolVariable, GlobalTask
+from .Node import ExpressionNode, Node, Operation, Constant, ConstantNode, OperationNode, Target, Constraint, BoolVariable, GlobalTask, PlaceHolder
 
 
 __all__ = [
@@ -247,6 +247,12 @@ class PGraph(SGraph):
 
 class CGraph(Graph):
     """Graph containing the constraints."""
+
+    @ft.cached_property
+    @final
+    def placeholders(self) -> AbstractSet[PlaceHolder]:
+        """The sequence of all `Constraint` node in the graph."""
+        return frozenset(node for node in self.nodes if isinstance(node, Constraint))
 
     @ft.cached_property
     @final
