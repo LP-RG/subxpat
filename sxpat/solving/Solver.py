@@ -28,20 +28,28 @@ class Solver(metaclass=ABCMeta):
     """
         Guide: inheriting from `Solver`.
 
-        The `Solver` super class has one public method: `.solve(...)`  
-        This method internally delegates the computation to one of 4 possible function categories:
-        - `_solve_optimize_forall`: used to solve problems with both an optimization target and a forall quantifier
-        - `_solve_optimize`: used to solve only optimization problems
-        - `_solve_forall`: used to solve only forall quantified problems
-        - `_solve`: used to solve non optimization and not forall quantified problems
+        The `Solver` super class has the following public methods:
+        - `.solve(...)`: entry point to the solver. Will delegate the computation to one of the following methods.  
+          This method is already implemented and is **final**.
+        - `solve_exists(...)`: solve non optimization and not forall quantified problems.  
+           **Must** be overloaded when inheriting.
+        - `solve_forall(...)`: solve forall quantified problems.  
+          **Can** be overloaded but a default solver independent implementation is given.
+        - `solve_optimize(...)`: solve optimization problems.  
+          **Can** be overloaded but a default solver independent implementation is given.
+        - `_solve_optimize_forall`: solve optimizations and forall quantified problems.  
+          **Can** be overloaded but a default solver independent implementation is given.
 
-        Of these categories, the only one strictly required to be implemented in the subclasses is `_solve`,
-        in particular the method `._solve(...)`.  
-        This is because all other categories have a `multipass` implementation which is not optimized,
-        but does not require any solver-specific feature.
+        As stated in the list, the only method strictly required to be overloaded is `solve_exists(...)`,
+        as all others have a default implementation.
 
-        To improve the performance for the solver being implemented you can define a `singlepass` 
-        variant for each of the first 3 categories (eg. `._solve_forall_singlepass(...)`).
+        To improve the performance of the solver being implemented,
+        the other methods can be overloaded using solver specific features.
+
+        Note that non overloaded methods will print a warning when used,
+        to suppress this warning simply overload the method in your subclass
+        using the internal call to the `protected` function.
+
 
         @authors: Marco Biasion
     """
@@ -103,7 +111,7 @@ class Solver(metaclass=ABCMeta):
         """
             Solve a non optimization and not forall quantified problem.
         """
-        raise NotImplementedError(f'{cls.__qualname__}._solve(...) is abstract')
+        raise NotImplementedError(f'{cls.__qualname__}.solve_exists(...) is not implemented')
 
     @classmethod
     def solve_forall(cls, graphs: _Graphs,
@@ -111,9 +119,12 @@ class Solver(metaclass=ABCMeta):
                      forall_target: ForAll,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
-            Solve a forall quantified (and non optimization) problem.
+            Solve a forall quantified (non optimization) problem.
         """
-        pprint.warning(f'[WARNING] using default (iterative) implementation for {cls.__qualname__}.solve_forall(...)')
+        pprint.warning(
+            '[WARNING] using default (iterative) implementation'
+            f' for {cls.__qualname__}.solve_forall(...)'
+        )
         cls._solve_forall(graphs, specifications, forall_target)
 
     @classmethod
@@ -124,7 +135,10 @@ class Solver(metaclass=ABCMeta):
         """
             Solve an optimization (not forall quantified) problem.
         """
-        pprint.warning(f'[WARNING] using default (iterative) implementation for {cls.__qualname__}._solve_optimize(...)')
+        pprint.warning(
+            '[WARNING] using default (iterative) implementation'
+            f' for {cls.__qualname__}.solve_optimize(...)'
+        )
         return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, None)
 
     @classmethod
@@ -136,7 +150,10 @@ class Solver(metaclass=ABCMeta):
         """
             Solve an optimization and forall quantified problem.
         """
-        pprint.warning(f'[WARNING] using default (iterative) implementation for {cls.__qualname__}._solve_optimize_forall(...)')
+        pprint.warning(
+            '[WARNING] using default (iterative) implementation'
+            f' for {cls.__qualname__}.solve_optimize_forall(...)'
+        )
         return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)
 
     @classmethod
@@ -156,7 +173,7 @@ class Solver(metaclass=ABCMeta):
                                          forall_target: Optional[ForAll],
                                          ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
-            Solve an optimization (optionally forall quantified) problem iteratively without requiring solver-specific features.
+            Solve an optimization (optionally forall quantified) problem iteratively without requiring solver specific features.
         """
 
         # define common extra nodes
