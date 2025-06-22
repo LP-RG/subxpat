@@ -274,7 +274,7 @@ class Z3FuncEncoder(Z3Encoder):
             cls.graph_as_function_calls(graph, inputs_string, non_gates_names)
             for graph in graphs
         )
-        # update global_task if present
+        # update global_task if present (mainly useful for operands)
         if global_task:
             global_task = cls.nodes_as_function_calls([global_task], inputs_string, non_gates_names)[0]
 
