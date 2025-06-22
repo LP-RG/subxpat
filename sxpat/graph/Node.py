@@ -49,7 +49,7 @@ __all__ = [
     'ObjectiveNode',
     # termination nodes
     'Target', 'Constraint',
-    # global nodes
+    # global tasks
     'GlobalTask', 'Min', 'Max', 'ForAll',
 
     # > aliases
