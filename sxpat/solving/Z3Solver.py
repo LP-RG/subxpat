@@ -1,5 +1,5 @@
-from typing import IO, Any, Callable, Container, Dict, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union
-from typing_extensions import override, final
+from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union, overload
+from typing_extensions import override
 from abc import abstractmethod
 
 import itertools as it
@@ -9,13 +9,12 @@ from sxpat.specifications import Specifications
 from sxpat.utils.functions import str_to_int_or_bool
 from sxpat.utils.decorators import make_utility_class
 
-from .Solver import GlobalTasks, Solver
+from .Solver import Solver
 
 from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.graph import *
 
 import sxpat.config.config as sxpat_cfg
-from sxpat.config import SolverConstants as SC
 
 
 __all__ = [
@@ -75,7 +74,6 @@ class Z3Encoder:
     def encode(cls, graphs: _Graphs,
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
-
                ) -> None:
         raise NotImplementedError(f'{cls.__qualname__}.encode(...) is abstract')
 
@@ -176,31 +174,77 @@ class Z3FuncEncoder(Z3Encoder):
         @authors: Marco Biasion
     """
 
+    @staticmethod
+    def _all_names(nodes: Iterable[Node]) -> Iterator[str]:
+        seen_names = set()
+        for node in nodes:
+            if node.name not in seen_names:
+                seen_names.add(node.name)
+                yield node.name
+            if isinstance(node, Operation):
+                for name in node.operands:
+                    if name not in seen_names:
+                        seen_names.add(name)
+                        yield name
+
     @classmethod
-    def graph_as_function_calls(cls, graph: Union[IOGraph, PGraph, CGraph],
-                                inputs_string: str,
-                                non_gates_names: Container[str]):
+    @overload
+    def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str]
+                                ) -> Sequence[Node]:
         """
-            This method takes a graph in input and returns a new graph with all nodes updated
-            to have their name being the equivalent z3 uninterpreted function call.
+           Given a sequence of nodes in input, returns a new sequence with all nodes updated
+           to have their name being the equivalent z3 uninterpreted function call.
+       """
 
-            @authors: Marco Biasion
+    @classmethod
+    @overload
+    def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str],
+                                *, get_mapping: Literal[True]
+                                ) -> Tuple[Sequence[Node], Mapping[str, str]]:
         """
+           Given a sequence of nodes in input, returns a new sequence with all nodes updated
+           to have their name being the equivalent z3 uninterpreted function call, and the names mapping.
+       """
 
+    @classmethod
+    def nodes_as_function_calls(cls, nodes, inputs_string, non_gates_names, *, get_mapping=False):
+        """@authors: Marco Biasion"""
+
+        # copute updated names
         updated_names: Mapping[str, str] = {
-            n.name: n.name if n.name in non_gates_names else f'{n.name}({inputs_string})'
-            for n in graph.nodes
+            name: name if name in non_gates_names else f'{name}({inputs_string})'
+            for name in cls._all_names(nodes)
         }
 
         # node conversion
-        nodes = [
+        nodes = tuple(
             (
                 node.copy(name=updated_names[node.name], operands=(updated_names[name] for name in node.operands))
                 if isinstance(node, Operation) else
                 node.copy(name=updated_names[node.name])
             )
-            for node in graph.nodes
-        ]
+            for node in nodes
+        )
+
+        #
+        if get_mapping: return (nodes, updated_names)
+        else: return nodes
+
+    @classmethod
+    def graph_as_function_calls(cls, graph: Union[IOGraph, PGraph, CGraph],
+                                inputs_string: str,
+                                non_gates_names: Container[str]):
+        """
+            Given a graph in input, returns a new graph with all nodes updated
+            to have their name being the equivalent z3 uninterpreted function call.
+
+            @authors: Marco Biasion
+        """
+
+        nodes, updated_names = cls.nodes_as_function_calls(
+            graph.nodes, inputs_string, non_gates_names,
+            get_mapping=True
+        )
 
         # update extras (if needed)
         extra = dict()
@@ -230,6 +274,9 @@ class Z3FuncEncoder(Z3Encoder):
             cls.graph_as_function_calls(graph, inputs_string, non_gates_names)
             for graph in graphs
         )
+        # update global_task if present
+        if global_task:
+            global_task = cls.nodes_as_function_calls([global_task], inputs_string, non_gates_names)[0]
 
         # gather constraints graphs
         c_graphs = tuple(graph for graph in graphs if isinstance(graph, CGraph))
@@ -502,7 +549,7 @@ class Z3Solver(Solver):
                               optimize_target: Union[Min, Max],
                               forall_target: ForAll,
                               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        # NOTE: the override here is used to remove unnecessary warning, 
+        # NOTE: the override here is used to remove unnecessary warning,
         #       as the default iterative approach is the correct one for this solver
         return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)
 
