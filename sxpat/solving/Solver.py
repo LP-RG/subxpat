@@ -81,19 +81,19 @@ class Solver(metaclass=ABCMeta):
 
         if __global_targets.optimize is not None and __global_targets.forall is not None:
             # solve an optimization and forall quantified problem
-            return cls._solve_optimize_forall(
+            return cls.solve_optimize_forall(
                 graphs, specifications,
                 __global_targets.optimize, __global_targets.forall,
             )
         elif __global_targets.optimize is not None and __global_targets.forall is None:
             # solve an optimization (not forall quantified) problem
-            return cls._solve_optimize(
+            return cls.solve_optimize(
                 graphs, specifications,
                 __global_targets.optimize,
             )
         elif __global_targets.optimize is None and __global_targets.forall is not None:
             # solve a forall quantified (and non optimization) problem
-            return cls._solve_forall(
+            return cls.solve_forall(
                 graphs, specifications,
                 __global_targets.forall,
             )
