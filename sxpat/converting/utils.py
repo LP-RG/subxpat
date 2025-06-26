@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import re
 import math
@@ -125,8 +125,8 @@ def get_nodes_type(graphs: Iterable[Graph],
                 type_of[node.name] = type_of[last_pred.name]
 
             # special cases
-            elif isinstance(node, contact_nodes): continue
-            elif isinstance(node, (Target, Constraint)): continue
+            elif isinstance(node, PlaceHolder): continue
+            elif isinstance(node, Objective): continue
             else: raise TypeError(f'Node {node.name} has an invalid type ({type(node)}).')
 
     return type_of
