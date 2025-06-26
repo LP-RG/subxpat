@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Tuple, Generic, TypeVar
+from typing import Any, Mapping, Optional, Tuple, Generic, TypeVar, final
 from typing_extensions import Self
 
 import dataclasses as dc
@@ -83,19 +83,29 @@ class Node(__Base):
     """
 
     name: str
-    weight: int = None
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        # assert re.match(r'^\w+$', self.name), f'The name `{self.name}` is invalid, it must match regex `\w+`.'
+
+    def copy(self, **update: Any) -> Self:
+        return type(self)(**{**vars(self), **update})
+
+
+@dc.dataclass(frozen=True, init=False, repr=False, eq=False)
+class Extras(__Base):
+    """
+        An object with extra informations.
+
+        *abstract*
+    """
+
+    weight: Optional[int] = None
     in_subgraph: bool = False
 
     def __post_init__(self) -> None:
         super().__post_init__()
         object.__setattr__(self, 'in_subgraph', bool(self.in_subgraph))
-        # assert re.match(r'^\w+$', self.name), f'The name `{self.name}` is invalid, it must match regex `\w+`.'
-
-    def copy(self, name: str = None, weight: int = None, in_subgraph: bool = None, **update) -> Self:
-        if name is not None: update['name'] = name
-        if weight is not None: update['weight'] = weight
-        if in_subgraph is not None: update['in_subgraph'] = in_subgraph
-        return type(self)(**{**vars(self), **update})
 
 
 # valued
@@ -109,7 +119,7 @@ class Valued(Generic[T], __Base):
         *abstract*
     """
 
-    value: T = None
+    value: T
 
 
 # operation
@@ -123,9 +133,9 @@ class Operation(__Base):
         *abstract*
     """
 
-    operands: Tuple[str, ...] = tuple()
+    operands: Tuple[str, ...]
 
-    def __post_init__(self, required_operands_count: int = None):
+    def __post_init__(self, required_operands_count: Optional[int] = None):
         super().__post_init__()
         object.__setattr__(
             self, 'operands',
@@ -162,7 +172,6 @@ class Limited1Operation(Operation):
         """Helper constructor with automatic naming."""
         return cls(
             f'{cls.__name__.lower()}_{operand.name}',
-            weight=operand.weight, in_subgraph=operand.in_subgraph,
             operands=(operand,)
         )
 
@@ -283,14 +292,14 @@ class Variable(EntryPoint):
 
 
 @dc.dataclass(frozen=True)
-class BoolVariable(Variable, BoolResType, Node):
+class BoolVariable(Extras, Variable, BoolResType, Node):
     """
         Boolean variable.
     """
 
 
 @dc.dataclass(frozen=True)
-class IntVariable(Variable, IntResType, Node):
+class IntVariable(Extras, Variable, IntResType, Node):
     """
         Integer variable.
     """
@@ -309,14 +318,14 @@ class Constant(Valued[T], EntryPoint):
 
 
 @dc.dataclass(frozen=True)
-class BoolConstant(Constant[bool], BoolResType, Node):
+class BoolConstant(Extras, Constant[bool], BoolResType, Node):
     """
         Boolean constant.
     """
 
 
 @dc.dataclass(frozen=True)
-class IntConstant(Constant[int], IntResType, Node):
+class IntConstant(Extras, Constant[int], IntResType, Node):
     """
         Integer constant.
     """
@@ -352,7 +361,7 @@ class Expression(__Base):
 
 
 @dc.dataclass(frozen=True)
-class Not(Limited1Operation, BoolResType, Expression, Node):
+class Not(Extras, Limited1Operation, BoolResType, Expression, Node):
     """
         Boolean negation ( `not a` ) expression.  
         This node must have only one operand.
@@ -360,7 +369,7 @@ class Not(Limited1Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class And(Operation, BoolResType, Expression, Node):
+class And(Extras, Operation, BoolResType, Expression, Node):
     """
         Boolean conjunction ( `a and b and ...` ) expression.  
         This node can have any amount of operands.
@@ -368,7 +377,7 @@ class And(Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class Or(Operation, BoolResType, Expression, Node):
+class Or(Extras, Operation, BoolResType, Expression, Node):
     """
         Boolean disjunction ( `a or b or ...` ) expression.  
         This node can have any amount of operands.
@@ -376,7 +385,7 @@ class Or(Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class Implies(Limited2Operation, BoolResType, Expression, Node):
+class Implies(Extras, Limited2Operation, BoolResType, Expression, Node):
     """
         Boolean implication ( `a => b` ) expression.  
         This node must have two ordered operands: left, right.
@@ -387,7 +396,7 @@ class Implies(Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class Sum(Operation, IntResType, Expression, Node):
+class Sum(Extras, Operation, IntResType, Expression, Node):
     """
         Integer addition ( `a + b + ...` ) expression.  
         This node can have any amount of operands.
@@ -395,7 +404,7 @@ class Sum(Operation, IntResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class AbsDiff(Limited2Operation, IntResType, Expression, Node):
+class AbsDiff(Extras, Limited2Operation, IntResType, Expression, Node):
     """
         Integer absolute difference ( `| a - b |` ) expression.  
         This node must have two operands.
@@ -406,7 +415,7 @@ class AbsDiff(Limited2Operation, IntResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class ToInt(Operation, IntResType, Expression, Node):
+class ToInt(Extras, Operation, IntResType, Expression, Node):
     """
         Special integer node: represents the creation of an integer given a sequence of booleans (the bits).  
         This node can have any amount of ordered operands, where the first represents the least significant bit.
@@ -417,7 +426,7 @@ class ToInt(Operation, IntResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class Equals(Limited2Operation, BoolResType, Expression, Node):
+class Equals(Extras, Limited2Operation, BoolResType, Expression, Node):
     """
         Equality ( `a == b` ) expression.  
         This node must have two operands.
@@ -425,7 +434,7 @@ class Equals(Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class NotEquals(Limited2Operation, BoolResType, Expression, Node):
+class NotEquals(Extras, Limited2Operation, BoolResType, Expression, Node):
     """
         Inequality ( `a != b` ) expression.  
         This node must have two operands.
@@ -433,7 +442,7 @@ class NotEquals(Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class LessThan(Limited2Operation, BoolResType, Expression, Node):
+class LessThan(Extras, Limited2Operation, BoolResType, Expression, Node):
     """
         Less than ( `a < b` ) expression.  
         This node must have two ordered operands: left, right.
@@ -441,7 +450,7 @@ class LessThan(Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class LessEqualThan(Limited2Operation, BoolResType, Expression, Node):
+class LessEqualThan(Extras, Limited2Operation, BoolResType, Expression, Node):
     """
         Less or equal than ( `a <= b` ) expression.  
         This node must have two ordered operands: left, right.
@@ -449,7 +458,7 @@ class LessEqualThan(Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class GreaterThan(Limited2Operation, BoolResType, Expression, Node):
+class GreaterThan(Extras, Limited2Operation, BoolResType, Expression, Node):
     """
         Greater than ( `a > b` ) expression.  
         This node must have two ordered operands: left, right.
@@ -457,7 +466,7 @@ class GreaterThan(Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class GreaterEqualThan(Limited2Operation, BoolResType, Expression, Node):
+class GreaterEqualThan(Extras, Limited2Operation, BoolResType, Expression, Node):
     """
         Greater or equal than ( `a >= b` ) expression.  
         This node must have two ordered operands: left, right.
@@ -468,7 +477,7 @@ class GreaterEqualThan(Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class Identity(Limited1Operation, DynamicResType, Expression, Node):
+class Identity(Extras, Limited1Operation, DynamicResType, Expression, Node):
     """
         The identity expression.
 
@@ -480,7 +489,7 @@ class Identity(Limited1Operation, DynamicResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class Multiplexer(Limited3Operation, BoolResType, Expression, Node):
+class Multiplexer(Extras, Limited3Operation, BoolResType, Expression, Node):
     """
         Special boolean node: represents a multiplexer (false, true, not origin, origin) indexed by two parameters.  
         This node must have three ordered operands: origin, usage parameter (origin/constant), assertion parameter (asserted/negated).
@@ -502,7 +511,7 @@ class Multiplexer(Limited3Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class If(Limited3Operation, DynamicResType, Expression, Node):
+class If(Extras, Limited3Operation, DynamicResType, Expression, Node):
     """
         Special node: represents a selection ( `if a then b else c` ) operation.  
         This node must have three ordered operands: condition, if true, if false.
@@ -525,7 +534,7 @@ class If(Limited3Operation, DynamicResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class AtLeast(Valued[int], Operation, BoolResType, Expression, Node):
+class AtLeast(Extras, Valued[int], Operation, BoolResType, Expression, Node):
     """
         Special node: represents a lower limit to the number of operands that must be true.  
         This node can have any amount of operands.
@@ -533,7 +542,7 @@ class AtLeast(Valued[int], Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class AtMost(Valued[int], Operation, BoolResType, Expression, Node):
+class AtMost(Extras, Valued[int], Operation, BoolResType, Expression, Node):
     """
         Special node: represents an upper limit to the number of operands that can be true.  
         This node can have any amount of operands.
@@ -610,7 +619,7 @@ class ForAll(Operation, GlobalTask, Node):
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class VariableNode(Variable, Node):
+class VariableNode(Extras, Variable, Node):
     """
         **JUST A TYPING ALIAS**  
         Never use it for anything other than type annotations.
@@ -626,7 +635,7 @@ class ValuedNode(Valued, Node):
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class ConstantNode(Constant, Node):
+class ConstantNode(Extras, Constant, Node):
     """
         **JUST A TYPING ALIAS**  
         Never use it for anything other than type annotations.
@@ -642,7 +651,7 @@ class OperationNode(Operation, Node):
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class ExpressionNode(Expression, Operation, Node):
+class ExpressionNode(Extras, Expression, Operation, Node):
     """
         **JUST A TYPING ALIAS**  
         Never use it for anything other than type annotations.

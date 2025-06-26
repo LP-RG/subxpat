@@ -116,7 +116,7 @@ def get_nodes_type(graphs: Iterable[Graph],
             if node.name in type_of: continue
 
             # direct cases
-            if isinstance(node, BoolResType): type_of[node.name] = bool
+            elif isinstance(node, BoolResType): type_of[node.name] = bool
             elif isinstance(node, IntResType): type_of[node.name] = int
 
             # dynamic cases
@@ -211,7 +211,7 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool]) -> _Graph:
             # NOTE: we do not really need prune_unused as this function should only care about setting constants
             raise NotImplementedError('The logic to replace an Operation with a constant has not been implemented yet.')
         else:
-            new_nodes[node.name] = BoolConstant(node.name, node.weight, node.in_subgraph, value)
+            new_nodes[node.name] = BoolConstant(node.name, value, node.weight, node.in_subgraph)
 
     return graph.copy(new_nodes.values())
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing_extensions import Self, final
-from typing import AbstractSet, Any, Iterable, Mapping, Sequence, TypeVar, Union
+from typing_extensions import Self
+from typing import AbstractSet, Any, Iterable, Mapping, Sequence, TypeVar, Union, Final, final
 from types import MappingProxyType
 
 import networkx as nx
@@ -72,7 +72,7 @@ class Graph:
         )
 
         # freeze inner structure
-        self._inner: nx.DiGraph = nx.freeze(_inner)
+        self._inner: Final[nx.DiGraph] = nx.freeze(_inner)
 
     def copy(self, nodes: Iterable[Node] = None, **extras) -> Self:
         return type(self)(self.nodes if nodes is None else nodes, **{**self.extras, **extras})
