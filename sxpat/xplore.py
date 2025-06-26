@@ -176,10 +176,13 @@ def explore_grid(specs_obj: Specifications):
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
             models = []
             for _ in range(specs_obj.wanted_models):
+                # prevent parameters combination if any
+                if len(models) > 0: c_graph = prevent_combination(c_graph, model)
+                # run solver
                 status, model = solve((e_graph, p_graph, c_graph), specs_obj)
+                # terminate if status is not sat, otherwise store the models
                 if status != 'sat': break
                 models.append(model)
-                c_graph = prevent_combination(c_graph, model)
 
             # legacy adaptation
             execution_time = template_timer.total + solve_timer.total
