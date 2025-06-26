@@ -31,16 +31,16 @@ class Solver(metaclass=ABCMeta):
         The `Solver` super class has the following public methods:
         - `.solve(...)`: entry point to the solver. Will delegate the computation to one of the following methods.  
           This method is already implemented and is **final**.
-        - `solve_exists(...)`: solve non optimization and not forall quantified problems.  
+        - `.solve_exists(...)`: solve non optimization and not forall quantified problems.  
            **Must** be overloaded when inheriting.
         - `solve_forall(...)`: solve forall quantified problems.  
           **Can** be overloaded but a default solver independent implementation is given.
-        - `solve_optimize(...)`: solve optimization problems.  
+        - `.solve_optimize(...)`: solve optimization problems.  
           **Can** be overloaded but a default solver independent implementation is given.
-        - `_solve_optimize_forall`: solve optimizations and forall quantified problems.  
+        - `.solve_optimize_forall(...)`: solve optimizations and forall quantified problems.  
           **Can** be overloaded but a default solver independent implementation is given.
 
-        As stated in the list, the only method strictly required to be overloaded is `solve_exists(...)`,
+        As stated in the list, the only method strictly required to be overloaded is `.solve_exists(...)`,
         as all others have a default implementation.
 
         To improve the performance of the solver being implemented,
