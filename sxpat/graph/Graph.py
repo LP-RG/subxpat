@@ -7,7 +7,14 @@ import networkx as nx
 import functools as ft
 import itertools as it
 
-from .Node import ExpressionNode, Node, Operation, Constant, ConstantNode, OperationNode, Target, Constraint, BoolVariable, GlobalTask, PlaceHolder
+from .Node import (
+    Expression, Node, Operation, Constant, GlobalTask,
+    #
+    BoolVariable, PlaceHolder,
+    Target, Constraint,
+    #
+    OperationNode, ConstantNode, GlobalTaskNode, ExpressionNode,
+)
 
 
 __all__ = [
@@ -119,7 +126,7 @@ class Graph:
     @ft.cached_property
     @final
     def expressions(self) -> Sequence[ExpressionNode]:
-        return tuple(node for node in self.nodes if isinstance(node, ExpressionNode))
+        return tuple(node for node in self.nodes if isinstance(node, Expression))
 
     @ft.cached_property
     @final
@@ -262,6 +269,6 @@ class CGraph(Graph):
 
     @ft.cached_property
     @final
-    def global_tasks(self) -> AbstractSet[GlobalTask]:
+    def global_tasks(self) -> AbstractSet[GlobalTaskNode]:
         """The set of all `GlobalTask` nodes in the graph."""
         return frozenset(node for node in self.nodes if isinstance(node, GlobalTask))
