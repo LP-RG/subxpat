@@ -2,8 +2,6 @@ from typing import Mapping, Optional, Sequence, Tuple, Union, TypeVar, NamedTupl
 from typing_extensions import final
 from abc import abstractmethod, ABCMeta
 
-import itertools as it
-
 from sxpat.graph import IOGraph, PGraph, CGraph, ForAll, Max, Min, GreaterThan, Identity, LessThan, PlaceHolder, Target, Constraint, IntConstant, GlobalTask
 from sxpat.specifications import Specifications
 from sxpat.utils.decorators import make_utility_class

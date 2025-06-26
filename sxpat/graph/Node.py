@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Mapping, Optional, Tuple, Generic, TypeVar, final
+from typing import Any, Optional, Tuple, Generic, TypeVar
 from typing_extensions import Self
 
 import dataclasses as dc
