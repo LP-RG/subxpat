@@ -396,20 +396,6 @@ def process_Multiplexer(n : Node, operands: list, accs: list, param: list, next_
 
 def process_If(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
-    # monos = []
-
-    # monos.append(next_temporary(temp))
-    # destination.write(f'{monos[-1]} = and({mapping[operands[0]][0]}, {mapping[operands[1]][0]})\n')
-
-    # monos.append(next_temporary(temp))
-    # destination.write(f'{monos[-1]} = and(-{mapping[operands[0]][0]}, {mapping[operands[2]][0]})\n')
-
-    # res = next_temporary(temp)
-    # destination.write(f'{res} = or({monos[0]}, {monos[1]})\n')
-    # mapping[n.name] = [res]
-
-    # return temp[0]
-
     op1 = copy.copy(mapping[operands[1]])
     op2 = copy.copy(mapping[operands[2]])
 
@@ -421,12 +407,12 @@ def process_If(n : Node, operands: list, accs: list, param: list, next_free: int
     ifTrue = []
     for x in op1:
         ifTrue.append(next_temporary(temp))
-        destination.write(f'{ifTrue[-1]} = and({mapping[operands[0]][0]}, {x}')
+        destination.write(f'{ifTrue[-1]} = and({mapping[operands[0]][0]}, {x})\n')
     
     ifFalse = []
     for x in op2:
         ifFalse.append(next_temporary(temp))
-        destination.write(f'{ifFalse[-1]} = and(-{mapping[operands[0]][0]}, {x}')
+        destination.write(f'{ifFalse[-1]} = and(-{mapping[operands[0]][0]}, {x})\n')
     
     res = []
     for i in range(len(op1)):
