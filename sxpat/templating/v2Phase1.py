@@ -94,5 +94,5 @@ class v2Phase1:
             )
         )
         
-
+        return (template_graph, constraint_graph)
 
