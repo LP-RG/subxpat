@@ -179,8 +179,8 @@ class Solver(metaclass=ABCMeta):
         # define common extra nodes
         extra_nodes = (
             PlaceHolder(optimize_target.operand),
-            Identity(SC.optimization_identity, operands=(optimize_target.operand,)),
-            Target(SC.optimization_target, operands=(SC.optimization_identity,)),
+            Identity(SC.optimization.identity, operands=(optimize_target.operand,)),
+            Target(SC.optimization.target, operands=(SC.optimization.identity,)),
         )
         # define node class for the optimization comparison
         comparison_class = {
@@ -198,9 +198,9 @@ class Solver(metaclass=ABCMeta):
             else:
                 _extra_nodes = (
                     *extra_nodes,
-                    IntConstant(SC.optimization_constant, value=previous_value),
-                    comparison_class(SC.optimization_rule, operands=(SC.optimization_identity, SC.optimization_constant)),
-                    Constraint(SC.optimization_constraint, operands=(SC.optimization_rule,)),
+                    IntConstant(SC.optimization.constant, value=previous_value),
+                    comparison_class(SC.optimization.rule, operands=(SC.optimization.identity, SC.optimization.constant)),
+                    Constraint(SC.optimization.constraint, operands=(SC.optimization.rule,)),
                 )
             _graphs = tuple(*graphs, CGraph(_extra_nodes))
 
@@ -213,7 +213,7 @@ class Solver(metaclass=ABCMeta):
             if status == 'unsat': break
 
             # update previous value and model
-            previous_value = model.pop(SC.optimization_identity)
+            previous_value = model.pop(SC.optimization.identity)
             last_model = model
 
         # return the status and model
