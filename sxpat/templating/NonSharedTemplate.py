@@ -234,6 +234,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                 # placeholders
                 (PlaceHolder(name) for name in it.chain(
                     (p.name for p in parameters),
+                    s_graph.inputs_names,
                     s_graph.outputs_names,
                     template_graph.outputs_names
                 )),
@@ -246,6 +247,8 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                 cls.products_order_redundancy(out_prod_mux_params),
                 # targets
                 (Target.of(param) for param in parameters),
+                # global task
+                [ForAll('forall_inputs', operands=s_graph.inputs_names)],
             )
         )
 
@@ -350,6 +353,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
                 # placeholders
                 (PlaceHolder(name) for name in it.chain(
                     (p.name for p in parameters),
+                    s_graph.inputs_names,
                     s_graph.outputs_names,
                     template_graph.outputs_names
                 )),
@@ -362,6 +366,8 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
                 cls.products_order_redundancy(out_prod_mux_params),
                 # targets
                 (Target.of(param) for param in parameters),
+                # global task
+                [ForAll('forall_inputs', operands=s_graph.inputs_names)],
             )
         )
 
