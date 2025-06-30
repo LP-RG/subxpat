@@ -23,9 +23,6 @@ __all__ = [
 ]
 
 
-_Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, PGraph, SGraph]])
-
-
 @make_utility_class
 class Z3Encoder:
     """
@@ -71,15 +68,15 @@ class Z3Encoder:
 
     @classmethod
     @abstractmethod
-    def encode(cls, graphs: _Graphs,
+    def encode(cls, graphs: Solver._Graphs,
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
                ) -> None:
         raise NotImplementedError(f'{cls.__qualname__}.encode(...) is abstract')
 
     @classmethod
-    def simplification_and_accessories(cls, graphs: _Graphs,
-                                       ) -> Tuple[_Graphs, Sequence[str], Sequence[str], Mapping[str, type], Callable[[Node], Sequence[Any]]]:
+    def simplification_and_accessories(cls, graphs: Solver._Graphs,
+                                       ) -> Tuple[Solver._Graphs, Sequence[str], Sequence[str], Mapping[str, type], Callable[[Node], Sequence[Any]]]:
 
         # compute initial graph accessories
         nodes_types = get_nodes_type(graphs)
@@ -113,7 +110,7 @@ class Z3Encoder:
         )))
 
     @classmethod
-    def inject_variables(cls, destination: IO[str], graphs: _Graphs,
+    def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs,
                          accessories: Callable[[Node], Sequence[Any]]) -> None:
         variables = {  # ignore duplicates
             node.name: node
@@ -131,7 +128,7 @@ class Z3Encoder:
         )))
 
     @classmethod
-    def inject_constants(cls, destination: IO[str], graphs: _Graphs,
+    def inject_constants(cls, destination: IO[str], graphs: Solver._Graphs,
                          accessories: Callable[[Node], Sequence[Any]]) -> None:
         constants = {  # ignore duplicates
             node.name: node
@@ -253,7 +250,7 @@ class Z3FuncEncoder(Z3Encoder):
         return graph.copy(nodes, **extra)
 
     @classmethod
-    def encode(cls, graphs: _Graphs,
+    def encode(cls, graphs: Solver._Graphs,
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
                ) -> None:
@@ -347,7 +344,7 @@ class Z3DirectEncoder(Z3Encoder):
     """
 
     @classmethod
-    def encode(cls, graphs: _Graphs,
+    def encode(cls, graphs: Solver._Graphs,
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
                ) -> None:
@@ -521,14 +518,14 @@ class Z3Solver(Solver):
 
     @classmethod
     @override
-    def solve_exists(cls, graphs: _Graphs,
+    def solve_exists(cls, graphs: Solver._Graphs,
                      specifications: Specifications,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         return cls._z3_solve(graphs, specifications, None)
 
     @classmethod
     @override
-    def solve_forall(cls, graphs: _Graphs,
+    def solve_forall(cls, graphs: Solver._Graphs,
                      specifications: Specifications,
                      forall_task: ForAll,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
@@ -536,7 +533,7 @@ class Z3Solver(Solver):
 
     @classmethod
     @override
-    def solve_optimize(cls, graphs: _Graphs,
+    def solve_optimize(cls, graphs: Solver._Graphs,
                        specifications: Specifications,
                        optimize_task: Union[Min, Max],
                        ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
@@ -544,7 +541,7 @@ class Z3Solver(Solver):
 
     @classmethod
     @override
-    def solve_optimize_forall(cls, graphs: _Graphs,
+    def solve_optimize_forall(cls, graphs: Solver._Graphs,
                               specifications: Specifications,
                               optimize_target: Union[Min, Max],
                               forall_target: ForAll,
@@ -554,7 +551,7 @@ class Z3Solver(Solver):
         return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)
 
     @classmethod
-    def _z3_solve(cls, graphs: _Graphs,
+    def _z3_solve(cls, graphs: Solver._Graphs,
                   specifications: Specifications,
                   global_task: Union[ForAll, Min, Max, None],
                   ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
