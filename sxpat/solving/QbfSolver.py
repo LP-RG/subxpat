@@ -558,12 +558,14 @@ class QbfSolver(Solver):
             return ('unsat', None)
     
     @classmethod
+    @override
     def solve_exists(cls,
               graphs: _Graphs,
               specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Any]]]:
         return cls._solve(graphs, specifications, [])
     
     @classmethod
+    @override
     def _solve_forall(cls, graphs: _Graphs,
                      specifications: Specifications,
                      forall_target: ForAll,
