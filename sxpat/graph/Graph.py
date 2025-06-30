@@ -1,13 +1,20 @@
 from __future__ import annotations
-from typing_extensions import Self, override, final
-from typing import AbstractSet, Any, Iterable, Mapping, Sequence, TypeVar, Union
+from typing_extensions import Self
+from typing import AbstractSet, Any, Iterable, Mapping, Sequence, TypeVar, Union, Final, final
 from types import MappingProxyType
 
 import networkx as nx
 import functools as ft
 import itertools as it
 
-from .Node import ExpressionNode, Node, Operation, Constant, ConstantNode, OperationNode, Target, Constraint, BoolVariable, GlobalTask
+from .Node import (
+    Expression, Node, Operation, Constant, GlobalTask,
+    #
+    BoolVariable, PlaceHolder,
+    Target, Constraint,
+    #
+    OperationNode, ConstantNode, GlobalTaskNode, ExpressionNode,
+)
 
 
 __all__ = [
@@ -65,7 +72,7 @@ class Graph:
         )
 
         # freeze inner structure
-        self._inner: nx.DiGraph = nx.freeze(_inner)
+        self._inner: Final[nx.DiGraph] = nx.freeze(_inner)
 
     def copy(self, nodes: Iterable[Node] = None, **extras) -> Self:
         return type(self)(self.nodes if nodes is None else nodes, **{**self.extras, **extras})
@@ -119,7 +126,7 @@ class Graph:
     @ft.cached_property
     @final
     def expressions(self) -> Sequence[ExpressionNode]:
-        return tuple(node for node in self.nodes if isinstance(node, ExpressionNode))
+        return tuple(node for node in self.nodes if isinstance(node, Expression))
 
     @ft.cached_property
     @final
@@ -250,12 +257,18 @@ class CGraph(Graph):
 
     @ft.cached_property
     @final
+    def placeholders(self) -> AbstractSet[PlaceHolder]:
+        """The sequence of all `Constraint` node in the graph."""
+        return frozenset(node for node in self.nodes if isinstance(node, Constraint))
+
+    @ft.cached_property
+    @final
     def constraints(self) -> Sequence[Constraint]:
         """The sequence of all `Constraint` node in the graph."""
         return tuple(node for node in self.nodes if isinstance(node, Constraint))
 
     @ft.cached_property
     @final
-    def global_tasks(self) -> AbstractSet[GlobalTask]:
+    def global_tasks(self) -> AbstractSet[GlobalTaskNode]:
         """The set of all `GlobalTask` nodes in the graph."""
         return frozenset(node for node in self.nodes if isinstance(node, GlobalTask))

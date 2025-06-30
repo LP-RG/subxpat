@@ -1,31 +1,30 @@
 from .Node import *
 from .Graph import *
 
+
 __all__ = [
     # > abstracts
     'Node',
-    # variable
-    'Variable',
     # valued
     'Valued',
-    # constant
-    'Constant',
     # operation
     'Operation', 'Limited1Operation', 'Limited2Operation', 'Limited3Operation',
     # resulting type
+    'ResultingType',
     'BoolResType', 'IntResType', 'DynamicResType',
-
+    # structural type
+    'StructuralType',
+    'EntryPoint', 'EndPoint',
     # > variables
+    'Variable',
     'BoolVariable', 'IntVariable',
-
     # > constants
+    'Constant',
     'BoolConstant', 'IntConstant',
-
     # > placeholder
     'PlaceHolder',
-
     # > expressions
-    'ExpressionNode',
+    'Expression',
     # bool to bool
     'Not', 'And', 'Or', 'Implies',
     # int to int
@@ -40,17 +39,16 @@ __all__ = [
     'Multiplexer', 'If',
     # quantify
     'AtLeast', 'AtMost',
-
     # > solver nodes
-    'ObjectiveNode',
-    # termination nodes
+    'Objective', 'GlobalTask',
+    # objectives
     'Target', 'Constraint',
-    # global nodes
-    'GlobalTask', 'Min', 'Max', 'ForAll',
-
+    # global tasks
+    'Min', 'Max', 'ForAll',
     # > aliases
-    'OperationNode', 'ValuedNode', 'ConstantNode', 'VariableNode',
-
+    'VariableNode', 'ValuedNode', 'ConstantNode',
+    'OperationNode', 'ExpressionNode',
+    'ObjectiveNode', 'GlobalTaskNode',
     # > nodes groups
     'contact_nodes', 'origin_nodes', 'end_nodes',
 

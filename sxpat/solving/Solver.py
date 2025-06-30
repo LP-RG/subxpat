@@ -2,8 +2,6 @@ from typing import Mapping, Optional, Sequence, Tuple, Union, TypeVar, NamedTupl
 from typing_extensions import final
 from abc import abstractmethod, ABCMeta
 
-import itertools as it
-
 from sxpat.graph import IOGraph, PGraph, CGraph, ForAll, Max, Min, GreaterThan, Identity, LessThan, PlaceHolder, Target, Constraint, IntConstant, GlobalTask
 from sxpat.specifications import Specifications
 from sxpat.utils.decorators import make_utility_class
@@ -28,20 +26,27 @@ class Solver(metaclass=ABCMeta):
     """
         Guide: inheriting from `Solver`.
 
-        The `Solver` super class has one public method: `.solve(...)`  
-        This method internally delegates the computation to one of 4 possible function categories:
-        - `_solve_optimize_forall`: used to solve problems with both an optimization target and a forall quantifier
-        - `_solve_optimize`: used to solve only optimization problems
-        - `_solve_forall`: used to solve only forall quantified problems
-        - `_solve`: used to solve non optimization and not forall quantified problems
+        The `Solver` super class has the following public methods:
+        - `.solve(...)`: entry point to the solver. Will delegate the computation to one of the following methods.  
+          This method is already implemented and is **final**.
+        - `.solve_exists(...)`: solve non optimization and not forall quantified problems.  
+           **Must** be overloaded when inheriting.
+        - `solve_forall(...)`: solve forall quantified problems.  
+          **Can** be overloaded but a default solver independent implementation is given.
+        - `.solve_optimize(...)`: solve optimization problems.  
+          **Can** be overloaded but a default solver independent implementation is given.
+        - `.solve_optimize_forall(...)`: solve optimizations and forall quantified problems.  
+          **Can** be overloaded but a default solver independent implementation is given.
 
-        Of these categories, the only one strictly required to be implemented in the subclasses is `_solve`,
-        in particular the method `._solve(...)`.  
-        This is because all other categories have a `multipass` implementation which is not optimized,
-        but does not require any solver-specific feature.
+        As stated in the list, the only method strictly required to be overloaded is `.solve_exists(...)`,
+        as all others have a default implementation.
 
-        To improve the performance for the solver being implemented you can define a `singlepass` 
-        variant for each of the first 3 categories (eg. `._solve_forall_singlepass(...)`).
+        To improve the performance of the solver being implemented,
+        the other methods can be overloaded using solver specific features.
+
+        Note that non overloaded methods will print a warning when used,
+        to suppress this warning simply overload the method in your subclass
+        using the internal call to the `protected` function.
 
         @authors: Marco Biasion
     """
@@ -64,28 +69,29 @@ class Solver(metaclass=ABCMeta):
             - CGraph (and subclasses): for applicable constraints
 
             Returns the status of the resolution (`sat`, `unsat`, `unknown`) and the model evaluated from the `Target` nodes if `sat`.
+
+            @authors: Marco Biasion
         """
 
         # compute global targets if not already given
         if __global_targets is None:
-            __global_targets = cls.get_global_tasks(graphs)
-            graphs = cls.remove_global_tasks(graphs)
+            __global_targets, graphs = cls._pop_global_tasks(graphs)
 
         if __global_targets.optimize is not None and __global_targets.forall is not None:
             # solve an optimization and forall quantified problem
-            return cls._solve_optimize_forall(
+            return cls.solve_optimize_forall(
                 graphs, specifications,
                 __global_targets.optimize, __global_targets.forall,
             )
         elif __global_targets.optimize is not None and __global_targets.forall is None:
             # solve an optimization (not forall quantified) problem
-            return cls._solve_optimize(
+            return cls.solve_optimize(
                 graphs, specifications,
                 __global_targets.optimize,
             )
         elif __global_targets.optimize is None and __global_targets.forall is not None:
             # solve a forall quantified (and non optimization) problem
-            return cls._solve_forall(
+            return cls.solve_forall(
                 graphs, specifications,
                 __global_targets.forall,
             )
@@ -103,7 +109,7 @@ class Solver(metaclass=ABCMeta):
         """
             Solve a non optimization and not forall quantified problem.
         """
-        raise NotImplementedError(f'{cls.__qualname__}._solve(...) is abstract')
+        raise NotImplementedError(f'{cls.__qualname__}.solve_exists(...) is not implemented')
 
     @classmethod
     def solve_forall(cls, graphs: _Graphs,
@@ -111,9 +117,12 @@ class Solver(metaclass=ABCMeta):
                      forall_target: ForAll,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
-            Solve a forall quantified (and non optimization) problem.
+            Solve a forall quantified (non optimization) problem.
         """
-        pprint.warning(f'[WARNING] using default (iterative) implementation for {cls.__qualname__}.solve_forall(...)')
+        pprint.warning(
+            '[WARNING] using default (iterative) implementation'
+            f' for {cls.__qualname__}.solve_forall(...)'
+        )
         cls._solve_forall(graphs, specifications, forall_target)
 
     @classmethod
@@ -124,7 +133,10 @@ class Solver(metaclass=ABCMeta):
         """
             Solve an optimization (not forall quantified) problem.
         """
-        pprint.warning(f'[WARNING] using default (iterative) implementation for {cls.__qualname__}._solve_optimize(...)')
+        pprint.warning(
+            '[WARNING] using default (iterative) implementation'
+            f' for {cls.__qualname__}.solve_optimize(...)'
+        )
         return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, None)
 
     @classmethod
@@ -136,7 +148,10 @@ class Solver(metaclass=ABCMeta):
         """
             Solve an optimization and forall quantified problem.
         """
-        pprint.warning(f'[WARNING] using default (iterative) implementation for {cls.__qualname__}._solve_optimize_forall(...)')
+        pprint.warning(
+            '[WARNING] using default (iterative) implementation'
+            f' for {cls.__qualname__}.solve_optimize_forall(...)'
+        )
         return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)
 
     @classmethod
@@ -156,7 +171,9 @@ class Solver(metaclass=ABCMeta):
                                          forall_target: Optional[ForAll],
                                          ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
-            Solve an optimization (optionally forall quantified) problem iteratively without requiring solver-specific features.
+            Solve an optimization (optionally forall quantified) problem iteratively without requiring solver specific features.
+
+            @authors: Marco Biasion
         """
 
         # define common extra nodes
@@ -205,58 +222,61 @@ class Solver(metaclass=ABCMeta):
 
     @classmethod
     @final
-    def get_global_tasks(cls, graphs: _Graphs) -> GlobalTasks:
+    def _pop_global_tasks(cls, graphs: _Graphs) -> Tuple[GlobalTasks, _Graphs]:
         """
-            Returns the `ForAll` and `Min`/`Max` nodes from the given graphs, if present.
+            Pops all `GlobalTask` nodes from the graphs.
+
+            Returns
+             - `ForAll` and `Min`/`Max` nodes from the given graphs, if present.
+             - Sequence of graphs where `CGraphs` are updated/dropped based on their `GlobalTask` content (partial/only).
+
+            @authors: Marco Biasion
         """
 
-        # extract global nodes
-        global_nodes = tuple(it.chain.from_iterable(
-            g.global_tasks
-            for g in graphs
-            if isinstance(g, CGraph)
-        ))
-        foralls = tuple(n for n in global_nodes if isinstance(n, ForAll))
-        optimizes = tuple(n for n in global_nodes if isinstance(n, (Min, Max)))
+        _graphs = []
+        _global_tasks = []
+        for graph in graphs:
+            if (not isinstance(graph, CGraph)) or (len(graph.global_tasks) == 0):
+                # nothing to extract
+                # keep as-is if not a CGraph or not containing any GlobalTask
+                pass
 
+            else:
+                # extract tasks
+                _global_tasks.extend(graph.global_tasks)
+
+                # drop graph if all nodes are GlobalTask and PlaceHolder
+                if all(isinstance(n, (PlaceHolder, GlobalTask)) for n in graph.nodes):
+                    continue
+
+                # update CGraph without GlobalTask (and relative PlaceHolder)
+                else:
+                    task_names = frozenset(n.name for n in graph.global_tasks)
+                    placeholder_names = frozenset(
+                        n.name for n in graph.placeholders
+                        if len(succ := graph.successors(n)) == 1 and succ[0].name in task_names
+                    )
+
+                    graph = CGraph(
+                        n for n in graph.nodes
+                        if n.name not in task_names and n.name not in placeholder_names
+                    )
+
+            _graphs.append(graph)
+
+        # categorize tasks
+        foralls = tuple(n for n in _global_tasks if isinstance(n, ForAll))
+        optimizes = tuple(n for n in _global_tasks if isinstance(n, (Min, Max)))
+
+        # guard for multiple forall quantifiers or multiple optimizations
         # NOTE: the check for the foralls could be removed, as we could treat multiple ForAll as a single ForAll with all the inputs
         if len(foralls) > 1: raise RuntimeError('Too many ForAll nodes in the graphs')
         if len(optimizes) > 1: raise RuntimeError('Too many Min/Max nodes in the graphs')
 
-        return GlobalTasks(
-            optimize=(optimizes[0] if optimizes else None),
-            forall=(foralls[0] if foralls else None),
+        return (
+            GlobalTasks(
+                optimize=(optimizes[0] if optimizes else None),
+                forall=(foralls[0] if foralls else None),
+            ),
+            tuple(_graphs)
         )
-
-    @classmethod
-    @final
-    def remove_global_tasks(cls, graphs: _Graphs) -> _Graphs:
-        """
-            Removes all `GlobalTask` nodes from the graphs.
-
-            Returns the sequence of:
-            - original graph if not containing `GlobalTask`
-            - an updated copy of the graph if it contained `GlobalTask`
-        """
-
-        _graphs = []
-        for g in graphs:
-            # keep as-is if not a CGraph or not containing any GlobalTask
-            if (not isinstance(g, CGraph)) or (len(g.global_tasks) == 0):
-                pass
-
-            # drop graph if all nodes are GlobalTask or PlaceHolder
-            elif all(isinstance(n, (GlobalTask, PlaceHolder)) for n in g.nodes):
-                continue
-
-            # keep updated CGraph without GlobalTask
-            else:
-                g = CGraph(
-                    n
-                    for n in g.nodes
-                    if not isinstance(n, GlobalTask)
-                )
-
-            _graphs.append(g)
-
-        return tuple(_graphs)

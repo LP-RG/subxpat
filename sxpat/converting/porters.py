@@ -11,7 +11,7 @@ import json
 from sxpat.graph import *
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
 from sxpat.utils.functions import str_to_bool
-from sxpat.utils.collections import InheritanceMapping, MultiDict
+from sxpat.utils.collections import InheritanceMapping
 from sxpat.utils.decorators import make_utility_class
 
 
@@ -121,9 +121,9 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # > placeholder
         PlaceHolder: 'Mcircle',
         # > expressions
-        ExpressionNode: 'invhouse',
+        Expression: 'invhouse',
         # > solver nodes
-        ObjectiveNode: 'doubleoctagon',
+        Objective: 'doubleoctagon',
     })
     NODE_COLOR: Mapping[Type[Graph], Callable[[Graph, Node], Optional[str]]] = {
         Graph: lambda g, n: 'red' if n.in_subgraph else 'white',
