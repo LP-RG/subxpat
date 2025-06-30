@@ -79,39 +79,39 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
 
         # > expressions
         # bool to bool
-        Not: '&not;',
-        And: '&and;',
-        Or: '&or;',
-        Implies: '&rArr;',
+        Not: '¬a',
+        And: '⋀A',
+        Or: '⋁A',
+        Implies: 'a&rArr;b',
         # int to int
-        Sum: '&sum;',
-        AbsDiff: 'absdiff',
+        Sum: '&sum;A',
+        AbsDiff: '|a-b|',
         # bool to int
         ToInt: 'toInt',
         # int to bool
-        Equals: '&equals;',
-        NotEquals: '&ne;',
-        LessThan: '&lt;',
-        LessEqualThan: '&le;',
-        GreaterThan: '&gt;',
-        GreaterEqualThan: '&ge;',
+        Equals: 'a&equals;b',
+        NotEquals: 'a&ne;b',
+        LessThan: 'a&lt;b',
+        LessEqualThan: 'a&le;b',
+        GreaterThan: 'a&gt;b',
+        GreaterEqualThan: 'a&ge;b',
         # identity
-        Identity: 'identity',
+        Identity: 'identity(a)',
         # branch
-        Multiplexer: 'mux',
-        If: 'if',
+        Multiplexer: 'mux(a,p,q)',
+        If: 'if(c,a,b)',
         # quantify
-        AtLeast: 'at_least',
-        AtMost: 'at_most',
+        AtLeast: 'at_least(A,#)',
+        AtMost: 'at_most(A,#)',
 
         # > solver nodes
         # termination nodes
         Target: 'target (&#8902;)',
         Constraint: 'constraint (&#8902;)',
         # global nodes
-        Min: 'minimize',
-        Max: 'maximize',
-        ForAll: '&forall;',
+        Min: 'minimize(a)',
+        Max: 'maximize(a)',
+        ForAll: '&forall;A',
     })
     NODE_SHAPE = InheritanceMapping({
         # > variables
