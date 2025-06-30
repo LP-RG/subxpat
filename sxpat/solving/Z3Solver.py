@@ -146,7 +146,10 @@ class Z3Encoder:
         )))
 
     @classmethod
-    def inject_solve_and_result_writing(cls, destination: IO[str], graphs: Tuple[IOGraph, PGraph, CGraph]) -> None:
+    def inject_solve_and_result_writing(cls, destination: IO[str], 
+                                        name_graphs: Solver._Graphs,
+                                        value_graphs: Solver._Graphs,
+                                        ) -> None:
         destination.write('\n'.join((
             f'# check',
             f'status = solver.check()',
@@ -156,9 +159,9 @@ class Z3Encoder:
             f'if status == sat:',
             f'    model = solver.model()',
             *(
-                f'    print(\'{target.operand}\', model.eval({target.operand}))'
-                for graph in graphs
-                for target in graph.targets
+                f'    print(\'{n_target.operand}\', model.eval({v_target.operand}))'
+                for (n_graph, v_graph) in zip(name_graphs, value_graphs)
+                for (n_target, v_target) in zip(n_graph.targets, v_graph.targets)
             ),
             *('',) * 2,
         )))
@@ -204,7 +207,8 @@ class Z3FuncEncoder(Z3Encoder):
        """
 
     @classmethod
-    def nodes_as_function_calls(cls, nodes, inputs_string, non_gates_names, *, get_mapping=False):
+    def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str],
+                                *, get_mapping: bool = False):
         """@authors: Marco Biasion"""
 
         # copute updated names
@@ -264,9 +268,12 @@ class Z3FuncEncoder(Z3Encoder):
 
         # create call graphs (graphs where each node name has been replaced with the relative function call)
         inputs_string = ','.join(inputs_names)
-        non_gates_names = frozenset(it.chain(inputs_names,
-                                             parameters_names,
-                                             (n.name for g in graphs for n in g.constants)))
+        non_gates_names = frozenset(it.chain(
+            inputs_names,
+            parameters_names,
+            (n.name for g in graphs for n in g.constants),
+            (t.name for g in graphs if isinstance(g, CGraph) for t in g.targets),
+        ))
         call_graphs = tuple(
             cls.graph_as_function_calls(graph, inputs_string, non_gates_names)
             for graph in graphs
@@ -306,8 +313,8 @@ class Z3FuncEncoder(Z3Encoder):
             'behaviour = And(',
             *(
                 f'    {node.name} == {node_mapping[type(node)](node, node.operands, accessories(node))},'
-                for graph in call_graphs
-                for node in graph.expressions
+                for call_graph in call_graphs
+                for node in call_graph.expressions
             ),
             ')',
             *('',) * 2,
@@ -333,7 +340,7 @@ class Z3FuncEncoder(Z3Encoder):
         )))
 
         # results
-        cls.inject_solve_and_result_writing(destination, call_graphs)
+        cls.inject_solve_and_result_writing(destination, graphs, call_graphs)
 
 
 class Z3DirectEncoder(Z3Encoder):
@@ -396,7 +403,7 @@ class Z3DirectEncoder(Z3Encoder):
         )))
 
         # results
-        cls.inject_solve_and_result_writing(destination, graphs)
+        cls.inject_solve_and_result_writing(destination, graphs, graphs)
 
 
 # Node to Z3 expression
