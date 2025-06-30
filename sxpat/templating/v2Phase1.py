@@ -66,7 +66,6 @@ class v2Phase1:
         others.extend([
             sum := Sum('sum_s_out', operands=ifl),
             min := Min('minimize', operands=(sum,)),
-            Constraint.of(min)
         ])
         
         others.extend([
@@ -90,7 +89,7 @@ class v2Phase1:
                 ifl,
                 others,
                 # (Target.of(param) for param in variables),
-                (Target.of(min),)
+                (Target.of(sum),)
             )
         )
         
