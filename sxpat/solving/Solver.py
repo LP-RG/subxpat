@@ -202,7 +202,7 @@ class Solver(metaclass=ABCMeta):
                     comparison_class(SC.optimization.rule, operands=(SC.optimization.identity, SC.optimization.constant)),
                     Constraint(SC.optimization.constraint, operands=(SC.optimization.rule,)),
                 )
-            _graphs = tuple(*graphs, CGraph(_extra_nodes))
+            _graphs = (*graphs, CGraph(_extra_nodes))
 
             # solve
             _global_targets = GlobalTasks(forall=forall_target)
