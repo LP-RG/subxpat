@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Type, Callable, Mapping, NoReturn, Optional, Union, Generic
+from typing import Type, Callable, Mapping, Optional, Union, Generic
 import dataclasses as dc
 
 from bidict import bidict
@@ -11,7 +11,8 @@ import json
 from sxpat.graph import *
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
 from sxpat.utils.functions import str_to_bool
-from sxpat.utils.collections import MultiDict
+from sxpat.utils.collections import InheritanceMapping
+from sxpat.utils.decorators import make_utility_class
 
 
 __all__ = [
@@ -26,10 +27,9 @@ _G_CLSS = {c.__name__: c for c in get_all_subclasses(Graph)}
 _N_CLSS = {c.__name__: c for c in get_all_leaves_subclasses(Node)}
 
 
+@make_utility_class
 class GraphImporter(Generic[_Graph]):
     """Abstract class for importing a Graph from a string/file."""
-
-    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     @classmethod
     def from_string(cls, string: str) -> _Graph:
@@ -42,10 +42,9 @@ class GraphImporter(Generic[_Graph]):
         return cls.from_string(string)
 
 
+@make_utility_class
 class GraphExporter(Generic[_Graph]):
     """Abstract class for exporting a Graph to a string/file."""
-
-    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     @classmethod
     @abstractmethod
@@ -61,71 +60,77 @@ class GraphExporter(Generic[_Graph]):
 
 class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     """
-        Allows for dumping/loading of a Graph to/from a GraphViz (aka Dot) string/file.
+        Allows for dumping/loading of a Graph to/from a GraphViz (aka. Dot) string/file.
 
         @authors: Marco Biasion
     """
 
     NODE_SYMBOL = bidict({
-        # inputs
+        # > variables
         BoolVariable: 'varB',
         IntVariable: 'varI',
-        # constants
+
+        # > constants
         BoolConstant: 'constB',
         IntConstant: 'constI',
-        # output
-        Identity: 'copy',
-        Target: 'target',
-        # placeholder
+
+        # > placeholder
         PlaceHolder: 'holder',
-        # bool operations
-        Not: 'not',
-        And: 'and',
-        Or: 'or',
-        Implies: 'impl',
-        # int operations
+
+        # > expressions
+        # bool to bool
+        Not: '¬a',
+        And: '⋀A',
+        Or: '⋁A',
+        Implies: 'a&rArr;b',
+        # int to int
+        Sum: '&sum;A',
+        AbsDiff: '|a-b|',
+        # bool to int
         ToInt: 'toInt',
-        Sum: 'sum',
-        AbsDiff: 'absdiff',
-        # comparison operations
-        Equals: '==',
-        AtLeast: 'atleast',
-        AtMost: 'atmost',
-        LessThan: '<',
-        LessEqualThan: '<=',
-        GreaterThan: '>',
-        GreaterEqualThan: '>=',
-        # branching operations
-        Multiplexer: 'mux',
-        If: 'if',
+        # int to bool
+        Equals: 'a&equals;b',
+        NotEquals: 'a&ne;b',
+        LessThan: 'a&lt;b',
+        LessEqualThan: 'a&le;b',
+        GreaterThan: 'a&gt;b',
+        GreaterEqualThan: 'a&ge;b',
+        # identity
+        Identity: 'identity(a)',
+        # branch
+        Multiplexer: 'mux(a,p,q)',
+        If: 'if(c,a,b)',
+        # quantify
+        AtLeast: 'at_least(A,#)',
+        AtMost: 'at_most(A,#)',
+
+        # > solver nodes
+        # termination nodes
+        Target: 'target (&#8902;)',
+        Constraint: 'constraint (&#8902;)',
+        # global nodes
+        Min: 'minimize(a)',
+        Max: 'maximize(a)',
+        ForAll: '&forall;A',
     })
-    NODE_SHAPE = MultiDict({
-        # inputs
-        (BoolVariable, IntVariable): 'circle',
-        # constants
-        (BoolConstant, IntConstant): 'square',
-        # output
-        (Identity,): 'doublecircle',
-        # target
-        (Target,): 'star',
-        # placeholder
-        (PlaceHolder,): 'octagon',
-        # bool operations
-        (Not, And, Or, Implies): 'invhouse',
-        # int operations
-        (ToInt, Sum, AbsDiff): 'invtrapezium',
-        # comparison operations
-        (Equals, AtLeast, AtMost, LessThan,
-         LessEqualThan, GreaterThan, GreaterEqualThan): 'invtriangle',
-        # branching operations
-        (Multiplexer, If): 'diamond',
+    NODE_SHAPE = InheritanceMapping({
+        # > variables
+        Variable: 'circle',
+        # > constants
+        Constant: 'square',
+        # > placeholder
+        PlaceHolder: 'Mcircle',
+        # > expressions
+        Expression: 'invhouse',
+        # > solver nodes
+        Objective: 'doubleoctagon',
     })
     NODE_COLOR: Mapping[Type[Graph], Callable[[Graph, Node], Optional[str]]] = {
-        Graph: lambda g, n: 'red' if n.in_subgraph else 'white',
-        IOGraph: lambda g, n: 'red' if n.in_subgraph else 'white',
-        CGraph: lambda g, n: 'red' if n.in_subgraph else 'white',
-        SGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if n.in_subgraph else 'white',
-        PGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if n.in_subgraph else 'white',
+        Graph: lambda g, n: 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
+        IOGraph: lambda g, n: 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
+        CGraph: lambda g, n: 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
+        SGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
+        PGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
     }
 
     GRAPH_PATTERN = re.compile(r'strict digraph _(\w+) {(?:\n\s*node \[.*\];)?((?:\n\s*\w+ \[.*\];)+)(?:\n\s*\w+ -> \w+;)+((?:\n\s*\/\/ \w+.*)*)\n}')
@@ -138,9 +143,9 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         string = rf'{cls.NODE_SYMBOL[type(node)]}\n{node.name}'
 
         # extra informations
-        if node.weight is not None:
+        if isinstance(node, Extras) and node.weight is not None:
             string += rf'\nw={node.weight}'
-        if node.in_subgraph:
+        if isinstance(node, Extras) and node.in_subgraph:
             string += rf'\nsub'
         if isinstance(node, Operation):
             string += rf'\ni={",".join(node.operands)}'
@@ -198,11 +203,11 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     def to_string(cls, graph: Graph) -> str:
         # base data
         node_lines = [
-            f'{node.name} [label="{cls._get_label(node)}", shape={cls.NODE_SHAPE[type(node)]}, fillcolor={cls.NODE_COLOR[type(graph)](graph, node)}];'
+            f'"{node.name}" [label="{cls._get_label(node)}", shape={cls.NODE_SHAPE[type(node)]}, fillcolor={cls.NODE_COLOR[type(graph)](graph, node)}];'
             for node in graph.nodes
         ]
         edge_lines = [
-            f'{src_name} -> {dst.name};'
+            f'"{src_name}" -> "{dst.name}";'
             for dst in graph.nodes
             if isinstance(dst, Operation)
             for src_name in dst.operands
@@ -391,7 +396,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         # AtMost: lambda n: None,
         # branching operations
         Multiplexer: lambda n: f'({n.parameter_usage} ? ({n.parameter_assertion} ? {n.origin} : ~{n.origin}) : {n.parameter_assertion})',
-        If: lambda n: f'({n.contition} ? {n.if_true} : {n.if_false})',
+        If: lambda n: f'({n.condition} ? {n.if_true} : {n.if_false})',
     }
 
     @dc.dataclass(frozen=True, eq=False)

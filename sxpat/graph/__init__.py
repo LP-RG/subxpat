@@ -1,27 +1,31 @@
 from .Node import *
 from .Graph import *
 
+
 __all__ = [
     # > abstracts
     'Node',
-    # variable
-    'Variable',
+    'Extras',
     # valued
     'Valued',
-    # constant
-    'Constant',
     # operation
     'Operation', 'Limited1Operation', 'Limited2Operation', 'Limited3Operation',
     # resulting type
+    'ResultingType',
     'BoolResType', 'IntResType', 'DynamicResType',
+    # structural type
+    'StructuralType',
+    'EntryPoint', 'EndPoint',
     # > variables
+    'Variable',
     'BoolVariable', 'IntVariable',
     # > constants
+    'Constant',
     'BoolConstant', 'IntConstant',
     # > placeholder
     'PlaceHolder',
     # > expressions
-    'ExpressionNode',
+    'Expression',
     # bool to bool
     'Not', 'And', 'Or', 'Implies',
     # int to int
@@ -37,17 +41,25 @@ __all__ = [
     # quantify
     'AtLeast', 'AtMost',
     # > solver nodes
+    'Objective', 'GlobalTask',
+    # objectives
     'Target', 'Constraint',
-    # global nodes
-    'GlobalNode', 'Min', 'Max', 'ForAll',
-
+    # global tasks
+    'Min', 'Max', 'ForAll',
     # > aliases
-    'OperationNode', 'ValuedNode', 'ConstantNode', 'VariableNode',
-
+    'VariableNode', 'ValuedNode', 'ConstantNode',
+    'OperationNode', 'ExpressionNode',
+    'ObjectiveNode', 'GlobalTaskNode',
+    # > type variables
+    'T_AnyNode',
     # > nodes groups
     'contact_nodes', 'origin_nodes', 'end_nodes',
 
     # > graphs
-    'Graph', 'IOGraph', 'CGraph', 'SGraph', 'PGraph',
+    'Graph',
+    #
+    'IOGraph', 'SGraph', 'PGraph',
+    'CGraph',
+    #
     '_Graph',
 ]

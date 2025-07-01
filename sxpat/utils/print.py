@@ -1,4 +1,3 @@
-# typing
 from typing import Callable, Any
 
 import colorama
