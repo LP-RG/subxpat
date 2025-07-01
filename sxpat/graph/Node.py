@@ -433,8 +433,6 @@ class GreaterEqualThan(Limited2Operation, BoolResType, ExpressionNode):
 class Identity(Limited1Operation, DynamicResType, ExpressionNode):
     """
         The identity expression.
-
-        **ALMOST DEPRECATED**
     """
 
 
