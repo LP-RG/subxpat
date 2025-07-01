@@ -1,10 +1,11 @@
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Type, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union, overload
 
 import re
 import math
 import itertools as it
 
 from sxpat.graph import *
+from sxpat.utils.collections import first
 
 
 __all__ = [
@@ -18,11 +19,14 @@ __all__ = [
 ]
 
 
+T_type = TypeVar('T_type', type)
+
+
 def unpack_ToInt(graph: _Graph) -> _Graph:
     """
         Given a graph, returns a new graph with all ToInt nodes unpacked to a more primitive set of nodes.
 
-        @authors: Marco Biasion 
+        @authors: Marco Biasion
     """
 
     toint_nodes = tuple(
@@ -197,7 +201,7 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missin
         Takes a graph and a mapping from names to bool in input
         and returns a new graph with the nodes corresponding to the given names replaced with the wanted constant.
 
-        @note: *TODO: can be expanded to manage also IntConstant nodes*  
+        @note: *TODO: can be expanded to manage also IntConstant nodes*
         @note: *TODO: can be expanded to replace also inner nodes, and not only Variable/Constant nodes*
 
         @authors: Marco Biasion
@@ -248,10 +252,10 @@ def prevent_combination(c_graph: CGraph,
                         assignments: Mapping[str, bool],
                         assignment_id: Optional[Any] = None) -> CGraph:
     """
-        Takes a constraints graph and expands it to prevent the given assignment.  
+        Takes a constraints graph and expands it to prevent the given assignment.
         It will allow any change, but at least one change is required.
 
-        @note: *TODO: can be expanded to manage also integers (be careful of bitwidth)*  
+        @note: *TODO: can be expanded to manage also integers (be careful of bitwidth)*
         @note: *TODO: can be changed to return new CGraph containing only the assignment prevention logic, instead of returning an updated copy*
 
         @authors: Marco Biasion
@@ -292,7 +296,7 @@ class crystallize:
         Takes a graph and and reduces it.
         I.E. simplifies the graph by evaluating nodes with constant inputs.
 
-        Complexity: 
+        Complexity:
             Worst case: O(N²)
             Average case: O(N)
 
@@ -300,6 +304,16 @@ class crystallize:
 
         #TODO: What to do with global tasks where their operand is a constant
     """
+
+    T_ib = TypeVar('T_ib', int, bool)
+    T_nary_bool = TypeVar('T_int', And, Or)
+    T_all_or_nothing = TypeVar(
+        'T_int',
+        Not,
+        Sum, AbsDiff, ToInt,
+        Equals, NotEquals, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,
+        Identity,
+    )
 
     @classmethod
     def graph(cls, graph: Graph, other_graphs: Iterable[Graph]) -> int:
@@ -314,22 +328,22 @@ class crystallize:
             PlaceHolder: cls._placeholder,
             # > expressions
             # bool to bool
-            Not: cls._not,
-            And: cls._nary_logical_operator,
-            Or: cls._nary_logical_operator,
+            Not: cls._all_or_nothing_node,
+            And: cls._nary_bool,
+            Or: cls._nary_bool,
             Implies: cls._implies,
             # int to int
-            Sum: cls._arith_node,
-            AbsDiff: cls._arith_node,
+            Sum: cls._all_or_nothing_node,
+            AbsDiff: cls._all_or_nothing_node,
             # bool to int
-            ToInt: cls._to_int,
+            ToInt: cls._all_or_nothing_node,
             # int to bool
-            Equals: cls._equals,
-            NotEquals: cls._not_equals,
-            LessThan: cls._less_than,
-            LessEqualThan: cls._less_equal_than,
-            GreaterThan: cls._greater_than,
-            GreaterEqualThan: cls._greater_equal_than,
+            Equals: cls._all_or_nothing_node,
+            NotEquals: cls._all_or_nothing_node,
+            LessThan: cls._all_or_nothing_node,
+            LessEqualThan: cls._all_or_nothing_node,
+            GreaterThan: cls._all_or_nothing_node,
+            GreaterEqualThan: cls._all_or_nothing_node,
             # identity
             Identity: cls._identity,
             # branch
@@ -338,9 +352,9 @@ class crystallize:
             # quantify
             AtLeast: cls._at_least,
             AtMost: cls._at_most,
-            
+
             # special
-            
+            Objective: cls.as_is,
         }
 
         new_nodes = dict()
@@ -366,42 +380,39 @@ class crystallize:
         return tuple(cry_graphs)
 
     @staticmethod
-    def as_constant(node: Node, value: Union[int, bool]) -> Constant:
-        node_type = BoolConstant if isinstance(value, bool) else IntConstant
-        return node_type(node.name, value=value, weight=node.weight, in_subgraph=node.in_subgraph)
+    @overload
+    def as_constant(node: Node, value: bool) -> BoolConstant: ...
+    @staticmethod
+    @overload
+    def as_constant(node: Node, value: int) -> IntConstant: ...
 
     @staticmethod
-    def as_identity(node: Node, operand: Node) -> Identity:
-        return Identity(node.name, operands=(operand,), weight=node.weight, in_subgraph=node.in_subgraph)
+    def as_constant(node: Node, value: T_ib) -> Constant[T_ib]:
+        node_type = {bool: BoolConstant, int: IntConstant}[type(value)]
+        return node_from_node(node_type, node, value=value)
 
     @staticmethod
-    def as_not(node: Node, operand: Node) -> Identity:
-        return Not(node.name, operands=(operand,), weight=node.weight, in_subgraph=node.in_subgraph)
+    def as_other(cls: Type[T_type], node: Node, **kwargs: Mapping[str]) -> T_type:
+        if 'operand' in kwargs: kwargs['operands'] = (kwargs.pop('operand'),)
+        return node_from_node(cls, node, kwargs)
 
     @classmethod
-    def as_is(cls, node, *_) -> Node: return node
+    def _as_is(cls, node: Node, _0, _1) -> Node:
+        return node
 
     @classmethod
-    def _placeholder(cls, node: ..., operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node: return node
+    def _placeholder(cls, node: PlaceHolder, _, cry_graphs: Sequence[Graph]) -> Union[PlaceHolder, BoolConstant]:
+        for cg in cry_graphs:
+            if node.name in cg:
+                c_node = cg[node.name]
+                if isinstance(c_node, Constant):
+                    return cls.as_constant(node, c_node.value)
+                else:
+                    break
+        return node
 
     @classmethod
-    def _not(cls, node: Not, operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node:
-        """@authors: Lorenzo Spada, Marco Biasion"""
-
-        # the only operand is constant
-        # !#
-        if isinstance(operands[0], BoolConstant):
-            # !0 : 1
-            # !1 : 0
-            return cls.as_constant(node, not operands[0].value)
-        
-        # the only operand is variable
-        # !a
-        else:
-            return node
-
-    @classmethod
-    def _nary_logical_operator(cls, node: Union[And, Or], operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node:
+    def _nary_bool(cls, node: T_nary_bool, operands: Sequence[Node], _) -> Union[T_nary_bool, BoolConstant]:
         """@authors: Marco Biasion, Lorenzo Spada"""
 
         # select unit and zero values
@@ -432,7 +443,7 @@ class crystallize:
         # a & 1 : a
         # a | 0 : a
         elif len(nc_operands) == 1:
-            return cls.as_identity(node, nc_operands[0])
+            return cls.as_other(Identity, node, operand=nc_operands[0])
 
         # multiple non-constant operands left
         # a & b & 1 : a & b
@@ -441,34 +452,34 @@ class crystallize:
             return And(node.name, operands=nc_operands, weight=node.weight, in_subgraph=node.in_subgraph)
 
     @classmethod
-    def _implies(cls, node: Implies, operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node:
+    def _implies(cls, node: Implies, operands: Sequence[Node], _) -> Union[Implies, BoolConstant, Not, Identity]:
         """@authors: Lorenzo Spada, Marco Biasion"""
 
         op_a, op_b = operands
 
         # a => b
-        if not isinstance(op_a, BoolConstant) and not isinstance(op_b, BoolConstant):
+        if not isinstance(op_a, Constant) and not isinstance(op_b, Constant):
             return node
 
         # a => #
-        elif not isinstance(op_a, BoolConstant):
+        elif not isinstance(op_a, Constant):
             # a => 0 : ~a
             if op_b.value is False:
-                return cls.as_not(node, op_a)
+                return cls.as_other(Not, node, operand=op_a)
 
             # a => 1 : 1
             else:
                 return cls.as_constant(node, True)
 
         # # => b
-        elif not isinstance(op_b, BoolConstant):
+        elif not isinstance(op_b, Constant):
             # 0 => b : 1
             if op_a.value is False:
                 return cls.as_constant(node, True)
 
             # 1 => b : b
             else:
-                return cls.as_identity(node, op_b)
+                return cls.as_other(Identity, node, operand=op_b)
 
         # # => #
         else:
@@ -480,146 +491,242 @@ class crystallize:
             }[(op_a.value, op_b.value)]
             return cls.as_constant(node, value)
 
-
     @classmethod
-    def _arith_node(cls, node: Union[Sum, AbsDiff], operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node:
+    def _all_or_nothing_node(cls, node: T_all_or_nothing, operands: Sequence[Node], _) -> Union[T_all_or_nothing, Constant]:
         """@authors: Marco Biasion, Lorenzo Spada"""
 
         # select operation
         operation = {
+            # bool to bool
+            Not: lambda ops: not ops[0].value,
+            # int to int
             Sum: lambda ops: sum(op.value for op in ops),
             AbsDiff: lambda ops: abs(ops[0].value - ops[1].value),
+            ToInt: lambda ops: sum(op.value * (2 ** i) for (i, op) in enumerate(ops)),
+            # bool to int
+            Equals: lambda ops: ops[0] == ops[1],
+            NotEquals: lambda ops: ops[0] != ops[1],
+            LessThan: lambda ops: ops[0] < ops[1],
+            LessEqualThan: lambda ops: ops[0] <= ops[1],
+            GreaterThan: lambda ops: ops[0] > ops[1],
+            GreaterEqualThan: lambda ops: ops[0] >= ops[1],
+            # identity
+            Identity: lambda ops: ops[0].value,
         }[type(node)]
 
         # all operands are constant
-        #  # + #  : #
-        # |# - #| : #
-        if all(isinstance(op, IntConstant) for op in operands):
+        # !#       : #
+        #  # +  #  : #
+        # |# -  #| : #
+        #  # == #  : #
+        #  # != #  : #
+        #  # <  #  : #
+        #  # <= #  : #
+        #  # >  #  : #
+        #  # >= #  : #
+        if all(isinstance(op, Constant) for op in operands):
             return cls.as_constant(node, operation(operands))
 
         # some operand is variable
-        #  a + #
-        # |a - #|
+        # !a
+        #  a +  #
+        # |a -  #|
+        #  a == #
+        #  a != #
+        #  a <  #
+        #  a <= #
+        #  a >  #
+        #  a >= #
         else:
             return node
 
     @classmethod
-    def _to_int(cls, node: ToInt, operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node:
+    def _multiplexer(cls, node: Multiplexer, operands: Sequence[Node], _) -> Union[Multiplexer, BoolConstant, Identity, Not, Implies]:
+        """@authors: Marco Biasion, Lorenzo Spada"""
+
+        a = operands[0]
+        b = operands[1]
+        c = operands[2]
+        a_const = isinstance(a, Constant)
+        b_const = isinstance(b, Constant)
+        c_const = isinstance(c, Constant)
+
+        # - 0 variable
+        # 0 (0,0) :  0
+        # 0 (0,1) :  1
+        # 0 (1,0) :  1
+        # 0 (1,1) :  0
+        # 1 (0,0) :  0
+        # 1 (0,1) :  1
+        # 1 (1,0) :  0
+        # 1 (1,1) :  1
+        if a_const and b_const and c_const:
+            return {  # (a, b, c)
+                (0, 0, 0): lambda: cls.as_constant(node, False),
+                (0, 0, 1): lambda: cls.as_constant(node, True),
+                (0, 1, 0): lambda: cls.as_constant(node, True),
+                (0, 1, 1): lambda: cls.as_constant(node, False),
+                (1, 0, 0): lambda: cls.as_constant(node, False),
+                (1, 0, 1): lambda: cls.as_constant(node, True),
+                (1, 1, 0): lambda: cls.as_constant(node, False),
+                (1, 1, 1): lambda: cls.as_constant(node, True),
+            }[(a.value, b.value, c.value)]()
+
+        # - 1 variable
+        # a (0,0) :  0
+        # a (0,1) :  1
+        # a (1,0) : !a
+        # a (1,1) :  a
+        elif b_const and c_const:
+            return {  # (b, c)
+                (0, 0): lambda: cls.as_constant(node, False),
+                (0, 1): lambda: cls.as_constant(node, True),
+                (1, 0): lambda: cls.as_other(Not, node, operand=a),
+                (1, 1): lambda: cls.as_other(Identity, node, operand=a),
+            }[(b.value, c.value)]()
+
+        # 0 (b,0) :  b
+        # 0 (b,1) : !b
+        # 1 (b,0) :  0
+        # 1 (b,1) :  1
+        elif a_const and c_const:
+            return {  # (a, c)
+                (0, 0): lambda: cls.as_other(Identity, node, operand=b),
+                (0, 1): lambda: cls.as_other(Not, node, operand=b),
+                (1, 0): lambda: cls.as_constant(node, False),
+                (1, 1): lambda: cls.as_constant(node, True),
+            }[(a.value, c.value)]()
+
+        # 0 (0,c) :  c
+        # 0 (1,c) : !c
+        # 1 (0,c) :  c
+        # 1 (1,c) :  c
+        elif a_const and b_const:
+            return {  # (a, b)
+                (0, 0): lambda: cls.as_other(Identity, node, operand=c),
+                (0, 1): lambda: cls.as_other(Not, node, operand=c),
+                (1, 0): lambda: cls.as_other(Identity, node, operand=c),
+                (1, 1): lambda: cls.as_other(Identity, node, operand=c),
+            }[(a.value, b.value)]()
+
+        # - 2 variables
+        # a (b,0) : !a & b
+        # a (b,1) : b => a
+        elif c_const:
+            return {  # c
+                0: lambda: lambda: node,  # would require the creation of new nodes
+                1: lambda: lambda: cls.as_other(Implies, node, operands=(b, a)),
+            }[c.value]()
+
+        # a (0,c) : c
+        # a (1,c) : a == c (also: !(b^c) (^ is xor))
+        elif b_const:
+            return {  # b
+                0: lambda: lambda: cls.as_other(Identity, node, operand=c),
+                1: lambda: lambda: node,  # uses a non boolean operator, or would require the creation of new nodes
+            }[b.value]()
+
+        # 0 (b,c) : b != c (also: b^c (^ is xor))
+        # 1 (b,c) : c
+        elif a_const:
+            return {  # a
+                1: lambda: lambda: node,  # uses a non boolean operator
+                1: lambda: cls.as_other(Identity, node, operand=c),
+            }[a.value]()
+
+        # - 3 variables
+        # a (b,c) : a (b,c)
+        else:
+            return node
+
+    @classmethod
+    def _if(cls, node: If, operands: Sequence[Node], _) -> Node:
+        """@authors: Marco Biasion, Lorenzo Spada"""
+
+        a, b, c = operands
+
+        # (0) ?,c : c
+        if node_is_false(a):
+            # (0) ?,# : #
+            if isinstance(c, Constant):
+                return cls.as_constant(node, c.value)
+
+            # (0) ?,c : c
+            else:
+                return cls.as_other(Identity, node, operand=c)
+
+        # (1) b,? : b
+        elif node_is_true(a):
+            # (1) #,? : #
+            if isinstance(b, Constant):
+                return cls.as_constant(node, b.value)
+
+            # (1) b,? : b
+            else:
+                return cls.as_other(Identity, node, operand=b)
+
+        # (?) k,k : k
+        elif isinstance(b, Constant) and isinstance(c, Constant) and b.value == c.value:
+            return cls.as_constant(node, b.value)
+
+        # (a) b,c
+        # (a) #,#
+        else:
+            return node
+
+    @classmethod
+    def _at_least(cls, node: AtLeast, operands: Sequence[Node], _) -> Union[AtLeast, BoolConstant]:
         """@authors: Lorenzo Spada, Marco Biasion"""
-        
-        
-        # all operands are constant
-        # (#,#,#,#) : #
-        if all(isinstance(op, BoolConstant) for op in operands):
-            operation = lambda ops: (
 
-            )
-            return cls.as_constant(node, operation(operands))
-
-        # some operand is variable
-        # (#,b,#,#)
-        else:
+        # no operand is constant
+        if not any(isinstance(op, Constant) for op in operands):
             return node
-        
-        const = 0
-        for i, operand in enumerate(operands):
-            if isinstance(operand, BoolConstant):
-                num += operand.value * (2 ** i)
-            else:
-                return node
-        return cls.as_constant(node, const)
 
-    @classmethod
-    def _equals(cls, node: Equals, operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node:
-        if isinstance(operands[0], IntConstant) and isinstance(operands[1], IntConstant):
-            return cls.as_constant(node, operands[0].value == operands[1].value)
-        return node
-
-    @classmethod
-    def _not_equals(cls, node: NotEquals, operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node: pass
-
-    @classmethod
-    def _less_than(cls, node: ..., operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node: pass
-    @classmethod
-    def _less_equal_than(cls, node: ..., operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node: pass
-    @classmethod
-    def _greater_than(cls, node: ..., operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node: pass
-    @classmethod
-    def _greater_equal_than(cls, node: ..., operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node: pass
-    @classmethod
-    def _identity(cls, node: ..., operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node: pass
-
-    @classmethod
-    def _multiplexer(cls, node: Multiplexer, operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node:
-        if isinstance(operands[1], BoolConstant):
-            if operands[1].value:
-
-                if isinstance(operands[2], BoolConstant):
-                    if operands[2].value:
-                        return cls.as_identity(node, operands[0])
-                    return cls.as_not(node, operands[0])
-
-                else:
-                    return node  # Not crystallizable in one single node
-
-            else:
-                return cls.as_identity(operands[2])
-
-        if isinstance(operands[2], BoolConstant):
-            return node  # Not crystallizable in one single node
-
-        return node
-
-    @classmethod
-    def _if(cls, node: If, operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node:
-        if isinstance(operands[0], BoolConstant):
-            if operands[0].value:
-                return cls.as_identity(node, operands[1])
-            return cls.as_identity(node, operands[2])
-
-        return node
-
-    @classmethod
-    def _at_least(cls, node: AtLeast, operands: Sequence[Node], cry_graphs: Sequence[Node]) -> Node:
-        remaining = node.value
-        new_operands = []
+        # get non-constant operands and updated value (-1 for each true constant)
+        nc_operands = []
+        new_value = node.value
         for operand in operands:
-            if isinstance(operand, BoolConstant):
-                if operand.value:
-                    remaining -= 1
-            else:
-                new_operands.append(operand)
+            if not isinstance(operand, Constant): nc_operands.append(operand)
+            elif operand.value == True: new_value -= 1
 
-        if remaining <= 0:
+        # enough true constants are present
+        if new_value <= 0:
             return cls.as_constant(node, True)
 
-        if remaining > len(new_operands):
+        # `new_value` cannot be surpassed by the non-constant operands
+        elif len(nc_operands) < new_value:
             return cls.as_constant(node, False)
 
-        return AtLeast(node.name, node.weight, node.in_subgraph, new_operands, remaining)
+        # shrink the node
+        else:
+            return cls.as_other(AtLeast, operands=nc_operands, value=new_value)
 
     @classmethod
-    def _at_most(cls, node: AtMost, operands: Sequence[Node], cry_graphs: Sequence[Graph]) -> Node:
-        remaining = node.value
-        new_operands = []
-        for operand in operands:
-            if isinstance(operand, BoolConstant):
-                if operand.value:
-                    remaining -= 1
-            else:
-                new_operands.append(operand)
+    def _at_most(cls, node: AtMost, operands: Sequence[Node], _) -> Union[AtMost, BoolConstant]:
+        """@authors: Lorenzo Spada, Marco Biasion"""
 
-        if remaining <= 0:
+        # no operand is constant
+        if not any(isinstance(op, Constant) for op in operands):
+            return node
+
+        # get non-constant operands and updated value (-1 for each true constant)
+        nc_operands = []
+        new_value = node.value
+        for operand in operands:
+            if not isinstance(operand, Constant): nc_operands.append(operand)
+            elif operand.value is True: new_value -= 1
+
+        # too many true constants are present
+        if new_value < 0:
             return cls.as_constant(node, False)
 
-        if remaining > len(new_operands):
+        # `new_value` can accomodate all non-constant operands
+        if len(nc_operands) <= new_value:
             return cls.as_constant(node, True)
 
-        return AtMost(node.name, node.weight, node.in_subgraph, new_operands, remaining)
-
-
-# # TODO:DEBUG
-# a = crystallize_graph()
+        # shrink the node
+        else:
+            return cls.as_other(AtMost, operands=nc_operands, value=new_value)
 
 
 def node_is_true(node: Union[Node, BoolConstant]) -> bool:
@@ -628,3 +735,18 @@ def node_is_true(node: Union[Node, BoolConstant]) -> bool:
 
 def node_is_false(node: Union[Node, BoolConstant]) -> bool:
     return isinstance(node, BoolConstant) and node.value is False
+
+
+def node_from_node(cls: Type[T_type], node: Node, fields: Mapping[str]) -> T_type:
+    # get common fields
+    kwargs = {'name': node.name}
+    if issubclass(cls, Extras) and isinstance(node, Extras):
+        kwargs['weight'] = node.weight
+        kwargs['in_subgraph'] = node.in_subgraph
+    if issubclass(cls, Operation) and isinstance(node, Operation):
+        kwargs['operands'] = node.operands
+    if issubclass(cls, Valued) and isinstance(node, Valued):
+        kwargs['value'] = node.value
+
+    kwargs.update(fields)
+    return cls(**kwargs)
