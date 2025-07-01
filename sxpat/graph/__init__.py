@@ -49,6 +49,8 @@ __all__ = [
     'VariableNode', 'ValuedNode', 'ConstantNode',
     'OperationNode', 'ExpressionNode',
     'ObjectiveNode', 'GlobalTaskNode',
+    # > type variables
+    'T_AnyNode',
     # > nodes groups
     'contact_nodes', 'origin_nodes', 'end_nodes',
 

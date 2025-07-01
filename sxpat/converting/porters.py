@@ -396,7 +396,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         # AtMost: lambda n: None,
         # branching operations
         Multiplexer: lambda n: f'({n.parameter_usage} ? ({n.parameter_assertion} ? {n.origin} : ~{n.origin}) : {n.parameter_assertion})',
-        If: lambda n: f'({n.contition} ? {n.if_true} : {n.if_false})',
+        If: lambda n: f'({n.condition} ? {n.if_true} : {n.if_false})',
     }
 
     @dc.dataclass(frozen=True, eq=False)

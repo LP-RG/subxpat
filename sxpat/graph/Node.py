@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Optional, Tuple, Generic, TypeVar
+from typing import Any, Optional, Tuple, Generic, TypeVar, Union
 from typing_extensions import Self
 
 import dataclasses as dc
@@ -58,6 +58,8 @@ __all__ = [
     'VariableNode', 'ValuedNode', 'ConstantNode',
     'OperationNode', 'ExpressionNode',
     'ObjectiveNode', 'GlobalTaskNode',
+
+    'T_AnyNode',
 
     # > nodes groups
     'contact_nodes', 'origin_nodes', 'end_nodes',
@@ -135,7 +137,7 @@ class Operation(__Base):
 
     operands: Tuple[str, ...]
 
-    def __post_init__(self, required_operands_count: Optional[int] = None):
+    def __post_init__(self):
         super().__post_init__()
         object.__setattr__(
             self, 'operands',
@@ -147,7 +149,7 @@ class Operation(__Base):
             raise RuntimeError(
                 f'Wrong operands count: '
                 f'{len(self.operands)} operands were given (expected {required_count}) '
-                f'in node {self.name} of class {type(self).__qualname__}.'
+                f'in {self!r}.'
             )
 
 
@@ -166,14 +168,6 @@ class Limited1Operation(Operation):
     @property
     def operand(self) -> str:
         return self.operands[0]
-
-    @classmethod
-    def of(cls, operand: Node) -> Self:
-        """Helper constructor with automatic naming."""
-        return cls(
-            f'{cls.__name__.lower()}_{operand.name}',
-            operands=(operand,)
-        )
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
@@ -518,7 +512,7 @@ class If(Extras, Limited3Operation, DynamicResType, Expression, Node):
     """
 
     @property
-    def contition(self) -> str:
+    def condition(self) -> str:
         return self.operands[0]
 
     @property
@@ -571,6 +565,14 @@ class Target(Limited1Operation, Objective, Node):
         The only operand represents the value to return.
     """
 
+    @classmethod
+    def of(cls, operand: Node) -> Self:
+        """Helper constructor with automatic naming."""
+        return cls(
+            f'target_{operand.name}',
+            operands=(operand,),
+        )
+
 
 @dc.dataclass(frozen=True)
 class Constraint(Limited1Operation, Objective, Node):
@@ -578,6 +580,14 @@ class Constraint(Limited1Operation, Objective, Node):
         Special solver node: specifies a node which value must be asserted when solving.  
         The only operand represents the value to assert.
     """
+
+    @classmethod
+    def of(cls, operand: Node) -> Self:
+        """Helper constructor with automatic naming."""
+        return cls(
+            f'constraint_{operand.name}',
+            operands=(operand,),
+        )
 
 
 # global task nodes
@@ -618,60 +628,71 @@ class ForAll(Operation, GlobalTask, Node):
 # > aliases
 
 
-@dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class VariableNode(Extras, Variable, Node):
-    """
-        **JUST A TYPING ALIAS**  
-        Never use it for anything other than type annotations.
-    """
+# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
+# class VariableNode(Extras, Variable, Node):
+VariableNode = Union[Extras, Variable, Node]
+"""
+    **JUST A TYPING ALIAS**  
+    Never use it for anything other than type annotations.
+"""
 
 
-@dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class ValuedNode(Valued, Node):
-    """
-        **JUST A TYPING ALIAS**  
-        Never use it for anything other than type annotations.
-    """
+# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
+# class ValuedNode(Valued, Node):
+ValuedNode = Union[Valued, Node]
+"""
+    **JUST A TYPING ALIAS**  
+    Never use it for anything other than type annotations.
+"""
 
 
-@dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class ConstantNode(Extras, Constant, Node):
-    """
-        **JUST A TYPING ALIAS**  
-        Never use it for anything other than type annotations.
-    """
+# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
+# class ConstantNode(Extras, Constant, Node):
+ConstantNode = Union[Extras, Constant, Node]
+"""
+    **JUST A TYPING ALIAS**  
+    Never use it for anything other than type annotations.
+"""
 
 
-@dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class OperationNode(Operation, Node):
-    """
-        **JUST A TYPING ALIAS**  
-        Never use it for anything other than type annotations.
-    """
+# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
+# class OperationNode(Operation, Node):
+OperationNode = Union[Operation, Node]
+"""
+    **JUST A TYPING ALIAS**  
+    Never use it for anything other than type annotations.
+"""
 
 
-@dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class ExpressionNode(Extras, Expression, Operation, Node):
-    """
-        **JUST A TYPING ALIAS**  
-        Never use it for anything other than type annotations.
-    """
+# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
+# class ExpressionNode(Extras, Expression, Operation, Node):
+ExpressionNode = Union[Extras, Expression, Operation, Node]
+"""
+    **JUST A TYPING ALIAS**  
+    Never use it for anything other than type annotations.
+"""
 
 
-@dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class ObjectiveNode(Objective, Operation, Node):
-    """
-        **JUST A TYPING ALIAS**  
-        Never use it for anything other than type annotations.
-    """
+# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
+# class ObjectiveNode(Objective, Operation, Node):
+ObjectiveNode = Union[Objective, Operation, Node]
+"""
+    **JUST A TYPING ALIAS**  
+    Never use it for anything other than type annotations.
+"""
 
 
-@dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class GlobalTaskNode(GlobalTask, Operation, Node):
-    """
-        **JUST A TYPING ALIAS**  
-        Never use it for anything other than type annotations.
-    """
+# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
+# class GlobalTaskNode():
+GlobalTaskNode = Union[GlobalTask, Operation, Node]
+"""
+    **JUST A TYPING ALIAS**  
+    Never use it for anything other than type annotations.
+"""
+
+
+# > type variables
+T_AnyNode = TypeVar('T_AnyNode', Node, Valued, Operation, Limited1Operation, Limited2Operation, Limited3Operation)
 
 
 # > other groups
