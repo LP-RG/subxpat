@@ -1,13 +1,13 @@
 from typing import IO, Any, Callable, Container, Mapping, NoReturn, Optional, Sequence, Tuple, Type, TypeVar, Union, Dict, List
 from collections import deque
 import subprocess, copy
-
-from sxpat.specifications import Specifications
+from bisect import bisect
 
 from .Solver import Solver
 
 from sxpat.graph import *
-from bisect import bisect
+from sxpat.specifications import Specifications
+from sxpat.converting.utils import set_bool_constants, crystallize
 
 
 _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, PGraph, SGraph]])
@@ -180,14 +180,11 @@ def _adder_bits_with_bit(a : list, b, next_free, destination : IO[str]) -> list:
 def _absolute_value(a, next_free, destination : IO[str]) -> list:
     return _adder_bits_with_bit(_xor_bits_with_bit(a,a[-1], next_free, destination),a[-1], next_free, destination)
 
-# with open("sxpat/solving/temp.txt", 'w') as f:
-#     print(_comparator_greater_than([1,2],[3,4], [0], f))
-
 def process_BoolVariable(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     return next_free
 
 def process_IntVariable(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
-    # raise NotImplementedError(f'this function isn\'t yet implemented')
+    raise NotImplementedError(f'this function isn\'t implemented yet')
     return next_free
 
 def process_BoolConstant(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
@@ -260,7 +257,7 @@ def process_Sum(n : Node, operands: list, accs: list, param: list, next_free: in
     num = mapping[operands[0]]
     for i in range(1,len(operands)):
         temp = [next_free]
-        num = _adder(num, mapping[operands[i]], temp, destination)
+        num = _adder(num, mapping[operands[i]], temp, destination, carry=True)
         next_free = temp[0]
 
     mapping[n.name] = num
@@ -434,9 +431,6 @@ def process_Constraint(n : Node, operands: list, accs: list, param: list, next_f
     mapping[n.name] = mapping[operands[0]]
     return next_free
 
-def process_Maximize(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
-    pass
-
 Node_Mapping = {
     # variables
     BoolVariable: process_BoolVariable,
@@ -511,14 +505,19 @@ class QbfSolver(Solver):
 
             in_the_output = []
             next_free = 0
+            targets = []
+
             for graph in graphs:
                 for node in graph.nodes:
                     #TODO : add accessories (accs)
-                    # print(node)
                     next_free = Node_Mapping[type(node)](node, getattr(node, "operands", []),[], variables, next_free, mapping, f)
-                    if isinstance(graph,CGraph) and isinstance(node, Constraint):
-                        assert(len(mapping[node.name]) == 1)
-                        in_the_output.append(node.name)
+                    if isinstance(graph,CGraph):
+                        if isinstance(node, Constraint):
+                            assert(len(mapping[node.name]) == 1)
+                            in_the_output.append(node.name)
+
+                        if isinstance(node, Target):
+                            targets.append(node.operands[0])
 
                 f.write('#\n')
             
@@ -534,26 +533,37 @@ class QbfSolver(Solver):
         result = subprocess.run(["../../../../cqesto-master/build/cqesto", script_path], capture_output=True, text=True)
 
         if result.stdout.strip()[-1] == '1':
-            answer = {}
+            answer_vars = {}
             for x in result.stdout.split('\n')[3].split()[1:-1]:
-                answer[variables[int(x[2:])]] = True if x[0] == '+' else False
+                answer_vars[variables[int(x[2:])]] = True if x[0] == '+' else False
 
-            return ('sat', answer)
+            result = {}
+            new_graphs = []
+            for graph in graphs:
+                new_graphs.append(set_bool_constants(graph, answer_vars, skip_missing=True))
+
+            graphs = crystallize.graphs(new_graphs)
+            for graph in graphs:
+                for node in graph.nodes:
+                    if node.name in targets:
+                        result[node.name] = graph[node.name].value
+                
+            return ('sat', result)
         
         else:
             return ('unsat', None)
     
     @classmethod
-    @override
     def solve_exists(cls,
               graphs: _Graphs,
               specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Any]]]:
-        return cls._solve(graphs, specifications, [])
+        status, model = cls._solve(graphs, specifications, [])
+        return (status, model)
     
     @classmethod
-    @override
-    def _solve_forall(cls, graphs: _Graphs,
+    def solve_forall(cls, graphs: _Graphs,
                      specifications: Specifications,
                      forall_target: ForAll,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._solve(graphs, specifications, list(forall_target.operands))
+        status, model = cls._solve(graphs, specifications, list(forall_target.operands))
+        return (status, model)
