@@ -21,7 +21,7 @@ class AnnotatedGraph(Graph):
         Verilog(benchmark_name)
         # Convert the clean Verilog into a Yosys GV
         convert_verilog_to_gv(benchmark_name)
-        # exit()
+
         super().__init__(benchmark_name, is_clean)
         folder, extension = INPUT_PATH['ver']
 
@@ -1890,12 +1890,9 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-        total_s = time.time()
-        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates)) # loose bound but since it's logarithm it's still ok
-        WEIGHT_BITS = self.num_outputs
-        CONS_BITS = 1
-        GATE_BITS = math.log2(self.num_gates) + 1
-        IN_BITS = self.num_inputs
+
+        # loose bound but since it's logarithmic it's still ok
+        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates))
 
         omax = specs_obj.omax
         imax = specs_obj.imax
@@ -2155,12 +2152,9 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-        total_s = time.time()
-        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates)) # loose bound but since it's logarithm it's still ok
-        WEIGHT_BITS = self.num_outputs
-        CONS_BITS = 1
-        GATE_BITS = math.log2(self.num_gates) + 1
-        IN_BITS = self.num_inputs
+
+        # loose bound but since it's logarithmic it's still ok
+        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates))
 
         omax = specs_obj.omax
         imax = specs_obj.imax
