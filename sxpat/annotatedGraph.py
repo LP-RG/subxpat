@@ -330,7 +330,7 @@ class AnnotatedGraph(Graph):
 
                 elif specs_obj.extraction_mode == 100:
                     pprint.info2(f"Test with no imax, omax")
-                    self.subgraph = self.test_find_subgraph(specs_obj)
+                    self.subgraph = self.slash_to_kill(specs_obj)
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
@@ -2150,8 +2150,7 @@ class AnnotatedGraph(Graph):
 
         return found_subgraph
 
-    # TODO: bitvectors's size shouldn't be hardcoded
-    def test_find_subgraph(self, specs_obj: Specifications):
+    def slash_to_kill(self, specs_obj: Specifications):
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -2282,8 +2281,22 @@ class AnnotatedGraph(Graph):
                     )
                     opt.add(ancestor_condition)
 
-        # opt.add(Sum(unique_incoming_edges) <= imax)
-        # opt.add(Sum(unique_outgoing_edges) <= omax)
+        for parent in nodes:
+            children = list(self.graph.successors(parent))
+            if not children:
+                continue
+            in_subgraph_children = [Node.in_subgraph(nodes[child]) for child in children]
+
+            # If parent is in the subgraph and at least one child is in, then all children must be in
+            opt.add(
+                Implies(
+                    And(
+                        Node.in_subgraph(nodes[parent]),
+                        Or(in_subgraph_children)
+                    ),
+                    And(in_subgraph_children)
+                )
+            )
 
         feasibility_sum = Sum([
             If(
