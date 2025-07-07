@@ -1,11 +1,10 @@
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union, overload
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Type, TypeVar, Union, overload
 
 import re
 import math
 import itertools as it
 
 from sxpat.graph import *
-from sxpat.utils.collections import first
 
 
 __all__ = [
@@ -544,9 +543,7 @@ class crystallize:
     def _multiplexer(cls, node: Multiplexer, operands: Sequence[Node], _) -> Union[Multiplexer, BoolConstant, Identity, Not, Implies]:
         """@authors: Marco Biasion, Lorenzo Spada"""
 
-        a = operands[0]
-        b = operands[1]
-        c = operands[2]
+        a, b, c = operands
         a_const = isinstance(a, Constant)
         b_const = isinstance(b, Constant)
         c_const = isinstance(c, Constant)
@@ -610,27 +607,27 @@ class crystallize:
             }[(a.value, b.value)]()
 
         # - 2 variables
-        # a (b,0) : !a & b
+        # a (b,0) : !a & b (or !(b => a))
         # a (b,1) : b => a
         elif c_const:
             return {  # c
-                0: lambda: lambda: node,  # would require the creation of new nodes
-                1: lambda: lambda: cls.as_other(Implies, node, operands=(b, a)),
+                0: lambda: node,  # would require the creation of new nodes
+                1: lambda: cls.as_other(Implies, node, operands=(b, a)),
             }[c.value]()
 
         # a (0,c) : c
         # a (1,c) : a == c (also: !(b^c) (^ is xor))
         elif b_const:
             return {  # b
-                0: lambda: lambda: cls.as_other(Identity, node, operand=c),
-                1: lambda: lambda: node,  # uses a non boolean operator, or would require the creation of new nodes
+                0: lambda: cls.as_other(Identity, node, operand=c),
+                1: lambda: node,  # uses a non boolean operator, or would require the creation of new nodes
             }[b.value]()
 
         # 0 (b,c) : b != c (also: b^c (^ is xor))
         # 1 (b,c) : c
         elif a_const:
             return {  # a
-                1: lambda: lambda: node,  # uses a non boolean operator
+                0: lambda: node,  # uses a non boolean operator
                 1: lambda: cls.as_other(Identity, node, operand=c),
             }[a.value]()
 
