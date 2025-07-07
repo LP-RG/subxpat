@@ -1891,6 +1891,7 @@ class AnnotatedGraph(Graph):
         :return: an annotated graph in which the extracted subgraph is colored
         """
         total_s = time.time()
+        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates)) # loose bound but since it's logarithm it's still ok
         WEIGHT_BITS = self.num_outputs
         CONS_BITS = 1
         GATE_BITS = math.log2(self.num_gates) + 1
@@ -1903,7 +1904,7 @@ class AnnotatedGraph(Graph):
         opt = Optimize()
 
         Node = Datatype('Node')
-        Node.declare('mk_node', ('id', BitVecSort(32)), ('weight', BitVecSort(32)), ('in_subgraph', BoolSort()))
+        Node.declare('mk_node', ('id', BitVecSort(NUM_BITS)), ('weight', BitVecSort(NUM_BITS)), ('in_subgraph', BoolSort()))
         Node = Node.create()
 
         # Define a custom datatype for Edge
@@ -1917,19 +1918,19 @@ class AnnotatedGraph(Graph):
         for in_idx in self.input_dict:
             node_label = self.input_dict[in_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(in_idx, 32), BitVecVal(weight, 32), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(in_idx, 32))
+            node = Node.mk_node(BitVecVal(in_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(in_idx, NUM_BITS))
 
-            opt.add(Node.weight(node) == BitVecVal(weight, 32))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
             opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
 
         for g_idx in self.gate_dict:
             node_label = self.gate_dict[g_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(g_idx, 32), BitVecVal(weight, 32), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(g_idx, 32))
-            opt.add(Node.weight(node) == BitVecVal(weight, 32))
+            node = Node.mk_node(BitVecVal(g_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(g_idx, NUM_BITS))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
             if weight == -1:
                 opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
@@ -1937,20 +1938,20 @@ class AnnotatedGraph(Graph):
         for o_idx in self.output_dict:
             node_label = self.output_dict[o_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(o_idx, 32), BitVecVal(weight, 32), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(o_idx, 32))
+            node = Node.mk_node(BitVecVal(o_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(o_idx, NUM_BITS))
 
-            opt.add(Node.weight(node) == BitVecVal(weight, 32))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
             opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
         #
         for c_idx in self.constant_dict:
             node_label = self.constant_dict[c_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(c_idx, 32), BitVecVal(weight, 32), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(c_idx, 32))
+            node = Node.mk_node(BitVecVal(c_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(c_idx, NUM_BITS))
 
-            opt.add(Node.weight(node) == BitVecVal(weight, 32))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
             opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
         #
@@ -1975,18 +1976,18 @@ class AnnotatedGraph(Graph):
                     incoming_conditions.append(And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])))
 
             if outgoing_conditions:
-                unique_outgoing_edges.append(If(Or(outgoing_conditions), BitVecVal(1, 32), BitVecVal(0, 32)))
+                unique_outgoing_edges.append(If(Or(outgoing_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
             if incoming_conditions:
-                unique_incoming_edges.append(If(Or(incoming_conditions), BitVecVal(1, 32), BitVecVal(0, 32)))
+                unique_incoming_edges.append(If(Or(incoming_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
 
-        # incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, 32), BitVecVal(0, 32))
+        # incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
         #                   for edge in edges]
-        # outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, 32), BitVecVal(0, 32))
+        # outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
         #                   for edge in edges]
-        max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, 32), BitVecVal(0, 32)) for node in nodes.values()]
+        max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)) for node in nodes.values()]
 
         # max_nodes = [  for edge in edges]
-        # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), 32) for node in nodes.values()]
+        # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), NUM_BITS) for node in nodes.values()]
 
         descendants = {}
         ancestors = {}
@@ -2021,7 +2022,7 @@ class AnnotatedGraph(Graph):
         feasibility_constraints = [
             Implies(
                 And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),
-                Node.weight(Edge.source(edge)) <= BitVecVal(feasibility_threshold, 32)
+                Node.weight(Edge.source(edge)) <= BitVecVal(feasibility_threshold, NUM_BITS)
             )
             for edge in edges
         ]
@@ -2034,12 +2035,12 @@ class AnnotatedGraph(Graph):
         # outputs = Int('outputs')
         # num_nodes = Int('num_nodes')
         #
-        # num_nodes = BitVec('num_nodes', 32)
-        # inputs = BitVec('inputs', 32)
-        # outputs = BitVec('outputs', 32)
+        # num_nodes = BitVec('num_nodes', NUM_BITS)
+        # inputs = BitVec('inputs', NUM_BITS)
+        # outputs = BitVec('outputs', NUM_BITS)
 
         # feasibility_constraints = [
-        #     Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, 32)) for node in
+        #     Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, NUM_BITS)) for node in
         #     nodes.values()
         # ]
 
@@ -2156,6 +2157,7 @@ class AnnotatedGraph(Graph):
         :return: an annotated graph in which the extracted subgraph is colored
         """
         total_s = time.time()
+        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates)) # loose bound but since it's logarithm it's still ok
         WEIGHT_BITS = self.num_outputs
         CONS_BITS = 1
         GATE_BITS = math.log2(self.num_gates) + 1
@@ -2168,7 +2170,7 @@ class AnnotatedGraph(Graph):
         opt = Optimize()
 
         Node = Datatype('Node')
-        Node.declare('mk_node', ('id', BitVecSort(130)), ('weight', BitVecSort(130)), ('in_subgraph', BoolSort()))
+        Node.declare('mk_node', ('id', BitVecSort(NUM_BITS)), ('weight', BitVecSort(NUM_BITS)), ('in_subgraph', BoolSort()))
         Node = Node.create()
 
         # Define a custom datatype for Edge
@@ -2182,19 +2184,19 @@ class AnnotatedGraph(Graph):
         for in_idx in self.input_dict:
             node_label = self.input_dict[in_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(in_idx, 130), BitVecVal(weight, 130), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(in_idx, 130))
+            node = Node.mk_node(BitVecVal(in_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(in_idx, NUM_BITS))
 
-            opt.add(Node.weight(node) == BitVecVal(weight, 130))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
             opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
 
         for g_idx in self.gate_dict:
             node_label = self.gate_dict[g_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(g_idx, 130), BitVecVal(weight, 130), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(g_idx, 130))
-            opt.add(Node.weight(node) == BitVecVal(weight, 130))
+            node = Node.mk_node(BitVecVal(g_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(g_idx, NUM_BITS))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
             if weight == -1:
                 opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
@@ -2202,20 +2204,20 @@ class AnnotatedGraph(Graph):
         for o_idx in self.output_dict:
             node_label = self.output_dict[o_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(o_idx, 130), BitVecVal(weight, 130), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(o_idx, 130))
+            node = Node.mk_node(BitVecVal(o_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(o_idx, NUM_BITS))
 
-            opt.add(Node.weight(node) == BitVecVal(weight, 130))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
             opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
         #
         for c_idx in self.constant_dict:
             node_label = self.constant_dict[c_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(c_idx, 130), BitVecVal(weight, 130), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(c_idx, 130))
+            node = Node.mk_node(BitVecVal(c_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(c_idx, NUM_BITS))
 
-            opt.add(Node.weight(node) == BitVecVal(weight, 130))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
             opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
         #
@@ -2240,18 +2242,18 @@ class AnnotatedGraph(Graph):
                     incoming_conditions.append(And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])))
 
             if outgoing_conditions:
-                unique_outgoing_edges.append(If(Or(outgoing_conditions), BitVecVal(1, 130), BitVecVal(0, 130)))
+                unique_outgoing_edges.append(If(Or(outgoing_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
             if incoming_conditions:
-                unique_incoming_edges.append(If(Or(incoming_conditions), BitVecVal(1, 130), BitVecVal(0, 130)))
+                unique_incoming_edges.append(If(Or(incoming_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
 
-        # incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, 130), BitVecVal(0, 130))
+        # incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
         #                   for edge in edges]
-        # outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, 130), BitVecVal(0, 130))
+        # outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
         #                   for edge in edges]
-        max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, 130), BitVecVal(0, 130)) for node in nodes.values()]
+        max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)) for node in nodes.values()]
 
         # max_nodes = [  for edge in edges]
-        # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), 130) for node in nodes.values()]
+        # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), NUM_BITS) for node in nodes.values()]
 
         descendants = {}
         ancestors = {}
@@ -2287,12 +2289,12 @@ class AnnotatedGraph(Graph):
             If(
                 And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),
                 Node.weight(Edge.source(edge)),
-                BitVecVal(0, 130)
+                BitVecVal(0, NUM_BITS)
             )
             for edge in edges
         ])
 
-        opt.add(feasibility_sum <= BitVecVal(feasibility_threshold, 130))
+        opt.add(feasibility_sum <= BitVecVal(feasibility_threshold, NUM_BITS))
 
         opt.maximize(Sum(max_nodes))
 
@@ -2300,12 +2302,12 @@ class AnnotatedGraph(Graph):
         # outputs = Int('outputs')
         # num_nodes = Int('num_nodes')
         #
-        # num_nodes = BitVec('num_nodes', 130)
-        # inputs = BitVec('inputs', 130)
-        # outputs = BitVec('outputs', 130)
+        # num_nodes = BitVec('num_nodes', NUM_BITS)
+        # inputs = BitVec('inputs', NUM_BITS)
+        # outputs = BitVec('outputs', NUM_BITS)
 
         # feasibility_constraints = [
-        #     Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, 130)) for node in
+        #     Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, NUM_BITS)) for node in
         #     nodes.values()
         # ]
 
