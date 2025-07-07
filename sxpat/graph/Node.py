@@ -379,7 +379,7 @@ class Or(Extras, Operation, BoolResType, Expression, Node):
     """
 
 @dc.dataclass(frozen=True)
-class Xor(Extras, Operation, BoolResType, Expression, Node):
+class Xor(Extras, Limited2Operation, BoolResType, Expression, Node):
     """
         Boolean exclusive disjunction ( `a xor b` ) expression.  
         This node must have two operads.
