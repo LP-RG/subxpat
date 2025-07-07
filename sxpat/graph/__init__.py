@@ -5,6 +5,7 @@ from .Graph import *
 __all__ = [
     # > abstracts
     'Node',
+    'Extras',
     # valued
     'Valued',
     # operation

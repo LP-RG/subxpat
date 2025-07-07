@@ -8,6 +8,7 @@ import dataclasses as dc
 __all__ = [
     # > abstracts
     'Node',
+    'Extras',
     # valued
     'Valued',
     # operation
