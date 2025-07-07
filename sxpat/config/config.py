@@ -4,10 +4,6 @@ from Z3Log.config.config import *
 # OpenSTA for power and delay analysis
 OPENSTA = 'sta'
 
-# Synthesis with Yosys
-LIB_PATH = 'config/gscl45nm.lib'
-ABC_SCRIPT_PATH = 'config/abc.script'
-
 # TemplateSpecs constants
 #   properties
 SUBXPAT = 'subxpat'
