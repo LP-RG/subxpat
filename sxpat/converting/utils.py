@@ -200,7 +200,7 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missin
         Takes a graph and a mapping from names to bool in input
         and returns a new graph with the nodes corresponding to the given names replaced with the wanted constant.
 
-        @note: *TODO: can be expanded to manage also IntConstant nodes*
+        @note: *TODO: can be expanded to manage also IntConstant nodes*  
         @note: *TODO: can be expanded to replace also inner nodes, and not only Variable/Constant nodes*
 
         @authors: Marco Biasion
