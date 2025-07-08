@@ -395,7 +395,6 @@ class AnnotatedGraph(Graph):
 
         nodes = {}
         edges = []
-    
         output_node_label = self.output_dict.get(specs_obj.out_node)
         if output_node_label is None:
             print(f"Errore: indice di output {specs_obj.out_node} non trovato in output_dict.")
@@ -515,13 +514,13 @@ class AnnotatedGraph(Graph):
         if set_node_partition == set_all_ascendants:
             print("#####Changing output node#####\n")
             specs_obj.out_node += 1
-            specs_obj._persistence_counter = 0
+            specs_obj.persistence_counter = 0
         else:
-            if(specs_obj._persistence_counter == specs_obj.persistance):
+            if(specs_obj.persistence_counter == specs_obj.persistance):
                 specs_obj.out_node += 1
-                specs_obj._persistence_counter = 0
+                specs_obj.persistence_counter = 0
             else:
-                specs_obj._persistence_counter += 1
+                specs_obj.persistence_counter += 1
                 
         sat_time_e = time.time()
 
@@ -2085,7 +2084,6 @@ class AnnotatedGraph(Graph):
 
 
         for in_idx in self.input_dict:
-            print(self.input_dict[in_idx])
             node_label = self.input_dict[in_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
             node = Node.mk_node(BitVecVal(in_idx, 32), BitVecVal(weight, 32), Bool(f'{node_label}'))

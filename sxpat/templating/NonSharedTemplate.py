@@ -114,36 +114,7 @@ class _NonSharedBase:
             rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),
             error_check := LessEqualThan('error_check', operands=(rel_diff, et)),
         ]
-    """@classmethod
-    def relative_error_zone_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int, zone_constraint: int) -> List[Node]:
-        return [
-            *(PlaceHolder(name) for name in s_graph.inputs_names[:len(s_graph.inputs_names)//2]),
-            input_one_value := ToInt('input_one', operands=s_graph.inputs_names[:len(s_graph.inputs_names)//2]),
-            *(PlaceHolder(name) for name in s_graph.inputs_names[len(s_graph.inputs_names)//2:]),
-            input_two_value := ToInt('input_one', operands=s_graph.inputs_names[len(s_graph.inputs_names)//2:]),
-            cur_int := ToInt('cur_int', operands=s_graph.outputs_names),
-            tem_int := ToInt('tem_int', operands=t_graph.outputs_names),
-            abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
-            et := IntConstant('et', value=error_threshold),
-            zero := IntConstant('zero', value = 0),
-            one := IntConstant('one', value = 1),
-            hundred := IntConstant('hundred', value = 100),
-            mean_value := IntConstant('mean_value', value = 7),
-            a := IntConstant('a', value = 81),
-            condition := Equals('condition', operands = (cur_int, zero)),
-            divider := If("divider", operands=(condition, one, cur_int)),
-            abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
-            rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),
-            # calculate distance from mean x2
-            abs_diff_mean := AbsDiff('abs_diff_mean', operands=(input_two_value, mean_value)),
-            distance_sum := Sum('distance_sum', operands=(abs_diff_mean, input_one_value)),
-            square_distance_sum := Mul('square_distance_sum', operands=(distance_sum, distance_sum)),
-            et_coefficient := Mul('et_coefficient', operands=(square_distance_sum, et)),
-            undounded_et := UDiv('undounded_et', operands=(et_coefficient, a)),
-            bounding_et_condition := LessEqualThan('bounding_et_condition', operands=(undounded_et, et)),
-            final_et := If('final_et', operands=(bounding_et_condition, et, undounded_et)),
-            error_check := LessEqualThan('error_check', operands=(rel_diff, final_et)),
-        ]"""
+    
     @classmethod
     def relative_error_zone_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int, zone_constraint: int) -> List[Node]:
         return [

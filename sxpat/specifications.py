@@ -22,7 +22,6 @@ class EncodingType(enum.Enum):
     Z3_DIRECT_BITVECTOR = 'z3dbvec'
     QBF = 'qbf'
 
-
 class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
     SHARED = 'shared'
@@ -101,7 +100,7 @@ class Specifications:
     max_sensitivity: int
     sensitivity: int = dc.field(init=False, default=None)  # rw
 
-    _persistence_counter: int = dc.field(init=False, default=0)  # rw
+    persistence_counter: int = dc.field(init=False, default=0)  # rw
     out_node: int = dc.field(init=False, default=0)  # rw\
 
     # exploration (1)
@@ -262,7 +261,6 @@ class Specifications:
                                       action=EnumChoicesAction,
                                       default=ConstantsType.NEVER,
                                       help='Usage of constants (default: never)')
-
         _template = parser.add_argument('--template',
                                         type=TemplateType,
                                         default=TemplateType.NON_SHARED,

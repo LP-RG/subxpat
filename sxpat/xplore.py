@@ -118,6 +118,7 @@ def explore_grid(specs_obj: Specifications):
             et_coefficient = 1
             print(f"Started labeling with et = {specs_obj.et}")
             label_timer, _label_graph = Timer.from_function(label_graph)
+            
             _label_graph(current_graph,
                          min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
                          et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel, metric=specs_obj.metric)
@@ -203,13 +204,13 @@ def explore_grid(specs_obj: Specifications):
                 pprint.success(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()} ({len(models)} models found)')
 
                 cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
-                for _, model in enumerate(models):
+                for i, model in enumerate(models):
                     # finalize approximate graph
                     a_graph = set_bool_constants(p_graph, model)
 
                     # export approximate graph as verilog
                     # TODO:#15: use serious name generator
-                    verilog_path = f'input/ver/{specs_obj.exact_benchmark}_{int(time.time())}.v'
+                    verilog_path = f'input/ver/{specs_obj.exact_benchmark}_{int(time.time())}_{i}.v'
                     VerilogExporter.to_file(a_graph, verilog_path)
 
                     # compute metrics
