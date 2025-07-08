@@ -482,8 +482,6 @@ class GreaterEqualThan(Extras, Limited2Operation, BoolResType, Expression, Node)
 class Identity(Extras, Limited1Operation, DynamicResType, Expression, Node):
     """
         The identity expression.
-
-        **ALMOST DEPRECATED**
     """
 
 
@@ -636,62 +634,42 @@ class ForAll(Operation, GlobalTask, Node):
 # > aliases
 
 
-# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-# class VariableNode(Extras, Variable, Node):
 VariableNode = Union[Extras, Variable, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.
 """
 
-
-# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-# class ValuedNode(Valued, Node):
 ValuedNode = Union[Valued, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.
 """
 
-
-# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-# class ConstantNode(Extras, Constant, Node):
 ConstantNode = Union[Extras, Constant, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.
 """
 
-
-# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-# class OperationNode(Operation, Node):
 OperationNode = Union[Operation, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.
 """
 
-
-# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-# class ExpressionNode(Extras, Expression, Operation, Node):
 ExpressionNode = Union[Extras, Expression, Operation, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.
 """
 
-
-# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-# class ObjectiveNode(Objective, Operation, Node):
 ObjectiveNode = Union[Objective, Operation, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.
 """
 
-
-# @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-# class GlobalTaskNode():
 GlobalTaskNode = Union[GlobalTask, Operation, Node]
 """
     **JUST A TYPING ALIAS**  

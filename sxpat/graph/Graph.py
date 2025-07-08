@@ -15,6 +15,7 @@ from .Node import (
     #
     OperationNode, ConstantNode, GlobalTaskNode, ExpressionNode,
 )
+from .error import UndefinedNodeError
 
 
 __all__ = [
@@ -54,9 +55,8 @@ class Graph:
             if isinstance(node, Operation)
             for src_name in node.operands
         )
-        if len(node_names_in_edges - defined_node_names) > 0:
-            print(*(node_names_in_edges - defined_node_names), sep='\n')
-            raise RuntimeError('Some nodes are not defined')
+        if len(missing := (node_names_in_edges - defined_node_names)) > 0:
+            raise UndefinedNodeError(f'The following nodes are not defined but edges from them exist: {missing}')
 
         # construct digraph
         _inner = nx.DiGraph()

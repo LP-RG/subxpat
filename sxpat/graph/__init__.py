@@ -1,5 +1,6 @@
 from .Node import *
 from .Graph import *
+from .error import *
 
 
 __all__ = [
@@ -62,4 +63,8 @@ __all__ = [
     'CGraph',
     #
     '_Graph',
+
+    # > errors
+    'MissingNodeError',
+    'UndefinedNodeError',
 ]
