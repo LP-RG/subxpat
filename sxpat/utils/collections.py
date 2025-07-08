@@ -1,13 +1,13 @@
 from __future__ import annotations
 from collections import UserDict
-from typing import Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union
+from typing import Callable, Generic, Iterable, Iterator, Mapping, Optional, Tuple, Type, TypeVar, Union
 
 import itertools as it
 
 
 __all__ = [
     # methods
-    'mapping_inv', 'flat', 'pairwise',
+    'mapping_inv', 'iterable_replace', 'flat', 'pairwise', 'unzip', 'first',
     # classes
     'MultiDict', 'InheritanceMapping',
 ]
@@ -113,3 +113,7 @@ class InheritanceMapping(MultiDict[Type, V]):
         subtypes = [key]
         for t in subtypes: subtypes.extend(t.__subclasses__())
         super().__setitem__(frozenset(subtypes), value)
+
+
+def first(predicate: Callable[[T], bool], iterable: Iterable[T], not_found_value: V = None) -> Union[T, V]:
+    return next(filter(predicate, iterable), not_found_value)
