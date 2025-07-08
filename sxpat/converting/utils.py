@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 
-T_type = TypeVar('T_type', type)
+T_type = TypeVar('T_type', bound=type)
 
 
 def unpack_ToInt(graph: _Graph) -> _Graph:
@@ -391,7 +391,7 @@ class crystallize:
         return node_from_node(node_type, node, value=value)
 
     @staticmethod
-    def as_other(cls: Type[T_type], node: Node, **kwargs: Mapping[str]) -> T_type:
+    def as_other(cls: Type[T_type], node: Node, **kwargs: Mapping[str, Any]) -> T_type:
         if 'operand' in kwargs: kwargs['operands'] = (kwargs.pop('operand'),)
         return node_from_node(cls, node, kwargs)
 
@@ -734,7 +734,7 @@ def node_is_false(node: Union[Node, BoolConstant]) -> bool:
     return isinstance(node, BoolConstant) and node.value is False
 
 
-def node_from_node(cls: Type[T_type], node: Node, fields: Mapping[str]) -> T_type:
+def node_from_node(cls: Type[T_type], node: Node, fields: Mapping[str, Any]) -> T_type:
     # get common fields
     kwargs = {'name': node.name}
     if issubclass(cls, Extras) and isinstance(node, Extras):
