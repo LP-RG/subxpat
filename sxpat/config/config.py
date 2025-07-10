@@ -11,6 +11,7 @@ ABC_SCRIPT_PATH = 'config/abc.script'
 # TemplateSpecs constants
 #   properties
 SUBXPAT = 'subxpat'
+V2 = 'v2'
 TEMPLATE_SPEC_ET = 'et'
 
 # shared
@@ -165,6 +166,7 @@ XPAT = 'xpat'
 BLASYS = 'blasys'
 SHARED_SUBXPAT = 'shared_subxpat'
 SHARED_XPAT = 'shared_xpat'
+V2 = 'v2'
 
 # for plotting
 BENCH_DICT = {'abs_diff_2': 'abs_diff_i4_o3', 'abs_diff_4': 'abs_diff_i8_o5', 'abs_diff_6': 'abs_diff_i12_o7',

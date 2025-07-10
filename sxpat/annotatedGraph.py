@@ -188,6 +188,7 @@ class AnnotatedGraph(Graph):
             (False, TemplateType.SHARED): SHARED_XPAT,
             (True, TemplateType.NON_SHARED): SUBXPAT,
             (True, TemplateType.SHARED): SHARED_SUBXPAT,
+            (True, TemplateType.V2): V2,
         }[(specs_obj.subxpat, specs_obj.template)]
 
         technique_specific = f'{tool_name}_{specs_obj.error_partitioning.value}_'

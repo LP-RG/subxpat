@@ -41,6 +41,7 @@ class EncodingType(enum.Enum):
 class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
     SHARED = 'shared'
+    V2 = 'v2'
 
 
 class ConstantsType(enum.Enum):
@@ -158,6 +159,7 @@ class Specifications:
         return {
             TemplateType.NON_SHARED: 'Sop1',
             TemplateType.SHARED: 'SharedLogic',
+            TemplateType.V2: 'v2',
         }[self.template]
 
     # @property

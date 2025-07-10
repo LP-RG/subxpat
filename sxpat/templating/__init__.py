@@ -4,6 +4,7 @@ from sxpat.specifications import Specifications, TemplateType, ConstantFalseType
 from .Template import Template
 from .SharedTemplate import SharedTemplate
 from .NonSharedTemplate import NonSharedFOutTemplate, NonSharedFProdTemplate
+from .v2Phase1 import v2Phase1
 
 
 __all__ = ['get_specialized',
@@ -22,5 +23,8 @@ def get_specialized(specs: Specifications) -> Type[Template]:
         TemplateType.NON_SHARED: {
             ConstantFalseType.OUTPUT: NonSharedFOutTemplate,
             ConstantFalseType.PRODUCT: NonSharedFProdTemplate,
+        },
+        TemplateType.V2: {
+            ConstantFalseType.OUTPUT: v2Phase1,
         }
     }[specs.template][specs.constant_false]

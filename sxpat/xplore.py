@@ -8,14 +8,18 @@ import csv
 import time
 import math
 import networkx as nx
+import itertools as it
 
 from Z3Log.config import path as z3logpath
 
+from sxpat.graph.Graph import *
+from sxpat.graph.Node import *
 from sxpat.labeling import labeling_explicit
 from sxpat.metrics import MetricsEstimator
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
 from sxpat.config import paths as sxpatpaths
 from sxpat.config.config import *
+from sxpat.utils.collections import iterable_replace
 from sxpat.utils.filesystem import FS
 from sxpat.utils.name import NameData
 from sxpat.verification import erroreval_verification_wce
@@ -53,6 +57,7 @@ def explore_grid(specs_obj: Specifications):
     persistence_limit = 2
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
+    v2 = specs_obj.template == TemplateType.V2
 
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
@@ -151,6 +156,27 @@ def explore_grid(specs_obj: Specifications):
             prev_actual_error = 0
             continue
 
+        if v2:
+            e_graph = iograph_from_legacy(exact_graph)
+            s_graph = sgraph_from_legacy(current_graph)
+
+            template_timer, define_template = Timer.from_function(get_templater(specs_obj).define)
+            p_graph, c_graph = define_template(s_graph, specs_obj)
+
+            solve = get_solver(specs_obj).solve
+
+            status, model = solve((e_graph, p_graph, c_graph), specs_obj)
+
+            if status == 'unsat':
+                v2_et = sum((n.weight for n in s_graph.subgraph_outputs))
+            
+            elif status == 'sat':
+                v2_et = model['sum_s_out'] - 1
+
+            specs_obj.template = TemplateType.NON_SHARED
+
+            specs_obj.et = v2_et
+
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
@@ -167,6 +193,25 @@ def explore_grid(specs_obj: Specifications):
             # convert from legacy graph to new architecture graph
             e_graph = iograph_from_legacy(exact_graph)
             s_graph = sgraph_from_legacy(current_graph)
+            if v2:
+                print(123)
+                rem = s_graph.subgraph_inputs
+                s_graph = SGraph(
+                    it.chain(
+                        (n for n in s_graph.nodes if n.in_subgraph),
+                        (BoolVariable(n.name) for n in s_graph.subgraph_inputs),
+                        (Identity(f's_out{i}', operands=(n.name,)) for i, n in enumerate(s_graph.subgraph_outputs)),
+                    ),
+                    inputs_names = (n.name for n in s_graph.subgraph_inputs),
+                    outputs_names = (f's_out{i}' for i in range(len(s_graph.subgraph_outputs))),
+                )
+                e_graph = IOGraph(
+                    (n for n in s_graph.nodes),
+                    inputs_names = (n.name for n in rem),
+                    outputs_names = (f's_out{i}' for i in range(len(s_graph.subgraph_outputs))),
+                )
+                print(123)
+            # print(123,e_graph.inputs, s_graph.inputs)
 
             # define template (and constraints)
             template_timer, define_template = Timer.from_function(get_templater(specs_obj).define)
@@ -179,6 +224,7 @@ def explore_grid(specs_obj: Specifications):
                 # prevent parameters combination if any
                 if len(models) > 0: c_graph = prevent_combination(c_graph, model)
                 # run solver
+                # print(123,e_graph.inputs, p_graph.inputs)
                 status, model = solve((e_graph, p_graph, c_graph), specs_obj)
                 # terminate if status is not sat, otherwise store the models
                 if status != 'sat': break
@@ -211,7 +257,42 @@ def explore_grid(specs_obj: Specifications):
 
                 for model_number, model in enumerate(models):
                     # finalize approximate graph
-                    a_graph = set_bool_constants(p_graph, model)
+                    # if v2:
+                    #     s_graph_complete = sgraph_from_legacy(current_graph)
+                    #     s_graph_complete = SGraph(
+                    #         it.chain(
+                    #             (n for n in s_graph_complete.nodes if not n.in_subgraph),
+                    #             (n for n in s_graph.nodes if not isinstance(n, BoolVariable))
+                    #         ),
+                    #         inputs_names = (n.name for n in s_graph.subgraph_inputs),
+                    #         outputs_names = (f'out{i}' for i in range(len(s_graph.subgraph_outputs))),
+                    #     )
+                    a_graph = set_bool_constants(p_graph, model, skip_missing=True)
+                    # print('a_graph')
+                    # for n in a_graph.nodes:
+                    #     print(n)
+                    # print(a_graph.inputs)
+                    # for n in a_graph.nodes:
+                    #     # if not n.name in a_graph.inputs:
+                    #     print(n)
+                    if v2:
+                        s_graph_complete = sgraph_from_legacy(current_graph)
+                        updated_nodes = dict()
+                        for i, out_node in enumerate(s_graph_complete.subgraph_outputs):
+                            for succ in filter(lambda n: not n.in_subgraph, s_graph_complete.successors(out_node)):
+                                new_operands = iterable_replace(succ.operands, succ.operands.index(out_node.name), f'a_s_out{i}')
+                                updated_nodes[succ.name] = succ.copy(operands=new_operands)
+                        a_graph = SGraph(
+                            it.chain(
+                                (n for n in s_graph_complete.nodes if not n.in_subgraph and not n.name in updated_nodes),
+                                (n for n in a_graph.nodes if not n.name in s_graph_complete or not s_graph_complete[n.name] in s_graph_complete.subgraph_inputs),
+                                updated_nodes.values(),
+                            ),
+                            inputs_names = (n.name for n in s_graph_complete.inputs),
+                            outputs_names = (n.name for n in s_graph_complete.outputs),
+                        )
+                    # for n in a_graph.nodes:
+                    #     print(n)
 
                     # export approximate graph as verilog
                     # TODO:#15: use serious name generator
@@ -426,6 +507,7 @@ def get_toolname(specs_obj: Specifications) -> str:
         (False, TemplateType.SHARED): ('Shared XPAT', sxpatconfig.SHARED_XPAT),
         (True, TemplateType.NON_SHARED): ('SubXPAT', sxpatconfig.SUBXPAT),
         (True, TemplateType.SHARED): ('Shared SubXPAT', sxpatconfig.SHARED_SUBXPAT),
+        (True, TemplateType.V2): ('v2', sxpatconfig.V2)
     }[(specs_obj.subxpat, specs_obj.template)]
 
     pprint.info2(f'{message} started...')
