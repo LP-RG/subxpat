@@ -8,7 +8,6 @@ import csv
 import time
 import math
 import networkx as nx
-
 from Z3Log.config import path as z3logpath
 
 from sxpat.labeling import labeling_explicit
@@ -43,16 +42,20 @@ def explore_grid(specs_obj: Specifications):
 
     # initial setup
     exact_file_path = f'{sxpatpaths.INPUT_PATH["ver"][0]}/{specs_obj.exact_benchmark}.v'
-
     # create stat and template object
     stats_obj = Stats(specs_obj)
-
     obtained_wce_exact = 0
     specs_obj.iteration = 0
     persistance = 0
     persistance_limit = specs_obj.persistance
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
+
+    if(specs_obj.extraction_mode == 0):
+            try:
+                max_out_node = int(specs_obj.exact_benchmark[-2:])
+            except:
+                max_out_node = int(specs_obj.exact_benchmark[-1:])
 
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error if specs_obj.zone_constraint is None else 100
@@ -65,7 +68,10 @@ def explore_grid(specs_obj: Specifications):
     elif specs_obj.error_partitioning is ErrorPartitioningType.EXPONENTIAL:
         et_array = iter([2**i for i in range(8)])
 
-    while (obtained_wce_exact <= specs_obj.max_error):
+    while (obtained_wce_exact <= specs_obj.max_error or (specs_obj.extraction_mode != 0)): 
+        if(specs_obj.extraction_mode == 0 and max_out_node == specs_obj.out_node):
+            pprint.warning('The error space is exhausted!')
+            break
         specs_obj.iteration += 1
         if not specs_obj.subxpat:
             if prev_actual_error == 0:
@@ -242,7 +248,7 @@ def explore_grid(specs_obj: Specifications):
                     candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2], specs_obj.metric, specs_obj.zone_constraint)
                     candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2], specs_obj.metric, specs_obj.zone_constraint)
                     error = specs_obj.et if specs_obj.metric is MetricType.ABSOLUTE else specs_obj.max_error
-                    if candidate_data[4] > error:
+                    if candidate_data[4] > error and specs_obj.zone_constraint is None:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
                         stats_obj.store_grid()
                         return stats_obj

@@ -405,6 +405,11 @@ class AnnotatedGraph(Graph):
 
         ancestors_output = nx.ancestors(self.graph, output_node_label)
 
+        if(len([node for node in ancestors_output if node.startswith("g")]) == 1):
+            specs_obj.out_node +=1
+            output_node_label = self.output_dict.get(specs_obj.out_node)
+            ancestors_output = nx.ancestors(self.graph, output_node_label)
+            
         for in_idx in self.input_dict:
             node_label = self.input_dict[in_idx]
             node = Node.mk_node(BitVecVal(in_idx, 32), Bool(f'{node_label}'))
