@@ -124,7 +124,7 @@ def explore_grid(specs_obj: Specifications):
             et_coefficient = 1
 
             label_timer, _label_graph = Timer.from_function(label_graph)
-            _label_graph(current_graph,
+            _label_graph(exact_graph, current_graph,
                          min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
                          et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel)
             print(f'labeling_time = {(labeling_time := label_timer.total)}')
@@ -157,6 +157,7 @@ def explore_grid(specs_obj: Specifications):
             continue
 
         if v2:
+            specs_obj.template = TemplateType.V2
             e_graph = iograph_from_legacy(exact_graph)
             s_graph = sgraph_from_legacy(current_graph)
 
@@ -175,7 +176,9 @@ def explore_grid(specs_obj: Specifications):
 
             specs_obj.template = TemplateType.NON_SHARED
 
+            temp = specs_obj.et
             specs_obj.et = v2_et
+            v2_et = temp
 
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
@@ -194,7 +197,6 @@ def explore_grid(specs_obj: Specifications):
             e_graph = iograph_from_legacy(exact_graph)
             s_graph = sgraph_from_legacy(current_graph)
             if v2:
-                print(123)
                 rem = s_graph.subgraph_inputs
                 s_graph = SGraph(
                     it.chain(
@@ -210,8 +212,6 @@ def explore_grid(specs_obj: Specifications):
                     inputs_names = (n.name for n in rem),
                     outputs_names = (f's_out{i}' for i in range(len(s_graph.subgraph_outputs))),
                 )
-                print(123)
-            # print(123,e_graph.inputs, s_graph.inputs)
 
             # define template (and constraints)
             template_timer, define_template = Timer.from_function(get_templater(specs_obj).define)
@@ -224,7 +224,6 @@ def explore_grid(specs_obj: Specifications):
                 # prevent parameters combination if any
                 if len(models) > 0: c_graph = prevent_combination(c_graph, model)
                 # run solver
-                # print(123,e_graph.inputs, p_graph.inputs)
                 status, model = solve((e_graph, p_graph, c_graph), specs_obj)
                 # terminate if status is not sat, otherwise store the models
                 if status != 'sat': break
@@ -256,25 +255,9 @@ def explore_grid(specs_obj: Specifications):
                 cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
 
                 for model_number, model in enumerate(models):
-                    # finalize approximate graph
-                    # if v2:
-                    #     s_graph_complete = sgraph_from_legacy(current_graph)
-                    #     s_graph_complete = SGraph(
-                    #         it.chain(
-                    #             (n for n in s_graph_complete.nodes if not n.in_subgraph),
-                    #             (n for n in s_graph.nodes if not isinstance(n, BoolVariable))
-                    #         ),
-                    #         inputs_names = (n.name for n in s_graph.subgraph_inputs),
-                    #         outputs_names = (f'out{i}' for i in range(len(s_graph.subgraph_outputs))),
-                    #     )
+
                     a_graph = set_bool_constants(p_graph, model, skip_missing=True)
-                    # print('a_graph')
-                    # for n in a_graph.nodes:
-                    #     print(n)
-                    # print(a_graph.inputs)
-                    # for n in a_graph.nodes:
-                    #     # if not n.name in a_graph.inputs:
-                    #     print(n)
+                    
                     if v2:
                         s_graph_complete = sgraph_from_legacy(current_graph)
                         updated_nodes = dict()
@@ -291,8 +274,8 @@ def explore_grid(specs_obj: Specifications):
                             inputs_names = (n.name for n in s_graph_complete.inputs),
                             outputs_names = (n.name for n in s_graph_complete.outputs),
                         )
-                    # for n in a_graph.nodes:
-                    #     print(n)
+
+                        specs_obj.et = v2_et
 
                     # export approximate graph as verilog
                     # TODO:#15: use serious name generator
@@ -490,7 +473,7 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         csvwriter.writerow(approx_data)
 
 
-def label_graph(current_graph: AnnotatedGraph,
+def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph,
                 min_labeling: bool = False, partial: bool = False,
                 et: int = -1, parallel: bool = False):
     labels, _ = labeling_explicit(current_graph.name, current_graph.name,
