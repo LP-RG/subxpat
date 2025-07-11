@@ -69,14 +69,14 @@ def explore_grid(specs_obj: Specifications):
         et_array = iter([2**i for i in range(8)])
 
     while (obtained_wce_exact <= specs_obj.max_error or (specs_obj.extraction_mode != 0)): 
-        if(specs_obj.extraction_mode == 0 and max_out_node == specs_obj.out_node):
-            pprint.warning('The error space is exhausted!')
-            break
         specs_obj.iteration += 1
         if not specs_obj.subxpat:
             if prev_actual_error == 0:
                 break
             specs_obj.et = specs_obj.max_error
+        elif(specs_obj.extraction_mode == 0 and max_out_node == specs_obj.out_node):
+            pprint.warning('The error space is exhausted!')
+            break
         elif (
             specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING
             or specs_obj.error_partitioning is ErrorPartitioningType.EXPONENTIAL
