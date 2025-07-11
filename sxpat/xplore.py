@@ -44,6 +44,7 @@ def explore_grid(specs_obj: Specifications):
     exact_file_path = f'{sxpatpaths.INPUT_PATH["ver"][0]}/{specs_obj.exact_benchmark}.v'
     # create stat and template object
     stats_obj = Stats(specs_obj)
+    specs_obj.et = specs_obj.max_error
     obtained_wce_exact = 0
     specs_obj.iteration = 0
     persistance = 0
@@ -68,15 +69,16 @@ def explore_grid(specs_obj: Specifications):
     elif specs_obj.error_partitioning is ErrorPartitioningType.EXPONENTIAL:
         et_array = iter([2**i for i in range(8)])
 
-    while (obtained_wce_exact <= specs_obj.max_error or (specs_obj.extraction_mode != 0)): 
+    while (obtained_wce_exact <= specs_obj.max_error or (specs_obj.extraction_mode == 0)): 
         specs_obj.iteration += 1
         if not specs_obj.subxpat:
             if prev_actual_error == 0:
                 break
             specs_obj.et = specs_obj.max_error
-        elif(specs_obj.extraction_mode == 0 and max_out_node == specs_obj.out_node):
-            pprint.warning('The error space is exhausted!')
-            break
+        elif(specs_obj.extraction_mode == 0):
+            if(max_out_node == specs_obj.out_node):
+                pprint.warning('The error space is exhausted!')
+                break
         elif (
             specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING
             or specs_obj.error_partitioning is ErrorPartitioningType.EXPONENTIAL
