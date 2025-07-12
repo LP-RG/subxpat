@@ -1,8 +1,11 @@
 from __future__ import annotations
+from typing import Callable, Generator, Generic, Iterable, Iterator, Literal, Mapping, Tuple, Type, TypeVar, Union, overload
 from collections import UserDict
-from typing import Callable, Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union, overload
 
 import itertools as it
+import math
+
+from sxpat.utils.decorators import static_storage
 
 
 __all__ = [
@@ -138,3 +141,43 @@ def first(predicate: Callable[[T], bool], iterable: Iterable[T], default: V = NO
     element = next(filter(predicate, iterable), default)
     if element is NOTHING: raise MatchingElementError('No matching element was found.')
     return element
+
+
+@overload
+def formatted_int_range(stop: int,
+                        /, *, base: Literal['b', 'o', 'd', 'x', 'X'] = 'd') -> Generator[str]:
+    """
+        Returns a generator of formatted integers from 0 to `stop` (exclusive) with step 1.
+
+        `stop` cannot be negative.
+    """
+
+
+@overload
+def formatted_int_range(start: int, stop: int, step: int = 1,
+                        /, *, base: Literal['b', 'o', 'd', 'x', 'X'] = 'd') -> Generator[str]:
+    """
+        Returns a generator of formatted integers from `start` (inclusive) to `stop` (exclusive) with step `step`.
+
+        `start` and `stop` cannot be negative.
+    """
+
+
+@static_storage(True, mapping={'b': 2, 'o': 8, 'd': 10, 'x': 16, 'X': 16})
+def formatted_int_range(self, start: int = 0, stop: int = None, step: int = 1,
+                        /, *, base: Literal['b', 'o', 'd', 'x', 'X'] = 'd') -> Generator[str]:
+
+    # set limits if partial
+    if stop is None:
+        stop = start
+        start = 0
+
+    # find largest limit
+    maximum = start
+    if (stop is not None) and (stop > maximum): maximum = stop
+
+    # compute adjustment length
+    length = math.ceil(math.log(maximum, self.mapping[base]))
+
+    # generate numbers
+    yield from (f'{i:0{length}{base}}' for i in range(start, stop, step))
