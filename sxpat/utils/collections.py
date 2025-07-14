@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable, Generator, Generic, Iterable, Iterator, Literal, Mapping, Tuple, Type, TypeVar, Union, overload
+from typing import Callable, Generator, Generic, Iterable, Iterator, Literal, Mapping, MutableMapping, Optional, Tuple, Type, TypeVar, Union, overload
 from collections import UserDict
 
 import itertools as it
@@ -22,15 +22,29 @@ V = TypeVar('V')
 T = TypeVar('T')
 
 
-def mapping_inv(mapping: Mapping[K, V], value: V, default: K = NOTHING) -> K:
+@overload
+def mapping_inv(mapping: Mapping[K, V], value: V) -> K:
     """
         Given a mapping, returns the key associated to the first occurrance of the value.
-        If the value never occurs in the mapping, returns the default if given or raise an exception.
+        If the value never occurs in the mapping, raises an exception.
+    """
 
-        @note: if we move to an invertible mapping (eg. bidict) this will not be needed anymore
+
+@overload
+def mapping_inv(mapping: Mapping[K, V], value: V, default: T) -> Union[K, T]:
+    """
+        Given a mapping, returns the key associated to the first occurrance of the value.
+        If the value never occurs in the mapping, returns the given default.
+    """
+
+
+def mapping_inv(mapping: Mapping[K, V], value: V, default = NOTHING) -> Union[K, T]:
+    """
+        @note: if we move to an invertible mapping (eg. `bidict`) this will not be needed anymore
 
         @authors: Marco Biasion
     """
+
     key = next((k for (k, v) in mapping.items() if v == value), default)
     if key is NOTHING: raise ValueError('The value does not match with any pair in the mapping.')
     return key
@@ -68,14 +82,19 @@ def flat(iterable:
         else: yield i
 
 
-def pairwise(iterable: Iterable[T]) -> Iterator[Tuple[T, T]]:
+def pairwise(iterable: Iterable[T]) -> Generator[Tuple[T, T]]:
     """
         example: `pairwise((1,2,3,4))` -> `(1,2) (2,3) (3,4)`.  
         credits: https://docs.python.org/3.12/library/itertools.html#itertools.pairwise
     """
 
     iterator = iter(iterable)
-    a = next(iterator, None)
+
+    # get first element or terminate
+    try: a = next(iterator)
+    except StopIteration: return
+
+    # generate all pairs
     for b in iterator:
         yield a, b
         a = b
@@ -92,30 +111,76 @@ class MultiDict(UserDict, Generic[K, V]):
         @authors: Marco Biasion
     """
 
-    def __init__(self, mapping: Mapping[Iterable[K], V] = None) -> None:
+    def __init__(self, mapping: Optional[Mapping[Iterable[K], V]] = None) -> None:
         super().__init__()
 
         if mapping is None: return
-        for ks, v in mapping.items(): self.__setitem__(ks, v)
+        for (ks, v) in mapping.items(): self.__setitem__(ks, v)
 
     def __setitem__(self, key: Iterable[K], value: V) -> None:
         for k in key: self.data[k] = value
 
 
-class InheritanceMapping(MultiDict[Type, V]):
+class InheritanceMapping(MutableMapping[Type, V]):
     """
         A dictionary-like mapping from a type to a value, implicitly mapping all subclasses to the same value.
 
         @authors: Marco Biasion
     """
 
-    def __init__(self, mapping: Mapping[Type, V] = None) -> None:
-        super().__init__(mapping)
+    def __init__(self, mapping: Optional[Mapping[Type, V]] = None) -> None:
+        self.data: MultiDict[Type, V] = MultiDict()
+
+        if mapping is None: return
+        for (k, v) in mapping.items(): self.__setitem__(k, v)
+
+    # custom implementations
 
     def __setitem__(self, key: Type, value: V) -> None:
-        subtypes = [key]
-        for t in subtypes: subtypes.extend(t.__subclasses__())
-        super().__setitem__(frozenset(subtypes), value)
+        """Adds a mapping from the given type (and all subtypes) to the given value."""
+        # note: after a bit of testing this is still one of the most efficient approaches (tried: list, queue+set, stack+set)
+        #       if the overlapping of subtypes is low, the `list`` approach is faster
+        #       if the overlapping of subtypes is relevant, the `stack+set`` approach is faster
+
+        # list
+        seen = [key]
+        for t in seen: seen.extend(t.__subclasses__())
+        self.data[frozenset(seen)] = value
+
+        # stack+set
+        # to_check = [first]
+        # seen = set()
+        # while len(to_check) > 0:
+        #     t = to_check.pop()
+        #     if t in seen: continue
+        #     seen.add(t)
+        #     to_check.extend(next(t))
+        # self.data[seen] = value
+
+    # composed from MultiDict(UserDict)
+    def __len__(self) -> int: return self.data.__len__()
+    def __getitem__(self, key: Type) -> V: return self.data.__getitem__(key)
+    # def __setitem__(...) # custom implemented
+    def __delitem__(self, key: Type) -> None: return self.data.__delitem__(key)
+    def __iter__(self) -> Iterator[Type]: return self.data.__iter__()
+    def __contains__(self, key) -> bool: return self.data.__contains__(key)
+    def __repr__(self) -> str: return self.data.__repr__()
+
+    # inherited from abc.Mapping
+    # def get(...)           # default implementation is acceptable
+    # def __contains__(...)  # composed from MultiDict
+    # def keys(...)          # default implementation is acceptable
+    # def items(...)         # default implementation is acceptable
+    # def values(...)        # default implementation is acceptable
+    # def __eq__(...)        # default implementation is acceptable
+    # def __ne__(...)        # default implementation is acceptable
+
+    # inherited from abc.MutableMapping
+    # def pop(...)         # default implementation is acceptable
+    # def popitem(...)     # default implementation is acceptable
+    # def clear(...)       # default implementation is acceptable
+    # def update(...)      # default implementation is acceptable
+    # def setdefault(...)  # default implementation is acceptable
 
 
 class MatchingElementError(LookupError): """Matching element not found."""
@@ -137,7 +202,7 @@ def first(predicate: Callable[[T], bool], iterable: Iterable[T], default: V) -> 
     """
 
 
-def first(predicate: Callable[[T], bool], iterable: Iterable[T], default: V = NOTHING) -> Union[T, V]:
+def first(predicate: Callable[[T], bool], iterable: Iterable[T], default = NOTHING) -> Union[T, V]:
     element = next(filter(predicate, iterable), default)
     if element is NOTHING: raise MatchingElementError('No matching element was found.')
     return element
@@ -164,7 +229,7 @@ def formatted_int_range(start: int, stop: int, step: int = 1,
 
 
 @static_storage(True, mapping={'b': 2, 'o': 8, 'd': 10, 'x': 16, 'X': 16})
-def formatted_int_range(self, start: int = 0, stop: int = None, step: int = 1,
+def formatted_int_range(self, start: int = 0, stop: Optional[int] = None, step: int = 1,
                         /, *, base: Literal['b', 'o', 'd', 'x', 'X'] = 'd') -> Generator[str]:
 
     # set limits if partial
