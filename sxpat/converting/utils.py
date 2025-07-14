@@ -5,6 +5,7 @@ import math
 import itertools as it
 
 from sxpat.graph import *
+from sxpat.graph.node import *
 
 
 __all__ = [
@@ -21,7 +22,7 @@ __all__ = [
 T_type = TypeVar('T_type', bound=type)
 
 
-def unpack_ToInt(graph: _Graph) -> _Graph:
+def unpack_ToInt(graph: T_Graph) -> T_Graph:
     """
         Given a graph, returns a new graph with all ToInt nodes unpacked to a more primitive set of nodes.
 
@@ -77,7 +78,7 @@ def unpack_ToInt(graph: _Graph) -> _Graph:
     return graph.copy(nodes)
 
 
-def prune_unused(graph: _Graph) -> _Graph:
+def prune_unused(graph: T_Graph) -> T_Graph:
     """
         Given a graph, returns a new graph without any dangling nodes (recursive).
         Nodes counted as correct terminations are nodes of class `Identity` or of subclasses of `Variable`.
@@ -195,7 +196,7 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
         return get_nodes_bitwidth(graphs, nodes_types, bitwidth_of)
 
 
-def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missing: bool = False) -> _Graph:
+def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missing: bool = False) -> T_Graph:
     """
         Takes a graph and a mapping from names to bool in input
         and returns a new graph with the nodes corresponding to the given names replaced with the wanted constant.
@@ -221,7 +222,7 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missin
     return graph.copy(new_nodes.values())
 
 
-def set_prefix(graph: _Graph, prefix: str) -> _Graph:
+def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
     """
         Given a graph and the wanted prefix, returns a new graph with all operation nodes updated with the prefix.
 

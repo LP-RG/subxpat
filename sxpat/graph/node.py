@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import Any, Optional, Tuple, Generic, TypeVar, Union
-from typing_extensions import Self
+from typing import Any, Optional, Sequence, Tuple, Generic, TypeVar, Union
+from typing_extensions import Self, TypeAlias
 
 import dataclasses as dc
 
@@ -138,12 +138,20 @@ class Operation(__Base):
 
     operands: Tuple[str, ...]
 
-    def __post_init__(self):
-        super().__post_init__()
+    def __init__(self, operands: Sequence[Union[str, Node]]):
+        # TODO: ???
+        super().__init__()
         object.__setattr__(
             self, 'operands',
-            tuple(i.name if isinstance(i, Node) else i for i in self.operands)
+            tuple(i.name if isinstance(i, Node) else i for i in operands)
         )
+
+    # def __post_init__(self):
+    #     super().__post_init__()
+    #     object.__setattr__(
+    #         self, 'operands',
+    #         tuple(i.name if isinstance(i, Node) else i for i in self.operands)
+    #     )
 
     def _check_operands_count(self, required_count: int) -> None:
         if len(self.operands) != required_count:
@@ -377,6 +385,7 @@ class Or(Extras, Operation, BoolResType, Expression, Node):
         Boolean disjunction ( `a or b or ...` ) expression.  
         This node can have any amount of operands.
     """
+
 
 @dc.dataclass(frozen=True)
 class Xor(Extras, Limited2Operation, BoolResType, Expression, Node):
@@ -634,43 +643,43 @@ class ForAll(Operation, GlobalTask, Node):
 # > aliases
 
 
-VariableNode = Union[Extras, Variable, Node]
+VariableNode: TypeAlias = Union[Extras, Variable, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.
 """
 
-ValuedNode = Union[Valued, Node]
+ValuedNode: TypeAlias = Union[Valued, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.
 """
 
-ConstantNode = Union[Extras, Constant, Node]
+ConstantNode: TypeAlias = Union[Extras, Constant, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.
 """
 
-OperationNode = Union[Operation, Node]
+OperationNode: TypeAlias = Union[Operation, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.
 """
 
-ExpressionNode = Union[Extras, Expression, Operation, Node]
+ExpressionNode: TypeAlias = Union[Extras, Expression, Operation, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.
 """
 
-ObjectiveNode = Union[Objective, Operation, Node]
+ObjectiveNode: TypeAlias = Union[Objective, Operation, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.
 """
 
-GlobalTaskNode = Union[GlobalTask, Operation, Node]
+GlobalTaskNode: TypeAlias = Union[GlobalTask, Operation, Node]
 """
     **JUST A TYPING ALIAS**  
     Never use it for anything other than type annotations.

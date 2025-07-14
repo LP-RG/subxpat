@@ -7,12 +7,13 @@ import networkx as nx
 import functools as ft
 import itertools as it
 
-from .Node import (
+from .node import (
     Expression, Extras, Node, Operation, Constant, GlobalTask,
     #
     BoolVariable, PlaceHolder,
     Target, Constraint,
     #
+    T_AnyNode,
     OperationNode, ConstantNode, GlobalTaskNode, ExpressionNode,
 )
 from .error import UndefinedNodeError
@@ -25,7 +26,7 @@ __all__ = [
     'IOGraph', 'SGraph', 'PGraph',
     'CGraph',
     #
-    '_Graph',
+    'T_Graph',
 ]
 
 
@@ -35,7 +36,7 @@ class Graph:
     K = object()
     EXTRAS: Sequence[str] = ()
 
-    def __init__(self, nodes: Iterable[Node]) -> None:
+    def __init__(self, nodes: Iterable[T_AnyNode]) -> None:
         """
             Creates a new graph from the given nodes.
 
@@ -138,7 +139,7 @@ class Graph:
         return node_or_name.name if isinstance(node_or_name, Node) else node_or_name
 
 
-_Graph = TypeVar('_Graph', bound=Graph)
+T_Graph = TypeVar('T_Graph', bound=Graph)
 
 
 class IOGraph(Graph):
@@ -146,7 +147,7 @@ class IOGraph(Graph):
 
     EXTRAS: Sequence[str] = ('inputs_names', 'outputs_names')
 
-    def __init__(self, nodes: Iterable[Node],
+    def __init__(self, nodes: Iterable[T_AnyNode],
                  inputs_names: Sequence[str], outputs_names: Sequence[str]
                  ) -> None:
         # construct base
@@ -241,7 +242,7 @@ class PGraph(SGraph):
 
     EXTRAS: Sequence[str] = (*SGraph.EXTRAS, 'parameters_names')
 
-    def __init__(self, nodes: Iterable[Node],
+    def __init__(self, nodes: Iterable[T_AnyNode],
                  inputs_names: Sequence[str], outputs_names: Sequence[str],
                  parameters_names: Sequence[str],
                  ) -> None:

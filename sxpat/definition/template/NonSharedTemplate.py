@@ -6,6 +6,7 @@ from .Template import Template
 
 from sxpat.converting import set_prefix
 from sxpat.graph import *
+from sxpat.graph.node import *
 from sxpat.specifications import ConstantsType, Specifications
 from sxpat.utils.collections import flat, iterable_replace, pairwise
 

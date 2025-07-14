@@ -11,8 +11,8 @@ import itertools as it
 
 from Z3Log.config import path as z3logpath
 
-from sxpat.graph.Graph import *
-from sxpat.graph.Node import *
+from sxpat.graph import IOGraph, SGraph
+from sxpat.graph.node import BoolVariable, Identity
 from sxpat.labeling import labeling_explicit
 from sxpat.metrics import MetricsEstimator
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
@@ -190,7 +190,7 @@ def explore_grid(specs_obj: Specifications):
 
             if status == 'unsat':
                 v2_et = sum((n.weight for n in s_graph.subgraph_outputs))
-            
+
             elif status == 'sat':
                 v2_et = model['sum_s_out'] - 1
 
@@ -224,13 +224,13 @@ def explore_grid(specs_obj: Specifications):
                         (BoolVariable(n.name) for n in s_graph.subgraph_inputs),
                         (Identity(f's_out{i}', operands=(n.name,)) for i, n in enumerate(s_graph.subgraph_outputs)),
                     ),
-                    inputs_names = (n.name for n in s_graph.subgraph_inputs),
-                    outputs_names = (f's_out{i}' for i in range(len(s_graph.subgraph_outputs))),
+                    inputs_names=(n.name for n in s_graph.subgraph_inputs),
+                    outputs_names=(f's_out{i}' for i in range(len(s_graph.subgraph_outputs))),
                 )
                 e_graph = IOGraph(
                     (n for n in s_graph.nodes),
-                    inputs_names = (n.name for n in rem),
-                    outputs_names = (f's_out{i}' for i in range(len(s_graph.subgraph_outputs))),
+                    inputs_names=(n.name for n in rem),
+                    outputs_names=(f's_out{i}' for i in range(len(s_graph.subgraph_outputs))),
                 )
 
             # define template (and constraints)
@@ -277,7 +277,7 @@ def explore_grid(specs_obj: Specifications):
                 for model_number, model in enumerate(models):
 
                     a_graph = set_bool_constants(p_graph, model, skip_missing=True)
-                    
+
                     if v2:
                         s_graph_complete = sgraph_from_legacy(current_graph)
                         updated_nodes = dict()
@@ -291,8 +291,8 @@ def explore_grid(specs_obj: Specifications):
                                 (n for n in a_graph.nodes if not n.name in s_graph_complete or not s_graph_complete[n.name] in s_graph_complete.subgraph_inputs),
                                 updated_nodes.values(),
                             ),
-                            inputs_names = (n.name for n in s_graph_complete.inputs),
-                            outputs_names = (n.name for n in s_graph_complete.outputs),
+                            inputs_names=(n.name for n in s_graph_complete.inputs),
+                            outputs_names=(n.name for n in s_graph_complete.outputs),
                         )
 
                         specs_obj.et = v2_et

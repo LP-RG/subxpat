@@ -13,6 +13,7 @@ from .Solver import Solver
 
 from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.graph import *
+from sxpat.graph.node import *
 
 import sxpat.config.config as sxpat_cfg
 
