@@ -21,7 +21,7 @@ class v2Phase1:
 
         variables: List[BoolVariable] = []
         outs: List[If] = []
-        updated_nodes: Dict[str, OperationNode] = dict()
+        updated_nodes: Dict[str, AnyOperation] = dict()
         others = []
 
         for (out_i, out_node) in enumerate(a_graph.subgraph_outputs):

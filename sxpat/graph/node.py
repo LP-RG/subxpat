@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Optional, Sequence, Tuple, Generic, TypeVar, Union
+from typing import Any, Optional, Tuple, Generic, TypeVar, Union
 from typing_extensions import Self, TypeAlias
 
 import dataclasses as dc
@@ -49,18 +49,20 @@ __all__ = [
     'AtLeast', 'AtMost',
 
     # > solver nodes
-    'Objective', 'GlobalTask',
+    'Objective', 'LocalObjective', 'GlobalTask',
     # objectives
     'Target', 'Constraint',
     # global tasks
     'Min', 'Max', 'ForAll',
 
-    # > aliases
-    'VariableNode', 'ValuedNode', 'ConstantNode',
-    'OperationNode', 'ExpressionNode',
-    'ObjectiveNode', 'GlobalTaskNode',
-
-    'T_AnyNode',
+    # > Typing help
+    'AnyNode', 'T_AnyNode',
+    'AnyVariable', 'T_AnyVariable',
+    'AnyConstant', 'T_AnyConstant',
+    'AnyOperation', 'T_AnyOperation',
+    'AnyExpression', 'T_AnyExpression',
+    'AnyObjective', 'T_AnyObjective',
+    'AnyGlobalObjective', 'T_AnyGlobalObjective',
 
     # > nodes groups
     'contact_nodes', 'origin_nodes', 'end_nodes',
@@ -138,20 +140,12 @@ class Operation(__Base):
 
     operands: Tuple[str, ...]
 
-    def __init__(self, operands: Sequence[Union[str, Node]]):
-        # TODO: ???
-        super().__init__()
+    def __post_init__(self):
+        super().__post_init__()
         object.__setattr__(
             self, 'operands',
-            tuple(i.name if isinstance(i, Node) else i for i in operands)
+            tuple(i.name if isinstance(i, Node) else i for i in self.operands)
         )
-
-    # def __post_init__(self):
-    #     super().__post_init__()
-    #     object.__setattr__(
-    #         self, 'operands',
-    #         tuple(i.name if isinstance(i, Node) else i for i in self.operands)
-    #     )
 
     def _check_operands_count(self, required_count: int) -> None:
         if len(self.operands) != required_count:
@@ -558,10 +552,7 @@ class AtMost(Extras, Valued[int], Operation, BoolResType, Expression, Node):
     """
 
 
-# > solver nodes
-
-
-# objective nodes
+# > solver objective nodes
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
@@ -573,8 +564,20 @@ class Objective(EndPoint):
     """
 
 
+# local objective nodes
+
+
+@dc.dataclass(frozen=True, init=False, repr=False, eq=False)
+class LocalObjective(Objective):
+    """
+        An object representing a local solver objective (eg. model target, asserted constraint).
+
+        *abtract*
+    """
+
+
 @dc.dataclass(frozen=True)
-class Target(Limited1Operation, Objective, Node):
+class Target(Limited1Operation, LocalObjective, Node):
     """
         Special solver node: specifies a node which value must be returned when solving.  
         The only operand represents the value to return.
@@ -590,7 +593,7 @@ class Target(Limited1Operation, Objective, Node):
 
 
 @dc.dataclass(frozen=True)
-class Constraint(Limited1Operation, Objective, Node):
+class Constraint(Limited1Operation, LocalObjective, Node):
     """
         Special solver node: specifies a node which value must be asserted when solving.  
         The only operand represents the value to assert.
@@ -605,13 +608,13 @@ class Constraint(Limited1Operation, Objective, Node):
         )
 
 
-# global task nodes
+# global objective nodes
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
 class GlobalTask(Objective):
     """
-        An object representing a global solver task (eg. min/maximization, forall quantification).
+        An object representing a global solver objective/task (eg. min/maximization, forall quantification).
 
         *abstract*
     """
@@ -640,65 +643,76 @@ class ForAll(Operation, GlobalTask, Node):
     """
 
 
-# > aliases
+# > Typing help
+# node
+AnyNode: TypeAlias = Union[
+    # variable
+    BoolVariable, IntVariable,
+    # constant
+    IntConstant, BoolConstant,
+    # expression
+    Not, And, Or, Xor, Implies,
+    Sum, AbsDiff,
+    ToInt,
+    Equals, NotEquals, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,
+    Identity,
+    Multiplexer, If,
+    AtLeast, AtMost,
+    # objective
+    Target, Constraint,
+    Min, Max, ForAll,
+]
+T_AnyNode = TypeVar('T_AnyNode', bound=AnyNode)
 
+# variable
+AnyVariable: TypeAlias = Union[
+    BoolVariable, IntVariable,
+]
+T_AnyVariable = TypeVar('T_AnyVariable', bound=AnyVariable)
 
-VariableNode: TypeAlias = Union[Extras, Variable, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
+# constant
+AnyConstant: TypeAlias = Union[
+    IntConstant, BoolConstant,
+]
+T_AnyConstant = TypeVar('T_AnyConstant', bound=AnyConstant)
 
-ValuedNode: TypeAlias = Union[Valued, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
+# operation
+AnyOperation: TypeAlias = Union[
+    # expression
+    Not, And, Or, Xor, Implies,
+    Sum, AbsDiff,
+    ToInt,
+    Equals, NotEquals, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,
+    Identity,
+    Multiplexer, If,
+    AtLeast, AtMost,
+    # objective
+    Target, Constraint,
+    Min, Max, ForAll,
+]
+T_AnyOperation = TypeVar('T_AnyOperation', bound=AnyOperation)
 
-ConstantNode: TypeAlias = Union[Extras, Constant, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
+# expression
+AnyExpression: TypeAlias = Union[
+    Not, And, Or, Xor, Implies,
+    Sum, AbsDiff,
+    ToInt,
+    Equals, NotEquals, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,
+    Identity,
+    Multiplexer, If,
+    AtLeast, AtMost,
+]
+T_AnyExpression = TypeVar('T_AnyExpression', bound=AnyExpression)
 
-OperationNode: TypeAlias = Union[Operation, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
+# objective
+AnyObjective: TypeAlias = Union[
+    Target, Constraint,
+    Min, Max, ForAll,
+]
+T_AnyObjective = TypeVar('T_AnyObjective', bound=AnyObjective)
 
-ExpressionNode: TypeAlias = Union[Extras, Expression, Operation, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
-
-ObjectiveNode: TypeAlias = Union[Objective, Operation, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
-
-GlobalTaskNode: TypeAlias = Union[GlobalTask, Operation, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
-
-
-# > type variables
-T_AnyNode = TypeVar('T_AnyNode', Node, Valued, Operation, Limited1Operation, Limited2Operation, Limited3Operation)
-
-
-# > other groups
-#
-contact_nodes = (PlaceHolder,)
-"""DEPRECATED: will be removed in a future update"""
-#
-origin_nodes = (BoolVariable, BoolConstant, IntVariable, IntConstant,)
-"""DEPRECATED: will be removed in a future update"""
-end_nodes = (Identity, Target, Constraint)
-"""DEPRECATED: will be removed in a future update"""
-# asdasdas
-global_solver_nodes = (Min, Max, ForAll)
-"""DEPRECATED: will be removed in a future update"""
+# global objective/task
+AnyGlobalObjective: TypeAlias = Union[
+    Min, Max, ForAll,
+]
+T_AnyGlobalObjective = TypeVar('T_AnyGlobalObjective', bound=AnyGlobalObjective)

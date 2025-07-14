@@ -13,8 +13,7 @@ from .node import (
     BoolVariable, PlaceHolder,
     Target, Constraint,
     #
-    T_AnyNode,
-    OperationNode, ConstantNode, GlobalTaskNode, ExpressionNode,
+    AnyNode, AnyConstant, AnyOperation, AnyExpression, AnyGlobalObjective,
 )
 from .error import UndefinedNodeError
 
@@ -36,7 +35,7 @@ class Graph:
     K = object()
     EXTRAS: Sequence[str] = ()
 
-    def __init__(self, nodes: Iterable[T_AnyNode]) -> None:
+    def __init__(self, nodes: Iterable[AnyNode]) -> None:
         """
             Creates a new graph from the given nodes.
 
@@ -113,7 +112,7 @@ class Graph:
         ))
 
     @final
-    def successors(self, node_or_name: Union[str, Node]) -> Sequence[OperationNode]:
+    def successors(self, node_or_name: Union[str, Node]) -> Sequence[AnyOperation]:
         return tuple(
             self._inner.nodes[_name][self.K]
             for _name in self._inner.successors(self._get_name(node_or_name))
@@ -121,12 +120,12 @@ class Graph:
 
     @ft.cached_property
     @final
-    def constants(self) -> Sequence[ConstantNode]:
+    def constants(self) -> Sequence[AnyConstant]:
         return tuple(node for node in self.nodes if isinstance(node, Constant))
 
     @ft.cached_property
     @final
-    def expressions(self) -> Sequence[ExpressionNode]:
+    def expressions(self) -> Sequence[AnyExpression]:
         return tuple(node for node in self.nodes if isinstance(node, Expression))
 
     @ft.cached_property
@@ -147,7 +146,7 @@ class IOGraph(Graph):
 
     EXTRAS: Sequence[str] = ('inputs_names', 'outputs_names')
 
-    def __init__(self, nodes: Iterable[T_AnyNode],
+    def __init__(self, nodes: Iterable[AnyNode],
                  inputs_names: Sequence[str], outputs_names: Sequence[str]
                  ) -> None:
         # construct base
@@ -242,7 +241,7 @@ class PGraph(SGraph):
 
     EXTRAS: Sequence[str] = (*SGraph.EXTRAS, 'parameters_names')
 
-    def __init__(self, nodes: Iterable[T_AnyNode],
+    def __init__(self, nodes: Iterable[AnyNode],
                  inputs_names: Sequence[str], outputs_names: Sequence[str],
                  parameters_names: Sequence[str],
                  ) -> None:
@@ -281,6 +280,6 @@ class CGraph(Graph):
 
     @ft.cached_property
     @final
-    def global_tasks(self) -> AbstractSet[GlobalTaskNode]:
+    def global_tasks(self) -> AbstractSet[AnyGlobalObjective]:
         """The set of all `GlobalTask` nodes in the graph."""
         return frozenset(node for node in self.nodes if isinstance(node, GlobalTask))

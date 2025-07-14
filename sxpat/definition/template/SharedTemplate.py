@@ -59,7 +59,7 @@ class SharedTemplate(Template):
         switches = []
         outs_p: List[BoolVariable] = []
         outs: List[If] = []
-        out_successors: Dict[str, OperationNode] = dict()
+        out_successors: Dict[str, AnyOperation] = dict()
         for out_i, out_node in enumerate(a_graph.subgraph_outputs):
             # create all switches for the output
             _sws = []
