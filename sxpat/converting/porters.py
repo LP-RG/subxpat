@@ -366,7 +366,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         @authors: Marco Biasion
     """
 
-    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, ValuedNode]], str]] = {
+    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, Valued, Operation]], str]] = {
         # variables
         # BoolVariable: lambda n: None,
         # IntVariable: lambda n: None,

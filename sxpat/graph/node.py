@@ -66,9 +66,6 @@ __all__ = [
     #
     'AnyNonEntryPoint',
     'AnyNonEndPoint',
-
-    # > nodes groups
-    'contact_nodes', 'origin_nodes', 'end_nodes',
 ]
 
 
