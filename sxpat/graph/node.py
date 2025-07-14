@@ -56,13 +56,16 @@ __all__ = [
     'Min', 'Max', 'ForAll',
 
     # > Typing help
-    'AnyNode', 'T_AnyNode',
+    'AnyNode', 'T_AnyNode', 'T_Node',
     'AnyVariable', 'T_AnyVariable',
     'AnyConstant', 'T_AnyConstant',
     'AnyOperation', 'T_AnyOperation',
     'AnyExpression', 'T_AnyExpression',
     'AnyObjective', 'T_AnyObjective',
     'AnyGlobalObjective', 'T_AnyGlobalObjective',
+    #
+    'AnyNonEntryPoint',
+    'AnyNonEndPoint',
 
     # > nodes groups
     'contact_nodes', 'origin_nodes', 'end_nodes',
@@ -332,9 +335,7 @@ class IntConstant(Extras, Constant[int], IntResType, Node):
 
 
 @dc.dataclass(frozen=True)
-class PlaceHolder(Node):
-    # TODO: should this be an EntryPoint?
-    #       structurally in an individual graph yes, but how sould we treat it in multigraph references?
+class PlaceHolder(EntryPoint, Node):
     """
         Special node: placeholder for any other node (by name).  
 
@@ -644,25 +645,7 @@ class ForAll(Operation, GlobalTask, Node):
 
 
 # > Typing help
-# node
-AnyNode: TypeAlias = Union[
-    # variable
-    BoolVariable, IntVariable,
-    # constant
-    IntConstant, BoolConstant,
-    # expression
-    Not, And, Or, Xor, Implies,
-    Sum, AbsDiff,
-    ToInt,
-    Equals, NotEquals, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,
-    Identity,
-    Multiplexer, If,
-    AtLeast, AtMost,
-    # objective
-    Target, Constraint,
-    Min, Max, ForAll,
-]
-T_AnyNode = TypeVar('T_AnyNode', bound=AnyNode)
+
 
 # variable
 AnyVariable: TypeAlias = Union[
@@ -676,22 +659,6 @@ AnyConstant: TypeAlias = Union[
 ]
 T_AnyConstant = TypeVar('T_AnyConstant', bound=AnyConstant)
 
-# operation
-AnyOperation: TypeAlias = Union[
-    # expression
-    Not, And, Or, Xor, Implies,
-    Sum, AbsDiff,
-    ToInt,
-    Equals, NotEquals, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,
-    Identity,
-    Multiplexer, If,
-    AtLeast, AtMost,
-    # objective
-    Target, Constraint,
-    Min, Max, ForAll,
-]
-T_AnyOperation = TypeVar('T_AnyOperation', bound=AnyOperation)
-
 # expression
 AnyExpression: TypeAlias = Union[
     Not, And, Or, Xor, Implies,
@@ -704,15 +671,64 @@ AnyExpression: TypeAlias = Union[
 ]
 T_AnyExpression = TypeVar('T_AnyExpression', bound=AnyExpression)
 
-# objective
-AnyObjective: TypeAlias = Union[
-    Target, Constraint,
-    Min, Max, ForAll,
-]
-T_AnyObjective = TypeVar('T_AnyObjective', bound=AnyObjective)
-
 # global objective/task
 AnyGlobalObjective: TypeAlias = Union[
     Min, Max, ForAll,
 ]
 T_AnyGlobalObjective = TypeVar('T_AnyGlobalObjective', bound=AnyGlobalObjective)
+
+# objective
+AnyObjective: TypeAlias = Union[
+    Target, Constraint,
+    AnyGlobalObjective
+]
+T_AnyObjective = TypeVar('T_AnyObjective', bound=AnyObjective)
+
+# operation
+AnyOperation: TypeAlias = Union[
+    AnyExpression,
+    AnyObjective,
+]
+T_AnyOperation = TypeVar('T_AnyOperation', bound=AnyOperation)
+
+# node
+AnyNode: TypeAlias = Union[
+    AnyVariable,
+    AnyConstant,
+    PlaceHolder,
+    AnyExpression,
+    AnyObjective,
+]
+T_AnyNode = TypeVar('T_AnyNode', bound=AnyNode)
+T_Node = TypeVar(
+    'T_Node',
+    # variable
+    BoolVariable, IntVariable,
+    # constant
+    IntConstant, BoolConstant,
+    # placeholder
+    PlaceHolder,
+    # expression
+    Not, And, Or, Xor, Implies,
+    Sum, AbsDiff,
+    ToInt,
+    Equals, NotEquals, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,
+    Identity,
+    Multiplexer, If,
+    AtLeast, AtMost,
+    # objective
+    Target, Constraint,
+    Min, Max, ForAll,
+)
+
+# structural
+AnyNonEntryPoint = Union[
+    AnyExpression,
+    AnyObjective,
+]
+AnyNonEndPoint = Union[
+    AnyVariable,
+    AnyConstant,
+    PlaceHolder,
+    AnyExpression,
+]

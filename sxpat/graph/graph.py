@@ -8,12 +8,13 @@ import functools as ft
 import itertools as it
 
 from .node import (
-    Expression, Extras, Node, Operation, Constant, GlobalTask,
+    BoolConstant, Expression, Extras, Node, Operation, Constant, GlobalTask,
     #
     BoolVariable, PlaceHolder,
     Target, Constraint,
     #
     AnyNode, AnyConstant, AnyOperation, AnyExpression, AnyGlobalObjective,
+    AnyNonEndPoint, AnyNonEntryPoint,
 )
 from .error import UndefinedNodeError
 
@@ -25,7 +26,7 @@ __all__ = [
     'IOGraph', 'SGraph', 'PGraph',
     'CGraph',
     #
-    'T_Graph',
+    'T_Graph', 'AnyGraph', 'T_AnyGraph'
 ]
 
 
@@ -74,7 +75,7 @@ class Graph:
         # freeze inner structure
         self._inner: Final[nx.DiGraph] = nx.freeze(_inner)
 
-    def copy(self, nodes: Optional[Iterable[Node]] = None, **extras) -> Self:
+    def copy(self, nodes: Optional[Iterable[AnyNode]] = None, **extras) -> Self:
         return type(self)(self.nodes if nodes is None else nodes, **{**self.extras, **extras})
 
     @ft.cached_property
@@ -82,7 +83,7 @@ class Graph:
         return MappingProxyType({_ex: getattr(self, _ex) for _ex in self.EXTRAS})
 
     @final
-    def __getitem__(self, name: str) -> Node:
+    def __getitem__(self, name: str) -> AnyNode:
         return self._inner.nodes[name][self.K]
 
     @final
@@ -97,12 +98,12 @@ class Graph:
 
     @ft.cached_property
     @final
-    def nodes(self) -> Sequence[Node]:
+    def nodes(self) -> Sequence[AnyNode]:
         """Sequence of nodes in the unique lexicographical topological order."""
         return tuple(self._inner.nodes[name][self.K] for name in nx.lexicographical_topological_sort(self._inner))
 
     @final
-    def predecessors(self, node_or_name: Union[str, Node]) -> Sequence[Node]:
+    def predecessors(self, node_or_name: Union[str, Node]) -> Sequence[AnyNonEndPoint]:
         node_name = self._get_name(node_or_name)
         node = self._inner.nodes[node_name][self.K]
         # we iterate over the .predecessors instead of the .operands, so even if `node` is not an Operation it still works
@@ -112,7 +113,7 @@ class Graph:
         ))
 
     @final
-    def successors(self, node_or_name: Union[str, Node]) -> Sequence[AnyOperation]:
+    def successors(self, node_or_name: Union[str, Node]) -> Sequence[AnyNonEntryPoint]:
         return tuple(
             self._inner.nodes[_name][self.K]
             for _name in self._inner.successors(self._get_name(node_or_name))
@@ -136,9 +137,6 @@ class Graph:
     def _get_name(self, node_or_name: Union[str, Node]) -> str:
         """Given a node or a node name, returns the node name."""
         return node_or_name.name if isinstance(node_or_name, Node) else node_or_name
-
-
-T_Graph = TypeVar('T_Graph', bound=Graph)
 
 
 class IOGraph(Graph):
@@ -165,7 +163,7 @@ class IOGraph(Graph):
 
     @ft.cached_property
     @final
-    def inputs(self) -> Sequence[Node]:
+    def inputs(self) -> Sequence[AnyNode]:
         return tuple(self._inner.nodes[name][self.K] for name in self.inputs_names)
 
     @final
@@ -176,7 +174,7 @@ class IOGraph(Graph):
 
     @ft.cached_property
     @final
-    def outputs(self) -> Sequence[Node]:
+    def outputs(self) -> Sequence[AnyNode]:
         return tuple(self._inner.nodes[name][self.K] for name in self.outputs_names)
 
     @final
@@ -197,7 +195,7 @@ class SGraph(IOGraph):
 
     @ft.cached_property
     @final
-    def subgraph_nodes(self) -> Sequence[Node]:
+    def subgraph_nodes(self) -> Sequence[AnyNode]:
         return tuple(
             node for node in self.nodes
             if isinstance(node, Extras) and node.in_subgraph
@@ -205,7 +203,7 @@ class SGraph(IOGraph):
 
     @ft.cached_property
     @final
-    def subgraph_inputs(self) -> Sequence[Node]:
+    def subgraph_inputs(self) -> Sequence[AnyNode]:
         # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
         return tuple(dict.fromkeys(it.chain.from_iterable(
             (
@@ -217,7 +215,7 @@ class SGraph(IOGraph):
 
     @ft.cached_property
     @final
-    def subgraph_outputs(self) -> Sequence[Node]:
+    def subgraph_outputs(self) -> Sequence[AnyNode]:
         # a node is a subgraph output if it is in the subgraph and at least one successor is not in the subgraph
         return tuple(
             node for node in self.subgraph_nodes
@@ -231,7 +229,7 @@ class SGraph(IOGraph):
     def node_edges_to_subgraph(self, node_or_name: Union[str, Node]) -> int:
         """Returns the number of edges from this node to the subgraph."""
         return sum(
-            n.in_subgraph for n in self.successors(self._get_name(node_or_name))
+            n.in_subgraph for n in self.successors(node_or_name)
             if isinstance(n, Extras)
         )
 
@@ -259,7 +257,7 @@ class PGraph(SGraph):
 
     @ft.cached_property
     @final
-    def parameters(self) -> Sequence[BoolVariable]:
+    def parameters(self) -> Sequence[Union[BoolVariable, BoolConstant]]:
         return tuple(self._inner.nodes[name][self.K] for name in self.parameters_names)
 
 
@@ -283,3 +281,11 @@ class CGraph(Graph):
     def global_tasks(self) -> AbstractSet[AnyGlobalObjective]:
         """The set of all `GlobalTask` nodes in the graph."""
         return frozenset(node for node in self.nodes if isinstance(node, GlobalTask))
+
+
+# > Typing help
+
+
+T_Graph = TypeVar('T_Graph', Graph, IOGraph, SGraph, PGraph, CGraph)
+AnyGraph = Union[Graph, IOGraph, SGraph, PGraph, CGraph]
+T_AnyGraph = TypeVar('T_AnyGraph', bound=AnyGraph)
