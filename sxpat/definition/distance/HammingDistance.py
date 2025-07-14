@@ -3,8 +3,8 @@ from typing_extensions import override
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph.Graph import CGraph, IOGraph
-from sxpat.graph.Node import If, IntConstant, PlaceHolder, Sum, Xor
+from sxpat.graph import CGraph, IOGraph
+from sxpat.graph.node import If, IntConstant, PlaceHolder, Sum, Xor
 from sxpat.utils.collections import formatted_int_range
 
 

@@ -5,8 +5,8 @@ from sxpat.utils.collections import formatted_int_range
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph.Graph import CGraph, IOGraph
-from sxpat.graph.Node import AbsDiff, Extras, If, IntConstant, PlaceHolder, Sum
+from sxpat.graph import CGraph, IOGraph
+from sxpat.graph.node import AbsDiff, Extras, If, IntConstant, PlaceHolder, Sum
 
 
 __all__ = ['AbsoluteDifferenceOfWeightedSum']
@@ -37,11 +37,14 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
             formatted_int_range(len(graph_a.outputs_names)),
             graph_a.outputs,
         ):
+            # create constants
             val = out.weight
             consts_a.extend([
                 const_0 := IntConstant(f'dist_a{i}_const_0', 0),
                 const_n := IntConstant(f'dist_a{i}_const_{val}', val),
             ])
+
+            # create node that reflects the weight if the bit is true, or 0
             bits_a.append(If(f'dist_a{i}', operands=[out, const_n, const_0]))
         int_a = Sum('dist_int_a', operands=bits_a)
 
@@ -61,7 +64,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         int_b = Sum('dist_int_b', operands=bits_b)
 
         # distance
-        distance = AbsDiff('dist_distance', operands=[int_a, int_b]),
+        distance = AbsDiff('dist_distance', operands=[int_a, int_b])
 
         # construct CGraph
         dist_func = CGraph((

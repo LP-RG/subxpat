@@ -3,8 +3,8 @@ from typing_extensions import override
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph.Graph import CGraph, IOGraph
-from sxpat.graph.Node import Extras, If, IntConstant, PlaceHolder, Sum, Xor
+from sxpat.graph import CGraph, IOGraph
+from sxpat.graph.node import Extras, If, IntConstant, PlaceHolder, Sum, Xor
 from sxpat.utils.collections import formatted_int_range
 
 
@@ -33,14 +33,8 @@ class WeightedHammingDistance(DistanceSpecification):
         if not all(out_a.weight == out_b.weight for (out_a, out_b) in zip(graph_a.outputs, graph_b.outputs)):
             raise ValueError('The outputs of the two graphs have mismatching weights.')
 
-        # constants
-        consts = {0: IntConstant('dist_const_0')}
-        for out in graph_a.outputs:
-            val = out.weight
-            if val not in consts:
-                consts[val] = IntConstant(f'dist_const_{val}', value=val)
-
         # bit flips to int
+        consts = []
         flipped_bits = []
         int_bits = []
         for (i, out_a, out_b) in zip(
@@ -48,8 +42,18 @@ class WeightedHammingDistance(DistanceSpecification):
             graph_a.outputs,
             graph_b.outputs,
         ):
+            # create constants
+            val = out_a.weight
+            consts.extend([
+                const_0 := IntConstant(f'dist_a{i}_const_0', 0),
+                const_n := IntConstant(f'dist_a{i}_const_{val}', val),
+            ])
+
+            # create node reflecting if a bit is flipped
             flipped_bits.append(bit := Xor(f'dist_is_different_{i}', operands=[out_a, out_b]))
-            int_bits.append(If(f'dist_value_{i}', operands=[bit, consts[out_a.weight], consts[0]]))
+
+            # create node that reflects the weight if the bit is flipped, or 0
+            int_bits.append(If(f'dist_value_{i}', operands=[bit, const_n, const_0]))
 
         # distance
         distance = Sum('dist_distance', operands=int_bits)

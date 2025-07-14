@@ -3,12 +3,11 @@ from typing_extensions import override
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph.Graph import CGraph, IOGraph
-from sxpat.graph.Node import AbsDiff, PlaceHolder, ToInt
+from sxpat.graph import CGraph, IOGraph
+from sxpat.graph.node import AbsDiff, PlaceHolder, ToInt
 
 
 __all__ = ['AbsoluteDifferenceOfInteger']
-
 
 class AbsoluteDifferenceOfInteger(DistanceSpecification):
     """@authors: Marco Biasion"""
@@ -23,11 +22,11 @@ class AbsoluteDifferenceOfInteger(DistanceSpecification):
         """
 
         # define outputs of a and of b as integers
-        int_a = ToInt('dist_int_a', operands=graph_a.outputs_names),
-        int_b = ToInt('dist_int_b', operands=graph_b.outputs_names),
+        int_a = ToInt('dist_int_a', operands=graph_a.outputs_names)
+        int_b = ToInt('dist_int_b', operands=graph_b.outputs_names)
 
         # distance
-        distance = AbsDiff('dist_distance', operands=[int_a, int_b]),
+        distance = AbsDiff('dist_distance', operands=[int_a, int_b])
 
         # construct CGraph
         dist_func = CGraph((

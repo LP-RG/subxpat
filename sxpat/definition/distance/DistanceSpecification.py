@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from sxpat.graph.Graph import CGraph, IOGraph
+from sxpat.graph import CGraph, IOGraph
 from sxpat.utils.decorators import make_utility_class
 
 
