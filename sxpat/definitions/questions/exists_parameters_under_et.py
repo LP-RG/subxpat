@@ -4,7 +4,7 @@ import itertools as it
 
 from sxpat.definitions.distances.DistanceSpecification import DistanceSpecification
 from sxpat.graph.graph import CGraph, IOGraph, PGraph
-from sxpat.graph.node import Constraint, ForAll, IntConstant, LessEqualThan, Target
+from sxpat.graph.node import Constraint, ForAll, IntConstant, LessEqualThan, PlaceHolder, Target
 
 
 def exists_parameters_under_et(
@@ -23,21 +23,23 @@ def exists_parameters_under_et(
     # define distance
     (dist_function, dist_name) = distance_definition.define(reference_circuit, parametric_circuit)
 
-    # add parameters as targets
+    # add parameters as targets (and relative placeholders)
     targets = [
-        Target.of(param)
-        for param in parametric_circuit.parameters_names
+        *(PlaceHolder(param) for param in parametric_circuit.parameters_names),
+        *(Target.of(param) for param in parametric_circuit.parameters_names),
     ]
 
-    # define error condition
+    # define error condition (and relative placeholders)
     error_condition = [
+        PlaceHolder(dist_name),
         et := IntConstant('que_error_threshold', value=error_threshold),
         err_check := LessEqualThan('que_error_condition', operands=[dist_name, et]),
         Constraint('que_constraint_error_condition', operands=[err_check]),
     ]
 
-    # define other specifics
+    # define other specifics  (and relative placeholders)
     specifics = [
+        *(PlaceHolder(inp) for inp in reference_circuit.inputs_names),
         ForAll('que_quantifier', operands=reference_circuit.inputs_names),
     ]
 
