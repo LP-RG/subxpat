@@ -91,17 +91,6 @@ class _NonSharedBase:
         return constants_parameters
 
     @classmethod
-    def error_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int) -> Sequence[Union[Node, Constraint]]:
-        return (
-            cur_int := ToInt('cur_int', operands=s_graph.outputs_names),
-            tem_int := ToInt('tem_int', operands=t_graph.outputs_names),
-            abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
-            et := IntConstant('et', value=error_threshold),
-            error_check := LessEqualThan('error_check', operands=(abs_diff, et)),
-            Constraint.of(error_check),
-        )
-
-    @classmethod
     def atmost_lpp_constraints(cls, out_prod_mux_params: List[List[List[Tuple[BoolVariable, BoolVariable]]]], literals_per_product: int
                                ) -> Sequence[Union[AtMost, Constraint]]:
         return tuple(flat(
@@ -240,16 +229,11 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                     template_graph.outputs_names
                 )),
                 # behavioural constraints
-                cls.error_constraint(s_graph, template_graph, specs.et),
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
                 # redundancy constraints
                 mux_red_nodes,
                 const0_red_nodes,
                 cls.products_order_redundancy(out_prod_mux_params),
-                # targets
-                (Target.of(param) for param in parameters),
-                # global task
-                [ForAll('forall_inputs', operands=s_graph.inputs_names)],
             )
         )
 
@@ -359,16 +343,11 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
                     template_graph.outputs_names
                 )),
                 # behavioural constraints
-                cls.error_constraint(s_graph, template_graph, specs.et),
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
                 # redundancy constraints
                 prevent_mux_constF,
                 constF_red_nodes,
                 cls.products_order_redundancy(out_prod_mux_params),
-                # targets
-                (Target.of(param) for param in parameters),
-                # global task
-                [ForAll('forall_inputs', operands=s_graph.inputs_names)],
             )
         )
 

@@ -26,11 +26,15 @@ from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 
 from sxpat.definitions.templates import get_specialized as get_templater
+from sxpat.definitions.templates import v2Phase1
+from sxpat.definitions.distances import AbsoluteDifferenceOfInteger
+from sxpat.definitions.questions import exists_parameters_under_et
+
 from sxpat.solvers import get_specialized as get_solver
 
 from sxpat.converting import VerilogExporter
 from sxpat.converting import iograph_from_legacy, sgraph_from_legacy
-from sxpat.converting import set_bool_constants, prevent_combination
+from sxpat.converting import set_bool_constants, prevent_assignment
 
 from sxpat.utils.print import pprint
 
@@ -176,29 +180,29 @@ def explore_grid(specs_obj: Specifications):
             prev_actual_error = 0
             continue
 
+        # convert from legacy graphs to refactored circuits
+        exact_circ = iograph_from_legacy(exact_graph)
+        current_circ = sgraph_from_legacy(current_graph)
+
+        # 
         if v2:
-            specs_obj.template = TemplateType.V2
-            e_graph = iograph_from_legacy(exact_graph)
-            s_graph = sgraph_from_legacy(current_graph)
+            # define question
+            param_circ, param_circ_constr = v2Phase1.define(current_circ, specs_obj)
+            _question = [exact_circ, param_circ, param_circ_constr]
 
-            template_timer, define_template = Timer.from_function(get_templater(specs_obj).define)
-            p_graph, c_graph = define_template(s_graph, specs_obj)
+            # solve
+            solver = get_solver(specs_obj)
+            status, model = solver.solve(_question, specs_obj)
 
-            solve = get_solver(specs_obj).solve
-
-            status, model = solve((e_graph, p_graph, c_graph), specs_obj)
-
-            if status == 'unsat':
-                v2_et = sum((n.weight for n in s_graph.subgraph_outputs))
-
-            elif status == 'sat':
-                v2_et = model['sum_s_out'] - 1
-
-            specs_obj.template = TemplateType.NON_SHARED
+            # extract v2 threshold
+            v2_threshold = {
+                'sat': lambda: model['sum_s_out'] - 1,
+                'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs),
+            }[status]()
 
             temp = specs_obj.et
-            specs_obj.et = v2_et
-            v2_et = temp
+            specs_obj.et = v2_threshold
+            v2_threshold = temp
 
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
@@ -213,44 +217,49 @@ def explore_grid(specs_obj: Specifications):
             # update the context
             update_context(specs_obj, lpp, ppo)
 
-            # convert from legacy graph to new architecture graph
-            e_graph = iograph_from_legacy(exact_graph)
-            s_graph = sgraph_from_legacy(current_graph)
             if v2:
-                rem = s_graph.subgraph_inputs
-                s_graph = SGraph(
+                rem = current_circ.subgraph_inputs
+                current_circ = SGraph(
                     it.chain(
-                        (n for n in s_graph.nodes if n.in_subgraph),
-                        (BoolVariable(n.name) for n in s_graph.subgraph_inputs),
-                        (Identity(f's_out{i}', operands=(n.name,)) for i, n in enumerate(s_graph.subgraph_outputs)),
+                        (n for n in current_circ.nodes if n.in_subgraph),
+                        (BoolVariable(n.name) for n in current_circ.subgraph_inputs),
+                        (Identity(f's_out{i}', operands=(n.name,)) for i, n in enumerate(current_circ.subgraph_outputs)),
                     ),
-                    inputs_names=(n.name for n in s_graph.subgraph_inputs),
-                    outputs_names=(f's_out{i}' for i in range(len(s_graph.subgraph_outputs))),
+                    inputs_names=(n.name for n in current_circ.subgraph_inputs),
+                    outputs_names=(f's_out{i}' for i in range(len(current_circ.subgraph_outputs))),
                 )
-                e_graph = IOGraph(
-                    (n for n in s_graph.nodes),
+                exact_circ = IOGraph(
+                    (n for n in current_circ.nodes),
                     inputs_names=(n.name for n in rem),
-                    outputs_names=(f's_out{i}' for i in range(len(s_graph.subgraph_outputs))),
+                    outputs_names=(f's_out{i}' for i in range(len(current_circ.subgraph_outputs))),
                 )
 
-            # define template (and constraints)
-            template_timer, define_template = Timer.from_function(get_templater(specs_obj).define)
-            p_graph, c_graph = define_template(s_graph, specs_obj)
+            # define template (and relative constraints)
+            definition_timer, define_template = Timer.from_function(get_templater(specs_obj).define)
+            param_circ, param_circ_constr = define_template(current_circ, specs_obj)
+
+            # define question
+            _exists_parameters_under_et = definition_timer.wrap(exists_parameters_under_et)
+            question = _exists_parameters_under_et(current_circ, param_circ, AbsoluteDifferenceOfInteger, specs_obj.et)
 
             # solve
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
+            _question = [exact_circ, param_circ, param_circ_constr, *question]
+
             models = []
-            for _ in range(specs_obj.wanted_models):
+            for i in range(specs_obj.wanted_models):
                 # prevent parameters combination if any
-                if len(models) > 0: c_graph = prevent_combination(c_graph, model)
+                if len(models) > 0: _question.append(prevent_assignment(models[-1], i - 1))
+
                 # run solver
-                status, model = solve((e_graph, p_graph, c_graph), specs_obj)
-                # terminate if status is not sat, otherwise store the models
+                status, model = solve(_question, specs_obj)
+
+                # terminate if status is not sat, otherwise store the model
                 if status != 'sat': break
                 models.append(model)
 
             # legacy adaptation
-            execution_time = template_timer.total + solve_timer.total
+            execution_time = definition_timer.total + solve_timer.total
 
             if len(models) == 0:
                 pprint.warning(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()}')
@@ -276,7 +285,7 @@ def explore_grid(specs_obj: Specifications):
 
                 for model_number, model in enumerate(models):
 
-                    a_graph = set_bool_constants(p_graph, model, skip_missing=True)
+                    a_graph = set_bool_constants(param_circ, model, skip_missing=True)
 
                     if v2:
                         s_graph_complete = sgraph_from_legacy(current_graph)
@@ -295,7 +304,7 @@ def explore_grid(specs_obj: Specifications):
                             outputs_names=(n.name for n in s_graph_complete.outputs),
                         )
 
-                        specs_obj.et = v2_et
+                        specs_obj.et = v2_threshold
 
                     # export approximate graph as verilog
                     # TODO:#15: use serious name generator
@@ -541,6 +550,8 @@ def model_compare(a, b) -> bool:
 
 @dc.dataclass(init=False, repr=False, eq=False, frozen=True)
 class Timer:
+    """@authors: Marco Biasion"""
+
     from time import time as now
     _C = TypeVar('_C', bound=Callable)
 
