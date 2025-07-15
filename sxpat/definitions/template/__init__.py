@@ -1,3 +1,13 @@
+"""
+    ### Template definitions
+
+    This module contains all the templates we have implemented.
+    
+    All of them share the same interface: `cls.define(SGraph, Specifications) -> Tuple[PGraph, CGraph]`
+
+    @authors: Marco Biasion
+"""
+
 from typing import Type
 from sxpat.specifications import Specifications, TemplateType, ConstantFalseType
 

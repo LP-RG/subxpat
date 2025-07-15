@@ -17,6 +17,6 @@ class Template:
         """
             Given a graph with subgraph informations and the specifications,
             returns the graph with the subgraph replaced with the template 
-            and a graph containing all the constraints required for the behaviour of the parameters.
+            and a graph containing all the constraints required to achieve the wanted behaviour.
         """
         raise NotImplementedError(f'{cls.__qualname__}.define() is abstract')
