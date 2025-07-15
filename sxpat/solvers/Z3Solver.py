@@ -147,7 +147,7 @@ class Z3Encoder:
         )))
 
     @classmethod
-    def inject_solve_and_result_writing(cls, destination: IO[str], 
+    def inject_solve_and_result_writing(cls, destination: IO[str],
                                         name_graphs: Solver._Graphs,
                                         value_graphs: Solver._Graphs,
                                         ) -> None:
@@ -424,6 +424,7 @@ Z3_INT_NODE_MAPPING = {
     Not: lambda n, operands, accs: f'Not({operands[0]})',
     And: lambda n, operands, accs: f'And({", ".join(operands)})',
     Or: lambda n, operands, accs: f'Or({", ".join(operands)})',
+    Xor: lambda n, operands, accs: f'Xor({operands[0]}, {operands[1]})',
     Implies: lambda n, operands, accs: f'Implies({operands[0]}, {operands[1]})',
     # integer operations
     Sum: lambda n, operands, accs: f'Sum({", ".join(operands)})',
