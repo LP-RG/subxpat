@@ -582,12 +582,10 @@ class Target(Limited1Operation, LocalObjective, Node):
     """
 
     @classmethod
-    def of(cls, operand: Node) -> Self:
+    def of(cls, other: Union[Node, str]) -> Self:
         """Helper constructor with automatic naming."""
-        return cls(
-            f'target_{operand.name}',
-            operands=(operand,),
-        )
+        name = other.name if isinstance(other, Node) else other
+        return cls(f'target_{name}', operands=[name])
 
 
 @dc.dataclass(frozen=True)
@@ -598,12 +596,10 @@ class Constraint(Limited1Operation, LocalObjective, Node):
     """
 
     @classmethod
-    def of(cls, operand: Node) -> Self:
+    def of(cls, other: Union[Node, str]) -> Self:
         """Helper constructor with automatic naming."""
-        return cls(
-            f'constraint_{operand.name}',
-            operands=(operand,),
-        )
+        name = other.name if isinstance(other, Node) else other
+        return cls(f'constraint_{name}', operands=[name])
 
 
 # global objective nodes
