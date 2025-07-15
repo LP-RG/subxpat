@@ -1,6 +1,5 @@
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Type, TypeVar, Union, overload
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Sequence, Type, TypeVar, Union, overload
 
-import re
 import math
 import itertools as it
 
@@ -14,8 +13,8 @@ __all__ = [
     # compute graph accessories
     'get_nodes_type', 'get_nodes_bitwidth',
 
-    # expand constraints
-    'prevent_combination',
+    #
+    'prevent_assignment',
 ]
 
 
@@ -251,47 +250,44 @@ def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
     return graph.copy(nodes, **extras)
 
 
-def prevent_combination(c_graph: CGraph,
-                        assignments: Mapping[str, bool],
-                        assignment_id: Optional[Any] = None) -> CGraph:
+def prevent_assignment(assignments: Mapping[str, bool],
+                       assignment_id: Union[str, int]) -> CGraph:
     """
-        Takes a constraints graph and expands it to prevent the given assignment.
-        It will allow any change, but at least one change is required.
-
-        @note: *TODO: can be expanded to manage also integers (be careful of bitwidth)*
-        @note: *TODO: can be changed to return new CGraph containing only the assignment prevention logic, instead of returning an updated copy*
+        Returns a CGraph with constraints preventing the given assignment.
 
         @authors: Marco Biasion
     """
 
-    # get initial nodes
-    nodes = list(c_graph.nodes)
+    # placeholders
+    placeholders = [PlaceHolder(name) for name in assignments]
 
-    # add constants (duplicates will be removed internally by the graph)
-    const = ['ccF', 'ccT']  # False/0, True:1
-    nodes.append(BoolConstant(f'ccT', value=True))
-    nodes.append(BoolConstant(f'ccF', value=False))
+    #
+    prass_name: Mapping[bool, Callable[[str], str]] = {
+        True: lambda name: f'prass_{assignment_id}_not_{name}',
+        False: lambda name: name,
+    }
 
-    # add placeholders (duplicates will be removed internally by the graph)
-    nodes.extend(PlaceHolder(name) for name in assignments)
-
-    # add NotEquals nodes (duplicates will be removed internally by the graph)
-    old_assignment = tuple(
-        NotEquals(f'{name}_neq_{value}', operands=(name, const[value]))
+    # create required negations
+    negations = [
+        Not(prass_name[True](name), operands=[name])
         for (name, value) in assignments.items()
-    )
-    nodes.extend(old_assignment)
+        if value is True
+    ]
 
-    # add Or aggregate
-    if assignment_id is None:
-        assignment_id = max(it.chain((
-            int(m.group(1))
-            for n in c_graph.nodes
-            if (m := re.match(r'prevent_assignment_(\d+)', n.name))
-        ), (0,)))
-    nodes.append(Or(f'prevent_assignment_{assignment_id}', operands=old_assignment))
+    # create aggregation (and relative constraint)
+    prevention = [
+        prevent := Or(
+            f'prass_{assignment_id}_prevent',
+            operands=[prass_name[value](name) for (name, value) in assignments.items()]
+        ),
+        Constraint(f'prass_{assignment_id}_prevent_constr', operands=[prevent])
+    ]
 
-    return CGraph(nodes)
+    return CGraph(it.chain(
+        placeholders,
+        negations,
+        prevention,
+    ))
 
 
 class crystallize:
@@ -299,13 +295,11 @@ class crystallize:
         Takes a graph and and reduces it.
         I.E. simplifies the graph by evaluating nodes with constant inputs.
 
-        Complexity:
-            Worst case: O(N²)
-            Average case: O(N)
-
-            where N is the number of nodes in the graph
+        Complexity: O(V + E)
 
         #TODO: What to do with global tasks where their operand is a constant
+
+        @authors: Marco Biasion, Lorenzo, Spada
     """
 
     T_ib = TypeVar('T_ib', int, bool)
