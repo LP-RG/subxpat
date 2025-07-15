@@ -2,7 +2,7 @@ from typing import Sequence
 
 import itertools as it
 
-from sxpat.definitions.distance.DistanceSpecification import DistanceSpecification
+from sxpat.definitions.distances.DistanceSpecification import DistanceSpecification
 from sxpat.graph.graph import CGraph, IOGraph, PGraph
 from sxpat.graph.node import Constraint, ForAll, IntConstant, LessEqualThan, Target
 

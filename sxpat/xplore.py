@@ -25,7 +25,7 @@ from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 
-from sxpat.definition.template import get_specialized as get_templater
+from sxpat.definitions.templates import get_specialized as get_templater
 from sxpat.solvers import get_specialized as get_solver
 
 from sxpat.converting import VerilogExporter
