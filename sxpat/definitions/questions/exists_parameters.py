@@ -1,10 +1,10 @@
-from typing import Sequence, Type, Union
+from typing import List, Sequence, Type, Union
 
 import itertools as it
 
 from sxpat.definitions.distances.DistanceSpecification import DistanceSpecification
 from sxpat.graph.graph import CGraph, IOGraph, PGraph
-from sxpat.graph.node import Constraint, ForAll, GreaterEqualThan, GreaterThan, IntConstant, LessEqualThan, LessThan, PlaceHolder, Target
+from sxpat.graph.node import AnyNode, Constraint, ForAll, GreaterEqualThan, GreaterThan, IntConstant, LessEqualThan, LessThan, PlaceHolder, Target
 from sxpat.utils.decorators import make_utility_class
 
 
@@ -13,7 +13,6 @@ __all__ = ['exists_parameters']
 
 @make_utility_class
 class exists_parameters:
-
     @classmethod
     def _create_question(cls,
                          reference_circuit: IOGraph,
@@ -29,7 +28,7 @@ class exists_parameters:
         (dist_function, dist_name) = distance_definition.define(reference_circuit, parametric_circuit)
 
         # generate all other question components
-        components = list()
+        components: List[AnyNode] = list()
 
         # add parameters as targets (and relative placeholders)
         components.extend(it.chain.from_iterable(
@@ -55,7 +54,7 @@ class exists_parameters:
         return (dist_function, CGraph(components))
 
     @classmethod
-    def forall_inputs_not_above_threshold(cls,
+    def not_above_threshold_forall_inputs(cls,
                                           reference_circuit: IOGraph,
                                           parametric_circuit: PGraph,
                                           distance_definition: DistanceSpecification,
@@ -77,41 +76,3 @@ class exists_parameters:
             distance_definition, threshold, GreaterThan,
             False
         )
-
-    # @classmethod
-    # def inside_treshold(cls,
-    #                     reference_circuit: IOGraph,
-    #                     parametric_circuit: PGraph,
-    #                     distance_definition: DistanceSpecification,
-    #                     threshold: int,
-    #                     ) -> Sequence[CGraph]:
-    #     """
-    #         Given a reference and a parametric circuit, a distance definition, and an error threshold,
-    #         generate the question for the standard SubXPAT problem.
-
-    #         @authors: Marco Biasion
-    #     """
-
-    #     # define distance
-    #     (dist_function, dist_name) = distance_definition.define(reference_circuit, parametric_circuit)
-
-    #     # add parameters as targets (and relative placeholders)
-    #     targets = cls._create_targets(parametric_circuit.parameters_names)
-
-    #     # define error condition (and relative placeholders)
-    #     error_condition = cls._create_threshold_condition(dist_name, threshold, LessEqualThan)
-
-    #     # define other specifics  (and relative placeholders)
-    #     specifics = [
-    #         *(PlaceHolder(inp) for inp in reference_circuit.inputs_names),
-    #         ForAll('que_quantifier', operands=reference_circuit.inputs_names),
-    #     ]
-
-    #     return (
-    #         dist_function,
-    #         CGraph(it.chain(
-    #             targets,
-    #             error_condition,
-    #             specifics,
-    #         ))
-    #     )
