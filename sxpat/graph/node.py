@@ -112,6 +112,11 @@ class Extras(__Base):
         super().__post_init__()
         object.__setattr__(self, 'in_subgraph', bool(self.in_subgraph))
 
+    @classmethod
+    def has_weight(cls, obj: Any) -> bool:
+        """Returns if the given object is an instance of `Extras` and has an assigned weight."""
+        return isinstance(obj, cls) and obj.weight is not None
+
 
 # valued
 
