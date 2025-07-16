@@ -8,13 +8,13 @@ import functools as ft
 import itertools as it
 
 from .node import (
-    BoolConstant, Expression, Extras, Node, Operation, Constant, GlobalTask,
+    AnyVariable, BoolConstant, Expression, Extras, Node, Operation, Constant, GlobalTask,
     #
     BoolVariable, PlaceHolder,
     Target, Constraint,
     #
     AnyNode, AnyConstant, AnyOperation, AnyExpression, AnyGlobalObjective,
-    AnyNonEndPoint, AnyNonEntryPoint,
+    AnyNonEndPoint, AnyNonEntryPoint, Variable,
 )
 from .error import UndefinedNodeError
 
@@ -123,6 +123,11 @@ class Graph:
     @final
     def constants(self) -> Sequence[AnyConstant]:
         return tuple(node for node in self.nodes if isinstance(node, Constant))
+
+    @ft.cached_property
+    @final
+    def variables(self) -> Sequence[AnyVariable]:
+        return tuple(node for node in self.nodes if isinstance(node, Variable))
 
     @ft.cached_property
     @final
