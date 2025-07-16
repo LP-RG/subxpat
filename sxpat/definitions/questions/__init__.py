@@ -8,4 +8,4 @@
     @authors: Marco Biasion, Lorenzo Spada
 """
 
-from .exists_parameters_under_et import exists_parameters_under_et
+from .exists_parameters import exists_parameters
