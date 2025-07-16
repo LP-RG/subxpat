@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Sequence, Type, TypeVar, Union, overload
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Type, TypeVar, Union, overload
 
 import math
 import itertools as it
@@ -9,7 +9,7 @@ from sxpat.graph.node import *
 
 __all__ = [
     # digest/update graph
-    'unpack_ToInt', 'prune_unused', 'set_bool_constants', 'set_prefix',
+    'unpack_ToInt', 'prune_unused', 'set_bool_constants', 'set_prefix', 'set_prefix_new',
     # compute graph accessories
     'get_nodes_type', 'get_nodes_bitwidth',
 
@@ -221,8 +221,48 @@ def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missi
     return graph.copy(new_nodes.values())
 
 
+def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterable[str]] = None) -> T_Graph:
+    """
+        Given a graph and the wanted prefix, returns a new graph with all nodes names updated with the prefix.  
+        If `preserve_names` is given, the nodes matching those names will not be renamed.
+
+        @authors: Marco Biasion
+    """
+
+    if preserve_names is None: preserve_names = frozenset()
+    else: preserve_names = frozenset(preserve_names)
+
+    # compute new names
+    new_name_of: Mapping[str, str] = {
+        n.name: n.name if n.name in preserve_names else f'{prefix}{n.name}'
+        for n in graph.nodes
+    }
+
+    # create updated nodes
+    nodes: List[AnyNode] = []
+    for node in graph.nodes:
+        if isinstance(node, Operation):
+            operands = (new_name_of[name] for name in node.operands)
+            nodes.append(node.copy(name=new_name_of[node.name], operands=operands))
+        else:
+            nodes.append(node.copy(name=new_name_of[node.name]))
+
+    # compute extras
+    extras = dict()
+    if isinstance(graph, IOGraph):
+        extras['inputs_names'] = (new_name_of[name] for name in graph.inputs_names)
+        extras['outputs_names'] = (new_name_of[name] for name in graph.outputs_names)
+    if isinstance(graph, PGraph):
+        extras['parameters_names'] = (new_name_of[name] for name in graph.parameters_names)
+
+    return graph.copy(nodes, **extras)
+
+
 def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
     """
+        # DEPRECATED
+        # Use `set_prefix_new` instead
+
         Given a graph and the wanted prefix, returns a new graph with all operation nodes updated with the prefix.
 
         @authors: Marco Biasion
