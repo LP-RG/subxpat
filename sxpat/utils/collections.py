@@ -10,7 +10,7 @@ from sxpat.utils.decorators import static_storage
 
 __all__ = [
     # methods
-    'mapping_inv', 'iterable_replace', 'flat', 'pairwise', 'unzip', 'first',
+    'mapping_inv', 'iterable_replace', 'iterable_replace_index', 'flat', 'pairwise', 'unzip', 'first',
     # classes
     'MultiDict', 'InheritanceMapping',
 ]
@@ -38,7 +38,7 @@ def mapping_inv(mapping: Mapping[K, V], value: V, default: T) -> Union[K, T]:
     """
 
 
-def mapping_inv(mapping: Mapping[K, V], value: V, default = NOTHING) -> Union[K, T]:
+def mapping_inv(mapping: Mapping[K, V], value: V, default=NOTHING) -> Union[K, T]:
     """
         @note: if we move to an invertible mapping (eg. `bidict`) this will not be needed anymore
 
@@ -50,7 +50,21 @@ def mapping_inv(mapping: Mapping[K, V], value: V, default = NOTHING) -> Union[K,
     return key
 
 
-def iterable_replace(iterable: Iterable[T], index: int, value: T) -> Iterator[T]:
+def iterable_replace(iterable: Iterable[T], to_be_replace: T, replacement: T) -> Iterator[T]:
+    """
+        Given an iterable, a value to be replaced, and a value to replace it with,
+        returns an iterator with all occurrences of `to_be_replaced` replaced with `replacement`.
+
+        @authors: Marco Biasion
+    """
+    for value in iterable:
+        if value == to_be_replace:
+            yield replacement
+        else:
+            yield value
+
+
+def iterable_replace_index(iterable: Iterable[T], index: int, value: T) -> Iterator[T]:
     """
         Given an iterable, and a value to be replaced at a certain index, 
         returns an iterator with the value at the index replaced with the given one.  
@@ -202,7 +216,7 @@ def first(predicate: Callable[[T], bool], iterable: Iterable[T], default: V) -> 
     """
 
 
-def first(predicate: Callable[[T], bool], iterable: Iterable[T], default = NOTHING) -> Union[T, V]:
+def first(predicate: Callable[[T], bool], iterable: Iterable[T], default=NOTHING) -> Union[T, V]:
     element = next(filter(predicate, iterable), default)
     if element is NOTHING: raise MatchingElementError('No matching element was found.')
     return element
