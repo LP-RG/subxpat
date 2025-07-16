@@ -162,7 +162,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
             # update all output successors to descend from new outputs
             for succ in filter(lambda n: not n.in_subgraph, a_graph.successors(out_node)):
                 succ = updated_nodes.get(succ.name, succ)
-                new_operands = iterable_replace(succ.operands, succ.operands.index(out_node.name), new_out_node.name)
+                new_operands = iterable_replace(succ.operands, out_node.name, new_out_node.name)
                 updated_nodes[succ.name] = succ.copy(operands=new_operands)
 
         # constants rewriting
@@ -266,7 +266,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
         for (out_node, sum_node) in zip(a_graph.subgraph_outputs, sums):
             for succ in filter(lambda n: not n.in_subgraph, a_graph.successors(out_node)):
                 succ = updated_nodes.get(succ.name, succ)
-                new_operands = iterable_replace(succ.operands, succ.operands.index(out_node.name), sum_node.name)
+                new_operands = iterable_replace(succ.operands, out_node.name, sum_node.name)
                 updated_nodes[succ.name] = succ.copy(operands=new_operands)
 
         # constants rewriting
