@@ -77,27 +77,26 @@ def unpack_ToInt(graph: T_Graph) -> T_Graph:
     return graph.copy(nodes)
 
 
-def prune_unused(graph: T_Graph) -> T_Graph:
+def prune_unused(graph: T_Graph, reserved_names: Iterable[str]) -> T_Graph:
     """
-        Given a graph, returns a new graph without any dangling nodes (recursive).
-        Nodes counted as correct terminations are nodes of class `Identity` or of subclasses of `Variable`.
+        Given a graph, returns a new graph without any dangling nodes (recursively).  
+        `reserved_names` represents the nodes that root the graph and that must be kept even if not used.
 
         @authors: Marco Biasion
     """
 
-    # TODO: better to match termination by input/outputs instead of Variable/Identity
-    termination_nodes = [node.name for node in graph.nodes if isinstance(node, (Variable, Identity))]
+    # convert to stack
+    valid_terminations = list(reserved_names)
 
-    # find reachable nodes from the terminations
+    # find reachable nodes from the reserved ones
     visited_nodes = set()
-    while len(termination_nodes) > 0:
-        node_name = termination_nodes.pop()
+    while valid_terminations:
+        node_name = valid_terminations.pop()
         visited_nodes.add(node_name)
-        termination_nodes.extend(_n.name for _n in graph.predecessors(node_name))
+        valid_terminations.extend(_n.name for _n in graph.predecessors(node_name))
 
-    # filter out non visited nodes
-    nodes = (node for node in graph.nodes if node.name in visited_nodes)
-
+    # keep only visited nodes
+    nodes = (graph[name] for name in visited_nodes)
     return graph.copy(nodes)
 
 
