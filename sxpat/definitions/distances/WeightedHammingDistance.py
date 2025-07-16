@@ -1,56 +1,62 @@
-from typing import Tuple
+from typing import Sequence, Tuple
 from typing_extensions import override
 
 from .DistanceSpecification import DistanceSpecification
 
 from sxpat.graph import CGraph, IOGraph
+from sxpat.graph import error as g_error
 from sxpat.graph.node import Extras, If, IntConstant, PlaceHolder, Sum, Xor
-from sxpat.utils.collections import formatted_int_range
+from sxpat.utils.collections import first, formatted_int_range
 
 
 __all__ = ['WeightedHammingDistance']
 
 
 class WeightedHammingDistance(DistanceSpecification):
-    """@authors: Marco Biasion"""
+    """
+        Defines a distance as the Hamming distance of the wanted nodes of the circuits, where each bitflip has the value of the node being flipped.
+
+        @authors: Marco Biasion
+    """
 
     @override
     @classmethod
-    def define(cls, graph_a: IOGraph, graph_b: IOGraph) -> Tuple[CGraph, str]:
-        """
-            Defines a distance as the Hamming distance of the outputs of the circuits, where each bitflip has the value of the node being flipped.
+    def _define(cls, graph_a: IOGraph, graph_b: IOGraph,
+                wanted_a: Sequence[str], wanted_b: Sequence[str]
+                ) -> Tuple[CGraph, str]:
 
-            @returns: the `CGraph` containing the definition and the name of the node representing the distance
-        """
+        # useful variables
+        w_nodes_a: Sequence[Extras] = tuple(graph_a[n] for n in wanted_a)  # type: ignore
+        w_nodes_b: Sequence[Extras] = tuple(graph_b[n] for n in wanted_b)  # type: ignore
 
         # guard
         if len(graph_a.outputs_names) != len(graph_b.outputs_names):
-            raise ValueError('The two graphs have different numbers of outputs.')
-        if not all(isinstance(out, Extras) and out.weight is not None for out in graph_a.outputs):
-            raise ValueError('Not all graph_a outputs do have weights.')
-        if not all(isinstance(out, Extras) and out.weight is not None for out in graph_b.outputs):
-            raise ValueError('Not all graph_b outputs do have weights.')
-        if not all(out_a.weight == out_b.weight for (out_a, out_b) in zip(graph_a.outputs, graph_b.outputs)):
-            raise ValueError('The outputs of the two graphs have mismatching weights.')
+            raise ValueError('The sequences of wanted nodes have different lengths (or the graphs have different number of outputs).')
+        if (broken := first(Extras.has_weight, w_nodes_a, None)) is not None:
+            raise g_error.MissingAttributeInNodeError(f'{broken} in graph_a ({graph_a}) has no weight.')
+        elif (broken := first(Extras.has_weight, w_nodes_b, None)) is not None:
+            raise g_error.MissingAttributeInNodeError(f'{broken} in graph_b ({graph_b}) has no weight.')
+        if (mismatch := first(lambda ns: ns[0].weight != ns[1].weight, zip(w_nodes_a, w_nodes_b), None)) is not None:
+            raise ValueError(f'The wanted nodes of the two graphs ({mismatch[0]}, {mismatch[1]}) have mismatching weights.')
 
         # bit flips to int
         consts = []
         flipped_bits = []
         int_bits = []
-        for (i, out_a, out_b) in zip(
-            formatted_int_range(len(graph_a.outputs_names)),
-            graph_a.outputs,
-            graph_b.outputs,
+        for (i, node_a, node_b) in zip(
+            formatted_int_range(len(wanted_a)),
+            w_nodes_a,
+            w_nodes_b,
         ):
             # create constants
-            val = out_a.weight
+            val: int = node_a.weight  # type: ignore
             consts.extend([
                 const_0 := IntConstant(f'dist_a{i}_const_0', 0),
                 const_n := IntConstant(f'dist_a{i}_const_{val}', val),
             ])
 
             # create node reflecting if a bit is flipped
-            flipped_bits.append(bit := Xor(f'dist_is_different_{i}', operands=[out_a, out_b]))
+            flipped_bits.append(bit := Xor(f'dist_is_different_{i}', operands=[node_a, node_b]))
 
             # create node that reflects the weight if the bit is flipped, or 0
             int_bits.append(If(f'dist_value_{i}', operands=[bit, const_n, const_0]))
@@ -60,9 +66,9 @@ class WeightedHammingDistance(DistanceSpecification):
 
         # construct CGraph
         dist_func = CGraph((
-            *(PlaceHolder(out_name) for out_name in graph_a.outputs_names),
-            *(PlaceHolder(out_name) for out_name in graph_b.outputs_names),
-            *consts.values(),
+            *(PlaceHolder(name) for name in wanted_a),
+            *(PlaceHolder(name) for name in wanted_b),
+            *consts,
             *flipped_bits,
             *int_bits,
             distance,

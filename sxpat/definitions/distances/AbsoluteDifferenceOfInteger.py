@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Sequence, Tuple
 from typing_extensions import override
 
 from .DistanceSpecification import DistanceSpecification
@@ -9,30 +9,32 @@ from sxpat.graph.node import AbsDiff, PlaceHolder, ToInt
 
 __all__ = ['AbsoluteDifferenceOfInteger']
 
+
 class AbsoluteDifferenceOfInteger(DistanceSpecification):
-    """@authors: Marco Biasion"""
+    """
+        Defines a distance as the absolute difference of the wanted nodes of the circuits treated as series of bits forming unsigned integers.
+
+        @authors: Marco Biasion
+    """
 
     @override
     @classmethod
-    def define(cls, graph_a: IOGraph, graph_b: IOGraph) -> Tuple[CGraph, str]:
-        """
-            Defines a distance as the absolute difference of the outputs of the circuits treated as series of bits forming unsigned integers
-
-            @returns: the `CGraph` containing the definition and the name of the node representing the distance
-        """
+    def _define(cls, _0, _1,
+                wanted_a: Sequence[str], wanted_b: Sequence[str],
+                ) -> Tuple[CGraph, str]:
 
         # define outputs of a and of b as integers
-        int_a = ToInt('dist_int_a', operands=graph_a.outputs_names)
-        int_b = ToInt('dist_int_b', operands=graph_b.outputs_names)
+        int_a = ToInt('dist_int_a', operands=wanted_a)
+        int_b = ToInt('dist_int_b', operands=wanted_b)
 
         # distance
         distance = AbsDiff('dist_distance', operands=[int_a, int_b])
 
         # construct CGraph
         dist_func = CGraph((
-            *(PlaceHolder(out_name) for out_name in graph_a.outputs_names),
+            *(PlaceHolder(name) for name in wanted_a),
             int_a,
-            *(PlaceHolder(out_name) for out_name in graph_b.outputs_names),
+            *(PlaceHolder(name) for name in wanted_b),
             int_b,
             distance,
         ))

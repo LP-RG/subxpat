@@ -1,11 +1,12 @@
-from typing import Tuple
+from typing import Sequence, Tuple
 from typing_extensions import override
 
-from sxpat.utils.collections import formatted_int_range
+from sxpat.utils.collections import first, formatted_int_range
 
 from .DistanceSpecification import DistanceSpecification
 
 from sxpat.graph import CGraph, IOGraph
+from sxpat.graph import error as g_error
 from sxpat.graph.node import AbsDiff, Extras, If, IntConstant, PlaceHolder, Sum
 
 
@@ -13,54 +14,62 @@ __all__ = ['AbsoluteDifferenceOfWeightedSum']
 
 
 class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
-    """@authors: Marco Biasion"""
+    """
+        Defines a distance as the absolute difference of the wanted nodes of the circuits where each node is valued using its weight.
+
+        @authors: Marco Biasion
+    """
 
     @override
     @classmethod
-    def define(cls, graph_a: IOGraph, graph_b: IOGraph) -> Tuple[CGraph, str]:
-        """
-            Defines a distance as the absolute difference of the outputs of the circuits treated as series of bits forming unsigned integers
+    def _define(cls, graph_a: IOGraph, graph_b: IOGraph,
+                wanted_a: Sequence[str], wanted_b: Sequence[str],
+                ) -> Tuple[CGraph, str]:
 
-            @returns: the `CGraph` containing the definition and the name of the node representing the distance
-        """
+        # useful variables
+        w_nodes_a: Sequence[Extras] = tuple(graph_a[n] for n in wanted_a)  # type: ignore
+        w_nodes_b: Sequence[Extras] = tuple(graph_b[n] for n in wanted_b)  # type: ignore
 
         # guard
-        if not all(isinstance(out, Extras) and out.weight is not None for out in graph_a.outputs):
-            raise ValueError('Not all graph_a outputs do have weights.')
-        if not all(isinstance(out, Extras) and out.weight is not None for out in graph_b.outputs):
-            raise ValueError('Not all graph_b outputs do have weights.')
+        if (broken := first(Extras.has_weight, w_nodes_a, None)) is not None:
+            raise g_error.MissingAttributeInNodeError(f'{broken} in graph_a ({graph_a}) has no weight.')
+        elif (broken := first(Extras.has_weight, w_nodes_b, None)) is not None:
+            raise g_error.MissingAttributeInNodeError(f'{broken} in graph_b ({graph_b}) has no weight.')
 
         # graph_a int
         consts_a = []
         bits_a = []
-        for (i, out) in zip(
-            formatted_int_range(len(graph_a.outputs_names)),
-            graph_a.outputs,
+        for (i, node) in zip(
+            formatted_int_range(len(wanted_a)),
+            w_nodes_a,
         ):
             # create constants
-            val = out.weight
+            val: int = node.weight  # type: ignore
             consts_a.extend([
                 const_0 := IntConstant(f'dist_a{i}_const_0', 0),
                 const_n := IntConstant(f'dist_a{i}_const_{val}', val),
             ])
 
             # create node that reflects the weight if the bit is true, or 0
-            bits_a.append(If(f'dist_a{i}', operands=[out, const_n, const_0]))
+            bits_a.append(If(f'dist_a{i}', operands=[node, const_n, const_0]))
         int_a = Sum('dist_int_a', operands=bits_a)
 
         # graph_b int
         consts_b = []
         bits_b = []
-        for (i, out) in zip(
-            formatted_int_range(len(graph_b.outputs_names)),
-            graph_b.outputs,
+        for (i, node) in zip(
+            formatted_int_range(len(wanted_a)),
+            w_nodes_b,
         ):
-            val = out.weight
+            # create constants
+            val: int = node.weight  # type: ignore
             consts_b.extend([
                 const_0 := IntConstant(f'dist_b{i}_const_0', 0),
                 const_n := IntConstant(f'dist_b{i}_const_{val}', val),
             ])
-            bits_b.append(If(f'dist_b{i}', operands=[out, const_n, const_0]))
+
+            # create node that reflects the weight if the bit is true, or 0
+            bits_b.append(If(f'dist_b{i}', operands=[node, const_n, const_0]))
         int_b = Sum('dist_int_b', operands=bits_b)
 
         # distance
@@ -68,9 +77,9 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
 
         # construct CGraph
         dist_func = CGraph((
-            *(PlaceHolder(out_name) for out_name in graph_a.outputs_names),
+            *(PlaceHolder(name) for name in wanted_a),
             *consts_a, *bits_a, int_a,
-            *(PlaceHolder(out_name) for out_name in graph_b.outputs_names),
+            *(PlaceHolder(name) for name in wanted_b),
             *consts_b, *bits_b, int_b,
             distance,
         ))

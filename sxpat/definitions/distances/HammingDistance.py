@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Sequence, Tuple
 from typing_extensions import override
 
 from .DistanceSpecification import DistanceSpecification
@@ -12,20 +12,21 @@ __all__ = ['HammingDistance']
 
 
 class HammingDistance(DistanceSpecification):
-    """@authors: Marco Biasion"""
+    """
+        Defines a distance as the Hamming distance of the wanted nodes of the circuits.
+
+        @authors: Marco Biasion
+    """
 
     @override
     @classmethod
-    def define(cls, graph_a: IOGraph, graph_b: IOGraph) -> Tuple[CGraph, str]:
-        """
-            Defines a distance as the Hamming distance of the outputs of the circuits.
-
-            @returns: the `CGraph` containing the definition and the name of the node representing the distance
-        """
+    def _define(cls, _0, _1,
+                wanted_a: Sequence[str], wanted_b: Sequence[str],
+                ) -> Tuple[CGraph, str]:
 
         # guard
-        if len(graph_a.outputs_names) != len(graph_b.outputs_names):
-            raise ValueError('The two graphs have different numbers of outputs.')
+        if len(wanted_a) != len(wanted_b):
+            raise ValueError('The sequences of wanted nodes have different lengths (or the graphs have different number of outputs).')
 
         # constants
         const_0 = IntConstant('dist_const_0', value=0)
@@ -35,9 +36,9 @@ class HammingDistance(DistanceSpecification):
         flipped_bits = []
         int_bits = []
         for (i, out_a, out_b) in zip(
-            formatted_int_range(len(graph_a.outputs_names)),
-            graph_a.outputs_names,
-            graph_b.outputs_names,
+            formatted_int_range(len(wanted_a)),
+            wanted_a,
+            wanted_b,
         ):
             flipped_bits.append(bit := Xor(f'dist_is_different_{i}', operands=[out_a, out_b]))
             int_bits.append(If(f'dist_value_{i}', operands=[bit, const_1, const_0]))
@@ -47,8 +48,8 @@ class HammingDistance(DistanceSpecification):
 
         # construct CGraph
         dist_func = CGraph((
-            *(PlaceHolder(out_name) for out_name in graph_a.outputs_names),
-            *(PlaceHolder(out_name) for out_name in graph_b.outputs_names),
+            *(PlaceHolder(name) for name in wanted_a),
+            *(PlaceHolder(name) for name in wanted_b),
             const_0, const_1,
             *flipped_bits,
             *int_bits,
