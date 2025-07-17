@@ -1,11 +1,11 @@
 from typing import List, Sequence, Type, Union
 
 import itertools as it
-
-from sxpat.definitions.distances.DistanceSpecification import DistanceSpecification
-from sxpat.graph.graph import CGraph, IOGraph, PGraph
-from sxpat.graph.node import AnyNode, Constraint, ForAll, GreaterEqualThan, GreaterThan, IntConstant, LessEqualThan, LessThan, PlaceHolder, Target
 from sxpat.utils.decorators import make_utility_class
+
+from sxpat.graph import CGraph, IOGraph, PGraph
+from sxpat.graph.node import AnyNode, Constraint, ForAll, GreaterEqualThan, GreaterThan, IntConstant, LessEqualThan, LessThan, PlaceHolder, Target
+from sxpat.definitions.distances.DistanceSpecification import DistanceSpecification
 
 
 __all__ = ['exists_parameters']
@@ -14,14 +14,14 @@ __all__ = ['exists_parameters']
 @make_utility_class
 class exists_parameters:
     @classmethod
-    def _create_question(cls,
-                         reference_circuit: IOGraph,
-                         parametric_circuit: PGraph,
-                         distance_definition: DistanceSpecification,
-                         threshold: int,
-                         comparison_type: Type[Union[LessThan, LessEqualThan, GreaterThan, GreaterEqualThan]],
-                         do_forall: bool,
-                         ) -> Sequence[CGraph]:
+    def _define(cls,
+                reference_circuit: IOGraph,
+                parametric_circuit: PGraph,
+                distance_definition: DistanceSpecification,
+                threshold: int,
+                comparison_type: Type[Union[LessThan, LessEqualThan, GreaterThan, GreaterEqualThan]],
+                do_forall: bool,
+                ) -> Sequence[CGraph]:
         """@authors: Marco Biasion"""
 
         # define distance
@@ -59,7 +59,7 @@ class exists_parameters:
                                           parametric_circuit: PGraph,
                                           distance_definition: DistanceSpecification,
                                           threshold: int,) -> Sequence[CGraph]:
-        return cls._create_question(
+        return cls._define(
             reference_circuit, parametric_circuit,
             distance_definition, threshold, LessEqualThan,
             True
@@ -71,7 +71,7 @@ class exists_parameters:
                         parametric_circuit: PGraph,
                         distance_definition: DistanceSpecification,
                         threshold: int,) -> Sequence[CGraph]:
-        return cls._create_question(
+        return cls._define(
             reference_circuit, parametric_circuit,
             distance_definition, threshold, GreaterThan,
             False
