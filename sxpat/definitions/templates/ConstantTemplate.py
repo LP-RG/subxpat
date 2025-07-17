@@ -6,7 +6,6 @@ from .Template import Template
 
 from sxpat.graph import SGraph, PGraph, CGraph
 from sxpat.graph.node import AnyOperation, BoolVariable
-from sxpat.specifications import Specifications
 
 from sxpat.utils.collections import iterable_replace
 from sxpat.converting.utils import prune_unused, set_prefix_new
@@ -14,12 +13,13 @@ from sxpat.converting.utils import prune_unused, set_prefix_new
 
 __all__ = ['SharedTemplate']
 
+
 circuit_prefix = 'a_'
 
 
 class ConstantTemplate(Template):
     """
-        This template allows only for constants rewriting.
+        This template allows only for constants at the subgraph outputs.
 
         @authors: Marco Biasion
     """
