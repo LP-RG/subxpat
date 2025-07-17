@@ -1,10 +1,11 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Sequence, Tuple
+from typing_extensions import Never
 
 import itertools as it
 
 from .Template import Template
 
-from sxpat.graph import SGraph, PGraph, CGraph
+from sxpat.graph import SGraph, PGraph
 from sxpat.graph.node import AnyOperation, BoolVariable
 
 from sxpat.utils.collections import iterable_replace
@@ -25,7 +26,7 @@ class ConstantTemplate(Template):
     """
 
     @classmethod
-    def define(cls, current_circ: SGraph, _) -> Tuple[PGraph, CGraph]:
+    def define(cls, current_circ: SGraph, _unused) -> Tuple[PGraph, Sequence[Never]]:
 
         # create/update nodes
         parameters: List[BoolVariable] = list()
@@ -68,4 +69,4 @@ class ConstantTemplate(Template):
             current_circ.inputs_names,
         )
 
-        return (param_circ, CGraph([]))
+        return (param_circ, tuple())

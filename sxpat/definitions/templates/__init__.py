@@ -3,7 +3,7 @@
 
     This module contains all the templates we have implemented.
     
-    All of them share the same interface: `cls.define(SGraph, Specifications) -> Tuple[PGraph, CGraph]`
+    All of them share the same interface: `cls.define(SGraph, Specifications) -> Tuple[PGraph, Sequence[CGraph]]`
 
     @authors: Marco Biasion
 """
@@ -12,14 +12,18 @@ from typing import Type
 from sxpat.specifications import Specifications, TemplateType, ConstantFalseType
 
 from .Template import Template
+from .ConstantTemplate import ConstantTemplate
 from .SharedTemplate import SharedTemplate
 from .NonSharedTemplate import NonSharedFOutTemplate, NonSharedFProdTemplate
 from .v2Phase1 import v2Phase1
 
 
-__all__ = ['get_specialized',
-           'Template',
-           'SharedTemplate', 'NonSharedFOutTemplate', 'NonSharedFProdTemplate']
+__all__ = [
+    'get_specialized',
+    'Template',
+    'ConstantTemplate',
+    'SharedTemplate', 'NonSharedFOutTemplate', 'NonSharedFProdTemplate',
+]
 
 
 def get_specialized(specs: Specifications) -> Type[Template]:

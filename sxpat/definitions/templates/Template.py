@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Sequence, Tuple
 from abc import abstractmethod
 
 from sxpat.graph import SGraph, PGraph, CGraph
@@ -13,10 +13,10 @@ __all__ = ['Template']
 class Template:
     @classmethod
     @abstractmethod
-    def define(cls, graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:
+    def define(cls, graph: SGraph, specs: Specifications) -> Tuple[PGraph, Sequence[CGraph]]:
         """
             Given a graph with subgraph informations and the specifications,
             returns the graph with the subgraph replaced with the template 
-            and a graph containing all the constraints required to achieve the wanted behaviour.
+            and a sequence of graph containing all the constraints required to achieve the wanted behaviour.
         """
         raise NotImplementedError(f'{cls.__qualname__}.define() is abstract')

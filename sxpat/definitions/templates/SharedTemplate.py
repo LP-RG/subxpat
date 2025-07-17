@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 import itertools as it
 
@@ -27,7 +27,7 @@ class SharedTemplate(Template):
     """
 
     @classmethod
-    def define(cls, graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:
+    def define(cls, graph: SGraph, specs: Specifications) -> Tuple[PGraph, Sequence[CGraph]]:
         # get prefixed graph
         a_graph: SGraph = set_prefix(graph, 'a_')
 
@@ -183,4 +183,4 @@ class SharedTemplate(Template):
         )
         constraint_graph = CGraph(nodes)
 
-        return (template_graph, constraint_graph)
+        return (template_graph, (constraint_graph,))

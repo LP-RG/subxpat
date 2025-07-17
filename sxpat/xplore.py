@@ -244,7 +244,7 @@ def explore_grid(specs_obj: Specifications):
 
             # solve
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
-            _question = [exact_circ, param_circ, param_circ_constr, *question]
+            _question = [exact_circ, param_circ, *param_circ_constr, *question]
 
             models = []
             for i in range(specs_obj.wanted_models):

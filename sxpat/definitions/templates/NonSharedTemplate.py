@@ -138,7 +138,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
     """
 
     @classmethod
-    def define(cls, s_graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:
+    def define(cls, s_graph: SGraph, specs: Specifications) -> Tuple[PGraph, Sequence[CGraph]]:
         # get prefixed graph
         a_graph: SGraph = set_prefix(s_graph, 'a_')
 
@@ -237,7 +237,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
             )
         )
 
-        return (template_graph, constraint_graph)
+        return (template_graph, (constraint_graph,))
 
 
 class NonSharedFProdTemplate(Template, _NonSharedBase):
@@ -249,7 +249,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
     """
 
     @classmethod
-    def define(cls, s_graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:
+    def define(cls, s_graph: SGraph, specs: Specifications) -> Tuple[PGraph, Sequence[CGraph]]:
         # get prefixed graph
         a_graph: SGraph = set_prefix(s_graph, 'a_')
 
@@ -351,4 +351,4 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
             )
         )
 
-        return (template_graph, constraint_graph)
+        return (template_graph, (constraint_graph,))
