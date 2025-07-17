@@ -62,6 +62,17 @@ def compute_weights(circuit: AnnotatedGraph, /, *, run_in_parallel: bool) -> Map
 
     return labels
 
+def compute_weights_qbf(circuit: AnnotatedGraph, /, *, run_in_parallel: bool) -> Mapping[str, int]:
+    from sxpat.temp_labelling import labeling
+    labels = labeling(circuit.name, circuit.name, 1e100)
+
+    labels = {
+        k: labels[k]
+        for k in sorted(labels, key=lambda n: int(n[1:]))
+    }
+
+    return labels
+
 
 def assign_weights(circuit: AnnotatedGraph, weights: Mapping[str, int]) -> AnnotatedGraph:
     """@notes: this function updates the given `circuit`"""
@@ -135,13 +146,7 @@ if __name__ == '__main__':
 
     #
     if file.find('_', file.find('_o') + 2) == -1:
-        from sxpat.temp_labelling import labeling
-        weights = labeling(file, file, 1e100)
-        
-        weights = {
-            k: weights[k]
-            for k in sorted(weights, key=lambda n: int(n[1:]))
-        }
+        weights = compute_weights(circuit, run_in_parallel=False)
     else:
         weights = compute_weights(circuit, run_in_parallel=True)
     print(weights)
