@@ -58,7 +58,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         consts_b = []
         bits_b = []
         for (i, node) in zip(
-            formatted_int_range(len(wanted_a)),
+            formatted_int_range(len(wanted_b)),
             w_nodes_b,
         ):
             # create constants
