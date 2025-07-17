@@ -12,17 +12,21 @@ from typing import Type
 from sxpat.specifications import Specifications, TemplateType, ConstantFalseType
 
 from .Template import Template
-from .ConstantTemplate import ConstantTemplate
+from .simple_templates import ConstantTemplate, SwitchedTemplate
 from .SharedTemplate import SharedTemplate
 from .NonSharedTemplate import NonSharedFOutTemplate, NonSharedFProdTemplate
 from .v2Phase1 import v2Phase1
 
 
 __all__ = [
-    'get_specialized',
+    # abstract
     'Template',
-    'ConstantTemplate',
+    # simple templates
+    'ConstantTemplate', 'SwitchedTemplate',
+    # DNF (Disjunctive Normal Form) templates
     'SharedTemplate', 'NonSharedFOutTemplate', 'NonSharedFProdTemplate',
+    #
+    'get_specialized',
 ]
 
 
