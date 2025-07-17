@@ -292,5 +292,6 @@ class CGraph(Graph):
 
 
 T_Graph = TypeVar('T_Graph', Graph, IOGraph, SGraph, PGraph, CGraph)
+T_IOGraph = TypeVar('T_IOGraph', IOGraph, SGraph, PGraph)
 AnyGraph = Union[Graph, IOGraph, SGraph, PGraph, CGraph]
 T_AnyGraph = TypeVar('T_AnyGraph', bound=AnyGraph)

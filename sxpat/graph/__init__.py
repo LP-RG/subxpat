@@ -4,7 +4,7 @@ from .graph import (
     IOGraph, SGraph, PGraph,
     CGraph,
     #
-    T_Graph, AnyGraph, T_AnyGraph,
+    T_Graph, T_IOGraph, AnyGraph, T_AnyGraph,
 )
 from . import node
 from . import error
