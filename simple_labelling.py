@@ -24,7 +24,7 @@ def load_from_verilog(verilog_path: str) -> AnnotatedGraph:
     return circuit
 
 
-def compute_weights(circuit: AnnotatedGraph, /, *, run_in_parallel: bool) -> Mapping[str, int]:
+def compute_weights_z3(circuit: AnnotatedGraph, /, *, run_in_parallel: bool) -> Mapping[str, int]:
     # imports
     import os
     import glob
@@ -62,7 +62,8 @@ def compute_weights(circuit: AnnotatedGraph, /, *, run_in_parallel: bool) -> Map
 
     return labels
 
-def compute_weights_qbf(circuit: AnnotatedGraph, /, *, run_in_parallel: bool) -> Mapping[str, int]:
+
+def compute_weights_qbf(circuit: AnnotatedGraph) -> Mapping[str, int]:
     from sxpat.temp_labelling import labeling
     labels = labeling(circuit.name, circuit.name, 1e100)
 
@@ -146,9 +147,9 @@ if __name__ == '__main__':
 
     #
     if file.find('_', file.find('_o') + 2) == -1:
-        weights = compute_weights(circuit, run_in_parallel=False)
+        weights = compute_weights_qbf(circuit)
     else:
-        weights = compute_weights(circuit, run_in_parallel=True)
+        weights = compute_weights_z3(circuit, run_in_parallel=False)
     print(weights)
 
     #
