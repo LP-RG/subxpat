@@ -8,12 +8,20 @@ from sxpat.graph.node import *
 
 
 __all__ = [
-    # digest/update graph
-    'unpack_ToInt', 'prune_unused', 'set_bool_constants', 'set_prefix', 'set_prefix_new',
+    # digest (to be moved to own sub/module)
+    'unpack_ToInt',
+    # optimization
+    'crystallize',
+    'prune_unused', 'prune_unused_keepio',
+    # assignments
+    'set_bool_constants',
+    # non behavioural changes
+    'set_prefix', 'set_prefix_new',
     # compute graph accessories
     'get_nodes_type', 'get_nodes_bitwidth',
 
-    #
+    # others
+    # (this could be in questions? or a new module? maybe called constraints::? or maybe something else)
     'prevent_assignment',
 ]
 
@@ -98,6 +106,25 @@ def prune_unused(graph: T_Graph, reserved_names: Iterable[str]) -> T_Graph:
     # keep only visited nodes
     nodes = (graph[name] for name in visited_nodes)
     return graph.copy(nodes)
+
+
+def prune_unused_keepio(graph: T_IOGraph, reserved_names: Iterable[str] = tuple()) -> T_IOGraph:
+    """
+        Given a graph, returns a new graph without any dangling nodes (recursively).  
+        By default all inputs and outputs root the graph and will be kept,
+        optionally `reserved_names` can be used to select more nodes.
+
+        @authors: Marco Biasion
+    """
+
+    return prune_unused(
+        graph,
+        it.chain(
+            graph.inputs_names,
+            graph.outputs_names,
+            reserved_names,
+        )
+    )
 
 
 def get_nodes_type(graphs: Iterable[Graph],

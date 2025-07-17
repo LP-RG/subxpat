@@ -7,12 +7,19 @@ __all__ = [
     'GraphImporter', 'GraphExporter',  # interfaces
     'GraphVizPorter', 'JSONPorter', 'VerilogExporter',  # concrete implementations
 
-    # digest/update graph
-    'unpack_ToInt', 'prune_unused', 'set_bool_constants', 'set_prefix', 'set_prefix_new',
+    # digest (to be moved to own sub/module)
+    'unpack_ToInt',
+    # optimization
+    'crystallize',
+    'prune_unused', 'prune_unused_keepio',
+    # assignments
+    'set_bool_constants',
+    # non behavioural changes
+    'set_prefix', 'set_prefix_new',
     # compute graph accessories
     'get_nodes_type', 'get_nodes_bitwidth',
-
-    #
+    # others
+    # (this could be in questions? or a new module? maybe called constraints::? or maybe something else)
     'prevent_assignment',
 
     # legacy
