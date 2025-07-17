@@ -121,18 +121,29 @@ def export_as_graphviz(circuit: AnnotatedGraph, destination: str) -> None:
 if __name__ == '__main__':
     # imports
     import sys
+    import os
 
     # useful variables
     try: verilog_path = sys.argv[1]
     except IndexError: print('You must pass a verilog path to load the circuit from', file=sys.stderr); exit(1)
     try: graphviz_path = sys.argv[2]
     except IndexError: print('You must pass a graphviz path to save the circuit to', file=sys.stderr); exit(1)
+    file = os.path.splitext(os.path.basename(verilog_path))[0]
 
     #
     circuit = load_from_verilog(verilog_path)
 
     #
-    weights = compute_weights(circuit, run_in_parallel=True)
+    if file.find('_', file.find('_o') + 2) == -1:
+        from sxpat.temp_labelling import labeling
+        weights = labeling(file, file, 1e100)
+        
+        weights = {
+            k: weights[k]
+            for k in sorted(weights, key=lambda n: int(n[1:]))
+        }
+    else:
+        weights = compute_weights(circuit, run_in_parallel=True)
     print(weights)
 
     #

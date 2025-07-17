@@ -1,5 +1,5 @@
 import sys
-sys.path.append("/home/lorenzospada/Documents/Multiple_Instances/1-instance/subxpat")
+# sys.path.append("/home/lorenzospada/Documents/Multiple_Instances/1-instance/subxpat")
 
 from sxpat.annotatedGraph import AnnotatedGraph
 import networkx as nx
