@@ -133,8 +133,8 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         PGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
     }
 
-    GRAPH_PATTERN = re.compile(r'strict digraph _(\w+) {(?:\n\s*node \[.*\];)?((?:\n\s*\w+ \[.*\];)+)(?:\n\s*\w+ -> \w+;)+((?:\n\s*\/\/ \w+.*)*)\n}')
-    NODE_PATTERN = re.compile(r'\w+ \[label="(.*)".*\]')
+    GRAPH_PATTERN = re.compile(r'strict digraph _(\w+) {(?:\n\s*node \[.*\];)?((?:\n\s*"\w+" \[.*\];)+)(?:\n\s*"\w+" -> "\w+";)+((?:\n\s*\/\/ \w+.*)*)\n}')
+    NODE_PATTERN = re.compile(r'"\w+" \[label="(.*)".*\]')
     EXTRA_PATTERN = re.compile(r'\/\/ (\w+)\[([\w,]+)\]')
 
     @classmethod
@@ -157,9 +157,10 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     @classmethod
     def _parse_label(cls, string: str) -> Node:
         # match label informations
+        escape_special: Callable[[str], str] = lambda s: s.replace("(", r"\(").replace(")", r"\)")
         m = re.match(
             (
-                rf'({"|".join(cls.NODE_SYMBOL.inverse)})'  # class
+                rf'({"|".join(map(escape_special, cls.NODE_SYMBOL.inverse))})'  # class
                 rf'\\n(\w+)'  # name
                 rf'(?:\\nw=([-+]?\d+))?'  # weight
                 rf'(?:\\n(sub))?'  # in_subgraph
