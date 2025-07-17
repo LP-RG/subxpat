@@ -1,0 +1,33 @@
+python3 main.py mul_i8_o8 --metric wre --min-labeling --zone-constraint 7 --extraction-mode 0 --subxpat --encoding z3bvec --max-error 35 --imax 4 --omax 2 --template nonshared --max-lpp 8 --max-ppo 8
+
+Here I use max-lpp 8, max-ppo 8, imax 4, omax 2
+Before using max-lpp 4, max-ppo 2, imax 4, omax 4, it is difficult to find sat elements
+
+GOOD RESULTS: 4317, 4318, 435, 431, 422
+
+exp41: use multiple error_check_*
+exp42: union the error_check_* by AND operator, and give it the name error_check
+        (if zone_0 is true, then all others zone are false, 
+        thus all other error_check_* are true, thus the result of check depends only on zone_0-->error_0)
+exp43: change name of error_check_* --> ec_*, union them by AND operator, and give it the name error_check
+exp43*: change the name ec_* to ...
+exp431*: repeat the experiment of 431.
+exp433*: pulled the newest version
+exp44: if zone0, then error0, else: if zone1, then error1, else: if zone2, then error2, else True
+       how to use if to formulate it
+       no:  error_0 := LessEqualThan('error_0', operands=(rel_diff, et_0)),
+            error_check_0 := If("error_check_0", operands=(zone_0, error_0, error_check_1)),
+            error_1 := LessEqualThan('error_1', operands=(rel_diff, et_1)),
+            error_check_1 := If("error_check_1", operands=(zone_1, error_1, error_check_2)),
+            error_2 := LessEqualThan('error_2', operands=(rel_diff, et_2)),
+            error_check_2 := If("error_check_2", operands=(zone_2, error_2, True))
+
+       no:  error_0 := LessEqualThan('error_0', operands=(rel_diff, et_0)),
+            error_check_0 := If("error_check_0", operands=(zone_0, error_0, True)),
+            error_1 := LessEqualThan('error_1', operands=(rel_diff, et_1)),
+            error_check_1 := If("error_check_1", operands=(zone_1, error_1, error_check_0)),
+            error_2 := LessEqualThan('error_2', operands=(rel_diff, et_2)),
+            error_check_2 := If("error_check_2", operands=(zone_2, error_2, error_check_1))
+     Let me insert a python built in if operator
+     
+

@@ -1,0 +1,30 @@
+python3 main.py mul_i8_o8 --metric wre --min-labeling 
+--zone-constraint 7 
+--extraction-mode55 --subxpat --encoding z3bvec --max-error 35 --imax 4 --omax 4 --template nonshared --max-lpp 4 --max-ppo 2
+
+Runtime: ~11 min
+change:(input_two_value, et, zone_limit, zone, error, error_check)
+    divide the zone into 4 parts, with the horizontal limit and the vertical limit
+    part 0: input_one <= 7, input_two <=7, et_0=35
+    part 1: input_one > 7, input_two <=7, et_1=35*1.2
+    part 3: input_one <=7, input_two >7, et_2=35*1.5
+    part 4: do whatever
+
+Question:
+    1. how do I know if I success the division? 
+    (Yes, check the short names python files in output)
+    2. can I modify the type of the zone_constraint? 
+    (No, please, others do it)
+        which will cause modifications over many other python files and functions
+        related on zone_constraint, error, error_check and so on
+    3. can I have more than one zone_constraint parameters? 
+    (No, just create zone constraint constants in the body of the function relative_error_zone_constraint)
+        which will cause modifications over other python files
+        related on 'relative_error_zone_constraint'
+
+I want to get more zone division:
+    idea1: single parameter 'zone_constraint', working on this with arithmetic operations(zone_constraint*1.5)
+    idea2: add more parameter into the function 'relative_error_zone_constraint'
+    idea3: change the type of 'zone_constraint' into tuple
+
+

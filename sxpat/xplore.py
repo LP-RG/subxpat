@@ -32,6 +32,7 @@ from sxpat.utils.utils import pprint
 
 
 def explore_grid(specs_obj: Specifications):
+    start_time=time.time()
     previous_subgraphs = []
 
     labeling_time: float = -1
@@ -253,6 +254,9 @@ def explore_grid(specs_obj: Specifications):
                     if candidate_data[4] > error and specs_obj.zone_constraint is None:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
                         stats_obj.store_grid()
+                        end_time=time.time()
+                        runtime=abs(end_time-start_time)/60
+                        print(f"Runtime: {runtime:.4f} minutes")
                         return stats_obj
 
                 pprint.success('ErrorEval Verification PASSED')
@@ -297,6 +301,9 @@ def explore_grid(specs_obj: Specifications):
             break
 
     stats_obj.store_grid()
+    end_time=time.time()
+    runtime=abs(end_time-start_time)/60
+    print(f"Runtime: {runtime:.4f} minutes")
     return stats_obj
 
 

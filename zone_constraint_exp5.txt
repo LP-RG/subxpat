@@ -1,0 +1,3 @@
+Here we try to simulate the division of the matrix as neural network
+
+
