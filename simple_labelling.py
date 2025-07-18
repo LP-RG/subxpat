@@ -143,19 +143,24 @@ if __name__ == '__main__':
     file = os.path.splitext(os.path.basename(verilog_path))[0]
 
     #
+    print(f'loading circuit from {verilog_path!r}')
     circuit = load_from_verilog(verilog_path)
 
     #
     can_use_qbf: bool = False
     if can_use_qbf and file.find('_', file.find('_o') + 2) == -1:
+        print('computing weights using qbf`')
         weights = compute_weights_qbf(circuit)
     else:
+        print('computing weights using z3')
         weights = compute_weights_z3(circuit, run_in_parallel=False)
     print(weights)
 
     #
+    print('assigning weights')
     circuit = assign_weights(circuit, weights)
     circuit = assign_trivial_weights(circuit)
 
     #
+    print(f'exporting weighted circuit to {graphviz_path!r}')
     export_as_graphviz(circuit, graphviz_path)
