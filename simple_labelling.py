@@ -146,7 +146,8 @@ if __name__ == '__main__':
     circuit = load_from_verilog(verilog_path)
 
     #
-    if file.find('_', file.find('_o') + 2) == -1:
+    can_use_qbf: bool = False
+    if can_use_qbf and file.find('_', file.find('_o') + 2) == -1:
         weights = compute_weights_qbf(circuit)
     else:
         weights = compute_weights_z3(circuit, run_in_parallel=False)
