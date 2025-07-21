@@ -1,6 +1,6 @@
 from __future__ import annotations
 from collections import UserDict
-from typing import Callable, Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union, overload
+from typing import Callable, Dict, Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union, overload
 
 import itertools as it
 
@@ -8,6 +8,7 @@ import itertools as it
 __all__ = [
     # methods
     'mapping_inv', 'iterable_replace', 'flat', 'pairwise', 'unzip', 'first',
+    'reorder_mapping',
     # classes
     'MultiDict', 'InheritanceMapping',
 ]
@@ -138,3 +139,7 @@ def first(predicate: Callable[[T], bool], iterable: Iterable[T], default: V = NO
     element = next(filter(predicate, iterable), default)
     if element is NOTHING: raise MatchingElementError('No matching element was found.')
     return element
+
+
+def reorder_mapping(mapping: Mapping[K, V], key: Callable[[K], V]) -> Dict[K, V]:
+    return dict(sorted(mapping.items(), key=lambda t: key(t[0])))
