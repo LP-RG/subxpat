@@ -214,7 +214,7 @@ class AnnotatedGraph(Graph):
 
     def __add_weights(self):
         for n in self.graph.nodes:
-            self.graph.nodes[n][WEIGHT] = 1
+            self.graph.nodes[n][WEIGHT] = None
 
     def __repr__(self):
         return f'An object of class AnnotatedGraph:\n' \
