@@ -30,6 +30,8 @@ def compute_weights_z3(circuit: AnnotatedGraph, /, *, run_in_parallel: bool) -> 
     import glob
     #
     from sxpat.utils.filesystem import FS
+    from sxpat.utils.collections import reorder_mapping
+    #
     import Z3Log.config.config as l_config
     import Z3Log.config.path as l_paths
     from Z3Log.graph import Graph
@@ -46,13 +48,13 @@ def compute_weights_z3(circuit: AnnotatedGraph, /, *, run_in_parallel: bool) -> 
         experiment=l_config.SINGLE, optimization=l_config.MAXIMIZE, style=style,
         partial=do_partially, parallel=run_in_parallel
     )
-    labels = z3py_obj.label_circuit(partial=do_partially)
+    weights = z3py_obj.label_circuit(partial=do_partially)
 
-    # sort labels
-    labels = {
-        k: labels[k]
-        for k in sorted(labels, key=lambda n: int(n[1:]))
-    }
+    # sort weights
+    weights = reorder_mapping(
+        weights,
+        lambda k: int(k[1:]),
+    )
 
     # cleanup (folder report/ and z3/)
     for folder in [l_paths.OUTPUT_PATH['report'][0], l_paths.OUTPUT_PATH['z3'][0]]:
@@ -60,19 +62,25 @@ def compute_weights_z3(circuit: AnnotatedGraph, /, *, run_in_parallel: bool) -> 
             if os.path.isdir(dir):
                 FS.rmdir(dir, True)
 
-    return labels
+    return weights
 
 
 def compute_weights_qbf(circuit: AnnotatedGraph) -> Mapping[str, int]:
+    # imports
     from sxpat.temp_labelling import labeling
-    labels = labeling(circuit.name, circuit.name, 1e100)
+    #
+    from sxpat.utils.collections import reorder_mapping
 
-    labels = {
-        k: labels[k]
-        for k in sorted(labels, key=lambda n: int(n[1:]))
-    }
+    #
+    weights = labeling(circuit.name, circuit.name, 1e100)
 
-    return labels
+    # sort weights
+    weights = reorder_mapping(
+        weights,
+        lambda k: int(k[1:]),
+    )
+
+    return weights
 
 
 def assign_weights(circuit: AnnotatedGraph, weights: Mapping[str, int]) -> AnnotatedGraph:
@@ -94,28 +102,23 @@ def assign_weights(circuit: AnnotatedGraph, weights: Mapping[str, int]) -> Annot
 
 def assign_trivial_weights(circuit: AnnotatedGraph) -> AnnotatedGraph:
     """
-        Assigns weights to inputs and outputs.
+        Assigns weights to the outputs.
 
-        @notes: this function assumes that the circuit has only two inputs series
+        @notes: this function assumes that the circuit has only a single output
         @notes: this function updates the given `circuit`
     """
 
     # compute input and output weights
     weights = dict(
         **{
-            name: 2 ** (i % (circuit.num_inputs // 2))
-            for (i, name) in circuit.input_dict.items()
-        },
-        **{
             name: 2 ** i
             for (i, name) in circuit.output_dict.items()
         },
+        # ...
     )
 
     #
-    circuit = assign_weights(circuit, weights)
-
-    return circuit
+    return assign_weights(circuit, weights)
 
 
 def export_as_graphviz(circuit: AnnotatedGraph, destination: str) -> None:
@@ -137,9 +140,9 @@ if __name__ == '__main__':
 
     # useful variables
     try: verilog_path = sys.argv[1]
-    except IndexError: print('You must pass a verilog path to load the circuit from', file=sys.stderr); exit(1)
+    except IndexError: print('You must pass a verilog path to load the circuit from', file=sys.stderr); sys.exit(1)
     try: graphviz_path = sys.argv[2]
-    except IndexError: print('You must pass a graphviz path to save the circuit to', file=sys.stderr); exit(1)
+    except IndexError: print('You must pass a graphviz path to save the circuit to', file=sys.stderr); sys.exit(1)
     file = os.path.splitext(os.path.basename(verilog_path))[0]
 
     #
@@ -147,8 +150,7 @@ if __name__ == '__main__':
     circuit = load_from_verilog(verilog_path)
 
     #
-    can_use_qbf: bool = False
-    if can_use_qbf and file.find('_', file.find('_o') + 2) == -1:
+    if False and file.find('_', file.find('_o') + 2) == -1:
         print('computing weights using qbf`')
         weights = compute_weights_qbf(circuit)
     else:
