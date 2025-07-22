@@ -277,8 +277,7 @@ if __name__ == '__main__':
     # save weights (optionally)
     if data_path:
         with open(data_path, 'w') as f:
-            json.dump({'weights': weights, 'time': t}, f)
-
+            json.dump({'weights': weights}, f)
 
     #
     print('assigning weights')
