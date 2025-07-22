@@ -227,6 +227,7 @@ if __name__ == '__main__':
     # imports
     import sys
     import os
+    import json
     #
     from sxpat.utils.collections import reorder_mapping
 
@@ -235,6 +236,8 @@ if __name__ == '__main__':
     except IndexError: print('You must pass a verilog path to load the circuit from', file=sys.stderr); sys.exit(1)
     try: graphviz_path = sys.argv[2]
     except IndexError: print('You must pass a graphviz path to save the circuit to', file=sys.stderr); sys.exit(1)
+    try: data_path = sys.argv[3]
+    except: data_path = None
     file = os.path.splitext(os.path.basename(verilog_path))[0]
 
     #
@@ -270,6 +273,12 @@ if __name__ == '__main__':
         }[k[0]](k)
     )
     print(weights)
+
+    # save weights (optionally)
+    if data_path:
+        with open(data_path, 'w') as f:
+            json.dump({'weights': weights, 'time': t}, f)
+
 
     #
     print('assigning weights')
