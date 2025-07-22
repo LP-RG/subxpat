@@ -1,8 +1,0 @@
-python3 main.py mul_i8_o8 --metric wre --min-labeling --zone-constraint 7 --extraction-mode 0 --subxpat --encoding z3bvec --max-error 35 --imax 4 --omax 4 --template nonshared --max-lpp 4 --max-ppo 2
-
-Here I use extraction mode 0, details check line 72 of xplore.py
-
-exp31: use multiple error_check_*
-exp32: union the error_check_* by AND operator, and give it the name error_check
-exp33: change name of error_check_* --> ec_*, union them by AND operator, and give it the name error_check
-

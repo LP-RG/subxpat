@@ -1,6 +1,0 @@
-Here we try to simulate the division of the matrix as neural network
-
-We try different zone divisions and compare the result with the no zone ones(exp00125, 00235)
-We use two max-error: 35 and 25.
-
-
