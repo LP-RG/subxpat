@@ -2,6 +2,8 @@ from vpadanalyzer.synthesis import Synthesis
 import os
 import sys
 import sub_xpat_circuits_generator
+import subprocess
+from pathlib import Path
 
 import multiplier_outputs_plotting
 
@@ -67,6 +69,20 @@ if __name__ == "__main__":
             for data in results:
                 f.write(f"File: {data['file']}, Area = {data['area']}, Power = {data['power']}\n")
         print(f"\nI dati dell'area sono stati scritti nel file '{output_full_path_file}'.")
+    
+    subprocess.run(
+        "mkdir "+output_path+"/ta_plots", 
+        shell=True)
+    subprocess.run(
+        "mkdir "+output_path+"/npy", 
+        shell=True)
+    subprocess.run(
+        "mv "+output_path+"/*.png "+output_path+"/ta_plots", 
+        shell=True)
+    subprocess.run(
+        "mv "+output_path+"/*.npy "+output_path+"/npy", 
+        shell=True)
+
 
     
     

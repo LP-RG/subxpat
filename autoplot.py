@@ -186,27 +186,35 @@ def plot(array, name):
 def satisfying(array, et):
     #array is the array of relative difference in %
     et_0=et
-    et_1=int(et*1.2)
-    et_2=int(et*1.5)
+    et_1=int(et+5)
+    et_2=int(et+10)
+    et_3=int(et+15)
     colors=np.empty((array.shape[0],array.shape[1]), dtype=str)
     for i in range(array.shape[0]):
         for j in range(array.shape[1]):
-            if i<=7 and j<=7:
+            if i<=12 and 2<j<=12:
                 if array[i,j]<=et_0:
                     colors[i,j]='blue'
                 else:
                     colors[i,j]='red'
-            elif j<=7 and i>7: 
+            elif i<=2 and (j<=2 or j>12): 
                 if array[i,j]<=et_0:
                     colors[i,j]='green'
                 elif array[i,j]<=et_1:
                     colors[i,j]='blue'
                 else:
                     colors[i,j]='red'
-            elif i<=7 and j>7:
+            elif (i>2 and i<=12) and (j<=2 or j>12):
                 if array[i,j]<=et_1:
                     colors[i,j]='green'
                 elif array[i,j]<=et_2:
+                    colors[i,j]='blue'
+                else:
+                    colors[i,j]='red'
+            elif (i>12) and (j<=2 or j>12):
+                if array[i,j]<=et_2:
+                    colors[i,j]='green'
+                elif array[i,j]<=et_3:
                     colors[i,j]='blue'
                 else:
                     colors[i,j]='red'
@@ -222,7 +230,11 @@ def plot_satisfying(array, name):
     for i in range(array.shape[0]):
         for j in range(array.shape[1]):
             #colors coordinates (0,0) corresponds to rectangle coordinates(0, 14)
-            rect = plt.Rectangle((j, maxi - i), 1, 1, facecolor=array[i,j])
+            if i==2 and j==14:
+                color='red'
+            else:
+                color=array[i,j]
+            rect = plt.Rectangle((j, maxi - i), 1, 1, facecolor=color)
             ax.add_patch(rect)
     ax.text(
         -1, 16,                         # coordinates in data units; adjust as needed
@@ -271,16 +283,17 @@ def plot_satisfying(array, name):
     ax.set_aspect('equal')
     plt.savefig(name+".png")
 
-def graph(file_path):
+def graph(file_path, et):
     name=Path(file_path).stem
     rel_dif_matrix=rel_dif(approx_matrix(file_path))
     plot(rel_dif_matrix, name)
-    plot_satisfying(satisfying(rel_dif_matrix, 35), name+"_sat")
+    plot_satisfying(satisfying(rel_dif_matrix, et), name+"_sat")
 
-def main(experiment_num):
+def main(experiment_num, et):
     directory="output/mul_i8_o8_exp"+str(experiment_num)+"/ver/"
     files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
     for file in files:
-        graph(directory+file)
+        graph(directory+file, et)
     subprocess.run("mkdir output/mul_i8_o8_exp"+str(experiment_num)+"/my_plots", shell=True)
     subprocess.run("mv *.png output/mul_i8_o8_exp"+str(experiment_num)+"/my_plots", shell=True)
+
