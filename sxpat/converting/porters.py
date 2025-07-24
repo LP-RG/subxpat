@@ -91,6 +91,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         AbsDiff: 'absdiff',
         # comparison operations
         Equals: '==',
+        NotEquals: '!=',
         AtLeast: 'atleast',
         AtMost: 'atmost',
         LessThan: '<',
@@ -115,9 +116,9 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # bool operations
         (Not, And, Or, Implies): 'invhouse',
         # int operations
-        (ToInt, Sum, AbsDiff): 'invtrapezium',
+        (ToInt, Sum, AbsDiff, UDiv, Mul): 'invtrapezium',
         # comparison operations
-        (Equals, AtLeast, AtMost, LessThan,
+        (Equals, NotEquals, AtLeast, AtMost, LessThan,
          LessEqualThan, GreaterThan, GreaterEqualThan): 'invtriangle',
         # branching operations
         (Multiplexer, If): 'diamond',
