@@ -7,6 +7,8 @@ import networkx as nx
 import functools as ft
 import itertools as it
 
+from sxpat.utils.collections import drop_duplicates
+
 from .Node import *
 
 
@@ -187,7 +189,7 @@ class SGraph(IOGraph):
     @ft.cached_property
     def subgraph_inputs(self) -> Tuple[Node, ...]:
         # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
-        return tuple(frozenset(it.chain.from_iterable(
+        return tuple(drop_duplicates(it.chain.from_iterable(
             (pred for pred in self.predecessors(node) if not pred.in_subgraph)
             for node in self.subgraph_nodes
         )))
