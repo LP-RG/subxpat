@@ -1,11 +1,11 @@
 from __future__ import annotations
 from collections import UserDict
-from typing import Any, Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union
+from typing import Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union
 
 import itertools as it
 
 
-__all__ = ['mapping_inv', 'flat', 'pairwise', 'MultiDict', 'InheritanceMapping']
+__all__ = ['mapping_inv', 'flat', 'pairwise', 'MultiDict', 'InheritanceMapping', 'drop_duplicates']
 
 
 NOTHING = object()
@@ -114,3 +114,15 @@ class InheritanceMapping(MultiDict[Type, V]):
             subtypes.extend(t.__subclasses__())
 
         super().__setitem__(subtypes, value)
+
+
+def drop_duplicates(iterable: Iterable[T]) -> Iterable[T]:
+    """
+        Given an iterable, returns a new iterable (ordered the same as the argument),
+        skipping all duplicates after the first occurrences.
+
+        @authors: Marco Biasion
+    """
+
+    # note: we do not use a set, as that would result in an undefined ordering of the elements
+    return dict.fromkeys(iterable).keys()
