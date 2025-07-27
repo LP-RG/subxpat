@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Any, Dict, List
 from colorama import Fore
 import time
 import datetime  # precautionary measure
@@ -371,8 +371,8 @@ class AnnotatedGraph(Graph):
             self.graph_num_intact_gates = len(self.__graph_intact_gate_dict)
 
             return self.subgraph_num_gates != 0
-        
-    #TODO USE NEXT METHOD AND ADAPT IT TO ASCENDANT CONSTRAINT
+
+    # TODO USE NEXT METHOD AND ADAPT IT TO ASCENDANT CONSTRAINT
     def find_subgraph_output_nodes_ascendant(self, specs_obj: Specifications):
         total_s = time.time()
         WEIGHT_BITS = self.num_outputs
@@ -403,13 +403,12 @@ class AnnotatedGraph(Graph):
             print(f"Errore: il nodo di output '{output_node_label}' non esiste nel grafo principale.")
             return self.graph
 
-        ancestors_output = nx.ancestors(self.graph, output_node_label)
-
-        if(len([node for node in ancestors_output if node.startswith("g")]) == 1):
-            specs_obj.out_node +=1
+        ancestors_output = ordered_ancestors(self.graph, output_node_label)
+        if (len([node for node in ancestors_output if node.startswith("g")]) == 1):
+            specs_obj.out_node += 1
             output_node_label = self.output_dict.get(specs_obj.out_node)
-            ancestors_output = nx.ancestors(self.graph, output_node_label)
-            
+            ancestors_output = ordered_ancestors(self.graph, output_node_label)
+
         for in_idx in self.input_dict:
             node_label = self.input_dict[in_idx]
             node = Node.mk_node(BitVecVal(in_idx, 32), Bool(f'{node_label}'))
@@ -421,7 +420,7 @@ class AnnotatedGraph(Graph):
             node_label = self.gate_dict[g_idx]
             node = Node.mk_node(BitVecVal(g_idx, 32), Bool(f'{node_label}'))
             opt.add(Node.id(node) == BitVecVal(g_idx, 32))
-            if(node_label not in ancestors_output):
+            if (node_label not in ancestors_output):
                 opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
         for o_idx in self.output_dict:
@@ -463,13 +462,13 @@ class AnnotatedGraph(Graph):
 
         max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, 32), BitVecVal(0, 32)) for node in nodes.values()]
 
-        descendants = {}
-        ancestors = {}
+        descendants = dict()
+        ancestors = dict()
         for node in nodes:
             if node not in descendants:
-                descendants[node] = list(nx.descendants(self.graph, node))
+                descendants[node] = ordered_descendants(self.graph, node)
             if node not in ancestors:
-                ancestors[node] = list(nx.ancestors(self.graph, node))
+                ancestors[node] = ordered_ancestors(self.graph, node)
 
         for src in nodes:
             for des in self.graph.successors(src):
@@ -494,7 +493,6 @@ class AnnotatedGraph(Graph):
 
         opt.maximize(Sum(max_nodes))
 
-        sat_time_s = time.time()
         res = opt.check()
 
         node_partition = []
@@ -521,13 +519,11 @@ class AnnotatedGraph(Graph):
             specs_obj.out_node += 1
             specs_obj.persistence_counter = 0
         else:
-            if(specs_obj.persistence_counter == specs_obj.persistance):
+            if (specs_obj.persistence_counter == specs_obj.persistance):
                 specs_obj.out_node += 1
                 specs_obj.persistence_counter = 0
             else:
                 specs_obj.persistence_counter += 1
-                
-        sat_time_e = time.time()
 
         tmp_graph = self.graph.copy(as_view=False)
         for i in range(len(node_partition) - 1):
@@ -559,7 +555,6 @@ class AnnotatedGraph(Graph):
 
         return tmp_graph
 
-        
     def find_subgraph(self, specs_obj: Specifications):
         """
         extracts a colored subgraph from the original non-partitioned graph object
@@ -730,9 +725,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = ordered_descendants(G, n)
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = ordered_ancestors(G, n)
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -1030,9 +1025,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = ordered_descendants(G, n)
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = ordered_ancestors(G, n)
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -1332,9 +1327,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = ordered_descendants(G, n)
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = ordered_ancestors(G, n)
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -1628,9 +1623,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = ordered_descendants(G, n)
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = ordered_ancestors(G, n)
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -1931,9 +1926,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = ordered_descendants(G, n)
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = ordered_ancestors(G, n)
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -2087,7 +2082,6 @@ class AnnotatedGraph(Graph):
         nodes = {}
         edges = []
 
-
         for in_idx in self.input_dict:
             node_label = self.input_dict[in_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
@@ -2167,9 +2161,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for node in nodes:
             if node not in descendants:
-                descendants[node] = list(nx.descendants(self.graph, node))
+                descendants[node] = ordered_descendants(self.graph, node)
             if node not in ancestors:
-                ancestors[node] = list(nx.ancestors(self.graph, node))
+                ancestors[node] = ordered_ancestors(self.graph, node)
 
         for src in nodes:
             for des in self.graph.successors(src):
@@ -2449,9 +2443,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = ordered_descendants(G, n)
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = ordered_ancestors(G, n)
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -2799,9 +2793,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = ordered_descendants(G, n)
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = ordered_ancestors(G, n)
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -3232,3 +3226,46 @@ class AnnotatedGraph(Graph):
                 idx += 1
                 self.color_subgraph_node(n, WHITE)
         return tmp_fanout_dict
+
+
+def ordered_ancestors(graph: nx.DiGraph, source: Any, order_topologically: bool = False) -> List[Any]:
+    """
+        Returns the ancestors of a `source` node inside a `graph`,
+        in the unique lexicographical order, or the unique reversed lexicographical topological order.
+
+        @authors: Marco Biasion
+    """
+
+    raw_ancestors = nx.ancestors(graph, source)
+
+    if order_topologically:
+        ordered_ancestors = [
+            node
+            for node in nx.lexicographical_topological_sort(graph)
+            if node in raw_ancestors
+        ]
+        ordered_ancestors.reverse()
+        return ordered_ancestors
+    else:
+        return sorted(raw_ancestors)
+
+
+def ordered_descendants(graph: nx.DiGraph, source: Any, order_topologically: bool = False) -> List[Any]:
+    """
+        Returns the descendants of a `source` node inside a `graph`,
+        in the unique lexicographical order, or the unique lexicographical topological order
+
+        @authors: Marco Biasion
+    """
+
+    raw_ancestors = nx.descendants(graph, source)
+
+    if order_topologically:
+        ordered_ancestors = [
+            node
+            for node in nx.lexicographical_topological_sort(graph)
+            if node in raw_ancestors
+        ]
+        return ordered_ancestors
+    else:
+        return sorted(raw_ancestors)
