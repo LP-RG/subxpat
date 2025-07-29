@@ -145,6 +145,7 @@ class Specifications:
     parallel: bool
     plot: bool
     clean: bool
+    remove_most_significant_output: bool
     time_id: str = dc.field(init=False, default_factory=lambda: int_to_strbase(time.time_ns()))
 
     def __post_init__(self):
@@ -372,6 +373,10 @@ class Specifications:
         _clean = _misc_group.add_argument('--clean',
                                           action='store_true',
                                           help='Reset the output folder before running')
+
+        _remove = _subex_group.add_argument('--remove-most-significant-output', '--remove-mso',
+                                           action='store_true',
+                                           help='before doing anything remove the most significant output of the circuit')
 
         raw_args = parser.parse_args()
 

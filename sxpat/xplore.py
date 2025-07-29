@@ -30,6 +30,8 @@ from sxpat.converting import set_bool_constants, prevent_combination
 
 from sxpat.utils.print import pprint
 
+from sxpat.remove_mso import remove_mso
+
 
 def explore_grid(specs_obj: Specifications):
     previous_subgraphs = []
@@ -60,6 +62,8 @@ def explore_grid(specs_obj: Specifications):
         else:
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
+    if specs_obj.remove_most_significant_output:
+        remove_mso(specs_obj)
 
     while (obtained_wce_exact < specs_obj.max_error):
         specs_obj.iteration += 1
