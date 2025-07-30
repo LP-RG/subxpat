@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing_extensions import Self
-from typing import AbstractSet, Any, Iterable, Mapping, Sequence, TypeVar, Union, Final, final
+from typing import AbstractSet, Any, Iterable, Mapping, Optional, Sequence, TypeVar, Union, Final, final
 from types import MappingProxyType
 
 import networkx as nx
@@ -8,13 +8,14 @@ import functools as ft
 import itertools as it
 
 from .Node import (
-    Expression, Node, Operation, Constant, GlobalTask,
+    Expression, Extras, Node, Operation, Constant, GlobalTask,
     #
     BoolVariable, PlaceHolder,
     Target, Constraint,
     #
     OperationNode, ConstantNode, GlobalTaskNode, ExpressionNode,
 )
+from .error import UndefinedNodeError
 
 
 __all__ = [
@@ -54,9 +55,8 @@ class Graph:
             if isinstance(node, Operation)
             for src_name in node.operands
         )
-        if len(node_names_in_edges - defined_node_names) > 0:
-            print(*(node_names_in_edges - defined_node_names), sep='\n')
-            raise RuntimeError('Some nodes are not defined')
+        if len(missing := (node_names_in_edges - defined_node_names)) > 0:
+            raise UndefinedNodeError(f'The following nodes are not defined but edges from them exist: {missing}')
 
         # construct digraph
         _inner = nx.DiGraph()
@@ -74,7 +74,7 @@ class Graph:
         # freeze inner structure
         self._inner: Final[nx.DiGraph] = nx.freeze(_inner)
 
-    def copy(self, nodes: Iterable[Node] = None, **extras) -> Self:
+    def copy(self, nodes: Optional[Iterable[Node]] = None, **extras) -> Self:
         return type(self)(self.nodes if nodes is None else nodes, **{**self.extras, **extras})
 
     @ft.cached_property
@@ -89,7 +89,7 @@ class Graph:
     def __contains__(self, name: str) -> bool:
         return name in self._inner
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other) -> bool:
         return (
             type(self) == type(other)
             and self.nodes == other.nodes  # no need to cast to set before comparison (see .nodes)
@@ -144,7 +144,7 @@ _Graph = TypeVar('_Graph', bound=Graph)
 class IOGraph(Graph):
     """Graph with inputs and outputs."""
 
-    EXTRAS = ('inputs_names', 'outputs_names')
+    EXTRAS: Sequence[str] = ('inputs_names', 'outputs_names')
 
     def __init__(self, nodes: Iterable[Node],
                  inputs_names: Sequence[str], outputs_names: Sequence[str]
@@ -156,7 +156,7 @@ class IOGraph(Graph):
         self.inputs_names = tuple(inputs_names)
         self.outputs_names = tuple(outputs_names)
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other) -> bool:
         return (
             super().__eq__(other)
             and self.inputs_names == other.inputs_names
@@ -198,14 +198,20 @@ class SGraph(IOGraph):
     @ft.cached_property
     @final
     def subgraph_nodes(self) -> Sequence[Node]:
-        return tuple(node for node in self.nodes if node.in_subgraph)
+        return tuple(
+            node for node in self.nodes
+            if isinstance(node, Extras) and node.in_subgraph
+        )
 
     @ft.cached_property
     @final
     def subgraph_inputs(self) -> Sequence[Node]:
         # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
         return tuple(dict.fromkeys(it.chain.from_iterable(
-            (pred for pred in self.predecessors(node) if not pred.in_subgraph)
+            (
+                pred for pred in self.predecessors(node)
+                if not isinstance(pred, Extras) or not pred.in_subgraph
+            )
             for node in self.subgraph_nodes
         )))
 
@@ -214,21 +220,26 @@ class SGraph(IOGraph):
     def subgraph_outputs(self) -> Sequence[Node]:
         # a node is a subgraph output if it is in the subgraph and at least one successor is not in the subgraph
         return tuple(
-            node
-            for node in self.subgraph_nodes
-            if any(not succ.in_subgraph for succ in self.successors(node))
+            node for node in self.subgraph_nodes
+            if any(
+                not isinstance(succ, Extras) or not succ.in_subgraph
+                for succ in self.successors(node)
+            )
         )
 
     @final
     def node_edges_to_subgraph(self, node_or_name: Union[str, Node]) -> int:
         """Returns the number of edges from this node to the subgraph."""
-        return sum(n.in_subgraph for n in self.successors(self._get_name(node_or_name)))
+        return sum(
+            n.in_subgraph for n in self.successors(self._get_name(node_or_name))
+            if isinstance(n, Extras)
+        )
 
 
 class PGraph(SGraph):
     """Graph with inputs, outputs and parameters (for example, parameters of a template)."""
 
-    EXTRAS = (*SGraph.EXTRAS, 'parameters_names')
+    EXTRAS: Sequence[str] = (*SGraph.EXTRAS, 'parameters_names')
 
     def __init__(self, nodes: Iterable[Node],
                  inputs_names: Sequence[str], outputs_names: Sequence[str],
@@ -240,7 +251,7 @@ class PGraph(SGraph):
         # freeze local instances
         self.parameters_names = tuple(parameters_names)
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other) -> bool:
         return (
             super().__eq__(other)
             and frozenset(self.parameters_names) == frozenset(other.parameters_names)
@@ -259,7 +270,7 @@ class CGraph(Graph):
     @final
     def placeholders(self) -> AbstractSet[PlaceHolder]:
         """The sequence of all `Constraint` node in the graph."""
-        return frozenset(node for node in self.nodes if isinstance(node, Constraint))
+        return frozenset(node for node in self.nodes if isinstance(node, PlaceHolder))
 
     @ft.cached_property
     @final

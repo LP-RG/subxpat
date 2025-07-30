@@ -58,7 +58,7 @@ class Solver(metaclass=ABCMeta):
     def solve(cls, graphs: _Graphs,
               specifications: Specifications,
               *,
-              __global_targets: GlobalTasks = None,
+              _global_targets: GlobalTasks = None,
               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve the required problem defined by the given graphs.
@@ -74,26 +74,26 @@ class Solver(metaclass=ABCMeta):
         """
 
         # compute global targets if not already given
-        if __global_targets is None:
-            __global_targets, graphs = cls._pop_global_tasks(graphs)
+        if _global_targets is None:
+            _global_targets, graphs = cls._pop_global_tasks(graphs)
 
-        if __global_targets.optimize is not None and __global_targets.forall is not None:
+        if _global_targets.optimize is not None and _global_targets.forall is not None:
             # solve an optimization and forall quantified problem
             return cls.solve_optimize_forall(
                 graphs, specifications,
-                __global_targets.optimize, __global_targets.forall,
+                _global_targets.optimize, _global_targets.forall,
             )
-        elif __global_targets.optimize is not None and __global_targets.forall is None:
+        elif _global_targets.optimize is not None and _global_targets.forall is None:
             # solve an optimization (not forall quantified) problem
             return cls.solve_optimize(
                 graphs, specifications,
-                __global_targets.optimize,
+                _global_targets.optimize,
             )
-        elif __global_targets.optimize is None and __global_targets.forall is not None:
+        elif _global_targets.optimize is None and _global_targets.forall is not None:
             # solve a forall quantified (and non optimization) problem
             return cls.solve_forall(
                 graphs, specifications,
-                __global_targets.forall,
+                _global_targets.forall,
             )
         else:
             # solve a non optimization and not forall quantified problem.
@@ -179,8 +179,8 @@ class Solver(metaclass=ABCMeta):
         # define common extra nodes
         extra_nodes = (
             PlaceHolder(optimize_target.operand),
-            Identity(SC.optimization_identity, operands=(optimize_target.operand,)),
-            Target(SC.optimization_target, operands=(SC.optimization_identity,)),
+            Identity(SC.optimization.identity, operands=(optimize_target.operand,)),
+            Target(SC.optimization.target, operands=(SC.optimization.identity,)),
         )
         # define node class for the optimization comparison
         comparison_class = {
@@ -198,22 +198,22 @@ class Solver(metaclass=ABCMeta):
             else:
                 _extra_nodes = (
                     *extra_nodes,
-                    IntConstant(SC.optimization_constant, value=previous_value),
-                    comparison_class(SC.optimization_rule, operands=(SC.optimization_identity, SC.optimization_constant)),
-                    Constraint(SC.optimization_constraint, operands=(SC.optimization_rule,)),
+                    IntConstant(SC.optimization.constant, value=previous_value),
+                    comparison_class(SC.optimization.rule, operands=(SC.optimization.identity, SC.optimization.constant)),
+                    Constraint(SC.optimization.constraint, operands=(SC.optimization.rule,)),
                 )
-            _graphs = tuple(*graphs, CGraph(_extra_nodes))
+            _graphs = (*graphs, CGraph(_extra_nodes))
 
             # solve
             _global_targets = GlobalTasks(forall=forall_target)
-            status, model = cls.solve(_graphs, specifications, __global_targets=_global_targets)
+            status, model = cls.solve(_graphs, specifications, _global_targets=_global_targets)
 
             # break if termination condition is reached
             if status == 'unknown': return ('unknown', None)
             if status == 'unsat': break
 
             # update previous value and model
-            previous_value = model.pop(SC.optimization_identity)
+            previous_value = model.pop(SC.optimization.identity)
             last_model = model
 
         # return the status and model

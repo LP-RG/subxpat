@@ -1,4 +1,4 @@
-from typing import Callable, Type, TypeVar
+from typing import Callable, TypeVar
 
 from .functions import get_raiser
 
@@ -8,21 +8,19 @@ __all__ = [
 ]
 
 
-T = TypeVar('T', bound=Type)
+T = TypeVar('T', bound=type)
 
 
 def make_uninstantiable(message: str) -> Callable[[T], T]:
     def wrapper(cls: T) -> T:
-        nonlocal message
-
         # format message
-        message = message.format(
+        _message = message.format(
             qualname=cls.__qualname__,
             name=cls.__name__,
         )
 
         # assign raiser to the __new__ method
-        setattr(cls, '__new__', get_raiser(NotImplementedError(message)))
+        setattr(cls, '__new__', get_raiser(NotImplementedError(_message)))
 
         return cls
 

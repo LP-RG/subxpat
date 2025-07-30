@@ -1,13 +1,13 @@
 from __future__ import annotations
 from collections import UserDict
-from typing import Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union
+from typing import Callable, Generic, Iterable, Iterator, Mapping, Tuple, Type, TypeVar, Union, overload
 
 import itertools as it
 
 
 __all__ = [
     # methods
-    'mapping_inv', 'flat', 'pairwise',
+    'mapping_inv', 'iterable_replace', 'flat', 'pairwise', 'unzip', 'first',
     # classes
     'MultiDict', 'InheritanceMapping',
 ]
@@ -113,3 +113,28 @@ class InheritanceMapping(MultiDict[Type, V]):
         subtypes = [key]
         for t in subtypes: subtypes.extend(t.__subclasses__())
         super().__setitem__(frozenset(subtypes), value)
+
+
+class MatchingElementError(LookupError): """Matching element not found."""
+
+
+@overload
+def first(predicate: Callable[[T], bool], iterable: Iterable[T]) -> T:
+    """
+        Returns the first element in the iterable matching the predicate.  
+        `MatchingElementError` is raised if no element matches.
+    """
+
+
+@overload
+def first(predicate: Callable[[T], bool], iterable: Iterable[T], default: V) -> Union[T, V]:
+    """
+        Returns the first element in the iterable matching the predicate.  
+        `default` is returned if no element matches.
+    """
+
+
+def first(predicate: Callable[[T], bool], iterable: Iterable[T], default: V = NOTHING) -> Union[T, V]:
+    element = next(filter(predicate, iterable), default)
+    if element is NOTHING: raise MatchingElementError('No matching element was found.')
+    return element

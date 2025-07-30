@@ -1,10 +1,12 @@
 from .Node import *
 from .Graph import *
+from .error import *
 
 
 __all__ = [
     # > abstracts
     'Node',
+    'Extras',
     # valued
     'Valued',
     # operation
@@ -49,6 +51,8 @@ __all__ = [
     'VariableNode', 'ValuedNode', 'ConstantNode',
     'OperationNode', 'ExpressionNode',
     'ObjectiveNode', 'GlobalTaskNode',
+    # > type variables
+    'T_AnyNode',
     # > nodes groups
     'contact_nodes', 'origin_nodes', 'end_nodes',
 
@@ -59,4 +63,8 @@ __all__ = [
     'CGraph',
     #
     '_Graph',
+
+    # > errors
+    'MissingNodeError',
+    'UndefinedNodeError',
 ]

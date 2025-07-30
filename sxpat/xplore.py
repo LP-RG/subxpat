@@ -5,7 +5,6 @@ import dataclasses as dc
 from tabulate import tabulate
 import functools as ft
 import csv
-import time
 import math
 import networkx as nx
 
@@ -100,6 +99,29 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.et > specs_obj.max_error or specs_obj.et <= 0:
             break
 
+        # slash to kill
+        if specs_obj.slash_to_kill:
+            # first iteration: apply slash
+            if specs_obj.iteration == 1:
+                # store relevant specifications values
+                saved_min_labeling = specs_obj.min_labeling
+                saved_exctraction_mode = specs_obj.extraction_mode
+
+                # update specifications
+                specs_obj.min_labeling = False
+                specs_obj.extraction_mode = 100
+                specs_obj.et = specs_obj.error_for_slash
+
+            # second iteration: restore state
+            elif specs_obj.iteration == 2:
+                # restore specifications values
+                specs_obj.min_labeling = saved_min_labeling
+                specs_obj.extraction_mode = saved_exctraction_mode
+
+            # skip all iterations implicitly achieved through the slash to kill step
+            if specs_obj.iteration > 1 and specs_obj.et < specs_obj.error_for_slash:
+                continue
+
         pprint.info1(f'iteration {specs_obj.iteration} with et {specs_obj.et}, available error {specs_obj.max_error}'
                      if (specs_obj.subxpat) else
                      f'Only one iteration with et {specs_obj.et}')
@@ -116,12 +138,8 @@ def explore_grid(specs_obj: Specifications):
 
         # label graph
         if specs_obj.requires_labeling:
-            et_coefficient = 1
-
             label_timer, _label_graph = Timer.from_function(label_graph)
-            _label_graph(current_graph,
-                         min_labeling=specs_obj.min_labeling, partial=specs_obj.partial_labeling,
-                         et=specs_obj.et * et_coefficient, parallel=specs_obj.parallel)
+            _label_graph(current_graph, specs_obj)
             print(f'labeling_time = {(labeling_time := label_timer.total)}')
 
         # extract subgraph
@@ -143,8 +161,10 @@ def explore_grid(specs_obj: Specifications):
             continue
 
         # guard: skip if the subraph is equal to the previous one
+        # note:  does not apply for extraction mode 6
         if (
-            len(previous_subgraphs) >= 2
+            specs_obj.extraction_mode != 6
+            and len(previous_subgraphs) >= 2
             and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
         ):
             pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
@@ -222,7 +242,7 @@ def explore_grid(specs_obj: Specifications):
                     )
 
                     # compute metrics
-                    metrics = MetricsEstimator.estimate_metrics(verilog_path)
+                    metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, verilog_path)
                     verilog_filename = verilog_path[10:]  # TODO: this should be kept as the path, we should update the usages to use the path instead of the name
                     cur_model_results[verilog_filename] = [
                         metrics.area,
@@ -236,7 +256,6 @@ def explore_grid(specs_obj: Specifications):
                 # todo: should we refactor with pandas?
                 with open(f'{z3logpath.OUTPUT_PATH["report"][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{toolname}.csv', 'w') as f:
                     csvwriter = csv.writer(f)
-
                     header = list(range(len(cur_model_results)))
                     all = list(cur_model_results.values())
                     content = [f for (f, *_) in all]
@@ -283,7 +302,7 @@ def explore_grid(specs_obj: Specifications):
                 stats_obj.grid.cells[lpp][ppo].store_model_info(best_model_info)
                 pprint.success(f'ErrorEval PASS! with total wce = {best_data[4]}')
 
-                exact_stats = MetricsEstimator.estimate_metrics(exact_file_path)
+                exact_stats = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, exact_file_path, True)
                 print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
                 store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.current_benchmark, et=specs_obj.et,
                                     encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
@@ -317,7 +336,7 @@ class CellIterator:
 
         # grid cells
         for pit in range(1, max_pit + 1):
-            for its in range(pit, pit + 3 + 1):
+            for its in range(max(pit, specs.outputs), max(pit + 3 + 1, specs.outputs + 1)):
                 yield (its, pit)
 
     @staticmethod
@@ -409,15 +428,22 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         csvwriter.writerow(approx_data)
 
 
-def label_graph(current_graph: AnnotatedGraph,
-                min_labeling: bool = False, partial: bool = False,
-                et: int = -1, parallel: bool = False):
-    labels, _ = labeling_explicit(current_graph.name, current_graph.name,
-                                  constant_value=0, min_labeling=min_labeling,
-                                  partial=partial, et=et, parallel=parallel)
+def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
+    """This function adds the labels inplace to the given graph"""
 
-    for n in current_graph.graph.nodes:
-        current_graph.graph.nodes[n][WEIGHT] = int(labels[n]) if n in labels else -1
+    # compute weights
+    ET_COEFFICIENT = 1
+    weights, _ = labeling_explicit(
+        graph.name, graph.name,
+        min_labeling=specs_obj.min_labeling,
+        partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
+        parallel=specs_obj.parallel
+    )
+
+    # apply weights to graph
+    inner_graph: nx.DiGraph = graph.graph
+    for (node_name, node_data) in inner_graph.nodes.items():
+        node_data[WEIGHT] = weights.get(node_name, -1)
 
 
 def get_toolname(specs_obj: Specifications) -> str:
