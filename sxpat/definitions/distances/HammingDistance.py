@@ -28,11 +28,8 @@ class HammingDistance(DistanceSpecification):
         if len(wanted_a) != len(wanted_b):
             raise ValueError('The sequences of wanted nodes have different lengths (or the graphs have different number of outputs).')
 
-        # constants
-        const_0 = IntConstant('dist_const_0', value=0)
-        const_1 = IntConstant('dist_const_1', value=1)
-
         # bit flips to int
+        consts = []
         flipped_bits = []
         int_bits = []
         for (i, out_a, out_b) in zip(
@@ -40,7 +37,17 @@ class HammingDistance(DistanceSpecification):
             wanted_a,
             wanted_b,
         ):
+            # create constants
+            val: int = node_a.weight  # type: ignore
+            consts.extend([
+                const_0 := IntConstant(f'dist_a{i}_const_0', 0),
+                const_1 := IntConstant(f'dist_a{i}_const_1', val),
+            ])
+
+            # create node reflecting if a bit is flipped
             flipped_bits.append(bit := Xor(f'dist_is_different_{i}', operands=[out_a, out_b]))
+
+            # create node that reflects 1 if the bit is flipped, or 0
             int_bits.append(If(f'dist_value_{i}', operands=[bit, const_1, const_0]))
 
         # distance
@@ -50,7 +57,7 @@ class HammingDistance(DistanceSpecification):
         dist_func = CGraph((
             *(PlaceHolder(name) for name in wanted_a),
             *(PlaceHolder(name) for name in wanted_b),
-            const_0, const_1,
+            *consts,
             *flipped_bits,
             *int_bits,
             distance,
