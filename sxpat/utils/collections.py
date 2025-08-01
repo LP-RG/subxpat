@@ -1,18 +1,44 @@
-from __future__ import annotations
-from typing import Callable, Generator, Generic, Iterable, Iterator, Literal, Mapping, MutableMapping, Optional, Tuple, Type, TypeVar, Union, overload
-from collections import UserDict
+from __future__ import (
+    annotations,
+)
+from typing import (
+    Callable,
+    Generator,
+    Generic,
+    Iterable,
+    Iterator,
+    Literal,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
+from collections import (
+    UserDict,
+)
 
 import itertools as it
 import math
 
-from sxpat.utils.decorators import static_storage
+from sxpat.utils.decorators import (
+    static_storage,
+)
 
 
 __all__ = [
-    # methods
-    'mapping_inv', 'iterable_replace', 'iterable_replace_index', 'flat', 'pairwise', 'unzip', 'first',
-    # classes
+    # mappings
+    'mapping_inv',
     'MultiDict', 'InheritanceMapping',
+    # iterables update
+    'iterable_replace', 'iterable_replace_index',
+    # iterables transform
+    'flat', 'pairwise', 'unzip',
+    # iterables extract
+    'first',
 ]
 
 
@@ -217,6 +243,8 @@ def first(predicate: Callable[[T], bool], iterable: Iterable[T], default: V) -> 
 
 
 def first(predicate: Callable[[T], bool], iterable: Iterable[T], default=NOTHING) -> Union[T, V]:
+    """@authors: Marco Biasion"""
+
     element = next(filter(predicate, iterable), default)
     if element is NOTHING: raise MatchingElementError('No matching element was found.')
     return element
