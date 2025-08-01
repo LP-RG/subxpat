@@ -28,7 +28,7 @@ from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.definitions.templates import get_specialized as get_templater
 from sxpat.definitions.templates import v2Phase1
 from sxpat.definitions.distances import AbsoluteDifferenceOfInteger
-from sxpat.definitions.questions import exists_parameters_under_et
+from sxpat.definitions.questions import exists_parameters
 
 from sxpat.solvers import get_specialized as get_solver
 
@@ -239,8 +239,8 @@ def explore_grid(specs_obj: Specifications):
             param_circ, param_circ_constr = define_template(current_circ, specs_obj)
 
             # define question
-            _exists_parameters_under_et = definition_timer.wrap(exists_parameters_under_et)
-            question = _exists_parameters_under_et(current_circ, param_circ, AbsoluteDifferenceOfInteger, specs_obj.et)
+            define_question = definition_timer.wrap(exists_parameters.not_above_threshold_forall_inputs)
+            question = define_question(current_circ, param_circ, AbsoluteDifferenceOfInteger, specs_obj.et)
 
             # solve
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
@@ -292,7 +292,7 @@ def explore_grid(specs_obj: Specifications):
                         updated_nodes = dict()
                         for i, out_node in enumerate(s_graph_complete.subgraph_outputs):
                             for succ in filter(lambda n: not n.in_subgraph, s_graph_complete.successors(out_node)):
-                                new_operands = iterable_replace(succ.operands, succ.operands.index(out_node.name), f'a_s_out{i}')
+                                new_operands = iterable_replace(succ.operands, out_node.name, f'a_s_out{i}')
                                 updated_nodes[succ.name] = succ.copy(operands=new_operands)
                         a_graph = SGraph(
                             it.chain(
