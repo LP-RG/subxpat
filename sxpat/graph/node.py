@@ -63,6 +63,10 @@ __all__ = [
     'AnyExpression', 'T_AnyExpression',
     'AnyObjective', 'T_AnyObjective',
     'AnyGlobalObjective', 'T_AnyGlobalObjective',
+    'AnyExtras',
+    #
+    'AnyBoolResType',
+    'AnyDynamicResType',
     #
     'AnyNonEntryPoint',
     'AnyNonEndPoint',
@@ -718,6 +722,37 @@ T_Node = TypeVar(
     Target, Constraint,
     Min, Max, ForAll,
 )
+
+AnyExtras: TypeAlias = Union[
+    AnyVariable,
+    AnyConstant,
+    AnyExpression,
+]
+
+# resulting type
+AnyBoolResType: TypeAlias = Union[
+    BoolVariable,
+    BoolConstant,
+    Not,
+    And,
+    Or,
+    Xor,
+    Implies,
+    Equals,
+    NotEquals,
+    LessThan,
+    LessEqualThan,
+    GreaterThan,
+    GreaterEqualThan,
+    Multiplexer,
+    AtLeast,
+    AtMost,
+]
+AnyDynamicResType: TypeAlias = Union[
+    Identity,
+    If,
+]
+
 
 # structural
 AnyNonEntryPoint = Union[
