@@ -14,22 +14,34 @@ _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, PGraph, SGraph]])
 
 "first elements of list should always be the least significant digit"
 
+
+TRUE = '91'
+FALSE = '92'
+
+"This format uses gates, I used a prefix for every type of gates, all the ones that starts with 4 are the 'free' gates:"
+"all those that don't have a specific purpose but are used in all the functions"
 "1 is for the inputs"
-"4 is for the all the not specified gates in qbf"
+"4 is for the free gates"
 "7 is for the variables/parameters"
 "90 is for the satisfability problem"
 "91 true constant"
 "92 false constant"
 
-TRUE = '91'
-FALSE = '92'
 
 def free(a):
+    """Return the encoded version of the current gate (simply add the prefix 4 to it)"""
     return f'4{a}'
 
-def next_temporary(a):
+
+def next_temporary(a: list):
+    """Return the encoded version of the gate inside a, also increment the gate inside"""
     a[0] += 1
     return free(a[0] - 1)
+
+"all the private functions have: next_free which is a list that contains only one element, I use this to keep track of the namings for the gates"
+"I add. For example if the element inside next_free is 543 and in a function I add 5 gates I will change the element to 548"
+
+"destination is instead the file where the qbf code needs to be written"
 
 def _and(a,b, next_free, destination : IO[str]):
     destination.write(f'{free(next_free[0])} = and({a}, {b})\n')
@@ -243,6 +255,10 @@ def process_Or(n : Node, operands: list, accs: list, param: list, next_free: int
     _process_f(operands, mapping, destination)
     return next_free + 1
 
+def process_Xor(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    temp = [next_free]
+    mapping[n.name] = [_xor(mapping[operands[0]][0], mapping[operands[1]][0], temp, destination)]
+    return temp[0]
 def process_Implies(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     mapping[n.name] = [free(next_free+1)]
     destination.write(f'{free(next_free)} = and({mapping[operands[0]][0]}, -{mapping[operands[1]][0]})\n')
@@ -447,6 +463,7 @@ Node_Mapping = {
     Not: process_Not,
     And: process_And,
     Or: process_Or,
+    Xor: process_Xor, #Needs testing
     Implies: process_Implies,
     # integer operations
     Sum: process_Sum,
