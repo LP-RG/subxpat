@@ -223,8 +223,9 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missin
 
 def set_prefix(graph: _Graph, prefix: str) -> _Graph:
     """
+        # DEPRECATED
+        # Use `set_prefix_new` instead
         Given a graph and the wanted prefix, returns a new graph with all operation nodes updated with the prefix.
-
         @authors: Marco Biasion
     """
 
@@ -234,7 +235,7 @@ def set_prefix(graph: _Graph, prefix: str) -> _Graph:
         for n in graph.nodes
     }
 
-    nodes = []
+    nodes: List = []
     for node in graph.nodes:
         if isinstance(node, Operation):
             operands = (updated_names[name] for name in node.operands)
@@ -242,9 +243,48 @@ def set_prefix(graph: _Graph, prefix: str) -> _Graph:
         else:
             nodes.append(node.copy(name=updated_names[node.name]))
 
-    outputs_names = (f'{prefix}{name}' for name in graph.outputs_names)
+    extras = dict()
+    if isinstance(graph, IOGraph):
+        extras['outputs_names'] = (f'{prefix}{name}' for name in graph.outputs_names)
 
-    return graph.copy(nodes, outputs_names=outputs_names)
+    return graph.copy(nodes, **extras)
+
+
+def set_prefix_new(graph: _Graph, prefix: str, preserve_names: Optional[Iterable[str]] = None) -> _Graph:
+    """
+        Given a graph and the wanted prefix, returns a new graph with all nodes names updated with the prefix.  
+        If `preserve_names` is given, the nodes matching those names will not be renamed.
+
+        @authors: Marco Biasion
+    """
+
+    if preserve_names is None: preserve_names = frozenset()
+    else: preserve_names = frozenset(preserve_names)
+
+    # compute new names
+    new_name_of: Mapping[str, str] = {
+        n.name: n.name if n.name in preserve_names else f'{prefix}{n.name}'
+        for n in graph.nodes
+    }
+
+    # create updated nodes
+    nodes: List = []
+    for node in graph.nodes:
+        if isinstance(node, Operation):
+            operands = (new_name_of[name] for name in node.operands)
+            nodes.append(node.copy(name=new_name_of[node.name], operands=operands))
+        else:
+            nodes.append(node.copy(name=new_name_of[node.name]))
+
+    # compute extras
+    extras = dict()
+    if isinstance(graph, IOGraph):
+        extras['inputs_names'] = (new_name_of[name] for name in graph.inputs_names)
+        extras['outputs_names'] = (new_name_of[name] for name in graph.outputs_names)
+    if isinstance(graph, PGraph):
+        extras['parameters_names'] = (new_name_of[name] for name in graph.parameters_names)
+
+    return graph.copy(nodes, **extras)
 
 
 def prevent_combination(c_graph: CGraph,
