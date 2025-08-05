@@ -3,7 +3,6 @@ from abc import (
     abstractmethod,
 )
 from typing import (
-    Iterable,
     List,
     Sequence,
     Tuple,
@@ -37,7 +36,7 @@ from sxpat.graph.node import (
 )
 
 
-__all__ = ['']
+__all__ = ['SimpleExpression', 'CountTrue', 'CountTrueWeights']
 
 
 AnyBoolOperand: TypeAlias = Union[
