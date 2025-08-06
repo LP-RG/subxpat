@@ -9,7 +9,7 @@ from sxpat.graph import *
 
 __all__ = [
     # digest/update graph
-    'unpack_ToInt', 'prune_unused', 'set_bool_constants', 'set_prefix', 'crystallize',
+    'unpack_ToInt', 'prune_unused', 'set_bool_constants', 'set_prefix','set_prefix_new', 'crystallize',
     # compute graph accessories
     'get_nodes_type', 'get_nodes_bitwidth',
 
