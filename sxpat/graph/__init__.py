@@ -28,7 +28,7 @@ __all__ = [
     # > expressions
     'Expression',
     # bool to bool
-    'Not', 'And', 'Or', 'Implies',
+    'Not', 'And', 'Or', 'Xor', 'Xnor', 'Implies',
     # int to int
     'Sum', 'AbsDiff',
     # bool to int
