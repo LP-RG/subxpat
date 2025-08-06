@@ -201,7 +201,7 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missin
         and returns a new graph with the nodes corresponding to the given names replaced with the wanted constant.
 
         @note: *TODO: can be expanded to manage also IntConstant nodes*  
-        @note: *TODO: can be expanded to replace also inner nodes, and not only Variable/Constant nodes*
+        @note: *TODO: add guard to prevent assigning the wrong type*  
 
         @authors: Marco Biasion
     """
@@ -211,12 +211,7 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missin
         if skip_missing and name not in graph: continue
         node = graph[name]
 
-        if isinstance(node, Operation):
-            # TODO: could be implemented using prune_unused()
-            # NOTE: we do not really need prune_unused as this function should only care about setting constant
-            raise NotImplementedError('The logic to replace an Operation with a constant has not been implemented yet.')
-        else:
-            new_nodes[node.name] = BoolConstant(node.name, value, node.weight, node.in_subgraph)
+        new_nodes[node.name] = BoolConstant(node.name, value, node.weight, node.in_subgraph)
 
     return graph.copy(new_nodes.values())
 
