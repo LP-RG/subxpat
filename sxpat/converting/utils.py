@@ -387,6 +387,8 @@ class crystallize:
             AtMost: cls._at_most,
             # special
             Objective: cls._as_is,
+            Target: cls._as_is,
+            Constraint: cls._as_is,
         }
 
         new_nodes = dict()
@@ -584,7 +586,7 @@ class crystallize:
                 # int to int
                 Sum: lambda ops: sum(op.value for op in ops),  # if an operand is const0, gets discarded. if any group of operands sum to 0, they get discarded, not work if unsigned.
                 AbsDiff: lambda ops: abs(ops[0].value - ops[1].value),  # if one is 0, becomes identity of other
-                ToInt: lambda ops: sum(ops[0].value * (2 ** i) for (i, ops[0]) in enumerate(ops)),
+                ToInt: lambda ops: sum(op.value * (2 ** i) for i, op in enumerate(ops)),
                 # bool to int
                 Equals: lambda ops: ops[0].value == ops[1].value,
                 NotEquals: lambda ops: ops[0].value != ops[1].value,
