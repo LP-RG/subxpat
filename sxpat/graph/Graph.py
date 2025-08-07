@@ -13,7 +13,7 @@ from .Node import (
     BoolVariable, PlaceHolder,
     Target, Constraint,
     #
-    OperationNode, ConstantNode, GlobalTaskNode, ExpressionNode,
+    OperationNode, ConstantNode, GlobalTaskNode, ExpressionNode, Variable, VariableNode,
 )
 from .error import UndefinedNodeError
 
@@ -117,6 +117,11 @@ class Graph:
             self._inner.nodes[_name][self.K]
             for _name in self._inner.successors(self._get_name(node_or_name))
         )
+
+    @ft.cached_property
+    @final
+    def variables(self) -> Sequence[VariableNode]:
+        return tuple(node for node in self.nodes if isinstance(node, Variable))
 
     @ft.cached_property
     @final
