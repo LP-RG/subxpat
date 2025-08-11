@@ -10,7 +10,7 @@ __all__ = [
     # digest (to be moved to own sub/module)
     'unpack_ToInt',
     # optimization
-    'crystallize',
+    'crystallise',
     'prune_unused', 'prune_unused_keepio',
     # assignments
     'set_bool_constants',

@@ -83,6 +83,8 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         Not: '¬a',
         And: '⋀A',
         Or: '⋁A',
+        Xor: 'a xor b',
+        Xnor: 'a xnor b',
         Implies: 'a&rArr;b',
         # int to int
         Sum: '&sum;A',
@@ -380,6 +382,8 @@ class VerilogExporter(GraphExporter[IOGraph]):
         Not: lambda n: f'(~{n.operand})',
         And: lambda n: f'({" & ".join(n.operands)})',
         Or: lambda n: f'({" | ".join(n.operands)})',
+        Xor: lambda n : f'({" ^ ".join(n.operands)})',
+        Xnor: lambda n : f'(~({n.left} ^ {n.right}))',
         Implies: lambda n: f'(~{n.left} | {n.right})',
         # int-int operations
         Sum: lambda n: f'({" + ".join(n.operands)})',
