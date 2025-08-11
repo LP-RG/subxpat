@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing_extensions import Self
 from typing import AbstractSet, Any, Iterable, Mapping, Optional, Sequence, TypeVar, Union, Final, final
 from types import MappingProxyType
-
+from collections import deque
 import networkx as nx
 import functools as ft
 import itertools as it
@@ -162,11 +162,31 @@ class IOGraph(Graph):
         self.outputs_names = tuple(outputs_names)
 
     def __eq__(self, other) -> bool:
+        """
+        Checks equality with another IOGraph.
+        Args:
+            other: Another IOGraph object.
+        Returns:
+            True if the graphs are equal and have the same inputs and outputs.
+        """
         return (
             super().__eq__(other)
             and self.inputs_names == other.inputs_names
             and self.outputs_names == other.outputs_names
         )
+    def __hash__(self) -> int:
+        """
+        Make IOGraph hashable by combining hashes of its components.
+        """
+        nodes_hash = hash(tuple(
+            (node.name, type(node).__name__, getattr(node, 'weight', None))
+            for node in self.nodes
+        ))
+        inputs_hash = hash(self.inputs_names)
+        outputs_hash = hash(self.outputs_names)
+        
+        return hash((nodes_hash, inputs_hash, outputs_hash))
+    @ft.cached_property
 
     @ft.cached_property
     @final
@@ -196,7 +216,130 @@ class IOGraph(Graph):
         in_out_set = frozenset((*self.inputs_names, *self.outputs_names))
         return tuple(n for n in self.nodes if n.name not in in_out_set)
 
+    @final
+    def distance_to_closest_output(self, node_or_name: Union[str, Node]) -> tuple[int, Node]:
+        """
+        Returns the distance to the closest output node and the output node itself.
+        Args:
+            node_or_name: Node object or node name.
+        Returns:
+            Tuple of distance (int) and closest output Node object.
+        @author: Tibob
+        """
+        start_name = self._get_name(node_or_name)
 
+        if start_name in self.outputs_names:
+            return (0, self[start_name])
+
+        queue = deque([(start_name, 0)])
+        visited = set()
+                
+        while queue:
+            current_name, distance = queue.popleft()
+            
+            if current_name in visited:
+                continue
+                
+            visited.add(current_name)
+            
+            if current_name in self.outputs_names:
+                return (distance, self[current_name])
+                        
+            for successor_name in self._inner.successors(current_name):
+                if successor_name not in visited:
+                    queue.append((successor_name, distance + 1))
+        
+        raise ValueError(f"No path from {start_name} to any output node")
+    
+    @final
+    def distance_to_closest_input(self, node_or_name: Union[str, Node]) -> tuple[int, Node]:
+        """
+        Returns the distance to the closest input node and the input node itself.
+        Args:
+            node_or_name: Node object or node name.
+        Returns:
+            Tuple of distance (int) and closest input Node object.
+        """
+        start_name = self._get_name(node_or_name)
+
+        if start_name in self.inputs_names:
+            return (0, self[start_name])
+
+        queue = deque([(start_name, 0)])
+        visited = set()
+                
+        while queue:
+            current_name, distance = queue.popleft()
+            
+            if current_name in visited:
+                continue
+                
+            visited.add(current_name)
+            
+            # FIXED: Check for inputs, not outputs
+            if current_name in self.inputs_names:
+                return (distance, self[current_name])
+                        
+            # FIXED: Go backwards to inputs (predecessors), not forwards
+            for predecessor_name in self._inner.predecessors(current_name):
+                if predecessor_name not in visited:
+                    queue.append((predecessor_name, distance + 1))
+        
+        raise ValueError(f"No path from {start_name} to any input node")
+    @final
+    def output_nodes_of_node(self, node_or_name: Union[str, Node]) -> Sequence[Node]:
+        """
+        Returns the output nodes of the given node.
+        Args:
+            node_or_name: Node object or node name.
+        Returns:
+            Iterable of output Node objects.
+        note: for Identity nodes, this returns the node itself.
+        """
+        start_name = self._get_name(node_or_name)
+    
+        reachable: set[str] = nx.descendants(self._inner, start_name)
+        reachable.add(start_name)  
+        return tuple(
+            self[name] for name in reachable 
+            if name in self.outputs_names
+        )
+    @final
+    def biggest_weight_output_node(self, node_or_name: Union[str, Node]) -> Node:
+        """
+        Returns the output node with the biggest weight from the given node.
+        Args:
+            node_or_name: Node object or node name.
+        Returns:
+            Node object with the biggest weight.
+        """
+        ## Get all output nodes reachable from the given node
+        output_nodes = self.output_nodes_of_node(node_or_name)
+        if not output_nodes:
+            raise ValueError(f"No output nodes reachable from {node_or_name}")
+        weighted_nodes = [n for n in output_nodes if isinstance(n, Extras)]
+        #we need to check if all output nodes have a weight attribute
+        assert all(isinstance(n, Extras) for n in output_nodes), \
+        "All output nodes must have weight attribute (inherit from Extras)"
+
+        return max(weighted_nodes, key=lambda n: n.weight)
+    
+    def count_edges(self) -> int:
+        """Count total number of edges in the graph"""
+        edge_count = 0
+        for node in self.nodes:
+            if hasattr(node, 'operands') and node.operands:
+                edge_count += len(node.operands)
+        return edge_count
+    def print(self) -> None:
+        """
+        Prints the graph in a human-readable format.
+        """
+        print(f"Graph with {len(self.nodes)} nodes, {len(self.inputs)} inputs, and {len(self.outputs)} outputs:")
+        for node in self.nodes:
+            print(f"  {node.name}: {node}")
+        print(f"Inputs: {', '.join(self.inputs_names)}")
+        print(f"Outputs: {', '.join(self.outputs_names)}")
 class SGraph(IOGraph):
     """Graph with inputs, outputs and a subgraph."""
 

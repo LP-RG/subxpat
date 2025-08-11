@@ -429,6 +429,7 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
 
 
 def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
+    import labelling_weird
     """This function adds the labels inplace to the given graph"""
 
     # compute weights
@@ -439,13 +440,38 @@ def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
         partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
         parallel=specs_obj.parallel
     )
+    weights_normal_lorenzo_version = labelling_weird.labeling_using_normal(
+        graph.name,
+        graph.name,
+        specs_obj.min_labeling,
+        specs_obj.partial_labeling,
+        specs_obj.et * ET_COEFFICIENT.as_integer_ratio,
+        False,
+        MODE = 0
+    )
+    weights_improved_test = labelling_weird.labeling_using_define_improved(
+        graph.name,
+        graph.name,
+        specs_obj.min_labeling,
+        specs_obj.partial_labeling,
+        specs_obj.et * ET_COEFFICIENT.as_integer_ratio,
+        False,
+        MODE = 0
+
+    )
+
+
+    # # apply weights to graph
+    # inner_graph: nx.DiGraph = graph.graph
+    # for (node_name, node_data) in inner_graph.nodes.items():
+    #     node_data[WEIGHT] = weights.get(node_name, -1)
+    exit(0)
+
+    #partial labelling = false; partial_cutoff = 10^100, paralell = false
+
+
 
     # apply weights to graph
-    inner_graph: nx.DiGraph = graph.graph
-    for (node_name, node_data) in inner_graph.nodes.items():
-        node_data[WEIGHT] = weights.get(node_name, -1)
-
-
 def get_toolname(specs_obj: Specifications) -> str:
     message, toolname = {
         (False, TemplateType.NON_SHARED): ('XPAT', sxpatconfig.XPAT),
