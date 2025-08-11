@@ -500,7 +500,8 @@ class crystallise:
         # a & b & 1 : a & b
         # a | b | 0 : a | b
         else:
-            return And(node.name, operands=nc_operands, weight=node.weight, in_subgraph=node.in_subgraph)
+            if len(nc_operands) == len(operands): return node
+            else: return cls.as_other(type(node), node, operands=nc_operands)
 
     @classmethod
     def _xor(cls, node: Xor, operands: Sequence[Node], _) -> Union[Xor, BoolConstant, Identity, Not]:
@@ -508,22 +509,23 @@ class crystallise:
 
         op_a, op_b = operands
 
-        # a ^ b
-        if not isinstance(op_a, Constant) and not isinstance(op_b, Constant):
-            return node
-
+        # both operands are constant
         # # ^ # : #
-        elif isinstance(op_a, Constant) and isinstance(op_b, Constant):
+        if isinstance(op_a, Constant) and isinstance(op_b, Constant):
             return cls.as_constant(node, op_a.value != op_b.value)
 
+        # no operand is constant
+        # a ^ b
+        elif not isinstance(op_a, Constant) and not isinstance(op_b, Constant):
+            return node
+
+        # one operand is constant
         # z ^ #
         else:
             if isinstance(op_a, Constant):
-                const_op = op_a
-                var_op = op_b
+                const_op, var_op = op_a, op_b
             else:
-                const_op = op_b
-                var_op = op_a
+                const_op, var_op = op_b, op_a
 
             # z ^ 0 :  z
             # z ^ 1 : !z
@@ -537,22 +539,23 @@ class crystallise:
 
         op_a, op_b = operands
 
-        # a ≡ b
-        if not isinstance(op_a, Constant) and not isinstance(op_b, Constant):
-            return node
-
+        # both operands are constant
         # # ≡ # : #
-        elif isinstance(op_a, Constant) and isinstance(op_b, Constant):
+        if isinstance(op_a, Constant) and isinstance(op_b, Constant):
             return cls.as_constant(node, op_a.value == op_b.value)
 
+        # no operand is constant
+        # a ≡ b
+        elif not isinstance(op_a, Constant) and not isinstance(op_b, Constant):
+            return node
+
+        # one operand is constant
         # z ≡ #
         else:
             if isinstance(op_a, Constant):
-                const_op = op_a
-                var_op = op_b
+                const_op, var_op = op_a, op_b
             else:
-                const_op = op_b
-                var_op = op_a
+                const_op, var_op = op_b, op_a
 
             # z ≡ 0 : !z
             # z ≡ 1 :  z
@@ -567,12 +570,20 @@ class crystallise:
 
         op_a, op_b = operands
 
-        # a => b
-        if not isinstance(op_a, Constant) and not isinstance(op_b, Constant):
-            return node
+        # both operands are constant
+        # # => #
+        if isinstance(op_a, Constant) and isinstance(op_b, Constant):
+            value = {
+                (False, False): True,  # 0 => 0 : 1
+                (False, True): True,   # 0 => 1 : 1
+                (True, True): False,   # 1 => 0 : 0
+                (True, True): True,    # 1 => 1 : 1
+            }[(op_a.value, op_b.value)]
+            return cls.as_constant(node, value)
 
+        # only right operand is constant
         # a => #
-        elif not isinstance(op_a, Constant):
+        elif isinstance(op_b, Constant):
             # a => 0 : ~a
             if op_b.value is False:
                 return cls.as_other(Not, node, operand=op_a)
@@ -581,8 +592,9 @@ class crystallise:
             else:
                 return cls.as_constant(node, True)
 
+        # only left operand is constant
         # # => b
-        elif not isinstance(op_b, Constant):
+        elif isinstance(op_a, Constant):
             # 0 => b : 1
             if op_a.value is False:
                 return cls.as_constant(node, True)
@@ -591,15 +603,10 @@ class crystallise:
             else:
                 return cls.as_other(Identity, node, operand=op_b)
 
-        # # => #
+        # no operand is constant
+        # a => b
         else:
-            value = {
-                (False, False): True,  # 0 => 0 : 1
-                (False, True): True,   # 0 => 1 : 1
-                (True, True): False,   # 1 => 0 : 0
-                (True, True): True,    # 1 => 1 : 1
-            }[(op_a.value, op_b.value)]
-            return cls.as_constant(node, value)
+            return node
 
     @classmethod
     def _all_or_nothing_node(cls, node: T_all_or_nothing, operands: Sequence[Node], _) -> Union[T_all_or_nothing, Constant]:
@@ -621,16 +628,16 @@ class crystallise:
                 # bool to bool
                 Not: lambda ops: not ops[0].value,
                 # int to int
-                Sum: lambda ops: sum(op.value for op in ops),  # if an operand is const0, gets discarded. if any group of operands sum to 0, they get discarded, not work if unsigned.
-                AbsDiff: lambda ops: abs(ops[0].value - ops[1].value),  # if one is 0, becomes identity of other
+                Sum: lambda ops: sum(op.value for op in ops),  # possible todo: if an operand is const0, gets discarded. if any group of operands sum to 0, they get discarded, not work if unsigned.
+                AbsDiff: lambda ops: abs(ops[0].value - ops[1].value),  # possible todo: if one is 0, becomes identity of other
                 ToInt: lambda ops: sum(op.value * (2 ** i) for i, op in enumerate(ops)),
                 # bool to int
                 Equals: lambda ops: ops[0].value == ops[1].value,
                 NotEquals: lambda ops: ops[0].value != ops[1].value,
                 LessThan: lambda ops: ops[0].value < ops[1].value,
-                LessEqualThan: lambda ops: ops[0].value <= ops[1].value,  # if unsigned and left=0, becomes true
+                LessEqualThan: lambda ops: ops[0].value <= ops[1].value,  # possible todo: if unsigned and left=0, becomes true
                 GreaterThan: lambda ops: ops[0].value > ops[1].value,
-                GreaterEqualThan: lambda ops: ops[0].value >= ops[1].value,  # if unsigned and right=0, becomes true
+                GreaterEqualThan: lambda ops: ops[0].value >= ops[1].value,  # possible todo:if unsigned and right=0, becomes true
                 # identity
                 Identity: lambda ops: ops[0].value,
             }[type(node)]
@@ -753,6 +760,7 @@ class crystallise:
 
         a, b, c = operands
 
+        # condition is constant false
         # (0) ?,c : c
         if node_is_false(a):
             # (0) ?,# : #
@@ -763,6 +771,7 @@ class crystallise:
             else:
                 return cls.as_other(Identity, node, operand=c)
 
+        # condition is constant true
         # (1) b,? : b
         elif node_is_true(a):
             # (1) #,? : #
@@ -773,6 +782,7 @@ class crystallise:
             else:
                 return cls.as_other(Identity, node, operand=b)
 
+        # branches are constant and equal
         # (?) k,k : k
         elif isinstance(b, Constant) and isinstance(c, Constant) and b.value == c.value:
             return cls.as_constant(node, b.value)
@@ -806,6 +816,8 @@ class crystallise:
             return cls.as_constant(node, False)
 
         # shrink the node
+        # possible todo: if only one is left and new_value=1, return identity of operand
+        #                (maybe something similar can be done for _at_most too)
         else:
             return cls.as_other(AtLeast, operands=nc_operands, value=new_value)
 
