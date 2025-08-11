@@ -422,8 +422,8 @@ Z3_INT_NODE_MAPPING = {
     Not: lambda n, operands, accs: f'Not({operands[0]})',
     And: lambda n, operands, accs: f'And({", ".join(operands)})',
     Or: lambda n, operands, accs: f'Or({", ".join(operands)})',
-    Xor: lambda n, operands, accs: f'Xor({", ".join(operands)})',
-    Xnor: lambda n, operands, accs: f'Not(Xor({", ".join(operands)}))',
+    Xor: lambda n, operands, accs: f'({operands[0]} != {operands[1]})',
+    Xnor: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
     Implies: lambda n, operands, accs: f'Implies({operands[0]}, {operands[1]})',
     # integer operations
     Sum: lambda n, operands, accs: f'Sum({", ".join(operands)})',
