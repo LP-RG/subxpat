@@ -1,3 +1,4 @@
+import sys
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Type, TypeVar, Union, overload
 
 import re
@@ -5,11 +6,12 @@ import math
 import itertools as it
 
 from sxpat.graph import *
+from sxpat.utils.print import pprint
 
 
 __all__ = [
     # digest/update graph
-    'unpack_ToInt', 'prune_unused', 'set_bool_constants', 'set_prefix','set_prefix_new', 'crystallize',
+    'unpack_ToInt', 'prune_unused', 'set_bool_constants', 'set_prefix', 'set_prefix_new', 'crystallise',
     # compute graph accessories
     'get_nodes_type', 'get_nodes_bitwidth',
 
@@ -325,7 +327,7 @@ def prevent_combination(c_graph: CGraph,
     return CGraph(nodes)
 
 
-class crystallize:
+class crystallise:
     """
         Takes a graph and and reduces it.
         I.E. simplifies the graph by evaluating nodes with constant inputs.
@@ -348,8 +350,8 @@ class crystallize:
     )
 
     @classmethod
-    def graph(cls, graph: Graph, other_graphs: Iterable[Graph]) -> int:
-        _crystallizer_for = {
+    def graph(cls, graph: Graph, pre_crystallised_graphs: Iterable[Graph]) -> int:
+        _crystalliser_for = {  # concrete node type -> crystallizing function
             # > variables
             BoolVariable: cls._as_is,
             IntVariable: cls._as_is,
@@ -357,13 +359,14 @@ class crystallize:
             BoolConstant: cls._as_is,
             IntConstant: cls._as_is,
             # > placeholder
-            PlaceHolder: cls._placeholder,
+            PlaceHolder: cls._as_is,
             # > expressions
             # bool to bool
             Not: cls._all_or_nothing_node,
             And: cls._nary_bool,
             Or: cls._nary_bool,
             Xor: cls._xor,
+            Xnor: cls._xnor,
             Implies: cls._implies,
             # int to int
             Sum: cls._all_or_nothing_node,
@@ -386,24 +389,33 @@ class crystallize:
             AtLeast: cls._at_least,
             AtMost: cls._at_most,
             # special
-            Objective: cls._as_is,
             Target: cls._as_is,
             Constraint: cls._as_is,
         }
 
         new_nodes = dict()
         for node in graph.nodes:
-            # select crystallizer
-            try: crystallize = _crystallizer_for[type(node)]
-            except KeyError: raise NotImplementedError(f'No crystallizer for {type(node)} is implemented.')
+            # select crystalliser
+            try:
+                crystallise = _crystalliser_for[type(node)]
+            except KeyError:
+                pprint.error(f'No crystalliser for {type(node)} is implemented, defaulting to "as is".')
+                print(f'No crystalliser for {type(node)} is implemented, defaulting to "as is".', file=sys.stderr)
+                crystallise = cls._as_is
 
             # get operands
-            # TODO: update with cry_graphs
-            if isinstance(node, Operation): operands = tuple(new_nodes.get(op, graph[op]) for op in node.operands)
-            else: operands = ()
+            if isinstance(node, Operation):
+                operands = []
+                for operand_name in node.operands:
+                    operand = new_nodes.get(operand_name, graph[operand_name])
 
-            # crystallize node
-            new_nodes[node.name] = crystallize(node, operands, other_graphs)
+                    if isinstance(operand, PlaceHolder):
+                        operand = cls._find_non_placeholder(operand_name, pre_crystallised_graphs) or operand
+            else:
+                operands = []
+
+            # crystallise node
+            new_nodes[node.name] = crystallise(node, operands, pre_crystallised_graphs)
 
         return graph.copy(new_nodes.values())
 
@@ -438,20 +450,16 @@ class crystallize:
         if value is not Ellipsis: overrides['value'] = value
         return node_from_node(cls, node, overrides)
 
+    @staticmethod
+    def _find_non_placeholder(name: str, graphs: Iterable[Graph]) -> Union[None, Node, Operation, Valued]:
+        for graph in graphs:
+            if name in graph:
+                node = graph[name]
+                if not isinstance(node, PlaceHolder): return node
+        return None
+
     @classmethod
     def _as_is(cls, node: Node, _0, _1) -> Node:
-        return node
-
-    @classmethod
-    def _placeholder(cls, node: PlaceHolder, _, cry_graphs: Sequence[Graph]) -> Union[PlaceHolder, BoolConstant]:
-        for cg in cry_graphs:
-            if node.name in cg:
-                c_node = cg[node.name]
-                if isinstance(c_node, Constant):
-                    return cls.as_constant(node, c_node.value)
-                else:
-                    break
-
         return node
 
     @classmethod
@@ -517,12 +525,41 @@ class crystallize:
                 const_op = op_b
                 var_op = op_a
 
-            # z ^ 0 : z
+            # z ^ 0 :  z
             # z ^ 1 : !z
             if const_op.value is False:
                 return cls.as_other(Identity, node, operand=var_op)
             else:
                 return cls.as_other(Not, node, operand=var_op)
+
+    @classmethod
+    def _xnor(cls, node: Implies, operands: Sequence[Node], _) -> Union[Xnor, BoolConstant, Identity, Not]:
+
+        op_a, op_b = operands
+
+        # a ≡ b
+        if not isinstance(op_a, Constant) and not isinstance(op_b, Constant):
+            return node
+
+        # # ≡ # : #
+        elif isinstance(op_a, Constant) and isinstance(op_b, Constant):
+            return cls.as_constant(node, op_a.value == op_b.value)
+
+        # z ≡ #
+        else:
+            if isinstance(op_a, Constant):
+                const_op = op_a
+                var_op = op_b
+            else:
+                const_op = op_b
+                var_op = op_a
+
+            # z ≡ 0 : !z
+            # z ≡ 1 :  z
+            if const_op.value is False:
+                return cls.as_other(Not, node, operand=var_op)
+            else:
+                return cls.as_other(Identity, node, operand=var_op)
 
     @classmethod
     def _implies(cls, node: Implies, operands: Sequence[Node], _) -> Union[Implies, BoolConstant, Not, Identity]:
