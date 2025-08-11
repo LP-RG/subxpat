@@ -26,7 +26,7 @@ __all__ = [
 ]
 
 
-T_type = TypeVar('T_type', bound=type)
+_N = TypeVar('_N', bound=Node)
 
 
 def unpack_ToInt(graph: T_Graph) -> T_Graph:
@@ -227,8 +227,8 @@ def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missi
         Takes a graph and a mapping from names to bool in input
         and returns a new graph with the nodes corresponding to the given names replaced with the wanted constant.
 
-        @note: *TODO: can be expanded to manage also IntConstant nodes*
-        @note: *TODO: can be expanded to replace also inner nodes, and not only Variable/Constant nodes*
+        @note: *TODO: can be expanded to manage also IntConstant nodes*  
+        @note: *TODO: add guard to prevent assigning the wrong type*  
 
         @authors: Marco Biasion
     """
@@ -238,14 +238,41 @@ def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missi
         if skip_missing and name not in graph: continue
         node = graph[name]
 
-        if isinstance(node, Operation):
-            # TODO: could be implemented using prune_unused()
-            # NOTE: we do not really need prune_unused as this function should only care about setting constant
-            raise NotImplementedError('The logic to replace an Operation with a constant has not been implemented yet.')
-        else:
-            new_nodes[node.name] = node_from_node(BoolConstant, node, {'value': value})
+        new_nodes[node.name] = BoolConstant(node.name, value, node.weight, node.in_subgraph)
 
     return graph.copy(new_nodes.values())
+
+
+
+def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
+    """
+        # DEPRECATED
+        # Use `set_prefix_new` instead
+
+        Given a graph and the wanted prefix, returns a new graph with all operation nodes updated with the prefix.
+
+        @authors: Marco Biasion
+    """
+
+    to_be_updated = frozenset(n.name for n in it.chain(graph.expressions, graph.constants))
+    updated_names: Mapping[str, str] = {
+        n.name: f'{prefix}{n.name}' if n.name in to_be_updated else n.name
+        for n in graph.nodes
+    }
+
+    nodes: List[AnyNode] = []
+    for node in graph.nodes:
+        if isinstance(node, Operation):
+            operands = (updated_names[name] for name in node.operands)
+            nodes.append(node.copy(name=updated_names[node.name], operands=operands))
+        else:
+            nodes.append(node.copy(name=updated_names[node.name]))
+
+    extras = dict()
+    if isinstance(graph, IOGraph):
+        extras['outputs_names'] = (f'{prefix}{name}' for name in graph.outputs_names)
+
+    return graph.copy(nodes, **extras)
 
 
 def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterable[str]] = None) -> T_Graph:
@@ -281,37 +308,6 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
         extras['outputs_names'] = (new_name_of[name] for name in graph.outputs_names)
     if isinstance(graph, PGraph):
         extras['parameters_names'] = (new_name_of[name] for name in graph.parameters_names)
-
-    return graph.copy(nodes, **extras)
-
-
-def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
-    """
-        # DEPRECATED
-        # Use `set_prefix_new` instead
-
-        Given a graph and the wanted prefix, returns a new graph with all operation nodes updated with the prefix.
-
-        @authors: Marco Biasion
-    """
-
-    to_be_updated = frozenset(n.name for n in it.chain(graph.expressions, graph.constants))
-    updated_names: Mapping[str, str] = {
-        n.name: f'{prefix}{n.name}' if n.name in to_be_updated else n.name
-        for n in graph.nodes
-    }
-
-    nodes: List[AnyNode] = []
-    for node in graph.nodes:
-        if isinstance(node, Operation):
-            operands = (updated_names[name] for name in node.operands)
-            nodes.append(node.copy(name=updated_names[node.name], operands=operands))
-        else:
-            nodes.append(node.copy(name=updated_names[node.name]))
-
-    extras = dict()
-    if isinstance(graph, IOGraph):
-        extras['outputs_names'] = (f'{prefix}{name}' for name in graph.outputs_names)
 
     return graph.copy(nodes, **extras)
 
@@ -363,9 +359,9 @@ class crystallize:
 
         Complexity: O(V + E)
 
-        #TODO: What to do with global tasks where their operand is a constant
+        #TODO: What to do with Objective where their operand is a constant?
 
-        @authors: Marco Biasion, Lorenzo, Spada
+        @authors: Marco Biasion, Lorenzo Spada
     """
 
     T_ib = TypeVar('T_ib', int, bool)
@@ -380,7 +376,7 @@ class crystallize:
 
     @classmethod
     def graph(cls, graph: Graph, other_graphs: Iterable[Graph]) -> int:
-        _crystallizer_for = {
+        _crystallizer_for = { # concrete node type -> crystallizing function
             # > variables
             BoolVariable: cls._as_is,
             IntVariable: cls._as_is,
@@ -417,7 +413,8 @@ class crystallize:
             AtLeast: cls._at_least,
             AtMost: cls._at_most,
             # special
-            Objective: cls._as_is,
+            Target: cls._as_is,
+            Constraint: cls._as_is,
         }
 
         new_nodes = dict()
@@ -452,16 +449,20 @@ class crystallize:
     @staticmethod
     def as_constant(node: Node, value: T_ib) -> Constant[T_ib]:
         node_type = {bool: BoolConstant, int: IntConstant}[type(value)]
-        return node_from_node(node_type, node, value=value)
+        return node_from_node(node_type, node, {'value': value})
 
     @staticmethod
-    def as_other(cls: Type[T_Node], node: Node,
-                 /, *, operand: AnyNode = ..., operands: Sequence[AnyNode] = ..., value: Union[bool, int] = ...) -> T_Node:
-        kwargs = dict()
-        if operand is not Ellipsis: kwargs['operands'] = (operand,)
-        if operands is not Ellipsis: kwargs['operands'] = operands
-        if value is not Ellipsis: kwargs['value'] = value
-        return node_from_node(cls, node, kwargs)
+    def as_other(cls: Type[_N], node: Node,
+                 /, *,
+                 operand: AnyNode = ...,
+                 operands: Sequence[AnyNode] = ...,
+                 value: Union[bool, int] = ...
+                 ) -> _N:
+        override = dict()
+        if operand is not Ellipsis: override['operands'] = [operand]
+        if operands is not Ellipsis: override['operands'] = operands
+        if value is not Ellipsis: override['value'] = value
+        return node_from_node(cls, node, override)
 
     @classmethod
     def _as_is(cls, node: Node, _0, _1) -> Node:
@@ -476,10 +477,6 @@ class crystallize:
                     return cls.as_constant(node, c_node.value)
                 else:
                     break
-        try:
-            pass
-        except:
-            pass
 
         return node
 
@@ -719,11 +716,11 @@ class crystallize:
             }[c.value]()
 
         # a (0,c) : c
-        # a (1,c) : a == c (also: !(b^c) (^ is xor))
+        # a (1,c) : a xnor c
         elif b_const:
             return {  # b
                 0: lambda: cls.as_other(Identity, node, operand=c),
-                1: lambda: node,  # uses a non boolean operator, or would require the creation of new nodes
+                1: lambda: cls.as_other(Xnor, node, operands=(a, c)),
             }[b.value]()
 
         # 0 (b,c) : b ^ c
@@ -837,7 +834,7 @@ def node_is_false(node: Union[Node, BoolConstant]) -> bool:
     return isinstance(node, BoolConstant) and node.value is False
 
 
-def node_from_node(cls: Type[T_Node], node: Node, override: Mapping[str, Any]) -> T_Node:
+def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N:
     # get common fields
     kwargs = {'name': node.name}
     if issubclass(cls, Extras) and isinstance(node, Extras):

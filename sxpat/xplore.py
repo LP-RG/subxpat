@@ -375,7 +375,7 @@ def explore_grid(specs_obj: Specifications):
                 stats_obj.grid.cells[lpp][ppo].store_model_info(best_model_info)
                 pprint.success(f'ErrorEval PASS! with total wce = {best_data[4]}')
 
-                exact_stats = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, exact_file_path)
+                exact_stats = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, exact_file_path, True)
                 print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
                 store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.current_benchmark, et=specs_obj.et,
                                     encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)

@@ -121,6 +121,11 @@ class Graph:
 
     @ft.cached_property
     @final
+    def variables(self) -> Sequence[AnyVariable]:
+        return tuple(node for node in self.nodes if isinstance(node, Variable))
+
+    @ft.cached_property
+    @final
     def constants(self) -> Sequence[AnyConstant]:
         return tuple(node for node in self.nodes if isinstance(node, Constant))
 

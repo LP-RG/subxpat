@@ -270,8 +270,7 @@ class Z3FuncEncoder(Z3Encoder):
         # create call graphs (graphs where each node name has been replaced with the relative function call)
         inputs_string = ','.join(inputs_names)
         non_gates_names = frozenset(it.chain(
-            inputs_names,
-            parameters_names,
+            (n.name for g in graphs for n in g.variables),
             (n.name for g in graphs for n in g.constants),
             (t.name for g in graphs if isinstance(g, CGraph) for t in g.targets),
         ))

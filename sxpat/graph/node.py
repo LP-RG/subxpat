@@ -34,7 +34,7 @@ __all__ = [
     # > expressions
     'Expression',
     # bool to bool
-    'Not', 'And', 'Or', 'Xor', 'Implies',
+    'Not', 'And', 'Or', 'Xor', 'Xnor', 'Implies',
     # int to int
     'Sum', 'AbsDiff',
     # bool to int
@@ -392,6 +392,14 @@ class Or(Extras, Operation, BoolResType, Expression, Node):
 class Xor(Extras, Limited2Operation, BoolResType, Expression, Node):
     """
         Boolean exclusive disjunction ( `a xor b` ) expression.  
+        This node must have two operads.
+    """
+
+
+@dc.dataclass(frozen=True)
+class Xnor(Extras, Limited2Operation, BoolResType, Expression, Node):
+    """
+        Boolean negated exclusive disjunction ( `a xnor b` ) expression.  
         This node must have two operads.
     """
 
