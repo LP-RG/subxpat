@@ -10,10 +10,11 @@ class LiveStorage:
     """
         Represents a live storage on which data can be staged and then committed.  
         The class uses a stack to store staged data,
-        the first stage after a commit pops everything above the staged key.
+        the first stage after a commit pops all data above the staged key.
 
         The class has guards to prevent restaging data without committing or staging out of order
-        (a key cannot be added before others that appeared sooner in previous commits).
+        (a key cannot be added before others that appeared sooner in previous staging sequences).
+        A commit with missing keys (actually missing, not implicitly copied from the previous iteration) is valid.
 
         This class can be used with a context manager and will automatically save on exit.
 
@@ -23,7 +24,7 @@ class LiveStorage:
     _NC_ERR_MSG = 'Key `{key}` was restaged without a commit.'
     _OOO_ERR_MSG = (
         '`{key}`(index:{idx}) was staged in the wrong order '
-        '(last correct key was `{last_key}`(index:{last_idx})).'
+        '(must be after `{last_key}`(index:{last_idx})).'
     )
 
     def __init__(self, save_destination: str):
@@ -63,8 +64,19 @@ class LiveStorage:
             self._last_index_set = self._order[key]
 
     def commit(self):
+        """Commits the current stack."""
+
         # add stack to storage
         self._storage.append(copy.deepcopy(self._stack))
+        # reset latest index
+        self._last_index_set = -1
+
+    def ignore(self):
+        """
+            Ignores the current stack.
+            This method has the same side effects as `.commit()` but without actually committing the stack.
+        """
+
         # reset latest index
         self._last_index_set = -1
 
@@ -94,7 +106,7 @@ class LiveStorage:
 
     def _check_out_of_order(self, key: str) -> Union[None, NoReturn]:
         if self._last_index_set == -1: return
-        if (idx := self._order[key]) != self._last_index_set + 1:
+        if (idx := self._order[key]) <= self._last_index_set:
             raise self.OutOfOrderStageError(self._OOO_ERR_MSG.format(
                 key=key,
                 idx=idx,
