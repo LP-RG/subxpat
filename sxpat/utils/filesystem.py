@@ -70,8 +70,8 @@ class FS:
                  directory: str = None,
                  delete: bool = False,
                  binary: bool = False,
-                 prefix: str = None,
-                 suffix: str = None,
+                 prefix: str = '',
+                 suffix: str = '',
                  ):
         """
             Create a temporary file on the filesystem.  
@@ -94,7 +94,7 @@ class FS:
         )
 
     @classmethod
-    def get_unique_filename(cls, directory: str = None, prefix: str = None, suffix: str = None) -> str:
+    def get_unique_filename(cls, directory: str = None, prefix: str = '', suffix: str = '') -> str:
         """Creates a temporary file in the filesystem, closes it and returns its name."""
 
         tmp_file = cls.open_tmp(directory, prefix=prefix, suffix=suffix)
