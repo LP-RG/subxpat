@@ -186,13 +186,20 @@ def explore_grid(specs_obj: Specifications):
 
         #
         if v2:
-            # define question
-            param_circ, param_circ_constr = v2Phase1.define(current_circ, specs_obj)
-            _question = [exact_circ, param_circ, param_circ_constr]
+            from sxpat.definitions.questions import min_subdistance_with_error
+            # DEFINE
+            v2p1_define_timer = Timer()
 
-            # solve
-            solver = get_solver(specs_obj)
-            status, model = solver.solve(_question, specs_obj)
+            # question
+            define_question = v2p1_define_timer.wrap(min_subdistance_with_error.variant_1)
+            base_question = define_question(current_circ, specs_obj)
+
+            # SOLVE
+            v2p1_solve_timer = Timer()
+
+            solve = v2p1_solve_timer.wrap(get_solver(specs_obj).define)
+            question = [exact_circ, param_circ, param_circ_constr]
+            status, model = solve(question, specs_obj)
 
             # extract v2 threshold
             v2_threshold = {
@@ -200,9 +207,8 @@ def explore_grid(specs_obj: Specifications):
                 'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs),
             }[status]()
 
-            temp = specs_obj.et
-            specs_obj.et = v2_threshold
-            v2_threshold = temp
+            # store error treshold and replace with v2 threshold
+            specs_obj.et, v2_threshold = v2_threshold, specs_obj.et
 
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
@@ -234,32 +240,38 @@ def explore_grid(specs_obj: Specifications):
                     outputs_names=(f's_out{i}' for i in range(len(current_circ.subgraph_outputs))),
                 )
 
-            # define template (and relative constraints)
-            definition_timer, define_template = Timer.from_function(get_templater(specs_obj).define)
+            # DEFINE
+            define_timer = Timer()
+
+            # template (and relative constraints)
+            define_template = define_timer.wrap(get_templater(specs_obj).define)
             param_circ, param_circ_constr = define_template(current_circ, specs_obj)
 
-            # define question
-            define_question = definition_timer.wrap(exists_parameters.not_above_threshold_forall_inputs)
-            question = define_question(current_circ, param_circ, AbsoluteDifferenceOfInteger, specs_obj.et)
+            # question
+            define_question = define_timer.wrap(exists_parameters.not_above_threshold_forall_inputs)
+            base_question = define_question(current_circ, param_circ, AbsoluteDifferenceOfInteger, specs_obj.et)
 
-            # solve
+            # SOLVE
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
-            _question = [exact_circ, param_circ, *param_circ_constr, *question]
+            question = [exact_circ, param_circ, *param_circ_constr, *base_question]
 
             models = []
             for i in range(specs_obj.wanted_models):
                 # prevent parameters combination if any
-                if len(models) > 0: _question.append(prevent_assignment(models[-1], i - 1))
+                if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
 
-                # run solver
-                status, model = solve(_question, specs_obj)
+                # solve question
+                status, model = solve(question, specs_obj)
 
                 # terminate if status is not sat, otherwise store the model
                 if status != 'sat': break
                 models.append(model)
 
             # legacy adaptation
-            execution_time = definition_timer.total + solve_timer.total
+            execution_time = define_timer.total + solve_timer.total
+
+            # restore error treshold
+            if v2: specs_obj.et = v2_threshold
 
             if len(models) == 0:
                 pprint.warning(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()}')
@@ -303,8 +315,6 @@ def explore_grid(specs_obj: Specifications):
                             inputs_names=(n.name for n in s_graph_complete.inputs),
                             outputs_names=(n.name for n in s_graph_complete.outputs),
                         )
-
-                        specs_obj.et = v2_threshold
 
                     # export approximate graph as verilog
                     # TODO:#15: use serious name generator
