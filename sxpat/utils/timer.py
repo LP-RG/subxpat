@@ -25,10 +25,10 @@ class Timer:
         timer, timed_my_function = Timer.from_function(my_function)
 
         ... = timed_my_function(...)
-        print(timer.last)
+        print(timer.latest)
 
         ... = timed_my_function(...)
-        print(timer.last)
+        print(timer.latest)
 
         print(timer.total)
         ```
@@ -48,10 +48,10 @@ class Timer:
         def my_function_2(...): ...
 
         ... = timed_my_function_1(...)
-        print(timer.last)
+        print(timer.latest)
 
         ... = my_function_2(...)
-        print(timer.last)
+        print(timer.latest)
 
         print(timer.total)
         ```
@@ -64,11 +64,16 @@ class Timer:
     _C = TypeVar('_C', bound=Callable)
 
     latest: float = 0
-    """The time spent on the latest call of a wrapped function under this timer."""
+    """The time spent on the latest call of a wrapped function under this timer (in seconds)."""
     total: float = 0
-    """The time spent in total on all calls of a wrapped functions under this timer."""
+    """The time spent in total on all calls of a wrapped functions under this timer (in seconds)."""
 
     def wrap(self, function: _C) -> _C:
+        """
+            Wraps the given function and return a timed alias under this timer.   
+            Can be used as a decorator.
+        """
+
         @ft.wraps(function)
         def wrapper(*args, **kwds):
             # get starting time data
@@ -86,6 +91,7 @@ class Timer:
                 resource.getrusage(resource.RUSAGE_CHILDREN),
             )
 
+            # compute delta
             time_delta = (
                 + (times_end[0].ru_utime - times_start[0].ru_utime)  # process user level time
                 + (times_end[0].ru_stime - times_start[0].ru_stime)  # process system level time
@@ -93,14 +99,18 @@ class Timer:
                 + (times_end[1].ru_stime - times_start[1].ru_stime)  # children system level time
             )
 
+            # update fields
             object.__setattr__(self, 'latest', time_delta)
             object.__setattr__(self, 'total', self.total + time_delta)
+
             return result
 
         return wrapper
 
     @classmethod
     def from_function(cls, function: _C) -> Tuple[Self, _C]:
+        """Create a timer wrapping the given function."""
+
         timer = Timer()
         wrapped = timer.wrap(function)
         return (timer, wrapped)
