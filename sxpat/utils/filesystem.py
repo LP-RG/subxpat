@@ -66,12 +66,18 @@ class FS:
     #     return open(path, mode)
 
     @classmethod
-    def open_tmp(directory: str = None, delete: bool = False, binary: bool = False):
+    def open_tmp(cls,
+                 directory: str = None,
+                 delete: bool = False,
+                 binary: bool = False,
+                 prefix: str = None,
+                 suffix: str = None,
+                 ):
         """
             Create a temporary file on the filesystem.  
             If `directory` is given, the file will be created in that directory (created if missing).  
-            If `delete` is `True` the file will be deleted once it is closed.  
-            If `binary` is `True` the file will be opened in binary mode.
+            If `delete` is `True` the file will be deleted once it is closed.   
+            If `binary` is `True` the file will be opened in binary mode, else it is opened in text mode.
         """
 
         if directory is not None:
@@ -82,11 +88,21 @@ class FS:
         return tempfile.NamedTemporaryFile(
             mode='w+b' if binary else 'w+',
             dir=directory,
-            delete=delete
+            delete=delete,
+            prefix=prefix,
+            suffix=suffix,
         )
 
     @classmethod
-    def copy(src_path: str, dst_path: str, exists_ok: bool = False) -> None:
+    def get_unique_filename(cls, directory: str = None, prefix: str = None, suffix: str = None) -> str:
+        """Creates a temporary file in the filesystem, closes it and returns its name."""
+
+        tmp_file = cls.open_tmp(directory, prefix=prefix, suffix=suffix)
+        tmp_file.close()
+        return tmp_file.name
+
+    @classmethod
+    def copy(cls, src_path: str, dst_path: str, exists_ok: bool = False) -> None:
         """
             Copies a file or an entire directory from source to destination.  
             Raises an exception if `exists_ok` is false and `dst_path` already exists.
