@@ -1,6 +1,5 @@
 from __future__ import annotations
-from typing import Callable, Dict, Iterable, Iterator, List, Tuple, TypeVar
-import dataclasses as dc
+from typing import Dict, Iterable, Iterator, List, Tuple
 
 from tabulate import tabulate
 import functools as ft
@@ -29,6 +28,7 @@ from sxpat.converting import iograph_from_legacy, sgraph_from_legacy
 from sxpat.converting import set_bool_constants, prevent_combination
 
 from sxpat.utils.print import pprint
+from sxpat.utils.timer import Timer
 
 
 def explore_grid(specs_obj: Specifications):
@@ -472,28 +472,3 @@ def model_compare(a, b) -> bool:
     elif a[1][4] < b[1][4]: return -1
     elif a[1][4] > b[1][4]: return +1
     else: return 0
-
-
-@dc.dataclass(init=False, repr=False, eq=False, frozen=True)
-class Timer:
-    from time import time as now
-    _C = TypeVar('_C', bound=Callable)
-
-    total: float = 0
-    last: float = 0
-
-    def wrap(self, function: _C) -> _C:
-        @ft.wraps(function)
-        def wrapper(*args, **kwds):
-            start_time = self.now()
-            result = function(*args, **kwds)
-            object.__setattr__(self, 'last', self.now() - start_time)
-            object.__setattr__(self, 'total', self.total + self.last)
-            return result
-        return wrapper
-
-    @classmethod
-    def from_function(cls, function: _C) -> Tuple[Timer, _C]:
-        timer = Timer()
-        wrapped = timer.wrap(function)
-        return (timer, wrapped)
