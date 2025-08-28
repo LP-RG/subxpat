@@ -1,12 +1,11 @@
 from __future__ import annotations
 from typing import Dict, Iterable, Iterator, List, Tuple
-
 from tabulate import tabulate
 import functools as ft
 import csv
 import math
 import networkx as nx
-
+from sxpat.improved_labeling import Labelling
 from Z3Log.config import path as z3logpath
 
 from sxpat.labeling import labeling_explicit
@@ -429,43 +428,44 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
 
 
 def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
-    import labelling_weird
     """This function adds the labels inplace to the given graph"""
 
     # compute weights
-    ET_COEFFICIENT = 1
-    weights, _ = labeling_explicit(
-        graph.name, graph.name,
-        min_labeling=specs_obj.min_labeling,
-        partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
-        parallel=specs_obj.parallel
+    ET_COEFFICIENT = 1.0
+    # weights_improved_test, _ = labeling_explicit(
+    #     graph.name, graph.name,
+    #     min_labeling=specs_obj.min_labeling,
+    #     partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
+    #     parallel=specs_obj.parallel
+    # )
+    # weights_normal_lorenzo_version = labelling_weird.labeling_using_normal(
+    #     graph.name,
+    #     graph.name,
+    #     specs_obj.min_labeling,
+    #     specs_obj.partial_labeling,
+    #     specs_obj.et * ET_COEFFICIENT.as_integer_ratio(),
+    #     False,
+    #     MODE = 0
+    # )
+    # import inspect
+    # print("labelling_improved signature:")
+    # print(inspect.signature(Labelling.labelling_improved))
+    # print("Method being called:", Labelling.labelling_improved)
+    # print("Method module:", Labelling.labelling_improved.__module__)
+    # print("Method qualname:", Labelling.labelling_improved.__qualname__)à
+    weights_improved_test, node_times = Labelling.labelling_improved(
+    graph,
+    graph,
+    specs_obj,
+    [True, False, False, True]
     )
-    weights_normal_lorenzo_version = labelling_weird.labeling_using_normal(
-        graph.name,
-        graph.name,
-        specs_obj.min_labeling,
-        specs_obj.partial_labeling,
-        specs_obj.et * ET_COEFFICIENT.as_integer_ratio,
-        False,
-        MODE = 0
-    )
-    weights_improved_test = labelling_weird.labeling_using_define_improved(
-        graph.name,
-        graph.name,
-        specs_obj.min_labeling,
-        specs_obj.partial_labeling,
-        specs_obj.et * ET_COEFFICIENT.as_integer_ratio,
-        False,
-        MODE = 0
-
-    )
+    print(f"Labelling with improved !")
 
 
-    # # apply weights to graph
-    # inner_graph: nx.DiGraph = graph.graph
-    # for (node_name, node_data) in inner_graph.nodes.items():
-    #     node_data[WEIGHT] = weights.get(node_name, -1)
-    exit(0)
+    # apply weights to graph
+    inner_graph: nx.DiGraph = graph.graph
+    for (node_name, node_data) in inner_graph.nodes.items():
+        node_data[WEIGHT] =  weights_improved_test.get(node_name, -1)
 
     #partial labelling = false; partial_cutoff = 10^100, paralell = false
 

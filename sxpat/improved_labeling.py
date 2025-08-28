@@ -55,23 +55,23 @@ class TOP_OR_BOTTOM(Enum):
         BOTTOM = 1
         DEFAULT = 2
 
-class Labeling:
+class Labelling:
 
     """
-    Class for labeling nodes using the define method approach.
-    Replaces labeling_explicit with  new improved version.
+    Class for Labelling nodes using the define method approach.
+    Replaces Labelling_explicit with  new improved version.
     @author Thibaud Babin
     """
 
      
 
-    @classmethod
-    def define(cls, s_graph: SGraph, specs: Specifications, accs=[], is_case2: bool = False) -> tuple[PGraph, CGraph]:
+    @staticmethod
+    def define( s_graph: SGraph, specs: Specifications, accs=[], is_case2: bool = False) -> tuple[PGraph, CGraph]:
         """ 
         Method given by Lorenzo with the addition of adding additional constraints if is_case2 flag is set
         Args:  
             s_graph: Original circuit graph
-            specs: Specifications for labeling
+            specs: Specifications for Labelling
             accs: Node to label
             is_case2: Flag to indicate if additional constraints for case2 should be added
         Returns:
@@ -163,7 +163,7 @@ class Labeling:
         
         return (template_graph, constraint_graph)
 
-    @classmethod
+    @staticmethod
     def compute_node_weight(
         e_graph: IOGraph,
         s_graph: SGraph,
@@ -185,7 +185,7 @@ class Labeling:
         Args:
             e_graph: exact graph, IOGraph
             s_graph: approximate graph, also IOGraph (encountered error while creating SGraph from Annotated graph)
-            node_name: name of the node we are labeling, str
+            node_name: name of the node we are Labelling, str
             specs: Specifications object (straightforward)
             MODE_VECTOR: set of optimizations we want to apply, list of booleans 
             solver : what solver we are using to solve the question for a node
@@ -210,13 +210,13 @@ class Labeling:
         
         # Check MODE0 case1 optimization
         if MODE_VECTOR[MODE0]:
-            is_case1_result = Labeling.is_case1_idx_check(s_graph, node_name, weighted, weights)
+            is_case1_result = Labelling.is_case1_idx_check(s_graph, node_name, weighted, weights)
             if is_case1_result[IS_CASE1_IDX]:
                 mode0_case1_available = True
         
         # Check MODE3 case2 optimization  
         if MODE_VECTOR[MODE3]:
-            in_case_2 = Labeling.node_in_case2(s_graph, node_name)
+            in_case_2 = Labelling.node_in_case2(s_graph, node_name)
             if in_case_2[IS_CASE2_IDX]:
                 case2_data = in_case_2[CASE2_NODES_IDX]
                 if isinstance(case2_data, tuple) and len(case2_data) == 2:        
@@ -271,7 +271,7 @@ class Labeling:
             if is_case1_result[WEIGHT_IDX] >= 0:
                 error_value = is_case1_result[WEIGHT_IDX]
             else:
-                error_value = Labeling.solve_node_directly(e_graph, s_graph, node_name, specs, solver)
+                error_value = Labelling.solve_node_directly(e_graph, s_graph, node_name, specs, solver)
                 
                 if is_case1_result[TOP_BOTT_IDX] == TOP_OR_BOTTOM.TOP:
                     succ_nodes = list(s_graph.successors(node_name))
@@ -292,14 +292,14 @@ class Labeling:
         
         # MODE1/MODE2 case2 handling
         elif MODE_VECTOR[MODE1] or MODE_VECTOR[MODE2]:
-            is_case2 = Labeling.is_case2_idx_bottom(s_graph, node_name)
+            is_case2 = Labelling.is_case2_idx_bottom(s_graph, node_name)
             
             if is_case2:
                 predecessors = list(s_graph.predecessors(node_name))
                 pred_weights = []
                 for pred in predecessors:
                     if pred.name not in weighted:
-                        pred_weight = Labeling.compute_node_weight(
+                        pred_weight = Labelling.compute_node_weight(
                             e_graph, s_graph, pred.name, specs, weights, weighted, MODE_VECTOR, solver
                         )
                     else:
@@ -307,8 +307,8 @@ class Labeling:
                     pred_weights.append(pred_weight)
                 
                 if MODE_VECTOR[MODE1]:
-                    template_graph, constraint_graph = Labeling.define(
-                        s_graph, specs, accs=[node_name], is_case2_idx=True
+                    template_graph, constraint_graph = Labelling.define(
+                        s_graph, specs, accs=[node_name], is_case2=True
                     )
                     error_value = 0
                     status, model = solver.solve([e_graph, template_graph, constraint_graph], specs)
@@ -321,7 +321,7 @@ class Labeling:
                 else:
                     error_value = max(pred_weights) if pred_weights else -1
             else:
-                error_value = Labeling.solve_node_directly(e_graph, s_graph, node_name, specs, solver)
+                error_value = Labelling.solve_node_directly(e_graph, s_graph, node_name, specs, solver)
             
             weights[node_name] = error_value
             weighted.add(node_name)
@@ -329,12 +329,12 @@ class Labeling:
         
         else:
             
-            error_value = Labeling.solve_node_directly(e_graph, s_graph, node_name, specs, solver)
+            error_value = Labelling.solve_node_directly(e_graph, s_graph, node_name, specs, solver)
             weights[node_name] = error_value
             weighted.add(node_name)
             return error_value
 
-    @classmethod
+    @staticmethod
     def solve_node_directly(e_graph: IOGraph, s_graph: SGraph, node_name: str,
                             specs: Specifications,
                             solver) -> int:
@@ -352,8 +352,8 @@ class Labeling:
         @author : Thibaud Babin
         """
         try: 
-            template_graph, constraint_graph = Labeling.define(
-                s_graph, specs, accs=[node_name], is_case2_idx=False
+            template_graph, constraint_graph = Labelling.define(
+                s_graph, specs, accs=[node_name], is_case2=False
             )
             
             status, model = solver.solve([e_graph, template_graph, constraint_graph], specs)
@@ -367,10 +367,10 @@ class Labeling:
             print(f"Error solving node {node_name}: {e}")
             return -1
         
-    @classmethod
-    def labeling_using_define_improved(
-        exact_benchmark_name: str,
-        approximate_benchmark: str,
+    @staticmethod
+    def labelling_improved(
+        exact_benchmark: AnnotatedGraph,
+        approximate_benchmark: AnnotatedGraph,
         #added default value for specs
         specs : Specifications = Specifications("", "", False, False, 0, 10, 10, 1, 5, 3, False, 0,
                                                  False,0, 0,0,0,1, 10, 10, 10, 0,0,0,60.0, 
@@ -379,7 +379,7 @@ class Labeling:
         solver = QbfSolver
     ) -> tuple[dict[str, int], dict[str, int]]:
         """
-        Improved labeling function that handles that sets ups the improved node labeling process
+        Improved Labelling function that handles that sets ups the improved node Labelling process
         MODE_VECTOR[MODE0] -> all case1 patterns nodes are equal (~25% of nodes skipped)
         MODE_VECTOR[MODE1] -> if a node is a case2 bottom node, we do reduced search space define on it
         MODE_VECTOR[MODE2] -> We consider that the bottom node of any case2 is the maximum of its two top nodes
@@ -400,17 +400,19 @@ class Labeling:
         #print(f" ================================== DEBUG for MODE VECTOR {MODE_VECTOR} ================================== ")
         # start1 = perf_counter()
         # start = perf_counter()
-        exact = AnnotatedGraph(exact_benchmark_name, is_clean= False)
+        # print(f"debug: exact benchmark name : {exact_benchmark_name}")
+        # exact = AnnotatedGraph(exact_benchmark_name, is_clean= False)
         # end = perf_counter()
         # print(f"DEBUG: TIME TO LOAD EXACT GRAPH 1 {end - start:.4f} seconds")
         # start = perf_counter()
-        approximate = AnnotatedGraph(approximate_benchmark, is_clean= False)
-        end = perf_counter()
+        #print(f"debug: exact approximate name : {exact_benchmark_name}")
+
+        #approximate = AnnotatedGraph(approximate_benchmark, is_clean= False)
 
         #print(f"DEBUG: TIME TO LOAD EXACT GRAPH 2 {end - start:.4f} seconds")
 
-        s_graph = iograph_from_legacy(approximate)
-        io_graph = iograph_from_legacy(exact)
+        s_graph = iograph_from_legacy(approximate_benchmark)
+        io_graph = iograph_from_legacy(exact_benchmark)
         #end1 = perf_counter()
         # time1 = end1 - start1
         # print(f"DEBUG TIME TO LOAD GRAPHS {time1:.4f} seconds")
@@ -429,14 +431,14 @@ class Labeling:
         #TODO iterate in every output and every ancestor of output until partial cutoff
         # start = perf_counter()
         #timer, process_nodes_timed = Timer.from_function(process_nodes)
-        Labeling.process_nodes(MODE_VECTOR, solver, s_graph, io_graph, specs, weights, time_node, weighted, internal_nodes)
+        Labelling.process_nodes(MODE_VECTOR, solver, s_graph, io_graph, specs, weights, time_node, weighted, internal_nodes)
         # print(f"DEBUG PROCESS NODES TIME SUM NODES {sum_time:.4f} seconds")
         # print(f"DEBUG PROCESS NODES TIME SUM NODES AND PRE-PROCESS TIME {sum_time + time1:.4f} seconds")
         # print(f"DEBUG PROCESS NODES TIME WITH CLOCK TIMER {time2:.4f} seconds")
         # print(f" ================================== DEBUG for MODE VECTOR {MODE_VECTOR} ================================== ")
 
         return (weights, time_node)
-    @classmethod
+    @staticmethod
     def process_nodes(MODE_VECTOR,
                     solver, 
                     s_graph,
@@ -457,7 +459,7 @@ class Labeling:
             weigths: dictionnary of nodes associated to their weights
             time_node: dictionnary of nodes associated to their process time
             weighted: set of nodes that have been weighted
-            internal_nodes: nodes that we are labeling
+            internal_nodes: nodes that we are Labelling
         Returns:
            Nothing, just modifies weightsm weighted and node_times argument
         Thibaud Babin
@@ -466,14 +468,14 @@ class Labeling:
         for node_name in internal_nodes:
             if node_name not in weighted:
 
-                timer, compute_node_weight_timed = Timer.from_function(Labeling.compute_node_weight)
+                timer, compute_node_weight_timed = Timer.from_function(Labelling.compute_node_weight)
                 compute_node_weight_timed(
                     io_graph, s_graph, node_name, specs_obj, weights, weighted, MODE_VECTOR, solver
                 )
                 node_time = timer.latest
                 time_node[node_name] = node_time
 
-    @classmethod
+    @staticmethod
     def is_case2_idx_bottom(s_graph : SGraph, node: str) -> bool:
         """
         method that checks wether a node is the bottom node of a case2 pattern
@@ -488,7 +490,7 @@ class Labeling:
         return len(s_graph.predecessors(node)) == 2 and all(map(lambda item: len(s_graph.successors(item)) == 1, s_graph.predecessors(node)))
 
 
-    @classmethod
+    @staticmethod
     def is_case1_idx_check(s_graph: SGraph, node: str, weighted: set[str], weights: dict[str, int] = None) -> tuple[bool, TOP_OR_BOTTOM, int]:
         """
         method that checks wether a node is the bottom node of a case1 pattern
@@ -532,7 +534,7 @@ class Labeling:
             return (False, TOP_OR_BOTTOM.DEFAULT, weight)
 
 
-    @classmethod
+    @staticmethod
     def node_in_case2(s_graph : SGraph, node_name: str) -> tuple[bool, Iterable[Node]] :
         """
         function that says wether a node is in a  case 2 pattern
@@ -543,28 +545,28 @@ class Labeling:
             a Tuple saying if the node is a case2 and the nodes in the case2 if it is
         @author: Thibaud Babin
         """
-        if Labeling.is_case2_idx_bottom(s_graph, node_name):
+        if Labelling.is_case2_idx_bottom(s_graph, node_name):
             node = s_graph.__getitem__(node_name)
             #if node is any of the two top nodes
             return (True,(node, s_graph.predecessors(node_name)))
-        elif len(s_graph.successors(node_name)) == 1 and Labeling.is_case2_idx_bottom(s_graph,  s_graph.successors(node_name)[0].name):
+        elif len(s_graph.successors(node_name)) == 1 and Labelling.is_case2_idx_bottom(s_graph,  s_graph.successors(node_name)[0].name):
             #if node is the bottom node
             bottom_node = s_graph.successors(node_name) [0]
             return (True, (bottom_node, s_graph.predecessors(bottom_node)) )
         else :
             return (False, []) 
-    @classmethod
-    def labeling_using_normal(exact_benchmark_name: str,
+    @staticmethod
+    def Labelling_using_normal(exact_benchmark_name: str,
         approximate_benchmark: str,
-        min_labeling: bool,
-        partial_labeling: bool,
+        min_Labelling: bool,
+        partial_Labelling: bool,
         partial_cutoff: int,
         parallel: bool = False,
         solver: Z3solver = Z3DirectIntSolver
     ) -> tuple[dict[str, int], dict[str, int]]:
         """
         function that does the labelling normally without any of the checks for the improvements. Used as a control
-        when benchmarking the improved node labeling function
+        when benchmarking the improved node Labelling function
         """
         exact = AnnotatedGraph(exact_benchmark_name, is_clean= False)
         approximate = AnnotatedGraph(approximate_benchmark, is_clean= False)
@@ -586,7 +588,7 @@ class Labeling:
         ]
         for node_name in internal_nodes:
             if node_name not in weighted:
-                timer, compute_node_weight_timed = Timer.from_function(Labeling.compute_weights_trivial)
+                timer, compute_node_weight_timed = Timer.from_function(Labelling.compute_weights_trivial)
 
                 compute_node_weight_timed(              
                 io_graph, s_graph,node_name, specs_obj,weights, weighted, solver
@@ -605,7 +607,7 @@ class Labeling:
         solver
         ) -> int:
         
-        template_graph, constraint_graph = Labeling.define(
+        template_graph, constraint_graph = Labelling.define(
                 s_graph, specs, accs=[node_name]
             )
         

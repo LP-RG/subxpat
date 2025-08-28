@@ -1,3 +1,10 @@
+"""
+this file implements a class called Family Subgraph that can generate any given number of pattern
+and that implements a function called all_instances_of_subgraph that given an example pattern
+finds all occurences of that pattern in a bigger subgraph
+I am leaving this here if you need to do any more research 
+"""
+
 from __future__ import annotations
 import networkx as nx
 import itertools as it
@@ -47,10 +54,37 @@ except ImportError:
 import os
 from pickle import Pickler, Unpickler
 class Node_constraints():
+    """
+    Represents constraints on the number of predecessors and successors a node can have in a graph.
+    Attributes:
+        max_pred_amount (int): Maximum allowed number of predecessors for a node.
+        max_succ_amount (int): Maximum allowed number of successors for a node.
+    Methods:
+        respect_constraints(node: Node, graph: IOGraph) -> bool:
+            Checks if the given node in the graph respects the specified predecessor and successor constraints.
+            Args:
+                node (Node): The node to check constraints for.
+                graph (IOGraph): The graph containing the node.
+            Returns:
+                bool: True if the node respects the constraints, False otherwise.
+    @ author : Thibaud Babin
+    """
+    @classmethod
     def __init__(self, max_pred_amount: int, max_succ_amount: int)-> None :
         self.max_pred_amount = max_pred_amount
         self.max_succ_amount = max_succ_amount
+    @classmethod
     def respect_constraints(self, node : Node, graph : IOGraph) -> bool:
+        """
+        Checks if the given node in the graph respects the constraints on the number of predecessors and successors.
+        The constraints are defined by `self.max_pred_amount` and `self.max_succ_amount`. If either is set to 10, only the other constraint is checked. Otherwise, both constraints must be satisfied.
+        Args:
+            node (Node): The node to check constraints for.
+            graph (IOGraph): The graph containing the node.
+        Returns:
+            bool: True if the node respects the constraints, False otherwise.
+        @author: Thibaud Babin
+        """
         predecessor_num = len(graph.predecessors(node))
         successors_num = len(graph.successors(node))
         
@@ -69,25 +103,26 @@ class Node_constraints():
                 
 
 class Family_Subgraph():
-    #TODO adapt class to allow more "levels": add an argument num levels, and for each level after 2 redo the connections
-    #but only with the last level 
-    """
-    a two-level subgraph
-    
-    Attributes:
-        nodes (List[Node]): List of nodes in the subgraph.
-        edges (List[Tuple[Node, Node]]): List of edges in the subgraph.
-        name (str): Name of the subgraph.
-    """
-    def __init__(self, name: str, max_nodes_level:int) -> None:
-        self.name = name
-        self.max_nodes_level = max_nodes_level
-
+    @classmethod
     def is_redundant(self, graph: Graph) -> bool:
+        """ Determines if the given graph contains redundant operations among its output nodes.
+        The method iterates over all nodes in the graph, focusing on nodes whose names start with 'o'
+        (assumed to be output nodes). For each output node, it checks if another output node performs
+        the same operation (based on the node's type and sorted operands). If such redundancy is found,
+        the method returns True.
+        Args:
+            graph (Graph): The graph object containing nodes to be checked for redundancy.
+        Returns:
+            bool: True if redundant operations are found among output nodes, False otherwise.
+        # Steps:
+        # 1. Initialize a dictionary to track unique operation signatures for output nodes.
+        # 2. Iterate through all nodes in the graph.
+        # 3. For each output node (name starts with 'o'), create an operation signature using its type and operands.
+        # 4. If the signature already exists, redundancy is detected and True is returned.
+        # 5. Otherwise, store the signature and continue.
+        # 6. If no redundancy is found after checking all nodes, return False.
         """
-    Check if the graph contains redundant operations.
-    A graph is redundant if multiple outputs perform the same operation on the same inputs.
-    """
+    
         output_operations = {}
         
         for node in graph.nodes:
@@ -102,12 +137,14 @@ class Family_Subgraph():
     
         return False
 
+    @classmethod
     def graph_to_networkx(self, graph: IOGraph) -> nx.DiGraph:
         """Convert IOGraph to NetworkX for isomorphism checking.
         Args:
             graph (IOGraph): The graph to convert.
         Returns:
             nx.DiGraph: A directed graph representation of the IOGraph.
+        @author: Thibaud Babin
             """
         nx_graph = nx.DiGraph()
         
@@ -121,7 +158,7 @@ class Family_Subgraph():
                     nx_graph.add_edge(operand, node.name)
         
         return nx_graph
-    
+    @classmethod
     def are_graphs_isomorphic(self, graph1: IOGraph, graph2: IOGraph) -> bool:
         """Check if two graphs are structurally identical (isomorphic).
         Args:
@@ -129,14 +166,14 @@ class Family_Subgraph():
             graph2 (IOGraph): Second graph to compare.
         Returns:
             bool: True if the graphs are isomorphic, False otherwise.
-        
+        @author: Thibaud Babin
         """
         nx_graph1 = self.graph_to_networkx(graph1)
         nx_graph2 = self.graph_to_networkx(graph2)
         
         return nx.is_isomorphic(nx_graph1, nx_graph2, 
                                node_match=lambda x, y: x['node_type'] == y['node_type'])
-    
+    @classmethod
     def remove_isomorphic_duplicates(self, graphs: List[IOGraph]) -> List[IOGraph]:
         """Remove isomorphic duplicates from a list of graphs.
         Args:
@@ -144,6 +181,7 @@ class Family_Subgraph():
 
         Returns:
             List[IOGraph]: A list of unique IOGraph objects, with duplicates removed.
+        @author : Thibaud Babin
         """
         unique_graphs = []
         
@@ -158,7 +196,7 @@ class Family_Subgraph():
                 unique_graphs.append(graph)
         
         return unique_graphs
-    
+    @classmethod
     def is_graph_connected(self, graph: IOGraph) -> bool:
         """
         Check if the graph is connected (all nodes are reachable).
@@ -166,10 +204,12 @@ class Family_Subgraph():
             graph (IOGraph): The graph to check.
         Returns:
             bool: True if the graph is connected, False otherwise.
+        @author : Thibaud Babin
         """
         nxGraph = self.graph_to_networkx(graph)
         return nx.is_connected(nxGraph.to_undirected())
 
+    @classmethod
     def remove_hash_duplicates(self,graph : IOGraph, seen_graphs : Dict[nx.DiGraph, IOGraph]) -> None:
         """
         Remove isomorphic duplicates from the list of graphs.
@@ -177,8 +217,9 @@ class Family_Subgraph():
         Args:
             graph (IOGraph): The graph to check for duplicates.
             seen_graphs (dict[nx.DiGraph, IOGraph]): Dictionary to store unique graphs by their hash.
-        Outputs:
+        Returns:
             None: The input list is modified in place to remove redundant graphs.
+        @author: Thibaud Babin
         """
         nx_graph = self.graph_to_networkx(graph)
         graph_hash = nx.weisfeiler_lehman_graph_hash(
@@ -189,15 +230,16 @@ class Family_Subgraph():
             seen_graphs[graph_hash] = graph
         
 
-    
+    @classmethod
     def redundancy_check(self, graphs: List[IOGraph]) -> None:
         """
         Check if the subgraph is redundant in the context of the given graphs.
         remove from the list all graphs that are redundant with this subgraph.
         Args:
             graphs (list[IOGraph]): List of IOGraph objects to check for redundancy.
-        Outputs:
+        Returns:
             None: The input list is modified in place to remove redundant graphs.
+        @author: Thibaud Babin
         """
         for graph in graphs.copy():
             if self.is_redundant(graph):
@@ -218,13 +260,22 @@ class Family_Subgraph():
     #     for pattern in combinations_with_replacement(connections, num_outputs):
     #         yield pattern
 
-
+    @classmethod
     def generate_family(self, combination: Tuple[int, int]) -> List[IOGraph]:
-        """
-        functions that all possible unique graphs for a certain "family" ie a given number of nodes
-        at the input and a certain number of nodes at the output 
-        inputs: combination: a tuple of two integers, the first being the number of inputs and the second being the number of outputs
-        outputs: a list of IOGraph objects representing the generated graphs for that family
+        """Generates all possible unique graphs for a given "family", defined by a specific number of input and output nodes.
+        For each family, the function creates all valid combinations of connections between input nodes and output nodes,
+        ensuring that every input is used at least once. Output nodes are constructed as either NOT gates (for single input)
+        or AND gates (for multiple inputs). Only connected graphs are retained, and duplicates are removed using a hash-based approach.
+        I made this functio to create patterns and test them against graphs to see how often they would appear
+        Args:
+            combination (Tuple[int, int]): 
+                A tuple containing two integers:
+                    - The first integer specifies the number of input nodes.
+                    - The second integer specifies the number of output nodes.
+        Returns:
+            List[IOGraph]: 
+                A list of unique, connected IOGraph objects representing all possible graphs for the specified family.
+        @author: Thibaud Babin 
         """
         input_nodes: List[Node] = []
         num_inputs, num_outputs = combination
@@ -235,28 +286,36 @@ class Family_Subgraph():
             input_nodes.append(BoolVariable(name=f'i{i}', weight=None, in_subgraph=False))
                 
         total_base_connections = num_inputs + (num_inputs * (num_inputs - 1) // 2)
-        print("number of possible connections for combination %s: %d", combination,
+        print("number of possible connections for combination :", combination,
             num_outputs * total_base_connections)
                 
+        #Build all possible base connections between input nodes
         base_connections = []
+        # Each input can be connected individually (single input NOT)
         for inp_idx in range(num_inputs):
             base_connections.append([inp_idx])
+        # Each pair of inputs can be connected together (for AND gates)
         for inp1_idx in range(num_inputs):
             for inp2_idx in range(inp1_idx + 1, num_inputs):
                 base_connections.append([inp1_idx, inp2_idx])
-                
+        
+        #Convert connections to tuples for easier handling and sorting
         tuple_connections = [tuple(sorted(conn)) for conn in base_connections]
-                
+        
+        # Generate all possible output connection patterns using combinations_with_replacement
+        # Each output node will be assigned a connection pattern
         for pattern in combinations_with_replacement(tuple_connections, num_outputs):
             output_connections = [list(conn) for conn in pattern]
             
+            # Step 4: Ensure every input is used at least once in the output connections
             used_inputs = set()
             for connections in output_connections:
                 used_inputs.update(connections)
-                        
+            
             if len(used_inputs) != num_inputs:
-                continue
-                        
+                continue  # important, skip patterns that don't use all inputs
+            
+            # Step 5: Prepare the list of nodes for the graph
             all_nodes = input_nodes.copy()
                         
             for output_idx, input_indices in enumerate(output_connections):
@@ -283,19 +342,20 @@ class Family_Subgraph():
                 self.remove_hash_duplicates(graph, seen_graphs)
                 
         return list(seen_graphs.values())
-    
-    def generate_subgraphs(self) -> List[List[IOGraph]]:
+    @classmethod
+    def generate_subgraphs(self, max_nodes: int) -> List[List[IOGraph]]:
         """
         Generate all possible subgraphs of the family.
         
         Returns:
             list[list[IOGraph]]: A list of lists of generated subgraphs.
+        @author: Thibaud Babin
         """
         families_collection = []
         
         possible_combinations = []
-        for num_inputs in range(1, self.max_nodes_level + 1):
-            for num_outputs in range(1, self.max_nodes_level + 1):
+        for num_inputs in range(1, max_nodes + 1):
+            for num_outputs in range(1, max_nodes + 1):
                 possible_combinations.append((num_inputs, num_outputs))
         possible_combinations = [combo for combo in possible_combinations if combo[0] <= combo[1] * 2]
         
@@ -308,7 +368,7 @@ class Family_Subgraph():
             if graph_family:
                 families_collection.append(graph_family)
         return families_collection
-        
+    @classmethod
     def get_all_graphs_flat(self) -> List[IOGraph]:
         """
         Helper method to get all graphs as a flat list (not nested).
@@ -327,30 +387,50 @@ class Family_Subgraph():
     def __repr__(self) -> str:
             return f"Family_Subgraph(name={self.name}, max_nodes_level={self.max_nodes_level})"
     
-
     def all_instances_of_subgraph(self, small_graph: IOGraph, big_graph : IOGraph ) -> Dict[IOGraph, dict]:
         """
         Find all instances of the subgraph within a larger graph.
-        
+
         Args:
-            graph (IOGraph): The larger graph to search within.
-        
+            small_graph (IOGraph): The subgraph pattern to search for (a template of the pattern).
+            big_graph (IOGraph): The larger graph to search within.
+
         Returns:
-            List[IOGraph]: A list of IOGraph objects representing each instance of the subgraph found.
-        """
+            Dict[IOGraph, dict]: A dictionary mapping each found subgraph instance (as IOGraph)
+                                 to a dict of node names and their types.
+                                 the inner dict is the correspondence of a gate of a found instance to the gate
+                                 of the pattern template given --> to wich gate of the given pattern template does
+                                 the one in the found subgraph correspond to
+        @author: Thibaud Babin"""
+        #honestly now that I reread this after 5 weeks I don't know what I was on when I did that but I barely ¨
+        #understand  what I did there I did my best of explaining it
+        # Initialize results dictionary to store valid subgraph instances
         results = {}
+        
+        # Convert the small pattern graph to NetworkX format for isomorphism checking
         small_graph_nx = self.graph_to_networkx(small_graph)
+        
+        # Create constraints dictionary to store predecessor/successor requirements for each node in the pattern
         constraints_dict = {}
+        
+        # Track already found node sets to avoid duplicates
         seen_node_sets = set()
+        
+        # Build constraints for each node in the pattern based on their connectivity
         for node in small_graph.nodes:
             pred = len(small_graph.predecessors(node))
             succ = len(small_graph.successors(node))
+            # Use 10 as a sentinel value for nodes with no predecessors/successors (likely inputs/outputs)
             if pred == 0: pred = 10
             if succ == 0: succ = 10
             constraints_dict[node.name] = Node_constraints(pred, succ)
             #print(f" node {node.name} can have at most {pred} predecessor nodes and at most {succ} successor nodes ")
 
+        # Convert the large target graph to NetworkX format
         big_graph_nx = self.graph_to_networkx(big_graph)
+        
+        # Find all potential structural matches using NetworkX's subgraph isomorphism algorithm
+        # This finds matches based on graph topology and node types
         isomorphic_subgraphs: List[Dict[str, str]] = list(
             nx.algorithms.isomorphism.DiGraphMatcher(
             big_graph_nx, 
@@ -358,13 +438,23 @@ class Family_Subgraph():
             node_match=lambda x, y: x['node_type'] == y['node_type']
             ).subgraph_isomorphisms_iter())
         #print(f"\n number of subgraphs found : {len(isomorphic_subgraphs)}")
+        
+        # Counter for valid matches that pass all constraints
         valid_matches = 0
     
+        # Iterate through each potential structural match to validate it
         for i, mapping_dict in enumerate(isomorphic_subgraphs):
             #print(f"\nChecking subgraph instance {i+1}: {mapping_dict}")
+            
+            # Flag to indicate if this match should be rejected
             stop = False
+            
+            # Validate each node in the match against the pattern constraints
             for idx,  key in enumerate(mapping_dict.keys()):
                 constraint_node : Node_constraints = constraints_dict[mapping_dict[key]]
+                
+                # Check if the matched node in the big graph respects the connectivity constraints
+                # from the pattern template
                 if not constraint_node.respect_constraints(big_graph.__getitem__(key), big_graph):
                     #print(f"Instance {idx+ 1} of structure {i+1} matches the template structure")
                     stop = True
@@ -374,37 +464,54 @@ class Family_Subgraph():
                     #print(f"number of predecessors expected {constraint_node.max_pred_amount}")
                     #print(f"number of successors expected {constraint_node.max_succ_amount}")
                     
+            # If all constraints are satisfied, process this valid match
             if not stop:
                 #print(f"DEBUG NUMBER OF VALID MATCHES FOUND SO FAR : {valid_matches}")
                 valid_matches += 1
                 
+                # Get the set of matched node names and check for duplicates
                 matched_node_names = set(mapping_dict.keys())
                 node_names_tuple = tuple(sorted(matched_node_names))
+                
+                # Skip if we've already processed this exact set of nodes
                 if node_names_tuple in seen_node_sets:
                     continue 
                 seen_node_sets.add(node_names_tuple)
+                
+                # Determine which matched nodes are inputs/outputs of the subgraph instance
                 actual_inputs = []
                 actual_outputs = []
                 
+                # For each matched node, check its external connections
                 for big_name in matched_node_names:
+                    # Find predecessors that are outside the matched subgraph
                     external_predecessors = [pred.name for pred in big_graph.predecessors(big_name) 
                                         if pred.name not in matched_node_names]
+                    # Find successors that are outside the matched subgraph
                     external_successors = [succ.name for succ in big_graph.successors(big_name) 
                                         if succ.name not in matched_node_names]                    
+                    
+                    # A node is an input if it has external predecessors OR no predecessors at all
                     if external_predecessors or not list(big_graph.predecessors(big_name)):
                         actual_inputs.append(big_name)
                         
+                    # A node is an output if it has external successors OR no successors at all
                     if external_successors or not list(big_graph.successors(big_name)):
                         actual_outputs.append(big_name)
                 
+                # Build mapping of node names to their types for the result
                 node_types_dict = {}
+                
+                # List to store the recreated nodes for the new IOGraph
                 recreated_nodes = []
                 
+                # Recreate each matched node as a new node object for the subgraph instance
                 for big_node_name in matched_node_names:
                     original_node = big_graph[big_node_name]
                     node_type = type(original_node).__name__
                     node_types_dict[big_node_name] = node_type
                     
+                    # Handle input nodes (create as BoolVariable)
                     if big_node_name in actual_inputs:
                         recreated_node = BoolVariable(
                             name=big_node_name,
@@ -412,9 +519,11 @@ class Family_Subgraph():
                             in_subgraph=getattr(original_node, 'in_subgraph', False)
                         )
                     else:
+                        # For non-input nodes, get their operands from within the matched subgraph
                         operands = tuple(pred.name for pred in big_graph.predecessors(big_node_name) 
                                     if pred.name in matched_node_names)
                         
+                        # Recreate the appropriate gate type based on the original node
                         if isinstance(original_node, Not):
                             recreated_node = Not(
                                 name=big_node_name,
@@ -444,6 +553,7 @@ class Family_Subgraph():
                                 in_subgraph=getattr(original_node, 'in_subgraph', False)
                             )
                         else:
+                            # Try to create the same type as the original node
                             try:
                                 recreated_node = type(original_node)(
                                     name=big_node_name,
@@ -452,6 +562,7 @@ class Family_Subgraph():
                                     in_subgraph=getattr(original_node, 'in_subgraph', False)
                                 )
                             except:
+                                # Fallback to BoolVariable if recreation fails
                                 recreated_node = BoolVariable(
                                     name=big_node_name,
                                     weight=getattr(original_node, 'weight', 1),
@@ -460,30 +571,35 @@ class Family_Subgraph():
                     
                     recreated_nodes.append(recreated_node)
                 
+                # Create a new IOGraph instance representing this subgraph match
                 recreated_subgraph = IOGraph(
                     nodes=recreated_nodes,
                     inputs_names=actual_inputs,
                     outputs_names=actual_outputs
                 )
                 
+                # Store the recreated subgraph and its node type mapping in results
                 results[recreated_subgraph] = node_types_dict
                 
+                # Debug output (commented out)
                 # print(f"Added instance: {[node.name for node in recreated_nodes]}")
                 # print(f"  Inputs: {actual_inputs}")
                 # print(f"  Outputs: {actual_outputs}")
                 # print(f"  Node types: {node_types_dict}")
             else: 
+                # Skip this match if constraints were not satisfied
                 continue
 
         print(f"\nTotal valid template instances found for generic method: {len(results)} out of {len(isomorphic_subgraphs)} potential matches")
         #print( results.values())
-        return results  # Return dict instead of list
+        
+        return results  
 
     
     def find_pattern_case1(self, graph: IOGraph) -> Dict[IOGraph, dict]:
         """
-        Case 1: A -> B (one input, one output)
-        Find nodes where A has exactly one successor B, and B has exactly one predecessor A
+        finds all occurences of a case1 pattern
+
         """
         results = {}
         
@@ -546,11 +662,7 @@ class Family_Subgraph():
 
     def find_pattern_case2(self, graph: IOGraph) -> Dict[IOGraph, dict]:
         """
-        Case 2: Multiple top nodes -> One bottom node
-        - Top nodes can have any number of inputs (doesn't matter)
-        - Each top node has exactly one successor (the bottom node)
-        - Bottom node can ONLY have the top nodes as predecessors
-        - Bottom node can have any number of successors
+        finds every occurence of a case2 pattern
         """
         result_dict = {}
         
@@ -683,101 +795,6 @@ class Family_Subgraph():
         except Exception as e:
             print(f"    Error extracting subgraph {node_names}: {e}")
             return None
-    # def generate_connected_subgraphs_optimized(self, graph: nx.Graph, size: int):
-    #     """Optimized version with early pruning and memoization"""
-    #     subgraphs = set()
-    #     visited_combinations = set()
-        
-    #     def can_reach_size(current_nodes, target_size) -> Set[Set[str]]: 
-    #         """Check if we can possibly reach target size from current nodes"""
-    #         if len(current_nodes) >= target_size:
-    #             return True
-            
-    #         # BFS to count reachable nodes
-    #         reachable = set(current_nodes)
-    #         frontier = set()
-    #         for node in current_nodes:
-    #             frontier.update(graph.neighbors(node))
-    #         frontier -= current_nodes
-            
-    #         while frontier and len(reachable) < target_size:
-    #             next_frontier = set()
-    #             for node in frontier:
-    #                 reachable.add(node)
-    #                 if len(reachable) >= target_size:
-    #                     return True
-    #                 next_frontier.update(graph.neighbors(node))
-    #             frontier = next_frontier - reachable
-            
-    #         return len(reachable) >= target_size
-        
-    #     def dfs_with_pruning(current_nodes, boundary_nodes):
-    #         current_key = frozenset(current_nodes)
-    #         if current_key in visited_combinations:
-    #             return
-    #         visited_combinations.add(current_key)
-            
-    #         if len(current_nodes) == size:
-    #             subgraphs.add(current_key)
-    #             return
-            
-    #         if not can_reach_size(current_nodes, size):
-    #             return  # Pruning: can't reach target size
-            
-    #         for node in list(boundary_nodes):
-    #             new_current = current_nodes | {node}
-    #             new_boundary = boundary_nodes | set(graph.neighbors(node))
-    #             new_boundary.discard(node)
-    #             new_boundary -= current_nodes
-                
-    #             dfs_with_pruning(new_current, new_boundary)
-        
-    #     for start_node in graph.nodes():
-    #         dfs_with_pruning({start_node}, set(graph.neighbors(start_node)))
-        
-    #     return subgraphs
-    
-    # def find_top_common_subgraph_patterns_detailed(
-    #         self,
-    #         graph: IOGraph,
-    #         subgraph_size: int,
-    #         top_n: int = 5
-    #     ) -> List[Tuple[str, int, Set[str], Dict[str, Any]]]:
-    #     """
-    #     Find the top N most common connected subgraph patterns with detailed structure info
-        
-    #     Returns:
-    #         List[Tuple[str, int, Set[str], Dict]]: 
-    #         List of (pattern_description, count, example_nodes, structure_info) sorted by frequency
-    #     """
-    #     nx_graph = self.graph_to_networkx(graph)
-    #     subgraph_node_sets = self.generate_connected_subgraphs_optimized(nx_graph, subgraph_size)
-        
-    #     pattern_counts = {}
-    #     pattern_examples = {}
-    #     pattern_structures = {}
-        
-    #     for node_set in subgraph_node_sets:
-    #         structure_info = self.describe_subgraph_structure(node_set, graph)
-    #         pattern_key = structure_info['pattern_signature']
-            
-    #         if pattern_key in pattern_counts:
-    #             pattern_counts[pattern_key] += 1
-    #         else:
-    #             pattern_counts[pattern_key] = 1
-    #             pattern_examples[pattern_key] = node_set
-    #             pattern_structures[pattern_key] = structure_info
-        
-    #     most_common = sorted(pattern_counts.items(), key=lambda x: x[1], reverse=True)[:top_n]
-        
-    #     result = []
-    #     for pattern_key, count in most_common:
-    #         example = pattern_examples[pattern_key]
-    #         structure = pattern_structures[pattern_key]
-    #         result.append((pattern_key, count, example, structure))
-        
-    #     return result
-
 
 def main(gv_folder: str = "generated_graphs_gv", png_folder: str = "generated_graphs_png", max_nodes: int = 7):
     os.makedirs(gv_folder, exist_ok=True)
@@ -790,9 +807,6 @@ def main(gv_folder: str = "generated_graphs_gv", png_folder: str = "generated_gr
         GraphVizPorter.to_file(io_graph, gv_path)
         png_path = os.path.join(png_folder, f"graph_{idx}.png")
         subprocess.run(["dot", "-Tpng", gv_path, "-o", png_path], check=True)
-
-
-
 
 if __name__ == "__main__":
     main()
