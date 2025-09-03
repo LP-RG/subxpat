@@ -15,34 +15,54 @@ class FS:
     """
         Utility class for filesystem operations.
 
-        @authors: Marco Biasion
+        :authors: Marco Biasion
     """
 
     @classmethod
     def exists(cls, path: str) -> bool:
-        """Returns if there is something at the given path."""
+        """
+            Returns if there is something at the given path.
+        """
+
         path = os.path.normpath(path)
+
         return os.path.exists(path)
 
     @classmethod
-    def mkdir(cls, path: str) -> None:
-        """Recursively create the directory. Does nothing if the directory already exists."""
+    def mkdir(cls, path: str, recursive: bool = True) -> None:
+        """
+            Create the directory (recursively by default).
+            Does nothing if the directory already exists.
+        """
+
         path = os.path.normpath(path)
-        os.makedirs(path, exist_ok=True)
+
+        os.makedirs(path, exist_ok=recursive)
 
     @classmethod
     def rmdir(cls, path: str, recursive: bool = False) -> None:
-        """Remove the directory (recursively if wanted). Does nothing if the directory does not exist."""
+        """
+            Remove the directory (recursively if wanted).
+            Does nothing if the directory does not exist.
+
+            :raises NotADirectoryError: if the path does not represent a directory.
+        """
+
         path = os.path.normpath(path)
-        if os.path.exists(path): (shutil.rmtree if recursive else os.rmdir)(path)
+
+        if os.path.exists(path):
+            (shutil.rmtree if recursive else os.rmdir)(path)
 
     @classmethod
     def emptydir(cls, path: str) -> None:
-        """Empties an existing directory."""
-        path = os.path.normpath(path)
+        """
+            Empties an existing directory.
 
-        if not os.path.exists(path): raise FileNotFoundError(f'{path} does not exists')
-        if not os.path.isdir(path): raise NotADirectoryError(f'{path} is not a directory')
+            :raises FileNotFoundError: if the directory does not exists.
+            :raises NotADirectoryError: if the path does not represent a directory.
+        """
+
+        path = os.path.normpath(path)
 
         for _path in FS.listdir(path):
             if os.path.isfile(_path) or os.path.islink(_path): os.remove(_path)
@@ -50,12 +70,20 @@ class FS:
 
     @classmethod
     def listdir(cls, path: str) -> Iterable[str]:
-        """Returns an iterable of paths corresponding to the contents of the given folder."""
+        """
+            Returns an iterable of paths corresponding to the contents of the given folder.
+
+            :raises FileNotFoundError: if the directory does not exists.
+            :raises NotADirectoryError: if the path does not represent a directory.
+        """
+
         path = os.path.normpath(path)
+
         return (os.path.join(path, file) for file in os.listdir(path))
 
     # @classmethod
     # def open(cls, path: str, mode: str):
+    #     ### following `man mkdir`: --parents
     #     """TODO: should this also create the directory or not?"""
     #     raise NotImplementedError()
 
@@ -95,7 +123,11 @@ class FS:
 
     @classmethod
     def get_unique_filename(cls, directory: str = None, prefix: str = '', suffix: str = '') -> str:
-        """Creates a temporary file in the filesystem, closes it and returns its name."""
+        """
+            Creates a temporary file in the filesystem, closes it and returns its name.
+
+            :note: the created file is not deleted, allowing for the name to be reserved.
+        """
 
         tmp_file = cls.open_tmp(directory, prefix=prefix, suffix=suffix)
         tmp_file.close()
@@ -105,7 +137,8 @@ class FS:
     def copy(cls, src_path: str, dst_path: str, exists_ok: bool = False) -> None:
         """
             Copies a file or an entire directory from source to destination.  
-            Raises an exception if `exists_ok` is false and `dst_path` already exists.
+
+            :raises FileExistsError: if `dst_path` already exists and `exists_ok` is false.
         """
 
         src_path = os.path.normpath(src_path)
