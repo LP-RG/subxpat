@@ -14,18 +14,12 @@ class LiveStorage:
 
         The class has guards to prevent restaging data without committing or staging out of order
         (a key cannot be added before others that appeared sooner in previous staging sequences).
-        A commit with missing keys (actually missing, not implicitly copied from the previous iteration) is valid.
+        A commit with missing keys (actually missing, not implicitly copied from the previous iteration) is **valid**.
 
         This class can be used with a context manager and will automatically save on exit.
 
         @authors: Marco Biasion
     """
-
-    _NC_ERR_MSG = 'Key `{key}` was restaged without a commit.'
-    _OOO_ERR_MSG = (
-        '`{key}`(index:{idx}) was staged in the wrong order '
-        '(must be after `{last_key}`(index:{last_idx})).'
-    )
 
     def __init__(self, save_destination: str):
         self._stack: Dict[str, Any] = dict()
@@ -107,22 +101,40 @@ class LiveStorage:
     def _check_out_of_order(self, key: str) -> Union[None, NoReturn]:
         if self._last_index_set == -1: return
         if (idx := self._order[key]) <= self._last_index_set:
-            raise self.OutOfOrderStageError(self._OOO_ERR_MSG.format(
-                key=key,
-                idx=idx,
-                last_key=self._order.inverse[self._last_index_set],
-                last_idx=self._last_index_set,
-            ))
+            raise self.OutOfOrderStageError(
+                key,
+                idx,
+                self._order.inverse[self._last_index_set],
+                self._last_index_set,
+            )
 
     def _check_restaged_without_commit(self, key: str) -> Union[None, NoReturn]:
         if key in self._stack and self._last_index_set != -1:
-            raise self.KeyRestagedWithoutCommitError(self._NC_ERR_MSG.format(
-                key=key,
-            ))
+            raise self.KeyRestagedWithoutCommitError(key)
 
     def __enter__(self): return self
     def __exit__(self, _0, _1, _2): self.save()
 
-    class StageError(Exception): """Base class for data staging errors."""
-    class KeyRestagedWithoutCommitError(StageError): """An already present key was staged without the previous data being committed."""
-    class OutOfOrderStageError(StageError): """A key was staged out of order."""
+    class StageError(Exception):
+        """Base class for data staging errors."""
+
+    class KeyRestagedWithoutCommitError(StageError):
+        """An already present key was staged without the previous data being committed."""
+
+        def __init__(self, key_name: str, *args):
+            super().__init__(
+                f'Key `{key_name}` was restaged without a commit.',
+                *args
+            )
+
+    class OutOfOrderStageError(StageError):
+        """A key was staged out of order."""
+
+        def __init__(self, key: str, idx: int, last_key: str, last_idx: int, *args):
+            super().__init__(
+                (
+                    f'`{key}`(index:{idx}) was staged in the wrong order'
+                    f' (must be staged after `{last_key}`(index:{last_idx})).'
+                ),
+                *args
+            )
