@@ -16,6 +16,8 @@ class LiveStorage:
         (a key cannot be added before others that appeared sooner in previous staging sequences).
         A commit with missing keys (actually missing, not implicitly copied from the previous iteration) is **valid**.
 
+        If a save happens and then a new key is committed, the next save will update the file with the new key (header and older rows).
+
         This class can be used with a context manager and will automatically save on exit.
 
         @authors: Marco Biasion
@@ -37,12 +39,16 @@ class LiveStorage:
         self._save_from: int = 0
         """Starting index in `_storage` a `save()` call sould save."""
 
+    @property
+    def destination(self) -> str: return self._destination
+
     def stage(self, **kwargs: Any) -> None:
         # loop in order through all new key/value pairs
         for (key, value) in kwargs.items():
             # add key to _order if first occurrence
             if key not in self._order:
                 self._order[key] = len(self._order)
+                self._save_from = 0
 
             # guards
             self._check_out_of_order(key)
