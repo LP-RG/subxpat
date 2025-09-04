@@ -1,11 +1,13 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Tuple, Union
+from types import MappingProxyType
+from typing import Any, Dict, List, Mapping, Tuple, Union
 import enum
 import dataclasses as dc
 
 import time
 import re
 import argparse
+import functools as ft
 from pathlib import Path
 import os.path
 
@@ -66,6 +68,7 @@ class EnumChoicesAction(argparse.Action):
         setattr(namespace, self.dest, self.enum(value))
 
 
+@dc.dataclass(init=False, frozen=True)
 class Paths:
     @dc.dataclass(frozen=True)
     class Output:
@@ -84,9 +87,12 @@ class Paths:
         cell_library: str = 'config/gscl45nm.lib'
         abc_script: str = dc.field(default='config/abc.script', init=False)
 
+    output: Output
+    synthesis: Synthesis
+
     def __init__(self, output_base: str, cell_library: str) -> None:
-        self.output = self.Output(output_base)
-        self.synthesis = self.Synthesis(cell_library)
+        object.__setattr__(self, 'output', self.Output(output_base))
+        object.__setattr__(self, 'synthesis', self.Synthesis(cell_library))
 
     def __repr__(self):
         params = ', '.join(f'{name}={getattr(self, name)!r}' for name in vars(self).keys())
@@ -97,7 +103,7 @@ class Paths:
 class Specifications:
     # benchmark
     exact_benchmark: str
-    current_benchmark: str  # rw
+    current_benchmark: str = dc.field(metadata={'writable': True})  # rw
 
     # labeling
     min_labeling: bool
@@ -110,7 +116,7 @@ class Specifications:
     min_subgraph_size: int
     num_subgraphs: int
     max_sensitivity: int
-    sensitivity: int = dc.field(init=False, default=None)  # rw
+    sensitivity: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     slash_to_kill: bool
     error_for_slash: int
 
@@ -121,26 +127,25 @@ class Specifications:
     constants: ConstantsType
     constant_false: ConstantFalseType
     wanted_models: int
-    iteration: int = dc.field(init=False, default=None)  # rw
+    iteration: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     # exploration (2)
     max_lpp: int
-    lpp: int = dc.field(init=False, default=None)  # rw
+    lpp: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     max_ppo: int
-    ppo: int = dc.field(init=False, default=None)  # rw
+    ppo: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     max_pit: int
-    pit: int = dc.field(init=False, default=None)  # rw
-    its: int = dc.field(init=False, default=None)  # rw
+    pit: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
+    its: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
 
     # error
     max_error: int
-    et: int = dc.field(init=False, default=None)  # rw
+    et: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     error_partitioning: ErrorPartitioningType
 
     # config
     path: Paths
 
     # other
-    # path: Paths
     timeout: float
     parallel: bool
     plot: bool
@@ -450,6 +455,34 @@ class Specifications:
         """
         fields = ''.join(f'   {k} = {v},\n' for k, v in vars(self).items())
         return f'{self.__class__.__name__}(\n{fields})'
+
+    @ft.cached_property
+    def constant_fields(self) -> Mapping[str, Any]:
+        """
+            Returns a mapping containing all key/value pairs matching fields not marked as `writable`.
+             - fields that are instances of dataclasses are recursively explored, each subfield being returned as 'key.subkey...'/value.
+             - fields that are instances of enumerators are returned as 'key'/enum.value.
+        """
+
+        def extract(dc_obj: dc.DataclassInstance, prefix: str) -> Dict[str, Any]:
+            constant_fields = dict()
+
+            for field in dc.fields(dc_obj):
+                # skip writable fields
+                if field.metadata.get('writable', False): continue
+
+                value = getattr(dc_obj, field.name)
+
+                if dc.is_dataclass(value):
+                    constant_fields.update(extract(value, prefix + field.name + '.'))
+                elif isinstance(value, enum.Enum):
+                    constant_fields[prefix + field.name] = value.value
+                else:
+                    constant_fields[prefix + field.name] = value
+
+            return constant_fields
+
+        return MappingProxyType(extract(self, ''))
 
 
 def arg_value_to_string(value: Union[str, int, bool, enum.Enum, Any]) -> str:
