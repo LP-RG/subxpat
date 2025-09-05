@@ -11,7 +11,7 @@ import functools as ft
 from pathlib import Path
 import os.path
 
-
+from sxpat.utils.filesystem import FS
 from sxpat.utils.functions import int_to_strbase
 
 
@@ -76,11 +76,13 @@ class Paths:
         graphviz: str = dc.field(default='graphviz', init=False)
         verilog: str = dc.field(default='verilog', init=False)
         solver_scripts: str = dc.field(default='scripts', init=False)
+        data_storage: str = dc.field(default='data', init=False)
 
         def __post_init__(self) -> None:
             object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, self.graphviz))
             object.__setattr__(self, 'verilog', os.path.join(self.base_folder, self.verilog))
             object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, self.solver_scripts))
+            object.__setattr__(self, 'data_storage', os.path.join(self.base_folder, self.data_storage))
 
     @dc.dataclass(frozen=True)
     class Synthesis:
@@ -151,10 +153,13 @@ class Specifications:
     plot: bool
     clean: bool
     time_id: str = dc.field(init=False, default_factory=lambda: int_to_strbase(time.time_ns()))
+    run_id: str = dc.field(init=False)
 
     def __post_init__(self):
         object.__setattr__(self, 'exact_benchmark', Path(self.exact_benchmark).stem)
         object.__setattr__(self, 'current_benchmark', Path(self.current_benchmark).stem)
+
+        object.__setattr__(self, 'run_id', FS.get_unique_filename(prefix=f'{self.time_id}_'))
 
     # > computed
 
