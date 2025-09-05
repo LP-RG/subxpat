@@ -113,13 +113,21 @@ class FS:
             FS.mkdir(directory)
 
         # create temporary file
-        return tempfile.NamedTemporaryFile(
-            mode='w+b' if binary else 'w+',
-            dir=directory,
-            delete=delete,
-            prefix=prefix,
-            suffix=suffix,
-        )
+        try:
+            old_name_sequence = tempfile._name_sequence
+            tempfile._name_sequence = cls._AlphaNumRandomSequence()
+
+            file = tempfile.NamedTemporaryFile(
+                mode='w+b' if binary else 'w+',
+                dir=directory,
+                delete=delete,
+                prefix=prefix,
+                suffix=suffix,
+            )
+        finally:
+            tempfile._name_sequence = old_name_sequence
+
+        return file
 
     @classmethod
     def get_unique_filename(cls, directory: str = None, prefix: str = '', suffix: str = '') -> str:
@@ -129,9 +137,9 @@ class FS:
             :note: the created file is not deleted, allowing for the name to be reserved.
         """
 
-        tmp_file = cls.open_tmp(directory, prefix=prefix, suffix=suffix)
+        tmp_file = cls.open_tmp(directory, delete=False, prefix=prefix, suffix=suffix)
         tmp_file.close()
-        return tmp_file.name
+        return tmp_file.name.rsplit('/', 1)[1]
 
     @classmethod
     def copy(cls, src_path: str, dst_path: str, exists_ok: bool = False) -> None:
@@ -148,3 +156,6 @@ class FS:
 
         if os.path.isdir(src_path): shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
         else: shutil.copyfile(src_path, dst_path, follow_symlinks=True)
+
+    class _AlphaNumRandomSequence(tempfile._RandomNameSequence):
+        characters = tempfile._RandomNameSequence.characters.replace('_', '')
