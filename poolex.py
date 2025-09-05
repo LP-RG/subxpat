@@ -138,7 +138,7 @@ if __name__ == "__main__":
         "-m",
         "--max-parallel",
         type=int,
-        default=5,
+        default=10,
         help="Maximum number of parallel experiments."
     )
     parser.add_argument(
@@ -154,17 +154,16 @@ if __name__ == "__main__":
         help="The circuit you want to perform the experiments on"
     )
     args = parser.parse_args()
-
     common_args = {
         "subxpat": True,
-        "imax": 6,
-        "omax": 6,
+        "imax": 4,
+        "omax": 2,
         "min-labeling": True,
-        "max-lpp": 8,
-        "max-ppo": 8,
+        "extraction-mode": 0,
+        "max-lpp": 4,
+        "max-ppo": 4,
         "encoding": "z3bvec",
         "metric": "wre",
-        "zone-constraint": 10,
         "max-error": 35,
     }
 
@@ -175,21 +174,15 @@ if __name__ == "__main__":
         # "persistance_1_divisor_8": { **common_args, "perstistance": 0 #, "pardiv": 8 }
         # ...
         **{
-            f"persistance_{persist}_exp": {
+            f"base_et_{base_et}_step_size_{step_size}_step_factor_{step_factor}": {
                 **common_args,
-                "persistance": persist,
-                "epar": "exp",
+                "baseet": base_et,
+                "stepsize": step_size,
+                "stepfactor": step_factor
             }
-            for persist in (0, 1, 2)
-        },
-        **{
-            f"persistance_{persist}_divisor_{pardiv}": {
-                **common_args,
-                "pardiv": pardiv,
-                "persistance": persist,
-            }
-            for pardiv in (8, 12, 16, 20)
-            for persist in (0, 1, 2)
+            for base_et in [450,550]
+            for step_size in [40]
+            for step_factor in [1]
         }
     }
 
@@ -210,3 +203,5 @@ if __name__ == "__main__":
                 print(f"stdout:\n{info['stdout']}")
             if info['stderr']:
                 print(f"stderr:\n{info['stderr']}")
+
+                

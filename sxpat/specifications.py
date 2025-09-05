@@ -85,7 +85,7 @@ class Specifications:
     metric: MetricType
     
     #zone constraint
-    zone_constraint: int
+    zone_constraint: bool
 
     # labeling
     min_labeling: bool
@@ -99,10 +99,14 @@ class Specifications:
     num_subgraphs: int
     max_sensitivity: int
     sensitivity: int = dc.field(init=False, default=None)  # rw
-
+    #Extraction_mode_0
     persistence_counter: int = dc.field(init=False, default=0)  # rw
     out_node: int = dc.field(init=False, default=0)  # rw\
-
+    
+    #Zone AE
+    baseet: int
+    stepsize: int
+    stepfactor: int
     # exploration (1)
     subxpat: bool
     template: TemplateType
@@ -286,10 +290,9 @@ class Specifications:
 
         _persistance = parser.add_argument('--persistance',
                                     type=int,
-                                    default=2,
+                                    default=1,
                                     help='The number of attempts made with partial ET (default: 2)')
         # > error stuff
-
         _et = parser.add_argument('--max-error', '-e',
                                   type=int,
                                   required=True,
@@ -305,6 +308,22 @@ class Specifications:
                                                 type=int, 
                                                 default=8,
                                                 help="The number that is used to divied the et to create the step when creating the linear partition (default: 8)")
+        # > zone error stuff
+
+        _baseet = parser.add_argument('--baseet',
+                                  type=int,
+                                  required=False,
+                                  default= 100)
+                                  #help='The maximum allowable error')
+
+        _stepsize = parser.add_argument('--stepsize',
+                                  type=int,
+                                  required=False,)
+                                  #help='The maximum allowable error')
+        _stepfactor = parser.add_argument('--stepfactor',
+                                  type=int,
+                                  required=False)
+                                  #help='The maximum allowable error')
 
         # > other stuff
 

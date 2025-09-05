@@ -68,7 +68,6 @@ def explore_grid(specs_obj: Specifications):
             et_array = iter(list_values)
     elif specs_obj.error_partitioning is ErrorPartitioningType.EXPONENTIAL:
         et_array = iter([2**i for i in range(8)])
-
     while (obtained_wce_exact <= specs_obj.max_error or (specs_obj.extraction_mode == 0)): 
         specs_obj.iteration += 1
         if not specs_obj.subxpat:
@@ -76,6 +75,7 @@ def explore_grid(specs_obj: Specifications):
                 break
             specs_obj.et = specs_obj.max_error
         elif(specs_obj.extraction_mode == 0):
+            print(specs_obj.out_node)
             if(max_out_node == specs_obj.out_node):
                 pprint.warning('The error space is exhausted!')
                 break
@@ -245,7 +245,7 @@ def explore_grid(specs_obj: Specifications):
                     csvwriter.writerow(content)
 
                 # verify all models and store errors
-                pprint.info1('verifying all approximate circuits ...')
+                """pprint.info1('verifying all approximate circuits ...')
                 for candidate_name, candidate_data in cur_model_results.items():
                     candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2], specs_obj.metric, specs_obj.zone_constraint)
                     candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2], specs_obj.metric, specs_obj.zone_constraint)
@@ -253,7 +253,7 @@ def explore_grid(specs_obj: Specifications):
                     if candidate_data[4] > error and specs_obj.zone_constraint is None:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
                         stats_obj.store_grid()
-                        return stats_obj
+                        return stats_obj"""
 
                 pprint.success('ErrorEval Verification PASSED')
 
@@ -262,7 +262,7 @@ def explore_grid(specs_obj: Specifications):
 
                 # select best circuit
                 best_name, best_data = sorted_circuits[0]
-                obtained_wce_exact = best_data[4]
+                #obtained_wce_exact = best_data[4]
                 prev_actual_error = best_data[5]
 
                 specs_obj.current_benchmark = best_name

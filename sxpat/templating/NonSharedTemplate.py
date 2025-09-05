@@ -66,7 +66,6 @@ class _NonSharedBase:
             Or(f'sum{out_i}', in_subgraph=True, operands=products[out_i])
             for out_i, _ in enumerate(a_graph.subgraph_outputs)
         ]
-
     @classmethod
     def constants_rewriting(cls, a_graph: SGraph, updated_nodes: Dict[str, OperationNode], specs: Specifications
                             ) -> List[BoolVariable]:
@@ -97,18 +96,18 @@ class _NonSharedBase:
             et := IntConstant('et', value=error_threshold),
             error_check := LessEqualThan('error_check', operands=(abs_diff, et)),
         ]
-    
+
     @classmethod
-    def relative_error_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int) -> List[Node]:
+    def relative_error_constraint_old(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int) -> List[Node]:
         return [
             cur_int := ToInt('cur_int', operands=s_graph.outputs_names),
             tem_int := ToInt('tem_int', operands=t_graph.outputs_names),
             abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
             et := IntConstant('et', value=error_threshold),
-            zero := IntConstant('zero', value = 0),
+            zero_constant := IntConstant('zero_constant', value = 0),
             one := IntConstant('one', value = 1),
             hundred := IntConstant('hundred', value = 100),
-            condition := Equals('condition', operands = (cur_int, zero)),
+            condition := Equals('condition', operands = (cur_int, zero_constant)),
             divider := If("divider", operands=(condition, one, cur_int)),
             abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
             rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),
@@ -116,7 +115,54 @@ class _NonSharedBase:
         ]
     
     @classmethod
-    def relative_error_zone_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int, zone_constraint: int) -> List[Node]:
+    def relative_error_constraint(cls, s_graph: SGraph, t_graph: PGraph, base_et: int, step_size: int, step_factor: int) -> List[Node]:
+        return [
+            *(PlaceHolder(name) for name in s_graph.inputs_names[:]),
+            input_one_value := ToInt('input_one_value', operands=s_graph.inputs_names[:len(s_graph.inputs_names)//2]),
+            input_two_value := ToInt('input_two_value', operands=s_graph.inputs_names[len(s_graph.inputs_names)//2:]),
+
+            cur_int := ToInt('cur_int', operands=s_graph.outputs_names),
+            tem_int := ToInt('tem_int', operands=t_graph.outputs_names),
+            #Absolute error
+            abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
+
+            #re definition
+            one := IntConstant('one', value = 1),
+            two := IntConstant('two', value = 3),
+            zero_constant := IntConstant('zero_constant', value = 0),
+            one := IntConstant('one', value = 1),
+            hundred := IntConstant('hundred', value = 100),
+            condition := Equals('condition', operands = (cur_int, zero_constant)),
+            divider := If("divider", operands=(condition, one, cur_int)),
+            abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
+            rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),
+            
+            #zone parameters
+            half := IntConstant('half', value = 127),
+            step_divider := IntConstant('step_divider', value = step_size),
+
+            #Relative error <= 100
+            re_constraint := LessEqualThan('re_constraint', operands=(rel_diff, hundred)),
+
+            #Absolute error_et
+            et := IntConstant('et', value=base_et),
+
+            #AE et function
+            distance_from_half := AbsDiff('distance_from_half', operands = (input_two_value, half)),
+            double_distance_from_half := Mul('double_distance_from_half', operands=(distance_from_half, two)),
+            sum_of_distances := Sum('sum_of_distances', operands=(double_distance_from_half, input_one_value)),
+            low_bound_condition := LessThan('low_bound_condition', operands=(sum_of_distances,step_divider)),
+            et_function := UDiv('et_function', operands=(sum_of_distances,step_divider)),
+            low_bounded_et_function := If('low_bounded_et_function', operands=(low_bound_condition, one, et_function)),
+            scaled_et := Mul('scaled_et', operands=(low_bounded_et_function,et)),
+            
+            #Absolute error constraint
+            error := LessEqualThan('error', operands=(abs_diff, scaled_et)),
+            error_check := And('error_check' ,operands = (re_constraint, error))
+        ]
+
+    @classmethod
+    def relative_error_zone_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int, zone_constraint: int, line_height: int) -> List[Node]:
         return [
             *(PlaceHolder(name) for name in s_graph.inputs_names[:len(s_graph.inputs_names)//2]),
             input_one_value := ToInt('input_one', operands=s_graph.inputs_names[:len(s_graph.inputs_names)//2]),
@@ -270,7 +316,7 @@ class NonSharedTemplate(Template, _NonSharedBase):
                 (PlaceHolder(name) for name in s_graph.outputs_names),
                 (PlaceHolder(name) for name in template_graph.outputs_names),
                 # behavioural constraints
-                cls.error_constraint(s_graph, template_graph, specs.et) if(specs.metric is MetricType.ABSOLUTE) else cls.relative_error_constraint(s_graph, template_graph, specs.max_error) if(specs.zone_constraint == None) else cls.relative_error_zone_constraint(s_graph, template_graph, specs.max_error, specs.zone_constraint),
+                cls.error_constraint(s_graph, template_graph, specs.et) if(specs.metric is MetricType.ABSOLUTE) else cls.relative_error_constraint(s_graph, template_graph, specs.baseet, specs.stepsize, specs.stepfactor) if(specs.zone_constraint == None) else cls.relative_error_zone_constraint(s_graph, template_graph),
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
                 # redundancy constraints
                 mux_red_nodes,

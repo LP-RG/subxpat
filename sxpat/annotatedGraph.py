@@ -371,8 +371,7 @@ class AnnotatedGraph(Graph):
             self.graph_num_intact_gates = len(self.__graph_intact_gate_dict)
 
             return self.subgraph_num_gates != 0
-
-    # TODO USE NEXT METHOD AND ADAPT IT TO ASCENDANT CONSTRAINT
+        
     def find_subgraph_output_nodes_ascendant(self, specs_obj: Specifications):
         total_s = time.time()
         WEIGHT_BITS = self.num_outputs
@@ -395,6 +394,7 @@ class AnnotatedGraph(Graph):
 
         nodes = {}
         edges = []
+         
         output_node_label = self.output_dict.get(specs_obj.out_node)
         if output_node_label is None:
             print(f"Errore: indice di output {specs_obj.out_node} non trovato in output_dict.")
@@ -402,10 +402,24 @@ class AnnotatedGraph(Graph):
         if output_node_label not in self.graph.nodes:
             print(f"Errore: il nodo di output '{output_node_label}' non esiste nel grafo principale.")
             return self.graph
-
+        list_of_constant_node = self.extract_constants()
+        output_node_label = self.output_dict.get(specs_obj.out_node)
+        if output_node_label is None:
+            print(f"Errore: indice di output {specs_obj.out_node} non trovato in output_dict.")
+            return self.graph
+        if output_node_label not in self.graph.nodes:
+            print(f"Errore: il nodo di output '{output_node_label}' non esiste nel grafo principale.")
+            return self.graph
+        
         ancestors_output = ordered_ancestors(self.graph, output_node_label)
-        if (len([node for node in ancestors_output if node.startswith("g")]) == 1):
-            specs_obj.out_node += 1
+        list_of_ancestors = [node for node in ancestors_output if str(node).startswith("g")]
+        print(list_of_ancestors)
+        list_of_constant_node = self.extract_constants()
+        print(list_of_constant_node)
+        
+        if(len(list_of_ancestors) == 1 and list_of_ancestors[0] in list_of_constant_node.values()):
+            print(f"Skipping node {output_node_label}")
+            specs_obj.out_node +=1
             output_node_label = self.output_dict.get(specs_obj.out_node)
             ancestors_output = ordered_ancestors(self.graph, output_node_label)
 
@@ -515,7 +529,6 @@ class AnnotatedGraph(Graph):
 
         # Confronta i due set
         if set_node_partition == set_all_ascendants:
-            print("#####Changing output node#####\n")
             specs_obj.out_node += 1
             specs_obj.persistence_counter = 0
         else:
