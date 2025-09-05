@@ -32,7 +32,7 @@ from sxpat.utils.timer import Timer
 from sxpat.utils.storage import LiveStorage
 
 
-def explore_grid(specs_obj: Specifications):
+def explore_grid(specs_obj: Specifications, run_stats_storage: LiveStorage):
     previous_subgraphs = []
 
     labeling_time: float = -1
@@ -47,11 +47,11 @@ def explore_grid(specs_obj: Specifications):
     # create storage object and initialize default data
     #
     legacy_storage = Stats(specs_obj)
-    #
-    storage_filename = FS.get_unique_filename(directory='output/new_storage/', suffix='.csv')
-    print('storage created at:', storage_filename)
-    storage = LiveStorage(storage_filename)
-    storage.stage(  # maybe not needed
+    # populate storage from the specifications
+    # TODO:MARCO:HERE HERE WORKING HERE (look at kk.py)
+    run_stats_storage.stage(**specs_obj.constant_fields)
+    run_stats_storage.stage(  # maybe not needed
+        exact_file_path=exact_file_path,
     )
 
     obtained_wce_exact = 0
@@ -73,7 +73,7 @@ def explore_grid(specs_obj: Specifications):
         specs_obj.iteration += 1
 
         # <><><><> store
-        storage.stage(iteration=specs_obj.iteration)
+        run_stats_storage.stage(iteration=specs_obj.iteration)
 
         if not specs_obj.subxpat:
             if prev_actual_error == 0:
@@ -133,7 +133,7 @@ def explore_grid(specs_obj: Specifications):
             # skip all iterations implicitly achieved through the slash to kill step
             if specs_obj.iteration > 1 and specs_obj.et < specs_obj.error_for_slash:
                 # <><><><> ignore
-                storage.ignore()
+                run_stats_storage.ignore()
                 continue
 
         pprint.info1(f'iteration {specs_obj.iteration} with et {specs_obj.et}, available error {specs_obj.max_error}'
@@ -152,14 +152,14 @@ def explore_grid(specs_obj: Specifications):
         current_graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
         annotated_graph_time = Timer.now() - annotated_graph_time
         # <><><><> store
-        storage.stage(annotated_graphs_initialization_time=annotated_graph_time)
+        run_stats_storage.stage(annotated_graphs_initialization_time=annotated_graph_time)
 
         # label graph
         if specs_obj.requires_labeling:
             label_timer, _label_graph = Timer.from_function(label_graph)
             _label_graph(current_graph, specs_obj)
             # <><><><> store
-            storage.stage(labelling_time=label_timer.total)
+            run_stats_storage.stage(labelling_time=label_timer.total)
             print(f'labeling_time = {(labeling_time := label_timer.total)}')
 
         # extract subgraph
@@ -167,8 +167,9 @@ def explore_grid(specs_obj: Specifications):
         subgraph_is_available = extract_subgraph(specs_obj)
         previous_subgraphs.append(current_graph.subgraph)
         # <><><><> store
-        storage.stage(
+        run_stats_storage.stage(
             subgraph_extraction_time=subex_timer.total,
+            subgraph_nodes_count=current_graph.subgraph_num_gates,
             subgraph_inputs_count=current_graph.subgraph_num_inputs,
             subgraph_outputs_count=current_graph.subgraph_num_outputs,
         )
@@ -185,7 +186,7 @@ def explore_grid(specs_obj: Specifications):
             pprint.warning(f'No subgraph available.')
             prev_actual_error = 0
             # <><><><>
-            storage.commit()
+            run_stats_storage.commit()
             continue
 
         # guard: skip if the subraph is equal to the previous one
@@ -198,7 +199,7 @@ def explore_grid(specs_obj: Specifications):
             pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
             prev_actual_error = 0
             # <><><><>
-            storage.commit()
+            run_stats_storage.commit()
             continue
 
         # explore the grid
@@ -212,7 +213,7 @@ def explore_grid(specs_obj: Specifications):
             # > cell step settings
 
             # <><><><> store
-            storage.stage(
+            run_stats_storage.stage(
                 cell_coord_0=lpp,
                 cell_coord_1=ppo,
                 error_treshold=specs_obj.et,
@@ -229,7 +230,7 @@ def explore_grid(specs_obj: Specifications):
             template_timer, define_template = Timer.from_function(get_templater(specs_obj).define)
             p_graph, c_graph = define_template(s_graph, specs_obj)
             # <><><><> store
-            storage.stage(grid_phase_definition_time=template_timer.total)
+            run_stats_storage.stage(grid_phase_definition_time=template_timer.total)
 
             # solve
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
@@ -245,7 +246,7 @@ def explore_grid(specs_obj: Specifications):
                 models.append(model)
 
             # <><><><> store
-            storage.stage(
+            run_stats_storage.stage(
                 status=status.upper(),
                 grid_phase_solution_time=solve_timer.total,
             )
@@ -266,7 +267,7 @@ def explore_grid(specs_obj: Specifications):
                 legacy_storage.grid.cells[lpp][ppo].store_model_info(this_model_info)
                 # <><><><> store
                 # nothing to stage, all done in their respective place
-                storage.commit()
+                run_stats_storage.commit()
 
                 # store cell as dominant (to skip dominated subgrid)
                 if status == UNKNOWN: dominant_cells.append((lpp, ppo))
@@ -324,13 +325,13 @@ def explore_grid(specs_obj: Specifications):
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
                         legacy_storage.store_grid()
                         # <><><><> store: should something be done here? yes
-                        storage.stage(verification_time=verification_timer.total)
-                        storage.commit()
+                        run_stats_storage.stage(verification_time=verification_timer.total)
+                        run_stats_storage.commit()
 
                         return legacy_storage
 
                 # <><><><> store
-                storage.stage(verification_time=verification_timer.total)
+                run_stats_storage.stage(verification_time=verification_timer.total)
                 pprint.success('ErrorEval Verification PASSED')
 
                 # sort circuits
@@ -356,7 +357,7 @@ def explore_grid(specs_obj: Specifications):
                                         subgraph_number_outputs=current_graph.subgraph_num_outputs,
                                         subxpat_v1_time=execution_time)
                 # <><><><> store
-                storage.stage(
+                run_stats_storage.stage(
                     best_circuit_error=best_data[4],
                     best_circuit_area=best_data[0],
                     best_circuit_power=best_data[1],
@@ -373,9 +374,9 @@ def explore_grid(specs_obj: Specifications):
                 store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.current_benchmark, et=specs_obj.et,
                                     encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
                 # <><><><> store
-                storage.commit()
+                run_stats_storage.commit()
                 # debug
-                storage.save()
+                run_stats_storage.save()
 
                 break  # SAT found, stop grid exploration
 
@@ -387,7 +388,7 @@ def explore_grid(specs_obj: Specifications):
 
     # write storage to memory
     legacy_storage.store_grid()
-    storage.save()
+    run_stats_storage.save()
 
     return legacy_storage
 
