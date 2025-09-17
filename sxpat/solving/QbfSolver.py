@@ -7,7 +7,7 @@ from .Solver import Solver
 
 from sxpat.graph import *
 from sxpat.specifications import Specifications
-from sxpat.converting.utils import set_bool_constants, crystallize
+from sxpat.converting.utils import set_bool_constants, crystallise as crystallize
 
 
 _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, PGraph, SGraph]])
@@ -562,7 +562,7 @@ class QbfSolver(Solver):
             graphs = crystallize.graphs(new_graphs)
             for graph in graphs:
                 for node in graph.nodes:
-                    if node.name in targets:
+                    if node.name in targets and not isinstance(node, PlaceHolder):
                         result[node.name] = graph[node.name].value
                 
             return ('sat', result)
