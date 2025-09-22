@@ -9,6 +9,9 @@ from Z3Log.verilog import Verilog
 from Z3Log.graph import Graph
 from Z3Log.z3solver import Z3solver
 
+import time
+
+
 
 def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark: str) -> int:
 
@@ -31,7 +34,9 @@ def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark:
     z3py_obj_qor.convert_gv_to_z3pyscript_maxerror_qor()
 
     z3py_obj_qor.export_z3pyscript()
+    start = time.perf_counter()
     z3py_obj_qor.run_z3pyscript_qor()
+    print(f'legacy_erroreval_no_annotated = {time.perf_counter() - start}')
 
     # Compare the obtained WCE
     folder, extension = z3logpath.OUTPUT_PATH['report']

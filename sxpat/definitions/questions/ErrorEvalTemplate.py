@@ -39,7 +39,7 @@ class ErrorEvalTemplate:
         others.extend([
             cur_int := ToInt('cur_int', operands=s_graph.outputs_names),
             tem_int := ToInt('tem_int', operands=template_graph.outputs_names),
-            abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
+            abs_diff := AbsDiff('error', operands=(cur_int, tem_int,)),
             maximize := Max('maximize', operands=(abs_diff,))
         ])
 
@@ -52,6 +52,7 @@ class ErrorEvalTemplate:
                     template_graph.outputs_names
                 )),
                 others,
+                [Target.of(abs_diff),]
             )
         )
 

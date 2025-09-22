@@ -19,9 +19,12 @@ from sxpat.utils.name import NameData
 from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
+from sxpat.definitions.questions.ErrorEvalTemplate import ErrorEvalTemplate
+from sxpat.graph.Graph import IOGraph
 
 from sxpat.templating import get_specialized as get_templater
 from sxpat.solving import get_specialized as get_solver
+from sxpat.solving.Z3Solver import Z3DirectBitVecSolver
 
 from sxpat.converting import VerilogExporter
 from sxpat.converting import iograph_from_legacy, sgraph_from_legacy
@@ -29,6 +32,7 @@ from sxpat.converting import set_bool_constants, prevent_combination
 
 from sxpat.utils.print import pprint
 from sxpat.utils.timer import Timer
+import time
 
 
 def explore_grid(specs_obj: Specifications):
@@ -266,14 +270,30 @@ def explore_grid(specs_obj: Specifications):
                 # verify all models and store errors
                 pprint.info1('verifying all approximate circuits ...')
                 for candidate_name, candidate_data in cur_model_results.items():
+                    
+                    start = time.perf_counter()
                     candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
                     candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
+                    print(f'legacy_erroreval_total = {time.perf_counter() - start}')
 
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
                         stats_obj.store_grid()
                         return stats_obj
+                    
+                    start = time.perf_counter()
+                    candidate_data_4 = errorEval(e_graph, candidate_name[:-2], specs_obj)
+                    candidate_data_5 = errorEval(e_graph, candidate_name[:-2], specs_obj)
+                    print(f'refactored_erroreval_total = {time.perf_counter() - start}')
 
+                    if candidate_data_4 != candidate_data[4] or candidate_data[5] != candidate_data_5:
+                        print('differ_results')
+                        print(candidate_data[4], candidate_data[5])
+                        print(candidate_data_4, candidate_data_5)
+                        
+
+                    
+                    
                 pprint.success('ErrorEval Verification PASSED')
 
                 # sort circuits
@@ -318,6 +338,21 @@ def explore_grid(specs_obj: Specifications):
     stats_obj.store_grid()
     return stats_obj
 
+def errorEval(e_graph: IOGraph, graph_name: str, specs_obj: Specifications):
+    current = AnnotatedGraph(graph_name)
+
+    cur_graph = iograph_from_legacy(current)
+    p_graph, c_graph = ErrorEvalTemplate.define(cur_graph, specs_obj)
+
+    start = time.perf_counter()
+    status, model = Z3DirectBitVecSolver.solve((e_graph, p_graph, c_graph), specs_obj)
+    print(f'refactored_erroreval_no_annotated = {time.perf_counter() - start}')
+    
+    assert status == 'sat'
+    assert len(model) == 1
+
+    return list(model.values())[0]
+    
 
 class CellIterator:
     @classmethod
