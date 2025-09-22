@@ -82,32 +82,12 @@ class Timer:
 
         @_ft.wraps(function)
         def wrapper(*args, **kwds):
-            # get starting time data
-            times_start = (
-                _res.getrusage(_res.RUSAGE_SELF),
-                _res.getrusage(_res.RUSAGE_CHILDREN),
-            )
-
-            # execute function
+            time_start = self.now()
             result = function(*args, **kwds)
+            time_end = self.now()
 
-            # get ending time data
-            times_end = (
-                _res.getrusage(_res.RUSAGE_SELF),
-                _res.getrusage(_res.RUSAGE_CHILDREN),
-            )
-
-            # compute delta
-            time_delta = (
-                + (times_end[0].ru_utime - times_start[0].ru_utime)  # process user level time
-                + (times_end[0].ru_stime - times_start[0].ru_stime)  # process system level time
-                + (times_end[1].ru_utime - times_start[1].ru_utime)  # children user level time
-                + (times_end[1].ru_stime - times_start[1].ru_stime)  # children system level time
-            )
-
-            # update fields
-            object.__setattr__(self, 'latest', time_delta)
-            object.__setattr__(self, 'total', self.total + time_delta)
+            object.__setattr__(self, 'latest', time_end - time_start)
+            object.__setattr__(self, 'total', self.total + self.latest)
 
             return result
 
@@ -120,3 +100,17 @@ class Timer:
         timer = Timer()
         wrapped = timer.wrap(function)
         return (timer, wrapped)
+
+    @staticmethod
+    def now() -> float:
+        """Returns the number of seconds spent by the current process and all waited children."""
+
+        proc_rusage = _res.getrusage(_res.RUSAGE_SELF)
+        chld_rusage = _res.getrusage(_res.RUSAGE_CHILDREN)
+
+        return (
+            + proc_rusage.ru_utime  # process user level time
+            + proc_rusage.ru_stime  # process system level time
+            + chld_rusage.ru_utime  # children user level time
+            + chld_rusage.ru_stime  # children system level time
+        )

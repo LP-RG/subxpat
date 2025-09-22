@@ -278,7 +278,7 @@ class CGraph(Graph):
     @final
     def placeholders(self) -> AbstractSet[PlaceHolder]:
         """The sequence of all `Constraint` node in the graph."""
-        return frozenset(node for node in self.nodes if isinstance(node, PlaceHolder))
+        return dict.fromkeys(node for node in self.nodes if isinstance(node, PlaceHolder)).keys()
 
     @ft.cached_property
     @final
@@ -290,7 +290,7 @@ class CGraph(Graph):
     @final
     def global_tasks(self) -> AbstractSet[AnyGlobalObjective]:
         """The set of all `GlobalTask` nodes in the graph."""
-        return frozenset(node for node in self.nodes if isinstance(node, GlobalTask))
+        return dict.fromkeys(node for node in self.nodes if isinstance(node, GlobalTask)).keys()
 
 
 # > Typing help
