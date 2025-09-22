@@ -283,7 +283,7 @@ def explore_grid(specs_obj: Specifications):
                     
                     start = time.perf_counter()
                     candidate_data_4 = errorEval(e_graph, candidate_name[:-2], specs_obj)
-                    candidate_data_5 = errorEval(e_graph, candidate_name[:-2], specs_obj)
+                    candidate_data_5 = errorEval(s_graph, candidate_name[:-2], specs_obj)
                     print(f'refactored_erroreval_total = {time.perf_counter() - start}')
 
                     if candidate_data_4 != candidate_data[4] or candidate_data[5] != candidate_data_5:
