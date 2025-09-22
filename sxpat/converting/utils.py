@@ -202,6 +202,8 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missin
         Takes a graph and a mapping from names to bool in input
         and returns a new graph with the nodes corresponding to the given names replaced with the wanted constant.
 
+        @note: Placeholder nodes are not replaced, to preserve the inter-graph connections.
+
         @note: *TODO: can be expanded to manage also IntConstant nodes*  
         @note: *TODO: add guard to prevent assigning the wrong type*  
 
@@ -211,6 +213,8 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missin
     new_nodes = {n.name: n for n in graph.nodes}
     for (name, value) in constants.items():
         if skip_missing and name not in graph: continue
+        if isinstance(graph[name], PlaceHolder): continue
+
         node = graph[name]
 
         new_nodes[node.name] = BoolConstant(node.name, value, node.weight, node.in_subgraph)
@@ -411,6 +415,8 @@ class crystallise:
 
                     if isinstance(operand, PlaceHolder):
                         operand = cls._find_non_placeholder(operand_name, pre_crystallised_graphs) or operand
+                    
+                    operands.append(operand)
             else:
                 operands = []
 

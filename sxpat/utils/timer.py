@@ -12,9 +12,9 @@ __all__ = ['timer']
 class Timer:
     """
         This class is used to wrap functions to be able to time their execution.
+        The counted time is the cpu time for the current process and all children from the start to the end of the function.
 
-        The counted time is the time in user mode and the time in system mode
-        for the current process and all children from the start to the end of the function.
+        This class also exposes the `.now()` method, which returns the cycles spent on the cpu by the current process and all waited children.
 
         ---
 
