@@ -27,6 +27,8 @@ class HammingDistance(DistanceSpecification):
         # guard
         if len(wanted_a) != len(wanted_b):
             raise ValueError('The sequences of wanted nodes have different lengths (or the graphs have different number of outputs).')
+        if len(_0.outputs_names) != len(_1.outputs_names):
+            raise ValueError('The sequences of wanted nodes have different lengths (or the graphs have different number of outputs).')
 
         # bit flips to int
         consts = []
@@ -38,10 +40,9 @@ class HammingDistance(DistanceSpecification):
             wanted_b,
         ):
             # create constants
-            val: int = node_a.weight  # type: ignore
             consts.extend([
                 const_0 := IntConstant(f'dist_a{i}_const_0', 0),
-                const_1 := IntConstant(f'dist_a{i}_const_1', val),
+                const_1 := IntConstant(f'dist_a{i}_const_1', 1),
             ])
 
             # create node reflecting if a bit is flipped

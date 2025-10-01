@@ -197,7 +197,7 @@ def explore_grid(specs_obj: Specifications):
             # SOLVE
             v2p1_solve_timer = Timer()
 
-            solve = v2p1_solve_timer.wrap(get_solver(specs_obj).define)
+            solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
             question = [exact_circ, param_circ, param_circ_constr]
             status, model = solve(question, specs_obj)
 
@@ -527,6 +527,9 @@ def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     inner_graph: nx.DiGraph = graph.graph
     for (node_name, node_data) in inner_graph.nodes.items():
         node_data[WEIGHT] = weights.get(node_name, -1)
+        #TODO: get output's weights in the correct way
+        if node_name[:3] == 'out':
+            node_data[WEIGHT] = 2**int(node_name[3:])
 
 
 def get_toolname(specs_obj: Specifications) -> str:

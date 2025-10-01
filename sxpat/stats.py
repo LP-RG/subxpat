@@ -287,7 +287,7 @@ class Stats:
         self.__lpp, self.__ppo = {
             TemplateType.NON_SHARED: lambda: (specs.max_lpp, specs.max_ppo),
             TemplateType.SHARED: lambda: (specs.max_its, specs.max_pit),
-            TemplateType.V2: lambda: (spec_obj.max_lpp, spec_obj.max_ppo),
+            TemplateType.V2: lambda: (specs.max_lpp, specs.max_ppo),
         }[specs.template]()
 
         self.__et: int = specs.max_error
