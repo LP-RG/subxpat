@@ -121,7 +121,7 @@ class _NonSharedBase:
             # set the order of the identifiers ( a >= b >= c ... )
             nodes.extend(flat(
                 (
-                    gt := GreaterEqualThan(f'id_order_{idx_a}_{idx_b}', operands=(prod_a, prod_b)),
+                    gt := GreaterEqualThan(f'force_product_order_{out_i}_{idx_a}_{idx_b}', operands=(prod_a, prod_b)),
                     Constraint.of(gt),
                 )
                 for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(_prod_ids))

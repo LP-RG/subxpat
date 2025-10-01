@@ -387,9 +387,10 @@ class Z3DirectEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# usage',
             'usage = And(', *(
-                f'    {node.name},'
-                for graph in graphs if isinstance(graph, CGraph)
-                for node in graph.expressions if not graph.successors(node) and nodes_types[node.name] is bool
+                f'    {constraint_node.operand},'
+                for graph in graphs
+                if isinstance(graph, CGraph)
+                for constraint_node in graph.constraints
             ), ')',
             *('',) * 2,
         )))
