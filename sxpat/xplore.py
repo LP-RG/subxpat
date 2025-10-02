@@ -14,7 +14,7 @@ from sxpat.graph import IOGraph, SGraph
 from sxpat.graph.node import BoolVariable, Identity
 from sxpat.labeling import labeling_explicit
 from sxpat.metrics import MetricsEstimator
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
 from sxpat.config import paths as sxpatpaths
 from sxpat.config.config import *
 from sxpat.utils.collections import iterable_replace
@@ -38,6 +38,7 @@ from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.utils.print import pprint
 from sxpat.utils.timer import Timer
 
+from sxpat.definitions.distances import *
 
 def explore_grid(specs_obj: Specifications):
     previous_subgraphs = []
@@ -184,6 +185,13 @@ def explore_grid(specs_obj: Specifications):
         exact_circ = iograph_from_legacy(exact_graph)
         current_circ = sgraph_from_legacy(current_graph)
 
+        distance_type = {
+            (DistanceType.ABSOLUTE_DIFFERENCE_OF_INTEGERS): AbsoluteDifferenceOfInteger,
+            (DistanceType.ABSOLUTE_DIFFERENCE_OF_WEIGHTED_SUM): AbsoluteDifferenceOfWeightedSum,
+            (DistanceType.HAMMING_DISTANCE): HammingDistance,
+            (DistanceType.WEIGHTED_HAMMING_DISTANCE): WeightedHammingDistance,
+        }[(specs_obj.distance)]
+
         #
         if v2:
             from sxpat.definitions.questions import min_subdistance_with_error
@@ -192,12 +200,12 @@ def explore_grid(specs_obj: Specifications):
 
             # question
             define_question = v2p1_define_timer.wrap(min_subdistance_with_error.variant_1)
-            base_question = define_question(current_circ, specs_obj)
+            base_question = define_question(current_circ, specs_obj, AbsoluteDifferenceOfInteger, distance_type)
 
             # SOLVE
             v2p1_solve_timer = Timer()
 
-            solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
+            solve = v2p1_solve_timer.wrap(get_solver(specs_obj).define)
             question = [exact_circ, param_circ, param_circ_constr]
             status, model = solve(question, specs_obj)
 
@@ -249,7 +257,7 @@ def explore_grid(specs_obj: Specifications):
 
             # question
             define_question = define_timer.wrap(exists_parameters.not_above_threshold_forall_inputs)
-            base_question = define_question(current_circ, param_circ, AbsoluteDifferenceOfInteger, specs_obj.et)
+            base_question = define_question(current_circ, param_circ, distance_type, specs_obj.et)
 
             # SOLVE
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)

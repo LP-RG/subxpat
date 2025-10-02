@@ -46,6 +46,12 @@ class TemplateType(enum.Enum):
     SHARED = 'shared'
     V2 = 'v2'
 
+class DistanceType(enum.Enum):
+    ABSOLUTE_DIFFERENCE_OF_INTEGERS = 'adoi'
+    ABSOLUTE_DIFFERENCE_OF_WEIGHTED_SUM = 'adows'
+    HAMMING_DISTANCE = 'hd'
+    WEIGHTED_HAMMING_DISTANCE = 'whd'
+
 
 class ConstantsType(enum.Enum):
     NEVER = 'never'
@@ -118,6 +124,7 @@ class Specifications:
     # exploration (1)
     subxpat: bool
     template: TemplateType
+    distance: DistanceType
     encoding: EncodingType
     constants: ConstantsType
     constant_false: ConstantFalseType
@@ -303,6 +310,12 @@ class Specifications:
                                                action=EnumChoicesAction,
                                                default=TemplateType.NON_SHARED,
                                                help='Template logic (default: nonshared)')
+
+        _distance = _explor_group.add_argument('--distance',
+                                               type=DistanceType,
+                                               action=EnumChoicesAction,
+                                               default=DistanceType.ABSOLUTE_DIFFERENCE_OF_INTEGERS,
+                                               help='DIstance type')
 
         _lpp = _explor_group.add_argument('--max-lpp', '--max-literals-per-product',
                                           type=int,
