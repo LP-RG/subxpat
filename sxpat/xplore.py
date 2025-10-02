@@ -13,6 +13,7 @@ from Z3Log.config import path as z3logpath
 from sxpat.graph import IOGraph, SGraph
 from sxpat.graph.node import BoolVariable, Identity
 from sxpat.labeling import labeling_explicit
+from sxpat.temp_labelling import labeling
 from sxpat.metrics import MetricsEstimator
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
 from sxpat.config import paths as sxpatpaths
@@ -516,12 +517,20 @@ def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
 
     # compute weights
     ET_COEFFICIENT = 1
-    weights, _ = labeling_explicit(
-        graph.name, graph.name,
-        min_labeling=specs_obj.min_labeling,
-        partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
-        parallel=specs_obj.parallel
-    )
+    if specs_obj.iteration == 1:
+        weights = labeling(graph.name, graph.name, specs_obj.et * ET_COEFFICIENT)
+    else:
+        weights, check_pair = labeling_explicit(
+            graph.name, graph.name,
+            min_labeling=specs_obj.min_labeling,
+            partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
+            parallel=specs_obj.parallel
+        )
+    
+
+        for key in check_pair.keys():
+            if check_pair[key] == False:
+                print(f'model from labeling didn\'t match handle.upper():\n{graph.name}\n{key}')
 
     # apply weights to graph
     inner_graph: nx.DiGraph = graph.graph

@@ -9,7 +9,8 @@ from Z3Log.graph import Graph
 from Z3Log.utils import convert_verilog_to_gv
 from Z3Log.config.config import SINGLE, MAXIMIZE
 import Z3Log.config.path as paths
-from Z3Log.z3solver import Z3solver
+# from Z3Log.z3solver import Z3solver
+from sxpat.z3_labeling import Z3solverRef
 
 
 def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str,
@@ -38,25 +39,24 @@ def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str,
 
     # convert gv to z3 expression
     style = 'min' if min_labeling else 'max'
-    z3py_obj = Z3solver(
+    z3py_obj = Z3solverRef(
         exact_benchmark_name, approximate_benchmark,
         experiment=SINGLE, optimization=MAXIMIZE, style=style,
         partial=partial_labeling, parallel=parallel
     )
 
     if constant_value is False:
-        labels_pair = (
-            z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
-        ) * 2
-    elif constant_value is True:
-        labels_pair = (
-            z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
-        ) * 2
-    else:
-        labels_pair = (
-            z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
-            z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
-        )
+        labels_pair, check_pair = z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff)
+    # elif constant_value is True:
+    #     labels_pair = (
+    #         z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
+    #     ) * 2
+    # else:
+    #     labels_pair = (
+    #         z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
+    #         z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
+    #     )
+    
 
     # cleanup (folder report/ and z3/)
     for folder in [paths.OUTPUT_PATH['report'][0], paths.OUTPUT_PATH['z3'][0]]:
@@ -64,4 +64,4 @@ def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str,
             if os.path.isdir(dir):
                 FS.rmdir(dir, True)
 
-    return labels_pair
+    return labels_pair, check_pair
