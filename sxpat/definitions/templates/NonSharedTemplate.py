@@ -2,7 +2,7 @@ from typing import Dict, List, Sequence, Tuple, Union
 
 import itertools as it
 
-from .Template import Template
+from .Template import Template, TemplateBundle
 
 from sxpat.converting import set_prefix
 from sxpat.graph import *
@@ -121,7 +121,7 @@ class _NonSharedBase:
             # set the order of the identifiers ( a >= b >= c ... )
             nodes.extend(flat(
                 (
-                    gt := GreaterEqualThan(f'force_product_order_{out_i}_{idx_a}_{idx_b}', operands=(prod_a, prod_b)),
+                    gt := GreaterEqualThan(f'force_product_order_o{out_i}_{idx_a}_{idx_b}', operands=(prod_a, prod_b)),
                     Constraint.of(gt),
                 )
                 for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(_prod_ids))
@@ -138,7 +138,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
     """
 
     @classmethod
-    def define(cls, s_graph: SGraph, specs: Specifications) -> Tuple[PGraph, Sequence[CGraph]]:
+    def define(cls, s_graph: SGraph, specs: Specifications) -> TemplateBundle:
         # get prefixed graph
         a_graph: SGraph = set_prefix(s_graph, 'a_')
 
@@ -237,7 +237,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
             )
         )
 
-        return (template_graph, (constraint_graph,))
+        return TemplateBundle(template_graph, [constraint_graph])
 
 
 class NonSharedFProdTemplate(Template, _NonSharedBase):
@@ -249,7 +249,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
     """
 
     @classmethod
-    def define(cls, s_graph: SGraph, specs: Specifications) -> Tuple[PGraph, Sequence[CGraph]]:
+    def define(cls, s_graph: SGraph, specs: Specifications) -> TemplateBundle:
         # get prefixed graph
         a_graph: SGraph = set_prefix(s_graph, 'a_')
 
@@ -351,4 +351,4 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
             )
         )
 
-        return (template_graph, (constraint_graph,))
+        return TemplateBundle(template_graph, [constraint_graph])

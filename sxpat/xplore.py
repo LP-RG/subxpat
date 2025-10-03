@@ -156,8 +156,10 @@ def explore_grid(specs_obj: Specifications):
         # > grid step settings
 
         # import the graph
+        ag_loading_time = Timer.now()
         current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark)
         exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark)
+        print(f'annotated_graph_loading_time = {(ag_loading_time := (Timer.now() - ag_loading_time))}')
 
         # label graph
         if specs_obj.requires_labeling:
@@ -204,6 +206,7 @@ def explore_grid(specs_obj: Specifications):
             # DEFINE
             v2p1_define_timer = Timer()
 
+            # TODO
             # question
             define_question = v2p1_define_timer.wrap(min_subdistance_with_error.variant_1)
             base_question = define_question(current_circ, specs_obj, AbsoluteDifferenceOfInteger, distance_function)
@@ -211,8 +214,8 @@ def explore_grid(specs_obj: Specifications):
             # SOLVE
             v2p1_solve_timer = Timer()
 
-            solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
             question = [exact_circ, param_circ, param_circ_constr]
+            solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
             status, model = solve(question, specs_obj)
 
             # extract v2 threshold
@@ -228,10 +231,10 @@ def explore_grid(specs_obj: Specifications):
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
         for lpp, ppo in CellIterator.factory(specs_obj):
-            print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}', end='')
+            print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
 
             if is_dominated((lpp, ppo), dominant_cells):
-                pprint.info1(' DOMINATED')
+                pprint.info3('DOMINATED')
                 continue
 
             # > cell step settings
@@ -261,7 +264,7 @@ def explore_grid(specs_obj: Specifications):
 
             # template (and relative constraints)
             define_template = define_timer.wrap(get_templater(specs_obj).define)
-            param_circ, param_circ_constr = define_template(current_circ, specs_obj)
+            param_circ, *param_circ_constr = define_template(current_circ, specs_obj)
 
             # question
             define_question = define_timer.wrap(exists_parameters.not_above_threshold_forall_inputs)
@@ -283,6 +286,8 @@ def explore_grid(specs_obj: Specifications):
                 if status != 'sat': break
                 models.append(model)
 
+            if len(models) > 0: status = 'sat'
+
             # legacy adaptation
             execution_time = define_timer.total + solve_timer.total
 
@@ -290,7 +295,7 @@ def explore_grid(specs_obj: Specifications):
             if v2: specs_obj.et = v2_threshold
 
             if len(models) == 0:
-                pprint.warning(f' {status.upper()}')
+                pprint.warning(f'{status.upper()}')
 
                 # store model
                 this_model_info = Model(id=0, status=status.upper(), cell=(lpp, ppo), et=specs_obj.et, iteration=specs_obj.iteration,
@@ -305,7 +310,7 @@ def explore_grid(specs_obj: Specifications):
                 if status == UNKNOWN: dominant_cells.append((lpp, ppo))
 
             else:
-                pprint.success(f' {status.upper()} ({len(models)} models found)')
+                pprint.success(f'{status.upper()} ({len(models)} models found)')
 
                 # TODO:#15: use serious name generator
                 base_path = f'input/ver/{specs_obj.exact_benchmark}_{specs_obj.time_id}_i{specs_obj.iteration}_{{model_number}}.v'

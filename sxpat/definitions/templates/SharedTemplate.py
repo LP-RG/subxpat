@@ -1,8 +1,8 @@
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Tuple
 
 import itertools as it
 
-from .Template import Template
+from .Template import Template, TemplateBundle
 
 from sxpat.converting import set_prefix
 from sxpat.graph import *
@@ -27,7 +27,7 @@ class SharedTemplate(Template):
     """
 
     @classmethod
-    def define(cls, graph: SGraph, specs: Specifications) -> Tuple[PGraph, Sequence[CGraph]]:
+    def define(cls, graph: SGraph, specs: Specifications) -> TemplateBundle:
         # get prefixed graph
         a_graph: SGraph = set_prefix(graph, 'a_')
 
@@ -183,4 +183,4 @@ class SharedTemplate(Template):
         )
         constraint_graph = CGraph(nodes)
 
-        return (template_graph, (constraint_graph,))
+        return TemplateBundle(template_graph, [constraint_graph])
