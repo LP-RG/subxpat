@@ -16,5 +16,5 @@ __all__ = [
     'prevent_combination',
 
     # legacy
-    'iograph_from_legacy', 'sgraph_from_legacy'
+    'iograph_from_legacy', 'sgraph_from_legacy',
 ]

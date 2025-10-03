@@ -1,8 +1,12 @@
 from typing import Dict, List
+from typing_extensions import Self
+
 from colorama import Fore
 import time
 import datetime  # precautionary measure
 import networkx as nx
+import functools as ft
+
 from Z3Log.graph import Graph
 from Z3Log.verilog import Verilog
 from Z3Log.utils import *
@@ -16,6 +20,8 @@ from sxpat.utils.print import pprint
 
 
 class AnnotatedGraph(Graph):
+    __cached_loading_callable = None
+
     def __init__(self, benchmark_name: str, is_clean: bool = False) -> None:
         # Prepare a clean Verilog
         Verilog(benchmark_name)
@@ -47,6 +53,22 @@ class AnnotatedGraph(Graph):
 
         folder, extension = OUTPUT_PATH[GV]
         self.__out_annotated_graph_path = f'{folder}/{self.name}_subgraph.{extension}'
+
+    @classmethod
+    def cached_load(cls, benchmark_name: str, is_clean: bool = False) -> Self:
+        if cls.__cached_loading_callable is None: cls.set_loading_cache_size(-1)
+        return cls.__cached_loading_callable(benchmark_name, is_clean)
+
+    @classmethod
+    def set_loading_cache_size(cls, new_size: int) -> None:
+        """
+            Set the new size for the loading cache (minimum of 3: 1 exact + 1 current + 1 from model).
+
+            @warning: a call to this method invalidates the previous cache
+        """
+        new_size = max(3, new_size)
+        if cls.__cached_loading_callable is not None: cls.__cached_loading_callable.cache_clear()
+        cls.__cached_loading_callable = ft.lru_cache(new_size)(lambda n, c: cls(n, c))
 
     @property
     def subgraph_candidates(self):
