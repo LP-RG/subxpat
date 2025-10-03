@@ -206,7 +206,7 @@ def explore_grid(specs_obj: Specifications):
             # SOLVE
             v2p1_solve_timer = Timer()
 
-            solve = v2p1_solve_timer.wrap(get_solver(specs_obj).define)
+            solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
             question = [exact_circ, param_circ, param_circ_constr]
             status, model = solve(question, specs_obj)
 
