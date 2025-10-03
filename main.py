@@ -41,4 +41,8 @@ def run(specs_obj: Specifications) -> None:
     explore_grid(specs_obj)
 
 
-if __name__ == '__main__': main()
+if __name__ == '__main__':
+    from sxpat.utils.timer import Timer
+
+    main()
+    print(f'total_time = {Timer.now()}')
