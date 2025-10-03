@@ -159,7 +159,7 @@ class Z3Encoder:
             f'if status == sat:',
             f'    model = solver.model()',
             *(
-                f'    print(\'{n_target.operand}\', model.eval({v_target.operand}))'
+                f'    print(\'{n_target.operand}\', model.eval({v_target.operand}, model_completion=True))'
                 for (n_graph, v_graph) in zip(name_graphs, value_graphs)
                 for (n_target, v_target) in zip(n_graph.targets, v_graph.targets)
             ),
@@ -386,9 +386,10 @@ class Z3DirectEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# usage',
             'usage = And(', *(
-                f'    {node.name},'
-                for graph in graphs if isinstance(graph, CGraph)
-                for node in graph.expressions if not graph.successors(node) and nodes_types[node.name] is bool
+                f'    {constraint_node.operand},'
+                for graph in graphs
+                if isinstance(graph, CGraph)
+                for constraint_node in graph.constraints
             ), ')',
             *('',) * 2,
         )))
