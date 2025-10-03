@@ -48,7 +48,7 @@ class min_subdistance_with_error:
             subcircuit_distance,
         )
 
-        return (PGraph, (*question_exists, *question_minimize))
+        return (parametric_circuit, (*question_exists, *question_minimize))
 
     @staticmethod
     def variant_2(current_circuit: SGraph,
@@ -57,6 +57,7 @@ class min_subdistance_with_error:
                   subcircuit_distance: Type[DistanceSpecification],
                   ) -> Tuple[PGraph, Sequence[CGraph]]:
         """@authors: Lorenzo Spada, Marco Biasion"""
+        raise NotImplementedError()
 
         # to implement the distances we have:
         # - HammingDistance: given that the parameters represent bit flips
