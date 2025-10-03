@@ -425,7 +425,10 @@ def explore_grid(specs_obj: Specifications):
 
 
 def error_evaluation(e_graph: IOGraph, graph_name: str, specs_obj: Specifications):
+    ag_loading_time = Timer.now()
     current = AnnotatedGraph.cached_load(graph_name)
+    print(f'erreval_annotated_graph_loading_time = {(ag_loading_time := (Timer.now() - ag_loading_time))}')
+
     cur_graph = iograph_from_legacy(current)
 
     p_graph, c_graph = MaxDistanceEvaluation.define(cur_graph)
