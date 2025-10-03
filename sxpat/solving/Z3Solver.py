@@ -159,7 +159,7 @@ class Z3Encoder:
             f'if status == sat:',
             f'    model = solver.model()',
             *(
-                f'    print(\'{n_target.operand}\', model.eval({v_target.operand}))'
+                f'    print(\'{n_target.operand}\', model.eval({v_target.operand}, model_completion=True))'
                 for (n_graph, v_graph) in zip(name_graphs, value_graphs)
                 for (n_target, v_target) in zip(n_graph.targets, v_graph.targets)
             ),
