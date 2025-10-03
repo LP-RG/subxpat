@@ -209,7 +209,7 @@ def explore_grid(specs_obj: Specifications):
             # TODO
             # question
             define_question = v2p1_define_timer.wrap(min_subdistance_with_error.variant_1)
-            base_question = define_question(current_circ, specs_obj, AbsoluteDifferenceOfInteger, distance_function)
+            param_circ, param_circ_constr = define_question(current_circ, specs_obj, AbsoluteDifferenceOfInteger, distance_function)
 
             # SOLVE
             v2p1_solve_timer = Timer()
