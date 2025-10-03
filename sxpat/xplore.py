@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable, Dict, Iterable, Iterator, List, Tuple
+from typing import Dict, Iterable, Iterator, List, Tuple
 
 from tabulate import tabulate
 import functools as ft
