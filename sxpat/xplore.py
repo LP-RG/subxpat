@@ -466,6 +466,7 @@ class CellIterator:
         return {
             TemplateType.NON_SHARED: cls.non_shared,
             TemplateType.SHARED: cls.shared,
+            TemplateType.V2: cls.non_shared, #TODO: fix in real branch
         }[specs.template](specs)
 
     @staticmethod
