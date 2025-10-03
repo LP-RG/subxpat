@@ -85,6 +85,7 @@ class ConstantTemplate(SimpleTemplate):
 
     @classmethod
     def define(cls, circuit: SGraph, _unused=...) -> TemplateBundle:
+        """The `TemplateBundle` returned from this method contains only the circuit."""
 
         # define the parameters
         parameters = cls._define_parameters(circuit)
