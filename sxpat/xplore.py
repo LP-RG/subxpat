@@ -231,7 +231,7 @@ def explore_grid(specs_obj: Specifications):
             for i in range(len(solvers)):
                 # solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
                 solve_timer, solve = Timer.from_function(solvers[i].solve)
-                question = [exact_circ, param_circ, param_circ_constr]
+                question = [exact_circ, param_circ, *param_circ_constr]
                 status, model = solve(question, specs_obj)
                 print(f'{solver_names[i]}_phase1 = {solve_timer.total}')
 
