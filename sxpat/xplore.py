@@ -16,10 +16,10 @@ from sxpat.config import paths as sxpatpaths
 from sxpat.config.config import *
 from sxpat.utils.filesystem import FS
 from sxpat.utils.name import NameData
-from sxpat.verification import erroreval_verification_wce
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
-from sxpat.definitions.questions.ErrorEvalTemplate import ErrorEvalTemplate
+# from sxpat.verification import erroreval_verification_wce
+from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
 from sxpat.graph.Graph import IOGraph
 
 from sxpat.templating import get_specialized as get_templater
@@ -27,7 +27,7 @@ from sxpat.solving import get_specialized as get_solver
 from sxpat.solving.Z3Solver import Z3DirectBitVecSolver
 
 from sxpat.converting import VerilogExporter
-from sxpat.converting import iograph_from_legacy, sgraph_from_legacy
+from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy, load_legacy_graph
 from sxpat.converting import set_bool_constants, prevent_combination
 
 from sxpat.utils.print import pprint
@@ -136,8 +136,8 @@ def explore_grid(specs_obj: Specifications):
         # > grid step settings
 
         # import the graph
-        exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False)
-        current_graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
+        exact_graph = load_legacy_graph(specs_obj.exact_benchmark)
+        current_graph = load_legacy_graph(specs_obj.current_benchmark)
 
         # label graph
         if specs_obj.requires_labeling:
@@ -269,15 +269,15 @@ def explore_grid(specs_obj: Specifications):
                 # verify all models and store errors
                 pprint.info1('verifying all approximate circuits ...')
                 for candidate_name, candidate_data in cur_model_results.items():
-                    
-                    candidate_data[4] = errorEval(e_graph, candidate_name[:-2], specs_obj)
-                    candidate_data[5] = errorEval(s_graph, candidate_name[:-2], specs_obj)
+
+                    candidate_data[4] = error_evaluation(e_graph, candidate_name[:-2], specs_obj)
+                    candidate_data[5] = error_evaluation(s_graph, candidate_name[:-2], specs_obj)
 
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
                         stats_obj.store_grid()
                         return stats_obj
-                        
+
                 pprint.success('ErrorEval Verification PASSED')
 
                 # sort circuits
@@ -322,19 +322,19 @@ def explore_grid(specs_obj: Specifications):
     stats_obj.store_grid()
     return stats_obj
 
-def errorEval(e_graph: IOGraph, graph_name: str, specs_obj: Specifications):
-    current = AnnotatedGraph(graph_name)
 
+def error_evaluation(e_graph: IOGraph, graph_name: str, specs_obj: Specifications):
+    current = load_legacy_graph(graph_name)
     cur_graph = iograph_from_legacy(current)
-    p_graph, c_graph = ErrorEvalTemplate.define(cur_graph, specs_obj)
 
+    p_graph, c_graph = MaxDistanceEvaluation.define(cur_graph)
     status, model = Z3DirectBitVecSolver.solve((e_graph, p_graph, c_graph), specs_obj)
-    
+
     assert status == 'sat'
     assert len(model) == 1
 
-    return list(model.values())[0]
-    
+    return next(iter(model.values()))
+
 
 class CellIterator:
     @classmethod
