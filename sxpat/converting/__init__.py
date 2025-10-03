@@ -23,5 +23,5 @@ __all__ = [
     'prevent_assignment',
 
     # legacy
-    'iograph_from_legacy', 'sgraph_from_legacy'
+    'iograph_from_legacy', 'sgraph_from_legacy',
 ]

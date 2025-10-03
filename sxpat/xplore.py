@@ -8,37 +8,39 @@ import math
 import networkx as nx
 import itertools as it
 
-from Z3Log.config import path as z3logpath
-
+from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.graph import IOGraph, SGraph
 from sxpat.graph.node import BoolVariable, Identity
-from sxpat.labeling import labeling_explicit
-from sxpat.metrics import MetricsEstimator
+
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
+
+from Z3Log.config import path as z3logpath
 from sxpat.config import paths as sxpatpaths
 from sxpat.config.config import *
+
 from sxpat.utils.collections import iterable_replace
 from sxpat.utils.filesystem import FS
 from sxpat.utils.name import NameData
-from sxpat.verification import erroreval_verification_wce
+from sxpat.utils.timer import Timer
+from sxpat.utils.print import pprint
+
+from sxpat.metrics import MetricsEstimator
 from sxpat.stats import Stats, sxpatconfig, Model
-from sxpat.annotatedGraph import AnnotatedGraph
 
 from sxpat.definitions.templates import get_specialized as get_templater
 from sxpat.definitions.templates import v2Phase1
-from sxpat.definitions.distances import AbsoluteDifferenceOfInteger
+from sxpat.definitions.distances import *
+
 from sxpat.definitions.questions import exists_parameters
+from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
+from sxpat.labeling import labeling_explicit
 
 from sxpat.solvers import get_specialized as get_solver
+from sxpat.solvers import Z3DirectBitVecSolver
 
-from sxpat.converting import VerilogExporter
-from sxpat.converting import iograph_from_legacy, sgraph_from_legacy
 from sxpat.converting import set_bool_constants, prevent_assignment
-
-from sxpat.utils.print import pprint
-from sxpat.utils.timer import Timer
-
-from sxpat.definitions.distances import *
+from sxpat.converting import VerilogExporter
+from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
 
 
 def explore_grid(specs_obj: Specifications):
@@ -70,6 +72,9 @@ def explore_grid(specs_obj: Specifications):
         (DistanceType.HAMMING_DISTANCE): HammingDistance,
         (DistanceType.WEIGHTED_HAMMING_DISTANCE): WeightedHammingDistance,
     }[(specs_obj.subgraph_distance)]
+
+    # setup caches
+    AnnotatedGraph.set_loading_cache_size(specs_obj.wanted_models + 2)
 
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
@@ -151,8 +156,8 @@ def explore_grid(specs_obj: Specifications):
         # > grid step settings
 
         # import the graph
-        exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False)
-        current_graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
+        current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark)
+        exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark)
 
         # label graph
         if specs_obj.requires_labeling:
@@ -358,8 +363,9 @@ def explore_grid(specs_obj: Specifications):
                 # verify all models and store errors
                 pprint.info1('verifying all approximate circuits ...')
                 for candidate_name, candidate_data in cur_model_results.items():
-                    candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
-                    candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
+
+                    candidate_data[4] = error_evaluation(exact_circ, candidate_name[:-2], specs_obj)
+                    candidate_data[5] = error_evaluation(current_circ, candidate_name[:-2], specs_obj)
 
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
@@ -409,6 +415,19 @@ def explore_grid(specs_obj: Specifications):
 
     stats_obj.store_grid()
     return stats_obj
+
+
+def error_evaluation(e_graph: IOGraph, graph_name: str, specs_obj: Specifications):
+    current = AnnotatedGraph.cached_load(graph_name)
+    cur_graph = iograph_from_legacy(current)
+
+    p_graph, c_graph = MaxDistanceEvaluation.define(cur_graph)
+    status, model = Z3DirectBitVecSolver.solve((e_graph, p_graph, c_graph), specs_obj)
+
+    assert status == 'sat'
+    assert len(model) == 1
+
+    return next(iter(model.values()))
 
 
 class CellIterator:
