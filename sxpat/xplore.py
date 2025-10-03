@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Iterable, Iterator, List, Tuple
+from typing import Callable, Dict, Iterable, Iterator, List, Tuple
 
 from tabulate import tabulate
 import functools as ft
@@ -55,6 +55,8 @@ def explore_grid(specs_obj: Specifications):
     persistence_limit = 2
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
+
+    load_legacy_graph = get_cached_AnnotatedGraph_loader(specs_obj)
 
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
@@ -136,8 +138,8 @@ def explore_grid(specs_obj: Specifications):
         # > grid step settings
 
         # import the graph
-        exact_graph = load_legacy_graph(specs_obj.exact_benchmark)
         current_graph = load_legacy_graph(specs_obj.current_benchmark)
+        exact_graph = load_legacy_graph(specs_obj.exact_benchmark)
 
         # label graph
         if specs_obj.requires_labeling:
@@ -321,6 +323,14 @@ def explore_grid(specs_obj: Specifications):
 
     stats_obj.store_grid()
     return stats_obj
+
+
+def get_cached_AnnotatedGraph_loader(specs: Specifications) -> Callable[[str], AnnotatedGraph]:
+    @ft.lru_cache(specs.wanted_models + 2)
+    def load_ag(input_ver_path: str) -> AnnotatedGraph:
+        return AnnotatedGraph(input_ver_path, is_clean=False)
+
+    return load_ag
 
 
 def error_evaluation(e_graph: IOGraph, graph_name: str, specs_obj: Specifications):

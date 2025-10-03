@@ -7,7 +7,7 @@ from sxpat.graph import BoolVariable, BoolConstant, And, Not, Identity
 from sxpat.utils.functions import str_to_bool
 
 
-__all__ = ['iograph_from_legacy', 'sgraph_from_legacy', 'load_legacy_graph']
+__all__ = ['iograph_from_legacy', 'sgraph_from_legacy']
 
 
 def _nodes_from_inner_legacy(inner_graph):
@@ -45,7 +45,3 @@ def sgraph_from_legacy(l_graph: AnnotatedGraph) -> SGraph:
     return SGraph(_nodes_from_inner_legacy(l_graph.subgraph),
                   l_graph.input_dict.values(),
                   l_graph.output_dict.values())
-
-@ft.lru_cache(16)
-def load_legacy_graph(graph_name: str) -> AnnotatedGraph:
-    return AnnotatedGraph(graph_name, is_clean=False)
