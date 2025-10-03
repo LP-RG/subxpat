@@ -43,8 +43,14 @@ from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
 from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
 
+from sxpat.solvers.Z3Solver import Z3FuncIntSolver, Z3FuncBitVecSolver, Z3DirectIntSolver, Z3DirectBitVecSolver
+from sxpat.solvers.QbfSolver import QbfSolver
 
 def explore_grid(specs_obj: Specifications):
+
+    solvers = [Z3FuncIntSolver, Z3FuncBitVecSolver, Z3DirectIntSolver, Z3DirectBitVecSolver, QbfSolver]
+    solver_names = ['z3fint', 'z3fbvec', 'z3dint', 'z3dbvec', 'qbf']
+
     previous_subgraphs = []
 
     labeling_time: float = -1
@@ -180,6 +186,13 @@ def explore_grid(specs_obj: Specifications):
         current_graph.export_annotated_graph(graph_path)
         print(f'subgraph exported at {graph_path}')
 
+        if specs_obj.invert_labeling:
+            label_timer, _label_graph = Timer.from_function(label_graph)
+            specs_obj.min_labeling = not specs_obj.min_labeling
+            _label_graph(current_graph, specs_obj)
+            specs_obj.min_labeling = not specs_obj.min_labeling
+            print(f'inverted_labeling_time = {(labeling_time := label_timer.total)}')
+
         # guard: skip if no subgraph was found
         if not subgraph_is_available:
             pprint.warning(f'No subgraph available.')
@@ -215,15 +228,18 @@ def explore_grid(specs_obj: Specifications):
             # SOLVE
             v2p1_solve_timer = Timer()
 
-            question = [exact_circ, param_circ, param_circ_constr]
-            solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
-            status, model = solve(question, specs_obj)
+            for i in range(len(solvers)):
+                # solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
+                solve_timer, solve = Timer.from_function(solvers[i].solve)
+                question = [exact_circ, param_circ, param_circ_constr]
+                status, model = solve(question, specs_obj)
+                print(f'{solver_names[i]}_phase1 = {solve_timer.total}')
 
-            # extract v2 threshold
-            v2_threshold = {
-                'sat': lambda: model['sum_s_out'] - 1,
-                'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs),
-            }[status]()
+                # extract v2 threshold
+                v2_threshold = {
+                    'sat': lambda: model['sum_s_out'] - 1,
+                    'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs),
+                }[status]()
 
             # store error treshold and replace with v2 threshold
             specs_obj.et, v2_threshold = v2_threshold, specs_obj.et
@@ -272,25 +288,26 @@ def explore_grid(specs_obj: Specifications):
             base_question = define_question(current_circ, param_circ, distance_function, specs_obj.et)
 
             # SOLVE
-            solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
-            question = [exact_circ, param_circ, *param_circ_constr, *base_question]
+            for i in range(len(solvers)):
+                # solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
+                solve_timer, solve = Timer.from_function(solvers[i].solve)
+                question = [exact_circ, param_circ, *param_circ_constr, *base_question]
 
-            models = []
-            for i in range(specs_obj.wanted_models):
-                # prevent parameters combination if any
-                if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
+                models = []
+                for i in range(specs_obj.wanted_models):
+                    # prevent parameters combination if any
+                    if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
 
-                # solve question
-                status, model = solve(question, specs_obj)
+                    # solve question
+                    status, model = solve(question, specs_obj)
 
-                # terminate if status is not sat, otherwise store the model
-                if status != 'sat': break
-                models.append(model)
+                    # terminate if status is not sat, otherwise store the model
+                    if status != 'sat': break
+                    models.append(model)
 
-            if len(models) > 0: status = 'sat'
-
-            # legacy adaptation
-            execution_time = define_timer.total + solve_timer.total
+                print(f'{solver_names[i]}_phase2 = {solve_timer.total}')
+                # legacy adaptation
+                execution_time = define_timer.total + solve_timer.total
 
             # restore error treshold
             if v2: specs_obj.et = v2_threshold
@@ -371,9 +388,11 @@ def explore_grid(specs_obj: Specifications):
                 # verify all models and store errors
                 pprint.info1('verifying all approximate circuits ...')
                 for candidate_name, candidate_data in cur_model_results.items():
-
+                    
+                    start = Timer.now()
                     candidate_data[4] = error_evaluation(exact_circ, candidate_name[:-2], specs_obj)
                     candidate_data[5] = error_evaluation(current_circ, candidate_name[:-2], specs_obj)
+                    print(f'error_evaluation_total = {Timer.now() - start}')
 
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')

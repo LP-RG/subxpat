@@ -108,6 +108,7 @@ class Specifications:
 
     # labeling
     min_labeling: bool
+    invert_labeling: bool
     partial_labeling: bool
 
     # subgraph extraction
@@ -240,6 +241,10 @@ class Specifications:
                                            action='store_false',
                                            dest='min_labeling',
                                            help='Nodes are weighted using their maximum error, instead of minimum error')
+
+        _inv_lab = _lab_group.add_argument('--invert-labeling',
+                                           action='store_true',
+                                           help='use max-labeling if min for distance and viceversa')
 
         _part_lab = _lab_group.add_argument('--no-partial-labeling',
                                             action='store_false',
