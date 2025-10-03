@@ -18,7 +18,6 @@ from sxpat.utils.filesystem import FS
 from sxpat.utils.name import NameData
 from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
-# from sxpat.verification import erroreval_verification_wce
 from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
 from sxpat.graph.Graph import IOGraph
 
