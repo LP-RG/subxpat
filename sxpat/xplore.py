@@ -27,7 +27,7 @@ from sxpat.solving import get_specialized as get_solver
 from sxpat.solving.Z3Solver import Z3DirectBitVecSolver
 
 from sxpat.converting import VerilogExporter
-from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy, load_legacy_graph
+from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
 from sxpat.converting import set_bool_constants, prevent_combination
 
 from sxpat.utils.print import pprint
@@ -56,7 +56,8 @@ def explore_grid(specs_obj: Specifications):
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
 
-    load_legacy_graph = get_cached_AnnotatedGraph_loader(specs_obj)
+    # setup caches
+    AnnotatedGraph.set_loading_cache_size(specs_obj.wanted_models + 2)
 
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
@@ -138,8 +139,8 @@ def explore_grid(specs_obj: Specifications):
         # > grid step settings
 
         # import the graph
-        current_graph = load_legacy_graph(specs_obj.current_benchmark)
-        exact_graph = load_legacy_graph(specs_obj.exact_benchmark)
+        current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark)
+        exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark)
 
         # label graph
         if specs_obj.requires_labeling:
@@ -325,16 +326,8 @@ def explore_grid(specs_obj: Specifications):
     return stats_obj
 
 
-def get_cached_AnnotatedGraph_loader(specs: Specifications) -> Callable[[str], AnnotatedGraph]:
-    @ft.lru_cache(specs.wanted_models + 2)
-    def load_ag(input_ver_path: str) -> AnnotatedGraph:
-        return AnnotatedGraph(input_ver_path, is_clean=False)
-
-    return load_ag
-
-
 def error_evaluation(e_graph: IOGraph, graph_name: str, specs_obj: Specifications):
-    current = load_legacy_graph(graph_name)
+    current = AnnotatedGraph.cached_load(graph_name)
     cur_graph = iograph_from_legacy(current)
 
     p_graph, c_graph = MaxDistanceEvaluation.define(cur_graph)
