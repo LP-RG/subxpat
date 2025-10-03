@@ -34,7 +34,7 @@ class min_subdistance_with_error:
         """@authors: Marco Biasion"""
 
         # create parametric circuit
-        parametric_circuit, _ = ConstantTemplate.define(current_circuit, None)
+        parametric_circuit, *_ = ConstantTemplate.define(current_circuit, None)
 
         # find parameters for error above threshold
         question_exists = exists_parameters.above_threshold(
