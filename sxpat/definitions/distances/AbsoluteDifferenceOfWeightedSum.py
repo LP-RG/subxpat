@@ -32,9 +32,9 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         w_nodes_b: Collection[Extras] = tuple(graph_b[n] for n in wanted_b)  # type: ignore
 
         # guard
-        if (broken := first(Extras.has_weight, w_nodes_a, None)) is not None:
+        if (broken := first(lambda x: not Extras.has_weight(x), w_nodes_a, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_a ({graph_a}) has no weight.')
-        elif (broken := first(Extras.has_weight, w_nodes_b, None)) is not None:
+        elif (broken := first(lambda x: not Extras.has_weight(x), w_nodes_b, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_b ({graph_b}) has no weight.')
 
         # values

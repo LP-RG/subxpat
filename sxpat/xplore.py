@@ -15,7 +15,7 @@ from sxpat.graph.node import BoolVariable, Identity
 from sxpat.labeling import labeling_explicit
 from sxpat.temp_labelling import labeling
 from sxpat.metrics import MetricsEstimator
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
 from sxpat.config import paths as sxpatpaths
 from sxpat.config.config import *
 from sxpat.utils.collections import iterable_replace
@@ -38,6 +38,8 @@ from sxpat.converting import set_bool_constants, prevent_assignment
 
 from sxpat.utils.print import pprint
 from sxpat.utils.timer import Timer
+
+from sxpat.definitions.distances import *
 
 
 def explore_grid(specs_obj: Specifications):
@@ -62,6 +64,13 @@ def explore_grid(specs_obj: Specifications):
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
     v2 = specs_obj.template == TemplateType.V2
+
+    distance_function = {
+        (DistanceType.ABSOLUTE_DIFFERENCE_OF_INTEGERS): AbsoluteDifferenceOfInteger,
+        (DistanceType.ABSOLUTE_DIFFERENCE_OF_WEIGHTED_SUM): AbsoluteDifferenceOfWeightedSum,
+        (DistanceType.HAMMING_DISTANCE): HammingDistance,
+        (DistanceType.WEIGHTED_HAMMING_DISTANCE): WeightedHammingDistance,
+    }[(specs_obj.subgraph_distance)]
 
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
@@ -193,12 +202,12 @@ def explore_grid(specs_obj: Specifications):
 
             # question
             define_question = v2p1_define_timer.wrap(min_subdistance_with_error.variant_1)
-            base_question = define_question(current_circ, specs_obj)
+            base_question = define_question(current_circ, specs_obj, AbsoluteDifferenceOfInteger, distance_function)
 
             # SOLVE
             v2p1_solve_timer = Timer()
 
-            solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
+            solve = v2p1_solve_timer.wrap(get_solver(specs_obj).define)
             question = [exact_circ, param_circ, param_circ_constr]
             status, model = solve(question, specs_obj)
 
@@ -250,7 +259,7 @@ def explore_grid(specs_obj: Specifications):
 
             # question
             define_question = define_timer.wrap(exists_parameters.not_above_threshold_forall_inputs)
-            base_question = define_question(current_circ, param_circ, AbsoluteDifferenceOfInteger, specs_obj.et)
+            base_question = define_question(current_circ, param_circ, distance_function, specs_obj.et)
 
             # SOLVE
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
@@ -536,7 +545,7 @@ def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     inner_graph: nx.DiGraph = graph.graph
     for (node_name, node_data) in inner_graph.nodes.items():
         node_data[WEIGHT] = weights.get(node_name, -1)
-        #TODO: get output's weights in the correct way
+        # TODO: get output's weights in the correct way
         if node_name[:3] == 'out':
             node_data[WEIGHT] = 2**int(node_name[3:])
 
