@@ -32,9 +32,9 @@ class WeightedHammingDistance(DistanceSpecification):
         # guard
         if len(graph_a.outputs_names) != len(graph_b.outputs_names):
             raise ValueError('The sequences of wanted nodes have different lengths (or the graphs have different number of outputs).')
-        if (broken := first(Extras.has_weight, w_nodes_a, None)) is not None:
+        if (broken := first(lambda x: not Extras.has_weight(x), w_nodes_a, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_a ({graph_a}) has no weight.')
-        elif (broken := first(Extras.has_weight, w_nodes_b, None)) is not None:
+        elif (broken := first(lambda x: not Extras.has_weight(x), w_nodes_b, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_b ({graph_b}) has no weight.')
         if (mismatch := first(lambda ns: ns[0].weight != ns[1].weight, zip(w_nodes_a, w_nodes_b), None)) is not None:
             raise ValueError(f'The wanted nodes of the two graphs ({mismatch[0]}, {mismatch[1]}) have mismatching weights.')

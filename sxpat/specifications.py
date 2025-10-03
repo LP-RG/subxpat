@@ -46,6 +46,12 @@ class TemplateType(enum.Enum):
     SHARED = 'shared'
     V2 = 'v2'
 
+class DistanceType(enum.Enum):
+    ABSOLUTE_DIFFERENCE_OF_INTEGERS = 'adoi'
+    ABSOLUTE_DIFFERENCE_OF_WEIGHTED_SUM = 'adows'
+    HAMMING_DISTANCE = 'hd'
+    WEIGHTED_HAMMING_DISTANCE = 'whd'
+
 
 class ConstantsType(enum.Enum):
     NEVER = 'never'
@@ -118,6 +124,7 @@ class Specifications:
     # exploration (1)
     subxpat: bool
     template: TemplateType
+    subgraph_distance: DistanceType
     encoding: EncodingType
     constants: ConstantsType
     constant_false: ConstantFalseType
@@ -304,6 +311,12 @@ class Specifications:
                                                default=TemplateType.NON_SHARED,
                                                help='Template logic (default: nonshared)')
 
+        _sub_dist = _explor_group.add_argument('--subgraph-distance',
+                                               type=DistanceType,
+                                               action=EnumChoicesAction,
+                                               default=DistanceType.ABSOLUTE_DIFFERENCE_OF_INTEGERS,
+                                               help='Distance function to be used between subgraphs (only for V2)')
+
         _lpp = _explor_group.add_argument('--max-lpp', '--max-literals-per-product',
                                           type=int,
                                           help='The maximum number of literals per product')
@@ -438,6 +451,14 @@ class Specifications:
                         msg = f'to have one of the following values: {", ".join(map(arg_value_to_string, target_values))}'
 
                     parser.error(f'{source_message} `{target_action.option_strings[0]}` {msg}')
+
+        # special dependencies
+        if (
+            hasattr(raw_args, _template.dest)
+            and getattr(raw_args, _template.dest) != TemplateType.V2
+            and getattr(raw_args, _sub_dist.dest) != DistanceType.ABSOLUTE_DIFFERENCE_OF_INTEGERS
+        ):
+            parser.error(f'The --subgraph-distance can only be used with the V2 pipeline (--template=v2)')
 
         # construct instance
         raw_args.path = Paths(getdelattr(raw_args, _out_fold.dest),

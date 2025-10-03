@@ -1,12 +1,10 @@
-from abc import abstractmethod
-from typing import Dict, Iterable, Mapping, Sequence, Tuple
-from typing_extensions import Never
+from typing import Dict, Iterable, Mapping, Sequence
 
 import itertools as it
 from sxpat.utils.collections import iterable_replace
 from sxpat.converting.utils import prune_unused_keepio, set_prefix_new
 
-from .Template import Template
+from .Template import Template, TemplateBundle
 from sxpat.graph.graph import IOGraph
 from sxpat.graph import SGraph, PGraph
 from sxpat.graph.node import AnyNode, AnyNonEndPoint, AnyOperation, BoolVariable, Xor
@@ -77,15 +75,6 @@ class SimpleTemplate(Template):
 
         return param_circ
 
-    @classmethod
-    @abstractmethod
-    def define(cls, graph: SGraph, _unused) -> Tuple[PGraph, Sequence[Never]]:
-        """
-            Given a graph with subgraph informations,
-            returns the parametric graph with the subgraph replaced with the template.
-        """
-        raise NotImplementedError(f'{cls.__qualname__}.define() is abstract')
-
 
 class ConstantTemplate(SimpleTemplate):
     """
@@ -95,7 +84,7 @@ class ConstantTemplate(SimpleTemplate):
     """
 
     @classmethod
-    def define(cls, circuit: SGraph, _unused) -> Tuple[PGraph, Sequence[Never]]:
+    def define(cls, circuit: SGraph, _unused=...) -> TemplateBundle:
 
         # define the parameters
         parameters = cls._define_parameters(circuit)
@@ -111,7 +100,7 @@ class ConstantTemplate(SimpleTemplate):
             parametric_circuit.parameters_names,
         )
 
-        return (parametric_circuit, [])
+        return TemplateBundle(parametric_circuit)
 
 
 class SwitchedTemplate(SimpleTemplate):
@@ -123,7 +112,7 @@ class SwitchedTemplate(SimpleTemplate):
     """
 
     @classmethod
-    def define(cls, circuit: SGraph, _unused) -> Tuple[PGraph, Sequence[Never]]:
+    def define(cls, circuit: SGraph, _unused=...) -> TemplateBundle:
 
         # define the parameters
         parameters = cls._define_parameters(circuit)
@@ -140,4 +129,4 @@ class SwitchedTemplate(SimpleTemplate):
         # create the parametric circuit
         parametric_circuit = cls._create_parametric_circuit(circuit, updated_nodes, xors, parameters)
 
-        return (parametric_circuit, [])
+        return TemplateBundle(parametric_circuit)
