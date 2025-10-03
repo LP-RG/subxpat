@@ -228,8 +228,10 @@ def explore_grid(specs_obj: Specifications):
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
         for lpp, ppo in CellIterator.factory(specs_obj):
+            print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}', end='')
+
             if is_dominated((lpp, ppo), dominant_cells):
-                pprint.info1(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> DOMINATED')
+                pprint.info1(' DOMINATED')
                 continue
 
             # > cell step settings
@@ -288,7 +290,7 @@ def explore_grid(specs_obj: Specifications):
             if v2: specs_obj.et = v2_threshold
 
             if len(models) == 0:
-                pprint.warning(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()}')
+                pprint.warning(f' {status.upper()}')
 
                 # store model
                 this_model_info = Model(id=0, status=status.upper(), cell=(lpp, ppo), et=specs_obj.et, iteration=specs_obj.iteration,
@@ -303,7 +305,7 @@ def explore_grid(specs_obj: Specifications):
                 if status == UNKNOWN: dominant_cells.append((lpp, ppo))
 
             else:
-                pprint.success(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()} ({len(models)} models found)')
+                pprint.success(f' {status.upper()} ({len(models)} models found)')
 
                 # TODO:#15: use serious name generator
                 base_path = f'input/ver/{specs_obj.exact_benchmark}_{specs_obj.time_id}_i{specs_obj.iteration}_{{model_number}}.v'
