@@ -1,5 +1,3 @@
-import functools as ft
-
 from sxpat.annotatedGraph import AnnotatedGraph
 
 from sxpat.graph import IOGraph, SGraph
