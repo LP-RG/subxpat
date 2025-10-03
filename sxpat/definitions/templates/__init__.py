@@ -43,6 +43,7 @@ def get_specialized(specs: Specifications) -> Type[Template]:
             ConstantFalseType.PRODUCT: NonSharedFProdTemplate,
         },
         TemplateType.V2: {
-            ConstantFalseType.OUTPUT: v2Phase1,
+            ConstantFalseType.OUTPUT: NonSharedFOutTemplate,
+            ConstantFalseType.PRODUCT: NonSharedFProdTemplate,
         }
     }[specs.template][specs.constant_false]
