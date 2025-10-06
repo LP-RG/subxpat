@@ -441,7 +441,7 @@ class crystallise:
 
                     if isinstance(operand, PlaceHolder):
                         operand = cls._find_non_placeholder(operand_name, pre_crystallised_graphs) or operand
-                    
+
                     operands.append(operand)
             else:
                 operands = []
@@ -905,3 +905,31 @@ def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N
 
     # create new node
     return cls(**kwargs)
+
+
+def isolate_subgraph_as_circuit(graph: T_Graph) -> T_Graph:
+    subgraph_inputs_names = tuple(n.name for n in graph.subgraph_inputs)
+
+    return graph.copy(
+        it.chain(
+            graph.subgraph_nodes,
+            (BoolVariable(name) for name in subgraph_inputs_names),
+            # (Identity(f's_out{i}', operands=(n.name,)) for i, n in enumerate(current_circ.subgraph_outputs)),
+        ),
+        inputs_names=subgraph_inputs_names,
+        outputs_names=graph.subgraph_outputs,
+    )
+    # current_circ = SGraph(
+    #                     it.chain(
+    #                         (n for n in current_circ.nodes if n.in_subgraph),
+    #                         (BoolVariable(n.name) for n in current_circ.subgraph_inputs),
+    #                         (Identity(f's_out{i}', operands=(n.name,)) for i, n in enumerate(current_circ.subgraph_outputs)),
+    #                     ),
+    #                     inputs_names=(n.name for n in current_circ.subgraph_inputs),
+    #                     outputs_names=(f's_out{i}' for i in range(len(current_circ.subgraph_outputs))),
+    #                 )
+    #                 exact_circ = IOGraph(
+    #                     (n for n in current_circ.nodes),
+    #                     inputs_names=current_circ.subgraph_inputs,
+    #                     outputs_names=(f's_out{i}' for i in range(len(current_circ.subgraph_outputs))),
+    #                 )
