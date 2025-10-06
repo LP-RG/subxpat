@@ -288,9 +288,9 @@ def explore_grid(specs_obj: Specifications):
             base_question = define_question(current_circ, param_circ, distance_function, specs_obj.et)
 
             # SOLVE
-            for i in range(len(solvers)):
+            for j in range(len(solvers)):
                 # solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
-                solve_timer, solve = Timer.from_function(solvers[i].solve)
+                solve_timer, solve = Timer.from_function(solvers[j].solve)
                 question = [exact_circ, param_circ, *param_circ_constr, *base_question]
 
                 models = []
@@ -305,7 +305,7 @@ def explore_grid(specs_obj: Specifications):
                     if status != 'sat': break
                     models.append(model)
 
-                print(f'{solver_names[i]}_phase2 = {solve_timer.total}')
+                print(f'{solver_names[j]}_phase2 = {solve_timer.total}')
                 # legacy adaptation
                 execution_time = define_timer.total + solve_timer.total
 
