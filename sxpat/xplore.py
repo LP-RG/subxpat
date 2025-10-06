@@ -335,6 +335,8 @@ def explore_grid(specs_obj: Specifications):
             if v2:
                 specs_obj.et = v2_threshold
                 param_circ = real_param_circ
+                exact_circ = iograph_from_legacy(exact_graph)
+                current_circ = iograph_from_legacy(current_graph)
 
             if len(models) == 0:
                 pprint.warning(f'{status.upper()}')
