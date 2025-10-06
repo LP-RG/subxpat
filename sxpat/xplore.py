@@ -223,7 +223,7 @@ def explore_grid(specs_obj: Specifications):
             # TODO
             # question
             define_question = v2p1_define_timer.wrap(min_subdistance_with_error.variant_1)
-            param_circ, param_circ_constr = define_question(current_circ, specs_obj.et, AbsoluteDifferenceOfInteger, distance_function)
+            param_circ, param_circ_constr = define_question(current_circ, specs_obj.et - obtained_wce_exact, AbsoluteDifferenceOfInteger, distance_function)
 
             # SOLVE
             v2p1_solve_timer = Timer()
@@ -231,13 +231,14 @@ def explore_grid(specs_obj: Specifications):
             for i in range(len(solvers)):
                 # solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
                 solve_timer, solve = Timer.from_function(solvers[i].solve)
-                question = [exact_circ, param_circ, *param_circ_constr]
+                question = [current_circ, param_circ, *param_circ_constr]
                 status, model = solve(question, specs_obj)
                 print(f'{solver_names[i]}_phase1 = {solve_timer.total}')
+                print(status,model)
 
                 # extract v2 threshold
                 v2_threshold = {
-                    'sat': lambda: model['sum_s_out'] - 1,
+                    'sat': lambda: model['dist_distance'] - 1,
                     'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs),
                 }[status]()
 
@@ -297,10 +298,10 @@ def explore_grid(specs_obj: Specifications):
                     it.chain(
                         (n for n in param_circ.nodes if n.in_subgraph),
                         (BoolVariable(n.name) for n in param_circ.subgraph_inputs),
-                        (Identity(f's_out{i}', operands=(n.name,)) for i, n in enumerate(param_circ.subgraph_outputs)),
+                        (Identity(f'p_out{i}', operands=(n.name,)) for i, n in enumerate(param_circ.subgraph_outputs)),
                     ),
                     inputs_names=(n.name for n in rem),
-                    outputs_names=(f's_out{i}' for i in range(len(param_circ.subgraph_outputs))),
+                    outputs_names=(f'p_out{i}' for i in range(len(param_circ.subgraph_outputs))),
                     parameters_names=param_circ.parameters_names
                 )
 
@@ -322,6 +323,7 @@ def explore_grid(specs_obj: Specifications):
 
                     # solve question
                     status, model = solve(question, specs_obj)
+                    print(status, model)
 
                     # terminate if status is not sat, otherwise store the model
                     if status != 'sat': break
@@ -336,7 +338,7 @@ def explore_grid(specs_obj: Specifications):
                 specs_obj.et = v2_threshold
                 param_circ = real_param_circ
                 exact_circ = iograph_from_legacy(exact_graph)
-                current_circ = iograph_from_legacy(current_graph)
+                current_circ = sgraph_from_legacy(current_graph)
 
             if len(models) == 0:
                 pprint.warning(f'{status.upper()}')

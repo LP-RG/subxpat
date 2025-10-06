@@ -28,7 +28,7 @@ class AbsoluteDifferenceOfInteger(DistanceSpecification):
         int_b = ToInt('dist_int_b', operands=wanted_b)
 
         # distance
-        distance = AbsDiff('dist_distance', operands=[int_a, int_b])
+        distance = AbsDiff('dist_distance_adoi', operands=[int_a, int_b]) 
 
         # construct CGraph
         dist_func = CGraph((
