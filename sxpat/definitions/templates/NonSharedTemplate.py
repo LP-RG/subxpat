@@ -224,9 +224,9 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                 # placeholders
                 (PlaceHolder(name) for name in it.chain(
                     (p.name for p in parameters),
-                    s_graph.inputs_names,
-                    s_graph.outputs_names,
-                    template_graph.outputs_names
+                    # s_graph.inputs_names,
+                    # s_graph.outputs_names,
+                    # template_graph.outputs_names
                 )),
                 # behavioural constraints
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
@@ -338,9 +338,9 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
                 # placeholders
                 (PlaceHolder(name) for name in it.chain(
                     (p.name for p in parameters),
-                    s_graph.inputs_names,
-                    s_graph.outputs_names,
-                    template_graph.outputs_names
+                    # s_graph.inputs_names,
+                    # s_graph.outputs_names,
+                    # template_graph.outputs_names
                 )),
                 # behavioural constraints
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),

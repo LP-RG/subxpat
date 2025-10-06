@@ -9,7 +9,7 @@ import networkx as nx
 import itertools as it
 
 from sxpat.annotatedGraph import AnnotatedGraph
-from sxpat.graph import IOGraph, SGraph
+from sxpat.graph import IOGraph, SGraph, PGraph
 from sxpat.graph.node import BoolVariable, Identity
 
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
@@ -40,7 +40,7 @@ from sxpat.solvers import get_specialized as get_solver
 from sxpat.solvers import Z3DirectBitVecSolver
 
 from sxpat.converting import set_bool_constants, prevent_assignment
-from sxpat.converting import VerilogExporter
+from sxpat.converting import VerilogExporter, GraphVizPorter
 from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
 
 from sxpat.solvers.Z3Solver import Z3FuncIntSolver, Z3FuncBitVecSolver, Z3DirectIntSolver, Z3DirectBitVecSolver
@@ -259,6 +259,23 @@ def explore_grid(specs_obj: Specifications):
             # update the context
             update_context(specs_obj, lpp, ppo)
 
+
+            # DEFINE
+            define_timer = Timer()
+
+            # template (and relative constraints)
+            define_template = define_timer.wrap(get_templater(specs_obj).define)
+            param_circ, *param_circ_constr = define_template(current_circ, specs_obj)
+
+            # for node in param_circ.nodes:
+            #     print(node)
+
+            # for graph in param_circ_constr:
+            #     print(123, graph)
+            #     GraphVizPorter.to_file(graph, str(id(graph)) + '.gv')
+            #     for node in graph.nodes:
+            #         print(node)
+
             if v2:
                 rem = current_circ.subgraph_inputs
                 current_circ = SGraph(
@@ -275,13 +292,18 @@ def explore_grid(specs_obj: Specifications):
                     inputs_names=(n.name for n in rem),
                     outputs_names=(f's_out{i}' for i in range(len(current_circ.subgraph_outputs))),
                 )
+                real_param_circ = param_circ
+                param_circ = PGraph(
+                    it.chain(
+                        (n for n in param_circ.nodes if n.in_subgraph),
+                        (BoolVariable(n.name) for n in param_circ.subgraph_inputs),
+                        (Identity(f's_out{i}', operands=(n.name,)) for i, n in enumerate(param_circ.subgraph_outputs)),
+                    ),
+                    inputs_names=(n.name for n in rem),
+                    outputs_names=(f's_out{i}' for i in range(len(param_circ.subgraph_outputs))),
+                    parameters_names=param_circ.parameters_names
+                )
 
-            # DEFINE
-            define_timer = Timer()
-
-            # template (and relative constraints)
-            define_template = define_timer.wrap(get_templater(specs_obj).define)
-            param_circ, *param_circ_constr = define_template(current_circ, specs_obj)
 
             # question
             define_question = define_timer.wrap(exists_parameters.not_above_threshold_forall_inputs)
@@ -310,7 +332,9 @@ def explore_grid(specs_obj: Specifications):
                 execution_time = define_timer.total + solve_timer.total
 
             # restore error treshold
-            if v2: specs_obj.et = v2_threshold
+            if v2:
+                specs_obj.et = v2_threshold
+                param_circ = real_param_circ
 
             if len(models) == 0:
                 pprint.warning(f'{status.upper()}')
@@ -338,22 +362,22 @@ def explore_grid(specs_obj: Specifications):
 
                     a_graph = set_bool_constants(param_circ, model, skip_missing=True)
 
-                    if v2:
-                        s_graph_complete = sgraph_from_legacy(current_graph)
-                        updated_nodes = dict()
-                        for i, out_node in enumerate(s_graph_complete.subgraph_outputs):
-                            for succ in filter(lambda n: not n.in_subgraph, s_graph_complete.successors(out_node)):
-                                new_operands = iterable_replace(succ.operands, out_node.name, f'a_s_out{i}')
-                                updated_nodes[succ.name] = succ.copy(operands=new_operands)
-                        a_graph = SGraph(
-                            it.chain(
-                                (n for n in s_graph_complete.nodes if not n.in_subgraph and not n.name in updated_nodes),
-                                (n for n in a_graph.nodes if not n.name in s_graph_complete or not s_graph_complete[n.name] in s_graph_complete.subgraph_inputs),
-                                updated_nodes.values(),
-                            ),
-                            inputs_names=(n.name for n in s_graph_complete.inputs),
-                            outputs_names=(n.name for n in s_graph_complete.outputs),
-                        )
+                    # if v2:
+                        # s_graph_complete = sgraph_from_legacy(current_graph)
+                        # updated_nodes = dict()
+                        # for i, out_node in enumerate(s_graph_complete.subgraph_outputs):
+                        #     for succ in filter(lambda n: not n.in_subgraph, s_graph_complete.successors(out_node)):
+                        #         new_operands = iterable_replace(succ.operands, out_node.name, f'a_s_out{i}')
+                        #         updated_nodes[succ.name] = succ.copy(operands=new_operands)
+                        # a_graph = SGraph(
+                        #     it.chain(
+                        #         (n for n in s_graph_complete.nodes if not n.in_subgraph and not n.name in updated_nodes),
+                        #         (n for n in a_graph.nodes if not n.name in s_graph_complete or not s_graph_complete[n.name] in s_graph_complete.subgraph_inputs),
+                        #         updated_nodes.values(),
+                        #     ),
+                        #     inputs_names=(n.name for n in s_graph_complete.inputs),
+                        #     outputs_names=(n.name for n in s_graph_complete.outputs),
+                        # )
 
                     # export approximate graph as verilog
                     # TODO:#15: use serious name generator
