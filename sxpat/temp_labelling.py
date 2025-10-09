@@ -288,7 +288,7 @@ def test(fro, et, needed_inputs, needed_outputs):
     output.write(f'90 = and({comparator_greater_than(absolute_values,et)})')
 
     output.close()
-    result = subprocess.run(['../../../../cqesto-master/build/cqesto', f'{fro}_{et}.txt'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout.decode('utf-8')
+    result = subprocess.run(['../../../../../cqesto-master/build/cqesto', f'{fro}_{et}.txt'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout.decode('utf-8')
 
     os.remove(f'{fro}_{et}.txt')
 
