@@ -285,7 +285,7 @@ def explore_grid(specs_obj: Specifications):
                     it.chain(
                         (n for n in current_circ.nodes if n.in_subgraph),
                         (BoolVariable(n.name) for n in current_circ.subgraph_inputs),
-                        (Identity(f's_out{i}', operands=(n.name,)) for i, n in enumerate(current_circ.subgraph_outputs)),
+                        (Identity(f's_out{i}', operands=(n.name,), weight=n.weight) for i, n in enumerate(current_circ.subgraph_outputs)),
                     ),
                     inputs_names=(n.name for n in current_circ.subgraph_inputs),
                     outputs_names=(f's_out{i}' for i in range(len(current_circ.subgraph_outputs))),
@@ -300,7 +300,7 @@ def explore_grid(specs_obj: Specifications):
                     it.chain(
                         (n for n in param_circ.nodes if n.in_subgraph),
                         (BoolVariable(n.name) for n in param_circ.subgraph_inputs),
-                        (Identity(f'p_out{i}', operands=(n.name,)) for i, n in enumerate(param_circ.subgraph_outputs)),
+                        (Identity(f'p_out{i}', operands=(n.name,), weight=n.weight) for i, n in enumerate(param_circ.subgraph_outputs)),
                     ),
                     inputs_names=(n.name for n in rem),
                     outputs_names=(f'p_out{i}' for i in range(len(param_circ.subgraph_outputs))),
