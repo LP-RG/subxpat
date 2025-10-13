@@ -53,6 +53,8 @@ def explore_grid(specs_obj: Specifications):
 
     previous_subgraphs = []
 
+    previous_graph = nx.DiGraph()
+
     labeling_time: float = -1
     subgraph_extraction_time: float = -1
 
@@ -104,7 +106,11 @@ def explore_grid(specs_obj: Specifications):
                     specs_obj.et = next(et_array)
                 except StopIteration:
                     pprint.warning('The error space is exhausted!')
-                    break
+                    specs_obj.et = specs_obj.max_error
+                    if count_finish == 8:
+                        print(f'stopping for real after 8 extra iterations')
+                        break
+                    count_finish += 1
             else:
                 persistence += 1
         elif specs_obj.error_partitioning is ErrorPartitioningType.DESCENDING:
@@ -167,11 +173,21 @@ def explore_grid(specs_obj: Specifications):
         current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark)
         exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark)
         print(f'annotated_graph_loading_time = {(ag_loading_time := (Timer.now() - ag_loading_time))}')
+        if specs_obj.all_false:
+            for n in current_graph.graph.nodes:
+                if current_graph.graph.nodes[n][LABEL] == 'TRUE':
+                    current_graph.graph.nodes[n][LABEL] = 'FALSE'
+
+        if nx.is_isomorphic(current_graph.graph, previous_graph):
+            print('current graph is equivalent to previous iteration, stopping')
+            break
+        else:
+            previous_graph = current_graph.graph
 
         # label graph
         if specs_obj.requires_labeling:
             label_timer, _label_graph = Timer.from_function(label_graph)
-            _label_graph(current_graph, specs_obj)
+            _label_graph(exact_graph, current_graph, specs_obj)
             print(f'labeling_time = {(labeling_time := label_timer.total)}')
 
         # extract subgraph
@@ -189,7 +205,7 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.invert_labeling:
             label_timer, _label_graph = Timer.from_function(label_graph)
             specs_obj.min_labeling = not specs_obj.min_labeling
-            _label_graph(current_graph, specs_obj)
+            _label_graph(exact_graph, current_graph, specs_obj)
             specs_obj.min_labeling = not specs_obj.min_labeling
             print(f'inverted_labeling_time = {(labeling_time := label_timer.total)}')
 
@@ -223,7 +239,7 @@ def explore_grid(specs_obj: Specifications):
             # TODO
             # question
             define_question = v2p1_define_timer.wrap(min_subdistance_with_error.variant_1)
-            param_circ, param_circ_constr = define_question(current_circ, specs_obj.et - obtained_wce_exact, AbsoluteDifferenceOfInteger, distance_function)
+            param_circ, param_circ_constr = define_question(current_circ, specs_obj.et - obtained_wce_exact if specs_obj.approximate_labeling else specs_obj.et, AbsoluteDifferenceOfInteger, distance_function)
 
             # SOLVE
             v2p1_solve_timer = Timer()
@@ -231,7 +247,7 @@ def explore_grid(specs_obj: Specifications):
             for i in range(len(solvers)):
                 # solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
                 solve_timer, solve = Timer.from_function(solvers[i].solve)
-                question = [current_circ, param_circ, *param_circ_constr]
+                question = [current_circ if specs_obj.approximate_labeling else exact_circ, param_circ, *param_circ_constr]
                 status, model = solve(question, specs_obj)
                 print(f'{solver_names[i]}_phase1 = {solve_timer.total}')
                 print(status,model)
@@ -604,16 +620,19 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         csvwriter.writerow(approx_data)
 
 
-def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
+def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     """This function adds the labels inplace to the given graph"""
+
+    if specs_obj.approximate_labeling:
+        exact_graph = current_graph
 
     # compute weights
     ET_COEFFICIENT = 1
     if specs_obj.iteration == 1:
-        weights = labeling(graph.name, graph.name, specs_obj.et * ET_COEFFICIENT)
+        weights = labeling(exact_graph.name, current_graph.name, specs_obj.et * ET_COEFFICIENT)
     else:
         weights, check_pair = labeling_explicit(
-            graph.name, graph.name,
+            exact_graph.name, current_graph.name,
             min_labeling=specs_obj.min_labeling,
             partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
             parallel=specs_obj.parallel
@@ -622,10 +641,10 @@ def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
 
         for key in check_pair.keys():
             if check_pair[key] == False:
-                print(f'model from labeling didn\'t match handle.upper():\n{graph.name}\n{key}')
+                print(f'model from labeling didn\'t match handle.upper():\n{current_graph.name}\n{key}')
 
     # apply weights to graph
-    inner_graph: nx.DiGraph = graph.graph
+    inner_graph: nx.DiGraph = current_graph.graph
     for (node_name, node_data) in inner_graph.nodes.items():
         node_data[WEIGHT] = weights.get(node_name, -1)
         # TODO: get output's weights in the correct way

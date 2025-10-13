@@ -154,6 +154,8 @@ class Specifications:
     parallel: bool
     plot: bool
     clean: bool
+    approximate_labeling: bool
+    all_false: bool
     time_id: str = dc.field(init=False, default_factory=lambda: int_to_strbase(time.time_ns()))
 
     def __post_init__(self):
@@ -394,6 +396,14 @@ class Specifications:
         _clean = _misc_group.add_argument('--clean',
                                           action='store_true',
                                           help='Reset the output folder before running')
+        
+        _approx = _misc_group.add_argument('--approximate-labeling',
+                                             action='store_true',
+                                             help='Run labeling relative to previous instead of to origin')
+        
+        _all_f = _misc_group.add_argument('--all-false',
+                                             action='store_true',
+                                             help='Put all constants to false')
 
         raw_args = parser.parse_args()
 
