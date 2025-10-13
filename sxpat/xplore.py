@@ -48,8 +48,8 @@ from sxpat.solvers.QbfSolver import QbfSolver
 
 def explore_grid(specs_obj: Specifications):
 
-    solvers = [Z3FuncIntSolver, Z3FuncBitVecSolver, Z3DirectBitVecSolver, QbfSolver]
-    solver_names = ['z3fint', 'z3fbvec', 'z3dbvec', 'qbf']
+    solvers = [Z3FuncBitVecSolver, QbfSolver]
+    solver_names = ['z3fbvec', 'qbf']
 
     previous_subgraphs = []
 
