@@ -10,7 +10,7 @@ import itertools as it
 
 from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.graph import IOGraph, SGraph, PGraph
-from sxpat.graph.node import BoolVariable, Identity
+from sxpat.graph.node import BoolVariable, Identity, Operation
 
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
 
@@ -296,11 +296,15 @@ def explore_grid(specs_obj: Specifications):
                     outputs_names=(f's_out{i}' for i in range(len(current_circ.subgraph_outputs))),
                 )
                 real_param_circ = param_circ
+
+                __innames = frozenset(map(lambda n: f'a_{n.name}', rem))
+                update_all = lambda operands: (o[2:] if o in __innames else o for o in operands)
+
                 param_circ = PGraph(
                     it.chain(
-                        (n for n in param_circ.nodes if n.in_subgraph),
+                        (n.copy(operands=update_all(n.operands)) if isinstance(n, Operation) else n for n in param_circ.nodes if n.in_subgraph),
                         (BoolVariable(n.name) for n in rem),
-                        (Identity(f'p_{n.name}_out{i}', operands=(n.name,), weight=n.weight) for i, n in enumerate(param_circ.subgraph_outputs)),
+                        (Identity(f'p_{n.name}_out{i}', operands=update_all([n.name]), weight=n.weight) for i, n in enumerate(param_circ.subgraph_outputs)),
                     ),
                     inputs_names=(n.name for n in rem),
                     outputs_names=(f'p_{n.name}_out{i}' for i,n in enumerate(param_circ.subgraph_outputs)),
@@ -416,6 +420,8 @@ def explore_grid(specs_obj: Specifications):
                     csvwriter.writerow(content)
 
                 # verify all models and store errors
+                print(123, specs_obj.iteration)
+                if specs_obj.iteration > 1: exit() # DEBUG
                 pprint.info1('verifying all approximate circuits ...')
                 for candidate_name, candidate_data in cur_model_results.items():
                     
