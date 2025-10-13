@@ -299,11 +299,11 @@ def explore_grid(specs_obj: Specifications):
                 param_circ = PGraph(
                     it.chain(
                         (n for n in param_circ.nodes if n.in_subgraph),
-                        (BoolVariable(n.name) for n in param_circ.subgraph_inputs),
-                        (Identity(f'p_out{i}', operands=(n.name,), weight=n.weight) for i, n in enumerate(param_circ.subgraph_outputs)),
+                        (BoolVariable(n.name) for n in rem),
+                        (Identity(f'p_{n.name}_out{i}', operands=(n.name,), weight=n.weight) for i, n in enumerate(param_circ.subgraph_outputs)),
                     ),
                     inputs_names=(n.name for n in rem),
-                    outputs_names=(f'p_out{i}' for i in range(len(param_circ.subgraph_outputs))),
+                    outputs_names=(f'p_{n.name}_out{i}' for i,n in enumerate(param_circ.subgraph_outputs)),
                     parameters_names=param_circ.parameters_names
                 )
 
