@@ -1,4 +1,5 @@
 from __future__ import annotations
+import operator as op
 from typing_extensions import Self
 from typing import AbstractSet, Any, Iterable, Mapping, Optional, Sequence, TypeVar, Union, Final, final
 from types import MappingProxyType
@@ -227,13 +228,16 @@ class SGraph(IOGraph):
     @final
     def subgraph_outputs(self) -> Sequence[AnyNode]:
         # a node is a subgraph output if it is in the subgraph and at least one successor is not in the subgraph
-        return tuple(sorted(
-            node for node in self.subgraph_nodes
-            if any(
-                not isinstance(succ, Extras) or not succ.in_subgraph
-                for succ in self.successors(node)
-            )
-        ))
+        return tuple(
+            sorted(
+                node for node in self.subgraph_nodes
+                if any(
+                    not isinstance(succ, Extras) or not succ.in_subgraph
+                    for succ in self.successors(node)
+                )
+            ),
+            key=op.attrgetter('name')
+        )
 
     @final
     def node_edges_to_subgraph(self, node_or_name: Union[str, Node]) -> int:
