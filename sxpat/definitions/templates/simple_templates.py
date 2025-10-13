@@ -2,7 +2,7 @@ from typing import Dict, Iterable, Mapping, Sequence
 
 import itertools as it
 from sxpat.utils.collections import iterable_replace
-from sxpat.converting.utils import prune_unused_keepio, set_prefix_new
+from sxpat.converting.utils import prune_unused_keepio, set_prefix_new, node_from_node
 
 from .Template import Template, TemplateBundle
 from sxpat.graph.graph import IOGraph
@@ -26,8 +26,8 @@ class SimpleTemplate(Template):
     @classmethod
     def _define_parameters(cls, circuit: SGraph) -> Sequence[BoolVariable]:
         return tuple(
-            BoolVariable(f'p{sub_i}', weight=out_node.weight, in_subgraph=True)
-            for (sub_i, out_node) in enumerate(circuit.subgraph_outputs)
+            node_from_node(BoolVariable, out_node, {'name': f'p_{out_node.name}'})
+            for out_node in circuit.subgraph_outputs
         )
 
     @classmethod
