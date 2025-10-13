@@ -165,6 +165,12 @@ class IOGraph(Graph):
         self.inputs_names = tuple(inputs_names)
         self.outputs_names = tuple(outputs_names)
 
+        # guard
+        if len(missing := tuple(name for name in self.inputs_names if name not in self)) > 0:
+            raise UndefinedNodeError(f'The following nodes are not defined but are being used as inputs: {missing}')
+        if len(missing := tuple(name for name in self.outputs_names if name not in self)) > 0:
+            raise UndefinedNodeError(f'The following nodes are not defined but are being used as outputs: {missing}')
+
     def __eq__(self, other) -> bool:
         return (
             super().__eq__(other)
@@ -262,6 +268,10 @@ class PGraph(SGraph):
 
         # freeze local instances
         self.parameters_names = tuple(parameters_names)
+
+        # guard
+        if len(missing := tuple(name for name in self.parameters_names if name not in self)) > 0:
+            raise UndefinedNodeError(f'The following nodes are not defined but are being used as parameters: {missing}')
 
     def __eq__(self, other) -> bool:
         return (
