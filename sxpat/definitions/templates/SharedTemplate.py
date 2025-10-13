@@ -72,7 +72,7 @@ class SharedTemplate(Template):
             sums.append(_sum := Or(f'sum{out_i}', in_subgraph=True, operands=_sws))
             switches.extend(_sws)
             outs_p.append(p_o := BoolVariable(f'p_o{out_i}', in_subgraph=True))
-            outs.append(new_out_node := If(f'sw_o{out_i}', in_subgraph=True, operands=(p_o, _sum, consts[False])))
+            outs.append(new_out_node := If(f'sw_{out_node.name}_o{out_i}', in_subgraph=True, operands=(p_o, _sum, consts[False])))
 
             # update all output successors to descend from new outputs
             for succ in a_graph.successors(out_node):
