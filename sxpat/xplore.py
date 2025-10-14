@@ -187,7 +187,7 @@ def explore_grid(specs_obj: Specifications):
         # label graph
         if specs_obj.requires_labeling:
             label_timer, _label_graph = Timer.from_function(label_graph)
-            _label_graph(exact_graph, current_graph, specs_obj)
+            _label_graph(exact_graph, current_graph, obtained_wce_exact, specs_obj)
             print(f'labeling_time = {(labeling_time := label_timer.total)}')
 
         # extract subgraph
@@ -205,7 +205,7 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.invert_labeling:
             label_timer, _label_graph = Timer.from_function(label_graph)
             specs_obj.min_labeling = not specs_obj.min_labeling
-            _label_graph(exact_graph, current_graph, specs_obj)
+            _label_graph(exact_graph, current_graph, obtained_wce_exact, specs_obj)
             specs_obj.min_labeling = not specs_obj.min_labeling
             print(f'inverted_labeling_time = {(labeling_time := label_timer.total)}')
 
@@ -620,11 +620,12 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         csvwriter.writerow(approx_data)
 
 
-def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, specs_obj: Specifications) -> None:
+def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, remove_error, specs_obj: Specifications) -> None:
     """This function adds the labels inplace to the given graph"""
 
     if specs_obj.approximate_labeling:
         exact_graph = current_graph
+        remove_error = 0
 
     # compute weights
     ET_COEFFICIENT = 1
@@ -646,7 +647,7 @@ def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, spec
     # apply weights to graph
     inner_graph: nx.DiGraph = current_graph.graph
     for (node_name, node_data) in inner_graph.nodes.items():
-        node_data[WEIGHT] = weights.get(node_name, -1)
+        node_data[WEIGHT] = weights.get(node_name, -1) - remove_error
         # TODO: get output's weights in the correct way
         if node_name[:3] == 'out':
             node_data[WEIGHT] = 2**int(node_name[3:])
