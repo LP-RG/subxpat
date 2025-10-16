@@ -299,7 +299,6 @@ def explore_grid(specs_obj: Specifications):
                 except:
                     pass
             
-            # if specs_obj.iteration == 6: exit()
 
             # store error treshold and replace with v2 threshold
 
@@ -400,7 +399,6 @@ def explore_grid(specs_obj: Specifications):
                     execution_time = define_timer.total + solve_timer.total
                 except:
                     pass
-            if specs_obj.iteration == 6: exit()
             
 
             # restore error treshold
