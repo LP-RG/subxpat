@@ -53,6 +53,8 @@ def explore_grid(specs_obj: Specifications):
     solvers = [Z3FuncBitVecSolver, QbfSolver]
     solver_names = ['z3fbvec', 'qbf']
 
+    count_finish = 0
+
     previous_subgraphs = []
 
     previous_graph = nx.DiGraph()
