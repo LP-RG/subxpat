@@ -288,18 +288,16 @@ def explore_grid(specs_obj: Specifications):
                 else:
                     question = [exact_circ, current_circ_pref]
                 question.extend([param_circ, *param_circ_constr])
-                try:
-                    status, model = solve(question, specs_obj)
-                    print(f'{solver_names[i]}_phase1 = {solve_timer.total}')
-                    print(status,model)
 
-                    # extract v2 threshold
-                    v2_threshold = {
-                        'sat': lambda: model['dist_distance'] - 1,
-                        'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs),
-                    }[status]()
-                except:
-                    pass
+                status, model = solve(question, specs_obj)
+                print(f'{solver_names[i]}_phase1 = {solve_timer.total}')
+                print(status,model)
+
+                # extract v2 threshold
+                v2_threshold = {
+                    'sat': lambda: model['dist_distance'] - 1,
+                    'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs),
+                }[status]()
             
 
             # store error treshold and replace with v2 threshold
@@ -379,28 +377,25 @@ def explore_grid(specs_obj: Specifications):
             # SOLVE
             for j in range(len(solvers)):
                 # solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
-                try:
-                    solve_timer, solve = Timer.from_function(solvers[j].solve)
-                    question = [exact_circ, param_circ, *param_circ_constr, *base_question]
+                solve_timer, solve = Timer.from_function(solvers[j].solve)
+                question = [exact_circ, param_circ, *param_circ_constr, *base_question]
 
-                    models = []
-                    for i in range(specs_obj.wanted_models):
-                        # prevent parameters combination if any
-                        if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
+                models = []
+                for i in range(specs_obj.wanted_models):
+                    # prevent parameters combination if any
+                    if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
 
-                        # solve question
-                        status, model = solve(question, specs_obj)
-                        print(status, model)
+                    # solve question
+                    status, model = solve(question, specs_obj)
+                    print(status, model)
 
-                        # terminate if status is not sat, otherwise store the model
-                        if status != 'sat': break
-                        models.append(model)
+                    # terminate if status is not sat, otherwise store the model
+                    if status != 'sat': break
+                    models.append(model)
 
-                    print(f'{solver_names[j]}_phase2 = {solve_timer.total}')
-                    # legacy adaptation
-                    execution_time = define_timer.total + solve_timer.total
-                except:
-                    pass
+                print(f'{solver_names[j]}_phase2 = {solve_timer.total}')
+                # legacy adaptation
+                execution_time = define_timer.total + solve_timer.total
             
 
             # restore error treshold
