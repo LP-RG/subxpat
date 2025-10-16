@@ -177,9 +177,37 @@ def explore_grid(specs_obj: Specifications):
         current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark)
         exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark)
         print(f'annotated_graph_loading_time = {(ag_loading_time := (Timer.now() - ag_loading_time))}')
+
         if specs_obj.all_false:
+            changed = []
             for n in current_graph.graph.nodes:
                 if current_graph.graph.nodes[n][LABEL] == 'TRUE':
+                    current_graph.graph.nodes[n][LABEL] = 'FALSE'
+                    changed.append(n)
+            
+            exact_circ = iograph_from_legacy(exact_graph)
+            current_circ = iograph_from_legacy(current_graph)
+            error = error_evaluation2(exact_circ, current_circ, specs_obj)
+            if error != obtained_wce_exact:
+                print('changing constants increased error')
+            if error > specs_obj.max_error:
+                for n in changed:
+                    current_graph.graph.nodes[n][LABEL] = 'TRUE'
+
+        if specs_obj.all_true:
+            changed = []
+            for n in current_graph.graph.nodes:
+                if current_graph.graph.nodes[n][LABEL] == 'FALSE':
+                    current_graph.graph.nodes[n][LABEL] = 'TRUE'
+                    changed.append(n)
+            
+            exact_circ = iograph_from_legacy(exact_graph)
+            current_circ = iograph_from_legacy(current_graph)
+            error = error_evaluation2(exact_circ, current_circ, specs_obj)
+            if error != obtained_wce_exact:
+                print('changing constants increased error')
+            if error > specs_obj.max_error:
+                for n in changed:
                     current_graph.graph.nodes[n][LABEL] = 'FALSE'
 
         if nx.is_isomorphic(current_graph.graph, previous_graph):
@@ -258,15 +286,20 @@ def explore_grid(specs_obj: Specifications):
                 else:
                     question = [exact_circ, current_circ_pref]
                 question.extend([param_circ, *param_circ_constr])
-                status, model = solve(question, specs_obj)
-                print(f'{solver_names[i]}_phase1 = {solve_timer.total}')
-                print(status,model)
+                try:
+                    status, model = solve(question, specs_obj)
+                    print(f'{solver_names[i]}_phase1 = {solve_timer.total}')
+                    print(status,model)
 
-                # extract v2 threshold
-                v2_threshold = {
-                    'sat': lambda: model['dist_distance'] - 1,
-                    'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs),
-                }[status]()
+                    # extract v2 threshold
+                    v2_threshold = {
+                        'sat': lambda: model['dist_distance'] - 1,
+                        'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs),
+                    }[status]()
+                except:
+                    pass
+            
+            # if specs_obj.iteration == 6: exit()
 
             # store error treshold and replace with v2 threshold
 
@@ -345,25 +378,30 @@ def explore_grid(specs_obj: Specifications):
             # SOLVE
             for j in range(len(solvers)):
                 # solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
-                solve_timer, solve = Timer.from_function(solvers[j].solve)
-                question = [exact_circ, param_circ, *param_circ_constr, *base_question]
+                try:
+                    solve_timer, solve = Timer.from_function(solvers[j].solve)
+                    question = [exact_circ, param_circ, *param_circ_constr, *base_question]
 
-                models = []
-                for i in range(specs_obj.wanted_models):
-                    # prevent parameters combination if any
-                    if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
+                    models = []
+                    for i in range(specs_obj.wanted_models):
+                        # prevent parameters combination if any
+                        if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
 
-                    # solve question
-                    status, model = solve(question, specs_obj)
-                    print(status, model)
+                        # solve question
+                        status, model = solve(question, specs_obj)
+                        print(status, model)
 
-                    # terminate if status is not sat, otherwise store the model
-                    if status != 'sat': break
-                    models.append(model)
+                        # terminate if status is not sat, otherwise store the model
+                        if status != 'sat': break
+                        models.append(model)
 
-                print(f'{solver_names[j]}_phase2 = {solve_timer.total}')
-                # legacy adaptation
-                execution_time = define_timer.total + solve_timer.total
+                    print(f'{solver_names[j]}_phase2 = {solve_timer.total}')
+                    # legacy adaptation
+                    execution_time = define_timer.total + solve_timer.total
+                except:
+                    pass
+            if specs_obj.iteration == 6: exit()
+            
 
             # restore error treshold
             if v2:
@@ -510,6 +548,18 @@ def error_evaluation(e_graph: IOGraph, graph_name: str, specs_obj: Specification
     print(f'erreval_annotated_graph_loading_time = {(ag_loading_time := (Timer.now() - ag_loading_time))}')
 
     cur_graph = iograph_from_legacy(current)
+
+    p_graph, c_graph = MaxDistanceEvaluation.define(cur_graph)
+    status, model = Z3DirectBitVecSolver.solve((e_graph, p_graph, c_graph), specs_obj)
+
+    assert status == 'sat'
+    assert len(model) == 1
+
+    return next(iter(model.values()))
+
+def error_evaluation2(e_graph: IOGraph, cur_graph: IOGraph, specs_obj: Specifications):
+    ag_loading_time = Timer.now()
+    print(f'erreval_annotated_graph_loading_time = {(ag_loading_time := (Timer.now() - ag_loading_time))}')
 
     p_graph, c_graph = MaxDistanceEvaluation.define(cur_graph)
     status, model = Z3DirectBitVecSolver.solve((e_graph, p_graph, c_graph), specs_obj)

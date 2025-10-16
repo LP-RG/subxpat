@@ -156,6 +156,7 @@ class Specifications:
     clean: bool
     approximate_labeling: bool
     all_false: bool
+    all_true: bool
     time_id: str = dc.field(init=False, default_factory=lambda: int_to_strbase(time.time_ns()))
 
     def __post_init__(self):
@@ -403,7 +404,10 @@ class Specifications:
         
         _all_f = _misc_group.add_argument('--all-false',
                                              action='store_true',
-                                             help='Put all constants to false')
+                                             help='Put all constants to false if possible')
+        _all_t = _misc_group.add_argument('--all-true',
+                                             action='store_true',
+                                             help='Put all constants to true if possible')
 
         raw_args = parser.parse_args()
 
