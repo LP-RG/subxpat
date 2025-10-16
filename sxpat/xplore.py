@@ -135,6 +135,8 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.et > specs_obj.max_error or specs_obj.et <= 0:
             break
 
+        specs_obj.et = specs_obj.max_error
+
         # slash to kill
         if specs_obj.slash_to_kill:
             # first iteration: apply slash
@@ -626,7 +628,7 @@ def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, remo
     if specs_obj.approximate_labeling:
         exact_graph = current_graph
         remove_error = 0
-
+    print(f'remove_error = {remove_error}')
     # compute weights
     ET_COEFFICIENT = 1
     if specs_obj.iteration == 1:
@@ -644,13 +646,17 @@ def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, remo
             if check_pair[key] == False:
                 print(f'model from labeling didn\'t match handle.upper():\n{current_graph.name}\n{key}')
 
+    print(weights)
     # apply weights to graph
     inner_graph: nx.DiGraph = current_graph.graph
     for (node_name, node_data) in inner_graph.nodes.items():
-        node_data[WEIGHT] = weights.get(node_name, -1) - remove_error
+        node_data[WEIGHT] = weights.get(node_name, -1)
+        if node_data[WEIGHT] != -1:
+            node_data[WEIGHT] -= remove_error
         # TODO: get output's weights in the correct way
         if node_name[:3] == 'out':
-            node_data[WEIGHT] = 2**int(node_name[3:])
+            # node_data[WEIGHT] = 2**int(node_name[3:])
+            node_data[WEIGHT] = weights.get(next(inner_graph.predecessors(node_name)),-1)
 
 
 def get_toolname(specs_obj: Specifications) -> str:
