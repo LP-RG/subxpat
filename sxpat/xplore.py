@@ -245,7 +245,7 @@ def explore_grid(specs_obj: Specifications):
             # TODO
             # question
             define_question = v2p1_define_timer.wrap(min_subdistance_with_error.variant_1)
-            param_circ, param_circ_constr = define_question(current_circ_same_out, specs_obj.et - obtained_wce_exact if specs_obj.approximate_labeling else specs_obj.et, AbsoluteDifferenceOfInteger, distance_function)
+            param_circ, param_circ_constr = define_question(current_circ if specs_obj.approximate_labeling else current_circ_same_out, specs_obj.et - obtained_wce_exact if specs_obj.approximate_labeling else specs_obj.et, AbsoluteDifferenceOfInteger, distance_function)
 
             # SOLVE
             v2p1_solve_timer = Timer()
