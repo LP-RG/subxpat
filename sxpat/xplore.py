@@ -46,6 +46,8 @@ from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
 from sxpat.solvers.Z3Solver import Z3FuncIntSolver, Z3FuncBitVecSolver, Z3DirectIntSolver, Z3DirectBitVecSolver
 from sxpat.solvers.QbfSolver import QbfSolver
 
+from sxpat.converting.utils import set_prefix_new
+
 def explore_grid(specs_obj: Specifications):
 
     solvers = [Z3FuncBitVecSolver, QbfSolver]
@@ -93,7 +95,7 @@ def explore_grid(specs_obj: Specifications):
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
 
-    while (obtained_wce_exact < specs_obj.max_error):
+    while (obtained_wce_exact <= specs_obj.max_error):
         specs_obj.iteration += 1
         if not specs_obj.subxpat:
             if prev_actual_error == 0:
@@ -231,6 +233,8 @@ def explore_grid(specs_obj: Specifications):
         # convert from legacy graphs to refactored circuits
         exact_circ = iograph_from_legacy(exact_graph)
         current_circ = sgraph_from_legacy(current_graph)
+        current_circ_same_out = set_prefix_new(current_circ, 'c_', it.chain(current_circ.inputs_names, current_circ.outputs_names))
+        current_circ_pref = set_prefix_new(current_circ, 'c_', current_circ.inputs_names)
 
         #
         if v2:
@@ -241,7 +245,7 @@ def explore_grid(specs_obj: Specifications):
             # TODO
             # question
             define_question = v2p1_define_timer.wrap(min_subdistance_with_error.variant_1)
-            param_circ, param_circ_constr = define_question(current_circ, specs_obj.et - obtained_wce_exact if specs_obj.approximate_labeling else specs_obj.et, AbsoluteDifferenceOfInteger, distance_function)
+            param_circ, param_circ_constr = define_question(current_circ_same_out, specs_obj.et - obtained_wce_exact if specs_obj.approximate_labeling else specs_obj.et, AbsoluteDifferenceOfInteger, distance_function)
 
             # SOLVE
             v2p1_solve_timer = Timer()
@@ -249,7 +253,11 @@ def explore_grid(specs_obj: Specifications):
             for i in range(len(solvers)):
                 # solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
                 solve_timer, solve = Timer.from_function(solvers[i].solve)
-                question = [current_circ if specs_obj.approximate_labeling else exact_circ, param_circ, *param_circ_constr]
+                if specs_obj.approximate_labeling:
+                    question = [current_circ]
+                else:
+                    question = [exact_circ, current_circ_pref]
+                question.extend([param_circ, *param_circ_constr])
                 status, model = solve(question, specs_obj)
                 print(f'{solver_names[i]}_phase1 = {solve_timer.total}')
                 print(status,model)
@@ -628,7 +636,7 @@ def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, remo
     if specs_obj.approximate_labeling:
         exact_graph = current_graph
         remove_error = 0
-    print(f'remove_error = {remove_error}')
+
     # compute weights
     ET_COEFFICIENT = 1
     if specs_obj.iteration == 1:
@@ -646,7 +654,6 @@ def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, remo
             if check_pair[key] == False:
                 print(f'model from labeling didn\'t match handle.upper():\n{current_graph.name}\n{key}')
 
-    print(weights)
     # apply weights to graph
     inner_graph: nx.DiGraph = current_graph.graph
     for (node_name, node_data) in inner_graph.nodes.items():
