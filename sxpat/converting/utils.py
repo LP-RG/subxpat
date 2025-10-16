@@ -192,7 +192,7 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
 
         # trivial cases
         elif isinstance(node, IntConstant) and node.name not in bitwidth_of:
-            bitwidth_of[node.name] = math.ceil(math.log(node.value + 1, 2))
+            bitwidth_of[node.name] = max(1, math.ceil(math.log(node.value + 1, 2)))
         elif isinstance(node, ToInt) and node.name not in bitwidth_of:
             bitwidth_of[node.name] = len(node.operands)
 
