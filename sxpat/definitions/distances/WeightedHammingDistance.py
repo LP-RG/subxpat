@@ -75,6 +75,8 @@ class WeightedHammingDistance(DistanceSpecification):
 
         return (dist_func, distance.name)
 
+    @override
+    @classmethod
     def _minimum_distance(cls, graph_a,
                 wanted_a: Sequence[str]
                 ) -> int:
