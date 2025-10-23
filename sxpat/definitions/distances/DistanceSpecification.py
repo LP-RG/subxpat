@@ -68,3 +68,9 @@ class DistanceSpecification(metaclass=ABCMeta):
     def _define(cls, graph_a: IOGraph, graph_b: IOGraph,
                 wanted_a: Sequence[str], wanted_b: Sequence[str]
                 ) -> Tuple[CGraph, str]: ...
+
+    @classmethod
+    @abstractmethod
+    def minimum_distance(cls, graph_a: IOGraph, graph_b: IOGraph,
+                wanted_a: Sequence[str], wanted_b: Sequence[str]
+                ) -> int: ...

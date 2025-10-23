@@ -40,3 +40,10 @@ class AbsoluteDifferenceOfInteger(DistanceSpecification):
         ))
 
         return (dist_func, distance.name)
+
+    @override
+    @classmethod
+    def minimum_distance(cls, _0, _1,
+                wanted_a: Sequence[str], wanted_b: Sequence[str]
+                ) -> int:
+        return 1
