@@ -68,7 +68,7 @@ class HammingDistance(DistanceSpecification):
 
     @override
     @classmethod
-    def minimum_distance(cls, _0, _1,
-                wanted_a: Sequence[str], wanted_b: Sequence[str]
+    def minimum_distance(cls, _0,
+                wanted_a: Sequence[str]
                 ) -> int:
         return 1

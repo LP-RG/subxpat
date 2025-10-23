@@ -70,7 +70,17 @@ class DistanceSpecification(metaclass=ABCMeta):
                 ) -> Tuple[CGraph, str]: ...
 
     @classmethod
+    def minimum_distance(cls, graph_a: IOGraph,
+                wanted_a: Optional[Sequence[str]] = None
+                ) -> int:
+        
+        if wanted_a is None:
+            wanted_a = graph_a.outputs_names
+        
+        return cls._minimum_distance(graph_a, wanted_a)
+        
+    @classmethod
     @abstractmethod
-    def minimum_distance(cls, graph_a: IOGraph, graph_b: IOGraph,
-                wanted_a: Sequence[str], wanted_b: Sequence[str]
+    def _minimum_distance(cls, graph_a: IOGraph,
+                wanted_a: Sequence[str]
                 ) -> int: ...
