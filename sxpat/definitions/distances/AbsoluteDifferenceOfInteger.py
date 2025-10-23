@@ -24,8 +24,8 @@ class AbsoluteDifferenceOfInteger(DistanceSpecification):
                 ) -> Tuple[CGraph, str]:
 
         # define outputs of a and of b as integers
-        int_a = ToInt('dist_int_a', operands=wanted_a)
-        int_b = ToInt('dist_int_b', operands=wanted_b)
+        int_a = ToInt('dist_int_a_adoi', operands=wanted_a)
+        int_b = ToInt('dist_int_b_adoi', operands=wanted_b)
 
         # distance
         distance = AbsDiff('dist_distance', operands=[int_a, int_b])
