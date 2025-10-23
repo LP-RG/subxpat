@@ -66,7 +66,7 @@ def explore_grid(specs_obj: Specifications):
     prev_given_error = 0
     v2 = specs_obj.template == TemplateType.V2
 
-    distance_function = {
+    distance_function: DistanceSpecification = {
         (DistanceType.ABSOLUTE_DIFFERENCE_OF_INTEGERS): AbsoluteDifferenceOfInteger,
         (DistanceType.ABSOLUTE_DIFFERENCE_OF_WEIGHTED_SUM): AbsoluteDifferenceOfWeightedSum,
         (DistanceType.HAMMING_DISTANCE): HammingDistance,
@@ -223,6 +223,10 @@ def explore_grid(specs_obj: Specifications):
                 'sat': lambda: model['sum_s_out'] - 1,
                 'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs),
             }[status]()
+
+            if v2_threshold == distance_function.minimum_distance(current_circ) - 1:
+                pprint.info3('Minimum subgraph distance found, skipping iteration')
+                continue
 
             # store error treshold and replace with v2 threshold
             specs_obj.et, v2_threshold = v2_threshold, specs_obj.et
