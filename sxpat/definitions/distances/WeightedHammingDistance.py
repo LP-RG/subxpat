@@ -18,14 +18,10 @@ class WeightedHammingDistance(DistanceSpecification):
 
         @authors: Marco Biasion
     """
-
-    @override
     @classmethod
-    def _define(cls, graph_a: IOGraph, graph_b: IOGraph,
-                wanted_a: Sequence[str], wanted_b: Sequence[str]
-                ) -> Tuple[CGraph, str]:
-
-        # useful variables
+    def _guard(cls, graph_a: IOGraph, graph_b: IOGraph,
+               wanted_a: Sequence[str], wanted_b: Sequence[str]
+               ) -> Tuple[Sequence[Extras], Sequence[Extras]]:
         w_nodes_a: Sequence[Extras] = tuple(graph_a[n] for n in wanted_a)  # type: ignore
         w_nodes_b: Sequence[Extras] = tuple(graph_b[n] for n in wanted_b)  # type: ignore
 
@@ -38,6 +34,17 @@ class WeightedHammingDistance(DistanceSpecification):
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_b ({graph_b}) has no weight.')
         if (mismatch := first(lambda ns: ns[0].weight != ns[1].weight, zip(w_nodes_a, w_nodes_b), None)) is not None:
             raise ValueError(f'The wanted nodes of the two graphs ({mismatch[0]}, {mismatch[1]}) have mismatching weights.')
+        
+        return w_nodes_a, w_nodes_b
+
+    @override
+    @classmethod
+    def _define(cls, graph_a: IOGraph, graph_b: IOGraph,
+                wanted_a: Sequence[str], wanted_b: Sequence[str]
+                ) -> Tuple[CGraph, str]:
+
+        # useful variables
+        w_nodes_a, w_nodes_b = cls._guard(graph_a, graph_b, wanted_a, wanted_b)
 
         # bit flips to int
         consts = []
@@ -75,3 +82,13 @@ class WeightedHammingDistance(DistanceSpecification):
         ))
 
         return (dist_func, distance.name)
+
+    @override
+    @classmethod
+    def minimum_distance(cls, graph_a: IOGraph, graph_b: IOGraph,
+                wanted_a: Sequence[str], wanted_b: Sequence[str]
+                ) -> int:
+        
+        w_nodes_a, _ = cls._guard(graph_a, graph_b, wanted_a, wanted_b)
+
+        return min(n.weight for n in w_nodes_a)
