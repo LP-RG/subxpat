@@ -221,11 +221,11 @@ def explore_grid(specs_obj: Specifications):
             # extract v2 threshold
             v2_threshold = {
                 'sat': lambda: model['sum_s_out'] - 1,
-                'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs),
+                'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs) + 1, # + 1 so that it's never equivalent to minimum_distance
             }[status]()
 
             if v2_threshold == distance_function.minimum_distance(current_circ) - 1:
-                pprint.info3('Minimum subgraph distance found, skipping iteration')
+                pprint.warning('Minimum subgraph distance found, skipping iteration')
                 continue
 
             # store error treshold and replace with v2 threshold
