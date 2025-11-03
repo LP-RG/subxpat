@@ -22,6 +22,8 @@ __all__ = [
     # compute graph accessories
     'get_nodes_type', 'get_nodes_bitwidth',
 
+    'get_rolling_code',
+
     # others
     # (this could be in questions? or a new module? maybe called constraints::? or maybe something else)
     'prevent_assignment',
@@ -441,7 +443,7 @@ class crystallise:
 
                     if isinstance(operand, PlaceHolder):
                         operand = cls._find_non_placeholder(operand_name, pre_crystallised_graphs) or operand
-                    
+
                     operands.append(operand)
             else:
                 operands = []
@@ -905,3 +907,26 @@ def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N
 
     # create new node
     return cls(**kwargs)
+
+
+class get_rolling_code:
+    """
+        Returns a two letters code, by selecting a new permutation of two letters (upper and lower case).
+
+        Will start repeating after 2704 (26\*2 \* 26\*2) calls.
+    """
+
+    _chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    _size = 2
+
+    def __new__(cls):
+        if not hasattr(cls, '_idx'): cls._idx = -1
+        cls._idx += 1
+        return cls.prefix_for_index(cls._idx)
+
+    @classmethod
+    def prefix_for_index(cls, idx: int) -> str:
+        i0 = idx // len(cls._chars)
+        i1 = idx % len(cls._chars)
+
+        return cls._chars[i0] + cls._chars[i1]
