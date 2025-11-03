@@ -3,7 +3,7 @@ from typing_extensions import override
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph import CGraph, IOGraph
+from sxpat.graph import CGraph
 from sxpat.graph.node import AbsDiff, PlaceHolder, ToInt
 
 
