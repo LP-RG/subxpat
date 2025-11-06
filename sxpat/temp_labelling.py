@@ -306,7 +306,7 @@ def labeling(exact_graph_name: str, app_graph_name: str ,et,  already_labeled = 
 
     labels = {}
     visited = set()
-    K = 2
+    K = 1
     exact_nodes = exact_graph.graph.nodes
     app_nodes = app_graph.graph.nodes
     app_graph.graph.add_node('7')
