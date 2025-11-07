@@ -44,6 +44,9 @@ class DistanceSpecification(metaclass=ABCMeta):
 
         # no wanted names given
         if wanted_a is None and wanted_b is None:
+            wanted_a = graph_a.outputs_names
+            wanted_b = graph_b.outputs_names
+
             # delegate computation
             dist_func, root_name = cls._define(
                 graph_a, graph_b,

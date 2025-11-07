@@ -1,10 +1,30 @@
-from typing import Sequence, Type, Union
+# type annotations
+from typing import (
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
 
-from sxpat.utils.decorators import make_utility_class
+# utilities
+from sxpat.utils.decorators import (
+    make_utility_class
+)
 
-from sxpat.graph.graph import CGraph, SGraph
-from sxpat.graph.node import Max, Min, PlaceHolder, Target
-from sxpat.definitions.distances import DistanceSpecification
+#
+from sxpat.graph.graph import (
+    CGraph,
+    SGraph,
+)
+from sxpat.graph.node import (
+    PlaceHolder,
+    Max,
+    Min,
+    Target,
+)
+from sxpat.definitions.distances import (
+    DistanceSpecification,
+)
 
 
 __all__ = ['optimize_subgraph_distance']
@@ -17,7 +37,7 @@ class optimize_subgraph_distance:
     @classmethod
     def _define(cls, graph_a: SGraph, graph_b: SGraph,
                 distance: Type[DistanceSpecification],
-                opt: Type[Union[Min, Max]]) -> Sequence[CGraph]:
+                opt: Type[Union[Min, Max]]) -> Tuple[str, Sequence[CGraph]]:
         # define distance
         sub_distance, sub_distance_name = distance.define(
             graph_a, graph_b,
@@ -32,14 +52,22 @@ class optimize_subgraph_distance:
             Target.of(sub_distance_name),
         ])
 
-        return (sub_distance, optimization)
+        return (sub_distance_name, (sub_distance, optimization))
 
     @classmethod
     def min(cls, graph_a: SGraph, graph_b: SGraph,
-            distance: Type[DistanceSpecification]) -> Sequence[CGraph]:
+            distance: Type[DistanceSpecification]) -> Tuple[str, Sequence[CGraph]]:
+        """
+            Given two graphs and a distance function, returns the graphs representing
+            the minimization question and the name of the target.
+        """
         return cls._define(graph_a, graph_b, distance, Min)
 
     @classmethod
     def max(cls, graph_a: SGraph, graph_b: SGraph,
-            distance: Type[DistanceSpecification]) -> Sequence[CGraph]:
+            distance: Type[DistanceSpecification]) -> Tuple[str, Sequence[CGraph]]:
+        """
+            Given two graphs and a distance function, returns the graphs representing
+            the maximization question and the name of the target.
+        """
         return cls._define(graph_a, graph_b, distance, Max)

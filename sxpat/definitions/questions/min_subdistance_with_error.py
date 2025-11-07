@@ -30,7 +30,7 @@ class min_subdistance_with_error:
                   threshold: int,
                   circuit_distance: Type[DistanceSpecification],
                   subcircuit_distance: Type[DistanceSpecification],
-                  ) -> Tuple[PGraph, Sequence[CGraph]]:
+                  ) -> Tuple[str, PGraph, Sequence[CGraph]]:
         """@authors: Marco Biasion"""
 
         # create parametric circuit
@@ -43,19 +43,19 @@ class min_subdistance_with_error:
         )
 
         # minimize distance between subgraphs
-        question_minimize = optimize_subgraph_distance.min(
+        target_name, question_minimize = optimize_subgraph_distance.min(
             current_circuit, parametric_circuit,
             subcircuit_distance,
         )
 
-        return (parametric_circuit, (*question_exists, *question_minimize))
+        return (target_name, parametric_circuit, (*question_exists, *question_minimize))
 
     @staticmethod
     def variant_2(current_circuit: SGraph,
                   threshold: int,
                   circuit_distance: Type[DistanceSpecification],
                   subcircuit_distance: Type[DistanceSpecification],
-                  ) -> Tuple[PGraph, Sequence[CGraph]]:
+                  ) -> Tuple[str, PGraph, Sequence[CGraph]]:
         """@authors: Lorenzo Spada, Marco Biasion"""
         raise NotImplementedError()
 

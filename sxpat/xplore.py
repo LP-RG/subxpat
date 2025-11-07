@@ -209,7 +209,7 @@ def explore_grid(specs_obj: Specifications):
             # TODO
             # question
             define_question = v2p1_define_timer.wrap(min_subdistance_with_error.variant_1)
-            param_circ, param_circ_constr = define_question(current_circ, specs_obj.et, AbsoluteDifferenceOfInteger, distance_function)
+            distance_name, param_circ, param_circ_constr = define_question(current_circ, specs_obj.et, AbsoluteDifferenceOfInteger, distance_function)
 
             # SOLVE
             v2p1_solve_timer = Timer()
@@ -220,7 +220,7 @@ def explore_grid(specs_obj: Specifications):
 
             # extract v2 threshold
             v2_threshold = {
-                'sat': lambda: model['sum_s_out'] - 1,
+                'sat': lambda: model[distance_name] - 1,
                 'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs) + 1, # + 1 so that it's never equivalent to minimum_distance
             }[status]()
 
