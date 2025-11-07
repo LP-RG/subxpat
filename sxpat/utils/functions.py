@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable, NoReturn, TypeVar
+from typing import Any, Callable, NoReturn, TypeVar, Union
 
 
 __all__ = [
@@ -37,7 +37,7 @@ def str_to_bool(string: str) -> bool:
     return STR_TO_BOOL[string.lower()]
 
 
-def str_to_int_or_bool(string: str) -> bool:
+def str_to_int_or_bool(string: str) -> Union[int, bool]:
     return (int if string.isdigit() else str_to_bool)(string)
 
 

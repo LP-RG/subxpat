@@ -2,10 +2,11 @@ from typing import Dict, List, Sequence, Tuple, Union
 
 import itertools as it
 
-from .Template import Template
+from .Template import Template, TemplateBundle
 
 from sxpat.converting import set_prefix
 from sxpat.graph import *
+from sxpat.graph.node import *
 from sxpat.specifications import ConstantsType, Specifications
 from sxpat.utils.collections import flat, iterable_replace, pairwise
 
@@ -69,7 +70,7 @@ class _NonSharedBase:
         ]
 
     @classmethod
-    def constants_rewriting(cls, a_graph: SGraph, updated_nodes: Dict[str, OperationNode], specs: Specifications
+    def constants_rewriting(cls, a_graph: SGraph, updated_nodes: Dict[str, AnyOperation], specs: Specifications
                             ) -> List[BoolVariable]:
         """
             Generates the nodes for constants rewriting, will update `updated_nodes` inplace with the changed successors (if any).
@@ -88,17 +89,6 @@ class _NonSharedBase:
                 updated_nodes[succ.name] = succ.copy(operands=(const_rew,))  # by definition, the output node has no other operand
 
         return constants_parameters
-
-    @classmethod
-    def error_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int) -> Sequence[Union[Node, Constraint]]:
-        return (
-            cur_int := ToInt('cur_int', operands=s_graph.outputs_names),
-            tem_int := ToInt('tem_int', operands=t_graph.outputs_names),
-            abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
-            et := IntConstant('et', value=error_threshold),
-            error_check := LessEqualThan('error_check', operands=(abs_diff, et)),
-            Constraint.of(error_check),
-        )
 
     @classmethod
     def atmost_lpp_constraints(cls, out_prod_mux_params: List[List[List[Tuple[BoolVariable, BoolVariable]]]], literals_per_product: int
@@ -131,7 +121,7 @@ class _NonSharedBase:
             # set the order of the identifiers ( a >= b >= c ... )
             nodes.extend(flat(
                 (
-                    gt := GreaterEqualThan(f'force_product_order_{out_i}_{idx_a}_{idx_b}', operands=(prod_a, prod_b)),
+                    gt := GreaterEqualThan(f'force_product_order_o{out_i}_{idx_a}_{idx_b}', operands=(prod_a, prod_b)),
                     Constraint.of(gt),
                 )
                 for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(_prod_ids))
@@ -148,7 +138,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
     """
 
     @classmethod
-    def define(cls, s_graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:
+    def define(cls, s_graph: SGraph, specs: Specifications) -> TemplateBundle:
         # get prefixed graph
         a_graph: SGraph = set_prefix(s_graph, 'a_')
 
@@ -163,7 +153,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         # construct output switches (for constant False output)
         outs_p: List[BoolVariable] = []
         outs: List[If] = []
-        updated_nodes: Dict[str, OperationNode] = dict()
+        updated_nodes: Dict[str, AnyOperation] = dict()
         for (out_i, (out_node, sum_node)) in enumerate(zip(a_graph.subgraph_outputs, sums)):
             # create the constant False switch
             outs_p.append(p_o := BoolVariable(f'p_o{out_i}', in_subgraph=True))
@@ -172,7 +162,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
             # update all output successors to descend from new outputs
             for succ in filter(lambda n: not n.in_subgraph, a_graph.successors(out_node)):
                 succ = updated_nodes.get(succ.name, succ)
-                new_operands = iterable_replace(succ.operands, succ.operands.index(out_node.name), new_out_node.name)
+                new_operands = iterable_replace(succ.operands, out_node.name, new_out_node.name)
                 updated_nodes[succ.name] = succ.copy(operands=new_operands)
 
         # constants rewriting
@@ -239,20 +229,15 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                     template_graph.outputs_names
                 )),
                 # behavioural constraints
-                cls.error_constraint(s_graph, template_graph, specs.et),
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
                 # redundancy constraints
                 mux_red_nodes,
                 const0_red_nodes,
                 cls.products_order_redundancy(out_prod_mux_params),
-                # targets
-                (Target.of(param) for param in parameters),
-                # global task
-                [ForAll('forall_inputs', operands=s_graph.inputs_names)],
             )
         )
 
-        return (template_graph, constraint_graph)
+        return TemplateBundle(template_graph, [constraint_graph])
 
 
 class NonSharedFProdTemplate(Template, _NonSharedBase):
@@ -264,7 +249,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
     """
 
     @classmethod
-    def define(cls, s_graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:
+    def define(cls, s_graph: SGraph, specs: Specifications) -> TemplateBundle:
         # get prefixed graph
         a_graph: SGraph = set_prefix(s_graph, 'a_')
 
@@ -277,11 +262,11 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
         sums = cls.construct_sums(a_graph, products)
 
         # update all output successors to descend from new outputs (sums)
-        updated_nodes: Dict[str, OperationNode] = dict()
+        updated_nodes: Dict[str, AnyOperation] = dict()
         for (out_node, sum_node) in zip(a_graph.subgraph_outputs, sums):
             for succ in filter(lambda n: not n.in_subgraph, a_graph.successors(out_node)):
                 succ = updated_nodes.get(succ.name, succ)
-                new_operands = iterable_replace(succ.operands, succ.operands.index(out_node.name), sum_node.name)
+                new_operands = iterable_replace(succ.operands, out_node.name, sum_node.name)
                 updated_nodes[succ.name] = succ.copy(operands=new_operands)
 
         # constants rewriting
@@ -358,17 +343,12 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
                     template_graph.outputs_names
                 )),
                 # behavioural constraints
-                cls.error_constraint(s_graph, template_graph, specs.et),
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
                 # redundancy constraints
                 prevent_mux_constF,
                 constF_red_nodes,
                 cls.products_order_redundancy(out_prod_mux_params),
-                # targets
-                (Target.of(param) for param in parameters),
-                # global task
-                [ForAll('forall_inputs', operands=s_graph.inputs_names)],
             )
         )
 
-        return (template_graph, constraint_graph)
+        return TemplateBundle(template_graph, [constraint_graph])
