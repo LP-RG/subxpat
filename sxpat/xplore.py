@@ -48,8 +48,8 @@ from sxpat.solvers.QbfSolver import QbfSolver
 
 def explore_grid(specs_obj: Specifications):
 
-    solvers = [Z3FuncBitVecSolver, QbfSolver]
-    solver_names = ['z3fbvec', 'qbf']
+    solvers = [QbfSolver]
+    solver_names = [  'qbf']
 
     previous_subgraphs = []
 
@@ -614,7 +614,34 @@ def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     # compute weights
     ET_COEFFICIENT = 1
     if specs_obj.iteration == 1:
-        weights = labeling(graph.name, graph.name, specs_obj.et * ET_COEFFICIENT)
+        # weights = labeling(graph.name, graph.name, specs_obj.et * ET_COEFFICIENT)
+        import importlib
+        module = importlib.import_module(f"input.cashed_labeling.{'min' if specs_obj.min_labeling else 'max'}.{specs_obj.exact_benchmark}")
+        allweights = module.weights
+        alltimes = module.times
+        vis = set()
+        st = []
+        weights = {}
+        tot = 0
+        for out in graph.output_dict.values():
+                value = 2 ** int(out[3:])
+
+                for x in graph.graph.predecessors(out):
+                    if(value <= ET_COEFFICIENT*specs_obj.et):
+                        st.append(x)
+
+        while len(st) > 0:
+            cur = st[-1]
+            st.pop()
+            if cur in vis or cur[:2] == 'in':
+                continue
+            vis.add(cur)
+            tot += alltimes[cur]
+            weights[cur] = allweights[cur]
+            for x in graph.graph.predecessors(cur):
+                st.append(x)
+        print(f'cashed_labeling_time = {tot}')
+
     else:
         weights, check_pair = labeling_explicit(
             graph.name, graph.name,
