@@ -3,7 +3,7 @@ from typing_extensions import override
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph import CGraph, IOGraph
+from sxpat.graph import CGraph
 from sxpat.graph.node import AbsDiff, PlaceHolder, ToInt
 
 
@@ -24,8 +24,8 @@ class AbsoluteDifferenceOfInteger(DistanceSpecification):
                 ) -> Tuple[CGraph, str]:
 
         # define outputs of a and of b as integers
-        int_a = ToInt('dist_int_a', operands=wanted_a)
-        int_b = ToInt('dist_int_b', operands=wanted_b)
+        int_a = ToInt('dist_int_a_adoi', operands=wanted_a)
+        int_b = ToInt('dist_int_b_adoi', operands=wanted_b)
 
         # distance
         distance = AbsDiff('dist_distance_adoi', operands=[int_a, int_b]) 
@@ -40,3 +40,10 @@ class AbsoluteDifferenceOfInteger(DistanceSpecification):
         ))
 
         return (dist_func, distance.name)
+
+    @override
+    @classmethod
+    def _minimum_distance(cls, _0,
+                wanted_a: Sequence[str]
+                ) -> int:
+        return 1

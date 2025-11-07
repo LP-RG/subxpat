@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABCMeta
 from typing import Optional, Sequence, Tuple, overload
 
-from sxpat.graph import CGraph, IOGraph
+from sxpat.graph import CGraph, IOGraph, SGraph
 from sxpat.graph import error as g_error
 from sxpat.utils.collections import first
 from sxpat.utils.decorators import make_utility_class
@@ -68,3 +68,19 @@ class DistanceSpecification(metaclass=ABCMeta):
     def _define(cls, graph_a: IOGraph, graph_b: IOGraph,
                 wanted_a: Sequence[str], wanted_b: Sequence[str]
                 ) -> Tuple[CGraph, str]: ...
+
+    @classmethod
+    def minimum_distance(cls, graph_a: SGraph,
+                wanted_a: Optional[Sequence[str]] = None
+                ) -> int:
+        
+        if wanted_a is None:
+            wanted_a = (n.name for n in graph_a.subgraph_outputs)
+        
+        return cls._minimum_distance(graph_a, wanted_a)
+        
+    @classmethod
+    @abstractmethod
+    def _minimum_distance(cls, graph_a: SGraph,
+                wanted_a: Sequence[str]
+                ) -> int: ...

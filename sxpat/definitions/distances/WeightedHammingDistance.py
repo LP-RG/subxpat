@@ -18,7 +18,6 @@ class WeightedHammingDistance(DistanceSpecification):
 
         @authors: Marco Biasion
     """
-
     @override
     @classmethod
     def _define(cls, graph_a: IOGraph, graph_b: IOGraph,
@@ -75,3 +74,11 @@ class WeightedHammingDistance(DistanceSpecification):
         ))
 
         return (dist_func, distance.name)
+
+    @override
+    @classmethod
+    def _minimum_distance(cls, graph_a,
+                wanted_a: Sequence[str]
+                ) -> int:
+
+        return min(graph_a[n].weight for n in wanted_a)

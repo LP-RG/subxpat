@@ -50,8 +50,8 @@ from sxpat.converting.utils import set_prefix_new
 
 def explore_grid(specs_obj: Specifications):
 
-    solvers = [Z3FuncBitVecSolver, QbfSolver]
-    solver_names = ['z3fbvec', 'qbf']
+    solvers = [QbfSolver]
+    solver_names = [  'qbf']
 
     count_finish = 0
 
@@ -79,7 +79,7 @@ def explore_grid(specs_obj: Specifications):
     prev_given_error = 0
     v2 = specs_obj.template == TemplateType.V2
 
-    distance_function = {
+    distance_function: DistanceSpecification = {
         (DistanceType.ABSOLUTE_DIFFERENCE_OF_INTEGERS): AbsoluteDifferenceOfInteger,
         (DistanceType.ABSOLUTE_DIFFERENCE_OF_WEIGHTED_SUM): AbsoluteDifferenceOfWeightedSum,
         (DistanceType.HAMMING_DISTANCE): HammingDistance,
@@ -296,9 +296,13 @@ def explore_grid(specs_obj: Specifications):
                 # extract v2 threshold
                 v2_threshold = {
                     'sat': lambda: model['dist_distance'] - 1,
-                    'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs),
+                    'unsat': lambda: sum(n.weight for n in current_circ.subgraph_outputs) + 1, # + 1 so that it's never equivalent to minimum_distance
                 }[status]()
             
+
+            if v2_threshold == distance_function.minimum_distance(current_circ) - 1:
+                pprint.warning('Minimum subgraph distance found, skipping iteration')
+                continue
 
             # store error treshold and replace with v2 threshold
 
@@ -685,7 +689,34 @@ def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, remo
     # compute weights
     ET_COEFFICIENT = 1
     if specs_obj.iteration == 1:
-        weights = labeling(exact_graph.name, current_graph.name, specs_obj.et * ET_COEFFICIENT)
+        # weights = labeling(graph.name, graph.name, specs_obj.et * ET_COEFFICIENT)
+        import importlib
+        module = importlib.import_module(f"input.cashed_labeling.{'min' if specs_obj.min_labeling else 'max'}.{specs_obj.exact_benchmark}")
+        allweights = module.weights
+        alltimes = module.times
+        vis = set()
+        st = []
+        weights = {}
+        tot = 0
+        for out in current_graph.output_dict.values():
+                value = 2 ** int(out[3:])
+
+                for x in current_graph.graph.predecessors(out):
+                    if(value <= ET_COEFFICIENT*specs_obj.et):
+                        st.append(x)
+
+        while len(st) > 0:
+            cur = st[-1]
+            st.pop()
+            if cur in vis or cur[:2] == 'in':
+                continue
+            vis.add(cur)
+            tot += alltimes[cur]
+            weights[cur] = allweights[cur]
+            for x in current_graph.graph.predecessors(cur):
+                st.append(x)
+        print(f'cashed_labeling_time = {tot}')
+
     else:
         weights, check_pair = labeling_explicit(
             exact_graph.name, current_graph.name,
