@@ -1,13 +1,10 @@
 from abc import abstractmethod, ABCMeta
-from typing import Optional, Sequence, Tuple, final, overload
+from typing import Optional, Sequence, Tuple, overload
 
 from sxpat.graph import CGraph, IOGraph, SGraph
 from sxpat.graph import error as g_error
-
 from sxpat.utils.collections import first
 from sxpat.utils.decorators import make_utility_class
-import itertools as it
-from sxpat.converting.utils import get_rolling_code, set_prefix_new
 
 
 @make_utility_class
@@ -35,17 +32,15 @@ class DistanceSpecification(metaclass=ABCMeta):
         """
 
     @classmethod
-    @final
+    @abstractmethod
     def define(cls, graph_a: IOGraph, graph_b: IOGraph,
                wanted_a: Optional[Sequence[str]] = None, wanted_b: Optional[Sequence[str]] = None,
                ) -> Tuple[CGraph, str]:
 
-        # > generate distance function graph
-
         # no wanted names given
         if wanted_a is None and wanted_b is None:
             # delegate computation
-            dist_func, root_name = cls._define(
+            return cls._define(
                 graph_a, graph_b,
                 graph_a.outputs_names, graph_b.outputs_names,
             )
@@ -61,19 +56,12 @@ class DistanceSpecification(metaclass=ABCMeta):
                 raise g_error.MissingNodeError(f'Node {missing} is not in graph_b ({graph_b}).')
 
             # delegate computation
-            dist_func, root_name = cls._define(
+            return cls._define(
                 graph_a, graph_b,
                 wanted_a, wanted_b,
             )
 
-        else: raise ValueError(f'Illegal call with `wanted_b` without `wanted_a`.')
-
-        # > assign rolling prefix
-        prefix = get_rolling_code() + '_'
-        dist_func = set_prefix_new(dist_func, prefix, it.chain(wanted_a, wanted_b))
-        root_name = prefix + root_name
-
-        return (dist_func, root_name)
+        else: raise
 
     @classmethod
     @abstractmethod
