@@ -102,6 +102,7 @@ class Specifications:
     # labeling
     min_labeling: bool
     partial_labeling: bool
+    approximate_labeling: bool
 
     # subgraph extraction
     extraction_mode: int
@@ -236,6 +237,10 @@ class Specifications:
                                             action='store_false',
                                             dest='partial_labeling',
                                             help='Weights are assigned to all nodes, not only to the relevant ones')
+        
+        _app_lab = _lab_group.add_argument('--approximate-labeling',
+                                            action='store_true',
+                                            help='Use approximate labeling instead')
 
         # > subgraph extraction stuff
         _subex_group = parser.add_argument_group('Subgraph extraction')

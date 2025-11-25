@@ -465,6 +465,9 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
 def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     """This function adds the labels inplace to the given graph"""
 
+    if specs_obj.approximate_labeling:
+        exact_graph = current_graph
+
     from sxpat.fast_labeling import fast_labeling, upper_bound
 
     ET_COEFFICIENT = 1
