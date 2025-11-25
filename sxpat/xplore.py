@@ -32,9 +32,15 @@ from sxpat.converting import set_bool_constants, prevent_combination
 from sxpat.utils.print import pprint
 from sxpat.utils.timer import Timer
 
+from sxpat.templating.Labeling_constants import Labeling
+from sxpat.solving.QbfSolver import QbfSolver
+from sxpat.solving.Z3Solver import Z3DirectIntSolver
+from sxpat.temp_labelling import labeling
 
 def explore_grid(specs_obj: Specifications):
     previous_subgraphs = []
+    previous_graph = nx.DiGraph()
+    count_to_finish = 0
 
     labeling_time: float = -1
     subgraph_extraction_time: float = -1
@@ -66,7 +72,7 @@ def explore_grid(specs_obj: Specifications):
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
 
-    while (obtained_wce_exact < specs_obj.max_error):
+    while (obtained_wce_exact <= specs_obj.max_error):
         specs_obj.iteration += 1
         if not specs_obj.subxpat:
             if prev_actual_error == 0:
@@ -78,8 +84,11 @@ def explore_grid(specs_obj: Specifications):
                 try:
                     specs_obj.et = next(et_array)
                 except StopIteration:
-                    pprint.warning('The error space is exhausted!')
-                    break
+                    count_to_finish += 1
+                    if count_to_finish == 10:
+                        break
+                    # pprint.warning('The error space is exhausted!')
+                    # break
             else:
                 persistence += 1
         elif specs_obj.error_partitioning is ErrorPartitioningType.DESCENDING:
@@ -141,10 +150,16 @@ def explore_grid(specs_obj: Specifications):
         current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark)
         exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark)
 
+        if nx.is_isomorphic(current_graph.graph, previous_graph):
+            print('current graph is equivalent to previous iteration, stopping')
+            break
+        else:
+            previous_graph = current_graph.graph
+
         # label graph
         if specs_obj.requires_labeling:
             label_timer, _label_graph = Timer.from_function(label_graph)
-            _label_graph(current_graph, specs_obj)
+            _label_graph(exact_graph, current_graph, specs_obj)
             print(f'labeling_time = {(labeling_time := label_timer.total)}')
 
         # extract subgraph
@@ -447,20 +462,55 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         csvwriter.writerow(approx_data)
 
 
-def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
+def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     """This function adds the labels inplace to the given graph"""
 
-    # compute weights
+    from sxpat.fast_labeling import fast_labeling, upper_bound
+
     ET_COEFFICIENT = 1
-    weights, _ = labeling_explicit(
-        graph.name, graph.name,
-        min_labeling=specs_obj.min_labeling,
-        partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
-        parallel=specs_obj.parallel
-    )
+    if specs_obj.iteration == 1:
+        # exact = iograph_from_legacy(exact_graph)
+        # current = iograph_from_legacy(current_graph)
+        # weights = fast_labeling(exact, current, specs_obj.et, specs_obj)
+
+        weights = labeling(exact_graph.name, exact_graph.name, specs_obj.et * ET_COEFFICIENT)
+
+        # import importlib
+        # module = importlib.import_module(f"input.cashed_labeling.{'min' if specs_obj.min_labeling else 'max'}.{specs_obj.exact_benchmark}")
+        # allweights = module.weights
+        # alltimes = module.times
+        # vis = set()
+        # st = []
+        # weights = {}
+        # tot = 0
+        # for out in current_graph.output_dict.values():
+        #         value = 2 ** int(out[3:])
+
+        #         for x in current_graph.graph.predecessors(out):
+        #             if(value <= ET_COEFFICIENT*specs_obj.et):
+        #                 st.append(x)
+
+        # while len(st) > 0:
+        #     cur = st[-1]
+        #     st.pop()
+        #     if cur in vis or cur[:2] == 'in':
+        #         continue
+        #     vis.add(cur)
+        #     tot += alltimes[cur]
+        #     weights[cur] = allweights[cur]
+        #     for x in current_graph.graph.predecessors(cur):
+        #         st.append(x)
+        # print(f'cashed_labeling_time = {tot}')
+    else:
+        weights, _ = labeling_explicit(
+            exact_graph.name, current_graph.name,
+            min_labeling=specs_obj.min_labeling,
+            partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
+            parallel=specs_obj.parallel
+        )
 
     # apply weights to graph
-    inner_graph: nx.DiGraph = graph.graph
+    inner_graph: nx.DiGraph = current_graph.graph
     for (node_name, node_data) in inner_graph.nodes.items():
         node_data[WEIGHT] = weights.get(node_name, -1)
 

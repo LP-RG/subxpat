@@ -495,9 +495,9 @@ class QbfSolver(Solver):
         script_path = f'output/z3/{specifications.exact_benchmark}_iter{specifications.iteration}.txt'
 
         mapping = {}
-        variables = [node.name for graph in graphs if isinstance(graph, PGraph) for node in graph.nodes if isinstance(node, BoolVariable)]
-        variables.sort()
         forall.sort()
+        variables = [node.name for graph in graphs if isinstance(graph, PGraph) for node in graph.nodes if isinstance(node, BoolVariable) and node.name not in forall]
+        variables.sort()
 
         with open(script_path, 'w') as f:
 
