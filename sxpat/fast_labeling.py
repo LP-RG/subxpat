@@ -5,6 +5,13 @@ from sxpat.templating.Labeling import Labeling
 from sxpat.solving.QbfSolver import QbfSolver
 from sxpat.utils.timer import Timer
 
+def calc_label(exact_graph: IOGraph, current_graph: IOGraph, cur_node, specs_obj: Specifications, upper_bound={}):
+    define_template = Labeling.define
+    p_graph, c_graph = define_template(current_graph, [cur_node],min_labeling=specs_obj.min_labeling)
+    solve = QbfSolver.solve
+    status, model = solve((exact_graph, p_graph, c_graph), specs_obj, upper_bound=upper_bound[cur_node] if cur_node in upper_bound else None)
+    return model['weight']
+
 def fast_labeling(exact_graph: IOGraph, current_graph: IOGraph, et, specs_obj: Specifications, skip_at_output=True, threshold_for_max_imprecision=10, skip_input=True, weights = {}, upper_bound = {}):
     """
 if skip_at_output is true then the nodes at the output will have automatically their weights set to the value of the output
@@ -61,11 +68,7 @@ the value, set to 0 to never use
             value = 2 ** int(current_graph.successors(cur_node)[0].name[3:])
         
         else:
-            define_template = Labeling.define
-            p_graph, c_graph = define_template(current_graph, [cur_node],min_labeling=specs_obj.min_labeling)
-            solve = QbfSolver.solve
-            status, model = solve((exact_graph, p_graph, c_graph), specs_obj, upper_bound=upper_bound[cur_node] if cur_node in upper_bound else None)
-            value = model['weight']
+            value = calc_label(exact_graph, current_graph, cur_node, specs_obj, upper_bound)
             # value = allweights[cur_node]
             # tot_time += alltimes[cur_node]
         
