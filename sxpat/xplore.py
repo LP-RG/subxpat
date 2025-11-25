@@ -472,11 +472,12 @@ def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, spec
 
     ET_COEFFICIENT = 1
     if specs_obj.iteration == 1:
-        # exact = iograph_from_legacy(exact_graph)
-        # current = iograph_from_legacy(current_graph)
-        # weights = fast_labeling(exact, current, specs_obj.et, specs_obj)
+        exact = iograph_from_legacy(exact_graph)
+        current = iograph_from_legacy(current_graph)
+        upper_bounds = upper_bound(current)
+        weights = fast_labeling(exact, current, specs_obj.et, specs_obj, upper_bound=upper_bounds)
 
-        weights = labeling(exact_graph.name, exact_graph.name, specs_obj.et * ET_COEFFICIENT)
+        # weights = labeling(exact_graph.name, exact_graph.name, specs_obj.et * ET_COEFFICIENT,)
 
         # import importlib
         # module = importlib.import_module(f"input.cashed_labeling.{'min' if specs_obj.min_labeling else 'max'}.{specs_obj.exact_benchmark}")

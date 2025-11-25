@@ -59,6 +59,7 @@ class Solver(metaclass=ABCMeta):
               specifications: Specifications,
               *,
               _global_targets: GlobalTasks = None,
+              upper_bound = None,
               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve the required problem defined by the given graphs.
@@ -85,10 +86,17 @@ class Solver(metaclass=ABCMeta):
             )
         elif _global_targets.optimize is not None and _global_targets.forall is None:
             # solve an optimization (not forall quantified) problem
-            return cls.solve_optimize(
-                graphs, specifications,
-                _global_targets.optimize,
-            )
+            if upper_bound is not None:
+                return cls.solve_optimize(
+                    graphs, specifications,
+                    _global_targets.optimize,
+                    upper_bound=upper_bound
+                )
+            else :
+                return cls.solve_optimize(
+                    graphs, specifications,
+                    _global_targets.optimize,
+                )
         elif _global_targets.optimize is None and _global_targets.forall is not None:
             # solve a forall quantified (and non optimization) problem
             return cls.solve_forall(
@@ -129,6 +137,7 @@ class Solver(metaclass=ABCMeta):
     def solve_optimize(cls, graphs: _Graphs,
                        specifications: Specifications,
                        optimize_target: Union[Min, Max],
+                       upper_bound = None,
                        ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve an optimization (not forall quantified) problem.
@@ -137,13 +146,14 @@ class Solver(metaclass=ABCMeta):
             '[WARNING] using default (iterative) implementation'
             f' for {cls.__qualname__}.solve_optimize(...)'
         )
-        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, None)
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, None, upper_bound if upper_bound is not None else None)
 
     @classmethod
     def solve_optimize_forall(cls, graphs: _Graphs,
                               specifications: Specifications,
                               optimize_target: Union[Min, Max],
                               forall_target: ForAll,
+                              upper_bound = None,
                               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve an optimization and forall quantified problem.
@@ -152,7 +162,7 @@ class Solver(metaclass=ABCMeta):
             '[WARNING] using default (iterative) implementation'
             f' for {cls.__qualname__}.solve_optimize_forall(...)'
         )
-        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target, upper_bound if upper_bound is not None else None)
 
     @classmethod
     @abstractmethod
@@ -169,6 +179,7 @@ class Solver(metaclass=ABCMeta):
                                          specifications: Specifications,
                                          optimize_target: Union[Min, Max],
                                          forall_target: Optional[ForAll],
+                                         upper_bound = None,
                                          ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve an optimization (optionally forall quantified) problem iteratively without requiring solver specific features.
@@ -214,6 +225,8 @@ class Solver(metaclass=ABCMeta):
 
             # update previous value and model
             previous_value = model.pop(SC.optimization.identity)
+            if upper_bound is not None and previous_value == upper_bound:
+                break
             last_model = model
 
         # return the status and model

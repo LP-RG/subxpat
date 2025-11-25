@@ -5,7 +5,7 @@ from sxpat.templating.Labeling import Labeling
 from sxpat.solving.QbfSolver import QbfSolver
 from sxpat.utils.timer import Timer
 
-def fast_labeling(exact_graph: IOGraph, current_graph: IOGraph, et, specs_obj: Specifications, skip_at_output=True, threshold_for_max_imprecision=10, skip_input=True, weights = {}):
+def fast_labeling(exact_graph: IOGraph, current_graph: IOGraph, et, specs_obj: Specifications, skip_at_output=True, threshold_for_max_imprecision=10, skip_input=True, weights = {}, upper_bound = {}):
     """
 if skip_at_output is true then the nodes at the output will have automatically their weights set to the value of the output
 threshold_for_max_imprecision set the weight of the node that you must have compared to et to skip the parents that only have the current node
@@ -14,15 +14,16 @@ make their children that have only them as output equivalent to them this is imp
 the value, set to 0 to never use 
     """
 
-    import importlib
-    module = importlib.import_module(f"input.cashed_labeling.{'min' if specs_obj.min_labeling else 'max'}.{specs_obj.exact_benchmark}")
-    allweights = module.weights
-    alltimes = module.times
+    # import importlib
+    # module = importlib.import_module(f"input.cashed_labeling.{'min' if specs_obj.min_labeling else 'max'}.{specs_obj.exact_benchmark}")
+    # allweights = module.weights
+    # alltimes = module.times
     
     tot_time = 0
     stack = []
     visited = set()
     weights = dict(weights)
+    upper_bound = dict(upper_bound)
 
     def recursive_cases(start_node, value):
         nonlocal weights
@@ -57,16 +58,16 @@ the value, set to 0 to never use
             continue
         
         if current_graph.successors(cur_node)[0] in current_graph.outputs and skip_at_output:
-            value = int(current_graph.successors(cur_node)[0].name[3:])
+            value = 2 ** int(current_graph.successors(cur_node)[0].name[3:])
         
         else:
             define_template = Labeling.define
-            # p_graph, c_graph = define_template(current_graph, [cur_node])
-            # solve = QbfSolver.solve
-            # status, model = solve((exact_graph, p_graph, c_graph), specs_obj)
-            # value = model['weight']
-            value = allweights[cur_node]
-            tot_time += alltimes[cur_node]
+            p_graph, c_graph = define_template(current_graph, [cur_node],min_labeling=specs_obj.min_labeling)
+            solve = QbfSolver.solve
+            status, model = solve((exact_graph, p_graph, c_graph), specs_obj, upper_bound=upper_bound[cur_node] if cur_node in upper_bound else None)
+            value = model['weight']
+            # value = allweights[cur_node]
+            # tot_time += alltimes[cur_node]
         
         weights[cur_node] = value
 
@@ -77,7 +78,7 @@ the value, set to 0 to never use
                 stack.append(succ.name)
                 visited.add(succ.name)
     
-    print(f'tot = {tot_time}')
+    # print(f'cashed_labeling_time = {tot_time}')
     return weights
 
 

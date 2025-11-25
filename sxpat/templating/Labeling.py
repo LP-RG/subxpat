@@ -16,7 +16,7 @@ class Labeling:
 
         
     @classmethod
-    def define(cls, s_graph: SGraph,accs=[], min_labeling = False, is_case2_idx = False):
+    def define(cls, s_graph: SGraph,accs=[], min_labeling = False):
         assert len(accs) == 1, "Must pass the node to label"
         assert accs[0] in s_graph, "Node requested to label must be in the graph"
         if accs[0] not in s_graph:
