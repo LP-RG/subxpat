@@ -4,6 +4,7 @@ from sxpat.specifications import Specifications
 from sxpat.templating.Labeling import Labeling
 from sxpat.solving.QbfSolver import QbfSolver
 from sxpat.utils.timer import Timer
+from typing import Callable
 
 def calc_label(exact_graph: IOGraph, current_graph: IOGraph, cur_node, specs_obj: Specifications, upper_bound={}):
     define_template = Labeling.define
@@ -85,31 +86,38 @@ the value, set to 0 to never use
     return weights
 
 
-def upper_bound(current_graph: IOGraph):
+def compute_bound(current_graph: IOGraph, combine: Callable[[int,int], int], init_value: int):
     stack = []
     count = {}  #counts the number of nodes that have reached a node when this equal the number of sucessor of the node we can continue the exploration
     weights = {}
 
+    # initialize
     for x in current_graph.nodes:
-        weights[x.name] = 0
+        weights[x.name] = init_value
         count[x.name] = 0
 
     for node in current_graph.outputs:
         value = 2 ** int(node.name[3:])
-        
+
         for x in current_graph.predecessors(node):
             count[x.name] += 1
-            weights[x.name] |= value
+            weights[x.name] = combine(value, weights[x.name])
             if count[x.name] == len(current_graph.successors(x.name)):
                 stack.append(x.name)
 
-    while len(stack):
+    while stack:
         cur_node = stack.pop()
         value = weights[cur_node]
         for x in current_graph.predecessors(cur_node):
             count[x.name] += 1
-            weights[x.name] |= value
+            weights[x.name] = combine(value, weights[x.name])
             if count[x.name] == len(current_graph.successors(x.name)):
                 stack.append(x.name)
     
     return weights
+
+def upper_bound(current_graph):
+    return compute_bound(current_graph, combine=lambda v, w: v | w, init_value=0)
+
+def lower_bound(current_graph):
+    return compute_bound(current_graph, combine=min, init_value=2**len(current_graph.outputs))

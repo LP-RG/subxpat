@@ -44,6 +44,7 @@ class EncodingType(enum.Enum):
 class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
     SHARED = 'shared'
+    INPUT_REPLACE = 'inpreplace'
 
 
 class ConstantsType(enum.Enum):
@@ -103,6 +104,7 @@ class Specifications:
     min_labeling: bool
     partial_labeling: bool
     approximate_labeling: bool
+    single_labeling: bool
 
     # subgraph extraction
     extraction_mode: int
@@ -114,6 +116,10 @@ class Specifications:
     sensitivity: int = dc.field(init=False, default=None)  # rw
     slash_to_kill: bool
     error_for_slash: int
+    slash_inputs: bool
+    slash_inputs_false: bool
+    slash_inputs_error_eval: bool
+
 
     # exploration (1)
     subxpat: bool
@@ -169,6 +175,7 @@ class Specifications:
         return {
             TemplateType.NON_SHARED: 'Sop1',
             TemplateType.SHARED: 'SharedLogic',
+            TemplateType.INPUT_REPLACE: 'inpReplace'
         }[self.template]
 
     # @property
@@ -192,6 +199,7 @@ class Specifications:
     def grid_param_1(self) -> int:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_lpp,
+            TemplateType.INPUT_REPLACE: lambda: self.max_lpp,
             TemplateType.SHARED: lambda: self.max_its,
         }[self.template]()
 
@@ -199,6 +207,7 @@ class Specifications:
     def grid_param_2(self) -> int:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_ppo,
+            TemplateType.INPUT_REPLACE: lambda: self.max_ppo,
             TemplateType.SHARED: lambda: self.max_pit,
         }[self.template]()
 
@@ -242,6 +251,10 @@ class Specifications:
                                             action='store_true',
                                             help='Use approximate labeling instead')
 
+        _sing_lab = _lab_group.add_argument('--single-labeling',
+                                            action='store_true',
+                                            help='Label only 1 random node')
+
         # > subgraph extraction stuff
         _subex_group = parser.add_argument_group('Subgraph extraction')
 
@@ -281,6 +294,18 @@ class Specifications:
         _error_slash = _subex_group.add_argument('--error-for-slash',
                                                  type=int,
                                                  help='The error to use for the slash pass')
+
+        _slash_i = _subex_group.add_argument('--slash-inputs',
+                                           action='store_true',
+                                           help='remove inputs while able to do so')
+        
+        _slash_if = _subex_group.add_argument('--slash-inputs-false',
+                                           action='store_true',
+                                           help='remove inputs while able to do so')
+        
+        _slash_ie = _subex_group.add_argument('--slash-inputs-error-eval',
+                                           action='store_true',
+                                           help='remove inputs while able to do so')
 
         # > execution stuff
         _explor_group = parser.add_argument_group('Execution')

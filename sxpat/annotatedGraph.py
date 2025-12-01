@@ -204,12 +204,12 @@ class AnnotatedGraph(Graph):
         # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
 
         head = f'grid_{specs_obj.current_benchmark}_{specs_obj.lpp}X{specs_obj.pit if specs_obj.template is TemplateType.SHARED else specs_obj.ppo}_et{specs_obj.et}_'
-
         tool_name = {
             (False, TemplateType.NON_SHARED): XPAT,
             (False, TemplateType.SHARED): SHARED_XPAT,
             (True, TemplateType.NON_SHARED): SUBXPAT,
             (True, TemplateType.SHARED): SHARED_SUBXPAT,
+            (True, TemplateType.INPUT_REPLACE): SUBXPAT,
         }[(specs_obj.subxpat, specs_obj.template)]
 
         technique_specific = f'{tool_name}_{specs_obj.error_partitioning.value}_'
@@ -383,6 +383,14 @@ class AnnotatedGraph(Graph):
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
+                
+                elif specs_obj.extraction_mode == 101:
+                    tmp_graph = self.graph.copy(as_view=False)
+                    for gate_idx in self.gate_dict:
+                        tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
+                        tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
+                    self.subgraph = tmp_graph
+                    pprint.info2(f"Skip Extraction and remove next input")
 
                 else:
                     raise Exception('invalid extraction mode!')
