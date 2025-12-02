@@ -159,7 +159,6 @@ def explore_grid(specs_obj: Specifications):
         # import the graph
         current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark)
         exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark)
-        print(f'finished_annotated')
 
         if not specs_obj.slash_inputs and nx.is_isomorphic(current_graph.graph, previous_graph):
             print('current graph is equivalent to previous iteration, stopping')
