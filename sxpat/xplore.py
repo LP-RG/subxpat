@@ -91,8 +91,9 @@ def explore_grid(specs_obj: Specifications):
                 try:
                     specs_obj.et = next(et_array)
                 except StopIteration:
-                    count_to_finish += 1
-                    if count_to_finish == 10:
+                    if not specs_obj.slash_inputs:
+                        count_to_finish += 1
+                    if count_to_finish == 20:
                         break
                     # pprint.warning('The error space is exhausted!')
                     # break
