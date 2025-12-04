@@ -496,7 +496,8 @@ class QbfSolver(Solver):
 
         mapping = {}
         forall.sort()
-        variables = [node.name for graph in graphs if isinstance(graph, PGraph) for node in graph.nodes if isinstance(node, BoolVariable) and node.name not in forall]
+        variables = [node.name for graph in graphs for node in graph.nodes if isinstance(node, BoolVariable) and node.name not in forall]
+        variables = list(set(variables))
         variables.sort()
 
         with open(script_path, 'w') as f:
