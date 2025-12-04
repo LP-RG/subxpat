@@ -30,7 +30,7 @@ __all__ = [
     # bool to bool
     'Not', 'And', 'Or', 'Xor', 'Xnor', 'Implies',
     # int to int
-    'Sum', 'AbsDiff',
+    'Sum', 'AbsDiff', 'Mul',
     # bool to int
     'ToInt',
     # int to bool
