@@ -423,7 +423,7 @@ class AbsDiff(Extras, Limited2Operation, IntResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True)
-class AbsDiff(Extras, Operation, IntResType, Expression, Node):
+class Mul(Extras, Operation, IntResType, Expression, Node):
     """
         Integer multiplication ( `a * b * ...` ) expression.  
         This node can have any amount of operands.
