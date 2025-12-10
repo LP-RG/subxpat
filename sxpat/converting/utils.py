@@ -375,6 +375,7 @@ class crystallise:
             # int to int
             Sum: cls._all_or_nothing_node,
             AbsDiff: cls._all_or_nothing_node,
+            Mul: cls._all_or_nothing_node,
             # bool to int
             ToInt: cls._all_or_nothing_node,
             # int to bool
@@ -636,6 +637,7 @@ class crystallise:
                 # int to int
                 Sum: lambda ops: sum(op.value for op in ops),  # possible todo: if an operand is const0, gets discarded. if any group of operands sum to 0, they get discarded, not work if unsigned.
                 AbsDiff: lambda ops: abs(ops[0].value - ops[1].value),  # possible todo: if one is 0, becomes identity of other
+                Mul: lambda ops: math.prod(op.value for op in ops),  # possible todo: if one is 0, becomes identity of other
                 ToInt: lambda ops: sum(op.value * (2 ** i) for i, op in enumerate(ops)),
                 # bool to int
                 Equals: lambda ops: ops[0].value == ops[1].value,
