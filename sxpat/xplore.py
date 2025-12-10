@@ -176,19 +176,19 @@ def explore_grid(specs_obj: Specifications):
                 current = exact
                 for inp in current.inputs:
                     # first way
-                    if not specs_obj.slash_inputs_error_eval:
-                        start = Timer.now()
-                        least_significant_inputs.append((calc_label(exact, current, inp.name, specs_obj), inp.name))
-                        print(f'total_input_{inp.name} = {Timer.now() - start}')
+                    # if not specs_obj.slash_inputs_error_eval:
+                    start = Timer.now()
+                    least_significant_inputs.append((calc_label(exact, current, inp.name, specs_obj), inp.name))
+                    print(f'total_input_{inp.name} = {Timer.now() - start}')
 
                     # second way
-                    else:
-                        p_graph, c_graph = InputReplace.define(current, specs_obj, inp.name, False)
-                        start = Timer.now()
-                        solve = get_solver(specs_obj).solve
-                        label = error_evaluation2(exact, p_graph, specs_obj)
-                        print(f'total_input_{inp.name} = {Timer.now() - start}')
-                        least_significant_inputs.append((label, inp.name))
+                    # else:
+                    #     p_graph, c_graph = InputReplace.define(current, specs_obj, inp.name, False)
+                    #     start = Timer.now()
+                    #     solve = get_solver(specs_obj).solve
+                    #     label = error_evaluation2(exact, p_graph, specs_obj)
+                    #     print(f'total_input_{inp.name} = {Timer.now() - start}')
+                    #     least_significant_inputs.append((label, inp.name))
 
                 least_significant_inputs.sort(key=lambda x: -x[0])
                 print(least_significant_inputs)
@@ -196,6 +196,9 @@ def explore_grid(specs_obj: Specifications):
                 if least_significant_inputs[-1][0] + obtained_wce_exact < specs_obj.max_error:
                     saved_exctraction_mode = specs_obj.extraction_mode
                     specs_obj.extraction_mode = 101
+                else:
+                    saved_exctraction_mode = specs_obj.extraction_mode
+                    done_inp_slash = False
 
             if not done_inp_slash:
                 specs_obj.extraction_mode = saved_exctraction_mode
@@ -351,7 +354,7 @@ def explore_grid(specs_obj: Specifications):
                 for candidate_name, candidate_data in cur_model_results.items():
 
                     candidate_data[4] = error_evaluation(e_graph, candidate_name[:-2], specs_obj)
-                    candidate_data[5] = error_evaluation(s_graph, candidate_name[:-2], specs_obj)
+                    # candidate_data[5] = error_evaluation(s_graph, candidate_name[:-2], specs_obj)
 
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
@@ -366,7 +369,7 @@ def explore_grid(specs_obj: Specifications):
                 # select best circuit
                 best_name, best_data = sorted_circuits[0]
                 obtained_wce_exact = best_data[4]
-                prev_actual_error = best_data[5]
+                # prev_actual_error = best_data[5]
 
                 specs_obj.current_benchmark = best_name
                 best_model_info = Model(id=0,
