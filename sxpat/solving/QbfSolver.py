@@ -84,6 +84,25 @@ def _adder(a : list, b : list, next_free, destination : IO[str], carry = False) 
         results.append(carry_in)
     return results
 
+def _multiplier(a: list, b: list, next_free, destination: IO[str]) -> list:
+    n = len(a)
+    m = len(b)
+    
+    result = [FALSE] * (n + m)
+    
+    for i, bi in enumerate(b):
+        partial = []
+        for j, aj in enumerate(a):
+            tmp = free(next_free[0])
+            destination.write(f'{tmp} = and({aj}, {bi})\n')
+            next_free[0] += 1
+            partial.append(tmp)
+        partial = [FALSE]*i + partial
+        # add to result
+        result = _adder(result, partial, next_free, destination)
+    
+    return result
+
 def _inverse(a : list, next_free, destination : IO[str]) -> list:
     results = []
     for x in a:
@@ -279,6 +298,21 @@ def process_Sum(n : Node, operands: list, accs: list, param: list, next_free: in
     mapping[n.name] = num
     return next_free
 
+def process_Mul(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
+    if len(operands) == 0:
+        mapping[n.name] = [FALSE]
+        return next_free
+    
+    num = mapping[operands[0]]
+    for i in range(1,len(operands)):
+        temp = [next_free]
+        num = _multiplier(num, mapping[operands[i]], temp, destination)
+        next_free = temp[0]
+
+
+    mapping[n.name] = num
+    return next_free
+
 # TODO: remove one bit
 def process_AbsDiff(n : Node, operands: list, accs: list, param: list, next_free: int, mapping : Dict[str, List[str]], destination: IO[str]):
     temp = [next_free]
@@ -468,6 +502,7 @@ Node_Mapping = {
     # integer operations
     Sum: process_Sum,
     AbsDiff: process_AbsDiff,
+    Mul: process_Mul,
     # comparison operations
     Equals: process_Equals, # Needs testing
     NotEquals: process_NotEquals, # Needs testing
