@@ -567,8 +567,8 @@ def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, spec
     elif specs_obj.iteration == 1:
         exact = iograph_from_legacy(exact_graph)
         current = iograph_from_legacy(current_graph)
-        upper_bounds = upper_bound(current)
-        weights = fast_labeling(exact, current, specs_obj.et, specs_obj, upper_bound=upper_bounds)
+        # upper_bounds = upper_bound(current)
+        weights = fast_labeling(exact, current, specs_obj.et, specs_obj)
 
         # weights = labeling(exact_graph.name, exact_graph.name, specs_obj.et * ET_COEFFICIENT,)
 

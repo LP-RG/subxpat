@@ -6,11 +6,11 @@ from sxpat.solving.QbfSolver import QbfSolver
 from sxpat.utils.timer import Timer
 from typing import Callable
 
-def calc_label(exact_graph: IOGraph, current_graph: IOGraph, cur_node, specs_obj: Specifications, upper_bound={}):
+def calc_label(exact_graph: IOGraph, current_graph: IOGraph, cur_node, specs_obj: Specifications):
     define_template = Labeling.define
     p_graph, c_graph = define_template(current_graph, [cur_node],min_labeling=specs_obj.min_labeling)
     solve = QbfSolver.solve
-    status, model = solve((exact_graph, p_graph, c_graph), specs_obj, upper_bound=upper_bound[cur_node] if cur_node in upper_bound else None)
+    status, model = solve((exact_graph, p_graph, c_graph), specs_obj)
     return model['weight']
 
 def fast_labeling(exact_graph: IOGraph, current_graph: IOGraph, et, specs_obj: Specifications, skip_at_output=True, threshold_for_max_imprecision=10, skip_input=True, weights = {}, upper_bound = {}):
@@ -31,7 +31,7 @@ the value, set to 0 to never use
     stack = []
     visited = set()
     weights = dict(weights)
-    upper_bound = dict(upper_bound)
+    # upper_bound = dict(upper_bound)
 
     def recursive_cases(start_node, value):
         nonlocal weights
@@ -69,7 +69,7 @@ the value, set to 0 to never use
             value = 2 ** int(current_graph.successors(cur_node)[0].name[3:])
         
         else:
-            value = calc_label(exact_graph, current_graph, cur_node, specs_obj, upper_bound)
+            value = calc_label(exact_graph, current_graph, cur_node, specs_obj)
             # value = allweights[cur_node]
             # tot_time += alltimes[cur_node]
         
