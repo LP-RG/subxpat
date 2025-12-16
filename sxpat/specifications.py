@@ -40,6 +40,12 @@ class EncodingType(enum.Enum):
     Z3_DIRECT_BITVECTOR = 'z3dbvec'
     QBF = 'qbf'
 
+class SlashExploration(enum.Enum):
+    # Treat all inputs as having the same weight
+    SAME_BINARY = 'bin'
+    SAME_ITERATIVE = 'it'
+    SAME_PREDICT = 'pred'
+
 
 class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
@@ -118,7 +124,7 @@ class Specifications:
     error_for_slash: int
     slash_inputs: bool
     slash_inputs_false: bool
-    slash_inputs_error_eval: bool
+    slash_inputs_explore: SlashExploration
 
 
     # exploration (1)
@@ -302,10 +308,13 @@ class Specifications:
         _slash_if = _subex_group.add_argument('--slash-inputs-false',
                                            action='store_true',
                                            help='remove inputs while able to do so')
+
+        _slash_exp = _subex_group.add_argument('--slash-inputs-explore',
+                                            type=SlashExploration,
+                                            action=EnumChoicesAction,
+                                            default=SlashExploration.SAME_ITERATIVE,
+                                            help='The exploration to use in slash inputs (default: it)')
         
-        _slash_ie = _subex_group.add_argument('--slash-inputs-error-eval',
-                                           action='store_true',
-                                           help='remove inputs while able to do so')
 
         # > execution stuff
         _explor_group = parser.add_argument_group('Execution')

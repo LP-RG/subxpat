@@ -37,13 +37,13 @@ from sxpat.templating.InputReplace import InputReplace
 from sxpat.solving.QbfSolver import QbfSolver
 from sxpat.temp_labelling import labeling
 from sxpat.fast_labeling import fast_labeling, upper_bound, lower_bound, calc_label
+from sxpat.slash_inputs import remove_inputs
 import random
 
 def explore_grid(specs_obj: Specifications):
     previous_subgraphs = []
     previous_graph = nx.DiGraph()
     count_to_finish = 0
-    least_significant_inputs = []
     done_inp_slash = True
     # tot_i = int(specs_obj.exact_benchmark.split('_o')[0].split('_i')[-1])
     # for x in range(tot_i):
@@ -91,8 +91,6 @@ def explore_grid(specs_obj: Specifications):
                 try:
                     specs_obj.et = next(et_array)
                 except StopIteration:
-                    if not specs_obj.slash_inputs:
-                        count_to_finish += 1
                     if count_to_finish == 20:
                         break
                     # pprint.warning('The error space is exhausted!')
@@ -158,54 +156,18 @@ def explore_grid(specs_obj: Specifications):
         # > grid step settings
 
         # import the graph
+        if specs_obj.slash_inputs:
+            specs_obj.current_benchmark = remove_inputs(specs_obj)
+            specs_obj.slash_inputs = False
+            continue
         current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark)
         exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark)
 
-        if not specs_obj.slash_inputs and nx.is_isomorphic(current_graph.graph, previous_graph):
+        if nx.is_isomorphic(current_graph.graph, previous_graph):
             print('current graph is equivalent to previous iteration, stopping')
             break
         else:
             previous_graph = current_graph.graph
-
-        if specs_obj.slash_inputs:
-            saved_template = specs_obj.template
-            specs_obj.template = TemplateType.INPUT_REPLACE
-
-            if specs_obj.iteration == 1:
-                exact = iograph_from_legacy(exact_graph)
-                current = exact
-                for inp in current.inputs:
-                    # first way
-                    # if not specs_obj.slash_inputs_error_eval:
-                    start = Timer.now()
-                    least_significant_inputs.append((calc_label(exact, current, inp.name, specs_obj), inp.name))
-                    print(f'total_input_{inp.name} = {Timer.now() - start}')
-
-                    # second way
-                    # else:
-                    #     p_graph, c_graph = InputReplace.define(current, specs_obj, inp.name, False)
-                    #     start = Timer.now()
-                    #     solve = get_solver(specs_obj).solve
-                    #     label = error_evaluation2(exact, p_graph, specs_obj)
-                    #     print(f'total_input_{inp.name} = {Timer.now() - start}')
-                    #     least_significant_inputs.append((label, inp.name))
-
-                least_significant_inputs.sort(key=lambda x: -x[0])
-                print(least_significant_inputs)
-            
-                if least_significant_inputs[-1][0] + obtained_wce_exact < specs_obj.max_error:
-                    saved_exctraction_mode = specs_obj.extraction_mode
-                    specs_obj.extraction_mode = 101
-                else:
-                    saved_exctraction_mode = specs_obj.extraction_mode
-                    done_inp_slash = False
-
-            if not done_inp_slash:
-                specs_obj.extraction_mode = saved_exctraction_mode
-                specs_obj.slash_inputs = False
-                specs_obj.template = saved_template
-            else:
-                next_inp = least_significant_inputs.pop()[1]
 
 
 
@@ -263,10 +225,7 @@ def explore_grid(specs_obj: Specifications):
 
             # define template (and constraints)
             template_timer, define_template = Timer.from_function(get_templater(specs_obj).define)
-            if specs_obj.extraction_mode == 101:
-                p_graph, c_graph = define_template(s_graph, specs_obj, next_inp)
-            else:
-                p_graph, c_graph = define_template(s_graph, specs_obj)
+            p_graph, c_graph = define_template(s_graph, specs_obj)
 
             # solve
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
@@ -282,15 +241,6 @@ def explore_grid(specs_obj: Specifications):
 
             # legacy adaptation
             execution_time = template_timer.total + solve_timer.total
-            # if specs_obj.iteration == 2:
-            #     exit()
-            if specs_obj.slash_inputs:
-                specs_obj.template = saved_template
-                if status == 'sat':
-                    done_inp_slash = True
-                else:
-                    done_inp_slash = False
-                    break
 
 
             if len(models) == 0:
@@ -370,7 +320,6 @@ def explore_grid(specs_obj: Specifications):
                 best_name, best_data = sorted_circuits[0]
                 obtained_wce_exact = best_data[4]
                 # prev_actual_error = best_data[5]
-
                 specs_obj.current_benchmark = best_name
                 best_model_info = Model(id=0,
                                         status=status.upper(),
