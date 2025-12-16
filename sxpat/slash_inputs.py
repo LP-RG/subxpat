@@ -132,7 +132,6 @@ def remove_inputs(specs_obj: Specifications) -> str:
     start = Timer.now()
     selected_nodes, constant = exploration(exact, specs_obj)
     print(f'total = {Timer.now() - start}')
-    constant = False
 
     p_graph, _ = InputsReplace.define(exact, specs_obj, selected_nodes, replace_with_constant=constant)
     io_graph = IOGraph([n for n in p_graph.nodes], p_graph.inputs_names, p_graph.outputs_names)
