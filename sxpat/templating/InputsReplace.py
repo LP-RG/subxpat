@@ -55,7 +55,7 @@ class InputsReplace:
             cur_int := ToInt('cur_int', operands=current.outputs_names),
             tem_int := ToInt('tem_int', operands=template_graph.outputs_names),
             abs_diff := AbsDiff('weight', operands=(cur_int.name, tem_int.name)),
-            et := IntConstant('et_const', value=specs_obj.et),
+            et := IntConstant('et_const', value=specs_obj.error_for_slash),
             less_than := LessEqualThan('less_than', operands=(abs_diff.name, et.name)),
             Constraint.of(less_than),
         ]

@@ -103,7 +103,6 @@ def same_iterative(exact: IOGraph, specs_obj: Specifications, input_count: int):
     while True:
         x -= 1
         status, constant = calculate(exact, specs_obj, [x for _ in range(input_count)])
-        print(status, x)
 
         if status:
             break
@@ -131,7 +130,7 @@ def remove_inputs(specs_obj: Specifications) -> str:
 
     start = Timer.now()
     selected_nodes, constant = exploration(exact, specs_obj)
-    print(f'total = {Timer.now() - start}')
+    print(f'total_slash_inputs = {Timer.now() - start}')
 
     p_graph, _ = InputsReplace.define(exact, specs_obj, selected_nodes, replace_with_constant=constant)
     io_graph = IOGraph([n for n in p_graph.nodes], p_graph.inputs_names, p_graph.outputs_names)
