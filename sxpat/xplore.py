@@ -302,8 +302,10 @@ def explore_grid(specs_obj: Specifications):
                 # verify all models and store errors
                 pprint.info1('verifying all approximate circuits ...')
                 for candidate_name, candidate_data in cur_model_results.items():
-
+                    
+                    start = Timer.now()
                     candidate_data[4] = error_evaluation(e_graph, candidate_name[:-2], specs_obj)
+                    print(f'error_eval_time = {Timer.now() - start}')
                     # candidate_data[5] = error_evaluation(s_graph, candidate_name[:-2], specs_obj)
 
                     if candidate_data[4] > specs_obj.et:

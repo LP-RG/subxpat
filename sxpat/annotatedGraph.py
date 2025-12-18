@@ -17,12 +17,14 @@ from z3 import *
 from .specifications import Specifications, TemplateType
 
 from sxpat.utils.print import pprint
+from sxpat.utils.timer import Timer
 
 
 class AnnotatedGraph(Graph):
     __cached_loading_callable = None
 
     def __init__(self, benchmark_name: str, is_clean: bool = False) -> None:
+        start = Timer.now()
         # Prepare a clean Verilog
         Verilog(benchmark_name)
         # Convert the clean Verilog into a Yosys GV
@@ -53,6 +55,7 @@ class AnnotatedGraph(Graph):
 
         folder, extension = OUTPUT_PATH[GV]
         self.__out_annotated_graph_path = f'{folder}/{self.name}_subgraph.{extension}'
+        print(f'annotated_graph_time = {Timer.now() - start}')
 
     @classmethod
     def cached_load(cls, benchmark_name: str, is_clean: bool = False) -> Self:
