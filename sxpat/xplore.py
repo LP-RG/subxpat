@@ -48,6 +48,8 @@ from sxpat.solvers.QbfSolver import QbfSolver
 
 from sxpat.converting.utils import set_prefix_new
 
+from sxpat.fast_labeling import upper_bound, lower_bound, calc_label, fast_labeling
+
 def explore_grid(specs_obj: Specifications):
 
     solvers = [QbfSolver]
