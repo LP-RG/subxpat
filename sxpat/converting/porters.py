@@ -89,6 +89,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # int to int
         Sum: '&sum;A',
         AbsDiff: '|a-b|',
+        Mul: '&mul;A',
         # bool to int
         ToInt: 'toInt',
         # int to bool
@@ -388,6 +389,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         # int-int operations
         Sum: lambda n: f'({" + ".join(n.operands)})',
         AbsDiff: lambda n: f'(({n.left} > {n.right}) ? ({n.left} - {n.right}) : ({n.right} - {n.left}))',
+        Mul: lambda n: f'({" * ".join(n.operands)})',
         # bool-int operations
         # ToInt: lambda n: None,
         # int-bool operations

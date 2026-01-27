@@ -36,7 +36,7 @@ __all__ = [
     # bool to bool
     'Not', 'And', 'Or', 'Xor', 'Xnor', 'Implies',
     # int to int
-    'Sum', 'AbsDiff',
+    'Sum', 'AbsDiff', 'Mul',
     # bool to int
     'ToInt',
     # int to bool
@@ -428,6 +428,14 @@ class AbsDiff(Extras, Limited2Operation, IntResType, Expression, Node):
     """
         Integer absolute difference ( `| a - b |` ) expression.  
         This node must have two operands.
+    """
+
+
+@dc.dataclass(frozen=True)
+class Mul(Extras, Operation, IntResType, Expression, Node):
+    """
+        Integer multiplication ( `a * b * ...` ) expression.  
+        This node can have any amount of operands.
     """
 
 

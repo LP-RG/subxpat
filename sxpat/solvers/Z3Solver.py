@@ -430,6 +430,7 @@ Z3_INT_NODE_MAPPING = {
     # integer operations
     Sum: lambda n, operands, accs: f'Sum({", ".join(operands)})',
     AbsDiff: lambda n, operands, accs: f'If({operands[0]} >= {operands[1]}, {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
+    Mul: lambda n, operands, accs: f'{" * ".join(operands)}',
     # comparison operations
     Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
     NotEquals: lambda n, operands, accs: f'({operands[0]} != {operands[1]})',

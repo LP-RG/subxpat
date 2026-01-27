@@ -28,7 +28,6 @@ from sxpat.metrics import MetricsEstimator
 from sxpat.stats import Stats, sxpatconfig, Model
 
 from sxpat.definitions.templates import get_specialized as get_templater
-from sxpat.definitions.templates import v2Phase1
 from sxpat.definitions.distances import *
 
 from sxpat.definitions.questions import exists_parameters

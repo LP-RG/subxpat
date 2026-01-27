@@ -46,6 +46,7 @@ class TemplateType(enum.Enum):
     SHARED = 'shared'
     V2 = 'v2'
 
+
 class DistanceType(enum.Enum):
     ABSOLUTE_DIFFERENCE_OF_INTEGERS = 'adoi'
     ABSOLUTE_DIFFERENCE_OF_WEIGHTED_SUM = 'adows'
