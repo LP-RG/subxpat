@@ -1,7 +1,7 @@
 from sxpat.annotatedGraph import AnnotatedGraph
 
 from sxpat.graph import IOGraph, SGraph
-from sxpat.graph import BoolVariable, BoolConstant, And, Not, Identity
+from sxpat.graph.node import BoolVariable, BoolConstant, And, Not, Identity
 from sxpat.utils.functions import str_to_bool
 
 
