@@ -53,6 +53,13 @@ class TemplateType(enum.Enum):
     INPUT_REPLACE = 'inpreplace'
 
 
+class DistanceType(enum.Enum):
+    ABSOLUTE_DIFFERENCE_OF_INTEGERS = 'adoi'
+    ABSOLUTE_DIFFERENCE_OF_WEIGHTED_SUM = 'adows'
+    HAMMING_DISTANCE = 'hd'
+    WEIGHTED_HAMMING_DISTANCE = 'whd'
+
+
 class ConstantsType(enum.Enum):
     NEVER = 'never'
     ALWAYS = 'always'

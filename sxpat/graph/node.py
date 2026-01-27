@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Any, Optional, Tuple, Generic, TypeVar, Union
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias
 
 import dataclasses as dc
 
@@ -49,21 +49,27 @@ __all__ = [
     'AtLeast', 'AtMost',
 
     # > solver nodes
-    'Objective', 'GlobalTask',
+    'Objective', 'LocalObjective', 'GlobalTask',
     # objectives
     'Target', 'Constraint',
     # global tasks
     'Min', 'Max', 'ForAll',
 
-    # > aliases
-    'VariableNode', 'ValuedNode', 'ConstantNode',
-    'OperationNode', 'ExpressionNode',
-    'ObjectiveNode', 'GlobalTaskNode',
-
-    'T_AnyNode',
-
-    # > nodes groups
-    'contact_nodes', 'origin_nodes', 'end_nodes',
+    # > Typing help
+    'AnyNode', 'T_AnyNode', 'T_Node',
+    'AnyVariable', 'T_AnyVariable',
+    'AnyConstant', 'T_AnyConstant',
+    'AnyOperation', 'T_AnyOperation',
+    'AnyExpression', 'T_AnyExpression',
+    'AnyObjective', 'T_AnyObjective',
+    'AnyGlobalObjective', 'T_AnyGlobalObjective',
+    'AnyExtras',
+    #
+    'AnyBoolResType',
+    'AnyDynamicResType',
+    #
+    'AnyNonEntryPoint',
+    'AnyNonEndPoint',
 ]
 
 
@@ -109,6 +115,11 @@ class Extras(__Base):
     def __post_init__(self) -> None:
         super().__post_init__()
         object.__setattr__(self, 'in_subgraph', bool(self.in_subgraph))
+
+    @classmethod
+    def has_weight(cls, obj: Any) -> bool:
+        """Returns if the given object is an instance of `Extras` and has an assigned weight."""
+        return isinstance(obj, cls) and obj.weight is not None
 
 
 # valued
@@ -330,9 +341,7 @@ class IntConstant(Extras, Constant[int], IntResType, Node):
 
 
 @dc.dataclass(frozen=True)
-class PlaceHolder(Node):
-    # TODO: should this be an EntryPoint?
-    #       structurally in an individual graph yes, but how sould we treat it in multigraph references?
+class PlaceHolder(EntryPoint, Node):
     """
         Special node: placeholder for any other node (by name).  
 
@@ -566,10 +575,7 @@ class AtMost(Extras, Valued[int], Operation, BoolResType, Expression, Node):
     """
 
 
-# > solver nodes
-
-
-# objective nodes
+# > solver objective nodes
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
@@ -581,45 +587,53 @@ class Objective(EndPoint):
     """
 
 
+# local objective nodes
+
+
+@dc.dataclass(frozen=True, init=False, repr=False, eq=False)
+class LocalObjective(Objective):
+    """
+        An object representing a local solver objective (eg. model target, asserted constraint).
+
+        *abtract*
+    """
+
+
 @dc.dataclass(frozen=True)
-class Target(Limited1Operation, Objective, Node):
+class Target(Limited1Operation, LocalObjective, Node):
     """
         Special solver node: specifies a node which value must be returned when solving.  
         The only operand represents the value to return.
     """
 
     @classmethod
-    def of(cls, operand: Node) -> Self:
+    def of(cls, other: Union[Node, str]) -> Self:
         """Helper constructor with automatic naming."""
-        return cls(
-            f'target_{operand.name}',
-            operands=(operand,),
-        )
+        name = other.name if isinstance(other, Node) else other
+        return cls(f'target_{name}', operands=[name])
 
 
 @dc.dataclass(frozen=True)
-class Constraint(Limited1Operation, Objective, Node):
+class Constraint(Limited1Operation, LocalObjective, Node):
     """
         Special solver node: specifies a node which value must be asserted when solving.  
         The only operand represents the value to assert.
     """
 
     @classmethod
-    def of(cls, operand: Node) -> Self:
+    def of(cls, other: Union[Node, str]) -> Self:
         """Helper constructor with automatic naming."""
-        return cls(
-            f'constraint_{operand.name}',
-            operands=(operand,),
-        )
+        name = other.name if isinstance(other, Node) else other
+        return cls(f'constraint_{name}', operands=[name])
 
 
-# global task nodes
+# global objective nodes
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
 class GlobalTask(Objective):
     """
-        An object representing a global solver task (eg. min/maximization, forall quantification).
+        An object representing a global solver objective/task (eg. min/maximization, forall quantification).
 
         *abstract*
     """
@@ -648,65 +662,122 @@ class ForAll(Operation, GlobalTask, Node):
     """
 
 
-# > aliases
+# > Typing help
 
 
-VariableNode = Union[Extras, Variable, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
+# variable
+AnyVariable: TypeAlias = Union[
+    BoolVariable, IntVariable,
+]
+T_AnyVariable = TypeVar('T_AnyVariable', bound=AnyVariable)
 
-ValuedNode = Union[Valued, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
+# constant
+AnyConstant: TypeAlias = Union[
+    IntConstant, BoolConstant,
+]
+T_AnyConstant = TypeVar('T_AnyConstant', bound=AnyConstant)
 
-ConstantNode = Union[Extras, Constant, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
+# expression
+AnyExpression: TypeAlias = Union[
+    Not, And, Or, Xor, Implies,
+    Sum, AbsDiff,
+    ToInt,
+    Equals, NotEquals, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,
+    Identity,
+    Multiplexer, If,
+    AtLeast, AtMost,
+]
+T_AnyExpression = TypeVar('T_AnyExpression', bound=AnyExpression)
 
-OperationNode = Union[Operation, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
+# global objective/task
+AnyGlobalObjective: TypeAlias = Union[
+    Min, Max, ForAll,
+]
+T_AnyGlobalObjective = TypeVar('T_AnyGlobalObjective', bound=AnyGlobalObjective)
 
-ExpressionNode = Union[Extras, Expression, Operation, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
+# objective
+AnyObjective: TypeAlias = Union[
+    Target, Constraint,
+    AnyGlobalObjective
+]
+T_AnyObjective = TypeVar('T_AnyObjective', bound=AnyObjective)
 
-ObjectiveNode = Union[Objective, Operation, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
+# operation
+AnyOperation: TypeAlias = Union[
+    AnyExpression,
+    AnyObjective,
+]
+T_AnyOperation = TypeVar('T_AnyOperation', bound=AnyOperation)
 
-GlobalTaskNode = Union[GlobalTask, Operation, Node]
-"""
-    **JUST A TYPING ALIAS**  
-    Never use it for anything other than type annotations.
-"""
+# node
+AnyNode: TypeAlias = Union[
+    AnyVariable,
+    AnyConstant,
+    PlaceHolder,
+    AnyExpression,
+    AnyObjective,
+]
+T_AnyNode = TypeVar('T_AnyNode', bound=AnyNode)
+T_Node = TypeVar(
+    'T_Node',
+    # variable
+    BoolVariable, IntVariable,
+    # constant
+    IntConstant, BoolConstant,
+    # placeholder
+    PlaceHolder,
+    # expression
+    Not, And, Or, Xor, Implies,
+    Sum, AbsDiff,
+    ToInt,
+    Equals, NotEquals, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,
+    Identity,
+    Multiplexer, If,
+    AtLeast, AtMost,
+    # objective
+    Target, Constraint,
+    Min, Max, ForAll,
+)
+
+AnyExtras: TypeAlias = Union[
+    AnyVariable,
+    AnyConstant,
+    AnyExpression,
+]
+
+# resulting type
+AnyBoolResType: TypeAlias = Union[
+    BoolVariable,
+    BoolConstant,
+    Not,
+    And,
+    Or,
+    Xor,
+    Implies,
+    Equals,
+    NotEquals,
+    LessThan,
+    LessEqualThan,
+    GreaterThan,
+    GreaterEqualThan,
+    Multiplexer,
+    AtLeast,
+    AtMost,
+]
+AnyDynamicResType: TypeAlias = Union[
+    Identity,
+    If,
+]
 
 
-# > type variables
-T_AnyNode = TypeVar('T_AnyNode', Node, Valued, Operation, Limited1Operation, Limited2Operation, Limited3Operation)
-
-
-# > other groups
-#
-contact_nodes = (PlaceHolder,)
-"""DEPRECATED: will be removed in a future update"""
-#
-origin_nodes = (BoolVariable, BoolConstant, IntVariable, IntConstant,)
-"""DEPRECATED: will be removed in a future update"""
-end_nodes = (Identity, Target, Constraint)
-"""DEPRECATED: will be removed in a future update"""
-# asdasdas
-global_solver_nodes = (Min, Max, ForAll)
-"""DEPRECATED: will be removed in a future update"""
+# structural
+AnyNonEntryPoint = Union[
+    AnyExpression,
+    AnyObjective,
+]
+AnyNonEndPoint = Union[
+    AnyVariable,
+    AnyConstant,
+    PlaceHolder,
+    AnyExpression,
+]

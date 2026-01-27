@@ -38,16 +38,16 @@ class pprint:
 
 
 if __name__ == '__main__':
-    pprint.e('ERROR', 'some other', 'message', [1, True, dict()])
-    pprint.w('WARNING', 'some other', 'message', [1, True, dict()])
-    pprint.s('SUCCESS', 'some other', 'message', [1, True, dict()])
-    pprint.i1('INFO 1', 'some other', 'message', [1, True, dict()])
-    pprint.i2('INFO 2', 'some other', 'message', [1, True, dict()])
-    pprint.i3('INFO 3', 'some other', 'message', [1, True, dict()])
-
     print(color.e('ERROR'), 'some other', 'message', [1, True, dict()])
     print(color.w('WARNING'), 'some other', 'message', [1, True, dict()])
     print(color.s('SUCCESS'), 'some other', 'message', [1, True, dict()])
     print(color.i1('INFO 1'), 'some other', 'message', [1, True, dict()])
     print(color.i2('INFO 2'), 'some other', 'message', [1, True, dict()])
     print(color.i3('INFO 3'), 'some other', 'message', [1, True, dict()])
+
+    pprint.e('ERROR', 'some other', 'message', [1, True, dict()])
+    pprint.w('WARNING', 'some other', 'message', [1, True, dict()])
+    pprint.s('SUCCESS', 'some other', 'message', [1, True, dict()])
+    pprint.i1('INFO 1', 'some other', 'message', [1, True, dict()])
+    pprint.i2('INFO 2', 'some other', 'message', [1, True, dict()])
+    pprint.i3('INFO 3', 'some other', 'message', [1, True, dict()])
