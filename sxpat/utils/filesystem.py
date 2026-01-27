@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Optional
 
 import os
 import shutil
@@ -65,8 +65,8 @@ class FS:
     #     cls.mkdir(directory)
     #     return open(path, mode)
 
-    @classmethod
-    def open_tmp(directory: str = None, delete: bool = False, binary: bool = False):
+    @staticmethod
+    def open_tmp(directory: Optional[str] = None, delete: bool = False, binary: bool = False):
         """
             Create a temporary file on the filesystem.  
             If `directory` is given, the file will be created in that directory (created if missing).  
@@ -85,7 +85,7 @@ class FS:
             delete=delete
         )
 
-    @classmethod
+    @staticmethod
     def copy(src_path: str, dst_path: str, exists_ok: bool = False) -> None:
         """
             Copies a file or an entire directory from source to destination.  

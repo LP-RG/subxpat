@@ -1,29 +1,39 @@
 import sys
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Type, TypeVar, Union, overload
 
-import re
 import math
 import itertools as it
 
 from sxpat.graph import *
+from sxpat.graph.node import *
 from sxpat.utils.print import pprint
 
 
 __all__ = [
-    # digest/update graph
-    'unpack_ToInt', 'prune_unused', 'set_bool_constants', 'set_prefix', 'set_prefix_new', 'crystallise',
+    # digest (to be moved to own sub/module)
+    'unpack_ToInt',
+    # optimization
+    'crystallise',
+    'prune_unused', 'prune_unused_keepio',
+    # assignments
+    'set_bool_constants',
+    # non behavioural changes
+    'set_prefix', 'set_prefix_new',
     # compute graph accessories
     'get_nodes_type', 'get_nodes_bitwidth',
 
-    # expand constraints
-    'prevent_combination',
+    'get_rolling_code',
+
+    # others
+    # (this could be in questions? or a new module? maybe called constraints::? or maybe something else)
+    'prevent_assignment',
 ]
 
 
-T_N = TypeVar('T_N', bound=Node)
+_N = TypeVar('_N', bound=Node)
 
 
-def unpack_ToInt(graph: _Graph) -> _Graph:
+def unpack_ToInt(graph: T_Graph) -> T_Graph:
     """
         Given a graph, returns a new graph with all ToInt nodes unpacked to a more primitive set of nodes.
 
@@ -79,28 +89,46 @@ def unpack_ToInt(graph: _Graph) -> _Graph:
     return graph.copy(nodes)
 
 
-def prune_unused(graph: _Graph) -> _Graph:
+def prune_unused(graph: T_Graph, reserved_names: Iterable[str]) -> T_Graph:
     """
-        Given a graph, returns a new graph without any dangling nodes (recursive).
-        Nodes counted as correct terminations are nodes of class `Identity` or of subclasses of `Variable`.
+        Given a graph, returns a new graph without any dangling nodes (recursively).  
+        `reserved_names` represents the nodes that root the graph and that must be kept even if not used.
 
         @authors: Marco Biasion
     """
 
-    # TODO: better to match termination by input/outputs instead of Variable/Identity
-    termination_nodes = [node.name for node in graph.nodes if isinstance(node, (Variable, Identity))]
+    # convert to stack
+    valid_terminations = list(reserved_names)
 
-    # find reachable nodes from the terminations
+    # find reachable nodes from the reserved ones
     visited_nodes = set()
-    while len(termination_nodes) > 0:
-        node_name = termination_nodes.pop()
+    while valid_terminations:
+        node_name = valid_terminations.pop()
         visited_nodes.add(node_name)
-        termination_nodes.extend(_n.name for _n in graph.predecessors(node_name))
+        valid_terminations.extend(_n.name for _n in graph.predecessors(node_name))
 
-    # filter out non visited nodes
-    nodes = (node for node in graph.nodes if node.name in visited_nodes)
-
+    # keep only visited nodes
+    nodes = (graph[name] for name in visited_nodes)
     return graph.copy(nodes)
+
+
+def prune_unused_keepio(graph: T_IOGraph, reserved_names: Iterable[str] = tuple()) -> T_IOGraph:
+    """
+        Given a graph, returns a new graph without any dangling nodes (recursively).  
+        By default all inputs and outputs root the graph and will be kept,
+        optionally `reserved_names` can be used to select more nodes.
+
+        @authors: Marco Biasion
+    """
+
+    return prune_unused(
+        graph,
+        it.chain(
+            graph.inputs_names,
+            graph.outputs_names,
+            reserved_names,
+        )
+    )
 
 
 def get_nodes_type(graphs: Iterable[Graph],
@@ -151,6 +179,7 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
     """
 
     bitwidth_of = dict(initial_mapping)
+    graphs = tuple(graphs)
 
     def manage_node(node: Node):
         # skippable
@@ -197,7 +226,7 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
         return get_nodes_bitwidth(graphs, nodes_types, bitwidth_of)
 
 
-def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missing: bool = False) -> _Graph:
+def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missing: bool = False) -> T_Graph:
     """
         Takes a graph and a mapping from names to bool in input
         and returns a new graph with the nodes corresponding to the given names replaced with the wanted constant.
@@ -222,11 +251,13 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missin
     return graph.copy(new_nodes.values())
 
 
-def set_prefix(graph: _Graph, prefix: str) -> _Graph:
+def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
     """
         # DEPRECATED
         # Use `set_prefix_new` instead
+
         Given a graph and the wanted prefix, returns a new graph with all operation nodes updated with the prefix.
+
         @authors: Marco Biasion
     """
 
@@ -236,7 +267,7 @@ def set_prefix(graph: _Graph, prefix: str) -> _Graph:
         for n in graph.nodes
     }
 
-    nodes: List = []
+    nodes: List[AnyNode] = []
     for node in graph.nodes:
         if isinstance(node, Operation):
             operands = (updated_names[name] for name in node.operands)
@@ -251,7 +282,7 @@ def set_prefix(graph: _Graph, prefix: str) -> _Graph:
     return graph.copy(nodes, **extras)
 
 
-def set_prefix_new(graph: _Graph, prefix: str, preserve_names: Optional[Iterable[str]] = None) -> _Graph:
+def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterable[str]] = None) -> T_Graph:
     """
         Given a graph and the wanted prefix, returns a new graph with all nodes names updated with the prefix.  
         If `preserve_names` is given, the nodes matching those names will not be renamed.
@@ -269,7 +300,7 @@ def set_prefix_new(graph: _Graph, prefix: str, preserve_names: Optional[Iterable
     }
 
     # create updated nodes
-    nodes: List = []
+    nodes: List[AnyNode] = []
     for node in graph.nodes:
         if isinstance(node, Operation):
             operands = (new_name_of[name] for name in node.operands)
@@ -288,47 +319,44 @@ def set_prefix_new(graph: _Graph, prefix: str, preserve_names: Optional[Iterable
     return graph.copy(nodes, **extras)
 
 
-def prevent_combination(c_graph: CGraph,
-                        assignments: Mapping[str, bool],
-                        assignment_id: Optional[Any] = None) -> CGraph:
+def prevent_assignment(assignments: Mapping[str, bool],
+                       assignment_id: Union[str, int]) -> CGraph:
     """
-        Takes a constraints graph and expands it to prevent the given assignment.
-        It will allow any change, but at least one change is required.
-
-        @note: *TODO: can be expanded to manage also integers (be careful of bitwidth)*
-        @note: *TODO: can be changed to return new CGraph containing only the assignment prevention logic, instead of returning an updated copy*
+        Returns a CGraph with constraints preventing the given assignment.
 
         @authors: Marco Biasion
     """
 
-    # get initial nodes
-    nodes = list(c_graph.nodes)
+    # placeholders
+    placeholders = [PlaceHolder(name) for name in assignments]
 
-    # add constants (duplicates will be removed internally by the graph)
-    const = ['ccF', 'ccT']  # False/0, True:1
-    nodes.append(BoolConstant(f'ccT', value=True))
-    nodes.append(BoolConstant(f'ccF', value=False))
+    #
+    prass_name: Mapping[bool, Callable[[str], str]] = {
+        True: lambda name: f'prass_{assignment_id}_not_{name}',
+        False: lambda name: name,
+    }
 
-    # add placeholders (duplicates will be removed internally by the graph)
-    nodes.extend(PlaceHolder(name) for name in assignments)
-
-    # add NotEquals nodes (duplicates will be removed internally by the graph)
-    old_assignment = tuple(
-        NotEquals(f'{name}_neq_{value}', operands=(name, const[value]))
+    # create required negations
+    negations = [
+        Not(prass_name[True](name), operands=[name])
         for (name, value) in assignments.items()
-    )
-    nodes.extend(old_assignment)
+        if value is True
+    ]
 
-    # add Or aggregate
-    if assignment_id is None:
-        assignment_id = max(it.chain((
-            int(m.group(1))
-            for n in c_graph.nodes
-            if (m := re.match(r'prevent_assignment_(\d+)', n.name))
-        ), (0,)))
-    nodes.append(Or(f'prevent_assignment_{assignment_id}', operands=old_assignment))
+    # create aggregation (and relative constraint)
+    prevention = [
+        prevent := Or(
+            f'prass_{assignment_id}_prevent',
+            operands=[prass_name[value](name) for (name, value) in assignments.items()]
+        ),
+        Constraint(f'prass_{assignment_id}_prevent_constr', operands=[prevent])
+    ]
 
-    return CGraph(nodes)
+    return CGraph(it.chain(
+        placeholders,
+        negations,
+        prevention,
+    ))
 
 
 class crystallise:
@@ -338,7 +366,7 @@ class crystallise:
 
         Complexity: O(V + E)
 
-        #TODO: What to do with Objective where their operand is a constant
+        #TODO: What to do with Objective where their operand is a constant?
 
         @authors: Marco Biasion, Lorenzo Spada
     """
@@ -415,7 +443,7 @@ class crystallise:
 
                     if isinstance(operand, PlaceHolder):
                         operand = cls._find_non_placeholder(operand_name, pre_crystallised_graphs) or operand
-                    
+
                     operands.append(operand)
             else:
                 operands = []
@@ -444,17 +472,17 @@ class crystallise:
         return node_from_node(node_type, node, {'value': value})
 
     @staticmethod
-    def as_other(cls: Type[T_N], node: Node,
+    def as_other(cls: Type[_N], node: Node,
                  /, *,
-                 operand: Union[Node, Operation, Valued] = ...,
-                 operands: Sequence[Union[Node, Operation, Valued]] = ...,
+                 operand: AnyNode = ...,
+                 operands: Sequence[AnyNode] = ...,
                  value: Union[bool, int] = ...
-                 ) -> T_N:
-        overrides = dict()
-        if operand is not Ellipsis: overrides['operands'] = [operand]
-        if operands is not Ellipsis: overrides['operands'] = operands
-        if value is not Ellipsis: overrides['value'] = value
-        return node_from_node(cls, node, overrides)
+                 ) -> _N:
+        override = dict()
+        if operand is not Ellipsis: override['operands'] = [operand]
+        if operands is not Ellipsis: override['operands'] = operands
+        if value is not Ellipsis: override['value'] = value
+        return node_from_node(cls, node, override)
 
     @staticmethod
     def _find_non_placeholder(name: str, graphs: Iterable[Graph]) -> Union[None, Node, Operation, Valued]:
@@ -636,7 +664,7 @@ class crystallise:
                 # int to int
                 Sum: lambda ops: sum(op.value for op in ops),  # possible todo: if an operand is const0, gets discarded. if any group of operands sum to 0, they get discarded, not work if unsigned.
                 AbsDiff: lambda ops: abs(ops[0].value - ops[1].value),  # possible todo: if one is 0, becomes identity of other
-                ToInt: lambda ops: sum(op.value * (2 ** i) for i, op in enumerate(ops)),
+                ToInt: lambda ops: sum(op.value * (2 ** i) for (i, op) in enumerate(ops)),
                 # bool to int
                 Equals: lambda ops: ops[0].value == ops[1].value,
                 NotEquals: lambda ops: ops[0].value != ops[1].value,
@@ -863,7 +891,7 @@ def node_is_false(node: Union[Node, BoolConstant]) -> bool:
     return isinstance(node, BoolConstant) and node.value is False
 
 
-def node_from_node(cls: Type[T_N], node: Node, override: Mapping[str, Any]) -> T_N:
+def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N:
     # get common fields
     kwargs = {'name': node.name}
     if issubclass(cls, Extras) and isinstance(node, Extras):
@@ -879,3 +907,26 @@ def node_from_node(cls: Type[T_N], node: Node, override: Mapping[str, Any]) -> T
 
     # create new node
     return cls(**kwargs)
+
+
+class get_rolling_code:
+    """
+        Returns a two letters code, by selecting a new permutation of two letters (upper and lower case).
+
+        Will start repeating after 2704 (26\*2 \* 26\*2) calls.
+    """
+
+    _chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    _size = 2
+
+    def __new__(cls):
+        if not hasattr(cls, '_idx'): cls._idx = -1
+        cls._idx += 1
+        return cls.prefix_for_index(cls._idx)
+
+    @classmethod
+    def prefix_for_index(cls, idx: int) -> str:
+        i0 = idx // len(cls._chars)
+        i1 = idx % len(cls._chars)
+
+        return cls._chars[i0] + cls._chars[i1]

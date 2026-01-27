@@ -1,14 +1,22 @@
-from typing import Callable, TypeVar, Tuple
-from typing_extensions import Self
-import dataclasses as dc
+__all__ = ['Timer']
 
-import functools as ft
-import resource
+from typing_extensions import (
+    Callable as _Callable,
+    Self as _Self,
+    TypeVar as _TypeVar,
+    Tuple as _Tuple,
+)
+from dataclasses import (
+    dataclass as _dataclass
+)
 
-__all__ = ['timer']
+import functools as _ft
+import resource as _res
+
+_C = _TypeVar('_C', bound=_Callable)
 
 
-@dc.dataclass(init=False, repr=False, eq=False, frozen=True)
+@_dataclass(init=False, repr=False, eq=False, frozen=True)
 class Timer:
     """
         This class is used to wrap functions to be able to time their execution.
@@ -61,8 +69,6 @@ class Timer:
         @authors: Marco Biasion
     """
 
-    _C = TypeVar('_C', bound=Callable)
-
     latest: float = 0
     """The time spent on the latest call of a wrapped function under this timer (in seconds)."""
     total: float = 0
@@ -74,7 +80,7 @@ class Timer:
             Can be used as a decorator.
         """
 
-        @ft.wraps(function)
+        @_ft.wraps(function)
         def wrapper(*args, **kwds):
             time_start = self.now()
             result = function(*args, **kwds)
@@ -88,7 +94,7 @@ class Timer:
         return wrapper
 
     @classmethod
-    def from_function(cls, function: _C) -> Tuple[Self, _C]:
+    def from_function(cls, function: _C) -> _Tuple[_Self, _C]:
         """Create a timer wrapping the given function."""
 
         timer = Timer()
@@ -99,8 +105,8 @@ class Timer:
     def now() -> float:
         """Returns the number of seconds spent by the current process and all waited children."""
 
-        proc_rusage = resource.getrusage(resource.RUSAGE_SELF)
-        chld_rusage = resource.getrusage(resource.RUSAGE_CHILDREN)
+        proc_rusage = _res.getrusage(_res.RUSAGE_SELF)
+        chld_rusage = _res.getrusage(_res.RUSAGE_CHILDREN)
 
         return (
             + proc_rusage.ru_utime  # process user level time
