@@ -1,8 +1,8 @@
 from typing import Set
-from sxpat.graph.Graph import IOGraph
+from sxpat.graph.graph import IOGraph
 from sxpat.specifications import Specifications
-from sxpat.templating.Labeling import Labeling
-from sxpat.solving.QbfSolver import QbfSolver
+from sxpat.definitions.templates.Labeling import Labeling
+from sxpat.solvers.QbfSolver import QbfSolver
 from sxpat.utils.timer import Timer
 from typing import Callable
 

@@ -19,12 +19,11 @@ from sxpat.specifications import Specifications, SlashExploration
 # from sxpat.stats import Stats, sxpatconfig, Model
 from sxpat.annotatedGraph import AnnotatedGraph
 # from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
-from sxpat.graph.Graph import IOGraph
+from sxpat.graph.graph import IOGraph
 
 # from sxpat.templating import get_specialized as get_templater
-from sxpat.solving import get_specialized as get_solver
-from sxpat.solving.Z3Solver import Z3DirectBitVecSolver, Z3DirectIntSolver, Z3FuncBitVecSolver, Z3FuncIntSolver
-from sxpat.solving.QbfSolver import QbfSolver
+from sxpat.solvers.Z3Solver import Z3DirectBitVecSolver, Z3DirectIntSolver, Z3FuncBitVecSolver, Z3FuncIntSolver
+from sxpat.solvers.QbfSolver import QbfSolver
 
 from sxpat.converting import VerilogExporter
 from sxpat.converting.legacy import iograph_from_legacy
@@ -34,7 +33,7 @@ from sxpat.converting.legacy import iograph_from_legacy
 from sxpat.utils.timer import Timer
 
 # from sxpat.templating.LabelingConstants import Labeling
-from sxpat.templating.InputsReplace import InputsReplace
+from sxpat.definitions.templates.InputsReplace import InputsReplace
 # from sxpat.temp_labelling import labeling
 # from sxpat.fast_labeling import fast_labeling, upper_bound, lower_bound, calc_label
 # import random
