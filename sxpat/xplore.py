@@ -234,7 +234,7 @@ def explore_grid(specs_obj: Specifications):
         for lpp, ppo in CellIterator.factory(specs_obj):
             print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
 
-            # store error treshold and replace with v2 threshold
+            # store error threshold and replace with v2 threshold
             if v2:
                 specs_obj.et, v2_threshold = v2_threshold, specs_obj.et
 
@@ -311,7 +311,7 @@ def explore_grid(specs_obj: Specifications):
             # legacy adaptation
             execution_time = define_timer.total + solve_timer.total
 
-            # restore error treshold
+            # restore error threshold
             if v2:
                 specs_obj.et, v2_threshold = v2_threshold, specs_obj.et
                 param_circ = real_param_circ
