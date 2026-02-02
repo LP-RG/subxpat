@@ -40,10 +40,27 @@ from sxpat.solvers import Z3DirectBitVecSolver
 from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
 from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
+from sxpat.converting import set_bool_constants, prevent_combination
 
+from sxpat.utils.print import pprint
+from sxpat.utils.timer import Timer
+
+from sxpat.templating.LabelingConstants import Labeling
+from sxpat.templating.InputReplace import InputReplace
+from sxpat.solving.QbfSolver import QbfSolver
+from sxpat.temp_labelling import labeling
+from sxpat.fast_labeling import fast_labeling, upper_bound, lower_bound, calc_label
+from sxpat.slash_inputs import remove_inputs
+import random
 
 def explore_grid(specs_obj: Specifications):
     previous_subgraphs = []
+    previous_graph = nx.DiGraph()
+    count_to_finish = 0
+    done_inp_slash = True
+    # tot_i = int(specs_obj.exact_benchmark.split('_o')[0].split('_i')[-1])
+    # for x in range(tot_i):
+    #     least_significant_inputs['in'+str(x)] = 0
 
     labeling_time: float = -1
     subgraph_extraction_time: float = -1
@@ -83,7 +100,7 @@ def explore_grid(specs_obj: Specifications):
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
 
-    while (obtained_wce_exact < specs_obj.max_error):
+    while (obtained_wce_exact <= specs_obj.max_error):
         specs_obj.iteration += 1
         if not specs_obj.subxpat:
             if prev_actual_error == 0:
@@ -95,8 +112,10 @@ def explore_grid(specs_obj: Specifications):
                 try:
                     specs_obj.et = next(et_array)
                 except StopIteration:
-                    pprint.warning('The error space is exhausted!')
-                    break
+                    if count_to_finish == 20:
+                        break
+                    # pprint.warning('The error space is exhausted!')
+                    # break
             else:
                 persistence += 1
         elif specs_obj.error_partitioning is ErrorPartitioningType.DESCENDING:
@@ -120,6 +139,7 @@ def explore_grid(specs_obj: Specifications):
 
         if specs_obj.et > specs_obj.max_error or specs_obj.et <= 0:
             break
+        specs_obj.et = specs_obj.max_error
 
         # slash to kill
         if specs_obj.slash_to_kill:
@@ -144,6 +164,8 @@ def explore_grid(specs_obj: Specifications):
             if specs_obj.iteration > 1 and specs_obj.et < specs_obj.error_for_slash:
                 continue
 
+
+
         pprint.info1(f'iteration {specs_obj.iteration} with et {specs_obj.et}, available error {specs_obj.max_error}'
                      if (specs_obj.subxpat) else
                      f'Only one iteration with et {specs_obj.et}')
@@ -155,15 +177,27 @@ def explore_grid(specs_obj: Specifications):
         # > grid step settings
 
         # import the graph
+        if specs_obj.slash_inputs:
+            specs_obj.current_benchmark = remove_inputs(specs_obj)
+            specs_obj.slash_inputs = False
+            continue
         ag_loading_time = Timer.now()
         current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark)
         exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark)
         print(f'annotated_graph_loading_time = {(ag_loading_time := (Timer.now() - ag_loading_time))}')
 
+        if nx.is_isomorphic(current_graph.graph, previous_graph):
+            print('current graph is equivalent to previous iteration, stopping')
+            break
+        else:
+            previous_graph = current_graph.graph
+
+
+
         # label graph
         if specs_obj.requires_labeling:
             label_timer, _label_graph = Timer.from_function(label_graph)
-            _label_graph(current_graph, specs_obj)
+            _label_graph(exact_graph, current_graph, specs_obj, obtained_wce_exact)
             print(f'labeling_time = {(labeling_time := label_timer.total)}')
 
         # extract subgraph
@@ -179,7 +213,7 @@ def explore_grid(specs_obj: Specifications):
         print(f'subgraph exported at {graph_path}')
 
         # guard: skip if no subgraph was found
-        if not subgraph_is_available:
+        if not subgraph_is_available and specs_obj.extraction_mode != 101:
             pprint.warning(f'No subgraph available.')
             prev_actual_error = 0
             continue
@@ -409,8 +443,7 @@ def explore_grid(specs_obj: Specifications):
                 # select best circuit
                 best_name, best_data = sorted_circuits[0]
                 obtained_wce_exact = best_data[4]
-                prev_actual_error = best_data[5]
-
+                # prev_actual_error = best_data[5]
                 specs_obj.current_benchmark = best_name
                 best_model_info = Model(id=0,
                                         status=status.upper(),
@@ -461,12 +494,22 @@ def error_evaluation(e_graph: IOGraph, graph_name: str, specs_obj: Specification
 
     return next(iter(model.values()))
 
+def error_evaluation2(e_graph: IOGraph, cur_graph: IOGraph, specs_obj: Specifications):
+    p_graph, c_graph = MaxDistanceEvaluation.define(cur_graph)
+    status, model = Z3DirectBitVecSolver.solve((e_graph, p_graph, c_graph), specs_obj)
+
+    assert status == 'sat'
+    assert len(model) == 1
+
+    return next(iter(model.values()))
+
 
 class CellIterator:
     @classmethod
     def factory(cls, specs: Specifications) -> Iterator[Tuple[int, int]]:
         return {
             TemplateType.NON_SHARED: cls.non_shared,
+            TemplateType.INPUT_REPLACE: cls.non_shared,
             TemplateType.SHARED: cls.shared,
             TemplateType.V2: cls.non_shared,
         }[specs.template](specs)
@@ -572,20 +615,78 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         csvwriter.writerow(approx_data)
 
 
-def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
+def label_graph(exact_graph: AnnotatedGraph, current_graph: AnnotatedGraph, specs_obj: Specifications, remove) -> None:
     """This function adds the labels inplace to the given graph"""
 
-    # compute weights
+    if specs_obj.approximate_labeling:
+        exact_graph = current_graph
+        remove=0
+
     ET_COEFFICIENT = 1
-    weights, _ = labeling_explicit(
-        graph.name, graph.name,
-        min_labeling=specs_obj.min_labeling,
-        partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
-        parallel=specs_obj.parallel
-    )
+    if specs_obj.extraction_mode == 101:
+        weights = {}
+    elif specs_obj.single_labeling:
+        exact = iograph_from_legacy(exact_graph)
+        current = iograph_from_legacy(current_graph)
+        nodes = []
+        for x in current.nodes:
+            if x.name[0] == 'g':
+                nodes.append(x.name)
+        weights = {}
+        val = specs_obj.et + 1
+        while val >= specs_obj.et/10:
+            node = nodes[random.randint(0,len(nodes)-1)]
+            nodes.remove(node)
+            val = calc_label(exact, current, node, specs_obj) - remove
+            weights[node] = val
+        
+        # print(weights, val)
+    elif specs_obj.iteration == 1:
+        exact = iograph_from_legacy(exact_graph)
+        current = iograph_from_legacy(current_graph)
+        # upper_bounds = upper_bound(current)
+        weights = fast_labeling(exact, current, specs_obj.et, specs_obj)
+
+        # weights = labeling(exact_graph.name, exact_graph.name, specs_obj.et * ET_COEFFICIENT,)
+
+        # import importlib
+        # module = importlib.import_module(f"input.cashed_labeling.{'min' if specs_obj.min_labeling else 'max'}.{specs_obj.exact_benchmark}")
+        # allweights = module.weights
+        # alltimes = module.times
+        # vis = set()
+        # st = []
+        # weights = {}
+        # tot = 0
+        # for out in current_graph.output_dict.values():
+        #         value = 2 ** int(out[3:])
+
+        #         for x in current_graph.graph.predecessors(out):
+        #             if(value <= ET_COEFFICIENT*specs_obj.et):
+        #                 st.append(x)
+
+        # while len(st) > 0:
+        #     cur = st[-1]
+        #     st.pop()
+        #     if cur in vis or cur[:2] == 'in':
+        #         continue
+        #     vis.add(cur)
+        #     tot += alltimes[cur]
+        #     weights[cur] = allweights[cur]
+        #     for x in current_graph.graph.predecessors(cur):
+        #         st.append(x)
+        # print(f'cashed_labeling_time = {tot}')
+    else:
+        weights, _ = labeling_explicit(
+            exact_graph.name, current_graph.name,
+            min_labeling=specs_obj.min_labeling,
+            partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
+            parallel=specs_obj.parallel
+        )
+    # current = iograph_from_legacy(current_graph)
+    # weights = lower_bound(current)
 
     # apply weights to graph
-    inner_graph: nx.DiGraph = graph.graph
+    inner_graph: nx.DiGraph = current_graph.graph
     for (node_name, node_data) in inner_graph.nodes.items():
         node_data[WEIGHT] = weights.get(node_name, -1)
         # TODO: get output's weights in the correct way

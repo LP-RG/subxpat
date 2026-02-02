@@ -450,7 +450,7 @@ Z3_BITVEC_NODE_MAPPING = {
     # variables
     IntVariable: lambda n, operands, accs: f'BitVec(\'{n.name}\', {accs[0]})',
     # constants
-    IntConstant: lambda n, operands, accs: f'BitVecVal({n.value}, {accs[0]})',
+    IntConstant: lambda n, operands, accs: f'BitVecVal({n.value}, 2*{accs[0]})',
     # integer operations
     AbsDiff: lambda n, operands, accs: f'If(UGE({operands[0]}, {operands[1]}), {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
     # comparison operations
@@ -468,7 +468,7 @@ Z3_INT_TYPE_MAPPING = {
 }
 Z3_BITVEC_TYPE_MAPPING = {
     **Z3_INT_TYPE_MAPPING,
-    int: lambda accs: f'BitVecSort({accs[0]})',
+    int: lambda accs: f'BitVecSort(2*{accs[0]})',
 }
 
 # solver object creation

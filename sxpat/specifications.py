@@ -40,10 +40,17 @@ class EncodingType(enum.Enum):
     Z3_DIRECT_BITVECTOR = 'z3dbvec'
     QBF = 'qbf'
 
+class SlashExploration(enum.Enum):
+    # Treat all inputs as having the same weight
+    SAME_BINARY = 'bin'
+    SAME_ITERATIVE = 'it'
+    SAME_PREDICT = 'pred'
+
 
 class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
     SHARED = 'shared'
+    INPUT_REPLACE = 'inpreplace'
     V2 = 'v2'
 
 
@@ -110,6 +117,8 @@ class Specifications:
     # labeling
     min_labeling: bool
     partial_labeling: bool
+    approximate_labeling: bool
+    single_labeling: bool
 
     # subgraph extraction
     extraction_mode: int
@@ -121,6 +130,10 @@ class Specifications:
     sensitivity: int = dc.field(init=False, default=None)  # rw
     slash_to_kill: bool
     error_for_slash: int
+    slash_inputs: bool
+    slash_inputs_false: bool
+    slash_inputs_explore: SlashExploration
+
 
     # exploration (1)
     subxpat: bool
@@ -177,6 +190,7 @@ class Specifications:
         return {
             TemplateType.NON_SHARED: 'Sop1',
             TemplateType.SHARED: 'SharedLogic',
+            TemplateType.INPUT_REPLACE: 'inpReplace',
             TemplateType.V2: 'v2',
         }[self.template]
 
@@ -201,6 +215,7 @@ class Specifications:
     def grid_param_1(self) -> int:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_lpp,
+            TemplateType.INPUT_REPLACE: lambda: self.max_lpp,
             TemplateType.SHARED: lambda: self.max_its,
             TemplateType.V2: lambda: self.max_lpp,
         }[self.template]()
@@ -209,6 +224,7 @@ class Specifications:
     def grid_param_2(self) -> int:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_ppo,
+            TemplateType.INPUT_REPLACE: lambda: self.max_ppo,
             TemplateType.SHARED: lambda: self.max_pit,
             TemplateType.V2: lambda: self.max_ppo,
         }[self.template]()
@@ -248,6 +264,14 @@ class Specifications:
                                             action='store_false',
                                             dest='partial_labeling',
                                             help='Weights are assigned to all nodes, not only to the relevant ones')
+        
+        _app_lab = _lab_group.add_argument('--approximate-labeling',
+                                            action='store_true',
+                                            help='Use approximate labeling instead')
+
+        _sing_lab = _lab_group.add_argument('--single-labeling',
+                                            action='store_true',
+                                            help='Label only 1 random node')
 
         # > subgraph extraction stuff
         _subex_group = parser.add_argument_group('Subgraph extraction')
@@ -288,6 +312,21 @@ class Specifications:
         _error_slash = _subex_group.add_argument('--error-for-slash',
                                                  type=int,
                                                  help='The error to use for the slash pass')
+
+        _slash_i = _subex_group.add_argument('--slash-inputs',
+                                           action='store_true',
+                                           help='remove inputs while able to do so')
+        
+        _slash_if = _subex_group.add_argument('--slash-inputs-false',
+                                           action='store_true',
+                                           help='remove inputs while able to do so')
+
+        _slash_exp = _subex_group.add_argument('--slash-inputs-explore',
+                                            type=SlashExploration,
+                                            action=EnumChoicesAction,
+                                            default=SlashExploration.SAME_ITERATIVE,
+                                            help='The exploration to use in slash inputs (default: it)')
+        
 
         # > execution stuff
         _explor_group = parser.add_argument_group('Execution')

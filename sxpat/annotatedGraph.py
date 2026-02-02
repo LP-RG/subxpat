@@ -17,12 +17,14 @@ from z3 import *
 from .specifications import Specifications, TemplateType
 
 from sxpat.utils.print import pprint
+from sxpat.utils.timer import Timer
 
 
 class AnnotatedGraph(Graph):
     __cached_loading_callable = None
 
     def __init__(self, benchmark_name: str, is_clean: bool = False) -> None:
+        start = Timer.now()
         # Prepare a clean Verilog
         Verilog(benchmark_name)
         # Convert the clean Verilog into a Yosys GV
@@ -53,6 +55,7 @@ class AnnotatedGraph(Graph):
 
         folder, extension = OUTPUT_PATH[GV]
         self.__out_annotated_graph_path = f'{folder}/{self.name}_subgraph.{extension}'
+        print(f'annotated_graph_time = {Timer.now() - start}')
 
     @classmethod
     def cached_load(cls, benchmark_name: str, is_clean: bool = False) -> Self:
@@ -204,12 +207,12 @@ class AnnotatedGraph(Graph):
         # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
 
         head = f'grid_{specs_obj.current_benchmark}_{specs_obj.lpp}X{specs_obj.pit if specs_obj.template is TemplateType.SHARED else specs_obj.ppo}_et{specs_obj.et}_'
-
         tool_name = {
             (False, TemplateType.NON_SHARED): XPAT,
             (False, TemplateType.SHARED): SHARED_XPAT,
             (True, TemplateType.NON_SHARED): SUBXPAT,
             (True, TemplateType.SHARED): SHARED_SUBXPAT,
+            (True, TemplateType.INPUT_REPLACE): SUBXPAT,
             (True, TemplateType.V2): V2,
         }[(specs_obj.subxpat, specs_obj.template)]
 
@@ -384,6 +387,14 @@ class AnnotatedGraph(Graph):
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
+                
+                elif specs_obj.extraction_mode == 101:
+                    tmp_graph = self.graph.copy(as_view=False)
+                    for gate_idx in self.gate_dict:
+                        tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
+                        tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
+                    self.subgraph = tmp_graph
+                    pprint.info2(f"Skip Extraction and remove next input")
 
                 else:
                     raise Exception('invalid extraction mode!')

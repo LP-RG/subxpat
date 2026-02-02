@@ -26,6 +26,7 @@
 # input
 /input/*
 !/input/ver.bak
+!/input/cashed_labeling
 
 #> misc
 Laura/
