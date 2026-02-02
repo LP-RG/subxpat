@@ -5,7 +5,8 @@ from bisect import bisect
 
 from .Solver import Solver
 
-from sxpat.graph import *
+from sxpat.graph.graph import *
+from sxpat.graph.node import *
 from sxpat.specifications import Specifications
 from sxpat.converting.utils import set_bool_constants, crystallise as crystallize
 
