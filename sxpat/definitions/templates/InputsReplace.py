@@ -8,7 +8,7 @@ from sxpat.converting.utils import set_prefix_new
 from sxpat.graph.graph import *
 from sxpat.graph.node import *
 from sxpat.specifications import ConstantsType, Specifications
-from sxpat.utils.collections import iterable_replace
+from sxpat.utils.collections import iterable_replace_index
 
 class InputsReplace:
 
@@ -34,7 +34,7 @@ class InputsReplace:
             for succ in a_graph.successors(selected_node):
                 if succ.name in updated_nodes:
                     succ = updated_nodes[succ.name]
-                new_operands = iterable_replace(succ.operands, succ.operands.index(selected_node), identity_node.name)
+                new_operands = iterable_replace_index(succ.operands, succ.operands.index(selected_node), identity_node.name)
                 updated_nodes[succ.name] = succ.copy(operands=new_operands)
        
         template_graph = PGraph(
