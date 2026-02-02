@@ -37,14 +37,13 @@ from sxpat.solvers import Z3DirectBitVecSolver
 from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
 from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
-from sxpat.converting import set_bool_constants, prevent_combination
 
 from sxpat.utils.print import pprint
 from sxpat.utils.timer import Timer
 
-from sxpat.templating.LabelingConstants import Labeling
-from sxpat.templating.InputReplace import InputReplace
-from sxpat.solving.QbfSolver import QbfSolver
+from sxpat.definitions.templates.LabelingConstants import Labeling
+from sxpat.definitions.templates.InputReplace import InputReplace
+from sxpat.solvers.QbfSolver import QbfSolver
 from sxpat.temp_labelling import labeling
 from sxpat.fast_labeling import fast_labeling, upper_bound, lower_bound, calc_label
 from sxpat.slash_inputs import remove_inputs
