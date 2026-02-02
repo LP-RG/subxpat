@@ -9,8 +9,8 @@ import networkx as nx
 import itertools as it
 
 from sxpat.annotatedGraph import AnnotatedGraph
-from sxpat.graph import IOGraph, SGraph
-from sxpat.graph.node import BoolVariable, Identity
+from sxpat.graph import IOGraph, SGraph, PGraph
+from sxpat.graph.node import BoolVariable, Identity, Operation
 
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
 
@@ -245,13 +245,20 @@ def explore_grid(specs_obj: Specifications):
             # update the context
             update_context(specs_obj, lpp, ppo)
 
+            # DEFINE
+            define_timer = Timer()
+
+            # template (and relative constraints)
+            define_template = define_timer.wrap(get_templater(specs_obj).define)
+            param_circ, *param_circ_constr = define_template(current_circ, specs_obj)
+
             if v2:
                 rem = current_circ.subgraph_inputs
                 current_circ = SGraph(
                     it.chain(
                         (n for n in current_circ.nodes if n.in_subgraph),
                         (BoolVariable(n.name) for n in current_circ.subgraph_inputs),
-                        (Identity(f's_out{i}', operands=(n.name,)) for i, n in enumerate(current_circ.subgraph_outputs)),
+                        (Identity(f's_out{i}', operands=(n.name,), weight=n.weight) for i, n in enumerate(current_circ.subgraph_outputs)),
                     ),
                     inputs_names=(n.name for n in current_circ.subgraph_inputs),
                     outputs_names=(f's_out{i}' for i in range(len(current_circ.subgraph_outputs))),
@@ -261,13 +268,21 @@ def explore_grid(specs_obj: Specifications):
                     inputs_names=(n.name for n in rem),
                     outputs_names=(f's_out{i}' for i in range(len(current_circ.subgraph_outputs))),
                 )
+                real_param_circ = param_circ
 
-            # DEFINE
-            define_timer = Timer()
+                __innames = frozenset(map(lambda n: f'a_{n.name}', rem))
+                update_all = lambda operands: (o[2:] if o in __innames else o for o in operands)
 
-            # template (and relative constraints)
-            define_template = define_timer.wrap(get_templater(specs_obj).define)
-            param_circ, *param_circ_constr = define_template(current_circ, specs_obj)
+                param_circ = PGraph(
+                    it.chain(
+                        (n.copy(operands=update_all(n.operands)) if isinstance(n, Operation) else n for n in param_circ.nodes if n.in_subgraph),
+                        (BoolVariable(n.name) for n in rem),
+                        (Identity(f'p_{n.name}_out{i}', operands=update_all([n.name]), weight=n.weight) for i, n in enumerate(param_circ.subgraph_outputs)),
+                    ),
+                    inputs_names=(n.name for n in rem),
+                    outputs_names=(f'p_{n.name}_out{i}' for i,n in enumerate(param_circ.subgraph_outputs)),
+                    parameters_names=param_circ.parameters_names
+                )
 
             # question
             define_question = define_timer.wrap(exists_parameters.not_above_threshold_forall_inputs)
@@ -295,7 +310,11 @@ def explore_grid(specs_obj: Specifications):
             execution_time = define_timer.total + solve_timer.total
 
             # restore error treshold
-            if v2: specs_obj.et = v2_threshold
+            if v2:
+                specs_obj.et = v2_threshold
+                param_circ = real_param_circ
+                exact_circ = iograph_from_legacy(exact_graph)
+                current_circ = sgraph_from_legacy(current_graph)
 
             if len(models) == 0:
                 pprint.warning(f'{status.upper()}')
@@ -323,22 +342,22 @@ def explore_grid(specs_obj: Specifications):
 
                     a_graph = set_bool_constants(param_circ, model, skip_missing=True)
 
-                    if v2:
-                        s_graph_complete = sgraph_from_legacy(current_graph)
-                        updated_nodes = dict()
-                        for i, out_node in enumerate(s_graph_complete.subgraph_outputs):
-                            for succ in filter(lambda n: not n.in_subgraph, s_graph_complete.successors(out_node)):
-                                new_operands = iterable_replace(succ.operands, out_node.name, f'a_s_out{i}')
-                                updated_nodes[succ.name] = succ.copy(operands=new_operands)
-                        a_graph = SGraph(
-                            it.chain(
-                                (n for n in s_graph_complete.nodes if not n.in_subgraph and not n.name in updated_nodes),
-                                (n for n in a_graph.nodes if not n.name in s_graph_complete or not s_graph_complete[n.name] in s_graph_complete.subgraph_inputs),
-                                updated_nodes.values(),
-                            ),
-                            inputs_names=(n.name for n in s_graph_complete.inputs),
-                            outputs_names=(n.name for n in s_graph_complete.outputs),
-                        )
+                    # if v2:
+                    #     s_graph_complete = sgraph_from_legacy(current_graph)
+                    #     updated_nodes = dict()
+                    #     for i, out_node in enumerate(s_graph_complete.subgraph_outputs):
+                    #         for succ in filter(lambda n: not n.in_subgraph, s_graph_complete.successors(out_node)):
+                    #             new_operands = iterable_replace(succ.operands, out_node.name, f'a_s_out{i}')
+                    #             updated_nodes[succ.name] = succ.copy(operands=new_operands)
+                    #     a_graph = SGraph(
+                    #         it.chain(
+                    #             (n for n in s_graph_complete.nodes if not n.in_subgraph and not n.name in updated_nodes),
+                    #             (n for n in a_graph.nodes if not n.name in s_graph_complete or not s_graph_complete[n.name] in s_graph_complete.subgraph_inputs),
+                    #             updated_nodes.values(),
+                    #         ),
+                    #         inputs_names=(n.name for n in s_graph_complete.inputs),
+                    #         outputs_names=(n.name for n in s_graph_complete.outputs),
+                    #     )
 
                     # export approximate graph as verilog
                     # TODO:#15: use serious name generator
@@ -449,6 +468,7 @@ class CellIterator:
         return {
             TemplateType.NON_SHARED: cls.non_shared,
             TemplateType.SHARED: cls.shared,
+            TemplateType.V2: cls.non_shared,
         }[specs.template](specs)
 
     @staticmethod
