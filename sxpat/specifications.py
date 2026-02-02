@@ -202,6 +202,7 @@ class Specifications:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_lpp,
             TemplateType.SHARED: lambda: self.max_its,
+            TemplateType.V2: lambda: self.max_lpp,
         }[self.template]()
 
     @property
@@ -209,6 +210,7 @@ class Specifications:
         return {  # lazy
             TemplateType.NON_SHARED: lambda: self.max_ppo,
             TemplateType.SHARED: lambda: self.max_pit,
+            TemplateType.V2: lambda: self.max_ppo,
         }[self.template]()
 
     @property
