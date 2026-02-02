@@ -241,12 +241,12 @@ def explore_grid(specs_obj: Specifications):
             # TODO
             # question
             define_question = v2p1_define_timer.wrap(min_subdistance_with_error.variant_1)
-            distance_name, param_circ, param_circ_constr = define_question(current_circ, specs_obj.et, AbsoluteDifferenceOfInteger, distance_function)
+            distance_name, param_circ, param_circ_constr = define_question(current_circ, specs_obj.et - obtained_wce_exact, AbsoluteDifferenceOfInteger, distance_function)
 
             # SOLVE
             v2p1_solve_timer = Timer()
 
-            question = [exact_circ, param_circ, *param_circ_constr]
+            question = [current_circ, param_circ, *param_circ_constr]
             solve = v2p1_solve_timer.wrap(get_solver(specs_obj).solve)
             status, model = solve(question, specs_obj)
 
