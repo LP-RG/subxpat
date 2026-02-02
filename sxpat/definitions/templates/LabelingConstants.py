@@ -8,7 +8,7 @@ from sxpat.converting.utils import set_prefix_new
 from sxpat.graph.graph import *
 from sxpat.graph.node import *
 from sxpat.specifications import ConstantsType, Specifications
-from sxpat.utils.collections import iterable_replace
+from sxpat.utils.collections import iterable_replace_index
 
 
 __all__ = ['Labeling']
@@ -34,7 +34,7 @@ class Labeling:
  
         updated_nodes: dict[str, Node] = dict()
         for succ in a_graph.successors(labeled_node_name):
-            new_operands = iterable_replace(succ.operands, succ.operands.index(labeled_node_name), not_node.name)
+            new_operands = iterable_replace_index(succ.operands, succ.operands.index(labeled_node_name), not_node.name)
             updated_nodes[succ.name] = succ.copy(operands=new_operands)
         
 
