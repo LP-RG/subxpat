@@ -179,6 +179,13 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.slash_inputs:
             specs_obj.current_benchmark = remove_inputs(specs_obj)
             specs_obj.slash_inputs = False
+            exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark)
+            exact_circ = iograph_from_legacy(exact_graph)
+            obtained_wce_exact = error_evaluation(exact_circ, specs_obj.current_benchmark[:-2], specs_obj)
+            metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, f'input/ver/{specs_obj.current_benchmark}', True)
+            print(f"slash_inputs_area = {metrics.area}")
+            print(f"slash_inputs_power = {metrics.power}")
+            print(f"slash_inputs_delay = {metrics.delay}")
             continue
         ag_loading_time = Timer.now()
         current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark)
