@@ -183,6 +183,7 @@ def explore_grid(specs_obj: Specifications):
             exact_circ = iograph_from_legacy(exact_graph)
             obtained_wce_exact = error_evaluation(exact_circ, specs_obj.current_benchmark[:-2], specs_obj)
             metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, f'input/ver/{specs_obj.current_benchmark}', True)
+            print(f"slash_inputs_error = {obtained_wce_exact}")
             print(f"slash_inputs_area = {metrics.area}")
             print(f"slash_inputs_power = {metrics.power}")
             print(f"slash_inputs_delay = {metrics.delay}")
