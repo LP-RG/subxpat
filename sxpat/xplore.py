@@ -260,14 +260,16 @@ def explore_grid(specs_obj: Specifications):
                 pprint.warning('Minimum subgraph distance found, skipping iteration')
                 continue
 
-            # store error treshold and replace with v2 threshold
-            specs_obj.et, v2_threshold = v2_threshold, specs_obj.et
 
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
         for lpp, ppo in CellIterator.factory(specs_obj):
             print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
+
+            # store error threshold and replace with v2 threshold
+            if v2:
+                specs_obj.et, v2_threshold = v2_threshold, specs_obj.et
 
             if is_dominated((lpp, ppo), dominant_cells):
                 pprint.info3('DOMINATED')
@@ -342,9 +344,9 @@ def explore_grid(specs_obj: Specifications):
             # legacy adaptation
             execution_time = define_timer.total + solve_timer.total
 
-            # restore error treshold
+            # restore error threshold
             if v2:
-                specs_obj.et = v2_threshold
+                specs_obj.et, v2_threshold = v2_threshold, specs_obj.et
                 param_circ = real_param_circ
                 exact_circ = iograph_from_legacy(exact_graph)
                 current_circ = sgraph_from_legacy(current_graph)
