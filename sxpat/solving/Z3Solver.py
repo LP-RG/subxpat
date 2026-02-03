@@ -3,10 +3,8 @@ from typing import IO, Any, Callable, Container, Mapping, NoReturn, Optional, Se
 
 import itertools as it
 import subprocess
-
 from sxpat.specifications import Specifications
 from sxpat.utils.functions import str_to_int_or_bool
-
 from .Solver import Solver
 
 from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
@@ -433,40 +431,47 @@ class Z3Solver(Solver):
         script_path = f'output/z3/{specifications.exact_benchmark}_iter{specifications.iteration}.py'
         with open(script_path, 'w') as f:
             cls.encoder.encode(graphs, f)
+        try:
+            process = subprocess.run(
+                [sxpat_cfg.PYTHON3, script_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=specifications.timeout   )
+            if process.returncode != 0:
+                raise RuntimeError(f'Solver execution FAILED. Failed to run file {script_path}')
 
-        # run
-        process = subprocess.run(
-            [sxpat_cfg.PYTHON3, script_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        if process.returncode != 0:
-            raise RuntimeError(f'Solver execution FAILED. Failed to run file {script_path}')
+            # decode
+            # documentation: the result is not saved to a json for multiple models and so on.
+            #                each Solver.solve call must return at most one model.
+            #                the timing must be computed at a higher level, same with the multimodel logic.
+            #                the new format is as follows:
+            # example sat:
+            # sat\n
+            # p_somebool True\n
+            # p_somemorebool False\n
+            # p_someint 1\n
+            # p_somemoreint 7\n
+            #
+            # example unsat (unknowns are similar):
+            # unsat\n
+            #
 
-        # decode
-        # documentation: the result is not saved to a json for multiple models and so on.
-        #                each Solver.solve call must return at most one model.
-        #                the timing must be computed at a higher level, same with the multimodel logic.
-        #                the new format is as follows:
-        # example sat:
-        # sat\n
-        # p_somebool True\n
-        # p_somemorebool False\n
-        # p_someint 1\n
-        # p_somemoreint 7\n
-        #
-        # example unsat (unknowns are similar):
-        # unsat\n
-        #
-
-        status, *raw_model = process.stdout.decode().splitlines()
-        if status in ('unsat', 'unknown'):
-            return (status, None)
-        else:
-            return (status, {
-                (splt := pair.split(' '))[0]: str_to_int_or_bool(splt[1])
-                for pair in raw_model
-            })
+            status, *raw_model = process.stdout.decode().splitlines()
+            if status in ('unsat', ''):
+                return (status, None)
+            else:
+                return (status, {
+                    (splt := pair.split(' '))[0]: str_to_int_or_bool(splt[1])
+                    for pair in raw_model
+                })
+        except subprocess.TimeoutExpired as e:
+            # timeout → UNKNOWN
+            print(
+                f'Solver TIMEOUT after {specifications.timeout}s '
+                f'(benchmark={specifications.exact_benchmark}, '
+                f'iter={specifications.iteration})'
+            )
+            return ('unknown', None)
 
 
 class Z3FuncIntSolver(Z3Solver):
