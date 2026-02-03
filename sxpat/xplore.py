@@ -37,6 +37,9 @@ def explore_grid(specs_obj: Specifications):
     labeling_time: float = -1
     subgraph_extraction_time: float = -1
 
+    # used for remove_most_significant_output
+    removed_output = False
+
     # Select toolname
     toolname = get_toolname(specs_obj)
 
@@ -120,6 +123,16 @@ def explore_grid(specs_obj: Specifications):
         # import the graph
         exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False)
         current_graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
+
+        if specs_obj.remove_most_significant_output:
+            if removed_output:
+                specs_obj.extraction_mode = saved_extraction_mode
+                specs_obj.remove_most_significant_output = False
+            else:
+                saved_extraction_mode = specs_obj.extraction_mode
+                specs_obj.extraction_mode = 123
+                specs_obj.et = 2 ** exact_graph.num_outputs - 1
+                removed_output = True
 
         # label graph
         if specs_obj.requires_labeling:
@@ -287,6 +300,7 @@ def explore_grid(specs_obj: Specifications):
                 print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
                 store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.current_benchmark, et=specs_obj.et,
                                     encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
+                print(obtained_wce_exact <= specs_obj.max_error or (specs_obj.extraction_mode == 0) or specs_obj.remove_most_significant_output, obtained_wce_exact <= specs_obj.max_error, (specs_obj.extraction_mode == 0), specs_obj.remove_most_significant_output)
 
                 break  # SAT found, stop grid exploration
 

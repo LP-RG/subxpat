@@ -97,6 +97,7 @@ class Specifications:
     omax: int
     min_subgraph_size: int
     num_subgraphs: int
+    remove_most_significant_output: bool
     max_sensitivity: int
     sensitivity: int = dc.field(init=False, default=None)  # rw
     #Extraction_mode_0
@@ -253,6 +254,10 @@ class Specifications:
                                        type=int,
                                        default=1,
                                        help='The number of attempts for subgraph extraction (default: 1)')
+        
+        _remove = parser.add_argument('--remove-most-significant-output', '--remove-mso',
+                                           action='store_true',
+                                           help='before doing anything remove the most significant output of the circuit')
 
         # > exploration stuff
 

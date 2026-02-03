@@ -347,6 +347,13 @@ class AnnotatedGraph(Graph):
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
                             cnt_nodes += 1
+                elif specs_obj.extraction_mode == 123:
+                    self.subgraph = self.remove_most_significant_output(specs_obj)
+                    cnt_nodes = 0
+                    for gate_idx in self.gate_dict:
+                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
+                            cnt_nodes += 1
+                    pprint.success(f" (#ofNodes={cnt_nodes})")
                 else:
                     raise Exception('invalid extraction mode!')
             else:
@@ -3034,6 +3041,24 @@ class AnnotatedGraph(Graph):
             else:
                 tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
                 tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
+        return tmp_graph
+
+    def remove_most_significant_output(self, specs_obj: Specifications):
+        """
+        only selects the node that preceeds the most significant output
+        """
+        tmp_graph = self.graph.copy(as_view=False)
+
+        for gate_idx in self.gate_dict:
+            tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
+            tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
+
+        for out in reversed(self.output_dict.values()):
+            pred = next(tmp_graph.predecessors(out))
+            tmp_graph.nodes[pred][SUBGRAPH] = 1
+            tmp_graph.nodes[pred][COLOR] = RED
+            break
+
         return tmp_graph
 
     def entire_graph(self):
