@@ -36,7 +36,7 @@ __all__ = [
     # bool to bool
     'Not', 'And', 'Or', 'Xor', 'Xnor', 'Implies',
     # int to int
-    'Sum', 'AbsDiff', 'Mul',
+    'Sum', 'AbsDiff', 'Mul', 'Div',
     # bool to int
     'ToInt',
     # int to bool
@@ -439,6 +439,14 @@ class Mul(Extras, Operation, IntResType, Expression, Node):
     """
 
 
+@dc.dataclass(frozen=True)
+class Div(Extras, Limited2Operation, IntResType, Expression, Node):
+    """
+        Integer division ( `a / b` ) expression.  
+        This node must have two operands.
+    """
+
+
 # bool to int
 
 
@@ -680,7 +688,7 @@ T_AnyConstant = TypeVar('T_AnyConstant', bound=AnyConstant)
 # expression
 AnyExpression: TypeAlias = Union[
     Not, And, Or, Xor, Implies,
-    Sum, AbsDiff,
+    Sum, AbsDiff, Mul, Div,
     ToInt,
     Equals, NotEquals, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,
     Identity,
@@ -728,7 +736,7 @@ T_Node = TypeVar(
     PlaceHolder,
     # expression
     Not, And, Or, Xor, Implies,
-    Sum, AbsDiff,
+    Sum, AbsDiff, Mul, Div,
     ToInt,
     Equals, NotEquals, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,
     Identity,

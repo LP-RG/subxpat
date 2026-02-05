@@ -431,6 +431,7 @@ Z3_INT_NODE_MAPPING = {
     Sum: lambda n, operands, accs: f'Sum({", ".join(operands)})',
     AbsDiff: lambda n, operands, accs: f'If({operands[0]} >= {operands[1]}, {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
     Mul: lambda n, operands, accs: f'{" * ".join(operands)}',
+    Div: lambda n, operands, accs: f'({operands[0]} / {operands[1]})',
     # comparison operations
     Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
     NotEquals: lambda n, operands, accs: f'({operands[0]} != {operands[1]})',
@@ -453,6 +454,7 @@ Z3_BITVEC_NODE_MAPPING = {
     IntConstant: lambda n, operands, accs: f'BitVecVal({n.value}, {accs[0]})',
     # integer operations
     AbsDiff: lambda n, operands, accs: f'If(UGE({operands[0]}, {operands[1]}), {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
+    Div: lambda n, operands, accs: f'UDiv({operands[0]}, {operands[1]})',
     # comparison operations
     Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
     LessThan: lambda n, operands, accs: f'ULT({operands[0]}, {operands[1]})',
