@@ -47,13 +47,15 @@ To prepare the system for execution you will need to follow a few steps:
 
 - To remove temporary files and the virtual python environment:
     ```bash
-    # all together
-    make clean
-
     # individually
     make rm_cache # remove the pycache folders
     make rm_temp  # remove temporary files
     make rm_pyenv # remove the virtual python environment
+    make rm_data  # remove the output results
+
+    # all together
+    make clean     # rm_cache, rm_temp
+    make clean-all # clean, rm_pyenv, rm_data
     ```
 
 - To display the program help:
@@ -70,36 +72,36 @@ python3 main.py exact-benchmark [options]
 ```
 
 Here are all the parameters with their arguments and descriptions:
-| **parameter**                                 | **argument**                         | **default value**                  | **description**                                                        |
-| :-------------------------------------------: | ------------------------------------ | ---------------------------------- | ---------------------------------------------------------------------- |
-| `exact-benchmark`                             | Verilog file in `input/ver/`         |                                    | Circuit to approximate                                                 |
-| `--current-benchmark` <br> `--curr`           | Verilog file in `input/ver/`         | the same as <br> `exact-benchmark` | Approximated circuit used to continue the execution                    |
-| `--max-labeling`                              |                                      |                                    | Nodes are weighted using their maximum error, instead of minimum error |
-| `--no-partial-labeling`                       |                                      |                                    | Weights are assigned to all nodes, not only the relevant ones          |
-| `--extraction-mode` <br> `--mode`             | { 1, 2, 3, 4, 5, 55, 6, 11, 12 }     | 55                                 | Subgraph extraction algorithm to use                                   |
-| `--input-max` <br> `--imax`                   | `int` > 0                            |                                    | Maximum allowed number of inputs to the subgraph                       |
-| `--output-max` <br> `--omax`                  | `int` > 0                            |                                    | Maximum allowed number of outputs from the subgraph                    |
-| `--max-sensitivity`                           | `int` > 0                            |                                    | Maximum partitioning sensitivity                                       |
-| `--min-subgraph-size`                         | `int` > 0                            |                                    | Minimum valid size for the subgraph                                    |
-| `--num-subgraphs`                             | `int` > 0                            | 1                                  | The number of attempts for subgraph extraction                         |
-| `--slash-to-kill`                             |                                      |                                    | Enable the slash pass for the first iteration                          |
-| `--error-for-slash`                           | `int` > 0                            |                                    | The error to use for the slash pass                                    |
-| `--subxpat`                                   |                                      |                                    | Run SubXPAT iteratively, instead of standard XPAT                      |
-| `--constants`                                 | { never, always }                    | always                             | Usage of constants                                                     |
-| `--template`                                  | { nonshared, shared }                | nonshared                          | Template logic                                                         |
-| `--max-lpp` <br> `--max-literals-per-product` | `int` > 0                            |                                    | The maximum number of literals per product                             |
-| `--max-ppo` <br> `--max-products-per-output`  | `int` > 0                            |                                    | The maximum number of products per output                              |
-| `--max-pit` <br> `--products-in-total`        | `int` > 0                            |                                    | The maximum number of products in total                                |
-| `--wanted-models`                             | `int` > 0                            | 1                                  | Wanted number of models to generate at each step                       |
-| `--max-error` <br> `-e`                       | `int` > 0                            |                                    | The maximum allowable error                                            |
-| `--error-partitioning` <br> `--epar`          | { asc, desc, smart_asc, smart_desc } | asc                                | The error partitioning algorithm to use                                |
-| `--encoding`                                  | { z3int, z3bvec, qbf }               | z3bvec                             | The encoding to use in solving                                         |
-| `--cell-library`                              |                                      | `config/gscl45nm.lib`              | The cell library file to use in the metrics estimation                 |
-| `--timeout`                                   | `float` > 0                          | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
-| `--parallel`                                  |                                      |                                    | Run in parallel whenever possible                                      |
-| `--clean`                                     |                                      |                                    | Reset the output folder before running                                 |
-| `--help` <br> `-h`                            |                                      |                                    | Show the help message and exit                                         |
-
+| **parameter**                                 | **argument**                            | **default value**                  | **description**                                                        |
+| :-------------------------------------------: | --------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------- |
+| `exact-benchmark`                             | Verilog file in `input/ver/`            |                                    | Circuit to approximate                                                 |
+| `--current-benchmark` <br> `--curr`           | Verilog file in `input/ver/`            | the same as <br> `exact-benchmark` | Approximated circuit used to continue the execution                    |
+| `--max-labeling`                              |                                         |                                    | Nodes are weighted using their maximum error, instead of minimum error |
+| `--no-partial-labeling`                       |                                         |                                    | Weights are assigned to all nodes, not only the relevant ones          |
+| `--extraction-mode` <br> `--mode`             | { 1, 2, 3, 4, 5, 55, 6, 11, 12 }        | 55                                 | Subgraph extraction algorithm to use                                   |
+| `--input-max` <br> `--imax`                   | `int` > 0                               |                                    | Maximum allowed number of inputs to the subgraph                       |
+| `--output-max` <br> `--omax`                  | `int` > 0                               |                                    | Maximum allowed number of outputs from the subgraph                    |
+| `--max-sensitivity`                           | `int` > 0                               |                                    | Maximum partitioning sensitivity                                       |
+| `--min-subgraph-size`                         | `int` > 0                               |                                    | Minimum valid size for the subgraph                                    |
+| `--num-subgraphs`                             | `int` > 0                               | 1                                  | The number of attempts for subgraph extraction                         |
+| `--slash-to-kill`                             |                                         |                                    | Enable the slash pass for the first iteration                          |
+| `--error-for-slash`                           | `int` > 0                               |                                    | The error to use for the slash pass                                    |
+| `--subxpat`                                   |                                         |                                    | Run SubXPAT iteratively, instead of standard XPAT                      |
+| `--constants`                                 | { never, always }                       | always                             | Usage of constants                                                     |
+| `--constant-false`                            | { output, product }                     | output                             | Representation of false constants from the subgraph                    |
+| `--template`                                  | { nonshared, shared }                   | nonshared                          | Template logic                                                         |
+| `--max-lpp` <br> `--max-literals-per-product` | `int` > 0                               |                                    | The maximum number of literals per product                             |
+| `--max-ppo` <br> `--max-products-per-output`  | `int` > 0                               |                                    | The maximum number of products per output                              |
+| `--max-pit` <br> `--products-in-total`        | `int` > 0                               |                                    | The maximum number of products in total                                |
+| `--wanted-models`                             | `int` > 0                               | 1                                  | Wanted number of models to generate at each step                       |
+| `--max-error` <br> `-e`                       | `int` > 0                               |                                    | The maximum allowable error                                            |
+| `--error-partitioning` <br> `--epar`          | { asc, desc, smart_asc, smart_desc }    | asc                                | The error partitioning algorithm to use                                |
+| `--encoding`                                  | { z3int, z3bvec, z3dint, z3dbvec, qbf } | z3bvec                             | The encoding to use in solving                                         |
+| `--cell-library`                              |                                         | `config/gscl45nm.lib`              | The cell library file to use in the metrics estimation                 |
+| `--timeout`                                   | `float` > 0                             | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
+| `--parallel`                                  |                                         |                                    | Run in parallel whenever possible                                      |
+| `--clean`                                     |                                         |                                    | Reset the output folder before running                                 |
+| `--help` <br> `-h`                            |                                         |                                    | Show the help message and exit                                         |
 
 ### Examples
 

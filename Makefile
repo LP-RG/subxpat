@@ -2,6 +2,7 @@
 
 PY := python3
 ENV_NAME := .venv
+DELETION_DELAY ?= 10
 
 # computed
 
@@ -18,7 +19,7 @@ help:
 
 activate:
 	# warning: will not work (limitation of `make`), you need to run it manually
-	. $(ENV_NAME)/bin/activate
+	$(ACTIV_ENV)
 
 py_init:
 	@echo "\n[[ creating python environment if absent ]]"
@@ -35,16 +36,23 @@ local_dep:
 
 setup: py_init py_dep local_dep
 
+rm_data:
+	@echo "\n[[   deleting all final and intermediary data   ]]\n[[ YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION ]]"
+	@sleep $(DELETION_DELAY)
+	rm -rf output/ test/
+
 rm_cache:
 	@echo "\n[[ removing all pycache folders ]]"
 	find . -name __pycache__ -prune -print -exec rm -rf {} \;
 
 rm_temp:
 	@echo "\n[[ removing generated temporary files ]]"
-	rm -f yosys_graph.log
+	rm -f yosys_graph.log .history_sta
 
 rm_pyenv:
 	@echo "\n[[ removing the virtual python environment ]]"
 	rm -rf $(ENV_NAME)
 
-clean: rm_pyenv rm_cache rm_temp
+clean: rm_cache rm_temp
+
+clean-all: rm_pyenv rm_data clean

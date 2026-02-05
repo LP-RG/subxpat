@@ -1,27 +1,42 @@
-from typing import Iterable, Iterator, List
+from __future__ import annotations
+from typing import Dict, Iterable, Iterator, List, Tuple
 
 from tabulate import tabulate
 import functools as ft
 import csv
-import time
 import math
 import networkx as nx
 
-from Z3Log.config import path as z3logpath
+from sxpat.annotatedGraph import AnnotatedGraph
+from sxpat.graph import IOGraph
 
-from sxpat.labeling import labeling_explicit
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
-from sxpat.config.paths import *
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
+
+from Z3Log.config import path as z3logpath
+from sxpat.config import paths as sxpatpaths
 from sxpat.config.config import *
-from sxpat.synthesis import Synthesis
-from sxpat.template_manager.template_manager import TemplateManager
+
 from sxpat.utils.filesystem import FS
 from sxpat.utils.name import NameData
-from sxpat.verification import erroreval_verification_wce
-from sxpat.stats import Stats, sxpatconfig, Model
-from sxpat.annotatedGraph import AnnotatedGraph
+from sxpat.utils.timer import Timer
+from sxpat.utils.print import pprint
 
-from sxpat.utils.utils import pprint
+from sxpat.metrics import MetricsEstimator
+from sxpat.stats import Stats, sxpatconfig, Model
+
+from sxpat.definitions.templates import get_specialized as get_templater
+from sxpat.definitions.distances import *
+
+from sxpat.definitions.questions import exists_parameters
+from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
+from sxpat.labeling import labeling_explicit
+
+from sxpat.solvers import get_specialized as get_solver
+from sxpat.solvers import Z3DirectBitVecSolver
+
+from sxpat.converting import set_bool_constants, prevent_assignment
+from sxpat.converting import VerilogExporter
+from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
 
 
 def explore_grid(specs_obj: Specifications):
@@ -34,7 +49,7 @@ def explore_grid(specs_obj: Specifications):
     toolname = get_toolname(specs_obj)
 
     # initial setup
-    exact_file_path = f"{INPUT_PATH['ver'][0]}/{specs_obj.exact_benchmark}.v"
+    exact_file_path = f'{sxpatpaths.INPUT_PATH["ver"][0]}/{specs_obj.exact_benchmark}.v'
 
     # create stat and template object
     stats_obj = Stats(specs_obj)
@@ -45,6 +60,9 @@ def explore_grid(specs_obj: Specifications):
     persistence_limit = 2
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
+
+    # setup caches
+    AnnotatedGraph.set_loading_cache_size(specs_obj.wanted_models + 2)
 
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
@@ -126,27 +144,26 @@ def explore_grid(specs_obj: Specifications):
         # > grid step settings
 
         # import the graph
-        current_graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
-        exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False)
+        ag_loading_time = Timer.now()
+        current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark)
+        exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark)
+        print(f'annotated_graph_loading_time = {(ag_loading_time := (Timer.now() - ag_loading_time))}')
 
         # label graph
         if specs_obj.requires_labeling:
-            t_start = time.time()
-            label_graph(current_graph, specs_obj)
-            labeling_time = time.time() - t_start
-            print(f'labeling_time = {labeling_time}')
+            label_timer, _label_graph = Timer.from_function(label_graph)
+            _label_graph(current_graph, specs_obj)
+            print(f'labeling_time = {(labeling_time := label_timer.total)}')
 
         # extract subgraph
-        t_start = time.time()
-        subgraph_is_available = current_graph.extract_subgraph(specs_obj)
-        subgraph_extraction_time = time.time() - t_start
-        print(f'subgraph_extraction_time = {subgraph_extraction_time}')
+        subex_timer, extract_subgraph = Timer.from_function(current_graph.extract_subgraph)
+        subgraph_is_available = extract_subgraph(specs_obj)
         previous_subgraphs.append(current_graph.subgraph)
+        print(f'subgraph_extraction_time = {(subgraph_extraction_time := subex_timer.total)}')
 
         # todo:wip: export subgraph
-        folder = 'output/gv/subgraphs'
+        FS.mkdir(folder := 'output/gv/subgraphs')
         graph_path = f'{folder}/{specs_obj.current_benchmark}_et{specs_obj.et}_mode{specs_obj.extraction_mode}_omax{specs_obj.omax}.gv'
-        FS.mkdir(folder)
         current_graph.export_annotated_graph(graph_path)
         print(f'subgraph exported at {graph_path}')
 
@@ -167,12 +184,18 @@ def explore_grid(specs_obj: Specifications):
             prev_actual_error = 0
             continue
 
+        # convert from legacy graphs to refactored circuits
+        exact_circ = iograph_from_legacy(exact_graph)
+        current_circ = sgraph_from_legacy(current_graph)
+
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
         for lpp, ppo in CellIterator.factory(specs_obj):
+            print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
+
             if is_dominated((lpp, ppo), dominant_cells):
-                pprint.info1(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> DOMINATED')
+                pprint.info3('DOMINATED')
                 continue
 
             # > cell step settings
@@ -180,18 +203,43 @@ def explore_grid(specs_obj: Specifications):
             # update the context
             update_context(specs_obj, lpp, ppo)
 
-            # run script
-            manager = TemplateManager.factory(specs_obj, exact_graph, current_graph)
-            start_time = time.time()
-            results = manager.run()
-            execution_time = time.time() - start_time
+            # DEFINE
+            define_timer = Timer()
 
-            cur_status = results[0].status
-            if cur_status in (UNSAT, UNKNOWN):
-                pprint.warning(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {cur_status.upper()}')
+            # template (and relative constraints)
+            define_template = define_timer.wrap(get_templater(specs_obj).define)
+            param_circ, *param_circ_constr = define_template(current_circ, specs_obj)
+
+            # question
+            define_question = define_timer.wrap(exists_parameters.not_above_threshold_forall_inputs)
+            base_question = define_question(current_circ, param_circ, AbsoluteDifferenceOfInteger, specs_obj.et)
+
+            # SOLVE
+            solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
+            question = [exact_circ, param_circ, *param_circ_constr, *base_question]
+
+            models = []
+            for i in range(specs_obj.wanted_models):
+                # prevent parameters combination if any
+                if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
+
+                # solve question
+                status, model = solve(question, specs_obj)
+
+                # terminate if status is not sat, otherwise store the model
+                if status != 'sat': break
+                models.append(model)
+
+            if len(models) > 0: status = 'sat'
+
+            # legacy adaptation
+            execution_time = define_timer.total + solve_timer.total
+
+            if len(models) == 0:
+                pprint.warning(f'{status.upper()}')
 
                 # store model
-                this_model_info = Model(id=0, status=cur_status.upper(), cell=(lpp, ppo), et=specs_obj.et, iteration=specs_obj.iteration,
+                this_model_info = Model(id=0, status=status.upper(), cell=(lpp, ppo), et=specs_obj.et, iteration=specs_obj.iteration,
                                         labeling_time=labeling_time,
                                         subgraph_extraction_time=subgraph_extraction_time,
                                         subgraph_number_inputs=current_graph.subgraph_num_inputs,
@@ -199,30 +247,42 @@ def explore_grid(specs_obj: Specifications):
                                         subxpat_v1_time=execution_time)
                 stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
 
-                if cur_status == UNKNOWN:
-                    # store cell as dominant (to skip dominated subgrid)
-                    dominant_cells.append((lpp, ppo))
+                # store cell as dominant (to skip dominated subgrid)
+                if status == UNKNOWN: dominant_cells.append((lpp, ppo))
 
-            elif cur_status == SAT:
+            else:
+                pprint.success(f'{status.upper()} ({len(models)} models found)')
 
-                # synthesize all models and compute circuit specifications
-                synth_obj = Synthesis(specs_obj, current_graph, [res.model for res in results])
+                # TODO:#15: use serious name generator
+                base_path = f'input/ver/{specs_obj.exact_benchmark}_{specs_obj.time_id}_i{specs_obj.iteration}_{{model_number}}.v'
                 cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
-                for idx in range(synth_obj.num_of_models):
-                    synth_obj.set_path(z3logpath.OUTPUT_PATH['ver'], id=idx)
-                    synth_obj.export_verilog(idx=idx)
-                    synth_obj.export_verilog(z3logpath.INPUT_PATH['ver'][0], idx=idx)
-                    cur_model_results[synth_obj.ver_out_name] = [
-                        synth_obj.estimate_area(),
-                        synth_obj.estimate_power(),
-                        synth_obj.estimate_delay(),
+
+                for model_number, model in enumerate(models):
+
+                    a_graph = set_bool_constants(param_circ, model, skip_missing=True)
+
+                    # export approximate graph as verilog
+                    # TODO:#15: use serious name generator
+                    verilog_path = base_path.format(model_number=model_number)
+                    VerilogExporter.to_file(
+                        a_graph, verilog_path,
+                        VerilogExporter.Info(model_number=model_number),
+                    )
+
+                    # compute metrics
+                    metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, verilog_path)
+                    verilog_filename = verilog_path[10:]  # TODO: this should be kept as the path, we should update the usages to use the path instead of the name
+                    cur_model_results[verilog_filename] = [
+                        metrics.area,
+                        metrics.power,
+                        metrics.delay,
                         (lpp, ppo),
                         None,  # abs diff to exact
                         None  # abs diff to previous
                     ]
 
                 # todo: should we refactor with pandas?
-                with open(f"{z3logpath.OUTPUT_PATH['report'][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{toolname}.csv", 'w') as f:
+                with open(f'{z3logpath.OUTPUT_PATH["report"][0]}/area_model_nummodels{specs_obj.wanted_models}_{specs_obj.current_benchmark}_{specs_obj.et}_{toolname}.csv', 'w') as f:
                     csvwriter = csv.writer(f)
                     header = list(range(len(cur_model_results)))
                     all = list(cur_model_results.values())
@@ -232,16 +292,18 @@ def explore_grid(specs_obj: Specifications):
                     csvwriter.writerow(content)
 
                 # verify all models and store errors
-                pprint.success('verifying all approximate circuits -> ', end='')
+                pprint.info1('verifying all approximate circuits ...')
                 for candidate_name, candidate_data in cur_model_results.items():
-                    candidate_data[4] = erroreval_verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
-                    candidate_data[5] = erroreval_verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
+
+                    candidate_data[4] = error_evaluation(exact_circ, candidate_name[:-2], specs_obj)
+                    candidate_data[5] = error_evaluation(current_circ, candidate_name[:-2], specs_obj)
 
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
                         stats_obj.store_grid()
                         return stats_obj
-                pprint.success(f'Cell = ({lpp}, {ppo}) iteration = {specs_obj.iteration} -> {cur_status} ({synth_obj.num_of_models} models found)')
+
+                pprint.success('ErrorEval Verification PASSED')
 
                 # sort circuits
                 sorted_circuits = sorted(cur_model_results.items(), key=ft.cmp_to_key(model_compare))
@@ -253,7 +315,7 @@ def explore_grid(specs_obj: Specifications):
 
                 specs_obj.current_benchmark = best_name
                 best_model_info = Model(id=0,
-                                        status=cur_status.upper(),
+                                        status=status.upper(),
                                         cell=(lpp, ppo),
                                         et=best_data[4],
                                         iteration=specs_obj.iteration,
@@ -269,9 +331,7 @@ def explore_grid(specs_obj: Specifications):
                 stats_obj.grid.cells[lpp][ppo].store_model_info(best_model_info)
                 pprint.success(f'ErrorEval PASS! with total wce = {best_data[4]}')
 
-                exact_stats = [synth_obj.estimate_area(exact_file_path),
-                               synth_obj.estimate_power(exact_file_path),
-                               synth_obj.estimate_delay(exact_file_path)]
+                exact_stats = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, exact_file_path, True)
                 print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
                 store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.current_benchmark, et=specs_obj.et,
                                     encoding=specs_obj.encoding, subgraph_extraction_time=subgraph_extraction_time, labeling_time=labeling_time)
@@ -280,12 +340,28 @@ def explore_grid(specs_obj: Specifications):
 
             prev_actual_error = 0
 
-        if cur_status == SAT and best_data[0] == 0:
+        if status == SAT and best_data[0] == 0:
             pprint.info3('Area zero found!\nTerminated.')
             break
 
     stats_obj.store_grid()
     return stats_obj
+
+
+def error_evaluation(e_graph: IOGraph, graph_name: str, specs_obj: Specifications):
+    ag_loading_time = Timer.now()
+    current = AnnotatedGraph.cached_load(graph_name)
+    print(f'erreval_annotated_graph_loading_time = {(ag_loading_time := (Timer.now() - ag_loading_time))}')
+
+    cur_graph = iograph_from_legacy(current)
+
+    p_graph, c_graph = MaxDistanceEvaluation.define(cur_graph)
+    status, model = Z3DirectBitVecSolver.solve((e_graph, p_graph, c_graph), specs_obj)
+
+    assert status == 'sat'
+    assert len(model) == 1
+
+    return next(iter(model.values()))
 
 
 class CellIterator:
@@ -413,6 +489,9 @@ def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     inner_graph: nx.DiGraph = graph.graph
     for (node_name, node_data) in inner_graph.nodes.items():
         node_data[WEIGHT] = weights.get(node_name, -1)
+        # TODO: get output's weights in the correct way
+        if node_name[:3] == 'out':
+            node_data[WEIGHT] = 2**int(node_name[3:])
 
 
 def get_toolname(specs_obj: Specifications) -> str:
@@ -436,13 +515,8 @@ def node_matcher(n1: dict, n2: dict) -> bool:
 
 
 def model_compare(a, b) -> bool:
-    if a[1][0] < b[1][0]:
-        return -1
-    elif a[1][0] > b[1][0]:
-        return +1
-    elif a[1][4] < b[1][4]:
-        return -1
-    elif a[1][4] > b[1][4]:
-        return +1
-    else:
-        return 0
+    if a[1][0] < b[1][0]: return -1
+    elif a[1][0] > b[1][0]: return +1
+    elif a[1][4] < b[1][4]: return -1
+    elif a[1][4] > b[1][4]: return +1
+    else: return 0

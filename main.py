@@ -1,55 +1,48 @@
-from Z3Log.utils import setup_folder_structure
-from Z3Log.config import path as z3logpath
-
 from sxpat.specifications import Specifications
-from sxpat.config import paths as sxpatpaths
-
-from sxpat.xplore import explore_grid
-from sxpat.stats import Stats
-
-from sxpat.utils.utils import pprint
-from sxpat.utils.filesystem import FS
+from sxpat.utils.print import pprint
 
 
 def main():
     specs_obj = Specifications.parse_args()
     print(f'{specs_obj = }')
 
-    if specs_obj.plot:
-        pprint.info2('Plotting...')
-        stats_obj = Stats(specs_obj)
-        stats_obj.gather_results()
-
-    else:
-        if specs_obj.clean:
-            pprint.info2('cleaning...')
-            clean_all()
-
-        # prepare folders
-        setup_folder_structure()
-        for (directory, _) in sxpatpaths.OUTPUT_PATH.values():
-            FS.mkdir(directory)
-
-        # run system
-        stats_obj = explore_grid(specs_obj)
+    if specs_obj.plot: plot(specs_obj)
+    else: run(specs_obj)
 
 
-def clean_all():
-    for (directory, _) in [
-        z3logpath.OUTPUT_PATH['ver'],
-        z3logpath.OUTPUT_PATH['gv'],
-        z3logpath.OUTPUT_PATH['aig'],
-        z3logpath.OUTPUT_PATH['z3'],
-        z3logpath.OUTPUT_PATH['report'],
-        z3logpath.OUTPUT_PATH['figure'],
-        z3logpath.TEST_PATH['tb'],
-        sxpatpaths.OUTPUT_PATH['area'],
-        sxpatpaths.OUTPUT_PATH['power'],
-        sxpatpaths.OUTPUT_PATH['delay'],
-        sxpatpaths.OUTPUT_PATH['json']
-    ]:
-        FS.cleandir(directory)
+def plot(specs_obj: Specifications) -> None:
+    from sxpat.stats import Stats
+
+    pprint.info2('generating plots from matching data')
+    stats_obj = Stats(specs_obj)
+    stats_obj.gather_results()
 
 
-if __name__ == "__main__":
+def run(specs_obj: Specifications) -> None:
+    # select wanted directories
+    from sxpat.config import paths as sxpatpaths
+    from Z3Log.config import path as z3logpath
+    WANTED_DIRECTORIES = [
+        sxpatpaths.OUTPUT_PATH['ver'][0],
+        sxpatpaths.OUTPUT_PATH['gv'][0],
+        sxpatpaths.OUTPUT_PATH['z3'][0],
+        sxpatpaths.OUTPUT_PATH['report'][0],
+        z3logpath.TEST_PATH['tb'][0],
+    ]
+    # create/empty the wanted directories
+    from sxpat.utils.filesystem import FS
+    for dir in WANTED_DIRECTORIES: FS.mkdir(dir)
+    if specs_obj.clean:  # clean if wanted
+        pprint.info2('removing final and intermediary data')
+        for dir in WANTED_DIRECTORIES: FS.emptydir(dir)
+
+    # run system
+    from sxpat.xplore import explore_grid
+    explore_grid(specs_obj)
+
+
+if __name__ == '__main__':
+    from sxpat.utils.timer import Timer
+
     main()
+    print(f'total_time = {Timer.now()}')
