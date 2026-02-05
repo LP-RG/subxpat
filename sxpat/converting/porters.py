@@ -90,7 +90,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         Sum: '&sum;A',
         AbsDiff: '|a-b|',
         Mul: '&mul;A',
-        Div: 'a/b'
+        Div: 'a/b',
         # bool to int
         ToInt: 'toInt',
         # int to bool
