@@ -2,7 +2,8 @@
 
 SubXPAT is a fully automated framework for approximate logic synthesis (ALS) based on the XPAT algorithm. It targets circuits described in Verilog and its core idea is to perform circuit rewriting in a way that is both local, i.e., is applied piece-wise to selected subcircuits, and extensive, i.e., systematically explores the design space for good solutions.
 
-For details on the SubXPAT framework and the XPAT algorithm, please see our papers published at [IEEE TCAD], [DSN-W'23], and [arXiv][arXiv-shared].
+For details on the SubXPAT framework and the XPAT algorithm, please see our papers published at [IEEE TCAD] and [DSN-W'23].
+Details on template logic can be found on [arXiv][arXiv-shared].
 
 
 ## Dependencies
