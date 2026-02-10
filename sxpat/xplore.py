@@ -127,11 +127,13 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.remove_most_significant_output:
             if removed_output:
                 specs_obj.extraction_mode = saved_extraction_mode
+                specs_obj.baseet = saved_baseet
                 specs_obj.remove_most_significant_output = False
             else:
                 saved_extraction_mode = specs_obj.extraction_mode
+                saved_baseet = specs_obj.baseet
                 specs_obj.extraction_mode = 123
-                specs_obj.et = 2 ** exact_graph.num_outputs - 1
+                specs_obj.baseet = 2 ** exact_graph.num_outputs - 1
                 removed_output = True
 
         # label graph

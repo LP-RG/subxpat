@@ -103,7 +103,6 @@ class Specifications:
     #Extraction_mode_0
     persistence_counter: int = dc.field(init=False, default=0)  # rw
     out_node: int = dc.field(init=False, default=0)  # rw\
-    
     #Zone AE
     baseet: int
     stepsize: int
@@ -163,7 +162,7 @@ class Specifications:
     def requires_labeling(self) -> bool:
         return (
             self.subxpat
-            and self.extraction_mode >= 2
+            and self.extraction_mode >= 2 and self.extraction_mode!=123
         )
 
     @property
