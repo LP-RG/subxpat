@@ -35,6 +35,12 @@ class MetricType(enum.Enum):
     ABSOLUTE = 'wae'
     RELATIVE = 'wre'
 
+class CnnErrorConstraintTypes(enum.Enum):
+    EXPLICIT = 'explicit'
+    NINE = 'nine'
+    NINE_PRIME = 'nine_prime'
+    RELATIVE_ONLY = 'relative_only'
+
 class EnumChoicesAction(argparse.Action):
     def __init__(self, *args, type: enum.Enum, **kwargs) -> None:
         super().__init__(*args, **kwargs, choices=[e.value for e in type])
@@ -105,8 +111,17 @@ class Specifications:
     out_node: int = dc.field(init=False, default=0)  # rw\
     #Zone AE
     baseet: int
-    stepsize: int
-    stepfactor: int
+    beta: int
+    alpha: int
+    c_constant: int
+    threshold_array_idx: int
+
+    #relative error constraint
+    cnn_constraint: CnnErrorConstraintTypes
+
+    #TODO
+    constraint_cutoff: int
+
     # exploration (1)
     subxpat: bool
     template: TemplateType
@@ -315,19 +330,40 @@ class Specifications:
         # > zone error stuff
 
         _baseet = parser.add_argument('--baseet',
-                                  type=int,
-                                  required=False,
-                                  default= 100)
-                                  #help='The maximum allowable error')
+                                    type=int,
+                                    required=False,
+                                    default= 100)
+                                    #help='The maximum allowable error')
 
-        _stepsize = parser.add_argument('--stepsize',
-                                  type=int,
-                                  required=False,)
-                                  #help='The maximum allowable error')
-        _stepfactor = parser.add_argument('--stepfactor',
-                                  type=int,
-                                  required=False)
-                                  #help='The maximum allowable error')
+        _beta = parser.add_argument('--beta',
+                                    type=int,
+                                    required=False,
+                                    help='The beta parameter used in the zone constraint')
+        _alpha = parser.add_argument('--alpha',
+                                    type=int,
+                                    required=False,
+                                    help='The alpha parameter used in the zone constraint')
+
+        _c_constant = parser.add_argument('--c-constant',
+                                    type=int,
+                                    required=False,
+                                    help='The C constant used in the zone constraint')
+        
+        _threshold_array_idx = parser.add_argument('--threshold-array-idx',
+                                    type=int,
+                                    required=False,
+                                    help='The index of the threshold array (inside input/ver/error_threshold_arrays.json) that is going to be used in the explicit constraint definition (default: 0)')
+
+        _cnn_constraint = parser.add_argument('--cnn-constraint',
+                                    type=CnnErrorConstraintTypes,
+                                    action=EnumChoicesAction,
+                                    default=None, 
+                                    help='Constraint definition to use when metric is relative (needed when --metric is wre)')
+
+        _constraint_cutoff = parser.add_argument('--constraint-cutoff',
+                                    type=int,
+                                    required=False)
+                                    #help='...')
 
         # > other stuff
 
@@ -360,6 +396,15 @@ class Specifications:
         if raw_args.current_benchmark is None:
             raw_args.current_benchmark = raw_args.exact_benchmark
 
+        #if the user specified a cnn constraint but did not specify the metric (or specified metric=wae), set the metric to relative
+        if raw_args.cnn_constraint is not None:
+            raw_args.metric = MetricType.RELATIVE
+
+        # if the user specified a relative metric but did not specify the cnn constraint, set the cnn constraint to relative only
+        elif raw_args.metric == MetricType.RELATIVE:
+             if raw_args.cnn_constraint is None:
+                 raw_args.cnn_constraint = CnnErrorConstraintTypes.RELATIVE_ONLY
+
         # define dependencies
         dependencies: Dict[Tuple[argparse.Action, Optional[Any]], List[argparse.Action]] = defaultdict(list)
         dependencies = {
@@ -368,6 +413,10 @@ class Specifications:
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
             (_ep, ErrorPartitioningType.ASCENDING): [_parition_divider],
+            (_cnn_constraint, CnnErrorConstraintTypes.NINE): [_beta, _alpha, _baseet],
+            (_cnn_constraint, CnnErrorConstraintTypes.NINE_PRIME): [_beta, _alpha, _c_constant, _baseet],
+            (_cnn_constraint, CnnErrorConstraintTypes.EXPLICIT): [_beta, _threshold_array_idx],
+            (_cnn_constraint, CnnErrorConstraintTypes.RELATIVE_ONLY): [_baseet],
         }
 
         # check dependencies

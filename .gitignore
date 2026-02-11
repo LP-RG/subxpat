@@ -26,6 +26,7 @@
 # input
 /input/*
 !/input/ver.bak
+!/input/error_threshold_arrays.json
 
 #> misc
 Laura/

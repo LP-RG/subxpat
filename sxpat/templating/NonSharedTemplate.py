@@ -1,6 +1,7 @@
 from typing import Dict, List, Tuple
 
 import itertools as it
+from unittest import case
 
 from .Template import Template
 
@@ -8,6 +9,10 @@ from sxpat.converting import set_prefix
 from sxpat.graph import *
 from sxpat.specifications import ConstantsType, MetricType, Specifications
 from sxpat.utils.collections import flat, iterable_replace, pairwise
+
+from .constraints_definition import nine, nine_prime, explicit_constraints, relative_error_constraint 
+
+from sxpat.specifications import CnnErrorConstraintTypes
 
 
 __all__ = ['NonSharedTemplate']
@@ -98,55 +103,22 @@ class _NonSharedBase:
         ]
     
     @classmethod
-    def relative_error_constraint(cls, s_graph: SGraph, t_graph: PGraph, base_et: int, step_size: int, step_factor: int) -> List[Node]:
-        return [
-            *(PlaceHolder(name) for name in s_graph.inputs_names[:]),
-            input_one_value := ToInt('input_one_value', operands=s_graph.inputs_names[:len(s_graph.inputs_names)//2]),
-            input_two_value := ToInt('input_two_value', operands=s_graph.inputs_names[len(s_graph.inputs_names)//2:]),
+    def cnn_error_constraint(cls, s_graph: SGraph, t_graph: PGraph, base_et: int, beta: int, alpha: int, c_constant: int, threshold_array_idx: int, constraint_type: CnnErrorConstraintTypes) -> List[Node]:
+        
+        print(f'[DEBUG] Using CNN error constraint: {constraint_type}')
+        
+        if(constraint_type == CnnErrorConstraintTypes.EXPLICIT):
+            pass
+            return explicit_constraints(s_graph, t_graph, threshold_array_idx, beta)
+        elif(constraint_type == CnnErrorConstraintTypes.NINE):
+            return nine(s_graph, t_graph, base_et, beta, alpha)
+        elif(constraint_type == CnnErrorConstraintTypes.NINE_PRIME):
+            return nine_prime(s_graph, t_graph, base_et, beta, alpha, c_constant)
+        elif (constraint_type == CnnErrorConstraintTypes.RELATIVE_ONLY):
+            return relative_error_constraint(s_graph, t_graph, base_et)
+        else:
+            raise ValueError(f'Unknown CNN constraint type: {constraint_type}')
 
-            cur_int := ToInt('cur_int', operands=s_graph.outputs_names),
-            tem_int := ToInt('tem_int', operands=t_graph.outputs_names),
-            #Absolute error
-            abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
-
-            #Int Constant
-            zero := IntConstant('zero', value = 0),
-            one := IntConstant('one', value = 1),
-            alpha := IntConstant('alpha', value = step_factor),
-            hundred := IntConstant('hundred', value = 100),
-
-            #Relative Error
-            condition := Equals('condition', operands = (cur_int, zero)),
-            divider := If("divider", operands=(condition, one, cur_int)),
-            abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
-            rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),    
-
-            #zone parameters
-            half := IntConstant('half', value = 127),
-            step_divider := IntConstant('step_divider', value = step_size),
-
-            #Absolute error_et
-            et := IntConstant('et', value=base_et),
-
-            #AE et function
-            distance_half := AbsDiff('distance_from_half', operands = (input_two_value, half)),
-            x_factor := Mul('x_factor', operands=(distance_half, alpha)),
-            numerator := Sum('numerator', operands=(x_factor, input_one_value)),
-            low_bound_condition := LessThan('low_bound_condition', operands=(numerator,step_divider)),
-            et_function := UDiv('et_function', operands=(numerator,step_divider)),
-            low_bounded_et_function := If('low_bounded_et_function', operands=(low_bound_condition, one, et_function)),
-            scaled_et := Mul('scaled_et', operands=(low_bounded_et_function,et)),
-
-
-            #Error constraints
-            ae_error := LessEqualThan('ae_error', operands = (abs_diff, scaled_et)),
-            re_constraint := LessEqualThan('re_constraint', operands = (rel_diff, hundred)),
-
-            #Half RE
-            re_check_condition :=LessEqualThan('re_check_condition', operands = (input_two_value, input_one_value)),
-            re_error := Implies("re_error", operands = (re_check_condition, re_constraint)),
-            error_check := And('error_check', operands=(ae_error, re_error)),
-        ]
     
     @classmethod
     def atmost_lpp_constraints(cls, out_prod_mux_params: List[List[List[Tuple[BoolVariable, BoolVariable]]]], literals_per_product: int
@@ -280,7 +252,15 @@ class NonSharedTemplate(Template, _NonSharedBase):
                 (PlaceHolder(name) for name in s_graph.outputs_names),
                 (PlaceHolder(name) for name in template_graph.outputs_names),
                 # behavioural constraints
-                cls.error_constraint(s_graph, template_graph, specs.et) if(specs.metric is MetricType.ABSOLUTE) else cls.relative_error_constraint(s_graph, template_graph, specs.baseet, specs.stepsize, specs.stepfactor) if(specs.zone_constraint == None) else cls.relative_error_zone_constraint(s_graph, template_graph),
+                cls.error_constraint(s_graph, template_graph, specs.et) if(specs.metric is MetricType.ABSOLUTE)
+                    else cls.cnn_error_constraint(s_graph,
+                                                  template_graph,
+                                                  specs.baseet,
+                                                  specs.beta,
+                                                  specs.alpha,
+                                                  specs.c_constant,
+                                                  specs.threshold_array_idx,
+                                                  specs.cnn_constraint), #if(specs.zone_constraint == None) else cls.relative_error_zone_constraint(s_graph, template_graph),
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
                 # redundancy constraints
                 mux_red_nodes,
