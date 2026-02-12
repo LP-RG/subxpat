@@ -10,7 +10,7 @@ from sxpat.graph import *
 from sxpat.specifications import ConstantsType, MetricType, Specifications
 from sxpat.utils.collections import flat, iterable_replace, pairwise
 
-from .constraints_definition import nine, nine_prime, explicit_constraints, relative_error_constraint 
+from .constraints_definition import nine, nine_prime, explicit_constraints 
 
 from sxpat.specifications import CnnErrorConstraintTypes
 
@@ -104,21 +104,33 @@ class _NonSharedBase:
     
     @classmethod
     def cnn_error_constraint(cls, s_graph: SGraph, t_graph: PGraph, base_et: int, beta: int, alpha: int, c_constant: int, threshold_array_idx: int, constraint_type: CnnErrorConstraintTypes) -> List[Node]:
-        
-        print(f'[DEBUG] Using CNN error constraint: {constraint_type}')
-        
+                
         if(constraint_type == CnnErrorConstraintTypes.EXPLICIT):
-            pass
             return explicit_constraints(s_graph, t_graph, threshold_array_idx, beta)
         elif(constraint_type == CnnErrorConstraintTypes.NINE):
             return nine(s_graph, t_graph, base_et, beta, alpha)
         elif(constraint_type == CnnErrorConstraintTypes.NINE_PRIME):
             return nine_prime(s_graph, t_graph, base_et, beta, alpha, c_constant)
-        elif (constraint_type == CnnErrorConstraintTypes.RELATIVE_ONLY):
-            return relative_error_constraint(s_graph, t_graph, base_et)
         else:
             raise ValueError(f'Unknown CNN constraint type: {constraint_type}')
 
+    @classmethod
+    def relative_error_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int) -> List[Node]:
+
+        return [
+            cur_int := ToInt('cur_int', operands=s_graph.outputs_names),
+            tem_int := ToInt('tem_int', operands=t_graph.outputs_names),
+            abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
+            et := IntConstant('et', value=error_threshold),
+            zero_constant := IntConstant('zero_constant', value = 0),
+            one := IntConstant('one', value = 1),
+            hundred := IntConstant('hundred', value = 100),
+            condition := Equals('condition', operands = (cur_int, zero_constant)),
+            divider := If("divider", operands=(condition, one, cur_int)),
+            abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
+            rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),
+            error_check := LessEqualThan('error_check', operands=(rel_diff, et)),
+            ]
     
     @classmethod
     def atmost_lpp_constraints(cls, out_prod_mux_params: List[List[List[Tuple[BoolVariable, BoolVariable]]]], literals_per_product: int
@@ -253,6 +265,7 @@ class NonSharedTemplate(Template, _NonSharedBase):
                 (PlaceHolder(name) for name in template_graph.outputs_names),
                 # behavioural constraints
                 cls.error_constraint(s_graph, template_graph, specs.et) if(specs.metric is MetricType.ABSOLUTE)
+                    else cls.relative_error_constraint(s_graph, template_graph, specs.et) if specs.cnn_constraint is None
                     else cls.cnn_error_constraint(s_graph,
                                                   template_graph,
                                                   specs.baseet,
@@ -260,7 +273,7 @@ class NonSharedTemplate(Template, _NonSharedBase):
                                                   specs.alpha,
                                                   specs.c_constant,
                                                   specs.threshold_array_idx,
-                                                  specs.cnn_constraint), #if(specs.zone_constraint == None) else cls.relative_error_zone_constraint(s_graph, template_graph),
+                                                  specs.cnn_constraint),
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
                 # redundancy constraints
                 mux_red_nodes,

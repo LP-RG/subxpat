@@ -4,25 +4,8 @@ from sxpat.graph import *
 
 ERROR_THRESHOLD_ARRAYS_PATH = 'input/error_threshold_arrays.json'
 
-def relative_error_constraint(s_graph: SGraph, t_graph: PGraph, error_threshold: int) -> List[Node]:
-
-    return [
-        cur_int := ToInt('cur_int', operands=s_graph.outputs_names),
-        tem_int := ToInt('tem_int', operands=t_graph.outputs_names),
-        abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
-        et := IntConstant('et', value=error_threshold),
-        zero_constant := IntConstant('zero_constant', value = 0),
-        one := IntConstant('one', value = 1),
-        hundred := IntConstant('hundred', value = 100),
-        condition := Equals('condition', operands = (cur_int, zero_constant)),
-        divider := If("divider", operands=(condition, one, cur_int)),
-        abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
-        rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),
-        error_check := LessEqualThan('error_check', operands=(rel_diff, et)),
-        ]
-
 def nine(s_graph: SGraph, t_graph: PGraph, base_et: int, beta: int, alpha: int) -> List[Node]:
-
+        
         return [
             *(PlaceHolder(name) for name in s_graph.inputs_names[:]),
             input_one_value := ToInt('input_one_value', operands=s_graph.inputs_names[:len(s_graph.inputs_names)//2]),
@@ -74,7 +57,7 @@ def nine(s_graph: SGraph, t_graph: PGraph, base_et: int, beta: int, alpha: int) 
 
 
 def nine_prime(s_graph: SGraph, t_graph: PGraph, base_et: int, beta: int, alpha: int, c_constant: int) -> List[Node]:
-
+        
         return [
             *(PlaceHolder(name) for name in s_graph.inputs_names[:]),
             input_one_value := ToInt('input_one_value', operands=s_graph.inputs_names[:len(s_graph.inputs_names)//2]),
@@ -132,8 +115,7 @@ def nine_prime(s_graph: SGraph, t_graph: PGraph, base_et: int, beta: int, alpha:
 # beta parameter defines the size of each zone (submatrix)
 # For example with beta = 32, we have 8x8 zones for 256x256 input space thus needing array of lenght 64 (8*8).
 def explicit_constraints(s_graph: SGraph, t_graph: PGraph, et_array_idx: int, beta: int) -> List[Node]:
-
-        # Load the error threshold array from the JSON file
+        
         try:
             with open(ERROR_THRESHOLD_ARRAYS_PATH, 'r') as f:
                 error_threshold_arrays = json.load(f)

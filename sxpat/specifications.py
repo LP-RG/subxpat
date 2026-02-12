@@ -39,7 +39,6 @@ class CnnErrorConstraintTypes(enum.Enum):
     EXPLICIT = 'explicit'
     NINE = 'nine'
     NINE_PRIME = 'nine_prime'
-    RELATIVE_ONLY = 'relative_only'
 
 class EnumChoicesAction(argparse.Action):
     def __init__(self, *args, type: enum.Enum, **kwargs) -> None:
@@ -396,14 +395,10 @@ class Specifications:
         if raw_args.current_benchmark is None:
             raw_args.current_benchmark = raw_args.exact_benchmark
 
-        #if the user specified a cnn constraint but did not specify the metric (or specified metric=wae), set the metric to relative
+        #if the user specified a cnn constraint and did not specify the metric, set the metric to relative
         if raw_args.cnn_constraint is not None:
             raw_args.metric = MetricType.RELATIVE
 
-        # if the user specified a relative metric but did not specify the cnn constraint, set the cnn constraint to relative only
-        elif raw_args.metric == MetricType.RELATIVE:
-             if raw_args.cnn_constraint is None:
-                 raw_args.cnn_constraint = CnnErrorConstraintTypes.RELATIVE_ONLY
 
         # define dependencies
         dependencies: Dict[Tuple[argparse.Action, Optional[Any]], List[argparse.Action]] = defaultdict(list)
@@ -416,7 +411,6 @@ class Specifications:
             (_cnn_constraint, CnnErrorConstraintTypes.NINE): [_beta, _alpha, _baseet],
             (_cnn_constraint, CnnErrorConstraintTypes.NINE_PRIME): [_beta, _alpha, _c_constant, _baseet],
             (_cnn_constraint, CnnErrorConstraintTypes.EXPLICIT): [_beta, _threshold_array_idx],
-            (_cnn_constraint, CnnErrorConstraintTypes.RELATIVE_ONLY): [_baseet],
         }
 
         # check dependencies
