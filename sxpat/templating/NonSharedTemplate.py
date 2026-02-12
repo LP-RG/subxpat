@@ -103,14 +103,14 @@ class _NonSharedBase:
         ]
     
     @classmethod
-    def cnn_error_constraint(cls, s_graph: SGraph, t_graph: PGraph, base_et: int, beta: int, alpha: int, c_constant: int, threshold_array_idx: int, constraint_type: CnnErrorConstraintTypes) -> List[Node]:
+    def cnn_error_constraint(cls, s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alpha: int, c_constant: int, threshold_array_idx: int, constraint_type: CnnErrorConstraintTypes) -> List[Node]:
                 
         if(constraint_type == CnnErrorConstraintTypes.EXPLICIT):
             return explicit_constraints(s_graph, t_graph, threshold_array_idx, beta)
         elif(constraint_type == CnnErrorConstraintTypes.NINE):
-            return nine(s_graph, t_graph, base_et, beta, alpha)
+            return nine(s_graph, t_graph, max_error, beta, alpha)
         elif(constraint_type == CnnErrorConstraintTypes.NINE_PRIME):
-            return nine_prime(s_graph, t_graph, base_et, beta, alpha, c_constant)
+            return nine_prime(s_graph, t_graph, max_error, beta, alpha, c_constant)
         else:
             raise ValueError(f'Unknown CNN constraint type: {constraint_type}')
 
@@ -268,7 +268,7 @@ class NonSharedTemplate(Template, _NonSharedBase):
                     else cls.relative_error_constraint(s_graph, template_graph, specs.et) if specs.cnn_constraint is None
                     else cls.cnn_error_constraint(s_graph,
                                                   template_graph,
-                                                  specs.baseet,
+                                                  specs.max_error,
                                                   specs.beta,
                                                   specs.alpha,
                                                   specs.c_constant,

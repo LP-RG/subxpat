@@ -4,7 +4,7 @@ from sxpat.graph import *
 
 ERROR_THRESHOLD_ARRAYS_PATH = 'input/error_threshold_arrays.json'
 
-def nine(s_graph: SGraph, t_graph: PGraph, base_et: int, beta: int, alpha: int) -> List[Node]:
+def nine(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alpha: int) -> List[Node]:
         
         return [
             *(PlaceHolder(name) for name in s_graph.inputs_names[:]),
@@ -33,7 +33,7 @@ def nine(s_graph: SGraph, t_graph: PGraph, base_et: int, beta: int, alpha: int) 
             step_divider := IntConstant('step_divider', value = beta),
 
             #Absolute error_et
-            et := IntConstant('et', value=base_et),
+            et := IntConstant('et', value=max_error),
 
             #AE et function
             distance_half := AbsDiff('distance_from_half', operands = (input_two_value, half)),
@@ -56,7 +56,7 @@ def nine(s_graph: SGraph, t_graph: PGraph, base_et: int, beta: int, alpha: int) 
         ]
 
 
-def nine_prime(s_graph: SGraph, t_graph: PGraph, base_et: int, beta: int, alpha: int, c_constant: int) -> List[Node]:
+def nine_prime(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alpha: int, c_constant: int) -> List[Node]:
         
         return [
             *(PlaceHolder(name) for name in s_graph.inputs_names[:]),
@@ -85,7 +85,7 @@ def nine_prime(s_graph: SGraph, t_graph: PGraph, base_et: int, beta: int, alpha:
             step_divider := IntConstant('step_divider', value = beta),
 
             #Absolute error_et
-            et := IntConstant('et', value=base_et),
+            et := IntConstant('et', value=max_error),
             increase_constant := IntConstant('increase_constant', value = c_constant), #flag c
             constraint_validity := IntConstant('constraint_validity', value = 45),
 
