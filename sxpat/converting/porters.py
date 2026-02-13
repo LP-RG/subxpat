@@ -1,14 +1,15 @@
-from abc import abstractmethod
+from __future__ import annotations
+from abc import ABC, abstractmethod
 from typing import Type, Callable, Mapping, Optional, Union, Generic
 import dataclasses as dc
 
 from bidict import bidict
-
 import itertools as it
 import re
 import json
 
-from sxpat.graph import *
+from sxpat.graph import Graph, IOGraph, SGraph, PGraph, CGraph, T_Graph
+from sxpat.graph.graph import GraphBuilder
 from sxpat.graph.node import *
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
 from sxpat.utils.functions import str_to_bool
@@ -29,10 +30,11 @@ _N_CLSS = {c.__name__: c for c in get_all_leaves_subclasses(Node)}
 
 
 @make_utility_class
-class GraphImporter(Generic[T_Graph]):
+class GraphImporter(Generic[T_Graph], ABC):
     """Abstract class for importing a Graph from a string/file."""
 
     @classmethod
+    @abstractmethod
     def from_string(cls, string: str) -> T_Graph:
         raise NotImplementedError(f'{cls.__name__}.from_string(...) is abstract.')
 
@@ -44,7 +46,7 @@ class GraphImporter(Generic[T_Graph]):
 
 
 @make_utility_class
-class GraphExporter(Generic[T_Graph]):
+class GraphExporter(Generic[T_Graph], ABC):
     """Abstract class for exporting a Graph to a string/file."""
 
     @classmethod
@@ -384,8 +386,8 @@ class VerilogExporter(GraphExporter[IOGraph]):
         Not: lambda n: f'(~{n.operand})',
         And: lambda n: f'({" & ".join(n.operands)})',
         Or: lambda n: f'({" | ".join(n.operands)})',
-        Xor: lambda n : f'({" ^ ".join(n.operands)})',
-        Xnor: lambda n : f'(~({n.left} ^ {n.right}))',
+        Xor: lambda n: f'({" ^ ".join(n.operands)})',
+        Xnor: lambda n: f'(~({n.left} ^ {n.right}))',
         Implies: lambda n: f'(~{n.left} | {n.right})',
         # int-int operations
         Sum: lambda n: f'({" + ".join(n.operands)})',
