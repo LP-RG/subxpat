@@ -69,6 +69,8 @@ def _adder_bit3(a,b,c, next_free, destination : IO[str]):
     return results
 
 def _adder(a : list, b : list, next_free, destination : IO[str], carry = False) -> list:
+    if len(a) == 0:
+        a.append(FALSE)
     if len(a) < len(b):
         a,b = b,a
     while len(b) < len(a):
