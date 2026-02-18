@@ -476,6 +476,9 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
 def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     """This function adds the labels inplace to the given graph"""
 
+    # TODO: Xiaozihan
+    # Update this function to use the "partition and propagate" algorithm if the specifications ask for it
+
     # compute weights
     ET_COEFFICIENT = 1
     weights, _ = labeling_explicit(

@@ -63,6 +63,10 @@ class ConstantFalseType(enum.Enum):
     PRODUCT = 'product'
 
 
+# TODO: Xiaozihan
+# Create an enumerator for the different labelling algorithms
+...
+
 class EnumChoicesAction(argparse.Action):
     def __init__(self, *args, type: enum.Enum, **kwargs) -> None:
         super().__init__(*args, **kwargs, choices=[e.value for e in type])
@@ -109,6 +113,10 @@ class Specifications:
     # labeling
     min_labeling: bool
     partial_labeling: bool
+
+    # TODO: Xiaozihan
+    # Add the field for the selection of the labelling algorithm
+    ...
 
     # subgraph extraction
     extraction_mode: int
@@ -243,6 +251,10 @@ class Specifications:
                                             action='store_false',
                                             dest='partial_labeling',
                                             help='Weights are assigned to all nodes, not only to the relevant ones')
+
+        # TODO: Xiaozihan
+        # Add the command line argument for the selection of the labelling algorithm
+        ...
 
         # > subgraph extraction stuff
         _subex_group = parser.add_argument_group('Subgraph extraction')
