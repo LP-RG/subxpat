@@ -1,7 +1,7 @@
 from typing import Sequence, Tuple
 from typing_extensions import override
 
-from sxpat.graph.graph import GraphBuilder
+from sxpat.graph.builder import GraphBuilder
 
 from .DistanceSpecification import DistanceSpecification
 
@@ -22,29 +22,6 @@ class AbsoluteDifferenceOfInteger(DistanceSpecification):
     @override
     @classmethod
     def _define(cls, _0, _1,
-                wanted_a: Sequence[str], wanted_b: Sequence[str],
-                ) -> Tuple[CGraph, str]:
-
-        # define outputs of a and of b as integers
-        int_a = ToInt('dist_int_a_adoi', operands=wanted_a)
-        int_b = ToInt('dist_int_b_adoi', operands=wanted_b)
-
-        # distance
-        distance = AbsDiff('dist_distance', operands=[int_a, int_b])
-
-        # construct CGraph
-        dist_func = CGraph((
-            *(PlaceHolder(name) for name in wanted_a),
-            int_a,
-            *(PlaceHolder(name) for name in wanted_b),
-            int_b,
-            distance,
-        ))
-
-        return (dist_func, distance.name)
-
-    @classmethod
-    def _define_2(cls, _0, _1,
                   wanted_a: Sequence[str], wanted_b: Sequence[str],
                   ) -> Tuple[CGraph, str]:
         # prepare builder
