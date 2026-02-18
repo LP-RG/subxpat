@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Type, Union, final, overload
-from typing_extensions import Self
+from typing_extensions import Self, Protocol
 
 import functools
 
@@ -15,7 +15,7 @@ class GraphBuilder:
     class DuplicateNodeError(Exception): pass
     class ReassigningOperandsError(Exception): pass
     class InvalidNodeError(Exception): pass
-    class NoNamesBufferError(Exception): pass
+    class NoRecordingError(Exception): pass
 
     def __init__(self):
         # utility state
@@ -38,14 +38,14 @@ class GraphBuilder:
     def pop_recording(self) -> List[str]:
         """
             Pop the most recent buffer of names (created using `.push_recording()`) from the stack and return it.
-            If no buffer is present, raises a `NoNamesBufferError`.
+            If no buffer is present, raises a `NoRecordingError`.
 
             Future node additions will be recorded on the new topmost buffer, or discarded if none is present.
 
             :return: The list of names recorded from the most recent call to `.start_recording()`.
         """
         # guard
-        if len(self.__names_record) == 0: raise self.NoNamesBufferError()
+        if len(self.__names_record) == 0: raise self.NoRecordingError()
 
         return self.__names_record.pop()
 
@@ -84,7 +84,7 @@ class GraphBuilder:
         """
         # guards
         if self.__is_built: raise self.AlreadyBuiltError()
-        if name in self.__partial_nodes: raise self.DuplicateNodeError()
+        if name in self.__partial_nodes: raise self.DuplicateNodeError(name)
 
         # call inner
         self._add_node(name, constructor, **kwargs)
@@ -162,9 +162,10 @@ class GraphBuilder:
 
         # guards
         if self.__is_built: raise self.AlreadyBuiltError()
-        if operation not in self.__partial_nodes: raise self.InvalidNodeError()
-        if any((n not in self.__partial_nodes) for n in operands): raise self.InvalidNodeError()
-        if operation in self.__nodes_with_operands: raise self.ReassigningOperandsError()
+        if operation not in self.__partial_nodes: raise self.InvalidNodeError(operation)
+        if any((n not in self.__partial_nodes) for n in operands):
+            raise self.InvalidNodeError(list(filter(lambda n: n not in self.__partial_nodes, operands)))
+        if operation in self.__nodes_with_operands: raise self.ReassigningOperandsError(operation)
 
         # call inner
         self._add_operands(operation, operands)
@@ -198,7 +199,8 @@ class GraphBuilder:
         """
         # guards
         if self.__is_built: raise self.AlreadyBuiltError()
-        if any(name in self.__partial_nodes for name in nodes_name): raise self.DuplicateNodeError()
+        if any(name in self.__partial_nodes for name in nodes_name):
+            raise self.DuplicateNodeError(list(filter(lambda n: n in self.__partial_nodes, nodes_name)))
 
         # call inner
         for name in nodes_name: self._add_node(name, PlaceHolder)
@@ -220,7 +222,8 @@ class GraphBuilder:
         inputs_names = tuple(inputs_names)
 
         # guards
-        if any((n not in self.__partial_nodes) for n in inputs_names): raise self.InvalidNodeError()
+        if any((n not in self.__partial_nodes) for n in inputs_names):
+            raise self.InvalidNodeError(list(filter(lambda n: n not in self.__partial_nodes, inputs_names)))
 
         # elaborate
         self.__extras['inputs_names'] = tuple(inputs_names)
@@ -242,7 +245,8 @@ class GraphBuilder:
         outputs_names = tuple(outputs_names)
 
         # guards
-        if any((n not in self.__partial_nodes) for n in outputs_names): raise self.InvalidNodeError()
+        if any((n not in self.__partial_nodes) for n in outputs_names):
+            raise self.InvalidNodeError(list(filter(lambda n: n not in self.__partial_nodes, outputs_names)))
 
         # elaborate
         self.__extras['outputs_names'] = tuple(outputs_names)
@@ -264,7 +268,8 @@ class GraphBuilder:
         parameters_names = tuple(parameters_names)
 
         # guards
-        if any((n not in self.__partial_nodes) for n in parameters_names): raise self.InvalidNodeError()
+        if any((n not in self.__partial_nodes) for n in parameters_names):
+            raise self.InvalidNodeError(list(filter(lambda n: n not in self.__partial_nodes, parameters_names)))
 
         # elaborate
         self.__extras['parameters_names'] = tuple(parameters_names)
@@ -286,11 +291,28 @@ class GraphBuilder:
         nodes_names = tuple(nodes_names)
 
         # guards
-        if any((n not in self.__partial_nodes) for n in nodes_names): raise self.InvalidNodeError()
+        if any((n not in self.__partial_nodes) for n in nodes_names):
+            raise self.InvalidNodeError(list(filter(lambda n: n not in self.__partial_nodes, nodes_names)))
 
         # elaborate
         for n in nodes_names:
             self.__partial_nodes[n] = functools.partial(self.__partial_nodes[n], in_subgraph=True)
 
         # return the builder for chaining
+        return self
+
+    class PipableCallable(Protocol):
+        def __call__(self, builder: Self, *args: Any, **kwargs: Any) -> None: ...
+
+    def update_with(
+            self,
+            func: PipableCallable, *args: Any, **kwargs: Any,
+    ) -> Self:
+        """
+            Updates the builder by passing it to a function.
+
+            :param func:  Function to apply to the builder. `args`, and `kwargs` are passed into `func`.
+            :return self: The builder object.
+        """
+        func(self, *args, **kwargs)
         return self
