@@ -9,7 +9,6 @@ import re
 import json
 
 from sxpat.graph import Graph, IOGraph, SGraph, PGraph, CGraph, T_Graph
-from sxpat.graph.graph import GraphBuilder
 from sxpat.graph.node import *
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
 from sxpat.utils.functions import str_to_bool
