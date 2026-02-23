@@ -1,0 +1,7 @@
+module abs_diff_i920_o460(a,b,r);
+input [459:0] a,b;
+output [459:0] r;
+
+assign r = (a>b) ? (a-b) : (b-a);
+
+endmodule
