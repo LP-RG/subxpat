@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Callable, Mapping
 
 from collections import defaultdict
+import operator
 import networkx as nx
 
 from sxpat.graph import IOGraph
@@ -56,8 +57,7 @@ def upper_bound(graph: IOGraph) -> Mapping[str, int]:
         initial_values[node.name] = 2 ** i
         # initial_values[node.name] = 2 ** int(node.name[3:])
 
-    # TODO:marco to lorenzo: should this be +?
-    return propagate_values(graph._inner, lambda v, w: v | w, initial_values)
+    return propagate_values(graph._inner, operator.or_, initial_values)
 
 
 def lower_bound(graph: IOGraph) -> Mapping[str, int]:
