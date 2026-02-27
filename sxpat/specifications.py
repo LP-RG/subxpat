@@ -65,7 +65,9 @@ class ConstantFalseType(enum.Enum):
 
 # TODO: Xiaozihan
 # Create an enumerator for the different labelling algorithms
-...
+class LabellingAlgorithmType(enum.Enum):
+    SUM = "sum"   # direct sum
+    PP = "pp"    # Partition and Propagate 
 
 class EnumChoicesAction(argparse.Action):
     def __init__(self, *args, type: enum.Enum, **kwargs) -> None:
@@ -116,7 +118,7 @@ class Specifications:
 
     # TODO: Xiaozihan
     # Add the field for the selection of the labelling algorithm
-    ...
+    labelling_algorithm: LabellingAlgorithmType
 
     # subgraph extraction
     extraction_mode: int
@@ -254,7 +256,13 @@ class Specifications:
 
         # TODO: Xiaozihan
         # Add the command line argument for the selection of the labelling algorithm
-        ...
+        _pp_lab = _lab_group.add_argument('--labelling-algorithm','--alg',
+                                          action=EnumChoicesAction,
+                                          type=LabellingAlgorithmType,
+                                          dest='labelling_algorithm',
+                                          default=LabellingAlgorithmType.PP,
+                                          help='Select the algorithm to use for labeling(default is P&P)'
+                                          )
 
         # > subgraph extraction stuff
         _subex_group = parser.add_argument_group('Subgraph extraction')
