@@ -10,7 +10,7 @@ import networkx as nx
 from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.graph import IOGraph
 
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType,LabellingAlgorithmType
 
 from Z3Log.config import path as z3logpath
 from sxpat.config import paths as sxpatpaths
@@ -37,6 +37,9 @@ from sxpat.solvers import Z3DirectBitVecSolver
 from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
 from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
+
+
+from sxpat.labelling.partition_and_propagate import compute
 
 
 def explore_grid(specs_obj: Specifications):
@@ -480,13 +483,19 @@ def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     # Update this function to use the "partition and propagate" algorithm if the specifications ask for it
 
     # compute weights
-    ET_COEFFICIENT = 1
-    weights, _ = labeling_explicit(
-        graph.name, graph.name,
-        min_labeling=specs_obj.min_labeling,
-        partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
-        parallel=specs_obj.parallel
-    )
+    if specs_obj.labelling_algorithm == LabellingAlgorithmType.PP:
+        print(" P&P...")
+        weights = compute(graph.graph)
+
+    elif specs_obj.labelling_algorithm == LabellingAlgorithmType.SUM:
+        
+         ET_COEFFICIENT = 1
+         weights, _ = labeling_explicit(
+            graph.name, graph.name,
+            min_labeling=specs_obj.min_labeling,
+            partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
+            parallel=specs_obj.parallel
+          )
 
     # apply weights to graph
     inner_graph: nx.DiGraph = graph.graph
