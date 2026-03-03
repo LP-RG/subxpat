@@ -79,7 +79,7 @@ def labeling_explicit(exact_benchmark_name: str, approximate_benchmark: str, con
 
 
     if constant_value == 0:
-        labels_false = z3py_obj.label_circuit(False, partial=partial, et=et)
+        labels_false = z3py_obj.label_circuit(False, partial=partial, et=et, metric= metric.value)
 
         # cleanup (folder report/)
         report_folder, _ = OUTPUT_PATH['report']
