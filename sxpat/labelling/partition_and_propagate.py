@@ -4,6 +4,20 @@ from collections import defaultdict
 
 import networkx as nx
 
+# Union find
+# get root and use path compression optimization
+def get_root(i, p_map):
+    root = i
+    while p_map[root] != root:
+        root = p_map[root]
+    while p_map[i] != root:
+        new_p = p_map[i]
+        p_map[i] = root
+        i = new_p
+    return root
+
+
+
 
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
@@ -11,72 +25,100 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     # Implement the "partition and propagate" algorithm
 
 
-    # step 1: Graph partitioning (section 3.2)
-    # --- 准备工作：初始化并查集 ---
+    # --- 1. 初始化 ---
     parent = {node: node for node in graph.nodes}
     TI_LIMIT = 10
+    
+    # 核心：维护一个用于“无环检测”的缩略图
+    condensed_G = nx.DiGraph(graph.edges())
 
-    def find(i):
-        if parent[i] == i:
-            return i
-        # Path compression
-        parent[i] = find(parent[i])
-        return parent[i]
-
-    def union(i, j):
-        root_i = find(i)
-        root_j = find(j)
-        if root_i != root_j:
-            parent[root_i] = root_j
-
-        # Phase 1: Initial clustering based on "common ancestor"
-    for node in graph.nodes:
-        children = list(graph.successors(node))
+# Union find method
+    # 2. Safe Union
+    def safe_union(u, v):
+        root_u = get_root(u, parent)
+        root_v = get_root(v, parent)
         
+        if root_u == root_v:
+            return True
+        
+        # --- 确保合并不会产生环---
+        # 如果 root_u 能走到 root_v，合并它们会让原本的“上下游”变成“组内循环”
+        if nx.has_path(condensed_G, root_u, root_v) or nx.has_path(condensed_G, root_v, root_u):
+            return False # 拒绝合并，保护拓扑结构
+        
+        # 合并
+        parent[root_u] = root_v
+        
+
+        # 使用 contracted_nodes 让 root_v 继承 root_u 的所有外交关系（边）
+        # 这样下一次 nx.has_path 就能检测到这一整组人的依赖关系
+        nx.contracted_nodes(condensed_G, root_v, root_u, self_loops=False, copy=False)
+        return True
+
+
+    #Node Labeling: Traverse every node in the graph.
+    # ID Assignment: If two nodes n' and n'' are "children" of the same node, assign them to the same subgraph ID.
+
+    # Merging and Removing Cycles: Iteratively merge subsets with the same ID, ensuring the partitioned graph is acyclic.
+    for node in graph.nodes:
+
+        if graph.out_degree(node) == 0: # Total output regardless
+            continue
+            
+        children = list(graph.successors(node))
         if len(children) > 1:
             first_child = children[0]
             for other_child in children[1:]:
-                union(first_child, other_child)
+                safe_union(first_child, other_child)
 
-    # find the input/output of each group
+    # Phase 2: Forced splitting of "infeasible" subgraphs
+
+    #Check the input count: Count the external input edges corresponding to each subgraph ID.        
+    # find the input of each group
     subgraph_inputs = defaultdict(set)#Record all input groups
-    subgraph_outputs = defaultdict(set)
     for u, v in graph.edges:
-        root_u = find(u)
-        root_v = find(v)
-    if root_u != root_v:
-        subgraph_inputs[root_v].add(u)
-        subgraph_outputs[root_u].add(u)
+         root_u = get_root(u, parent)
+         root_v = get_root(v,parent)
+         if root_u != root_v:
+             subgraph_inputs[root_v].add(u)
 
-    # 补充：电路的主输出节点 (Primary Outputs)
+     # Brute-force decomposition: If the input count |I_s| > T_I of a subgraph, directly de compose all nodes in this subgraph, returning it to a state of "one node per subgraph". (This can be improved.)
+    # TODO:思考其他策略
     for node in graph.nodes:
-        if node.startswith('out'):
-            root_out = find(node)
-            subgraph_outputs[root_out].add(node)
+        root = get_root(node, parent)
+        
+        if len(subgraph_inputs[root]) > TI_LIMIT:
+             graph.nodes[node]['subgraph_id'] = node
+        else:
+             graph.nodes[node]['subgraph_id'] = root
+
+    # record the final input and output of every graph
+    inputs_of_subgraph = defaultdict(set)
+    outputs_of_subgraph = defaultdict(set)
+
+    for u, v in graph.edges:
+        root_u = graph.nodes[u]['subgraph_id']
+        root_v = graph.nodes[v]['subgraph_id']
+        
+        if root_u != root_v:
+            inputs_of_subgraph[root_v].add(u)
+            outputs_of_subgraph[root_u].add(u)
+
+    # Primary Outputs
+    for node in graph.nodes:
+        if graph.out_degree(node) == 0:
+            sub_id = graph.nodes[node]['subgraph_id']
+            outputs_of_subgraph[sub_id].add(node)
+
+
     
 
-    # if the input of a group is greater than 10
-    for node in graph.nodes:
-        root = find(node)
-        if len(subgraph_inputs[root]) > TI_LIMIT:
-            graph.nodes[node]['subgraph_id'] = node 
-        else:
-            graph.nodes[node]['subgraph_id'] = root 
-
-    # 注意：这里我们还没处理 T_I < 10 的限制，那是 Step 1 的增强版
-    # 我们先确保这一步能跑通
-           #Node Labeling: Traverse every node in the graph.
-
-           # ID Assignment: If two nodes n' and n'' are "children" of the same node, assign them to the same subgraph ID.
-
-           # Merging and Removing Cycles: Iteratively merge subsets with the same ID, ensuring the partitioned graph is acyclic.
 
 
-        # Phase 2: Forced splitting of "infeasible" subgraphs
 
-            #Check the input count: Count the external input edges corresponding to each subgraph ID.
 
-            # Brute-force decomposition: If the input count |I_s| > T_I of a subgraph, directly de compose all nodes in this subgraph, returning it to a state of "one node per subgraph". (This can be improved.)
+
+        
 
     # step 2: Derivation of the propagation matrix (section 3.3)
     ...
@@ -88,28 +130,9 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     ...
 
     # return the mapping from names to weights
-    return {}
-
-
-
-if __name__ == "__main__":
-    # 1. 创建一个空图
-    test_graph = nx.DiGraph()
-    
-    # 2. 手动添加边 (父亲 -> 孩子)
-    # P 有两个孩子 A 和 B，它们是亲兄弟
-    test_graph.add_edge("P", "A")
-    test_graph.add_edge("P", "B")
-    
-    # 添加一个无关的边
-    test_graph.add_edge("X", "C")
-    test_graph.add_edge("X", "B")
-    
-    print("开始运行微型测试...")
-    # 3. 调用你刚写好的 compute 函数
-    # 注意：为了测试，你可能需要让 compute 返回 partition 字典而不是空字典
-    results = compute(test_graph)
-    
-    # 我们在这里手动打印一下并查集的结果
-    # 假设你在 compute 里定义了 partition 变量
-    # (为了测试，你可以临时让 compute return partition)
+    partition_results = {
+        'node_to_subid': nx.get_node_attributes(graph, 'subgraph_id'),
+        'sub_inputs': inputs_of_subgraph,
+        'sub_outputs': outputs_of_subgraph
+    }
+    return partition_results
