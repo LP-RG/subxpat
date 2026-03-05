@@ -9,6 +9,7 @@ import re
 import json
 
 from sxpat.graph import *
+from sxpat.graph.node import *
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
 from sxpat.utils.functions import str_to_bool
 from sxpat.utils.collections import InheritanceMapping
@@ -28,31 +29,31 @@ _N_CLSS = {c.__name__: c for c in get_all_leaves_subclasses(Node)}
 
 
 @make_utility_class
-class GraphImporter(Generic[_Graph]):
+class GraphImporter(Generic[T_Graph]):
     """Abstract class for importing a Graph from a string/file."""
 
     @classmethod
-    def from_string(cls, string: str) -> _Graph:
+    def from_string(cls, string: str) -> T_Graph:
         raise NotImplementedError(f'{cls.__name__}.from_string(...) is abstract.')
 
     @classmethod
-    def from_file(cls, filename: str) -> _Graph:
+    def from_file(cls, filename: str) -> T_Graph:
         with open(filename, 'r') as f:
             string = f.read()
         return cls.from_string(string)
 
 
 @make_utility_class
-class GraphExporter(Generic[_Graph]):
+class GraphExporter(Generic[T_Graph]):
     """Abstract class for exporting a Graph to a string/file."""
 
     @classmethod
     @abstractmethod
-    def to_string(cls, graph: _Graph) -> str:
+    def to_string(cls, graph: T_Graph) -> str:
         raise NotImplementedError(f'{cls.__name__}.to_string(...) is abstract.')
 
     @classmethod
-    def to_file(cls, graph: _Graph, filename: str) -> None:
+    def to_file(cls, graph: T_Graph, filename: str) -> None:
         string = cls.to_string(graph)
         with open(filename, 'w') as f:
             f.write(string)
@@ -88,6 +89,8 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # int to int
         Sum: '&sum;A',
         AbsDiff: '|a-b|',
+        Mul: '&mul;A',
+        Div: 'a/b',
         # bool to int
         ToInt: 'toInt',
         # int to bool
@@ -367,7 +370,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         @authors: Marco Biasion
     """
 
-    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, ValuedNode]], str]] = {
+    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, Valued, Operation]], str]] = {
         # variables
         # BoolVariable: lambda n: None,
         # IntVariable: lambda n: None,
@@ -387,6 +390,8 @@ class VerilogExporter(GraphExporter[IOGraph]):
         # int-int operations
         Sum: lambda n: f'({" + ".join(n.operands)})',
         AbsDiff: lambda n: f'(({n.left} > {n.right}) ? ({n.left} - {n.right}) : ({n.right} - {n.left}))',
+        Mul: lambda n: f'({" * ".join(n.operands)})',
+        Div: lambda n: f'({n.left} / {n.right})',
         # bool-int operations
         # ToInt: lambda n: None,
         # int-bool operations
@@ -429,7 +434,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         )))
 
     @classmethod
-    def to_file(cls, graph: _Graph, filename: str, info: Info = None) -> None:
+    def to_file(cls, graph: T_Graph, filename: str, info: Info = None) -> None:
         string = cls.to_string(graph, info)
         with open(filename, 'w') as f:
             f.write(string)

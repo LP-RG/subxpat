@@ -7,29 +7,37 @@ import csv
 import math
 import networkx as nx
 
-from Z3Log.config import path as z3logpath
+from sxpat.annotatedGraph import AnnotatedGraph
+from sxpat.graph import IOGraph
 
-from sxpat.labeling import labeling_explicit
-from sxpat.metrics import MetricsEstimator
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
+
+from Z3Log.config import path as z3logpath
 from sxpat.config import paths as sxpatpaths
 from sxpat.config.config import *
+
 from sxpat.utils.filesystem import FS
 from sxpat.utils.name import NameData
-from sxpat.verification import erroreval_verification_wce
-from sxpat.stats import Stats, sxpatconfig, Model
-from sxpat.annotatedGraph import AnnotatedGraph
-
-from sxpat.templating import get_specialized as get_templater
-from sxpat.solving import get_specialized as get_solver
-
-from sxpat.converting import VerilogExporter
-from sxpat.converting import iograph_from_legacy, sgraph_from_legacy
-from sxpat.converting import set_bool_constants, prevent_combination
-
-from sxpat.utils.print import pprint
 from sxpat.utils.timer import Timer
+from sxpat.utils.print import pprint
 from sxpat.utils.storage import LiveStorage
+
+from sxpat.metrics import MetricsEstimator
+from sxpat.stats import Stats, sxpatconfig, Model
+
+from sxpat.definitions.templates import get_specialized as get_templater
+from sxpat.definitions.distances import *
+
+from sxpat.definitions.questions import exists_parameters
+from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
+from sxpat.labeling import labeling_explicit
+
+from sxpat.solvers import get_specialized as get_solver
+from sxpat.solvers import Z3DirectBitVecSolver
+
+from sxpat.converting import set_bool_constants, prevent_assignment
+from sxpat.converting import VerilogExporter
+from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
 
 
 def explore_grid(specs_obj: Specifications, run_stats_storage: LiveStorage):
@@ -60,6 +68,9 @@ def explore_grid(specs_obj: Specifications, run_stats_storage: LiveStorage):
     persistence_limit = 2
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
+
+    # setup caches
+    AnnotatedGraph.set_loading_cache_size(specs_obj.wanted_models + 2)
 
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error
@@ -147,12 +158,13 @@ def explore_grid(specs_obj: Specifications, run_stats_storage: LiveStorage):
         # > grid step settings
 
         # import the graph
-        annotated_graph_time = Timer.now()
-        exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, is_clean=False)
-        current_graph = AnnotatedGraph(specs_obj.current_benchmark, is_clean=False)
-        annotated_graph_time = Timer.now() - annotated_graph_time
+        ag_loading_time = Timer.now()
+        current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark)
+        exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark)
+        ag_loading_time = Timer.now() - ag_loading_time
         # <><><><> store
-        run_stats_storage.stage(annotated_graphs_initialization_time=annotated_graph_time)
+        run_stats_storage.stage(annotated_graphs_initialization_time=ag_loading_time)
+        print(f'annotated_graph_loading_time = {ag_loading_time}')
 
         # label graph
         if specs_obj.requires_labeling:
@@ -202,12 +214,18 @@ def explore_grid(specs_obj: Specifications, run_stats_storage: LiveStorage):
             run_stats_storage.commit()
             continue
 
+        # convert from legacy graphs to refactored circuits
+        exact_circ = iograph_from_legacy(exact_graph)
+        current_circ = sgraph_from_legacy(current_graph)
+
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
         for lpp, ppo in CellIterator.factory(specs_obj):
+            print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
+
             if is_dominated((lpp, ppo), dominant_cells):
-                pprint.info1(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> DOMINATED')
+                pprint.info3('DOMINATED')
                 continue
 
             # > cell step settings
@@ -222,28 +240,36 @@ def explore_grid(specs_obj: Specifications, run_stats_storage: LiveStorage):
             # update the context
             update_context(specs_obj, lpp, ppo)
 
-            # convert from legacy graph to new architecture graph
-            e_graph = iograph_from_legacy(exact_graph)
-            s_graph = sgraph_from_legacy(current_graph)
+            # DEFINE
+            define_timer = Timer()
 
-            # define template (and constraints)
-            template_timer, define_template = Timer.from_function(get_templater(specs_obj).define)
-            p_graph, c_graph = define_template(s_graph, specs_obj)
+            # template (and relative constraints)
+            define_template = define_timer.wrap(get_templater(specs_obj).define)
+            param_circ, *param_circ_constr = define_template(current_circ, specs_obj)
+
+            # question
+            define_question = define_timer.wrap(exists_parameters.not_above_threshold_forall_inputs)
+            base_question = define_question(current_circ, param_circ, AbsoluteDifferenceOfInteger, specs_obj.et)
             # <><><><> store
-            run_stats_storage.stage(grid_phase_definition_time=template_timer.total)
+            run_stats_storage.stage(grid_phase_definition_time=define_timer.total)
 
-            # solve
+            # SOLVE
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
-            status, models = None, []
-            for _ in range(specs_obj.wanted_models):
+            question = [exact_circ, param_circ, *param_circ_constr, *base_question]
+
+            models = []
+            for i in range(specs_obj.wanted_models):
                 # prevent parameters combination if any
-                if len(models) > 0: c_graph = prevent_combination(c_graph, model)
-                # run solver
-                _status, model = solve((e_graph, p_graph, c_graph), specs_obj)
-                if status is None: status = _status
-                # terminate if status is not sat, otherwise store the models
-                if _status != 'sat': break
+                if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
+
+                # solve question
+                status, model = solve(question, specs_obj)
+
+                # terminate if status is not sat, otherwise store the model
+                if status != 'sat': break
                 models.append(model)
+
+            if len(models) > 0: status = 'sat'
 
             # <><><><> store
             run_stats_storage.stage(
@@ -252,10 +278,10 @@ def explore_grid(specs_obj: Specifications, run_stats_storage: LiveStorage):
             )
 
             # legacy adaptation
-            execution_time = template_timer.total + solve_timer.total
+            execution_time = define_timer.total + solve_timer.total
 
             if len(models) == 0:
-                pprint.warning(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()}')
+                pprint.warning(f'{status.upper()}')
 
                 # store model
                 this_model_info = Model(id=0, status=status.upper(), cell=(lpp, ppo), et=specs_obj.et, iteration=specs_obj.iteration,
@@ -273,15 +299,15 @@ def explore_grid(specs_obj: Specifications, run_stats_storage: LiveStorage):
                 if status == UNKNOWN: dominant_cells.append((lpp, ppo))
 
             else:
-                pprint.success(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()} ({len(models)} models found)')
+                pprint.success(f'{status.upper()} ({len(models)} models found)')
 
                 # TODO:#15: use serious name generator
                 base_path = f'input/ver/{specs_obj.exact_benchmark}_{specs_obj.time_id}_i{specs_obj.iteration}_{{model_number}}.v'
                 cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
 
                 for model_number, model in enumerate(models):
-                    # finalize approximate graph
-                    a_graph = set_bool_constants(p_graph, model)
+
+                    a_graph = set_bool_constants(param_circ, model, skip_missing=True)
 
                     # export approximate graph as verilog
                     # TODO:#15: use serious name generator
@@ -318,8 +344,8 @@ def explore_grid(specs_obj: Specifications, run_stats_storage: LiveStorage):
                 verification_timer, verification_wce = Timer.from_function(erroreval_verification_wce)
 
                 for candidate_name, candidate_data in cur_model_results.items():
-                    candidate_data[4] = verification_wce(specs_obj.exact_benchmark, candidate_name[:-2])
-                    candidate_data[5] = verification_wce(specs_obj.current_benchmark, candidate_name[:-2])
+                    candidate_data[4] = error_evaluation(exact_circ, candidate_name[:-2], specs_obj)
+                    candidate_data[5] = error_evaluation(current_circ, candidate_name[:-2], specs_obj)
 
                     if candidate_data[4] > specs_obj.et:
                         pprint.error(f'ErrorEval Verification FAILED! with wce {candidate_data[4]}')
@@ -391,6 +417,22 @@ def explore_grid(specs_obj: Specifications, run_stats_storage: LiveStorage):
     run_stats_storage.save()
 
     return legacy_storage
+
+
+def error_evaluation(e_graph: IOGraph, graph_name: str, specs_obj: Specifications):
+    ag_loading_time = Timer.now()
+    current = AnnotatedGraph.cached_load(graph_name)
+    print(f'erreval_annotated_graph_loading_time = {(ag_loading_time := (Timer.now() - ag_loading_time))}')
+
+    cur_graph = iograph_from_legacy(current)
+
+    p_graph, c_graph = MaxDistanceEvaluation.define(cur_graph)
+    status, model = Z3DirectBitVecSolver.solve((e_graph, p_graph, c_graph), specs_obj)
+
+    assert status == 'sat'
+    assert len(model) == 1
+
+    return next(iter(model.values()))
 
 
 class CellIterator:
@@ -518,6 +560,9 @@ def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     inner_graph: nx.DiGraph = graph.graph
     for (node_name, node_data) in inner_graph.nodes.items():
         node_data[WEIGHT] = weights.get(node_name, -1)
+        # TODO: get output's weights in the correct way
+        if node_name[:3] == 'out':
+            node_data[WEIGHT] = 2**int(node_name[3:])
 
 
 def get_toolname(specs_obj: Specifications) -> str:

@@ -13,6 +13,7 @@ from .Solver import Solver
 
 from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.graph import *
+from sxpat.graph.node import *
 
 import sxpat.config.config as sxpat_cfg
 
@@ -159,7 +160,7 @@ class Z3Encoder:
             f'if status == sat:',
             f'    model = solver.model()',
             *(
-                f'    print(\'{n_target.operand}\', model.eval({v_target.operand}))'
+                f'    print(\'{n_target.operand}\', model.eval({v_target.operand}, model_completion=True))'
                 for (n_graph, v_graph) in zip(name_graphs, value_graphs)
                 for (n_target, v_target) in zip(n_graph.targets, v_graph.targets)
             ),
@@ -386,9 +387,10 @@ class Z3DirectEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# usage',
             'usage = And(', *(
-                f'    {node.name},'
-                for graph in graphs if isinstance(graph, CGraph)
-                for node in graph.expressions if not graph.successors(node) and nodes_types[node.name] is bool
+                f'    {constraint_node.operand},'
+                for graph in graphs
+                if isinstance(graph, CGraph)
+                for constraint_node in graph.constraints
             ), ')',
             *('',) * 2,
         )))
@@ -428,6 +430,8 @@ Z3_INT_NODE_MAPPING = {
     # integer operations
     Sum: lambda n, operands, accs: f'Sum({", ".join(operands)})',
     AbsDiff: lambda n, operands, accs: f'If({operands[0]} >= {operands[1]}, {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
+    Mul: lambda n, operands, accs: f'{" * ".join(operands)}',
+    Div: lambda n, operands, accs: f'({operands[0]} / {operands[1]})',
     # comparison operations
     Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
     NotEquals: lambda n, operands, accs: f'({operands[0]} != {operands[1]})',
@@ -450,6 +454,7 @@ Z3_BITVEC_NODE_MAPPING = {
     IntConstant: lambda n, operands, accs: f'BitVecVal({n.value}, {accs[0]})',
     # integer operations
     AbsDiff: lambda n, operands, accs: f'If(UGE({operands[0]}, {operands[1]}), {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
+    Div: lambda n, operands, accs: f'UDiv({operands[0]}, {operands[1]})',
     # comparison operations
     Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
     LessThan: lambda n, operands, accs: f'ULT({operands[0]}, {operands[1]})',

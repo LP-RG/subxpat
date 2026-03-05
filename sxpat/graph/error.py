@@ -1,6 +1,7 @@
 __all__ = [
     'MissingNodeError',
     'UndefinedNodeError',
+    'MissingAttributeInNodeError',
 ]
 
 
@@ -10,3 +11,7 @@ class MissingNodeError(Exception):
 
 class UndefinedNodeError(Exception):
     """An undefine node is being used."""
+
+
+class MissingAttributeInNodeError(Exception):
+    """A node is missing an attribute."""

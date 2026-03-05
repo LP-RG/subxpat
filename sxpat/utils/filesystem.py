@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, final
 
 import os
 import shutil
@@ -10,6 +10,7 @@ from sxpat.utils.decorators import make_utility_class
 __all__ = ['FS']
 
 
+@final
 @make_utility_class
 class FS:
     """
@@ -64,7 +65,7 @@ class FS:
 
         path = os.path.normpath(path)
 
-        for _path in FS.listdir(path):
+        for _path in cls.listdir(path):
             if os.path.isfile(_path) or os.path.islink(_path): os.remove(_path)
             elif os.path.isdir(_path): shutil.rmtree(_path)
 
@@ -94,13 +95,11 @@ class FS:
     #     return open(path, mode)
 
     @classmethod
-    def open_tmp(cls,
-                 directory: str = None,
-                 delete: bool = False,
-                 binary: bool = False,
-                 prefix: str = '',
-                 suffix: str = '',
-                 ):
+    def open_tmp(
+        cls, directory: str = None,
+        delete: bool = False, binary: bool = False,
+        prefix: str = '', suffix: str = '',
+    ):
         """
             Create a temporary file on the filesystem.  
             If `directory` is given, the file will be created in that directory (created if missing).  
@@ -110,7 +109,7 @@ class FS:
 
         if directory is not None:
             directory = os.path.normpath(directory)
-            FS.mkdir(directory)
+            cls.mkdir(directory)
 
         # create temporary file
         try:
@@ -130,7 +129,10 @@ class FS:
         return file
 
     @classmethod
-    def get_unique_filename(cls, directory: str = None, prefix: str = '', suffix: str = '') -> str:
+    def get_unique_filename(
+        cls, directory: str = None,
+        prefix: str = '', suffix: str = '',
+    ) -> str:
         """
             Creates a temporary file in the filesystem, closes it and returns its name.
 
@@ -139,10 +141,10 @@ class FS:
 
         tmp_file = cls.open_tmp(directory, delete=False, prefix=prefix, suffix=suffix)
         tmp_file.close()
-        return tmp_file.name.rsplit('/', 1)[1]
+        return os.path.split(tmp_file.name)[1]
 
-    @classmethod
-    def copy(cls, src_path: str, dst_path: str, exists_ok: bool = False) -> None:
+    @staticmethod
+    def copy(src_path: str, dst_path: str, exists_ok: bool = False) -> None:
         """
             Copies a file or an entire directory from source to destination.  
 

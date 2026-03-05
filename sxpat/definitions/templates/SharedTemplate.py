@@ -2,10 +2,11 @@ from typing import Dict, List, Tuple
 
 import itertools as it
 
-from .Template import Template
+from .Template import Template, TemplateBundle
 
 from sxpat.converting import set_prefix
 from sxpat.graph import *
+from sxpat.graph.node import *
 from sxpat.specifications import Specifications
 from sxpat.utils.collections import flat, pairwise
 
@@ -26,7 +27,7 @@ class SharedTemplate(Template):
     """
 
     @classmethod
-    def define(cls, graph: SGraph, specs: Specifications) -> Tuple[PGraph, CGraph]:
+    def define(cls, graph: SGraph, specs: Specifications) -> TemplateBundle:
         # get prefixed graph
         a_graph: SGraph = set_prefix(graph, 'a_')
 
@@ -58,7 +59,7 @@ class SharedTemplate(Template):
         switches = []
         outs_p: List[BoolVariable] = []
         outs: List[If] = []
-        out_successors: Dict[str, OperationNode] = dict()
+        out_successors: Dict[str, AnyOperation] = dict()
         for out_i, out_node in enumerate(a_graph.subgraph_outputs):
             # create all switches for the output
             _sws = []
@@ -182,4 +183,4 @@ class SharedTemplate(Template):
         )
         constraint_graph = CGraph(nodes)
 
-        return (template_graph, constraint_graph)
+        return TemplateBundle(template_graph, [constraint_graph])
