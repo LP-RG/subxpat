@@ -127,15 +127,19 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     # Get all subgraph_id
     all_subgraph_ids = set(nx.get_node_attributes(graph, 'subgraph_id').value())
 
-    # For every subgrapg,we need to calculate the matrix?how to store the matrix
+    # TODO:For every subgrapg,we need to calculate the matrix?how to store the matrix
     for sub_id in all_subgraph_ids:
     # 1. 找出所有属于这个 sub_id 的节点
     #  Find all nodes of sub_id and input/output node of the graph
          nodes_in_sub = [n for n in graph.nodes if graph.nodes[n]['subgraph_id'] == sub_id]
          sub_inputs = sorted(list(inputs_of_subgraph[sub_id]))
          sub_outputs = sorted(list(outputs_of_subgraph[sub_id]))
-
+         sorted_nodes_in_sub=list(nx.topological_sort(nodes_in_sub))
     # TODO:Is there any method we can use to find the output from the input?
+
+    # TODO:Are there any identifiers for Primary Outputs and Primary Input? 
+    
+    # TODO:Where can I see the graph of the input?
 
 
     # step 3: Propagation
