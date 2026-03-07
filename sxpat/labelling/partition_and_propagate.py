@@ -40,30 +40,16 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     TI_LIMIT = 10
     
     # 核心：维护一个用于“无环检测”的缩略图
-    condensed_G = nx.DiGraph(graph.edges())
 
 # Union find method
-    # 2. Safe Union
-    def safe_union(u, v):
+    def union(u, v):
         root_u = get_root(u, parent)
         root_v = get_root(v, parent)
         
         if root_u == root_v:
-            return True
+            return
         
-        # --- 确保合并不会产生环---
-        # 如果 root_u 能走到 root_v，合并它们会让原本的“上下游”变成“组内循环”
-        if nx.has_path(condensed_G, root_u, root_v) or nx.has_path(condensed_G, root_v, root_u):
-            return False # 拒绝合并，保护拓扑结构
-        
-        # 合并
         parent[root_u] = root_v
-        
-
-        # 使用 contracted_nodes 让 root_v 继承 root_u 的所有外交关系（边）
-        # 这样下一次 nx.has_path 就能检测到这一整组人的依赖关系
-        nx.contracted_nodes(condensed_G, root_v, root_u, self_loops=False, copy=False)
-        return True
 
 
     #Node Labeling: Traverse every node in the graph.
@@ -79,18 +65,18 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
         if len(children) > 1:
             first_child = children[0]
             for other_child in children[1:]:
-                safe_union(first_child, other_child)
+                union(first_child, other_child)
 
     # Phase 2: Forced splitting of "infeasible" subgraphs
 
     #Check the input count: Count the external input edges corresponding to each subgraph ID.        
-    # find the input of each group
-    subgraph_inputs = defaultdict(set)#Record all input groups
+    # find the input of each group，use to calculate the number of input
+    temp_group_inputs = defaultdict(set)
     for u, v in graph.edges:
          root_u = get_root(u, parent)
          root_v = get_root(v,parent)
          if root_u != root_v:
-             subgraph_inputs[root_v].add(u)
+             temp_group_inputs[root_v].add(u)
 
      # Brute-force decomposition: If the input count |I_s| > T_I of a subgraph, directly de compose all nodes in this subgraph, returning it to a state of "one node per subgraph". (This can be improved.)
     # TODO:思考其他策略
@@ -98,7 +84,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     for node in graph.nodes:
         root = get_root(node, parent)
         
-        if len(subgraph_inputs[root]) > TI_LIMIT:
+        if len(temp_group_inputs[root]) > TI_LIMIT:
              parent[node] = node
              graph.nodes[node]['subgraph_id'] = node
         else:
@@ -125,7 +111,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
     # step 2: Derivation of the propagation matrix (section 3.3)
     # Get all subgraph_id
-    all_subgraph_ids = set(nx.get_node_attributes(graph, 'subgraph_id').value())
+    all_subgraph_ids = set(nx.get_node_attributes(graph, 'subgraph_id').values())
 
     # TODO:For every subgrapg,we need to calculate the matrix?how to store the matrix
     for sub_id in all_subgraph_ids:
@@ -135,7 +121,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
          sub_inputs = sorted(list(inputs_of_subgraph[sub_id]))
          sub_outputs = sorted(list(outputs_of_subgraph[sub_id]))
          sorted_nodes_in_sub=list(nx.topological_sort(nodes_in_sub))
-    # TODO:Is there any method we can use to find the output from the input?
+    # TODO:Is there any method we can use to find the output value from the input?
 
     # TODO:Are there any identifiers for Primary Outputs and Primary Input? 
     
