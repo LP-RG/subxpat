@@ -4,17 +4,30 @@ from collections import defaultdict
 
 import networkx as nx
 
-# Union find
-# get root and use path compression optimization
-def get_root(i, p_map):
-    root = i
-    while p_map[root] != root:
-        root = p_map[root]
-    while p_map[i] != root:
-        new_p = p_map[i]
-        p_map[i] = root
-        i = new_p
-    return root
+# Union find class
+class UnionFind:
+    def __init__(self, nodes):
+        self.parent = {node: node for node in nodes}
+
+    # get root and use path compression optimization
+    def find(self, i):
+        root=i
+        while self.parent[root]!=root:
+            root = self.parent[root]
+        while self.parent[i] != root:
+            new_p = self.parent[i]
+            self.parent[i] = root
+            i = new_p
+        return root
+
+    # if u and v belongs to different union,let v point to u
+    def union(self, u, v):
+        root_u = self.find(u)
+        root_v = self.find(v)
+        if root_u == root_v:
+            return
+        self.parent[root_v] = root_u
+
 
 # input:op is string; bits is list of 0/1 [0,1]
 def apply_logic(op, bits):
@@ -36,28 +49,15 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
 
     # --- 1. 初始化 ---
-    parent = {node: node for node in graph.nodes}
+    uf = UnionFind(graph.nodes)
     TI_LIMIT = 10
-    
-    # 核心：维护一个用于“无环检测”的缩略图
 
-# Union find method
-    def union(u, v):
-        root_u = get_root(u, parent)
-        root_v = get_root(v, parent)
-        
-        if root_u == root_v:
-            return
-        
-        parent[root_u] = root_v
+    # --- 2.Node Labeling ---
 
-
-    #Node Labeling: Traverse every node in the graph.
     # ID Assignment: If two nodes n' and n'' are "children" of the same node, assign them to the same subgraph ID.
-
-    # Merging and Removing Cycles: Iteratively merge subsets with the same ID, ensuring the partitioned graph is acyclic.
     for node in graph.nodes:
 
+        #TODO:this can be changed
         if graph.out_degree(node) == 0: # Total output regardless
             continue
             
@@ -65,27 +65,24 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
         if len(children) > 1:
             first_child = children[0]
             for other_child in children[1:]:
-                union(first_child, other_child)
-
-    # Phase 2: Forced splitting of "infeasible" subgraphs
-
-    #Check the input count: Count the external input edges corresponding to each subgraph ID.        
+                uf.union(first_child, other_child)
+     
     # find the input of each group，use to calculate the number of input
     temp_group_inputs = defaultdict(set)
     for u, v in graph.edges:
-         root_u = get_root(u, parent)
-         root_v = get_root(v,parent)
+         root_u = uf.find(u)
+         root_v = uf.find(v)
          if root_u != root_v:
              temp_group_inputs[root_v].add(u)
 
      # Brute-force decomposition: If the input count |I_s| > T_I of a subgraph, directly de compose all nodes in this subgraph, returning it to a state of "one node per subgraph". (This can be improved.)
-    # TODO:思考其他策略
-    # 这里是不是会重复？
+    
+    # TODO:improve it
     for node in graph.nodes:
-        root = get_root(node, parent)
+        root = uf.find(node)
         
         if len(temp_group_inputs[root]) > TI_LIMIT:
-             parent[node] = node
+             uf.parent[node]=node
              graph.nodes[node]['subgraph_id'] = node
         else:
              graph.nodes[node]['subgraph_id'] = root
