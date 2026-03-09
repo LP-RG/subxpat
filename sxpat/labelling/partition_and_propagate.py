@@ -28,6 +28,27 @@ class UnionFind:
             return
         self.parent[root_v] = root_u
 
+class Subgraph:
+    def __init__(self, sub_id, members, inputs, outputs):
+        self.sub_id = sub_id
+        self.members = members    # 子图内的节点
+        self.inputs = inputs      
+        self.outputs = outputs    
+        self.truth_table = {}     # 核心数据：真值表
+        self.matrix = []          # 核心数据：传播矩阵 Ms
+
+    def build_truth_table(self, graph):
+        """生成 2^k 真值表"""
+        pass
+
+    def derive_ms(self): #derive_propagation_matrix
+        """分析单调性，生成矩阵 Ms"""
+        pass
+
+    def propagate(self, out_weights):
+        """计算 Win = Ms * Wout"""
+        pass
+
 
 # input:op is string; bits is list of 0/1 [0,1]
 def apply_logic(op, bits):
@@ -51,6 +72,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     # --- 1. 初始化 ---
     uf = UnionFind(graph.nodes)
     TI_LIMIT = 10
+    nodes_by_subid = defaultdict(list) #用于记录最终的subid:[这个subgraph所有node]
 
     # --- 2.Node Labeling ---
 
@@ -69,6 +91,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
      
     # find the input of each group，use to calculate the number of input
     temp_group_inputs = defaultdict(set)
+    
     for u, v in graph.edges:
          root_u = uf.find(u)
          root_v = uf.find(v)
@@ -77,15 +100,19 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
      # Brute-force decomposition: If the input count |I_s| > T_I of a subgraph, directly de compose all nodes in this subgraph, returning it to a state of "one node per subgraph". (This can be improved.)
     
+    
     # TODO:improve it
     for node in graph.nodes:
         root = uf.find(node)
         
         if len(temp_group_inputs[root]) > TI_LIMIT:
              uf.parent[node]=node
-             graph.nodes[node]['subgraph_id'] = node
+             sub_id = node
         else:
-             graph.nodes[node]['subgraph_id'] = root
+             sub_id = root
+
+        graph.nodes[node]['subgraph_id'] = sub_id
+        nodes_by_subid[sub_id].append(node)
 
     # record the final input and output of every graph
     inputs_of_subgraph = defaultdict(set)
@@ -107,17 +134,26 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
 
     # step 2: Derivation of the propagation matrix (section 3.3)
-    # Get all subgraph_id
-    all_subgraph_ids = set(nx.get_node_attributes(graph, 'subgraph_id').values())
+    all_subgraph_objects = {} # 用来存储实例化后的对象，所有计算结果，方便后面计算
 
-    # TODO:For every subgrapg,we need to calculate the matrix?how to store the matrix
-    for sub_id in all_subgraph_ids:
-    # 1. 找出所有属于这个 sub_id 的节点
+    for sub_id, nodes_in_group in nodes_by_subid.items():
     #  Find all nodes of sub_id and input/output node of the graph
-         nodes_in_sub = [n for n in graph.nodes if graph.nodes[n]['subgraph_id'] == sub_id]
          sub_inputs = sorted(list(inputs_of_subgraph[sub_id]))
          sub_outputs = sorted(list(outputs_of_subgraph[sub_id]))
-         sorted_nodes_in_sub=list(nx.topological_sort(nodes_in_sub))
+
+         if not sub_inputs:
+            continue
+        
+        # 2. 实例化你的 Subgraph 类
+        # 我们把名单、输入、输出都喂给它
+         sg = Subgraph(sub_id, nodes_in_group, sub_inputs, sub_outputs)
+
+         sg.build_truth_table(graph)
+         sg.derive_ms()
+
+         all_subgraph_objects[sub_id] = sg
+    
+
     # TODO:Is there any method we can use to find the output value from the input?
 
     # TODO:Are there any identifiers for Primary Outputs and Primary Input? 
