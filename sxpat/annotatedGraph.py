@@ -3,18 +3,25 @@ from typing_extensions import Self
 
 from colorama import Fore
 import time
-import datetime  # precautionary measure
 import networkx as nx
 import functools as ft
+import re
 
 from Z3Log.graph import Graph
-from Z3Log.verilog import Verilog
-from Z3Log.utils import *
+# from Z3Log.verilog import Verilog
+from Z3Log_patched.verilog import Verilog
+# from Z3Log.utils import *
+# from Z3Log.utils import convert_verilog_to_gv
+from Z3Log_patched.utils import convert_verilog_to_gv, get_pure_name
+from Z3Log.config.config import *
+from Z3Log.config.path import *
+
+from sxpat.utils.filesystem import FS
 
 from .config.config import *
 from z3 import *
 
-from .specifications import Specifications, TemplateType
+from .specifications import Specifications, TemplateType, Paths
 
 from sxpat.utils.print import pprint
 
@@ -22,14 +29,20 @@ from sxpat.utils.print import pprint
 class AnnotatedGraph(Graph):
     __cached_loading_callable = None
 
-    def __init__(self, benchmark_name: str, is_clean: bool = False) -> None:
-        # Prepare a clean Verilog
-        Verilog(benchmark_name)
-        # Convert the clean Verilog into a Yosys GV
-        convert_verilog_to_gv(benchmark_name)
+    def __init__(self, circuit_verilog_path: str, run_paths: Paths.RunFiles, is_clean: bool = False) -> None:
+        circuit_name = get_pure_name(circuit_verilog_path)
 
-        super().__init__(benchmark_name, is_clean)
-        folder, extension = INPUT_PATH['ver']
+        # Prepare a clean Verilog
+        Verilog(circuit_verilog_path, f'{run_paths.verilog}/{circuit_name}.v', run_paths.temporary)
+        # input('Verilog step completed')
+
+        # Convert the clean Verilog into a Yosys GV
+        convert_verilog_to_gv(f'{run_paths.verilog}/{circuit_name}.v', f'{run_paths.graphviz}/{circuit_name}.gv', run_paths.temporary)
+        # input('convert_verilog_to_gv step completed')
+
+        FS.copy(f'{run_paths.graphviz}/{circuit_name}.gv', f'output/gv/{circuit_name}.gv', exists_ok=True)
+        super().__init__(circuit_name, is_clean)
+        # input('Graph step completed')
 
         self.set_output_dict(self.sort_dict(self.output_dict))
 
@@ -51,13 +64,12 @@ class AnnotatedGraph(Graph):
 
         self.__add_weights()
 
-        folder, extension = OUTPUT_PATH[GV]
-        self.__out_annotated_graph_path = f'{folder}/{self.name}_subgraph.{extension}'
+        self.__out_annotated_graph_path = f'{run_paths.graphviz}/{self.name}_subgraph.gv'
 
     @classmethod
-    def cached_load(cls, benchmark_name: str, is_clean: bool = False) -> Self:
+    def cached_load(cls, circuit_verilog_path: str, run_paths: Paths.RunFiles, is_clean: bool = False) -> Self:
         if cls.__cached_loading_callable is None: cls.set_loading_cache_size(-1)
-        return cls.__cached_loading_callable(benchmark_name, is_clean)
+        return cls.__cached_loading_callable(circuit_verilog_path, run_paths, is_clean)
 
     @classmethod
     def set_loading_cache_size(cls, new_size: int) -> None:
@@ -68,7 +80,7 @@ class AnnotatedGraph(Graph):
         """
         new_size = max(3, new_size)
         if cls.__cached_loading_callable is not None: cls.__cached_loading_callable.cache_clear()
-        cls.__cached_loading_callable = ft.lru_cache(new_size)(lambda n, c: cls(n, c))
+        cls.__cached_loading_callable = ft.lru_cache(new_size)(lambda p, rp, c: cls(p, rp, c))
 
     @property
     def subgraph_candidates(self):
@@ -186,53 +198,55 @@ class AnnotatedGraph(Graph):
         return dict(sorted(this_dict.items(), key=lambda x: x[0]))
 
     def get_subgraph_name(self, specs_obj: Specifications):
-        """
-        returns: a unique gv file name for this experiment (that is determined by specs_obj)
-        """
-        _, extension = OUTPUT_PATH[GV]
+        raise
+        # """
+        # returns: a unique gv file name for this experiment (that is determined by specs_obj)
+        # """
+        # _, extension = OUTPUT_PATH[GV]
 
-        # TODO: Morteza: this naming convention is not generic enough,
-        # I will try to add every type of specification of the experiment into the name so it wouldn't get overwritten
-        # new fields that are added:
-        # for subxpat_v2 => et_partitioning
-        # for all num_of_models, omax, imax
-        # as a precautionary measure, we also add the time stamp at the end of every generated file
+        # # TODO: Morteza: this naming convention is not generic enough,
+        # # I will try to add every type of specification of the experiment into the name so it wouldn't get overwritten
+        # # new fields that are added:
+        # # for subxpat_v2 => et_partitioning
+        # # for all num_of_models, omax, imax
+        # # as a precautionary measure, we also add the time stamp at the end of every generated file
 
-        # So we change the names from "grid_adder_i6_o4_10X20_et10_subxpat_v2_mode4_SOP1" to
-        # 'grid_adder_i6_o4_10X20_et10_subxpat_v2_desc_fef1_sef1_mode4_omax1_imax3_kucTrue_SOP1_time20240403:214107'
+        # # So we change the names from "grid_adder_i6_o4_10X20_et10_subxpat_v2_mode4_SOP1" to
+        # # 'grid_adder_i6_o4_10X20_et10_subxpat_v2_desc_fef1_sef1_mode4_omax1_imax3_kucTrue_SOP1_time20240403:214107'
 
-        # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
+        # # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
 
-        head = f'grid_{specs_obj.current_benchmark}_{specs_obj.lpp}X{specs_obj.pit if specs_obj.template is TemplateType.SHARED else specs_obj.ppo}_et{specs_obj.et}_'
+        # head = f'grid_{specs_obj.current_benchmark}_{specs_obj.lpp}X{specs_obj.pit if specs_obj.template is TemplateType.SHARED else specs_obj.ppo}_et{specs_obj.et}_'
 
-        tool_name = {
-            (False, TemplateType.NON_SHARED): XPAT,
-            (False, TemplateType.SHARED): SHARED_XPAT,
-            (True, TemplateType.NON_SHARED): SUBXPAT,
-            (True, TemplateType.SHARED): SHARED_SUBXPAT,
-        }[(specs_obj.subxpat, specs_obj.template)]
+        # tool_name = {
+        #     (False, TemplateType.NON_SHARED): XPAT,
+        #     (False, TemplateType.SHARED): SHARED_XPAT,
+        #     (True, TemplateType.NON_SHARED): SUBXPAT,
+        #     (True, TemplateType.SHARED): SHARED_SUBXPAT,
+        # }[(specs_obj.subxpat, specs_obj.template)]
 
-        technique_specific = f'{tool_name}_{specs_obj.error_partitioning.value}_'
+        # technique_specific = f'{tool_name}_{specs_obj.error_partitioning.value}_'
 
-        tail = f'mode{specs_obj.extraction_mode}_omax{specs_obj.omax}_imax{specs_obj.imax}_'
-        tail += f'{specs_obj.template_name}_time'
+        # tail = f'mode{specs_obj.extraction_mode}_omax{specs_obj.omax}_imax{specs_obj.imax}_'
+        # tail += f'{specs_obj.template_name}_time'
 
-        # Get the current date and time
-        current_time = datetime.datetime.now()
-        # Format the date and time to create a unique identifier
-        time_stamp = current_time.strftime("%Y%m%d:%H%M%S")
+        # # Get the current date and time
+        # current_time = datetime.datetime.now()
+        # # Format the date and time to create a unique identifier
+        # time_stamp = current_time.strftime("%Y%m%d:%H%M%S")
 
-        name = head + technique_specific + tail + time_stamp
+        # name = head + technique_specific + tail + time_stamp
 
-        return f'{name}.{extension}'
+        # return f'{name}.{extension}'
 
     def get_subgraph_path(self, specs: Specifications):
-        """
-        returns: the path where the grid .gv file should be stored
-        """
-        folder, _ = OUTPUT_PATH[GV]
-        path = f'{folder}/{self.get_subgraph_name(specs)}'
-        return path
+        raise
+        # """
+        # returns: the path where the grid .gv file should be stored
+        # """
+        # folder, _ = OUTPUT_PATH[GV]
+        # path = f'{folder}/{self.get_subgraph_name(specs)}'
+        # return path
 
     def __add_weights(self):
         for n in self.graph.nodes:
@@ -390,7 +404,7 @@ class AnnotatedGraph(Graph):
                 self.subgraph = self.entire_graph()
 
             # Set new name for the subgraph
-            self.subgraph_out_path = self.get_subgraph_path(specs_obj)
+            # self.subgraph_out_path = self.get_subgraph_path(specs_obj)
             self.export_annotated_graph()
 
             self.subgraph_input_dict = self.extract_subgraph_inputs()
@@ -3120,10 +3134,10 @@ class AnnotatedGraph(Graph):
             for e in self.subgraph.edges:
                 self.export_edge(e, f)
             f.write(f"}}\n")
-        folder, extension = OUTPUT_PATH[GV]
+        # folder, extension = OUTPUT_PATH[GV]
         # print(f'{self.subgraph_out_path = }')
         # print(f'{self.name = }')
-        subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
+        # subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
 
     # TODO:for external modifications
     def evaluate_subgraph_error(self) -> float:
