@@ -1,46 +1,38 @@
 from __future__ import annotations
-from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
-from sxpat.converting import VerilogExporter
-from sxpat.converting import set_bool_constants, prevent_assignment
-from sxpat.solvers import Z3DirectBitVecSolver
-from sxpat.solvers import get_specialized as get_solver
-from sxpat.labeling import labeling_explicit
-from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
-from sxpat.definitions.questions import exists_parameters
-from sxpat.definitions.distances import *
-from sxpat.definitions.templates import get_specialized as get_templater
-from sxpat.config import config as sxpatconfig
-from sxpat.metrics import MetricsEstimator
-from sxpat.utils.print import pprint
-from sxpat.utils.name import NameData
-from sxpat.config.config import *
-from sxpat.config import paths as sxpatpaths
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
-from sxpat.graph import IOGraph
-from sxpat.annotatedGraph import AnnotatedGraph
-import networkx as nx
-import math
-import functools as ft
-from tabulate import tabulate
 from typing import Dict, Iterable, Iterator, List, Tuple
+
+from tabulate import tabulate
+import functools as ft
+import math
+import networkx as nx
+
+from sxpat.annotatedGraph import AnnotatedGraph
+from sxpat.graph import IOGraph
+
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
+
+from sxpat.config import paths as sxpatpaths
+from sxpat.config.config import UNKNOWN, SAT, WEIGHT
+
+from sxpat.utils.name import NameData
 from sxpat.utils.timer import Timer
+from sxpat.utils.print import pprint
 
-aaa = Timer.now()
+from sxpat.metrics import MetricsEstimator
 
+from sxpat.definitions.templates import get_specialized as get_templater
+from sxpat.definitions.distances import *
 
-# import csv
+from sxpat.definitions.questions import exists_parameters
+from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
+from sxpat.labeling import labeling_explicit
 
+from sxpat.solvers import get_specialized as get_solver
+from sxpat.solvers import Z3DirectBitVecSolver
 
-# from Z3Log.config import path as z3logpath
-
-# from sxpat.utils.filesystem import FS
-# from sxpat.utils.storage import LiveStorage
-
-# from sxpat.stats import Stats, sxpatconfig, Model
-
-
-aaa = Timer.now() - aaa
-print(f'xplore import time: {aaa:.4f}s')
+from sxpat.converting import set_bool_constants, prevent_assignment
+from sxpat.converting import VerilogExporter
+from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
 
 
 def explore_grid(specs_obj: Specifications):
@@ -256,6 +248,8 @@ def explore_grid(specs_obj: Specifications):
 
             models = []
             for i in range(specs_obj.wanted_models):
+                specs_obj.sub_iteration = i
+
                 # prevent parameters combination if any
                 if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
 
@@ -317,7 +311,7 @@ def explore_grid(specs_obj: Specifications):
                     )
 
                     # compute metrics
-                    metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, verilog_path)
+                    metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, verilog_path, specs_obj.path.run.temporary)
                     # verilog_filename = verilog_path[10:]  # TODO: this should be kept as the path, we should update the usages to use the path instead of the name
                     cur_model_results[verilog_path] = [
                         metrics.area,
@@ -400,7 +394,7 @@ def explore_grid(specs_obj: Specifications):
                 # legacy_storage.grid.cells[lpp][ppo].store_model_info(best_model_info)
                 pprint.success(f'ErrorEval PASS! with total wce = {best_data[4]}')
 
-                exact_stats = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, specs_obj.exact_benchmark, True)
+                exact_stats = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, specs_obj.exact_benchmark, specs_obj.path.run.temporary, True)
                 print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
                 # write storage to memory
                 # store_current_model(cur_model_results, exact_stats=exact_stats, benchmark_name=specs_obj.current_benchmark, et=specs_obj.et,
