@@ -10,18 +10,16 @@ def main():
     from sxpat.config import paths as sxpatpaths
     from sxpat.utils.filesystem import FS
     # legacy
-    wanted_directories = [
+    legacy_dirs = [
         # legacy
         sxpatpaths.OUTPUT_PATH['gv'][0],
-        # TODO: merge with next block when removing legacy
-        *specs_obj.path.run.folders,
     ]
     # create
-    for dir in wanted_directories: FS.mkdir(dir)
+    for dir in legacy_dirs + list(specs_obj.path.run.folders): FS.mkdir(dir)
     # legacy: clean if wanted
     if specs_obj.clean:
         pprint.info2('removing final and intermediary data')
-        for dir in wanted_directories: FS.emptydir(dir)
+        for dir in legacy_dirs: FS.emptydir(dir)
 
     # > prepare storage
     from sxpat.utils.storage import LiveStorage

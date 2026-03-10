@@ -32,17 +32,15 @@ class AnnotatedGraph(Graph):
     def __init__(self, circuit_verilog_path: str, run_paths: Paths.RunFiles, is_clean: bool = False) -> None:
         circuit_name = get_pure_name(circuit_verilog_path)
 
-        # Prepare a clean Verilog
+        # prepare a clean Verilog
         Verilog(circuit_verilog_path, f'{run_paths.verilog}/{circuit_name}.v', run_paths.temporary)
-        # input('Verilog step completed')
 
-        # Convert the clean Verilog into a Yosys GV
-        convert_verilog_to_gv(f'{run_paths.verilog}/{circuit_name}.v', f'{run_paths.graphviz}/{circuit_name}.gv', run_paths.temporary)
-        # input('convert_verilog_to_gv step completed')
+        # convert the clean Verilog into a Yosys GV
+        convert_verilog_to_gv(f'{run_paths.verilog}/{circuit_name}.v', f'{run_paths.temporary}/{circuit_name}.gv', run_paths.temporary)
 
-        FS.copy(f'{run_paths.graphviz}/{circuit_name}.gv', f'output/gv/{circuit_name}.gv', exists_ok=True)
+        # initialize the super class using the Yosys GV
+        FS.copy(f'{run_paths.temporary}/{circuit_name}.gv', f'output/gv/{circuit_name}.gv', exists_ok=True)
         super().__init__(circuit_name, is_clean)
-        # input('Graph step completed')
 
         self.set_output_dict(self.sort_dict(self.output_dict))
 
@@ -60,7 +58,6 @@ class AnnotatedGraph(Graph):
         self.__subgraph_num_gates = None
         self.__subgraph_num_fanin = None
         self.__subgraph_num_fanout = None
-        self.__graph_num_intact_gates = None
 
         self.__add_weights()
 
