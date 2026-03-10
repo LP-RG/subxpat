@@ -570,7 +570,7 @@ class Z3Solver(Solver):
                   ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
 
         # TODO:#15: how do we generate a name here
-        script_path = f'output/z3/{specifications.exact_benchmark}_iter{specifications.iteration}.py'
+        script_path = f'{specifications.path.run.solver_scripts}/iter{specifications.iteration}.py'
 
         # encode
         with open(script_path, 'w') as f: cls.encoder.encode(graphs, f, global_task)
