@@ -5,34 +5,23 @@ def main():
     # > parse arguments
     from sxpat.specifications import Specifications
     specs_obj = Specifications.parse_args()
-    # print(f'{specs_obj = }')
 
-    # > select wanted directories
+    # > create wanted directories
     from sxpat.config import paths as sxpatpaths
-    # from Z3Log.config import path as z3logpath
-    # legacy:
-    WANTED_DIRECTORIES = [
-        # sxpatpaths.OUTPUT_PATH['ver'][0],
-        sxpatpaths.OUTPUT_PATH['gv'][0],
-        sxpatpaths.OUTPUT_PATH['z3'][0],
-        # sxpatpaths.OUTPUT_PATH['report'][0],
-        # z3logpath.TEST_PATH['tb'][0],
-    ]
-
-    # > create/empty the wanted directories
     from sxpat.utils.filesystem import FS
-    # legacy: create if missing
-    for dir in WANTED_DIRECTORIES: FS.mkdir(dir)
+    # legacy
+    wanted_directories = [
+        # legacy
+        sxpatpaths.OUTPUT_PATH['gv'][0],
+        # TODO: merge with next block when removing legacy
+        *specs_obj.path.run.folders,
+    ]
+    # create
+    for dir in wanted_directories: FS.mkdir(dir)
     # legacy: clean if wanted
     if specs_obj.clean:
         pprint.info2('removing final and intermediary data')
-        for dir in WANTED_DIRECTORIES: FS.emptydir(dir)
-    #
-    FS.mkdir(specs_obj.path.run.base_folder)
-    FS.mkdir(specs_obj.path.run.verilog)
-    FS.mkdir(specs_obj.path.run.graphviz)
-    FS.mkdir(specs_obj.path.run.solver_scripts)
-    FS.mkdir(specs_obj.path.run.temporary)
+        for dir in wanted_directories: FS.emptydir(dir)
 
     # > prepare storage
     from sxpat.utils.storage import LiveStorage
@@ -40,7 +29,7 @@ def main():
     # initialize run stats storage
     specs_obj.stats_storage = LiveStorage(specs_obj.path.run.run_stats)
     print('run stats storage created at:', specs_obj.path.run.run_stats)
-    #
+    # store arguments
     with open(specs_obj.path.run.arguments, 'w') as args_file:
         csv_writer = csv.writer(args_file)
         csv_writer.writerow(['argument', 'value'])
@@ -50,8 +39,14 @@ def main():
     from sxpat.xplore import explore_grid
     #
     with specs_obj.stats_storage:
-        # input('ready to explore')
-        explore_grid(specs_obj)
+        results = explore_grid(specs_obj)
+    # print results for each relevance of metrics
+    print(results.for_area_power_delay)
+    print(results.for_area_delay_power)
+    print(results.for_power_area_delay)
+    print(results.for_power_delay_area)
+    print(results.for_delay_area_power)
+    print(results.for_delay_power_area)
 
 
 if __name__ == '__main__':

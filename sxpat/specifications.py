@@ -1,6 +1,6 @@
 from __future__ import annotations
 from types import MappingProxyType
-from typing import Any, Dict, List, Mapping, Tuple, Union
+from typing import Any, Dict, Iterable, List, Mapping, Tuple, Union
 import enum
 import dataclasses as dc
 
@@ -98,6 +98,18 @@ class Paths:
             object.__setattr__(self, 'arguments', os.path.join(self.base_folder, self.arguments))
             object.__setattr__(self, 'run_stats', os.path.join(self.base_folder, self.run_stats))
             object.__setattr__(self, 'temporary', os.path.join(self.base_folder, self.temporary))
+
+        @property
+        def folders(self) -> Iterable[str]:
+            return (
+                self.base_folder,
+                #
+                self.graphviz,
+                self.verilog,
+                self.solver_scripts,
+                #
+                self.temporary
+            )
 
     @dc.dataclass(frozen=True)
     class Synthesis:
