@@ -39,6 +39,9 @@ class LiveStorage:
         self._save_from: int = 0
         """Starting index in `_storage` a `save()` call sould save."""
 
+        # prepare destination file
+        open(self._destination, 'x').close()
+
     @property
     def destination(self) -> str: return self._destination
 
@@ -92,8 +95,7 @@ class LiveStorage:
         if self._save_from == len(self._storage): return
 
         # select opening mode depending on if it is the first save or not
-        wanted_mode = 'w' if self._save_from == 0 else 'a'
-        with open(self._destination, wanted_mode) as ofile:
+        with open(self._destination, 'a') as ofile:
             writer = csv.DictWriter(ofile, self._order.keys())
 
             # write header if it is the first save
@@ -120,6 +122,8 @@ class LiveStorage:
 
     def __enter__(self): return self
     def __exit__(self, _0, _1, _2): self.save()
+
+    def __repr__(self) -> str: return f'{type(self).__qualname__}({self._destination})'
 
     class StageError(Exception):
         """Base class for data staging errors."""
