@@ -2,7 +2,9 @@ from __future__ import annotations
 from typing import Mapping
 from collections import defaultdict
 
+
 import networkx as nx
+import itertools
 
 # Union find class
 class UnionFind:
@@ -28,6 +30,19 @@ class UnionFind:
             return
         self.parent[root_v] = root_u
 
+# TODO:do you need any other gate?
+# input:op is string; bits is list of 0/1 [0,1]
+def apply_logic(op, inputs):
+    if op == 'and':
+        return 1 if all(inputs) else 0
+    elif op == 'or':
+        return 1 if any(inputs) else 0
+    elif op == 'not':
+        return 0 if inputs[0] == 1 else 1
+    elif op == 'xor':
+        return sum(inputs) % 2
+    return 0
+
 class Subgraph:
     def __init__(self, sub_id, members, inputs, outputs):
         self.sub_id = sub_id
@@ -38,29 +53,60 @@ class Subgraph:
         self.matrix = []          # 核心数据：传播矩阵 Ms
 
     def build_truth_table(self, graph):
-        """生成 2^k 真值表"""
-        pass
+
+        sub_g = graph.subgraph(self.members)
+        sorted_nodes = list(nx.topological_sort(sub_g))
+
+        # 2. 遍历：利用 itertools.product 产生所有 0/1 序列
+        # repeat=len(self.inputs) 会自动根据输入个数生成 000, 001...
+        for combo in itertools.product([0, 1], repeat=len(self.inputs)):
+
+            # zip input id and its number
+            values = dict(zip(self.inputs, combo))
+
+            for node in sorted_nodes:
+                 if node in self.inputs:
+                     continue
+                 
+                 preds = list(graph.predecessors(node))
+                 gate_in_values = [values.get(p, 0) for p in preds]
+
+                 op = graph.nodes[node].get("label")
+                 values[node] = apply_logic(op, gate_in_values)
+
+                 res_out = tuple(values.get(out, 0) for out in self.outputs)
+                 self.truth_table[combo] = res_out
+
+
+
 
     def derive_ms(self): #derive_propagation_matrix
         """分析单调性，生成矩阵 Ms"""
-        pass
+        num_in = len(self.inputs)
+        num_out = len(self.outputs)
+
+        self.matrix = [[0] * num_out for i in range(num_in)]
+
+        for i in range(num_in):
+            # 用来记录第 i 个输入对每个输出位 j 的单调性状态
+            # 我们可以用 'unknown', 'pos', 'neg', 'mixed' 来标记
+             column_states = ['unknown'] * num_out
+
+             for combo, out_v1 in self.truth_table.items():
+                 if combo[i] == 0:
+                     twin_list = list(combo)
+                     twin_list[i] = 1
+                     twin_combo = tuple(twin_list)
+                     
+                     out_v2 = self.truth_table[twin_combo]
+
 
     def propagate(self, out_weights):
         """计算 Win = Ms * Wout"""
         pass
 
 
-# input:op is string; bits is list of 0/1 [0,1]
-def apply_logic(op, bits):
-    if op == 'AND':
-        return 1 if all(bits) else 0
-    elif op == 'OR':
-        return 1 if any(bits) else 0
-    elif op == 'NOT':
-        return 0 if bits[0] == 1 else 1
-    elif op == 'XOR':
-        return sum(bits) % 2
-    return 0
+
 
 
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
@@ -152,13 +198,6 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
          sg.derive_ms()
 
          all_subgraph_objects[sub_id] = sg
-    
-
-    # TODO:Is there any method we can use to find the output value from the input?
-
-    # TODO:Are there any identifiers for Primary Outputs and Primary Input? 
-    
-    # TODO:Where can I see the graph of the input?
 
 
     # step 3: Propagation
