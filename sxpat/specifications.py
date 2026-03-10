@@ -13,6 +13,7 @@ import os.path
 
 from sxpat.utils.filesystem import FS
 from sxpat.utils.functions import int_to_strbase
+from sxpat.utils.storage import LiveStorage
 
 
 __all__ = [
@@ -78,29 +79,33 @@ class EnumChoicesAction(argparse.Action):
 @dc.dataclass(init=False, frozen=True)
 class Paths:
     @dc.dataclass(frozen=True)
-    class Output:
+    class RunFiles:
         base_folder: str = 'output'
         graphviz: str = dc.field(default='graphviz', init=False)
         verilog: str = dc.field(default='verilog', init=False)
         solver_scripts: str = dc.field(default='scripts', init=False)
-        data_storage: str = dc.field(default='data', init=False)
+        arguments: str = dc.field(default='arguments.csv', init=False)
+        run_stats: str = dc.field(default='run_stats.csv', init=False)
+        temporary: str = dc.field(default='tmp', init=False)
 
         def __post_init__(self) -> None:
             object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, self.graphviz))
             object.__setattr__(self, 'verilog', os.path.join(self.base_folder, self.verilog))
             object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, self.solver_scripts))
-            object.__setattr__(self, 'data_storage', os.path.join(self.base_folder, self.data_storage))
+            object.__setattr__(self, 'arguments', os.path.join(self.base_folder, self.arguments))
+            object.__setattr__(self, 'run_stats', os.path.join(self.base_folder, self.run_stats))
+            object.__setattr__(self, 'temporary', os.path.join(self.base_folder, self.temporary))
 
     @dc.dataclass(frozen=True)
     class Synthesis:
         cell_library: str = 'config/gscl45nm.lib'
         abc_script: str = dc.field(default='config/abc.script', init=False)
 
-    output: Output
+    run: RunFiles
     synthesis: Synthesis
 
     def __init__(self, output_base: str, cell_library: str) -> None:
-        object.__setattr__(self, 'output', self.Output(output_base))
+        object.__setattr__(self, 'run', self.RunFiles(output_base))
         object.__setattr__(self, 'synthesis', self.Synthesis(cell_library))
 
     def __repr__(self):
@@ -152,21 +157,30 @@ class Specifications:
     error_partitioning: ErrorPartitioningType
 
     # config
-    path: Paths
+    path_output: dc.InitVar[str]
+    path_cell_library: dc.InitVar[str]
+    path: Paths = dc.field(init=False)
 
     # other
     timeout: float
     parallel: bool
-    plot: bool
     clean: bool
     time_id: str = dc.field(init=False, default_factory=lambda: int_to_strbase(time.time_ns()))
     run_id: str = dc.field(init=False)
 
-    def __post_init__(self):
-        object.__setattr__(self, 'exact_benchmark', Path(self.exact_benchmark).stem)
-        object.__setattr__(self, 'current_benchmark', Path(self.current_benchmark).stem)
+    # storage
+    stats_storage: LiveStorage = dc.field(init=False, default=None, metadata={'writable': True})  # writable once
 
-        object.__setattr__(self, 'run_id', FS.get_unique_filename(prefix=f'{self.time_id}_'))
+    def __post_init__(self, path_output: str, path_cell_library: str):
+        # # cleanup
+        # self.exact_benchmark = Path(self.exact_benchmark).stem
+        # self.current_benchmark = Path(self.current_benchmark).stem
+
+        # computed constants
+        self.run_id = FS.get_unique_filename(prefix=f'{self.time_id}_')
+
+        # construct instance
+        self.path = Paths(os.path.join(path_output, self.run_id), path_cell_library)
 
     # > computed
 
@@ -362,11 +376,13 @@ class Specifications:
         # NOTE: this is not yet documented in the README as it currently does nothing
         _out_fold = _cfg_group.add_argument('--output',
                                             type=str,
-                                            default=Paths.Output.base_folder,
-                                            help=f'(WIP) The base directory for the output (default: {Paths.Output.base_folder})')
+                                            dest='path_output',
+                                            default=Paths.RunFiles.base_folder,
+                                            help=f'(WIP) The base directory for the output (default: {Paths.RunFiles.base_folder})')
 
         _cfg_lib = _cfg_group.add_argument('--cell-library',
                                            type=str,
+                                           dest='path_cell_library',
                                            default=Paths.Synthesis.cell_library,
                                            help=f'The cell library file to use in the metrics estimation (default: {Paths.Synthesis.cell_library})')
 
@@ -381,10 +397,6 @@ class Specifications:
         _parallel = _misc_group.add_argument('--parallel',
                                              action='store_true',
                                              help='Run in parallel whenever possible')
-
-        _plt = _misc_group.add_argument('--plot',
-                                        action='store_true',
-                                        help='The system will be run as plotter (DEPRECATED?)')
 
         _clean = _misc_group.add_argument('--clean',
                                           action='store_true',
@@ -454,10 +466,7 @@ class Specifications:
 
                     parser.error(f'{source_message} `{target_action.option_strings[0]}` {msg}')
 
-        # construct instance
-        raw_args.path = Paths(getdelattr(raw_args, _out_fold.dest),
-                              getdelattr(raw_args, _cfg_lib.dest))
-
+        # construct specifications object
         return cls(**vars(raw_args))
 
     def __repr__(self):
@@ -500,9 +509,3 @@ class Specifications:
 def arg_value_to_string(value: Union[str, int, bool, enum.Enum, Any]) -> str:
     if isinstance(value, enum.Enum): value = value.value
     return repr(value)
-
-
-def getdelattr(o: object, name: str):
-    val = getattr(o, name)
-    delattr(o, name)
-    return val
