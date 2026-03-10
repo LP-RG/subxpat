@@ -6,24 +6,17 @@ import time
 import networkx as nx
 import functools as ft
 import re
-
-from Z3Log.graph import Graph
-# from Z3Log.verilog import Verilog
-from Z3Log_patched.verilog import Verilog
-# from Z3Log.utils import *
-# from Z3Log.utils import convert_verilog_to_gv
-from Z3Log_patched.utils import convert_verilog_to_gv, get_pure_name
-from Z3Log.config.config import *
-from Z3Log.config.path import *
-
-from sxpat.utils.filesystem import FS
-
-from .config.config import *
 from z3 import *
 
-from .specifications import Specifications, TemplateType, Paths
+from Z3Log_patched.graph import Graph
+from Z3Log_patched.verilog import Verilog
 
+from Z3Log_patched.utils import convert_verilog_to_gv, get_pure_name
+from sxpat.utils.filesystem import FS
 from sxpat.utils.print import pprint
+
+from .specifications import Specifications, TemplateType, Paths
+from .config.config import *
 
 
 class AnnotatedGraph(Graph):
@@ -33,14 +26,13 @@ class AnnotatedGraph(Graph):
         circuit_name = get_pure_name(circuit_verilog_path)
 
         # prepare a clean Verilog
-        Verilog(circuit_verilog_path, f'{run_paths.verilog}/{circuit_name}.v', run_paths.temporary)
+        Verilog(circuit_verilog_path, tmp_v := f'{run_paths.verilog}/{circuit_name}.v', run_paths.temporary)
 
         # convert the clean Verilog into a Yosys GV
-        convert_verilog_to_gv(f'{run_paths.verilog}/{circuit_name}.v', f'{run_paths.temporary}/{circuit_name}.gv', run_paths.temporary)
+        convert_verilog_to_gv(tmp_v, tmp_gv := f'{run_paths.temporary}/{circuit_name}.gv', run_paths.temporary)
 
         # initialize the super class using the Yosys GV
-        FS.copy(f'{run_paths.temporary}/{circuit_name}.gv', f'output/gv/{circuit_name}.gv', exists_ok=True)
-        super().__init__(circuit_name, is_clean)
+        super().__init__(tmp_gv, is_clean)
 
         self.set_output_dict(self.sort_dict(self.output_dict))
 
