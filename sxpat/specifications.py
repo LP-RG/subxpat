@@ -81,11 +81,14 @@ class Paths:
     @dc.dataclass(frozen=True)
     class RunFiles:
         base_folder: str = 'output'
+        # persistent folders
         graphviz: str = dc.field(default='graphviz', init=False)
         verilog: str = dc.field(default='verilog', init=False)
         solver_scripts: str = dc.field(default='scripts', init=False)
+        # persistent files
         arguments: str = dc.field(default='arguments.csv', init=False)
         run_stats: str = dc.field(default='run_stats.csv', init=False)
+        # temporary files and folders
         temporary: str = dc.field(default='tmp', init=False)
 
         def __post_init__(self) -> None:
@@ -173,10 +176,6 @@ class Specifications:
     stats_storage: LiveStorage = dc.field(init=False, default=None, metadata={'writable': True})  # writable once
 
     def __post_init__(self, path_output: str, path_cell_library: str):
-        # # cleanup
-        # self.exact_benchmark = Path(self.exact_benchmark).stem
-        # self.current_benchmark = Path(self.current_benchmark).stem
-
         # computed constants
         self.run_id = FS.get_unique_filename(prefix=f'{self.time_id}_')
 
