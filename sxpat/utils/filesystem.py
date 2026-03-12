@@ -1,4 +1,4 @@
-from typing import Iterable, final
+from typing import Iterable, Sequence, final
 
 import os
 import shutil
@@ -176,6 +176,24 @@ class FS:
 
         if os.path.isdir(src_path): shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
         else: shutil.copyfile(src_path, dst_path, follow_symlinks=True)
+
+    @staticmethod
+    def walk(path: str) -> Sequence[str]:
+        """
+            Tree walk generator.
+
+            If `path` is a directory, it will be recursively traversed.
+            If `path` is a file, it will be the only one returned.
+        """
+
+        if os.path.isdir(path):
+            return tuple(
+                os.path.join(dirpath, filename)
+                for dirpath, _, filenames in os.walk(path)
+                for filename in filenames
+            )
+        else:
+            return (path, )
 
     class _AlphaNumRandomSequence(tempfile._RandomNameSequence):
         characters = tempfile._RandomNameSequence.characters.replace('_', '')
