@@ -118,10 +118,10 @@ class FS:
 
             file = tempfile.NamedTemporaryFile(
                 mode='w+b' if binary else 'w+',
-                dir=directory,
-                delete=delete,
                 prefix=prefix,
                 suffix=suffix,
+                dir=directory,
+                delete=delete,
             )
         finally:
             tempfile._name_sequence = old_name_sequence
@@ -142,6 +142,24 @@ class FS:
         tmp_file = cls.open_tmp(directory, delete=False, prefix=prefix, suffix=suffix)
         tmp_file.close()
         return os.path.split(tmp_file.name)[1]
+
+    @classmethod
+    def get_unique_dirname(
+        cls, directory: str = None,
+        prefix: str = '', suffix: str = '',
+    ) -> str:
+        """
+            Creates a temporary folder in the filesystem and returns its name.
+
+            :note: The caller is responsible for deleting the directory when done with it.
+        """
+        try:
+            old_name_sequence = tempfile._name_sequence
+            tempfile._name_sequence = cls._AlphaNumRandomSequence()
+            dirpath = tempfile.mkdtemp(suffix, prefix, directory)
+            return os.path.split(dirpath)[1]
+        finally:
+            tempfile._name_sequence = old_name_sequence
 
     @staticmethod
     def copy(src_path: str, dst_path: str, exists_ok: bool = False) -> None:
