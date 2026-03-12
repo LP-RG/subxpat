@@ -78,9 +78,18 @@ def explore_grid(specs_obj: Specifications):
                 break
             specs_obj.et = specs_obj.max_error
         elif(specs_obj.extraction_mode == 0):
-            print(specs_obj.out_node)
+            print(f"Current out_node: {specs_obj.out_node}")
+            
+            # Calculate the mathematical weight of the current bit
+            current_bit_weight = 2 ** specs_obj.out_node
+            
+            # Check if touching this bit instantly violates the max error
+            if current_bit_weight > specs_obj.max_error:
+                pprint.warning(f'Termination Condition Met: 2^{specs_obj.out_node} ({current_bit_weight}) > maxAET ({specs_obj.max_error}). Stopping exploration.')
+                break
+
             if(max_out_node == specs_obj.out_node):
-                pprint.warning('The error space is exhausted!')
+                pprint.warning('The error space is exhausted (reached max bit)!')
                 break
         elif (
             specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING
