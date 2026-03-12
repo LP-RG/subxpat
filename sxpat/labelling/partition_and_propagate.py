@@ -78,7 +78,7 @@ class Subgraph:
                  self.truth_table[combo] = res_out
 
 
-
+    # TODO:I am not sure if it is correct
     # Analyze monotonicity and generate matrix Ms
     def derive_ms(self): #derive_propagation_matrix
 
@@ -117,9 +117,6 @@ class Subgraph:
     def propagate(self, out_weights):
         """计算 Win = Ms * Wout"""
         pass
-
-
-
 
 
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
@@ -213,7 +210,13 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
          all_subgraph_objects[sub_id] = sg
 
     # step 3: Propagation
+    # create sorted subgraph id list
+
+    abs_g = nx.DiGraph()
+    abs_g.add_nodes_from(all_subgraph_objects.keys())
+
     # give weight to each output node
+
 
     # step 4: Subgraph simulation for internal nodes
     ...
