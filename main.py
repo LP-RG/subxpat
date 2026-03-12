@@ -36,9 +36,41 @@ def main():
     # > remove temporary files
     if not specs_obj.debug: FS.rmdir(specs_obj.path.run.temporary, True)
 
+    # > archive run (if wanted)
+    # TODO: specs_obj.should_archive
+
+
+class ImportTimer:
+    def __init__(self):
+        self.time = 0
+
+    def _instrument(self):
+        from time import perf_counter
+        import builtins
+
+        __builtin_import__ = builtins.__import__  # store a reference to the built-in import
+
+        def __custom_import__(name, *args, **kwargs):
+            _time = perf_counter()
+            ret = __builtin_import__(name, *args, **kwargs)
+            self.time += perf_counter() - _time
+
+            return ret  # return back the actual import result
+
+        builtins.__import__ = __custom_import__  # override the built-in import with our method
+
+    @classmethod
+    def instrument(cls):
+        timer = cls()
+        timer._instrument()
+        return timer
+
 
 if __name__ == '__main__':
+    import_timer = ImportTimer.instrument()
     from sxpat.utils.timer import Timer
 
     main()
+
+    print(f'imports_time = {import_timer.time}s')
     print(f'total_time = {Timer.now()}')
