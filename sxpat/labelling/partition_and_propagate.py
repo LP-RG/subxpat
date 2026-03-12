@@ -79,26 +79,39 @@ class Subgraph:
 
 
 
-
+    # Analyze monotonicity and generate matrix Ms
     def derive_ms(self): #derive_propagation_matrix
-        """分析单调性，生成矩阵 Ms"""
+
         num_in = len(self.inputs)
         num_out = len(self.outputs)
 
         self.matrix = [[0] * num_out for i in range(num_in)]
 
-        for i in range(num_in):
-            # 用来记录第 i 个输入对每个输出位 j 的单调性状态
-            # 我们可以用 'unknown', 'pos', 'neg', 'mixed' 来标记
-             column_states = ['unknown'] * num_out
+        # store the different between different output
+        diff_sets = [[set() for _ in range(num_out)] for _ in range(num_in)]
 
-             for combo, out_v1 in self.truth_table.items():
+        for combo, out_v1 in self.truth_table.items():
+             for i in range(num_in):
                  if combo[i] == 0:
                      twin_list = list(combo)
                      twin_list[i] = 1
                      twin_combo = tuple(twin_list)
-                     
                      out_v2 = self.truth_table[twin_combo]
+
+                     for j in range(num_out):
+                         diff = out_v2[j] - out_v1[j]
+
+                         if diff != 0:
+                             diff_sets[i][j].add(diff)
+
+        for i in range(num_in):
+             for j in range(num_out):
+                 s = diff_sets[i][j]
+                 #  Fill in with monotonicity
+                 if 1 in s: self.matrix[i][j] = 1
+                 elif -1 in s:           self.matrix[i][j] = 1
+
+
 
 
     def propagate(self, out_weights):
@@ -199,9 +212,8 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
          all_subgraph_objects[sub_id] = sg
 
-
     # step 3: Propagation
-    ...
+    # give weight to each output node
 
     # step 4: Subgraph simulation for internal nodes
     ...
