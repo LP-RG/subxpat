@@ -1,5 +1,3 @@
-from sxpat.utils.print import pprint
-
 
 def main():
     # > parse arguments
@@ -7,19 +5,9 @@ def main():
     specs_obj = Specifications.parse_args()
 
     # > create wanted directories
-    from sxpat.config import paths as sxpatpaths
     from sxpat.utils.filesystem import FS
-    # legacy
-    legacy_dirs = [
-        # legacy
-        sxpatpaths.OUTPUT_PATH['gv'][0],
-    ]
-    # create
-    for dir in legacy_dirs + list(specs_obj.path.run.folders): FS.mkdir(dir)
-    # legacy: clean if wanted
-    if specs_obj.clean:
-        pprint.info2('removing final and intermediary data')
-        for dir in legacy_dirs: FS.emptydir(dir)
+    #
+    for dir in specs_obj.path.run.folders: FS.mkdir(dir)
 
     # > prepare storage
     from sxpat.utils.storage import LiveStorage
@@ -30,7 +18,6 @@ def main():
     # store arguments
     with open(specs_obj.path.run.arguments, 'w') as args_file:
         csv_writer = csv.writer(args_file)
-        csv_writer.writerow(['argument', 'value'])
         csv_writer.writerows(specs_obj.constant_fields.items())
 
     # > run system
@@ -45,6 +32,9 @@ def main():
     print(results.for_power_delay_area)
     print(results.for_delay_area_power)
     print(results.for_delay_power_area)
+
+    # > remove temporary files
+    if not specs_obj.debug: FS.rmdir(specs_obj.path.run.temporary, True)
 
 
 if __name__ == '__main__':
