@@ -1,3 +1,5 @@
+from os.path import join as path_join
+
 # discarded:
 # from Z3Log.utils import setup_folder_structure
 # from Z3Log.utils import clean_all
@@ -34,9 +36,9 @@ def convert_verilog_to_gv(input_verilog_path: str, output_gv_path: str, temporar
     import os
 
     # prepare
-    tmp_dot_path = f'{temporary_path}/cvtgv_to_fd.dot'
+    tmp_dot_path = path_join(temporary_path, 'cvtgv_to_fd.dot')
     yosys_command = f"""
-        read_verilog {input_verilog_path}
+        read_verilog "{input_verilog_path}"
         opt
         clean
         show -prefix {tmp_dot_path[:-4]} -format dot

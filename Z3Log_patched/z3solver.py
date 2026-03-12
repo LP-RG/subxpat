@@ -4,12 +4,13 @@ import re
 import os
 import copy
 import csv
+from os.path import join as path_join
 
 from .utils import get_pure_name
 from .graph import Graph
 
 from .config.config import (
-    SINGLE, WAE,RANDOM, WRE, OPTIMIZE, MAXIMIZE, BISECTION,
+    SINGLE, WAE, RANDOM, WRE, OPTIMIZE, MAXIMIZE, BISECTION,
     WHD, WCE, DEFAULT_STRATEGY, QOR,
 )
 
@@ -35,17 +36,11 @@ class Z3solver(_Z3solver):
         :param samples: number of samples for the mc evaluation; by defaults it is an empty list
         """
         self.__circuit_name = circuit_name = get_pure_name(circuit_in_graphviz_path)
-
-        # folder, extension = OUTPUT_PATH['gv']
-        # self.__graph_in_path = f'{folder}/{benchmark_name}.{extension}'
-
         self.__graph = Graph(circuit_in_graphviz_path, True)
 
         self.__pyscript_results_out_path = None
 
-        # folder, extension = LOG_PATH['z3']
-        # os.makedirs(f'{folder}/{circuit_name}_z3py_log', exist_ok=True)
-        self.__z3_log_path = os.path.join(temporary_folder_path, f'{circuit_name}_z3py.log')
+        self.__z3_log_path = path_join(temporary_folder_path, f'{circuit_name}_z3py.log')
 
         # added
         self.temporary_folder_path = temporary_folder_path
@@ -102,17 +97,14 @@ class Z3solver(_Z3solver):
 
         self.__partial: bool = partial
 
-
     @property
     def graph_in_path(self): raise RuntimeError('Why are you using this? talk with Marco')
     @property
     def approximate_in_path(self): raise RuntimeError('Why are you using this? talk with Marco')
 
-
     def import_labels(self, constant_value: bool = False) -> Dict:
         label_dict: Dict[str, int] = {}
-        # folder, extension = OUTPUT_PATH['report']
-        folder = os.path.join(self.temporary_folder_path, 'outreport')
+        folder = path_join(self.temporary_folder_path, 'outreport')
         extension = 'csv'
 
         all_dirs = [f for f in os.listdir(folder)]
@@ -137,22 +129,10 @@ class Z3solver(_Z3solver):
                             self.append_label(gate_label, gate_wce)
         return label_dict
 
-
     def convert_gv_to_z3pyscript_test(self):
-        # folder, extension = OUTPUT_PATH['report']
-        # os.makedirs(f'{folder}/{self.name}', exist_ok=True)
-        # self.set_z3_report(f'{folder}/{self.name}/{self.name}_{TEST}.{extension}')
-        self.set_z3_report(os.path.join(self.temporary_folder_path, f'outreport_{self.name}_test.csv'))
-
-        # folder, extension = OUTPUT_PATH['z3']
-        # os.makedirs(f'{folder}/{self.name}', exist_ok=True)
-        # self.set_out_path(f'{folder}/{self.name}/{self.name}_{TEST}.{extension}')
-        self.set_out_path(os.path.join(self.temporary_folder_path, f'outz3_{self.name}_test.py'))
-
-        # folder, extension = TEST_PATH['z3']
-        # os.makedirs(f'{folder}/{self.name}', exist_ok=True)
-        # self.set_pyscript_results_out_path(f'{folder}/{self.name}/{self.name}_{TEST}.{extension}')
-        self.set_pyscript_results_out_path(os.path.join(self.temporary_folder_path, f'testz3_{self.name}_test.py'))
+        self.set_z3_report(path_join(self.temporary_folder_path, f'outreport_{self.name}_test.csv'))
+        self.set_out_path(path_join(self.temporary_folder_path, f'outz3_{self.name}_test.py'))
+        self.set_pyscript_results_out_path(path_join(self.temporary_folder_path, f'testz3_{self.name}_test.py'))
 
         import_string = self.create_imports()
         abs_function = self.create_abs_function()
@@ -177,8 +157,7 @@ class Z3solver(_Z3solver):
         self.set_strategy(strategy)
 
         if self.metric == WRE:
-            # folder, extension = OUTPUT_PATH['report']
-            folder = os.path.join(self.temporary_folder_path, 'outreport')
+            folder = path_join(self.temporary_folder_path, 'outreport')
             extension = 'csv'
             if self.optimization == OPTIMIZE or self.optimization == MAXIMIZE and (self.strategy != BISECTION):
                 self.set_z3_report(
@@ -187,8 +166,7 @@ class Z3solver(_Z3solver):
                 self.set_z3_report(
                     f'{folder}/{self.approximate_benchmark}_{self.experiment}_{self.metric}_d{self.precision}_{self.strategy}.{extension}')
 
-            # folder, extension = OUTPUT_PATH['z3']
-            folder = os.path.join(self.temporary_folder_path, 'outz3')
+            folder = path_join(self.temporary_folder_path, 'outz3')
             extension = 'py'
             if self.optimization == OPTIMIZE or self.optimization == MAXIMIZE and (self.strategy != BISECTION):
                 self.set_out_path(
@@ -198,8 +176,7 @@ class Z3solver(_Z3solver):
                     f'{folder}/{self.approximate_benchmark}_{self.experiment}_{self.metric}_d{self.precision}_{self.strategy}.{extension}')
 
         else:
-            # folder, extension = OUTPUT_PATH['report']
-            folder = os.path.join(self.temporary_folder_path, 'outreport')
+            folder = path_join(self.temporary_folder_path, 'outreport')
             extension = 'csv'
             if self.optimization == OPTIMIZE or self.optimization == MAXIMIZE and (self.strategy != BISECTION):
                 self.set_z3_report(
@@ -208,8 +185,7 @@ class Z3solver(_Z3solver):
                 self.set_z3_report(
                     f'{folder}/{self.approximate_benchmark}_{self.experiment}_{self.metric}_{self.strategy}.{extension}')
 
-            # folder, extension = OUTPUT_PATH['z3']
-            folder = os.path.join(self.temporary_folder_path, 'outz3')
+            folder = path_join(self.temporary_folder_path, 'outz3')
             extension = 'py'
             if self.optimization == OPTIMIZE or self.optimization == MAXIMIZE and (self.strategy != BISECTION):
                 self.set_out_path(
@@ -239,17 +215,17 @@ class Z3solver(_Z3solver):
 
         # error distance function
         declare_error_distance_function = self.declare_error_distance_function()
-        # strategy
 
+        # strategy
         strategy = self.express_strategy()
 
         self.set_z3pyscript(import_string + abs_function + original_circuit_declaration + original_circuit_expression +
                             original_output_declaration + approximate_circuit_declaration + approximate_circuit_expression +
                             approximate_output_declaration + declare_error_distance_function + strategy)
 
-    
     # TODO
     # Naming problems for more than one gate removal
+
     def create_pruned_z3pyscript(self, gates: list, constant_value: bool = False):
         self.create_pruned_graph_approximate(gates, constant_value)
         if self.experiment == SINGLE:
@@ -257,9 +233,8 @@ class Z3solver(_Z3solver):
         # TODO
         elif self.experiment == RANDOM:
             gate = 'id0'
-        
-        # folder, extension = OUTPUT_PATH['report']
-        folder = os.path.join(self.temporary_folder_path, 'outreport')
+
+        folder = path_join(self.temporary_folder_path, 'outreport')
         extension = 'csv'
         if self.metric == WRE:
             if self.optimization == OPTIMIZE or self.optimization == MAXIMIZE and (self.strategy != BISECTION):
@@ -285,8 +260,7 @@ class Z3solver(_Z3solver):
                 self.set_z3_report(
                     f'{folder}/{self.name}_{self.experiment}_{self.metric}_{self.strategy}_{gate}.{extension}')
 
-        # folder, extension = OUTPUT_PATH['z3']
-        folder = os.path.join(self.temporary_folder_path, 'outz3')
+        folder = path_join(self.temporary_folder_path, 'outz3')
         extension = 'py'
         if self.metric == WRE:
             if self.optimization == OPTIMIZE or self.optimization == MAXIMIZE and (self.strategy != BISECTION):
@@ -334,8 +308,8 @@ class Z3solver(_Z3solver):
 
         # error distance function
         declare_error_distance_function = self.declare_error_distance_function()
-        # strategy
 
+        # strategy
         strategy = self.express_strategy()
 
         if self.metric == WHD:
@@ -358,8 +332,7 @@ class Z3solver(_Z3solver):
         elif self.experiment == RANDOM:
             gate = 'id0'
 
-        # folder, extension = OUTPUT_PATH['report']
-        folder = os.path.join(self.temporary_folder_path, 'outreport')
+        folder = path_join(self.temporary_folder_path, 'outreport')
         extension = 'csv'
         if self.metric == WRE:
             if self.optimization == OPTIMIZE or self.optimization == MAXIMIZE and (self.strategy != BISECTION):
@@ -385,8 +358,7 @@ class Z3solver(_Z3solver):
                 self.set_z3_report(
                     f'{folder}/{self.approximate_benchmark}_{self.experiment}_{self.metric}_{self.strategy}_{gate}.{extension}')
 
-        # folder, extension = OUTPUT_PATH['z3']
-        folder = os.path.join(self.temporary_folder_path, 'outz3')
+        folder = path_join(self.temporary_folder_path, 'outz3')
         extension = 'py'
         if self.metric == WRE:
             if self.optimization == OPTIMIZE or self.optimization == MAXIMIZE and (self.strategy != BISECTION):
@@ -434,8 +406,8 @@ class Z3solver(_Z3solver):
 
         # error distance function
         declare_error_distance_function = self.declare_error_distance_function()
-        # strategy
 
+        # strategy
         strategy = self.express_strategy()
 
         if self.metric == WHD:
@@ -457,4 +429,3 @@ class Z3solver(_Z3solver):
             # f'{self.graph_in_path = }\n'
             f'{self.out_path = }\n'
         )
-    

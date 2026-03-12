@@ -1,5 +1,7 @@
 from typing import Tuple
 
+from os.path import join as path_join
+
 # to be patched:
 from Z3Log.verilog import Verilog as _Verilog
 
@@ -15,7 +17,7 @@ class Verilog(_Verilog):
         self.__circuit_out_path = output_verilog_path
 
         # others
-        self.__tmp_verilog = f'{temporary_path}/{circuit_name}_tmp.v'
+        self.__tmp_verilog = path_join(temporary_path, f'{circuit_name}_tmp.v')
         self.__num_inputs, self.__num_outputs = self.extract_module_io()
 
         # synthesize
