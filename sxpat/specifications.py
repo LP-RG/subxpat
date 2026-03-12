@@ -191,7 +191,6 @@ class Specifications:
     debug: bool
     timeout: float
     parallel: bool
-    clean: bool
     time_id: str = dc.field(init=False, default_factory=lambda: int_to_strbase(time.time_ns()))
     run_id: str = dc.field(init=False)
 
@@ -423,10 +422,6 @@ class Specifications:
         _parallel = _misc_group.add_argument('--parallel',
                                              action='store_true',
                                              help='Run in parallel whenever possible')
-
-        _clean = _misc_group.add_argument('--clean',
-                                          action='store_true',
-                                          help='Reset the output folder before running')
 
         raw_args = parser.parse_args()
 

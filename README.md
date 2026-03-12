@@ -102,7 +102,6 @@ Here are all the parameters with their arguments and descriptions:
 | `--debug`                                     |                                         | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
 | `--timeout`                                   | `float` > 0                             | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
 | `--parallel`                                  |                                         |                                    | Run in parallel whenever possible                                      |
-| `--clean`                                     |                                         |                                    | Reset the output folder before running                                 |
 | `--help` <br> `-h`                            |                                         |                                    | Show the help message and exit                                         |
 
 ### Examples
