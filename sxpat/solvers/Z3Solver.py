@@ -1,9 +1,10 @@
-from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union, overload
+from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, overload
 from typing_extensions import override
 from abc import abstractmethod
 
 import itertools as it
 import subprocess
+from os.path import join as path_join
 
 from sxpat.specifications import Specifications
 from sxpat.utils.functions import str_to_int_or_bool
@@ -569,8 +570,7 @@ class Z3Solver(Solver):
                   global_task: Union[ForAll, Min, Max, None],
                   ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
 
-        # TODO:#15: how do we generate a name here
-        script_path = f'{specifications.path.run.solver_scripts}/iter{specifications.iteration}.py'
+        script_path = path_join(specifications.path.run.solver_scripts, f'iter{specifications.iteration}_{specifications.sub_iteration}.py')
 
         # encode
         with open(script_path, 'w') as f: cls.encoder.encode(graphs, f, global_task)

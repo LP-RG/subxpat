@@ -49,14 +49,25 @@ class MetricsEstimator:
 
     @classmethod
     @overload
-    def estimate_metrics(cls, syn_paths: Paths.Synthesis, verilog_path: str, temporary_path: str) -> Metrics:
+    def estimate_metrics(
+        cls,
+        syn_paths: Paths.Synthesis,
+        verilog_path: str,
+        temporary_path: str,
+    ) -> Metrics:
         """
             Sythesize a circuit and estimate its metrics.
         """
 
     @classmethod
     @overload
-    def estimate_metrics(cls, syn_paths: Paths.Synthesis, verilog_path: str, temporary_path: str, cached: Literal[True]) -> Metrics:
+    def estimate_metrics(
+        cls,
+        syn_paths: Paths.Synthesis,
+        verilog_path: str,
+        temporary_path: str,
+        cached: Literal[True],
+    ) -> Metrics:
         """
             Sythesize a circuit and estimate its metrics.
 
@@ -64,12 +75,23 @@ class MetricsEstimator:
         """
 
     @classmethod
-    def estimate_metrics(cls, syn_paths: Paths.Synthesis, verilog_path: str, temporary_path: str, cached: bool = False) -> Metrics:
+    def estimate_metrics(
+        cls,
+        syn_paths: Paths.Synthesis,
+        verilog_path: str,
+        temporary_path: str,
+        cached: bool = False,
+    ) -> Metrics:
         if cached: return cls._estimate_metrics_cached(syn_paths, verilog_path, temporary_path)
         else: return cls._estimate_metrics(syn_paths, verilog_path, temporary_path)
 
     @classmethod
-    def _estimate_metrics(cls, syn_paths: Paths.Synthesis, circuit_in_verilog_path: str, temporary_path: str) -> Metrics:
+    def _estimate_metrics(
+        cls,
+        syn_paths: Paths.Synthesis,
+        circuit_in_verilog_path: str,
+        temporary_path: str,
+    ) -> Metrics:
         # compute names and paths
         circuit_name = get_pure_name(circuit_in_verilog_path)
         metrics_verilog_path = f'{temporary_path}/{circuit_name}_for_metrics.v'
@@ -122,11 +144,19 @@ class MetricsEstimator:
 
     @classmethod
     @ft.lru_cache(None)
-    def _estimate_metrics_cached(cls, paths: Paths.Synthesis, verilog_path: str, temporary_path: str) -> Metrics:
+    def _estimate_metrics_cached(
+        cls,
+        paths: Paths.Synthesis,
+        verilog_path: str,
+        temporary_path: str,
+    ) -> Metrics:
         return cls._estimate_metrics(paths, verilog_path, temporary_path)
 
     @classmethod
-    def _extract_module_name(cls, verilog_path: str):
+    def _extract_module_name(
+        cls,
+        verilog_path: str,
+    ) -> str:
         with open(verilog_path, 'r') as f: verilog_str = f.read()
 
         if m := cls.MODULE_NAME_PATTERN.search(verilog_str): return m.group(1)

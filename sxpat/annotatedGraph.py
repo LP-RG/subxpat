@@ -1,22 +1,31 @@
 from typing import Dict, List
 from typing_extensions import Self
 
-from colorama import Fore
-import time
+import re
+import io
+import math
 import networkx as nx
 import functools as ft
-import re
-from z3 import *
+from colorama import Fore
+from os.path import join as path_join
+from z3 import (
+    And, Not, Sum, Bool, Implies, BoolVal, If, Or, BitVecVal, Int, IntVal,
+    Optimize, sat, is_true,
+    Datatype, BoolSort, BitVecSort,
+)
 
 from Z3Log_patched.graph import Graph
 from Z3Log_patched.verilog import Verilog
 
 from Z3Log_patched.utils import convert_verilog_to_gv, get_pure_name
-from sxpat.utils.filesystem import FS
 from sxpat.utils.print import pprint
 
-from .specifications import Specifications, TemplateType, Paths
-from .config.config import *
+from .specifications import Specifications, Paths
+from .config.config import (
+    SUBGRAPH, WEIGHT,
+    COLOR, WHITE, RED, BLUE, OLIVE,
+    LABEL, SHAPE, STRICT, DIGRAPH, NODE, STYLE, FILLED, FILLCOLOR,
+)
 
 
 class AnnotatedGraph(Graph):
@@ -26,10 +35,10 @@ class AnnotatedGraph(Graph):
         circuit_name = get_pure_name(circuit_verilog_path)
 
         # prepare a clean Verilog
-        Verilog(circuit_verilog_path, tmp_v := f'{run_paths.verilog}/{circuit_name}.v', run_paths.temporary)
+        Verilog(circuit_verilog_path, tmp_v := path_join(run_paths.verilog, f'{circuit_name}.v'), run_paths.temporary)
 
         # convert the clean Verilog into a Yosys GV
-        convert_verilog_to_gv(tmp_v, tmp_gv := f'{run_paths.temporary}/{circuit_name}.gv', run_paths.temporary)
+        convert_verilog_to_gv(tmp_v, tmp_gv := path_join(run_paths.temporary, f'{circuit_name}.gv'), run_paths.temporary)
 
         # initialize the super class using the Yosys GV
         super().__init__(tmp_gv, is_clean)
@@ -53,7 +62,7 @@ class AnnotatedGraph(Graph):
 
         self.__add_weights()
 
-        self.__out_annotated_graph_path = f'{run_paths.graphviz}/{self.name}_subgraph.gv'
+        self.__out_annotated_graph_path = path_join(run_paths.graphviz, f'{self.name}_subgraph.gv')
 
     @classmethod
     def cached_load(cls, circuit_verilog_path: str, run_paths: Paths.RunFiles, is_clean: bool = False) -> Self:
@@ -2066,7 +2075,6 @@ class AnnotatedGraph(Graph):
         #     nodes.values()
         # ]
 
-        sat_time_s = time.time()
         res = opt.check()
 
         node_partition = []
@@ -2085,8 +2093,6 @@ class AnnotatedGraph(Graph):
             # pprint.success(f"(NumOfNodes = {n_nodes})")
         else:
             pprint.warning("subgraph not found -> UNSAT")
-
-        sat_time_e = time.time()
 
         tmp_graph = self.graph.copy(as_view=False)
         # print(f'{node_partition = }')
@@ -2343,7 +2349,6 @@ class AnnotatedGraph(Graph):
         #     nodes.values()
         # ]
 
-        sat_time_s = time.time()
         res = opt.check()
 
         node_partition = []
@@ -2362,8 +2367,6 @@ class AnnotatedGraph(Graph):
             # pprint.success(f"(NumOfNodes = {n_nodes})")
         else:
             pprint.warning("subgraph not found -> UNSAT")
-
-        sat_time_e = time.time()
 
         tmp_graph = self.graph.copy(as_view=False)
         # print(f'{node_partition = }')
@@ -3113,8 +3116,6 @@ class AnnotatedGraph(Graph):
         exports the subgraph (annotated graph) to a GV (GraphViz) file
         :return:
         """
-        # print(f'exporting the annotated subgraph!')
-        # print(f'{self.subgraph_out_path = }')
         with open(filename or self.subgraph_out_path, 'w') as f:
             f.write(f"{STRICT} {DIGRAPH} \"{self.name}\" {{\n")
             f.write(f"{NODE} [{STYLE} = {FILLED}, {FILLCOLOR} = {WHITE}]\n")
@@ -3123,10 +3124,6 @@ class AnnotatedGraph(Graph):
             for e in self.subgraph.edges:
                 self.export_edge(e, f)
             f.write(f"}}\n")
-        # folder, extension = OUTPUT_PATH[GV]
-        # print(f'{self.subgraph_out_path = }')
-        # print(f'{self.name = }')
-        # subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
 
     # TODO:for external modifications
     def evaluate_subgraph_error(self) -> float:

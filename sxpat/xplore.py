@@ -6,6 +6,7 @@ import functools as ft
 import math
 import networkx as nx
 import os
+from os.path import join as path_join
 
 from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.graph import IOGraph
@@ -39,9 +40,9 @@ def explore_grid(specs_obj: Specifications):
 
     # initial setup
     # store circuits
-    FS.copy(specs_obj.exact_benchmark, tmp := os.path.join(specs_obj.path.run.verilog, 'origin.v'))
+    FS.copy(specs_obj.exact_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'origin.v'))
     specs_obj.exact_benchmark = tmp
-    FS.copy(specs_obj.current_benchmark, tmp := os.path.join(specs_obj.path.run.verilog, 'current.v'))
+    FS.copy(specs_obj.current_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'current.v'))
     specs_obj.current_benchmark = tmp
     # setup caches
     AnnotatedGraph.set_loading_cache_size(specs_obj.wanted_models + 2)
@@ -287,7 +288,7 @@ def explore_grid(specs_obj: Specifications):
                 pprint.success(f'{status.upper()} ({len(models)} models found)')
 
                 #
-                base_path = f'{specs_obj.path.run.verilog}/gen_iter{specs_obj.iteration}_model{{model_number}}.v'
+                base_path = path_join(specs_obj.path.run.verilog,f'gen_iter{specs_obj.iteration}_model{{model_number}}.v')
                 cur_model_results2: List[ExpandedCircuitData] = list()
                 # cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
                 #
