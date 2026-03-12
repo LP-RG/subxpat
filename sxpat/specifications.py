@@ -6,9 +6,9 @@ import dataclasses as dc
 
 import time
 import re
+import tempfile
 import argparse
 import functools as ft
-from pathlib import Path
 import os.path
 
 from sxpat.utils.filesystem import FS
@@ -80,6 +80,7 @@ class EnumChoicesAction(argparse.Action):
 class Paths:
     @dc.dataclass(frozen=True)
     class RunFiles:
+        run_id: dc.InitVar[str]
         base_folder: str = 'output'
         # persistent folders
         graphviz: str = dc.field(default='graphviz', init=False)
@@ -90,14 +91,23 @@ class Paths:
         run_stats: str = dc.field(default='run_stats.csv', init=False)
         # temporary files and folders
         temporary: str = dc.field(default='tmp', init=False)
+        keep_temporary: dc.InitVar[bool] = False
 
-        def __post_init__(self) -> None:
-            object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, self.graphviz))
-            object.__setattr__(self, 'verilog', os.path.join(self.base_folder, self.verilog))
-            object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, self.solver_scripts))
-            object.__setattr__(self, 'arguments', os.path.join(self.base_folder, self.arguments))
-            object.__setattr__(self, 'run_stats', os.path.join(self.base_folder, self.run_stats))
-            object.__setattr__(self, 'temporary', os.path.join(self.base_folder, self.temporary))
+        def __post_init__(self, run_id: str, keep_temporary: bool) -> None:
+            #
+            object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, run_id, self.graphviz))
+            object.__setattr__(self, 'verilog', os.path.join(self.base_folder, run_id, self.verilog))
+            object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, run_id, self.solver_scripts))
+            #
+            object.__setattr__(self, 'arguments', os.path.join(self.base_folder, run_id, self.arguments))
+            object.__setattr__(self, 'run_stats', os.path.join(self.base_folder, run_id, self.run_stats))
+            #
+            tempdir = os.path.join(self.base_folder, self.temporary)
+            if not keep_temporary:
+                _tempdir = tempfile.gettempdir()
+                if _tempdir != os.path.curdir and _tempdir != os.path.abspath(os.path.curdir):
+                    tempdir = os.path.join(_tempdir, run_id)
+            object.__setattr__(self, 'temporary', tempdir)
 
         @property
         def folders(self) -> Iterable[str]:
@@ -119,8 +129,8 @@ class Paths:
     run: RunFiles
     synthesis: Synthesis
 
-    def __init__(self, output_base: str, cell_library: str) -> None:
-        object.__setattr__(self, 'run', self.RunFiles(output_base))
+    def __init__(self, output_base: str, run_id:str, cell_library: str, keep_temporary: bool) -> None:
+        object.__setattr__(self, 'run', self.RunFiles(run_id, output_base, keep_temporary))
         object.__setattr__(self, 'synthesis', self.Synthesis(cell_library))
 
     def __repr__(self):
@@ -178,6 +188,7 @@ class Specifications:
     path: Paths = dc.field(init=False)
 
     # other
+    debug: bool
     timeout: float
     parallel: bool
     clean: bool
@@ -189,10 +200,10 @@ class Specifications:
 
     def __post_init__(self, path_output: str, path_cell_library: str):
         # computed constants
-        self.run_id = FS.get_unique_filename(prefix=f'{self.time_id}_')
+        self.run_id = FS.get_unique_dirname(prefix=f'{self.time_id}_')
 
         # construct instance
-        self.path = Paths(os.path.join(path_output, self.run_id), path_cell_library)
+        self.path = Paths(path_output, self.run_id, path_cell_library, self.debug)
 
     # > computed
 
@@ -260,12 +271,12 @@ class Specifications:
         _ex_bench = parser.add_argument(metavar='exact-benchmark',
                                         dest='exact_benchmark',
                                         type=str,
-                                        help='Circuit to approximate (Verilog file in `input/ver/`)')
+                                        help='Circuit to approximate (in Verilog format)')
 
         _cur_bench = parser.add_argument('--current-benchmark', '--curr',
                                          type=str,
                                          default=None,
-                                         help='Approximated circuit used to continue the execution (Verilog file in `input/ver/`) (default: same as exact-benchmark)')
+                                         help='Approximated circuit used to continue the execution (in Verilog format) (default: same as exact-benchmark)')
 
         # > graph labeling
         _lab_group = parser.add_argument_group('Labeling')
@@ -385,12 +396,11 @@ class Specifications:
         # > config
         _cfg_group = parser.add_argument_group('Configuration')
 
-        # NOTE: this is not yet documented in the README as it currently does nothing
         _out_fold = _cfg_group.add_argument('--output',
                                             type=str,
                                             dest='path_output',
                                             default=Paths.RunFiles.base_folder,
-                                            help=f'(WIP) The base directory for the output (default: {Paths.RunFiles.base_folder})')
+                                            help=f'The base directory for the output (default: {Paths.RunFiles.base_folder})')
 
         _cfg_lib = _cfg_group.add_argument('--cell-library',
                                            type=str,
@@ -400,6 +410,10 @@ class Specifications:
 
         # > other stuff
         _misc_group = parser.add_argument_group('Miscellaneous')
+
+        _debug = _misc_group.add_argument('--debug',
+                                          action='store_true',
+                                          help='If the system should be run in debug mode')
 
         _timeout = _misc_group.add_argument('--timeout',
                                             type=float,
