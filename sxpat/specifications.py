@@ -94,13 +94,14 @@ class Paths:
         keep_temporary: dc.InitVar[bool] = False
 
         def __post_init__(self, run_id: str, keep_temporary: bool) -> None:
+            object.__setattr__(self, 'base_folder', os.path.join(self.base_folder, run_id))
             #
-            object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, run_id, self.graphviz))
-            object.__setattr__(self, 'verilog', os.path.join(self.base_folder, run_id, self.verilog))
-            object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, run_id, self.solver_scripts))
+            object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, self.graphviz))
+            object.__setattr__(self, 'verilog', os.path.join(self.base_folder, self.verilog))
+            object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, self.solver_scripts))
             #
-            object.__setattr__(self, 'arguments', os.path.join(self.base_folder, run_id, self.arguments))
-            object.__setattr__(self, 'run_stats', os.path.join(self.base_folder, run_id, self.run_stats))
+            object.__setattr__(self, 'arguments', os.path.join(self.base_folder, self.arguments))
+            object.__setattr__(self, 'run_stats', os.path.join(self.base_folder, self.run_stats))
             #
             tempdir = os.path.join(self.base_folder, self.temporary)
             if not keep_temporary:
@@ -129,7 +130,7 @@ class Paths:
     run: RunFiles
     synthesis: Synthesis
 
-    def __init__(self, output_base: str, run_id:str, cell_library: str, keep_temporary: bool) -> None:
+    def __init__(self, output_base: str, run_id: str, cell_library: str, keep_temporary: bool) -> None:
         object.__setattr__(self, 'run', self.RunFiles(run_id, output_base, keep_temporary))
         object.__setattr__(self, 'synthesis', self.Synthesis(cell_library))
 
@@ -182,16 +183,17 @@ class Specifications:
     et: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     error_partitioning: ErrorPartitioningType
 
-    # config
+    # files and folders
     path_output: dc.InitVar[str]
     path_cell_library: dc.InitVar[str]
     path: Paths = dc.field(init=False)
+    should_archive: bool
 
     # other
     debug: bool
     timeout: float
     parallel: bool
-    time_id: str = dc.field(init=False, default_factory=lambda: int_to_strbase(time.time_ns()))
+    timestamp: str = dc.field(init=False, default_factory=time.time_ns)
     run_id: str = dc.field(init=False)
 
     # storage
@@ -199,7 +201,7 @@ class Specifications:
 
     def __post_init__(self, path_output: str, path_cell_library: str):
         # computed constants
-        self.run_id = FS.get_unique_dirname(prefix=f'{self.time_id}_')
+        self.run_id = FS.get_unique_dirname(prefix=f'{int_to_strbase(self.timestamp)}_')
 
         # construct instance
         self.path = Paths(path_output, self.run_id, path_cell_library, self.debug)
@@ -264,6 +266,7 @@ class Specifications:
         parser = argparse.ArgumentParser(description='Run the XPat system',
                                          epilog='Developed by Prof. Pozzi research team',
                                          formatter_class=argparse.RawTextHelpFormatter)
+        parser.add_argument('-?', action='help')
 
         # > benchmark
 
@@ -392,20 +395,25 @@ class Specifications:
                                         default=ErrorPartitioningType.ASCENDING,
                                         help='The error partitioning algorithm to use (default: asc)')
 
-        # > config
-        _cfg_group = parser.add_argument_group('Configuration')
+        # > files and folders stuff
+        _faf_group = parser.add_argument_group('Files and folders')
 
-        _out_fold = _cfg_group.add_argument('--output',
+        _out_fold = _faf_group.add_argument('--output',
                                             type=str,
                                             dest='path_output',
                                             default=Paths.RunFiles.base_folder,
                                             help=f'The base directory for the output (default: {Paths.RunFiles.base_folder})')
 
-        _cfg_lib = _cfg_group.add_argument('--cell-library',
-                                           type=str,
-                                           dest='path_cell_library',
-                                           default=Paths.Synthesis.cell_library,
-                                           help=f'The cell library file to use in the metrics estimation (default: {Paths.Synthesis.cell_library})')
+        _cell_lib = _faf_group.add_argument('--cell-library',
+                                            type=str,
+                                            dest='path_cell_library',
+                                            default=Paths.Synthesis.cell_library,
+                                            help=f'The cell library file to use in the metrics estimation (default: {Paths.Synthesis.cell_library})')
+
+        _shd_archive = _faf_group.add_argument('--archive',
+                                               action='store_true',
+                                               dest='should_archive',
+                                               help='If the generated files should be archived at the end of the execution')
 
         # > other stuff
         _misc_group = parser.add_argument_group('Miscellaneous')
