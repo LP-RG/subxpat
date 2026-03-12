@@ -74,8 +74,8 @@ python3 main.py exact-benchmark [options]
 Here are all the parameters with their arguments and descriptions:
 | **parameter**                                 | **argument**                            | **default value**                  | **description**                                                        |
 | :-------------------------------------------: | --------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------- |
-| `exact-benchmark`                             | Verilog file in `input/ver/`            |                                    | Circuit to approximate                                                 |
-| `--current-benchmark` <br> `--curr`           | Verilog file in `input/ver/`            | the same as <br> `exact-benchmark` | Approximated circuit used to continue the execution                    |
+| `exact-benchmark`                             | `path` to Verilog file                  |                                    | Circuit to approximate                                                 |
+| `--current-benchmark` <br> `--curr`           | `path` to Verilog file                  | the same as <br> `exact-benchmark` | Approximated circuit used to continue the execution                    |
 | `--max-labeling`                              |                                         |                                    | Nodes are weighted using their maximum error, instead of minimum error |
 | `--no-partial-labeling`                       |                                         |                                    | Weights are assigned to all nodes, not only the relevant ones          |
 | `--extraction-mode` <br> `--mode`             | { 1, 2, 3, 4, 5, 55, 6, 11, 12 }        | 55                                 | Subgraph extraction algorithm to use                                   |
@@ -94,10 +94,12 @@ Here are all the parameters with their arguments and descriptions:
 | `--max-ppo` <br> `--max-products-per-output`  | `int` > 0                               |                                    | The maximum number of products per output                              |
 | `--max-pit` <br> `--products-in-total`        | `int` > 0                               |                                    | The maximum number of products in total                                |
 | `--wanted-models`                             | `int` > 0                               | 1                                  | Wanted number of models to generate at each step                       |
+| `--encoding`                                  | { z3int, z3bvec, z3dint, z3dbvec, qbf } | z3bvec                             | The encoding to use in solving                                         |
 | `--max-error` <br> `-e`                       | `int` > 0                               |                                    | The maximum allowable error                                            |
 | `--error-partitioning` <br> `--epar`          | { asc, desc, smart_asc, smart_desc }    | asc                                | The error partitioning algorithm to use                                |
-| `--encoding`                                  | { z3int, z3bvec, z3dint, z3dbvec, qbf } | z3bvec                             | The encoding to use in solving                                         |
-| `--cell-library`                              |                                         | `config/gscl45nm.lib`              | The cell library file to use in the metrics estimation                 |
+| `--output`                                    | `path` to folder                        | `output/`                          | The base directory for the output                                      |
+| `--cell-library`                              | `path` to lib file                      | `config/gscl45nm.lib`              | The cell library file to use in the metrics estimation                 |
+| `--debug`                                     |                                         | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
 | `--timeout`                                   | `float` > 0                             | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
 | `--parallel`                                  |                                         |                                    | Run in parallel whenever possible                                      |
 | `--clean`                                     |                                         |                                    | Reset the output folder before running                                 |
