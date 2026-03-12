@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, NoReturn, Union
+from typing import Any, Dict, List, Mapping, NoReturn, Union
 from bidict import bidict
 
 import itertools as it
@@ -45,9 +45,13 @@ class LiveStorage:
     @property
     def destination(self) -> str: return self._destination
 
-    def stage(self, **kwargs: Any) -> None:
+    def stage(self, mapping: Mapping[str, Any] = dict(), /, **kwargs: Any) -> None:
+        """
+            Stages all given values at their given key on the current stack.
+        """
+
         # loop in order through all new key/value pairs
-        for (key, value) in kwargs.items():
+        for (key, value) in it.chain(kwargs.items(), mapping.items()):
             # add key to _order if first occurrence
             if key not in self._order:
                 self._order[key] = len(self._order)
