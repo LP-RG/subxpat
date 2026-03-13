@@ -98,8 +98,9 @@ class LiveStorage:
         # skip if there is no data to save
         if self._save_from == len(self._storage): return
 
-        # select opening mode depending on if it is the first save or not
-        with open(self._destination, 'a') as ofile:
+        # select opening mode
+        wanted_mode = 'w' if self._save_from == 0 else 'a'
+        with open(self._destination, wanted_mode) as ofile:
             writer = csv.DictWriter(ofile, self._order.keys())
 
             # write header if it is the first save
