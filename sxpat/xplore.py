@@ -195,6 +195,14 @@ def explore_grid(specs_obj: Specifications):
             prev_actual_error = 0
             continue
 
+        if v2:
+            for node in current_graph.subgraph_output_dict.values():
+                exact_circ = iograph_from_legacy(exact_graph if specs_obj.v2_exact_relabel else current_graph)
+                current_circ = sgraph_from_legacy(current_graph)
+                start = Timer.now()
+                current_graph.graph.nodes[node]['weight'] = calc_label(exact_circ, current_circ, node, specs_obj)
+                print(f'relabeling_time_for_{node} = {Timer.now() - start}')
+
         # convert from legacy graphs to refactored circuits
         exact_circ = iograph_from_legacy(exact_graph)
         current_circ = sgraph_from_legacy(current_graph)

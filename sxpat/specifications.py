@@ -108,6 +108,7 @@ class Specifications:
     current_benchmark: str  # rw
 
     # labeling
+    v2_exact_relabel: bool
     min_labeling: bool
     partial_labeling: bool
 
@@ -238,6 +239,11 @@ class Specifications:
 
         # > graph labeling
         _lab_group = parser.add_argument_group('Labeling')
+
+
+        _relabel = _lab_group.add_argument('--v2-exact-relabel',
+                                            action='store_true',
+                                            help='relabel using relative to origin')
 
         _max_lab = _lab_group.add_argument('--max-labeling',
                                            action='store_false',
