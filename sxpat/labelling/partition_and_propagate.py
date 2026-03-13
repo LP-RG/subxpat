@@ -43,6 +43,7 @@ def apply_logic(op, inputs):
         return sum(inputs) % 2
     return 0
 
+# TODO：我没有管如果是单个节点会怎么样？假设没有subgraph，单个节点没有必要算这个了就，然后
 class Subgraph:
     def __init__(self, sub_id, members, inputs, outputs):
         self.sub_id = sub_id
@@ -78,7 +79,6 @@ class Subgraph:
                  self.truth_table[combo] = res_out
 
 
-    # TODO:I am not sure if it is correct
     # Analyze monotonicity and generate matrix Ms
     def derive_ms(self): #derive_propagation_matrix
 
@@ -182,7 +182,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
             inputs_of_subgraph[root_v].add(u)
             outputs_of_subgraph[root_u].add(u)
 
-    # Primary Outputs
+    # ERROR：Primary Outputs(if those outputs has no input????)
     for node in graph.nodes:
         if graph.out_degree(node) == 0:
             sub_id = graph.nodes[node]['subgraph_id']
@@ -212,10 +212,60 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     # step 3: Propagation
     # create sorted subgraph id list
 
-    abs_g = nx.DiGraph()
-    abs_g.add_nodes_from(all_subgraph_objects.keys())
+    sub_id_graph = nx.DiGraph()
+
+    for sub_id, sg in all_subgraph_objects.items():
+        sub_id_graph.add_node(sub_id)
+
+        for in_node in sg.inputs:
+
+            preds = list(graph.predecessors(in_node))
+
+            for p in preds:
+                # get the parent subgraph id
+                parent_sub_id=graph.nodes[p].get('subgraph_id')
+
+                if parent_sub_id and parent_sub_id != sub_id:
+                    sub_id_graph.add_edge(parent_sub_id,sub_id)
+
+    sorted_sub_id_list=list(reversed(list(nx.topological_sort(sub_id_graph))))
 
     # give weight to each output node
+    node_weights = defaultdict(int) #use this to store node_weights
+
+    for node in graph.nodes:
+        label = graph.nodes[node].get("label", "")
+        
+        if label.startswith("out"):
+            # assume all the primary output nodes is outXXX
+            bit_index = int(label.replace("out", ""))
+
+            #out0=1, out1=2, out2=4, out3=8...
+            node_weights[node] = 1 << bit_index
+
+    
+    for sub_id in sorted_sub_id_list:
+
+
+        sg = all_subgraph_objects[sub_id]
+
+        # 1.  get W_out
+        w_out = [node_weights[out_node] for out_node in sg.outputs]
+
+        # 2. calculate (W_in)
+        # W_in[i] = sum( |M[i][j]| * W_out[j] )
+        for i, in_node in enumerate(sg.inputs):
+             
+             current_in_weight = 0
+
+             for j in range(len(sg.outputs)):
+                current_in_weight += sg.matrix[i][j] * w_out[j]
+        
+        # TODO:
+        node_weights[in_node] += current_in_weight
+
+
+
 
 
     # step 4: Subgraph simulation for internal nodes
@@ -228,3 +278,5 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
         'sub_outputs': outputs_of_subgraph
     }
     return partition_results
+
+
