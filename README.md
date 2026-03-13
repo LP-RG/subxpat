@@ -71,7 +71,10 @@ SubXPAT is used by running the following command:
 python3 main.py exact-benchmark [options]
 ```
 
+### Arguments
+
 Here are all the parameters with their arguments and descriptions:
+
 | **parameter**                                 | **argument**                            | **default value**                  | **description**                                                        |
 | :-------------------------------------------: | --------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------- |
 | `exact-benchmark`                             | `path` to Verilog file                  |                                    | Circuit to approximate                                                 |
@@ -105,30 +108,36 @@ Here are all the parameters with their arguments and descriptions:
 | `--parallel`                                  |                                         |                                    | Run in parallel whenever possible                                      |
 | `--help` <br> `-h` `-?`                       |                                         |                                    | Show the help message and exit                                         |
 
+### Results
+
+Once a command is finished executing, you can find the outputs in the `output/{#ID}/` folder, where `#ID` is a unique id assigned to the run, printed at the beginning of the execution.
+
+Inside the `output/{#ID}/` folder, the structure is as follow:
+- `arguments.csv`: the file containing the run specifications, taken from the command line
+- `run_stats.csv`: the file containing details for every step of the execution
+- `verilog/`: the folder containing all generated circuits in Verilog format
+
+If the `--debug` flag is used, more folders will be available:
+- `graphviz/`: the folder containing a visual representation of the selected subgraph of each iteration
+- `scripts/`: the folder containing all generated solver scripts
+- `tmp/`: the folder containing other temporary or intermediate products
+
 ### Examples
 
 To execute the framework with the XPAT algorithm in the standard configuration, run the following command:
 ```bash
-python3 main.py adder_i8_o5 --max-lpp=8 --max-ppo=32 --max-error=16
+python3 main.py input/v/adder_i8_o5.v --max-lpp=8 --max-ppo=32 --max-error=16
 ```
 
 To execute the framework with SubXPAT iterations, bit-vector logic encoding, and the defaults, run the following command:
 ```bash
-python3 main.py adder_i8_o5 --subxpat --encoding=z3bvec --max-lpp=8 --max-ppo=10 --imax=6 --omax=3 --max-error=16
+python3 main.py input/v/adder_i8_o5.v --subxpat --encoding=z3bvec --max-lpp=8 --max-ppo=10 --imax=6 --omax=3 --max-error=16
 ```
 
 To execute the framework with SubXPAT iterations, integer logic encoding, subgraph extraction mode 5 (all sub-outputs weight must be less than the error threshold), maximum labeling, ..., run the following command:
 ```bash
-python3 main.py adder_i8_o5 --subxpat --encoding=z3int --extraction-mode=5 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8
+python3 main.py input/v/adder_i8_o5.v --subxpat --encoding=z3int --extraction-mode=5 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8
 ```
-
-
-Once a command is finished executing, you can find the outputs in the following directories:
-
-`output/csv/` contains the log of execution and all information for each iteration.
-`output/ver/` contains the Verilog descriptions of all the approximate circuits found.
-`output/gv/` contains the information of all the subgraphs that have been selected, in a visual form.
-
 
 ## Known limitations
 
