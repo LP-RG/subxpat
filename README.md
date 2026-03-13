@@ -34,7 +34,6 @@ To prepare the system for execution you will need to follow a few steps:
     # individual commands
     make py_init     # create python environment
     make py_dep      # install/update requirements
-    make local_dep   # create input folders and local files
     ```
 
 2. Activate the python environment:
