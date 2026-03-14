@@ -52,6 +52,7 @@ class DistanceType(enum.Enum):
     ABSOLUTE_DIFFERENCE_OF_WEIGHTED_SUM = 'adows'
     HAMMING_DISTANCE = 'hd'
     WEIGHTED_HAMMING_DISTANCE = 'whd'
+    DOUBLE_WEIGHTED_HAMMING_DISTANCE = 'dwhd'
 
 
 class ConstantsType(enum.Enum):
