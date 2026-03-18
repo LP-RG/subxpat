@@ -53,8 +53,9 @@ class Subgraph:
         self.matrix = []          # 传播矩阵 Ms Propagation Matrix Ms
 
     def build_truth_table(self, graph):
-
-        sub_g = graph.subgraph(self.members)
+        # add output node
+        nodes_to_simulate = set(self.members) | set(self.outputs)
+        sub_g = graph.subgraph(nodes_to_simulate)
         sorted_nodes = list(nx.topological_sort(sub_g))
 
         # 2. 遍历：利用 itertools.product 产生所有 0/1 序列 
@@ -68,17 +69,15 @@ class Subgraph:
             values = dict(zip(self.inputs, combo))
 
             for node in sorted_nodes:
-                 if node in self.inputs:
-                     continue
                  
                  preds = list(graph.predecessors(node))
-                 gate_in_values = [values.get(p, 0) for p in preds]
+                 gate_in_values = [[values[p] for p in preds if p in values]]
 
                  op = graph.nodes[node].get("label")
                  values[node] = apply_logic(op, gate_in_values)
 
-                 res_out = tuple(values.get(out, 0) for out in self.outputs)
-                 self.truth_table[combo] = res_out
+            res_out = tuple(values.get(out, 0) for out in self.outputs)
+            self.truth_table[combo] = res_out
 
 
     # Analyze monotonicity and generate matrix Ms
@@ -117,6 +116,33 @@ class Subgraph:
                  elif -1 in s:           self.matrix[i][j] = 1
 
 
+# def simulate_local(graph, sg, input_combo):
+#     """算出子图内所有节点在特定输入下的值"""
+#     values = dict(zip(sg.inputs, input_combo))
+#     # 按照子图内部的拓扑序计算
+#     sub_g = graph.subgraph(sg.members)
+#     for n in nx.topological_sort(sub_g):
+#         if n in sg.inputs: continue
+#         preds = list(graph.predecessors(n))
+#         in_vals = [values[p] for p in preds if p in values]
+#         op = graph.nodes[n].get('label')
+#         values[n] = apply_logic(op, in_vals)
+#     return values
+
+# def resimulate_downstream(graph, sg, start_node, values):
+#     """从起始节点开始，仅在子图内部重新计算受影响的节点"""
+#     sub_g = graph.subgraph(sg.members)
+#     # 只需处理在拓扑序中排在 start_node 之后的节点
+#     sorted_nodes = list(nx.topological_sort(sub_g))
+#     start_idx = sorted_nodes.index(start_node)
+    
+#     for i in range(start_idx + 1, len(sorted_nodes)):
+#         n = sorted_nodes[i]
+#         preds = list(graph.predecessors(n))
+#         in_vals = [values[p] for p in preds if p in values]
+#         op = graph.nodes[n].get('label')
+#         values[n] = apply_logic(op, in_vals)
+#     return values
 
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
@@ -268,6 +294,46 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
 
     # step 4: Subgraph simulation for internal nodes
+
+    # # --- Step 4: 内部节点权重仿真 ---
+    # for sid, sg in all_subgraph_objects.items():
+    #     local_nodes = set(sg.members) | set(sg.inputs) | set(sg.outputs)
+    #     sub_g = graph.subgraph(local_nodes)
+    #     sorted_local = list(nx.topological_sort(sub_g))
+    #     w_out_vals = [graph.nodes[on]['weight'] for on in sg.outputs]
+        
+    #     internal_nodes = [n for n in sg.members]
+        
+    #     for node in internal_nodes:
+    #         max_impact = 0
+    #         for combo in itertools.product([0, 1], repeat=len(sg.inputs)):
+    #             # 局部仿真
+    #             vals = {n: 0 for n in local_nodes}
+    #             vals.update(dict(zip(sg.inputs, combo)))
+    #             for n in sorted_local:
+    #                 if n in sg.inputs: continue
+    #                 ps = [p for p in graph.predecessors(n) if p in vals]
+    #                 if ps:
+    #                     vals[n] = apply_logic(graph.nodes[n].get('label'), [vals[p] for p in ps])
+                
+    #             # 翻转仿真
+    #             flipped_vals = vals.copy()
+    #             flipped_vals[node] = 1 - vals[node]
+    #             # 重新计算 downstream
+    #             start_idx = sorted_local.index(node)
+    #             for i in range(start_idx + 1, len(sorted_local)):
+    #                 n = sorted_local[i]
+    #                 ps = [p for p in graph.predecessors(n) if p in flipped_vals]
+    #                 if ps:
+    #                     flipped_vals[n] = apply_logic(graph.nodes[n].get('label'), [flipped_vals[p] for p in ps])
+                
+    #             # 影响累加
+    #             impact = sum(w_out_vals[j] for j, on in enumerate(sg.outputs) if vals[on] != flipped_vals[on])
+    #             max_impact = max(max_impact, impact)
+            
+    #         graph.nodes[node]['weight'] = max_impact
+
+    return nx.get_node_attributes(graph, 'weight')
 
     return nx.get_node_attributes(graph, 'weight')
 
