@@ -43,23 +43,25 @@ def apply_logic(op, inputs):
         return sum(inputs) % 2
     return 0
 
-# TODO：我没有管如果是单个节点会怎么样？假设没有subgraph，单个节点没有必要算这个了就，然后
 class Subgraph:
     def __init__(self, sub_id, members, inputs, outputs):
         self.sub_id = sub_id
-        self.members = members    # 子图内的节点
+        self.members = members    # 子图内的节点 # Nodes within the subgraph
         self.inputs = inputs      
         self.outputs = outputs    
-        self.truth_table = {}     # 核心数据：真值表
-        self.matrix = []          # 核心数据：传播矩阵 Ms
+        self.truth_table = {}     # 真值表 Truth table
+        self.matrix = []          # 传播矩阵 Ms Propagation Matrix Ms
 
     def build_truth_table(self, graph):
 
         sub_g = graph.subgraph(self.members)
         sorted_nodes = list(nx.topological_sort(sub_g))
 
-        # 2. 遍历：利用 itertools.product 产生所有 0/1 序列
+        # 2. 遍历：利用 itertools.product 产生所有 0/1 序列 
+        #2. Traversal: Use itertools.product to generate all 0/1 sequences.
+        
         # repeat=len(self.inputs) 会自动根据输入个数生成 000, 001...
+        #`repeat=len(self.inputs)` will automatically generate 000, 001, ... based on the number of inputs.
         for combo in itertools.product([0, 1], repeat=len(self.inputs)):
 
             # zip input id and its number
@@ -82,14 +84,16 @@ class Subgraph:
     # Analyze monotonicity and generate matrix Ms
     def derive_ms(self): #derive_propagation_matrix
 
+        #  创造空的M矩阵 
+        #  Create an empty Ms matrix
         num_in = len(self.inputs)
         num_out = len(self.outputs)
 
-        self.matrix = [[0] * num_out for i in range(num_in)]
+        self.matrix = [[0] * num_out for i in range(num_in)] 
 
         # store the different between different output
         diff_sets = [[set() for _ in range(num_out)] for _ in range(num_in)]
-
+        # 如果真的要根据情况来存的话，这里需要存所有的情况，因为后需要比较
         for combo, out_v1 in self.truth_table.items():
              for i in range(num_in):
                  if combo[i] == 0:
@@ -104,6 +108,7 @@ class Subgraph:
                          if diff != 0:
                              diff_sets[i][j].add(diff)
 
+        # TODO: the logic has problem
         for i in range(num_in):
              for j in range(num_out):
                  s = diff_sets[i][j]
@@ -111,12 +116,6 @@ class Subgraph:
                  if 1 in s: self.matrix[i][j] = 1
                  elif -1 in s:           self.matrix[i][j] = 1
 
-
-
-
-    def propagate(self, out_weights):
-        """计算 Win = Ms * Wout"""
-        pass
 
 
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
@@ -210,8 +209,9 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
          all_subgraph_objects[sub_id] = sg
 
     # step 3: Propagation
-    # create sorted subgraph id list
 
+    # create sorted subgraph id list
+    # create a graph only with the sub_id node and all the input and output edge
     sub_id_graph = nx.DiGraph()
 
     for sub_id, sg in all_subgraph_objects.items():
@@ -227,11 +227,12 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
                 if parent_sub_id and parent_sub_id != sub_id:
                     sub_id_graph.add_edge(parent_sub_id,sub_id)
-
+    
+    # get the sorted subgraph list, use it to calculate the weight of each subgraph
     sorted_sub_id_list=list(reversed(list(nx.topological_sort(sub_id_graph))))
 
-    # give weight to each output node
-    node_weights = defaultdict(int) #use this to store node_weights
+
+    nx.set_node_attributes(graph, 0, 'weight')
 
     for node in graph.nodes:
         label = graph.nodes[node].get("label", "")
@@ -241,16 +242,18 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
             bit_index = int(label.replace("out", ""))
 
             #out0=1, out1=2, out2=4, out3=8...
-            node_weights[node] = 1 << bit_index
+            graph.nodes[node]['weight'] = 1 << bit_index
 
     
     for sub_id in sorted_sub_id_list:
 
+        if sub_id not in all_subgraph_objects:
+            continue
 
         sg = all_subgraph_objects[sub_id]
 
         # 1.  get W_out
-        w_out = [node_weights[out_node] for out_node in sg.outputs]
+        w_out = [graph.nodes[out_node]['weight'] for out_node in sg.outputs]
 
         # 2. calculate (W_in)
         # W_in[i] = sum( |M[i][j]| * W_out[j] )
@@ -260,23 +263,22 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
              for j in range(len(sg.outputs)):
                 current_in_weight += sg.matrix[i][j] * w_out[j]
-        
-        # TODO:
-        node_weights[in_node] += current_in_weight
+            
+             graph.nodes[in_node]['weight'] += current_in_weight
 
 
+    # step 4: Subgraph simulation for internal nodes
 
-
+    return nx.get_node_attributes(graph, 'weight')
 
     # step 4: Subgraph simulation for internal nodes
     ...
 
     # return the mapping from names to weights
-    partition_results = {
-        'node_to_subid': nx.get_node_attributes(graph, 'subgraph_id'),
-        'sub_inputs': inputs_of_subgraph,
-        'sub_outputs': outputs_of_subgraph
-    }
-    return partition_results
-
+    # partition_results = {
+    #     'node_to_subid': nx.get_node_attributes(graph, 'subgraph_id'),
+    #     'sub_inputs': inputs_of_subgraph,
+    #     'sub_outputs': outputs_of_subgraph
+    # }
+    # return partition_results
 
