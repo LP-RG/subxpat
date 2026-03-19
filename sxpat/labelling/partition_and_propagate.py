@@ -115,35 +115,6 @@ class Subgraph:
                  if 1 in s: self.matrix[i][j] = 1
                  elif -1 in s:           self.matrix[i][j] = 1
 
-
-# def simulate_local(graph, sg, input_combo):
-#     """算出子图内所有节点在特定输入下的值"""
-#     values = dict(zip(sg.inputs, input_combo))
-#     # 按照子图内部的拓扑序计算
-#     sub_g = graph.subgraph(sg.members)
-#     for n in nx.topological_sort(sub_g):
-#         if n in sg.inputs: continue
-#         preds = list(graph.predecessors(n))
-#         in_vals = [values[p] for p in preds if p in values]
-#         op = graph.nodes[n].get('label')
-#         values[n] = apply_logic(op, in_vals)
-#     return values
-
-# def resimulate_downstream(graph, sg, start_node, values):
-#     """从起始节点开始，仅在子图内部重新计算受影响的节点"""
-#     sub_g = graph.subgraph(sg.members)
-#     # 只需处理在拓扑序中排在 start_node 之后的节点
-#     sorted_nodes = list(nx.topological_sort(sub_g))
-#     start_idx = sorted_nodes.index(start_node)
-    
-#     for i in range(start_idx + 1, len(sorted_nodes)):
-#         n = sorted_nodes[i]
-#         preds = list(graph.predecessors(n))
-#         in_vals = [values[p] for p in preds if p in values]
-#         op = graph.nodes[n].get('label')
-#         values[n] = apply_logic(op, in_vals)
-#     return values
-
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
     # TODO: Xiaozihan
@@ -294,46 +265,58 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
 
     # step 4: Subgraph simulation for internal nodes
+    # --- Step 4: 内部节点权重仿真 ---
+    for sid, sg in all_subgraph_objects.items():
 
-    # # --- Step 4: 内部节点权重仿真 ---
-    # for sid, sg in all_subgraph_objects.items():
-    #     local_nodes = set(sg.members) | set(sg.inputs) | set(sg.outputs)
-    #     sub_g = graph.subgraph(local_nodes)
-    #     sorted_local = list(nx.topological_sort(sub_g))
-    #     w_out_vals = [graph.nodes[on]['weight'] for on in sg.outputs]
-        
-    #     internal_nodes = [n for n in sg.members]
-        
-    #     for node in internal_nodes:
-    #         max_impact = 0
-    #         for combo in itertools.product([0, 1], repeat=len(sg.inputs)):
-    #             # 局部仿真
-    #             vals = {n: 0 for n in local_nodes}
-    #             vals.update(dict(zip(sg.inputs, combo)))
-    #             for n in sorted_local:
-    #                 if n in sg.inputs: continue
-    #                 ps = [p for p in graph.predecessors(n) if p in vals]
-    #                 if ps:
-    #                     vals[n] = apply_logic(graph.nodes[n].get('label'), [vals[p] for p in ps])
-                
-    #             # 翻转仿真
-    #             flipped_vals = vals.copy()
-    #             flipped_vals[node] = 1 - vals[node]
-    #             # 重新计算 downstream
-    #             start_idx = sorted_local.index(node)
-    #             for i in range(start_idx + 1, len(sorted_local)):
-    #                 n = sorted_local[i]
-    #                 ps = [p for p in graph.predecessors(n) if p in flipped_vals]
-    #                 if ps:
-    #                     flipped_vals[n] = apply_logic(graph.nodes[n].get('label'), [flipped_vals[p] for p in ps])
-                
-    #             # 影响累加
-    #             impact = sum(w_out_vals[j] for j, on in enumerate(sg.outputs) if vals[on] != flipped_vals[on])
-    #             max_impact = max(max_impact, impact)
-            
-    #         graph.nodes[node]['weight'] = max_impact
+        local_nodes = set(sg.members) | set(sg.inputs) | set(sg.outputs)
+        sub_g = graph.subgraph(local_nodes)
+        sorted_local = list(nx.topological_sort(sub_g))
 
-    return nx.get_node_attributes(graph, 'weight')
+        
+        for combo in itertools.product([0, 1], repeat=len(sg.inputs)):  
+            # remember the normal output if do not change the value of node
+            normal_vals = dict(zip(sg.inputs, combo))
+            for n in sorted_local:
+                if n in sg.inputs: continue
+                preds = [p for p in graph.predecessors(n) if p in local_nodes]
+                in_vals = [normal_vals[p] for p in preds]
+                
+                op = graph.nodes[n].get('label')
+                normal_vals[n] = apply_logic(op, in_vals)
+
+            internal_nodes = [n for n in sg.members]
+            for target_node in internal_nodes:
+                # --- 步骤 2: 制造翻转 ---
+                # --- Step 2: Create a flip ---
+                # the value of node will change after the target_node
+                flipped_vals = normal_vals.copy()
+                flipped_vals[target_node] = 1 - normal_vals[target_node]
+
+                start_idx = sorted_local.index(target_node)
+                # --- 步骤 3: 更新 target_node 之后的节点 ---
+                # --- Step 3: Update nodes after target_node ---
+                for i in range(start_idx + 1, len(sorted_local)):
+                    n = sorted_local[i]
+                    # 重新计算该节点：它会读取到已经被“污染”的前驱新值
+                    # Recalculate the node: It will read the new value of the predecessor that has been flipped.
+                    preds = [p for p in graph.predecessors(n) if p in local_nodes]
+                    new_in_vals = [flipped_vals[p] for p in preds]
+                    op = graph.nodes[n].get('label')
+                    flipped_vals[n] = apply_logic(op, new_in_vals)
+                
+                # --- 步骤 4: 计算本次翻转的影响 ---
+                # --- Step 4: Calculate the impact of this flip ---
+                current_impact = 0
+                for j, out_node in enumerate(sg.outputs):
+                    if flipped_vals[out_node] != normal_vals[out_node]:
+                        out_node_weight = graph.nodes[out_node].get('weight', 0)
+                        current_impact += out_node_weight
+
+                old_max = graph.nodes[target_node].get('weight', 0)
+                if current_impact > old_max:
+                    graph.nodes[target_node]['weight'] = current_impact
+                    
+
 
     return nx.get_node_attributes(graph, 'weight')
 
