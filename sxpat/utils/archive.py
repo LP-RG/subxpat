@@ -30,7 +30,7 @@ def archive_files(archive_file_path: str, *paths_to_store: str, compression: int
 
         `compression` defines if the archive should be simply stored or if it should be compressed as best as possible.
 
-        raises `FileExistsError` if `archive_file_path` already exists.
+        Raises `FileExistsError` if `archive_file_path` already exists.
     """
 
     with zipfile.ZipFile(archive_file_path, 'x', compression=compression, compresslevel=9) as f:
