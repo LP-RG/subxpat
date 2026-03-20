@@ -225,10 +225,6 @@ class Specifications:
             TemplateType.SHARED: 'SharedLogic',
         }[self.template]
 
-    # @property
-    # def tool_name(self) -> str:
-    #     return f'{"Sub" if self.subxpat else ""}XPAT'
-
     @property
     def requires_subgraph_extraction(self) -> bool:
         return (
@@ -255,11 +251,6 @@ class Specifications:
             TemplateType.NON_SHARED: lambda: self.max_ppo,
             TemplateType.SHARED: lambda: self.max_pit,
         }[self.template]()
-
-    @property
-    def total_number_of_cells_per_iter(self) -> int:
-        # special_cell + ROWS * COLUMNS
-        return 1 + self.grid_param_1 * self.grid_param_2
 
     @classmethod
     def parse_args(cls):
