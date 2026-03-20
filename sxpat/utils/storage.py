@@ -98,12 +98,12 @@ class LiveStorage:
         # skip if there is no data to save
         if self._save_from == len(self._storage): return
 
-        # select opening mode
+        # select opening mode (first save/updated columns or if just append)
         wanted_mode = 'w' if self._save_from == 0 else 'a'
         with open(self._destination, wanted_mode) as ofile:
             writer = csv.DictWriter(ofile, self._order.keys())
 
-            # write header if it is the first save
+            # write header if it is the first save, or if a new field was added
             if self._save_from == 0: writer.writeheader()
 
             writer.writerows(it.islice(self._storage, self._save_from, None, None))
