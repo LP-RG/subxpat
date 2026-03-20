@@ -288,7 +288,7 @@ def explore_grid(specs_obj: Specifications):
                 pprint.success(f'{status.upper()} ({len(models)} models found)')
 
                 #
-                base_path = path_join(specs_obj.path.run.verilog,f'gen_iter{specs_obj.iteration}_model{{model_number}}.v')
+                base_path = path_join(specs_obj.path.run.verilog, f'gen_iter{specs_obj.iteration}_model{{model_number}}.v')
                 cur_model_results2: List[ExpandedCircuitData] = list()
                 # cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
                 #
@@ -376,18 +376,21 @@ def explore_grid(specs_obj: Specifications):
 
             prev_actual_error = 0
 
+            # debug
+            if specs_obj.debug: specs_obj.stats_storage.save()
+
         if status == SAT and best_model_data.area == 0:
             pprint.info3('Area zero found!\nTerminated.')
             break
 
-    # find best circuit between all the generated ones that for each order of metric
+    # find best circuit between all the generated ones for each order of metric
     return ResultCircuitsSelection(
-        for_area_power_delay=min(all_generated_circuits_data, key=lambda d: (d.area, d.power, d.delay, d.error_to_origin)),
-        for_area_delay_power=min(all_generated_circuits_data, key=lambda d: (d.area, d.delay, d.power, d.error_to_origin)),
-        for_power_area_delay=min(all_generated_circuits_data, key=lambda d: (d.power, d.area, d.delay, d.error_to_origin)),
-        for_power_delay_area=min(all_generated_circuits_data, key=lambda d: (d.power, d.delay, d.area, d.error_to_origin)),
-        for_delay_area_power=min(all_generated_circuits_data, key=lambda d: (d.delay, d.area, d.power, d.error_to_origin)),
-        for_delay_power_area=min(all_generated_circuits_data, key=lambda d: (d.delay, d.power, d.area, d.error_to_origin)),
+        area_power_delay=min(all_generated_circuits_data, key=lambda d: (d.area, d.power, d.delay, d.error_to_origin)),
+        area_delay_power=min(all_generated_circuits_data, key=lambda d: (d.area, d.delay, d.power, d.error_to_origin)),
+        power_area_delay=min(all_generated_circuits_data, key=lambda d: (d.power, d.area, d.delay, d.error_to_origin)),
+        power_delay_area=min(all_generated_circuits_data, key=lambda d: (d.power, d.delay, d.area, d.error_to_origin)),
+        delay_area_power=min(all_generated_circuits_data, key=lambda d: (d.delay, d.area, d.power, d.error_to_origin)),
+        delay_power_area=min(all_generated_circuits_data, key=lambda d: (d.delay, d.power, d.area, d.error_to_origin)),
     )
 
 
@@ -539,12 +542,41 @@ class ExpandedCircuitData:
 
 @dc.dataclass(frozen=True)
 class ResultCircuitsSelection:
-    for_area_power_delay: ExpandedCircuitData
-    for_area_delay_power: ExpandedCircuitData
-    for_power_area_delay: ExpandedCircuitData
-    for_power_delay_area: ExpandedCircuitData
-    for_delay_area_power: ExpandedCircuitData
-    for_delay_power_area: ExpandedCircuitData
+    area_power_delay: ExpandedCircuitData
+    area_delay_power: ExpandedCircuitData
+    power_area_delay: ExpandedCircuitData
+    power_delay_area: ExpandedCircuitData
+    delay_area_power: ExpandedCircuitData
+    delay_power_area: ExpandedCircuitData
+
+    @property
+    def apd(self): return self.area_power_delay
+    @property
+    def adp(self): return self.area_delay_power
+    @property
+    def pad(self): return self.power_area_delay
+    @property
+    def pda(self): return self.power_delay_area
+    @property
+    def dap(self): return self.delay_area_power
+    @property
+    def dpa(self): return self.delay_power_area
+
+
+def print_results(sel: ResultCircuitsSelection):
+    from tabulate import tabulate
+    print(tabulate(
+        headers=['metrics', 'file', 'area', 'power', 'delay'],
+        tabular_data=[
+            ['area->power->delay', sel.apd.path, sel.apd.area, sel.apd.power, sel.apd.delay],
+            ['area->delay->power', sel.adp.path, sel.adp.area, sel.adp.power, sel.adp.delay],
+            ['power->area->delay', sel.pad.path, sel.pad.area, sel.pad.power, sel.pad.delay],
+            ['power->delay->area', sel.pda.path, sel.pda.area, sel.pda.power, sel.pda.delay],
+            ['delay->area->power', sel.dap.path, sel.dap.area, sel.dap.power, sel.dap.delay],
+            ['delay->power->area', sel.dpa.path, sel.dpa.area, sel.dpa.power, sel.dpa.delay],
+        ],
+        tablefmt="simple_outline",
+    ))
 
 
 def model_compare(a: ExpandedCircuitData, b: ExpandedCircuitData) -> Union[Literal[-1] | Literal[0] | Literal[+1]]:
