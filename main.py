@@ -21,23 +21,24 @@ def main():
         csv_writer.writerows(specs_obj.constant_fields.items())
 
     # > run system
-    from sxpat.xplore import explore_grid
+    from sxpat.xplore import explore_grid, print_results
     #
     with specs_obj.stats_storage:
         results = explore_grid(specs_obj)
     # print results for each relevance of metrics
-    print(results.for_area_power_delay)
-    print(results.for_area_delay_power)
-    print(results.for_power_area_delay)
-    print(results.for_power_delay_area)
-    print(results.for_delay_area_power)
-    print(results.for_delay_power_area)
+    print_results(results)
 
     # > remove temporary files
     if not specs_obj.debug: FS.rmdir(specs_obj.path.run.temporary, True)
 
-    # > archive run (if wanted)
-    # TODO: specs_obj.should_archive
+    # > archive run (and delete raw files)
+    if specs_obj.should_archive:
+        from sxpat.utils.archive import archive_files
+        # create and fill archive
+        archive_path = f'{specs_obj.path.run.base_folder.rstrip("/")}.zip'
+        archive_files(archive_path, specs_obj.path.run.base_folder)
+        # delete raw files
+        if not specs_obj.debug: FS.rmdir(specs_obj.path.run.base_folder, recursive=True)
 
 
 class ImportTimer:
