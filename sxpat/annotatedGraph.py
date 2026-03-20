@@ -591,9 +591,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -891,9 +891,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -1193,9 +1193,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -1489,9 +1489,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -1792,9 +1792,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -2024,9 +2024,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for node in nodes:
             if node not in descendants:
-                descendants[node] = list(nx.descendants(self.graph, node))
+                descendants[node] = sorted(nx.descendants(self.graph, node))
             if node not in ancestors:
-                ancestors[node] = list(nx.ancestors(self.graph, node))
+                ancestors[node] = sorted(nx.ancestors(self.graph, node))
 
         for src in nodes:
             for des in self.graph.successors(src):
@@ -2283,9 +2283,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for node in nodes:
             if node not in descendants:
-                descendants[node] = list(nx.descendants(self.graph, node))
+                descendants[node] = sorted(nx.descendants(self.graph, node))
             if node not in ancestors:
-                ancestors[node] = list(nx.ancestors(self.graph, node))
+                ancestors[node] = sorted(nx.ancestors(self.graph, node))
 
         for src in nodes:
             for des in self.graph.successors(src):
@@ -2577,9 +2577,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -2927,9 +2927,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = list(nx.descendants(G, n))
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = list(nx.ancestors(G, n))
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
