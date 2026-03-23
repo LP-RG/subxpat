@@ -81,45 +81,56 @@ class Paths:
     @dc.dataclass(frozen=True)
     class RunFiles:
         run_id: dc.InitVar[str]
+        # main folders
         base_folder: str = 'output'
-        # persistent folders
-        graphviz: str = dc.field(default='graphviz', init=False)
         verilog: str = dc.field(default='verilog', init=False)
-        solver_scripts: str = dc.field(default='scripts', init=False)
-        # persistent files
-        arguments: str = dc.field(default='arguments.csv', init=False)
+        # main files
+        run_details: str = dc.field(default='run_details.csv', init=False)
         run_stats: str = dc.field(default='run_stats.csv', init=False)
+        # debug folders
+        graphviz: str = dc.field(default='graphviz', init=False)
+        solver_scripts: str = dc.field(default='scripts', init=False)
         # temporary files and folders
         temporary: str = dc.field(default='tmp', init=False)
-        keep_temporary: dc.InitVar[bool] = False
+        debug: dc.InitVar[bool] = False
 
-        def __post_init__(self, run_id: str, keep_temporary: bool) -> None:
+        def __post_init__(self, run_id: str, debug: bool) -> None:
+            # main folders
             object.__setattr__(self, 'base_folder', os.path.join(self.base_folder, run_id))
-            #
-            object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, self.graphviz))
             object.__setattr__(self, 'verilog', os.path.join(self.base_folder, self.verilog))
-            object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, self.solver_scripts))
-            #
-            object.__setattr__(self, 'arguments', os.path.join(self.base_folder, self.arguments))
+            # main files
+            object.__setattr__(self, 'run_details', os.path.join(self.base_folder, self.run_details))
             object.__setattr__(self, 'run_stats', os.path.join(self.base_folder, self.run_stats))
-            #
+            
+            # temporary folder
             tempdir = os.path.join(self.base_folder, self.temporary)
-            if not keep_temporary:
+            if not debug:
                 _tempdir = tempfile.gettempdir()
                 if _tempdir != os.path.curdir and _tempdir != os.path.abspath(os.path.curdir):
                     tempdir = os.path.join(_tempdir, run_id)
             object.__setattr__(self, 'temporary', tempdir)
+            
+            # debug folders
+            object.__setattr__(self, 'debug', debug)
+            if debug:
+                object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, self.solver_scripts))
+                object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, self.graphviz))
+            else:
+                object.__setattr__(self, 'solver_scripts', os.path.join(self.temporary, self.solver_scripts))
+                object.__setattr__(self, 'graphviz', os.path.join(self.temporary, self.graphviz))
 
         @property
         def folders(self) -> Iterable[str]:
-            return (
+            #
+            yield from (
                 self.base_folder,
-                #
-                self.graphviz,
                 self.verilog,
+            )
+            #
+            yield from (
+                self.temporary,
                 self.solver_scripts,
-                #
-                self.temporary
+                self.graphviz,
             )
 
     @dc.dataclass(frozen=True)

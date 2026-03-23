@@ -112,13 +112,13 @@ Here are all the parameters with their arguments and descriptions:
 Once a command is finished executing, you can find the outputs in the `output/{#ID}/` folder, where `#ID` is a unique id assigned to the run, printed at the beginning of the execution.
 
 Inside the `output/{#ID}/` folder, the structure is as follow:
-- `arguments.csv`: the file containing the run specifications, taken from the command line
+- `run_details.csv`: the file containing the run specifications, such as arguments and global timings
 - `run_stats.csv`: the file containing details for every step of the execution
 - `verilog/`: the folder containing all generated circuits in Verilog format
 
 If the `--debug` flag is used, more folders will be available:
 - `graphviz/`: the folder containing a visual representation of the selected subgraph of each iteration
-- `scripts/`: the folder containing all generated solver scripts
+- `scripts/`: the folder containing generated solver scripts
 - `tmp/`: the folder containing other temporary or intermediate products
 
 ### Examples
