@@ -165,12 +165,13 @@ def explore_grid(specs_obj: Specifications):
 
         # label graph
         if specs_obj.requires_labeling:
+            print('started labelling')
             _time = Timer.now()
             label_graph(specs_obj.current_benchmark, current_graph, specs_obj)
             _time = Timer.now() - _time
             # logging
             specs_obj.stats_storage.stage(labelling_time=_time)
-            print(f'labeling_time = {_time}')
+            print(f'labelling_time = {_time}')
 
         # extract subgraph
         _time = Timer.now()
@@ -186,8 +187,9 @@ def explore_grid(specs_obj: Specifications):
         )
         print(f'subgraph_extraction_time = {_time}')
         # logging
-        current_graph.export_annotated_graph()
-        print(f'subgraph exported at {current_graph.subgraph_out_path}')
+        if specs_obj.debug: 
+            current_graph.export_annotated_graph()
+            print(f'subgraph exported at {current_graph.subgraph_out_path}')
 
         # guard: skip if no subgraph was found
         if not subgraph_is_available:
@@ -255,7 +257,7 @@ def explore_grid(specs_obj: Specifications):
             #
             models = []
             for i in range(specs_obj.wanted_models):
-                specs_obj.sub_iteration = i
+                specs_obj.sub_iteration = f'ca{lpp}_cb{ppo}_m{i}'
 
                 # prevent parameters combination if any
                 if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
@@ -566,16 +568,16 @@ class ResultCircuitsSelection:
 def print_results(sel: ResultCircuitsSelection):
     from tabulate import tabulate
     print(tabulate(
-        headers=['metrics', 'file', 'area', 'power', 'delay'],
+        headers=['metrics', 'file', 'area', 'power', 'delay', 'error'],
         tabular_data=[
-            ['area->power->delay', sel.apd.path, sel.apd.area, sel.apd.power, sel.apd.delay],
-            ['area->delay->power', sel.adp.path, sel.adp.area, sel.adp.power, sel.adp.delay],
-            ['power->area->delay', sel.pad.path, sel.pad.area, sel.pad.power, sel.pad.delay],
-            ['power->delay->area', sel.pda.path, sel.pda.area, sel.pda.power, sel.pda.delay],
-            ['delay->area->power', sel.dap.path, sel.dap.area, sel.dap.power, sel.dap.delay],
-            ['delay->power->area', sel.dpa.path, sel.dpa.area, sel.dpa.power, sel.dpa.delay],
+            ['area->power->delay', sel.apd.path, sel.apd.area, sel.apd.power, sel.apd.delay, sel.apd.error_to_origin],
+            ['area->delay->power', sel.adp.path, sel.adp.area, sel.adp.power, sel.adp.delay, sel.adp.error_to_origin],
+            ['power->area->delay', sel.pad.path, sel.pad.area, sel.pad.power, sel.pad.delay, sel.pad.error_to_origin],
+            ['power->delay->area', sel.pda.path, sel.pda.area, sel.pda.power, sel.pda.delay, sel.pda.error_to_origin],
+            ['delay->area->power', sel.dap.path, sel.dap.area, sel.dap.power, sel.dap.delay, sel.dap.error_to_origin],
+            ['delay->power->area', sel.dpa.path, sel.dpa.area, sel.dpa.power, sel.dpa.delay, sel.dpa.error_to_origin],
         ],
-        tablefmt="simple_outline",
+        tablefmt='simple_outline',
     ))
 
 

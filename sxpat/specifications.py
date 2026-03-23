@@ -179,7 +179,7 @@ class Specifications:
     constant_false: ConstantFalseType
     wanted_models: int
     iteration: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
-    sub_iteration: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
+    sub_iteration: str = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     # exploration (2)
     max_lpp: int
     lpp: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
