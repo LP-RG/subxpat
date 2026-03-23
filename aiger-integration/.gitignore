@@ -1,0 +1,7 @@
+test.out
+venv/
+aiger/__pycache/
+aiger/aig_files/*
+aiger/ascii_aig_files/*
+aiger/gv_files/*
+aiger/gv_files_NOT/*
