@@ -1,4 +1,4 @@
-from typing import Iterable, Sequence, final
+from typing import Iterable, Iterator, final
 
 import os
 import shutil
@@ -178,7 +178,7 @@ class FS:
         else: shutil.copyfile(src_path, dst_path, follow_symlinks=True)
 
     @staticmethod
-    def walk(path: str) -> Sequence[str]:
+    def walk(path: str) -> Iterator[str]:
         """
             Tree walk generator.
 
@@ -187,13 +187,13 @@ class FS:
         """
 
         if os.path.isdir(path):
-            return tuple(
+            yield from (
                 os.path.join(dirpath, filename)
                 for dirpath, _, filenames in os.walk(path)
                 for filename in filenames
             )
         else:
-            return (path, )
+            yield path
 
     class _AlphaNumRandomSequence(tempfile._RandomNameSequence):
         characters = tempfile._RandomNameSequence.characters.replace('_', '')
