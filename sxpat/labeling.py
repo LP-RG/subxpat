@@ -1,6 +1,8 @@
 from typing import Dict, Tuple
 
+import os
 from os.path import join as path_join
+from contextlib import redirect_stdout
 
 from Z3Log_patched.verilog import Verilog
 from Z3Log_patched.graph import Graph
@@ -42,18 +44,19 @@ def labeling_explicit(exact_in_verilog_path: str, current_in_verilog_path: str,
         partial=partial_labeling, parallel=parallel
     )
 
-    if constant_value is False:
-        labels_pair = (
-            z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
-        ) * 2
-    elif constant_value is True:
-        labels_pair = (
-            z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
-        ) * 2
-    else:
-        labels_pair = (
-            z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
-            z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
-        )
+    with open(os.devnull, 'w') as f, redirect_stdout(f):
+        if constant_value is False:
+            labels_pair = (
+                z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
+            ) * 2
+        elif constant_value is True:
+            labels_pair = (
+                z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
+            ) * 2
+        else:
+            labels_pair = (
+                z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
+                z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
+            )
 
     return labels_pair
