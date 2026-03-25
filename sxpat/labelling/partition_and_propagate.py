@@ -186,29 +186,30 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
 
     # step 2: Derivation of the propagation matrix (section 3.3)
-    all_subgraph_objects = {} # 用来存储实例化后的对象，所有计算结果，方便后面计算
+    all_subgraph_objects = {} # 用来存储实例化后的对象，所有计算结果，方便后面计算 #store all subgraph objects(created by subgraph class)
+
 
     for sub_id, nodes_in_group in nodes_by_subid.items():
     #  Find all nodes of sub_id and input/output node of the graph
          sub_inputs = sorted(list(inputs_of_subgraph[sub_id]))
          sub_outputs = sorted(list(outputs_of_subgraph[sub_id]))
 
-         if not sub_inputs:
+         #if the subgraph only has primary nodes/only has output nodes,it does not have input node
+         if not sub_inputs or not sub_outputs:
             continue
         
         # 2. 实例化你的 Subgraph 类
-        # 我们把名单、输入、输出都喂给它
+        # create subgraph objects
          sg = Subgraph(sub_id, nodes_in_group, sub_inputs, sub_outputs)
 
          sg.build_truth_table(graph)
-         sg.derive_ms()
 
          all_subgraph_objects[sub_id] = sg
 
     # step 3: Propagation
 
-    # create sorted subgraph id list
-    # create a graph only with the sub_id node and all the input and output edge
+    #3.1 create sorted subgraph id list
+    # create a graph only with the sub_id node and all the outside edges of this subgraph
     sub_id_graph = nx.DiGraph()
 
     for sub_id, sg in all_subgraph_objects.items():
@@ -216,21 +217,19 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
         for in_node in sg.inputs:
 
-            preds = list(graph.predecessors(in_node))
+            parent_sub_id = graph.nodes[in_node].get('subgraph_id')
 
-            for p in preds:
-                # get the parent subgraph id
-                parent_sub_id=graph.nodes[p].get('subgraph_id')
-
-                if parent_sub_id and parent_sub_id != sub_id:
+            if parent_sub_id is not None and parent_sub_id != sub_id:
                     sub_id_graph.add_edge(parent_sub_id,sub_id)
     
     # get the sorted subgraph list, use it to calculate the weight of each subgraph
     sorted_sub_id_list=list(reversed(list(nx.topological_sort(sub_id_graph))))
 
-
+    # 3.2Initialize the weight of each node and the label of the primary output.
+    # add weight 0 to each node
     nx.set_node_attributes(graph, 0, 'weight')
 
+    # give the wright and monotonicity to the primary output node
     for node in graph.nodes:
         label = graph.nodes[node].get("label", "")
         
@@ -241,7 +240,11 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
             #out0=1, out1=2, out2=4, out3=8...
             graph.nodes[node]['weight'] = 1 << bit_index
 
+            # set the monitonicity
+            graph.nodes[node]['monotonicity'] = 'S'
+
     
+    #3.3 start Propagation the label and monotonicity 
     for sub_id in sorted_sub_id_list:
 
         if sub_id not in all_subgraph_objects:
