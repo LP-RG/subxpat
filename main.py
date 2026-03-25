@@ -1,32 +1,42 @@
 
 def main():
-    # > parse arguments
+    # instrumentations
+    from instrumentations.import_timer import ImportTimer
+    import_timer = ImportTimer.instrument()
+
+    # > parse arguments and prepare specifications
     from sxpat.specifications import Specifications
     specs_obj = Specifications.parse_args()
+    print('id:', specs_obj.run_id)
+    print('directory:', specs_obj.path.run.base_folder)
 
     # > create wanted directories
     from sxpat.utils.filesystem import FS
-    #
     for dir in specs_obj.path.run.folders: FS.mkdir(dir)
 
     # > prepare storage
-    from sxpat.utils.storage import LiveStorage
-    import csv
-    # initialize run stats storage
+    from sxpat.utils.storage import LiveStorage, AppendStorage
     specs_obj.stats_storage = LiveStorage(specs_obj.path.run.run_stats)
-    print('run stats storage created at:', specs_obj.path.run.run_stats)
-    # store arguments
-    with open(specs_obj.path.run.arguments, 'w') as args_file:
-        csv_writer = csv.writer(args_file)
-        csv_writer.writerows(specs_obj.constant_fields.items())
+    specs_obj.details_storage = AppendStorage(specs_obj.path.run.run_details)
 
     # > run system
     from sxpat.xplore import explore_grid, print_results
+    from sxpat.utils.timer import Timer
     #
-    with specs_obj.stats_storage:
+    with specs_obj.stats_storage, specs_obj.details_storage:
+        specs_obj.details_storage.add(specs_obj.constant_fields)
+
+        #
+        _t = Timer.now()
         results = explore_grid(specs_obj)
-    # print results for each relevance of metrics
-    print_results(results)
+        _t = Timer.now() - _t
+        specs_obj.details_storage.add(total_time=_t)
+
+        # print results for each relevance of metrics
+        print_results(results)
+
+        # misc
+        specs_obj.details_storage.add(import_time=import_timer.time)
 
     # > remove temporary files
     if not specs_obj.debug: FS.rmdir(specs_obj.path.run.temporary, True)
@@ -40,38 +50,4 @@ def main():
         # delete raw files
         if not specs_obj.debug: FS.rmdir(specs_obj.path.run.base_folder, recursive=True)
 
-
-class ImportTimer:
-    def __init__(self):
-        self.time = 0
-
-    def _instrument(self):
-        from time import perf_counter
-        import builtins
-
-        __builtin_import__ = builtins.__import__  # store a reference to the built-in import
-
-        def __custom_import__(name, *args, **kwargs):
-            _time = perf_counter()
-            ret = __builtin_import__(name, *args, **kwargs)
-            self.time += perf_counter() - _time
-
-            return ret  # return back the actual import result
-
-        builtins.__import__ = __custom_import__  # override the built-in import with our method
-
-    @classmethod
-    def instrument(cls):
-        timer = cls()
-        timer._instrument()
-        return timer
-
-
-if __name__ == '__main__':
-    import_timer = ImportTimer.instrument()
-    from sxpat.utils.timer import Timer
-
-    main()
-
-    print(f'imports_time = {import_timer.time}s')
-    print(f'total_time = {Timer.now()}')
+if __name__ == '__main__': main()

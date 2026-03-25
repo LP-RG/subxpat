@@ -1,9 +1,13 @@
 from typing import Any, Dict, List, Mapping, NoReturn, Union
 from bidict import bidict
 
-import itertools as it
-import copy
 import csv
+import copy
+import os.path
+import itertools as it
+
+
+__all__ = ['LiveStorage', 'AppendStorage']
 
 
 class LiveStorage:
@@ -33,11 +37,11 @@ class LiveStorage:
         """Records the order of the keys."""
         self._last_index_set: int = -1
         """Records the latest index that was set. -1 if no new stages after a commit."""
+        self._save_from: int = 0
+        """Starting index in `_storage` a `save()` call sould save."""
 
         self._destination = save_destination
         """Name of the file that will contain the storage when exiting."""
-        self._save_from: int = 0
-        """Starting index in `_storage` a `save()` call sould save."""
 
         # prepare destination file
         open(self._destination, 'x').close()
@@ -153,3 +157,48 @@ class LiveStorage:
                 ),
                 *args
             )
+
+
+class AppendStorage:
+    """
+        Represents a storage on which data can be appended to.  
+
+        The class has guards to prevent readding data with the same keys.
+
+        This class can be used with a context manager and will automatically save on exit.
+
+        @authors: Marco Biasion
+    """
+
+    def __init__(self, save_destination: str):
+        # guard
+        if os.path.exists(save_destination): raise FileExistsError(save_destination)
+
+        # 
+        self._seen_keys = set()
+
+        # open
+        self._file = open(save_destination, 'x')
+        self._writer = csv.writer(self._file)
+
+    def add(self, mapping: Mapping[str, Any] = dict(), /, **kwargs: Any):
+        # guard
+        for key in it.chain(kwargs.keys(), mapping.keys()):
+            if key in self._seen_keys: raise self.DuplicateKeyError(key)
+            self._seen_keys.add(key)
+
+        # write
+        self._writer.writerows(it.chain(kwargs.items(), mapping.items()))
+
+    def flush(self): self._file.flush()
+    def close(self): self._file.close()
+    
+    def __enter__(self): return self
+    def __exit__(self, _0, _1, _2): self.close()
+
+
+    class DuplicateKeyError(LookupError):
+        """A key was trying to be readded."""
+
+        def __init__(self, key: str, *args):
+            super().__init__(f'duplicate key: {key}', *args)

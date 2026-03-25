@@ -13,7 +13,7 @@ import os.path
 
 from sxpat.utils.filesystem import FS
 from sxpat.utils.functions import int_to_strbase
-from sxpat.utils.storage import LiveStorage
+from sxpat.utils.storage import AppendStorage, LiveStorage
 
 
 __all__ = [
@@ -209,6 +209,7 @@ class Specifications:
 
     # storage
     stats_storage: LiveStorage = dc.field(init=False, default=None, metadata={'writable': True})  # writable once
+    details_storage: AppendStorage = dc.field(init=False, default=None, metadata={'writable': True})  # writable once
 
     def __post_init__(self, path_output: str, path_cell_library: str):
         # computed constants
