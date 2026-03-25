@@ -199,6 +199,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
             continue
         
         # 2. 实例化你的 Subgraph 类
+        # TODO:有没有办法可以优化那些只有一个节点的值？有必要吗
         # create subgraph objects
          sg = Subgraph(sub_id, nodes_in_group, sub_inputs, sub_outputs)
 
@@ -243,7 +244,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
             # set the monitonicity
             graph.nodes[node]['monotonicity'] = 'S'
 
-    
+    # TODO:working
     #3.3 start Propagation the label and monotonicity 
     for sub_id in sorted_sub_id_list:
 
