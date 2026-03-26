@@ -29,7 +29,7 @@ def convert_verilog_to_gv(input_verilog_path: str, output_gv_path: str, temporar
     # prepare
     tmp_dot_path = path_join(temporary_path, 'cvtgv_to_fd.dot')
     yosys_command = f"""
-        read_verilog "{input_verilog_path}"
+        read_verilog {input_verilog_path}
         opt
         clean
         show -prefix {tmp_dot_path[:-4]} -format dot
@@ -41,8 +41,8 @@ def convert_verilog_to_gv(input_verilog_path: str, output_gv_path: str, temporar
         retcode = call([yosys_path, '-p', yosys_command], stdout=f)
         assert retcode == 0
 
-        # move .dot to .gv
-        move(tmp_dot_path, output_gv_path)
+    # move .dot to .gv
+    move(tmp_dot_path, output_gv_path)
 
 
 def setup_folder_structure(*args, **kwargs): raise RuntimeError('Why are you using this? talk with Marco')
