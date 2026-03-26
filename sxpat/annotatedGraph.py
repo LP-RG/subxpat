@@ -1,22 +1,26 @@
 from typing import Dict, List
 from typing_extensions import Self
 
-from colorama import Fore
+import re
 import time
 import datetime  # precautionary measure
+import subprocess
 import networkx as nx
 import functools as ft
+from colorama import Fore
+from sxpat.utils.print import pprint
 
 from Z3Log.graph import Graph
 from Z3Log.verilog import Verilog
-from Z3Log.utils import *
+from Z3Log_patched.utils import convert_verilog_to_gv
 
 from .config.config import *
+from Z3Log.config.path import INPUT_PATH, OUTPUT_PATH
+
 from z3 import *
 
 from .specifications import Specifications, TemplateType
 
-from sxpat.utils.print import pprint
 
 
 class AnnotatedGraph(Graph):
