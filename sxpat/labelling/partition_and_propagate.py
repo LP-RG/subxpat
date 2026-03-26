@@ -80,6 +80,7 @@ class Subgraph:
             self.truth_table[combo] = res_out
 
 
+    # TODO:这个函数可能需要删除或者改变
     # Analyze monotonicity and generate matrix Ms
     def derive_ms(self): #derive_propagation_matrix
 
@@ -114,6 +115,78 @@ class Subgraph:
                  #  Fill in with monotonicity
                  if 1 in s: self.matrix[i][j] = 1
                  elif -1 in s:           self.matrix[i][j] = 1
+
+def calculate_weight_and_local_tag(sg_truth_table, in_idx, out_nodes, out_tags, out_weights, already_nm=False):
+    max_weight = 0
+    
+    # 优化：只有在尚未确诊为 NM 时，才需要建立追踪器
+    # A tracker is only needed when NM has not yet been diagnosed.It is created to calculate the NM,S,NS
+    if not already_nm:
+        diff_tracker = {out: set() for out in out_nodes}
+    
+    # use truth table to calculate the result after input(1->0)
+    for combo_1, out_vals_1 in sg_truth_table.items():
+        # if the input node is 0,continue
+        if combo_1[in_idx] != 1:
+            continue
+
+        # if the input node is 1,we change it to 0,
+        combo_0_list = list(combo_1)
+        combo_0_list[in_idx] = 0
+        combo_0 = tuple(combo_0_list)
+        
+        out_vals_0 = sg_truth_table[combo_0]
+        
+        base_sum = 0
+        ns_pos_group = 0 #store the ns output nodes weight which increase
+        ns_neg_group = 0 #store the ns output nodes weight which decrease
+        
+        for j, out_node in enumerate(out_nodes):
+            diff = out_vals_1[j] - out_vals_0[j]
+            
+            # if we know the input node is nm, Skip state tracking and calculate weight directly
+            if not already_nm:
+                diff_tracker[out_node].add(diff)
+            
+            if diff == 0:
+                continue 
+                
+            tag = out_tags[out_node]
+            w = out_weights[out_node]
+            
+            # --- Weight Calculation ---
+            if tag == 'S':
+                base_sum += w * diff
+            elif tag == 'NM':
+                base_sum += w * abs(diff)
+            elif tag == 'NS':
+                partial_product = w * diff
+                if partial_product > 0:
+                    ns_pos_group += partial_product
+                else:
+                    ns_neg_group += partial_product
+                    
+        impact_pos = abs(base_sum + ns_pos_group)
+        impact_neg = abs(base_sum + ns_neg_group)
+        combo_max_impact = max(impact_pos, impact_neg)
+        
+        if combo_max_impact > max_weight:
+            max_weight = combo_max_impact
+
+    # --- get the Local Tag ---
+    if already_nm:
+        return max_weight, 'NM'
+        
+    local_tag = 'S' 
+    for out_node, diffs in diff_tracker.items():
+        if 1 in diffs and -1 in diffs:
+            local_tag = 'NM'
+            break 
+        elif (0 in diffs and 1 in diffs) or (0 in diffs and -1 in diffs):
+            if local_tag == 'S': 
+                local_tag = 'NS'
+                
+    return max_weight, local_tag
 
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
@@ -251,21 +324,35 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
         if sub_id not in all_subgraph_objects:
             continue
 
-        sg = all_subgraph_objects[sub_id]
+        sg = all_subgraph_objects[sub_id]#use sub_id to get subgraph object
+        
+        # get all the tags and weights of output
+        out_tags = {out: graph.nodes[out].get('monotonicity', 'S') for out in sg.outputs}
+        out_weights = {out: graph.nodes[out].get('weight', 0) for out in sg.outputs}
 
-        # 1.  get W_out
-        w_out = [graph.nodes[out_node]['weight'] for out_node in sg.outputs]
+        has_global_nm = 'NM' in out_tags.values() #if output node has "NM"
 
-        # 2. calculate (W_in)
-        # W_in[i] = sum( |M[i][j]| * W_out[j] )
-        for i, in_node in enumerate(sg.inputs):
-             
-             current_in_weight = 0
+        for in_idx, in_node in enumerate(sg.inputs):
+        
+             # 1. Check for special case 1: Fan-out(if the node point to different group)
+             is_fanout = graph.nodes[in_node].get('weight', 0) > 0
+        
+             # 2. if the output node has nm or is_fanout
+             already_nm = is_fanout or has_global_nm
+        
+             # 3. calculate weight and tag（if already_nm == True，we will not calculate nm in the truth table）
+             calculated_weight, local_tag = calculate_weight_and_local_tag(
+            sg.truth_table, in_idx, sg.outputs, out_tags, out_weights, already_nm
+        )
+        
+             # 4. calculate input Weight node
+             graph.nodes[in_node]['weight'] += calculated_weight
+        
+             # 5. Label input node
+             graph.nodes[in_node]['monotonicity'] = local_tag
+ 
+        
 
-             for j in range(len(sg.outputs)):
-                current_in_weight += sg.matrix[i][j] * w_out[j]
-            
-             graph.nodes[in_node]['weight'] += current_in_weight
 
 
     # step 4: Subgraph simulation for internal nodes
