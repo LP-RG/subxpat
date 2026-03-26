@@ -1,13 +1,18 @@
+from shutil import move
+from subprocess import call
 from os.path import join as path_join
+
+from .config.config import YOSYS as yosys_path
+
 
 # discarded:
 # from Z3Log.utils import setup_folder_structure
 # from Z3Log.utils import clean_all
 # from Z3Log.utils import check_graph_equality
+# from Z3Log.utils import fix_direction
 
 # replaced:
 # from Z3Log.utils import get_pure_name
-# from Z3Log.utils import fix_direction
 # from Z3Log.utils import convert_verilog_to_gv
 
 
@@ -20,21 +25,7 @@ def get_pure_name(file_path: str) -> str:
     )
 
 
-def fix_direction(input_gv_path: str, output_gv_path: str):
-    # imports
-    from .config.config import DOT as dot_path
-    from subprocess import call
-
-    # run
-    call([dot_path, input_gv_path, '-Grankdir=TB', '-o', output_gv_path])
-
-
 def convert_verilog_to_gv(input_verilog_path: str, output_gv_path: str, temporary_path: str):
-    # imports
-    from .config.config import YOSYS as yosys_path
-    from subprocess import call, DEVNULL
-    import os
-
     # prepare
     tmp_dot_path = path_join(temporary_path, 'cvtgv_to_fd.dot')
     yosys_command = f"""
@@ -45,11 +36,16 @@ def convert_verilog_to_gv(input_verilog_path: str, output_gv_path: str, temporar
     """
 
     # run
-    call([yosys_path, '-p', yosys_command], stdout=DEVNULL)
-    fix_direction(tmp_dot_path, output_gv_path)
-    os.remove(tmp_dot_path)
+    with open(path_join(temporary_path, 'yosys_convert_verilog_to_gv.log'), 'w') as f:
+        # run yosys command (dump log to temporary file)
+        retcode = call([yosys_path, '-p', yosys_command], stdout=f)
+        assert retcode == 0
+
+        # move .dot to .gv
+        move(tmp_dot_path, output_gv_path)
 
 
-def setup_folder_structure(): raise RuntimeError('Why are you using this? talk with Marco')
-def clean_all(): raise RuntimeError('Why are you using this? talk with Marco')
+def setup_folder_structure(*args, **kwargs): raise RuntimeError('Why are you using this? talk with Marco')
+def clean_all(*args, **kwargs): raise RuntimeError('Why are you using this? talk with Marco')
 def check_graph_equality(*args, **kwargs): raise RuntimeError('Why are you using this? talk with Marco')
+def fix_direction(*args, **kwargs): raise RuntimeError('Why are you using this? talk with Marco')
