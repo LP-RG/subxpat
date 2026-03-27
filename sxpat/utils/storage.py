@@ -174,7 +174,7 @@ class AppendStorage:
         # guard
         if os.path.exists(save_destination): raise FileExistsError(save_destination)
 
-        # 
+        #
         self._seen_keys = set()
 
         # open
@@ -192,10 +192,9 @@ class AppendStorage:
 
     def flush(self): self._file.flush()
     def close(self): self._file.close()
-    
+
     def __enter__(self): return self
     def __exit__(self, _0, _1, _2): self.close()
-
 
     class DuplicateKeyError(LookupError):
         """A key was trying to be readded."""

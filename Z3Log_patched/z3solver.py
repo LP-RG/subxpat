@@ -17,6 +17,8 @@ from .config.config import (
 # patched:
 from Z3Log.z3solver import Z3solver as _Z3solver
 
+__all__ = ['Z3solver']
+
 
 class Z3solver(_Z3solver):
     def __init__(self,
@@ -98,9 +100,9 @@ class Z3solver(_Z3solver):
         self.__partial: bool = partial
 
     @property
-    def graph_in_path(self): raise RuntimeError('Why are you using this? talk with Marco')
+    def graph_in_path(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
     @property
-    def approximate_in_path(self): raise RuntimeError('Why are you using this? talk with Marco')
+    def approximate_in_path(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
 
     def import_labels(self, constant_value: bool = False) -> Dict:
         label_dict: Dict[str, int] = {}

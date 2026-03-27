@@ -5,6 +5,8 @@ from os.path import join as path_join
 # to be patched:
 from Z3Log.verilog import Verilog as _Verilog
 
+__all__ = ['Verilog']
+
 
 class Verilog(_Verilog):
     def __init__(self, input_verilog_path: str, output_verilog_path: str, temporary_path: str):
@@ -26,31 +28,31 @@ class Verilog(_Verilog):
         # other fields were removed from the initialization as they are not used
 
     @property
-    def aig_out_path(self): raise RuntimeError('Why are you using this? talk with Marco')
+    def aig_out_path(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
     @property
-    def testbench(self): raise RuntimeError('Why are you using this? talk with Marco')
+    def testbench(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
     @property
-    def samples(self): raise RuntimeError('Why are you using this? talk with Marco')
+    def samples(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
     @property
-    def iverilog_out_path(self): raise RuntimeError('Why are you using this? talk with Marco')
+    def iverilog_out_path(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
     @property
-    def iverilog_log_path(self): raise RuntimeError('Why are you using this? talk with Marco')
+    def iverilog_log_path(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
     @property
-    def vvp_in_path(self): raise RuntimeError('Why are you using this? talk with Marco')
+    def vvp_in_path(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
     @property
-    def vvp_out_path(self): raise RuntimeError('Why are you using this? talk with Marco')
-    def set_samples(self, samples): raise RuntimeError('Why are you using this? talk with Marco')
+    def vvp_out_path(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
+    def set_samples(self, samples): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
     @property
-    def sample_results(self): raise RuntimeError('Why are you using this? talk with Marco')
-    def set_sample_results(self, results): raise RuntimeError('Why are you using this? talk with Marco')
+    def sample_results(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
+    def set_sample_results(self, results): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
 
     # methods
 
-    def import_results(self): raise RuntimeError('Why are you using this? talk with Marco')
-    def import_circuit(self): raise RuntimeError('Why are you using this? talk with Marco')
-    def unwrap_variables(self): raise RuntimeError('Why are you using this? talk with Marco')
-    def create_test_bench(self, samples): raise RuntimeError('Why are you using this? talk with Marco')
-    def run_test_bench(self): raise RuntimeError('Why are you using this? talk with Marco')
+    def import_results(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
+    def import_circuit(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
+    def unwrap_variables(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
+    def create_test_bench(self, samples): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
+    def run_test_bench(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
 
     def extract_module_io(self) -> Tuple[int, int]:
         # imports

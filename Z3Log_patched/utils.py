@@ -4,7 +4,6 @@ from os.path import join as path_join
 
 from .config.config import YOSYS as yosys_path
 
-
 # discarded:
 # from Z3Log.utils import setup_folder_structure
 # from Z3Log.utils import clean_all
@@ -14,6 +13,8 @@ from .config.config import YOSYS as yosys_path
 # replaced:
 # from Z3Log.utils import get_pure_name
 # from Z3Log.utils import convert_verilog_to_gv
+
+__all__ = ['get_pure_name', 'convert_verilog_to_gv']
 
 
 def get_pure_name(file_path: str) -> str:
@@ -45,7 +46,7 @@ def convert_verilog_to_gv(input_verilog_path: str, output_gv_path: str, temporar
     move(tmp_dot_path, output_gv_path)
 
 
-def setup_folder_structure(*args, **kwargs): raise RuntimeError('Why are you using this? talk with Marco')
-def clean_all(*args, **kwargs): raise RuntimeError('Why are you using this? talk with Marco')
-def check_graph_equality(*args, **kwargs): raise RuntimeError('Why are you using this? talk with Marco')
-def fix_direction(*args, **kwargs): raise RuntimeError('Why are you using this? talk with Marco')
+def setup_folder_structure(*args, **kwargs): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
+def clean_all(*args, **kwargs): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
+def check_graph_equality(*args, **kwargs): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
+def fix_direction(*args, **kwargs): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')

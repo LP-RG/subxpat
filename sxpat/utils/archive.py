@@ -40,12 +40,10 @@ def archive_files(archive_file_path: str, *paths_to_store: str, compression: int
             #
             if ignore_root_folder:
                 prefix_length = len(os.path.split(path.rstrip('/'))[0])
-            else:
-                prefix_length = 0
+                for file in FS.walk(path):
+                    f.write(file, file[prefix_length:])
 
             #
-            for file in FS.walk(path):
-                if prefix_length == 0:
+            else:
+                for file in FS.walk(path):
                     f.write(file)
-                else:
-                    f.write(file, file[prefix_length:])

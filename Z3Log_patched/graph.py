@@ -5,6 +5,8 @@ from .utils import get_pure_name
 # patched:
 from Z3Log.graph import Graph as _Graph
 
+__all__ = ['Graph']
+
 
 class Graph(_Graph):
     def __init__(self, circuit_in_gv_path: str, is_clean: bool = False):
@@ -40,11 +42,11 @@ class Graph(_Graph):
         self.__num_constants = len(self.__constant_dict)
 
     @property
-    def in_path(self): raise RuntimeError('Why are you using this? talk with Marco')
+    def in_path(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
     @property
-    def verilog_in_path(self): raise RuntimeError('Why are you using this? talk with Marco')
+    def verilog_in_path(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
     @property
-    def dot_in_path(self): raise RuntimeError('Why are you using this? talk with Marco')
+    def dot_in_path(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
 
     def sort_dict(self, mapping: Mapping) -> dict:
         sorted_keys = sorted(mapping.keys())

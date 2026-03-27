@@ -30,15 +30,15 @@ class FS:
         return os.path.exists(path)
 
     @classmethod
-    def mkdir(cls, path: str, recursive: bool = True) -> None:
+    def mkdir(cls, path: str) -> None:
         """
-            Create the directory (recursively by default).
+            Create the directory (recursively).
             Does nothing if the directory already exists.
         """
 
         path = os.path.normpath(path)
 
-        os.makedirs(path, exist_ok=recursive)
+        os.makedirs(path, exist_ok=True)
 
     @classmethod
     def rmdir(cls, path: str, recursive: bool = False) -> None:

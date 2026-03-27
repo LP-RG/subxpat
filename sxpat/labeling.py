@@ -44,7 +44,7 @@ def labeling_explicit(exact_in_verilog_path: str, current_in_verilog_path: str,
         partial=partial_labeling, parallel=parallel
     )
 
-    with open(os.devnull, 'w') as f, redirect_stdout(f):
+    with open(os.devnull, 'w') as f, redirect_stdout(f): # suppress prints
         if constant_value is False:
             labels_pair = (
                 z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
