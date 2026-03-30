@@ -35,6 +35,7 @@ def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark:
     z3py_obj_qor.run_z3pyscript_qor()
 
     # Compare the obtained WCE
+    obtained_wce = -1
     folder, extension = z3logpath.OUTPUT_PATH['report']
     for csvfile in os.listdir(folder):
         if csvfile.endswith(extension) and re.search(approximate_benchmark, csvfile):

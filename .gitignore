@@ -1,6 +1,9 @@
 #> ide
 /.vscode
 /.idea
+*.log
+*.sh
+*.md
 
 #> local
 /local.mk
