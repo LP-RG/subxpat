@@ -382,6 +382,12 @@ class AnnotatedGraph(Graph):
     def find_subgraph_output_nodes_ascendant(self, specs_obj: Specifications):
         total_s = time.time()
 
+        def empty_subgraph_graph() -> nx.DiGraph:
+            empty_graph = nx.DiGraph(self.graph)
+            for node in empty_graph.nodes:
+                empty_graph.nodes[node][SUBGRAPH] = 0
+            return empty_graph
+
         WEIGHT_BITS = self.num_outputs
         CONS_BITS = 1
         GATE_BITS = math.log2(self.num_gates) + 1
@@ -406,22 +412,22 @@ class AnnotatedGraph(Graph):
         output_node_label = self.output_dict.get(specs_obj.out_node)
         if output_node_label is None:
             print(f"Error: output node {specs_obj.out_node} not in output_dict.")
-            return self.graph
+            return empty_subgraph_graph()
 
         if output_node_label not in self.graph.nodes:
             print(f"Error: output node '{output_node_label}' doesn't exist.")
-            return self.graph
+            return empty_subgraph_graph()
 
         list_of_constant_node = self.extract_constants()
 
         output_node_label = self.output_dict.get(specs_obj.out_node)
         if output_node_label is None:
             print(f"Error: output node {specs_obj.out_node} not in output_dict.")
-            return self.graph
+            return empty_subgraph_graph()
 
         if output_node_label not in self.graph.nodes:
             print(f"Error: output'{output_node_label}' doesn't exist.")
-            return self.graph
+            return empty_subgraph_graph()
 
         ancestors_output = ordered_ancestors(self.graph, output_node_label)
         list_of_ancestors = [node for node in ancestors_output if str(node).startswith("g")]
@@ -436,6 +442,9 @@ class AnnotatedGraph(Graph):
             print(f"Skipping node {output_node_label}")
             specs_obj.out_node += 1
             output_node_label = self.output_dict.get(specs_obj.out_node)
+            if output_node_label is None or output_node_label not in self.graph.nodes:
+                print(f"No valid output node remains after skipping {specs_obj.out_node - 1}.")
+                return empty_subgraph_graph()
             ancestors_output = ordered_ancestors(self.graph, output_node_label)
 
         for in_idx in self.input_dict:

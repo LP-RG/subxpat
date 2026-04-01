@@ -46,8 +46,11 @@ class Model:
                  area: float = None,
                  delay: float = None,
                  total_power: float = None,
+                 verified_error_exact: int = -1,
+                 verified_error_prev: int = -1,
                  id: int = 0,
                  iteration: int = 0,
+                 out_node: int = -1,
                  status: str = 'Unexplored',
                  cell: Tuple[int, int] = (-1, -1),
                  et: int = -1,
@@ -67,7 +70,10 @@ class Model:
         # if single model per cell is selected, then let's give it id = 0 for consistency
         self.__delay = delay
         self.__total_power = total_power
+        self.__verified_error_exact = verified_error_exact
+        self.__verified_error_prev = verified_error_prev
         self.__et = et
+        self.__out_node = out_node
         self.__labeling_time = labeling_time
         self.__subgraph_extraction_time = subgraph_extraction_time
         self.__subgraph_number_inputs = subgraph_number_inputs
@@ -84,6 +90,10 @@ class Model:
     @property
     def et(self):
         return self.__et
+
+    @property
+    def out_node(self):
+        return self.__out_node
 
     @property
     def labeling_time(self):
@@ -168,6 +178,14 @@ class Model:
     @total_power.setter
     def total_power(self, this_total_power):
         self.__total_power = this_total_power
+
+    @property
+    def verified_error_exact(self):
+        return self.__verified_error_exact
+
+    @property
+    def verified_error_prev(self):
+        return self.__verified_error_prev
 
     def __repr__(self):
         return f'An object of class Model:\n' \
@@ -445,6 +463,7 @@ class Stats:
 
         technique_specific = f'{self.tool_name}_{self.specs.error_partitioning.value}_'
         technique_specific += f'enc{self.specs.encoding.value}_'
+        technique_specific += f'term{self.specs.termination_mode.value}_'
 
         tail = f'mode{self.specs.extraction_mode}_omax{self.specs.omax}_imax{self.specs.imax}_const{self.specs.constants.value}_'
         tail += f'{self.template_name}_time'
@@ -483,8 +502,10 @@ class Stats:
             #     header.append(f"{attr.replace('_Model__', '')}")
             # header = tuple(header)
 
-            header = ('cell', 'iteration', 'model_id', 'status', 'runtime', 'area', 'delay', 'total_power', 'et',
-                      'labeling_time', 'subgraph_extraction', 'subgraph_inputs', 'subgraph_outputs', 'subxpat_phase1', 'subxpat_phase2')
+            header = ('cell', 'iteration', 'model_id', 'status', 'runtime', 'area', 'delay', 'total_power',
+                      'verified_error_exact', 'verified_error_prev', 'et', 'out_node',
+                      'labeling_time', 'subgraph_extraction', 'subgraph_inputs', 'subgraph_outputs',
+                      'subxpat_phase1', 'subxpat_phase2', 'subxpat_v1')
             csvwriter.writerow(header)
             # iterate over cells (lppXppo)
             for ppo in range(self.ppo + 1):
@@ -503,7 +524,10 @@ class Stats:
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].area)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].delay)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].total_power)
+                            row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].verified_error_exact)
+                            row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].verified_error_prev)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].et)
+                            row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].out_node)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].labeling_time)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subgraph_extraction_time)
                             row.append(self.grid.cells[lpp][ppo].models[iteration][m_id].subgraph_number_inputs)

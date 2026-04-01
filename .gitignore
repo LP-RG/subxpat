@@ -1,9 +1,11 @@
 #> ide
 /.vscode
 /.idea
+# *.log
+# *.md
+/benchmarking
 *.log
-*.sh
-*.md
+.codex
 
 #> local
 /local.mk

@@ -15,6 +15,10 @@ class ErrorPartitioningType(enum.Enum):
     SMART_DESCENDING = 'smart_desc'
     EXPONENTIAL = 'exp'
 
+class TerminationMode(enum.Enum):
+    NONE = 'none'
+    TRIVIAL = 'trivial'
+
 class EncodingType(enum.Enum):
     Z3_FUNC_INTEGER = 'z3int'
     Z3_FUNC_BITVECTOR = 'z3bvec'
@@ -120,6 +124,7 @@ class Specifications:
 
     #TODO
     constraint_cutoff: int
+    termination_mode: TerminationMode
 
     # exploration (1)
     subxpat: bool
@@ -146,6 +151,7 @@ class Specifications:
     # other
     timeout: float
     parallel: bool
+    skip_verification: bool
     plot: bool
     clean: bool
 
@@ -364,6 +370,12 @@ class Specifications:
                                     required=False)
                                     #help='...')
 
+        _termination_mode = parser.add_argument('--termination-mode',
+                                    type=TerminationMode,
+                                    action=EnumChoicesAction,
+                                    default=TerminationMode.TRIVIAL,
+                                    help='Termination behavior for extraction-mode 0: none or trivial (default: trivial)')
+
         # > other stuff
 
         _enc = parser.add_argument('--encoding',
@@ -380,6 +392,10 @@ class Specifications:
         _parallel = parser.add_argument('--parallel',
                                         action='store_true',
                                         help='Run in parallel whenever possible')
+
+        _skip_verification = parser.add_argument('--skip-verification',
+                                                 action='store_true',
+                                                 help='Skip expensive post-solve error verification (useful for bulk overnight sweeps)')
 
         _plt = parser.add_argument('--plot',
                                    action='store_true',

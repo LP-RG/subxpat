@@ -4,6 +4,14 @@ from sxpat.graph import *
 
 ERROR_THRESHOLD_ARRAYS_PATH = 'input/error_threshold_arrays.json'
 
+
+def _operand_half_value(s_graph: SGraph) -> int:
+        operand_bits = len(s_graph.inputs_names) // 2
+        if operand_bits <= 0:
+            return 0
+        # match the integer midpoint of the operand domain 0 .. (2**n - 1).
+        return ((2 ** operand_bits) - 1) // 2
+
 def nine(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alpha: int) -> List[Node]:
         
         return [
@@ -29,7 +37,7 @@ def nine(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alpha: int
             rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),    
 
             #zone parameters
-            half := IntConstant('half', value = 127),
+            half := IntConstant('half', value = _operand_half_value(s_graph)),
             step_divider := IntConstant('step_divider', value = beta),
 
             #Absolute error_et
@@ -81,7 +89,7 @@ def nine_prime(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alph
             rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),    
 
             #zone parameters
-            half := IntConstant('half', value = 127),
+            half := IntConstant('half', value = _operand_half_value(s_graph)),
             step_divider := IntConstant('step_divider', value = beta),
 
             #Absolute error_et

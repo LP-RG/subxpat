@@ -11,7 +11,12 @@ from Z3Log.z3solver import Z3solver
 from sxpat.specifications import MetricType
 
 
-def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark: str, metric: MetricType, zone_constraint: int) -> int:
+def erroreval_verification_wce(
+    exact_benchmark_name: str,
+    approximate_benchmark: str,
+    metric: MetricType,
+    zone_constraint: int = None,
+) -> int:
 
     verilog_obj_exact = Verilog(exact_benchmark_name)
     verilog_obj_exact.export_circuit()
@@ -29,7 +34,7 @@ def erroreval_verification_wce(exact_benchmark_name: str, approximate_benchmark:
     graph_obj_approx.export_graph()
 
     z3py_obj_qor = Z3solver(exact_benchmark_name, approximate_benchmark, metric=metric.value)
-    z3py_obj_qor.convert_gv_to_z3pyscript_maxerror_qor(zone_constraint = zone_constraint)
+    z3py_obj_qor.convert_gv_to_z3pyscript_maxerror_qor()
 
     z3py_obj_qor.export_z3pyscript()
     z3py_obj_qor.run_z3pyscript_qor()
