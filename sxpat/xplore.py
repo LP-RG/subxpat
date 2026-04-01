@@ -298,7 +298,7 @@ def explore_grid(specs_obj: Specifications):
 
                 #
                 base_path = path_join(specs_obj.path.run.verilog, f'gen_iter{specs_obj.iteration}_model{{model_number}}.v')
-                cur_model_results2: List[ExpandedCircuitData] = list()
+                cur_model_results: List[ExpandedCircuitData] = list()
                 #
                 for model_number, model in enumerate(models):
                     # apply model to circuit
@@ -313,7 +313,7 @@ def explore_grid(specs_obj: Specifications):
 
                     # compute circuit metrics
                     _metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, verilog_path, specs_obj.path.run.temporary)
-                    cur_model_results2.append(ExpandedCircuitData(
+                    cur_model_results.append(ExpandedCircuitData(
                         verilog_path,
                         _metrics.area,
                         _metrics.power,
@@ -324,7 +324,7 @@ def explore_grid(specs_obj: Specifications):
                 pprint.info1('verifying all approximate circuits ...')
                 verification_timer, _error_evaluation = Timer.from_function(error_evaluation)
                 # for candidate_path, candidate_data in cur_model_results.items():
-                for candidate_data in cur_model_results2:
+                for candidate_data in cur_model_results:
                     #
                     _time = Timer.now()
                     current = AnnotatedGraph.cached_load(candidate_data.path, specs_obj.path.run)
@@ -351,7 +351,7 @@ def explore_grid(specs_obj: Specifications):
                 specs_obj.stats_storage.stage(verification_time=verification_timer.total)
 
                 # sort circuits and select best
-                sorted_circuits = sorted(cur_model_results2, key=ft.cmp_to_key(model_compare))
+                sorted_circuits = sorted(cur_model_results, key=ft.cmp_to_key(model_compare))
                 best_model_data = sorted_circuits[0]
                 pprint.success(f'ErrorEval verification PASSED. ( wce = {best_model_data.error_to_origin} )')
 
