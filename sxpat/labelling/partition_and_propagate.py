@@ -5,6 +5,7 @@ from collections import defaultdict
 
 import networkx as nx
 import itertools
+from itertools import islice
 
 # Union find class
 class UnionFind:
@@ -55,7 +56,9 @@ class Subgraph:
     def build_truth_table(self, graph):
         # add output node
         nodes_to_simulate = set(self.members) | set(self.outputs)
+
         sub_g = graph.subgraph(nodes_to_simulate)
+
         sorted_nodes = list(nx.topological_sort(sub_g))
 
         # 2. 遍历：利用 itertools.product 产生所有 0/1 序列 
@@ -69,52 +72,53 @@ class Subgraph:
             values = dict(zip(self.inputs, combo))
 
             for node in sorted_nodes:
-                 
+         
                  preds = list(graph.predecessors(node))
                  gate_in_values = [[values[p] for p in preds if p in values]]
 
                  op = graph.nodes[node].get("label")
+                 
                  values[node] = apply_logic(op, gate_in_values)
 
             res_out = tuple(values.get(out, 0) for out in self.outputs)
             self.truth_table[combo] = res_out
 
 
-    # TODO:这个函数可能需要删除或者改变
-    # Analyze monotonicity and generate matrix Ms
-    def derive_ms(self): #derive_propagation_matrix
+    # # TODO:这个函数可能需要删除或者改变
+    # # Analyze monotonicity and generate matrix Ms
+    # def derive_ms(self): #derive_propagation_matrix
 
-        #  创造空的M矩阵 
-        #  Create an empty Ms matrix
-        num_in = len(self.inputs)
-        num_out = len(self.outputs)
+    #     #  创造空的M矩阵 
+    #     #  Create an empty Ms matrix
+    #     num_in = len(self.inputs)
+    #     num_out = len(self.outputs)
 
-        self.matrix = [[0] * num_out for i in range(num_in)] 
+    #     self.matrix = [[0] * num_out for i in range(num_in)] 
 
-        # store the different between different output
-        diff_sets = [[set() for _ in range(num_out)] for _ in range(num_in)]
-        # 如果真的要根据情况来存的话，这里需要存所有的情况，因为后需要比较
-        for combo, out_v1 in self.truth_table.items():
-             for i in range(num_in):
-                 if combo[i] == 0:
-                     twin_list = list(combo)
-                     twin_list[i] = 1
-                     twin_combo = tuple(twin_list)
-                     out_v2 = self.truth_table[twin_combo]
+    #     # store the different between different output
+    #     diff_sets = [[set() for _ in range(num_out)] for _ in range(num_in)]
+    #     # 如果真的要根据情况来存的话，这里需要存所有的情况，因为后需要比较
+    #     for combo, out_v1 in self.truth_table.items():
+    #          for i in range(num_in):
+    #              if combo[i] == 0:
+    #                  twin_list = list(combo)
+    #                  twin_list[i] = 1
+    #                  twin_combo = tuple(twin_list)
+    #                  out_v2 = self.truth_table[twin_combo]
 
-                     for j in range(num_out):
-                         diff = out_v2[j] - out_v1[j]
+    #                  for j in range(num_out):
+    #                      diff = out_v2[j] - out_v1[j]
 
-                         if diff != 0:
-                             diff_sets[i][j].add(diff)
+    #                      if diff != 0:
+    #                          diff_sets[i][j].add(diff)
 
-        # TODO: the logic has problem
-        for i in range(num_in):
-             for j in range(num_out):
-                 s = diff_sets[i][j]
-                 #  Fill in with monotonicity
-                 if 1 in s: self.matrix[i][j] = 1
-                 elif -1 in s:           self.matrix[i][j] = 1
+    #     # TODO: the logic has problem
+    #     for i in range(num_in):
+    #          for j in range(num_out):
+    #              s = diff_sets[i][j]
+    #              #  Fill in with monotonicity
+    #              if 1 in s: self.matrix[i][j] = 1
+    #              elif -1 in s:           self.matrix[i][j] = 1
 
 def calculate_weight_and_local_tag(sg_truth_table, in_idx, out_nodes, out_tags, out_weights, already_nm=False):
     max_weight = 0
@@ -195,6 +199,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
 
     # --- 1. 初始化 ---
+    # --- 1. Initialization ---
     uf = UnionFind(graph.nodes)
     TI_LIMIT = 10
     nodes_by_subid = defaultdict(list) #用于记录最终的subid:[这个subgraph所有node]
@@ -204,16 +209,20 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     # ID Assignment: If two nodes n' and n'' are "children" of the same node, assign them to the same subgraph ID.
     for node in graph.nodes:
 
-        #TODO:this can be changed
-        if graph.out_degree(node) == 0: # Total output regardless
+        #for node doesn't has out edge or only has one
+        if graph.out_degree(node) <= 1: 
             continue
-            
-        children = list(graph.successors(node))
+        
+        # # Get child nodes, but filter out PO nodes whose tags start with "out".
+
+        children = [child for child in graph.successors(node) 
+                if not graph.nodes[child].get("label", "").startswith("out")]
+        
         if len(children) > 1:
             first_child = children[0]
-            for other_child in children[1:]:
+            for other_child in islice(children, 1, None):
                 uf.union(first_child, other_child)
-     
+       
     # find the input of each group，use to calculate the number of input
     temp_group_inputs = defaultdict(set)
     
@@ -244,18 +253,20 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     outputs_of_subgraph = defaultdict(set)
 
     for u, v in graph.edges:
-        root_u = graph.nodes[u]['subgraph_id']
-        root_v = graph.nodes[v]['subgraph_id']
-        
-        if root_u != root_v:
-            inputs_of_subgraph[root_v].add(u)
-            outputs_of_subgraph[root_u].add(u)
+        subId_u = graph.nodes[u]['subgraph_id']
+        subId_v = graph.nodes[v]['subgraph_id']
+         
+        #  所以就是primary out put只有inputs；而primary input 只有outputs
+        if subId_u != subId_v:
+            inputs_of_subgraph[subId_v].add(u)
+            outputs_of_subgraph[subId_u].add(v)
 
+    # TODO：这些output有可能被规到子图吗？我们在计算子图的时候，要去区分是否是primary output吗？
     # ERROR：Primary Outputs(if those outputs has no input????)
-    for node in graph.nodes:
-        if graph.out_degree(node) == 0:
-            sub_id = graph.nodes[node]['subgraph_id']
-            outputs_of_subgraph[sub_id].add(node)
+    # for node in graph.nodes:
+    #     if graph.out_degree(node) == 0:
+    #         sub_id = graph.nodes[node]['subgraph_id']
+    #         outputs_of_subgraph[sub_id].add(node)
 
 
     # step 2: Derivation of the propagation matrix (section 3.3)
@@ -267,7 +278,8 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
          sub_inputs = sorted(list(inputs_of_subgraph[sub_id]))
          sub_outputs = sorted(list(outputs_of_subgraph[sub_id]))
 
-         #if the subgraph only has primary nodes/only has output nodes,it does not have input node
+         #if the subgraph only has primary nodes/only has primary output nodes
+         #Question？有可能存在一个subgraph只存在input和output吗？  
          if not sub_inputs or not sub_outputs:
             continue
         
@@ -284,9 +296,12 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
     #3.1 create sorted subgraph id list
     # create a graph only with the sub_id node and all the outside edges of this subgraph
+    # TODO：读到这里
+    # 这个不存在primary input 和 outputnode
     sub_id_graph = nx.DiGraph()
 
     for sub_id, sg in all_subgraph_objects.items():
+
         sub_id_graph.add_node(sub_id)
 
         for in_node in sg.inputs:
@@ -294,9 +309,22 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
             parent_sub_id = graph.nodes[in_node].get('subgraph_id')
 
             if parent_sub_id is not None and parent_sub_id != sub_id:
+                    if parent_sub_id not in sub_id_graph:
+                        sub_id_graph.add_node(parent_sub_id)
                     sub_id_graph.add_edge(parent_sub_id,sub_id)
+       
+        for out_node in sg.outputs:
+        
+            for successor in graph.successors(out_node):
+                child_sub_id = graph.nodes[successor].get('subgraph_id')
+            
+                if child_sub_id is not None and child_sub_id != sub_id:
+                    if child_sub_id not in sub_id_graph:
+                        sub_id_graph.add_node(child_sub_id)
+                    sub_id_graph.add_edge(sub_id, child_sub_id)
     
     # get the sorted subgraph list, use it to calculate the weight of each subgraph
+    # include primary input/inside node/primary output
     sorted_sub_id_list=list(reversed(list(nx.topological_sort(sub_id_graph))))
 
     # 3.2Initialize the weight of each node and the label of the primary output.
@@ -321,6 +349,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     #3.3 start Propagation the label and monotonicity 
     for sub_id in sorted_sub_id_list:
 
+        # if the sub_id is primary input or output
         if sub_id not in all_subgraph_objects:
             continue
 
@@ -367,9 +396,11 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
         for combo in itertools.product([0, 1], repeat=len(sg.inputs)):  
             # remember the normal output if do not change the value of node
             normal_vals = dict(zip(sg.inputs, combo))
+            
+            # calculate the value of each node 
             for n in sorted_local:
                 if n in sg.inputs: continue
-                preds = [p for p in graph.predecessors(n) if p in local_nodes]
+                preds = list(sub_g.predecessors(n))
                 in_vals = [normal_vals[p] for p in preds]
                 
                 op = graph.nodes[n].get('label')
@@ -421,4 +452,3 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     #     'sub_outputs': outputs_of_subgraph
     # }
     # return partition_results
-
