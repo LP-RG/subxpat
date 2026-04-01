@@ -220,7 +220,12 @@ def explore_grid(specs_obj: Specifications):
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
         for lpp, ppo in CellIterator.factory(specs_obj):
+            _cell_time = Timer.now()
             print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
+            
+            if lpp > len(current_circ.subgraph_inputs): 
+                pprint.info3('SKIPPED (lpp > #subgraph_inputs)')
+                continue
 
             # skip if dominated
             if is_dominated((lpp, ppo), dominant_cells):
@@ -271,9 +276,11 @@ def explore_grid(specs_obj: Specifications):
             #
             if len(models) > 0: status = 'sat'
             # logging
+            _cell_time = Timer.now() - _cell_time
             specs_obj.stats_storage.stage(
                 grid_phase_solution_time=solve_timer.total,
                 status=status.upper(),
+                cell_time=_cell_time,
             )
 
             # skip if no model found
@@ -282,17 +289,16 @@ def explore_grid(specs_obj: Specifications):
                 if status == UNKNOWN: dominant_cells.append((lpp, ppo))
 
                 # logging
-                pprint.warning(f'{status.upper()}')
+                pprint.warning(status.upper(), f'{_cell_time:.2f}s')
                 specs_obj.stats_storage.commit()
 
             # otherwise verify all models and select best for next iteration
             else:
-                pprint.success(f'{status.upper()} ({len(models)} models found)')
+                pprint.success(f'{status.upper()} ({len(models)} models found)', f'{_cell_time:.2f}s')
 
                 #
                 base_path = path_join(specs_obj.path.run.verilog, f'gen_iter{specs_obj.iteration}_model{{model_number}}.v')
                 cur_model_results2: List[ExpandedCircuitData] = list()
-                # cur_model_results: Dict[str: List[float, float, float, (int, int), int, int]] = {}
                 #
                 for model_number, model in enumerate(models):
                     # apply model to circuit
@@ -343,12 +349,11 @@ def explore_grid(specs_obj: Specifications):
 
                 # logging
                 specs_obj.stats_storage.stage(verification_time=verification_timer.total)
-                pprint.success('ErrorEval Verification PASSED')
 
                 # sort circuits and select best
                 sorted_circuits = sorted(cur_model_results2, key=ft.cmp_to_key(model_compare))
                 best_model_data = sorted_circuits[0]
-                pprint.success(f'error verification PASSED. wce = {best_model_data.error_to_origin}')
+                pprint.success(f'ErrorEval verification PASSED. ( wce = {best_model_data.error_to_origin} )')
 
                 # store all circuits
                 all_generated_circuits_data.extend(sorted_circuits)
