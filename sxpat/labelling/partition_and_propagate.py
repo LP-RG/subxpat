@@ -344,7 +344,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
             # set the monitonicity
             graph.nodes[node]['monotonicity'] = 'S'
 
-    # TODO:working
+    
     #3.3 start Propagation the label and monotonicity 
     for sub_id in sorted_sub_id_list:
 
@@ -382,7 +382,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
         
 
 
-
+    # TODO:working
     # step 4: Subgraph simulation for internal nodes
     # --- Step 4: 内部节点权重仿真 ---
     for sid, sg in all_subgraph_objects.items():
