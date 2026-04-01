@@ -296,7 +296,6 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
     #3.1 create sorted subgraph id list
     # create a graph only with the sub_id node and all the outside edges of this subgraph
-    # TODO：读到这里
     # 这个不存在primary input 和 outputnode
     sub_id_graph = nx.DiGraph()
 
