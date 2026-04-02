@@ -74,16 +74,6 @@ GV = 'gv'
 JSON = 'json'
 ITER = 'iter'
 
-
-class NameParameters(Enum):
-    LPP = 'lpp'
-    PPO = 'ppo'
-    PIT = 'pit'
-    PAP = 'pap'
-    ITER = 'iter'
-    DST = 'dst'
-
-
 # Graph related
 LABEL = 'label'
 SHAPE = 'shape'
