@@ -1,12 +1,19 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Tuple, Union
+from types import MappingProxyType
+from typing import Any, Dict, Iterable, List, Mapping, Tuple, Union
 import enum
 import dataclasses as dc
 
+import time
 import re
+import tempfile
 import argparse
-from pathlib import Path
+import functools as ft
 import os.path
+
+from sxpat.utils.filesystem import FS
+from sxpat.utils.functions import int_to_strbase
+from sxpat.utils.storage import AppendStorage, LiveStorage
 
 
 __all__ = [
@@ -18,8 +25,8 @@ __all__ = [
 
 
 class Dependency:
-    SrcItem = Union[argparse.Action, Tuple[argparse.Action, Any]]
-    TrgtItem = Union[argparse.Action, Tuple[argparse.Action, List[Any]]]
+    SourceItem = Union[argparse.Action, Tuple[argparse.Action, Any]]
+    TargetItem = Union[argparse.Action, Tuple[argparse.Action, List[Any]]]
 
 
 class ErrorPartitioningType(enum.Enum):
@@ -30,8 +37,10 @@ class ErrorPartitioningType(enum.Enum):
 
 
 class EncodingType(enum.Enum):
-    Z3_INTEGER = 'z3int'
-    Z3_BITVECTOR = 'z3bvec'
+    Z3_FUNC_INTEGER = 'z3int'
+    Z3_FUNC_BITVECTOR = 'z3bvec'
+    Z3_DIRECT_INTEGER = 'z3dint'
+    Z3_DIRECT_BITVECTOR = 'z3dbvec'
     QBF = 'qbf'
 
 
@@ -40,9 +49,21 @@ class TemplateType(enum.Enum):
     SHARED = 'shared'
 
 
+class DistanceType(enum.Enum):
+    ABSOLUTE_DIFFERENCE_OF_INTEGERS = 'adoi'
+    ABSOLUTE_DIFFERENCE_OF_WEIGHTED_SUM = 'adows'
+    HAMMING_DISTANCE = 'hd'
+    WEIGHTED_HAMMING_DISTANCE = 'whd'
+
+
 class ConstantsType(enum.Enum):
     NEVER = 'never'
     ALWAYS = 'always'
+
+
+class ConstantFalseType(enum.Enum):
+    OUTPUT = 'output'
+    PRODUCT = 'product'
 
 
 class EnumChoicesAction(argparse.Action):
@@ -55,27 +76,74 @@ class EnumChoicesAction(argparse.Action):
         setattr(namespace, self.dest, self.enum(value))
 
 
+@dc.dataclass(init=False, frozen=True)
 class Paths:
     @dc.dataclass(frozen=True)
-    class Output:
+    class RunFiles:
+        run_id: dc.InitVar[str]
+        # main folders
         base_folder: str = 'output'
-        graphviz: str = dc.field(default='graphviz', init=False)
         verilog: str = dc.field(default='verilog', init=False)
+        # main files
+        run_details: str = dc.field(default='run_details.csv', init=False)
+        run_stats: str = dc.field(default='run_stats.csv', init=False)
+        # debug folders
+        graphviz: str = dc.field(default='graphviz', init=False)
         solver_scripts: str = dc.field(default='scripts', init=False)
+        # temporary files and folders
+        temporary: str = dc.field(default='tmp', init=False)
+        debug: dc.InitVar[bool] = False
 
-        def __post_init__(self) -> None:
-            object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, self.graphviz))
+        def __post_init__(self, run_id: str, debug: bool) -> None:
+            # main folders
+            object.__setattr__(self, 'base_folder', os.path.join(self.base_folder, run_id))
             object.__setattr__(self, 'verilog', os.path.join(self.base_folder, self.verilog))
-            object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, self.solver_scripts))
+            # main files
+            object.__setattr__(self, 'run_details', os.path.join(self.base_folder, self.run_details))
+            object.__setattr__(self, 'run_stats', os.path.join(self.base_folder, self.run_stats))
+            
+            # temporary folder
+            tempdir = os.path.join(self.base_folder, self.temporary)
+            if not debug:
+                _tempdir = tempfile.gettempdir()
+                if _tempdir != os.path.curdir and _tempdir != os.path.abspath(os.path.curdir):
+                    tempdir = os.path.join(_tempdir, run_id)
+            object.__setattr__(self, 'temporary', tempdir)
+            
+            # debug folders
+            object.__setattr__(self, 'debug', debug)
+            if debug:
+                object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, self.solver_scripts))
+                object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, self.graphviz))
+            else:
+                object.__setattr__(self, 'solver_scripts', os.path.join(self.temporary, self.solver_scripts))
+                object.__setattr__(self, 'graphviz', os.path.join(self.temporary, self.graphviz))
+
+        @property
+        def folders(self) -> Iterable[str]:
+            #
+            yield from (
+                self.base_folder,
+                self.verilog,
+            )
+            #
+            yield from (
+                self.temporary,
+                self.solver_scripts,
+                self.graphviz,
+            )
 
     @dc.dataclass(frozen=True)
     class Synthesis:
         cell_library: str = 'config/gscl45nm.lib'
         abc_script: str = dc.field(default='config/abc.script', init=False)
 
-    def __init__(self, output_base: str, cell_library: str) -> None:
-        self.output = self.Output(output_base)
-        self.synthesis = self.Synthesis(cell_library)
+    run: RunFiles
+    synthesis: Synthesis
+
+    def __init__(self, output_base: str, run_id: str, cell_library: str, keep_temporary: bool) -> None:
+        object.__setattr__(self, 'run', self.RunFiles(run_id, output_base, keep_temporary))
+        object.__setattr__(self, 'synthesis', self.Synthesis(cell_library))
 
     def __repr__(self):
         params = ', '.join(f'{name}={getattr(self, name)!r}' for name in vars(self).keys())
@@ -84,9 +152,9 @@ class Paths:
 
 @dc.dataclass
 class Specifications:
-    # files
+    # benchmark
     exact_benchmark: str
-    current_benchmark: str  # rw
+    current_benchmark: str = dc.field(metadata={'writable': True})  # rw
 
     # labeling
     min_labeling: bool
@@ -99,7 +167,7 @@ class Specifications:
     min_subgraph_size: int
     num_subgraphs: int
     max_sensitivity: int
-    sensitivity: int = dc.field(init=False, default=None)  # rw
+    sensitivity: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     slash_to_kill: bool
     error_for_slash: int
 
@@ -108,34 +176,47 @@ class Specifications:
     template: TemplateType
     encoding: EncodingType
     constants: ConstantsType
+    constant_false: ConstantFalseType
     wanted_models: int
-    iteration: int = dc.field(init=False, default=None)  # rw
+    iteration: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
+    sub_iteration: str = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     # exploration (2)
     max_lpp: int
-    lpp: int = dc.field(init=False, default=None)  # rw
+    lpp: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     max_ppo: int
-    ppo: int = dc.field(init=False, default=None)  # rw
+    ppo: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     max_pit: int
-    pit: int = dc.field(init=False, default=None)  # rw
-    its: int = dc.field(init=False, default=None)  # rw
+    pit: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
+    its: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
 
     # error
     max_error: int
-    et: int = dc.field(init=False, default=None)  # rw
+    et: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     error_partitioning: ErrorPartitioningType
 
-    # config
-    path: Paths
+    # files and folders
+    path_output: dc.InitVar[str]
+    path_cell_library: dc.InitVar[str]
+    path: Paths = dc.field(init=False)
+    should_archive: bool
 
     # other
+    debug: bool
     timeout: float
     parallel: bool
-    plot: bool
-    clean: bool
+    timestamp: str = dc.field(init=False, default_factory=time.time_ns)
+    run_id: str = dc.field(init=False)
 
-    def __post_init__(self):
-        object.__setattr__(self, 'exact_benchmark', Path(self.exact_benchmark).stem)
-        object.__setattr__(self, 'current_benchmark', Path(self.current_benchmark).stem)
+    # storage
+    stats_storage: LiveStorage = dc.field(init=False, default=None, metadata={'writable': True})  # writable once
+    details_storage: AppendStorage = dc.field(init=False, default=None, metadata={'writable': True})  # writable once
+
+    def __post_init__(self, path_output: str, path_cell_library: str):
+        # computed constants
+        self.run_id = FS.get_unique_dirname(prefix=f'{int_to_strbase(self.timestamp)}_')
+
+        # construct instance
+        self.path = Paths(path_output, self.run_id, path_cell_library, self.debug)
 
     # > computed
 
@@ -150,7 +231,7 @@ class Specifications:
         return int(re.search('_o(\d+)', self.exact_benchmark)[1])
 
     @property
-    def template_name(self):
+    def template_name(self) -> str:
         return {
             TemplateType.NON_SHARED: 'Sop1',
             TemplateType.SHARED: 'SharedLogic',
@@ -183,28 +264,24 @@ class Specifications:
             TemplateType.SHARED: lambda: self.max_pit,
         }[self.template]()
 
-    @property
-    def total_number_of_cells_per_iter(self) -> int:
-        # special_cell + ROWS * COLUMNS
-        return 1 + self.grid_param_1 * self.grid_param_2
-
     @classmethod
     def parse_args(cls):
         parser = argparse.ArgumentParser(description='Run the XPat system',
                                          epilog='Developed by Prof. Pozzi research team',
                                          formatter_class=argparse.RawTextHelpFormatter)
+        parser.add_argument('-?', action='help')
 
-        # > files stuff
+        # > benchmark
 
         _ex_bench = parser.add_argument(metavar='exact-benchmark',
                                         dest='exact_benchmark',
                                         type=str,
-                                        help='Circuit to approximate (Verilog file in `input/ver/`)')
+                                        help='Circuit to approximate (in Verilog format)')
 
         _cur_bench = parser.add_argument('--current-benchmark', '--curr',
                                          type=str,
                                          default=None,
-                                         help='Approximated circuit used to continue the execution (Verilog file in `input/ver/`) (default: same as exact-benchmark)')
+                                         help='Approximated circuit used to continue the execution (in Verilog format) (default: same as exact-benchmark)')
 
         # > graph labeling
         _lab_group = parser.add_argument_group('Labeling')
@@ -272,10 +349,16 @@ class Specifications:
                                              default=ConstantsType.ALWAYS,
                                              help='Usage of constants (default: always)')
 
+        _const_f = _explor_group.add_argument('--constant-false',
+                                              type=ConstantFalseType,
+                                              action=EnumChoicesAction,
+                                              default=ConstantFalseType.OUTPUT,
+                                              help='Representation of false constants from the subgraph (default: output)')
+
         _template = _explor_group.add_argument('--template',
                                                type=TemplateType,
-                                               default=TemplateType.NON_SHARED,
                                                action=EnumChoicesAction,
+                                               default=TemplateType.NON_SHARED,
                                                help='Template logic (default: nonshared)')
 
         _lpp = _explor_group.add_argument('--max-lpp', '--max-literals-per-product',
@@ -298,7 +381,7 @@ class Specifications:
         _enc = _explor_group.add_argument('--encoding',
                                           type=EncodingType,
                                           action=EnumChoicesAction,
-                                          default=EncodingType.Z3_BITVECTOR,
+                                          default=EncodingType.Z3_FUNC_BITVECTOR,
                                           help='The encoding to use in solving (default: z3bvec)')
 
         # > error stuff
@@ -315,22 +398,32 @@ class Specifications:
                                         default=ErrorPartitioningType.ASCENDING,
                                         help='The error partitioning algorithm to use (default: asc)')
 
-        # > config
-        _cfg_group = parser.add_argument_group('Configuration')
+        # > files and folders stuff
+        _faf_group = parser.add_argument_group('Files and folders')
 
-        # NOTE: this is not yet documented in the README as it currently does nothing
-        _out_fold = _cfg_group.add_argument('--output',
+        _out_fold = _faf_group.add_argument('--output',
                                             type=str,
-                                            default=Paths.Output.base_folder,
-                                            help=f'(WIP) The base directory for the output (default: {Paths.Output.base_folder})')
+                                            dest='path_output',
+                                            default=Paths.RunFiles.base_folder,
+                                            help=f'The base directory for the output (default: {Paths.RunFiles.base_folder})')
 
-        _cfg_lib = _cfg_group.add_argument('--cell-library',
-                                           type=str,
-                                           default=Paths.Synthesis.cell_library,
-                                           help=f'The cell library file to use in the metrics estimation (default: {Paths.Synthesis.cell_library})')
+        _cell_lib = _faf_group.add_argument('--cell-library',
+                                            type=str,
+                                            dest='path_cell_library',
+                                            default=Paths.Synthesis.cell_library,
+                                            help=f'The cell library file to use in the metrics estimation (default: {Paths.Synthesis.cell_library})')
+
+        _shd_archive = _faf_group.add_argument('--archive',
+                                               action='store_true',
+                                               dest='should_archive',
+                                               help='If the generated files should be archived at the end of the execution')
 
         # > other stuff
         _misc_group = parser.add_argument_group('Miscellaneous')
+
+        _debug = _misc_group.add_argument('--debug',
+                                          action='store_true',
+                                          help='If the system should be run in debug mode')
 
         _timeout = _misc_group.add_argument('--timeout',
                                             type=float,
@@ -341,14 +434,6 @@ class Specifications:
                                              action='store_true',
                                              help='Run in parallel whenever possible')
 
-        _plt = _misc_group.add_argument('--plot',
-                                        action='store_true',
-                                        help='The system will be run as plotter (DEPRECATED?)')
-
-        _clean = _misc_group.add_argument('--clean',
-                                          action='store_true',
-                                          help='Reset the output folder before running')
-
         raw_args = parser.parse_args()
 
         # custom defaults
@@ -358,62 +443,62 @@ class Specifications:
         # the structure for each dependency is:
         # - source: [target0, ..., targetN]
         # a source must be either:
-        # - (argument_object, value) # here the dependency is checked only if the argument has the given value
-        # - argument_object          # here the dependency is checked no matter the actual value
+        # - (argument_object, value) # the dependency is checked only if the argument has the given value
+        # - argument_object          # the dependency is checked no matter the actual value
         # a target must be either:
-        # - (argument_object, value) # here the dependency is accepted only if the argument has the given value
-        # - argument_object          # here the dependency is accepted if the argument is present
-        dependencies: Dict[Dependency.SrcItem, List[Dependency.TrgtItem]] = {
+        # - (argument_object, value) # the dependency is accepted if the argument has the given value
+        # - argument_object          # the dependency is accepted if the argument is present
+        dependencies: Dict[Dependency.SourceItem, List[Dependency.TargetItem]] = {
             (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
+            # template variants only implemented by some templates
+            (_const_f, ConstantFalseType.PRODUCT): [(_template, [TemplateType.NON_SHARED])],
+            #
             (_ex_mode, 55): [_imax, _omax],
             (_slash, True): [_error_slash],
         }
 
         # check dependencies
         for (source, targets) in dependencies.items():
-            src_has_value = isinstance(source, tuple)
-            src_action = source[0] if src_has_value else source
-            if src_has_value: src_value = source[1]
+            source_has_value = isinstance(source, tuple)
+            source_action = source[0] if source_has_value else source
+            if source_has_value: source_value = source[1]
 
             # skip if source not present
-            if not hasattr(raw_args, src_action.dest): continue
+            if not hasattr(raw_args, source_action.dest): continue
             # skip if source wants a specific value which is not the current one
-            if src_has_value and src_value != getattr(raw_args, src_action.dest): continue
+            if source_has_value and source_value != getattr(raw_args, source_action.dest): continue
 
-            src_message = ''.join((
-                f'missing or wrong argument: argument `{src_action.option_strings[0]}`',
-                f' with value {arg_value_to_string(src_value)}' if src_has_value else '',
+            source_message = ''.join((
+                f'missing or wrong argument: argument `{source_action.option_strings[0]}`',
+                f' with value {arg_value_to_string(source_value)}' if source_has_value else '',
                 ' requires argument',
             ))
 
             # verify targets
             for target in targets:
-                trgt_has_values = isinstance(target, tuple)
-                trgt_action = target[0] if trgt_has_values else target
-                if trgt_has_values: trgt_values = target[1]
+                target_has_values = isinstance(target, tuple)
+                target_action = target[0] if target_has_values else target
+                if target_has_values: target_values = target[1]
 
-                # target not present
-                if not hasattr(raw_args, trgt_action.dest) or getattr(raw_args, trgt_action.dest) is None:
-                    parser.error(f'{src_message} `{trgt_action.option_strings[0]}`')
-
-                # target has wrong value
-                if trgt_has_values and getattr(raw_args, trgt_action.dest) not in trgt_values:
-                    # improved messages error messages
-                    if len(trgt_values) == 1:
-                        if trgt_action.const == True: msg = 'to not be used'
-                        elif trgt_action.const == False: msg = 'to be used'
-                        else: msg = f'to have the following value: {arg_value_to_string(trgt_values[0])}'
+                if (
+                    # target not present
+                    not hasattr(raw_args, target_action.dest)
+                    # target has wrong value
+                    or target_has_values and getattr(raw_args, target_action.dest) not in target_values
+                ):
+                    # improved error message
+                    if len(target_values) == 1:
+                        if target_action.const == True: msg = 'to not be used'
+                        elif target_action.const == False: msg = 'to be used'
+                        else: msg = f'to have the following value: {arg_value_to_string(target_values[0])}'
                     else:
-                        msg = f'to have one of the following values: {", ".join(map(arg_value_to_string, trgt_values))}'
+                        msg = f'to have one of the following values: {", ".join(map(arg_value_to_string, target_values))}'
 
-                    parser.error(f'{src_message} `{trgt_action.option_strings[0]}` {msg}')
+                    parser.error(f'{source_message} `{target_action.option_strings[0]}` {msg}')
 
-        # construct instance
-        raw_args.path = Paths(getdelattr(raw_args, _out_fold.dest),
-                              getdelattr(raw_args, _cfg_lib.dest))
-
+        # construct specifications object
         return cls(**vars(raw_args))
 
     def __repr__(self):
@@ -424,13 +509,35 @@ class Specifications:
         fields = ''.join(f'   {k} = {v},\n' for k, v in vars(self).items())
         return f'{self.__class__.__name__}(\n{fields})'
 
+    @ft.cached_property
+    def constant_fields(self) -> Mapping[str, Any]:
+        """
+            Returns a mapping containing all key/value pairs matching fields not marked as `writable`.
+             - fields that are instances of dataclasses are recursively explored, each subfield being returned as 'key.subkey...'/value.
+             - fields that are instances of enumerators are returned as 'key'/enum.value.
+        """
+
+        def extract(dc_obj: dc.DataclassInstance, prefix: str) -> Dict[str, Any]:
+            constant_fields = dict()
+
+            for field in dc.fields(dc_obj):
+                # skip writable fields
+                if field.metadata.get('writable', False): continue
+
+                value = getattr(dc_obj, field.name)
+
+                if dc.is_dataclass(value):
+                    constant_fields.update(extract(value, prefix + field.name + '.'))
+                elif isinstance(value, enum.Enum):
+                    constant_fields[prefix + field.name] = value.value
+                else:
+                    constant_fields[prefix + field.name] = value
+
+            return constant_fields
+
+        return MappingProxyType(extract(self, ''))
+
 
 def arg_value_to_string(value: Union[str, int, bool, enum.Enum, Any]) -> str:
     if isinstance(value, enum.Enum): value = value.value
     return repr(value)
-
-
-def getdelattr(o: object, name: str):
-    val = getattr(o, name)
-    delattr(o, name)
-    return val

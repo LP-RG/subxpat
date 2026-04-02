@@ -1,55 +1,53 @@
-from Z3Log.utils import setup_folder_structure
-from Z3Log.config import path as z3logpath
-
-from sxpat.specifications import Specifications
-from sxpat.config import paths as sxpatpaths
-
-from sxpat.xplore import explore_grid
-from sxpat.stats import Stats
-
-from sxpat.utils.utils import pprint
-from sxpat.utils.filesystem import FS
-
 
 def main():
+    # instrumentations
+    from instrumentations.import_timer import ImportTimer
+    import_timer = ImportTimer.instrument()
+
+    # > parse arguments and prepare specifications
+    from sxpat.specifications import Specifications
     specs_obj = Specifications.parse_args()
-    print(f'{specs_obj = }')
+    print('id:', specs_obj.run_id)
+    print('directory:', specs_obj.path.run.base_folder)
 
-    if specs_obj.plot:
-        pprint.info2('Plotting...')
-        stats_obj = Stats(specs_obj)
-        stats_obj.gather_results()
+    # > create wanted directories
+    from sxpat.utils.filesystem import FS
+    for dir in specs_obj.path.run.folders: FS.mkdir(dir)
 
-    else:
-        if specs_obj.clean:
-            pprint.info2('cleaning...')
-            clean_all()
+    # > prepare storage
+    from sxpat.utils.storage import LiveStorage, AppendStorage
+    specs_obj.stats_storage = LiveStorage(specs_obj.path.run.run_stats)
+    specs_obj.details_storage = AppendStorage(specs_obj.path.run.run_details)
 
-        # prepare folders
-        setup_folder_structure()
-        for (directory, _) in sxpatpaths.OUTPUT_PATH.values():
-            FS.mkdir(directory)
+    # > run system
+    from sxpat.xplore import explore_grid, print_results
+    from sxpat.utils.timer import Timer
+    #
+    with specs_obj.stats_storage, specs_obj.details_storage:
+        specs_obj.details_storage.add(specs_obj.constant_fields)
 
-        # run system
-        stats_obj = explore_grid(specs_obj)
+        #
+        _t = Timer.now()
+        results = explore_grid(specs_obj)
+        _t = Timer.now() - _t
+        specs_obj.details_storage.add(total_time=_t)
 
+        # print results for each relevance of metrics
+        print_results(results)
 
-def clean_all():
-    for (directory, _) in [
-        z3logpath.OUTPUT_PATH['ver'],
-        z3logpath.OUTPUT_PATH['gv'],
-        z3logpath.OUTPUT_PATH['aig'],
-        z3logpath.OUTPUT_PATH['z3'],
-        z3logpath.OUTPUT_PATH['report'],
-        z3logpath.OUTPUT_PATH['figure'],
-        z3logpath.TEST_PATH['tb'],
-        sxpatpaths.OUTPUT_PATH['area'],
-        sxpatpaths.OUTPUT_PATH['power'],
-        sxpatpaths.OUTPUT_PATH['delay'],
-        sxpatpaths.OUTPUT_PATH['json']
-    ]:
-        FS.cleandir(directory)
+        # misc
+        specs_obj.details_storage.add(import_time=import_timer.time)
 
+    # > remove temporary files
+    if not specs_obj.debug: FS.rmdir(specs_obj.path.run.temporary, True)
 
-if __name__ == "__main__":
-    main()
+    # > archive run (and delete raw files)
+    if specs_obj.should_archive:
+        from sxpat.utils.archive import archive_files
+        # create and fill archive
+        archive_path = f'{specs_obj.path.run.base_folder.rstrip("/")}.zip'
+        archive_files(archive_path, specs_obj.path.run.base_folder)
+        # delete raw files
+        if not specs_obj.debug: FS.rmdir(specs_obj.path.run.base_folder, recursive=True)
+
+if __name__ == '__main__': main()
