@@ -6,6 +6,8 @@
 /benchmarking
 *.log
 .codex
+nine_prime_check.py
+plots/
 
 #> local
 /local.mk

@@ -386,6 +386,8 @@ class AnnotatedGraph(Graph):
             empty_graph = nx.DiGraph(self.graph)
             for node in empty_graph.nodes:
                 empty_graph.nodes[node][SUBGRAPH] = 0
+                if COLOR not in empty_graph.nodes[node]:
+                    empty_graph.nodes[node][COLOR] = WHITE
             return empty_graph
 
         WEIGHT_BITS = self.num_outputs
@@ -3126,12 +3128,8 @@ class AnnotatedGraph(Graph):
             else:
                 label = f"{LABEL}=\"{self.subgraph.nodes[n][LABEL]}\""
 
-            if SUBGRAPH in self.subgraph.nodes[n]:
-                color = f"{COLOR}={self.subgraph.nodes[n][COLOR]}"
-            elif COLOR in self.subgraph.nodes[n]:
-                color = f"{COLOR}={self.subgraph.nodes[n][COLOR]}"
-            else:
-                color = f"{COLOR}={WHITE}"
+            node_color = self.subgraph.nodes[n].get(COLOR, WHITE)
+            color = f"{COLOR}={node_color}"
             shape = f"{SHAPE}={self.subgraph.nodes[n][SHAPE]}"
             if WEIGHT in self.subgraph.nodes[n]:
                 weight = f'{WEIGHT} = {self.subgraph.nodes[n][WEIGHT]}'
@@ -3139,10 +3137,8 @@ class AnnotatedGraph(Graph):
                 weight = f'{WEIGHT} = -1'
         elif self.is_cleaned_gate(n):
             label = f"{LABEL}=\"{self.subgraph.nodes[n][LABEL]}\\n{n}\\n{self.subgraph.nodes[n][WEIGHT]}\""
-            if SUBGRAPH in self.subgraph.nodes[n]:
-                color = f"{COLOR}={self.subgraph.nodes[n][COLOR]}"
-            else:
-                color = f"{COLOR}={WHITE}"
+            node_color = self.subgraph.nodes[n].get(COLOR, WHITE)
+            color = f"{COLOR}={node_color}"
             shape = f"{SHAPE}={self.subgraph.nodes[n][SHAPE]}"
             if WEIGHT in self.subgraph.nodes[n]:
                 weight = f'{WEIGHT} = {self.subgraph.nodes[n][WEIGHT]}'
@@ -3150,10 +3146,8 @@ class AnnotatedGraph(Graph):
                 weight = f'{WEIGHT} = -1'
         elif self.is_cleaned_constant(n):
             label = f"{LABEL}=\"{self.subgraph.nodes[n][LABEL]}\\n{n}\""
-            if SUBGRAPH in self.subgraph.nodes[n]:
-                color = f"{COLOR}={self.subgraph.nodes[n][COLOR]}"
-            else:
-                color = f"{COLOR}={WHITE}"
+            node_color = self.subgraph.nodes[n].get(COLOR, WHITE)
+            color = f"{COLOR}={node_color}"
             shape = f"{SHAPE}={self.subgraph.nodes[n][SHAPE]}"
             if WEIGHT in self.subgraph.nodes[n]:
                 weight = f'{WEIGHT} = {self.subgraph.nodes[n][WEIGHT]}'

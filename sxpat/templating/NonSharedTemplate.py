@@ -10,7 +10,7 @@ from sxpat.graph import *
 from sxpat.specifications import ConstantsType, MetricType, Specifications
 from sxpat.utils.collections import flat, iterable_replace, pairwise
 
-from .constraints_definition import nine, nine_prime, explicit_constraints 
+from .constraints_definition import nine, nine_prime, explicit_constraints, zone_aet_constraints
 
 from sxpat.specifications import CnnErrorConstraintTypes
 
@@ -111,6 +111,8 @@ class _NonSharedBase:
             return nine(s_graph, t_graph, max_error, beta, alpha)
         elif(constraint_type == CnnErrorConstraintTypes.NINE_PRIME):
             return nine_prime(s_graph, t_graph, max_error, beta, alpha, c_constant)
+        elif(constraint_type == CnnErrorConstraintTypes.ZONE_AET):
+            return zone_aet_constraints(s_graph, t_graph, max_error, beta, alpha)
         else:
             raise ValueError(f'Unknown CNN constraint type: {constraint_type}')
 

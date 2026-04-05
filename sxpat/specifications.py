@@ -43,6 +43,7 @@ class CnnErrorConstraintTypes(enum.Enum):
     EXPLICIT = 'explicit'
     NINE = 'nine'
     NINE_PRIME = 'nine_prime'
+    ZONE_AET = 'zone_aet'
 
 class EnumChoicesAction(argparse.Action):
     def __init__(self, *args, type: enum.Enum, **kwargs) -> None:
@@ -395,7 +396,7 @@ class Specifications:
 
         _skip_verification = parser.add_argument('--skip-verification',
                                                  action='store_true',
-                                                 help='Skip expensive post-solve error verification (useful for bulk overnight sweeps)')
+                                                 help='Skip expensive post-solve error verification')
 
         _plt = parser.add_argument('--plot',
                                    action='store_true',
@@ -427,6 +428,7 @@ class Specifications:
             (_cnn_constraint, CnnErrorConstraintTypes.NINE): [_beta, _alpha, _baseet],
             (_cnn_constraint, CnnErrorConstraintTypes.NINE_PRIME): [_beta, _alpha, _c_constant, _baseet],
             (_cnn_constraint, CnnErrorConstraintTypes.EXPLICIT): [_beta, _threshold_array_idx],
+            (_cnn_constraint, CnnErrorConstraintTypes.ZONE_AET): [_beta, _alpha, _baseet],
         }
 
         # check dependencies

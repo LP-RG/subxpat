@@ -1,4 +1,5 @@
 import json
+import math
 from typing import List
 from sxpat.graph import *
 
@@ -11,6 +12,38 @@ def _operand_half_value(s_graph: SGraph) -> int:
             return 0
         # match the integer midpoint of the operand domain 0 .. (2**n - 1).
         return ((2 ** operand_bits) - 1) // 2
+
+
+def _operand_domain_size_from_input_count(input_count: int) -> int:
+        operand_bits = input_count // 2
+        if operand_bits <= 0:
+            return 1
+        return 2 ** operand_bits
+
+
+def generate_zone_aet_thresholds(input_count: int, max_error: int, beta: int, alpha: int) -> List[int]:
+        domain_size = _operand_domain_size_from_input_count(input_count)
+        half = (domain_size - 1) // 2
+        zone_size = max(1, beta)
+        num_steps = max(1, math.ceil(domain_size / zone_size))
+        thresholds: List[int] = []
+
+        for zone_i in range(num_steps):
+            row_start = zone_i * zone_size
+            row_end = min(domain_size - 1, ((zone_i + 1) * zone_size) - 1)
+            for zone_j in range(num_steps):
+                col_start = zone_j * zone_size
+                col_end = min(domain_size - 1, ((zone_j + 1) * zone_size) - 1)
+
+                zone_max = 0
+                for input_one_value in range(row_start, row_end + 1):
+                    for input_two_value in range(col_start, col_end + 1):
+                        numerator = (abs(input_two_value - half) * alpha) + input_one_value
+                        scale = max(1, math.ceil(numerator / zone_size))
+                        zone_max = max(zone_max, scale * max_error)
+                thresholds.append(zone_max)
+
+        return thresholds
 
 def nine(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alpha: int) -> List[Node]:
         
@@ -224,4 +257,75 @@ def explicit_constraints(s_graph: SGraph, t_graph: PGraph, et_array_idx: int, be
         error_check = And('error_check', operands=(ae_error, re_error))
         nodes.append(error_check)
         
+        return nodes
+
+
+def zone_aet_constraints(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alpha: int) -> List[Node]:
+        zone_thresholds = generate_zone_aet_thresholds(len(s_graph.inputs_names), max_error, beta, alpha)
+        domain_size = _operand_domain_size_from_input_count(len(s_graph.inputs_names))
+        num_steps = max(1, math.ceil(domain_size / max(1, beta)))
+
+        nodes = [
+            *(PlaceHolder(name) for name in s_graph.inputs_names[:]),
+
+            input_one_value := ToInt('input_one_value', operands=s_graph.inputs_names[:len(s_graph.inputs_names)//2]),
+            input_two_value := ToInt('input_two_value', operands=s_graph.inputs_names[len(s_graph.inputs_names)//2:]),
+
+            cur_int := ToInt('cur_int', operands=s_graph.outputs_names),
+            tem_int := ToInt('tem_int', operands=t_graph.outputs_names),
+            abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int)),
+
+            zero := IntConstant('zero', value=0),
+            one := IntConstant('one', value=1),
+            hundred := IntConstant('hundred', value=100),
+
+            condition := Equals('condition', operands=(cur_int, zero)),
+            divider := If("divider", operands=(condition, one, cur_int)),
+            abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
+            rel_diff := UDiv('rel_diff', operands=(abs_diff_hundred, divider)),
+        ]
+
+        ae_error_zone_nodes = []
+
+        for zone_i in range(num_steps):
+            row_start_val = zone_i * beta
+            row_end_val = min(domain_size - 1, ((zone_i + 1) * beta) - 1)
+            for zone_j in range(num_steps):
+                et_value = IntConstant(
+                    f"zone_aet_{zone_i}_{zone_j}",
+                    value=zone_thresholds[zone_i * num_steps + zone_j],
+                )
+                nodes.append(et_value)
+
+                col_start_val = zone_j * beta
+                col_end_val = min(domain_size - 1, ((zone_j + 1) * beta) - 1)
+
+                row_start_const = IntConstant(f"zone_input_one_row_start_{zone_i}_{zone_j}", value=row_start_val)
+                row_end_const = IntConstant(f"zone_input_one_row_end_{zone_i}_{zone_j}", value=row_end_val)
+                col_start_const = IntConstant(f"zone_input_two_col_start_{zone_i}_{zone_j}", value=col_start_val)
+                col_end_const = IntConstant(f"zone_input_two_col_end_{zone_i}_{zone_j}", value=col_end_val)
+                nodes.extend([row_start_const, row_end_const, col_start_const, col_end_const])
+
+                ge_row = GreaterEqualThan(f"zone_ge_input_one_row_{zone_i}_{zone_j}", operands=(input_one_value, row_start_const))
+                le_row = LessEqualThan(f"zone_le_input_one_row_{zone_i}_{zone_j}", operands=(input_one_value, row_end_const))
+                ge_col = GreaterEqualThan(f"zone_ge_input_two_col_{zone_i}_{zone_j}", operands=(input_two_value, col_start_const))
+                le_col = LessEqualThan(f"zone_le_input_two_col_{zone_i}_{zone_j}", operands=(input_two_value, col_end_const))
+                nodes.extend([ge_row, le_row, ge_col, le_col])
+
+                input_one_cond = And(f"zone_input_one_in_{zone_i}_{zone_j}", operands=(ge_row, le_row))
+                input_two_cond = And(f"zone_input_two_in_{zone_i}_{zone_j}", operands=(ge_col, le_col))
+                zone_condition = And(f"zone_condition_{zone_i}_{zone_j}", operands=(input_one_cond, input_two_cond))
+                ae_less_equal = LessEqualThan(f"zone_ae_less_equal_{zone_i}_{zone_j}", operands=(abs_diff, et_value))
+                ae_error_zone = Implies(
+                    f"zone_ae_error_{zone_i}_{zone_j}",
+                    operands=(zone_condition, ae_less_equal),
+                )
+                nodes.extend([input_one_cond, input_two_cond, zone_condition, ae_less_equal, ae_error_zone])
+                ae_error_zone_nodes.append(ae_error_zone)
+
+        ae_error = And('ae_error', operands=ae_error_zone_nodes)
+        re_error = LessEqualThan('re_error', operands=(rel_diff, hundred))
+        error_check = And('error_check', operands=(ae_error, re_error))
+        nodes.extend([ae_error, re_error, error_check])
+
         return nodes

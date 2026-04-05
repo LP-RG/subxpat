@@ -33,7 +33,10 @@ from sxpat.annotatedGraph import AnnotatedGraph
 
 from sxpat.templating import get_specialized as get_templater
 from sxpat.solving import get_specialized as get_solver
-from sxpat.templating.constraints_definition import ERROR_THRESHOLD_ARRAYS_PATH
+from sxpat.templating.constraints_definition import (
+    ERROR_THRESHOLD_ARRAYS_PATH,
+    generate_zone_aet_thresholds,
+)
 
 from sxpat.converting import VerilogExporter
 from sxpat.converting import iograph_from_legacy, sgraph_from_legacy
@@ -148,6 +151,23 @@ def _get_termination_error_ceiling(specs_obj: Specifications) -> int | None:
             return None
 
         return max(thresholds)
+
+    if cnn_constraint is CnnErrorConstraintTypes.ZONE_AET:
+        if (
+            specs_obj.beta is None
+            or specs_obj.beta <= 0
+            or specs_obj.alpha is None
+        ):
+            return None
+
+        thresholds = generate_zone_aet_thresholds(
+            input_count=_get_operand_input_bits(specs_obj.exact_benchmark) * 2
+            if _get_operand_input_bits(specs_obj.exact_benchmark) is not None else 0,
+            max_error=specs_obj.max_error,
+            beta=specs_obj.beta,
+            alpha=specs_obj.alpha,
+        )
+        return max(thresholds) if thresholds else None
 
     return None
 
@@ -343,6 +363,7 @@ def explore_grid(specs_obj: Specifications):
     stop_snapshot: TerminationSnapshot | None = None
     stop_reason: str | None = None
 
+    # gradual error budget relaxation
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
         orig_et = specs_obj.max_error if specs_obj.zone_constraint is None else 100
         if orig_et <= 8:
