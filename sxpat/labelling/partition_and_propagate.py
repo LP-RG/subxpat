@@ -42,6 +42,9 @@ def apply_logic(op, inputs):
         return 0 if inputs[0] == 1 else 1
     elif op == 'xor':
         return sum(inputs) % 2
+    # the out put of primary output nodes
+    elif op.startswith('out'):
+        return inputs[0]
     return 0
 
 class Subgraph:
@@ -74,7 +77,7 @@ class Subgraph:
             for node in sorted_nodes:
          
                  preds = list(graph.predecessors(node))
-                 gate_in_values = [[values[p] for p in preds if p in values]]
+                 gate_in_values = [values[p] for p in preds if p in values]
 
                  op = graph.nodes[node].get("label")
                  
@@ -134,6 +137,7 @@ def calculate_weight_and_local_tag(sg_truth_table, in_idx, out_nodes, out_tags, 
         if combo_1[in_idx] != 1:
             continue
 
+
         # if the input node is 1,we change it to 0,
         combo_0_list = list(combo_1)
         combo_0_list[in_idx] = 0
@@ -189,7 +193,7 @@ def calculate_weight_and_local_tag(sg_truth_table, in_idx, out_nodes, out_tags, 
         elif (0 in diffs and 1 in diffs) or (0 in diffs and -1 in diffs):
             if local_tag == 'S': 
                 local_tag = 'NS'
-                
+         
     return max_weight, local_tag
 
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
@@ -237,6 +241,15 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     
     # TODO:improve it
     for node in graph.nodes:
+
+        label = graph.nodes[node].get("label", "")
+    
+        # TODO：fix the problem
+        # Special handling for the main output node: It's in its own group
+        if label.startswith("out") or label.startswith("in"):
+            graph.nodes[node]['subgraph_id'] = node  # 自己一个ID
+            continue  # 不加入 nodes_by_subid
+
         root = uf.find(node)
         
         if len(temp_group_inputs[root]) > TI_LIMIT:
@@ -261,18 +274,12 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
             inputs_of_subgraph[subId_v].add(u)
             outputs_of_subgraph[subId_u].add(v)
 
-    # TODO：这些output有可能被规到子图吗？我们在计算子图的时候，要去区分是否是primary output吗？
-    # ERROR：Primary Outputs(if those outputs has no input????)
-    # for node in graph.nodes:
-    #     if graph.out_degree(node) == 0:
-    #         sub_id = graph.nodes[node]['subgraph_id']
-    #         outputs_of_subgraph[sub_id].add(node)
-
 
     # step 2: Derivation of the propagation matrix (section 3.3)
     all_subgraph_objects = {} # 用来存储实例化后的对象，所有计算结果，方便后面计算 #store all subgraph objects(created by subgraph class)
 
 
+    #only calculate the nodes except primary input and primary output
     for sub_id, nodes_in_group in nodes_by_subid.items():
     #  Find all nodes of sub_id and input/output node of the graph
          sub_inputs = sorted(list(inputs_of_subgraph[sub_id]))
@@ -280,8 +287,8 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
          #if the subgraph only has primary nodes/only has primary output nodes
          #Question？有可能存在一个subgraph只存在input和output吗？  
-         if not sub_inputs or not sub_outputs:
-            continue
+        #  if not sub_inputs or not sub_outputs:
+        #     continue
         
         # 2. 实例化你的 Subgraph 类
         # TODO:有没有办法可以优化那些只有一个节点的值？有必要吗
@@ -308,8 +315,10 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
             parent_sub_id = graph.nodes[in_node].get('subgraph_id')
 
             if parent_sub_id is not None and parent_sub_id != sub_id:
+                    # if the input is primary input, the nodes are not in all_subgraph_objects
                     if parent_sub_id not in sub_id_graph:
                         sub_id_graph.add_node(parent_sub_id)
+                        
                     sub_id_graph.add_edge(parent_sub_id,sub_id)
        
         for out_node in sg.outputs:
@@ -318,6 +327,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
                 child_sub_id = graph.nodes[successor].get('subgraph_id')
             
                 if child_sub_id is not None and child_sub_id != sub_id:
+                    # if the output is primary output, the nodes are not in all_subgraph_objects
                     if child_sub_id not in sub_id_graph:
                         sub_id_graph.add_node(child_sub_id)
                     sub_id_graph.add_edge(sub_id, child_sub_id)
@@ -330,7 +340,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     # add weight 0 to each node
     nx.set_node_attributes(graph, 0, 'weight')
 
-    # give the wright and monotonicity to the primary output node
+    # give the wright and monotonicity to the primary output nodes
     for node in graph.nodes:
         label = graph.nodes[node].get("label", "")
         
@@ -417,10 +427,11 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
                 # --- 步骤 3: 更新 target_node 之后的节点 ---
                 # --- Step 3: Update nodes after target_node ---
                 for i in range(start_idx + 1, len(sorted_local)):
+
                     n = sorted_local[i]
                     # 重新计算该节点：它会读取到已经被“污染”的前驱新值
                     # Recalculate the node: It will read the new value of the predecessor that has been flipped.
-                    preds = [p for p in graph.predecessors(n) if p in local_nodes]
+                    preds = list(sub_g.predecessors(n))
                     new_in_vals = [flipped_vals[p] for p in preds]
                     op = graph.nodes[n].get('label')
                     flipped_vals[n] = apply_logic(op, new_in_vals)
@@ -430,10 +441,10 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
                 current_impact = 0
                 for j, out_node in enumerate(sg.outputs):
                     if flipped_vals[out_node] != normal_vals[out_node]:
-                        out_node_weight = graph.nodes[out_node].get('weight', 0)
+                        out_node_weight = graph.nodes[out_node].get('weight')
                         current_impact += out_node_weight
 
-                old_max = graph.nodes[target_node].get('weight', 0)
+                old_max = graph.nodes[target_node].get('weight')
                 if current_impact > old_max:
                     graph.nodes[target_node]['weight'] = current_impact
                     
@@ -441,13 +452,27 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
     return nx.get_node_attributes(graph, 'weight')
 
-    # step 4: Subgraph simulation for internal nodes
-    ...
 
-    # return the mapping from names to weights
-    # partition_results = {
-    #     'node_to_subid': nx.get_node_attributes(graph, 'subgraph_id'),
-    #     'sub_inputs': inputs_of_subgraph,
-    #     'sub_outputs': outputs_of_subgraph
-    # }
-    # return partition_results
+# from test_circuit_simple import (
+#     create_test_1_single_not_gate,
+#     create_test_2_and_gate,
+#     create_test_3_xor_gate,
+#     create_test_4_fanout,
+#     create_test_5_series,
+#     create_test_6_complex
+# )
+
+# # 创建所有测试
+# test_cases = [
+#     ("TEST 1: 单个NOT门", create_test_1_single_not_gate()),
+#     ("TEST 2: AND门", create_test_2_and_gate()),
+#     ("TEST 3: XOR门（非单调）", create_test_3_xor_gate()),
+#     ("TEST 4: 扇出电路", create_test_4_fanout()),
+#     ("TEST 5: 串联电路", create_test_5_series()),
+#     ("TEST 6: 较复杂电路", create_test_6_complex()),
+# ]
+
+
+# for name, G in test_cases:
+#     weights = compute(G)
+#     print(f"{name}: {weights}")
