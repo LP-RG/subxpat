@@ -40,7 +40,7 @@ def load_example() -> nx.digraph.DiGraph:
 if __name__ == '__main__':
     digraph = load_example()
 
-    weights, sub_id_graph = compute(digraph) 
+    weights, sub_id_graph, all_subgraph_objects = compute(digraph) 
 
 
     # change the subid into a color, so different id show different color
