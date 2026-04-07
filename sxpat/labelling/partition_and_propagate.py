@@ -50,11 +50,11 @@ def apply_logic(op, inputs):
 class Subgraph:
     def __init__(self, sub_id, members, inputs, outputs):
         self.sub_id = sub_id
-        self.members = members    # 子图内的节点 # Nodes within the subgraph
+        self.members = members    # Nodes within the subgraph
         self.inputs = inputs      
         self.outputs = outputs    
-        self.truth_table = {}     # 真值表 Truth table
-        self.matrix = []          # 传播矩阵 Ms Propagation Matrix Ms
+        self.truth_table = {}     # Truth table
+        self.matrix = [[] for _ in range(len(inputs))]   # Ms Propagation Matrix Ms
         self.input_tags = {}      # {in_node: 'S'/'NS'/'NM'}
         self.input_weights = {}   # {in_node: weight_value}
 
@@ -115,10 +115,11 @@ class Subgraph:
             base_sum = 0
             ns_pos_group = 0 #store the ns output nodes weight which increase
             ns_neg_group = 0 #store the ns output nodes weight which decrease
-            
+    
             for j, out_node in enumerate(self.outputs):
                 diff = out_vals_1[j] - out_vals_0[j]
-                
+
+
                 # if we know the input node is nm, Skip state tracking and calculate weight directly
                 if not already_nm:
                     diff_tracker[out_node].add(diff)
@@ -145,8 +146,10 @@ class Subgraph:
             impact_neg = abs(base_sum + ns_neg_group)
             combo_max_impact = max(impact_pos, impact_neg)
             
-            if combo_max_impact > max_weight:
+            if combo_max_impact >= max_weight:
                 max_weight = combo_max_impact
+                self.matrix[in_idx]= [out_vals_1[j] - out_vals_0[j] for j in range(len(self.outputs))] #store the ms_matrix
+                
 
         # --- get the Local Tag ---
         if already_nm:
@@ -370,6 +373,10 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     #3.3 start Propagation the label and monotonicity 
     for sub_id in sorted_sub_id_list:
 
+        # print(f"\n--- 正在传播子图: {sub_id} ---")
+        # for out_node in sg.outputs:
+        #     print(f"  检查输出口 {out_node} 的当前权重: {graph.nodes[out_node]['weight']}")
+
         # if the sub_id is primary input or output
         if sub_id not in all_subgraph_objects:
             continue
@@ -400,7 +407,10 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
         
              # 5. Label input node
              graph.nodes[in_node]['monotonicity'] = local_tag
- 
+
+        # print("\n==== 实时子图矩阵监测 ====")
+        # for sid, sg in all_subgraph_objects.items():
+        #     print(f"子图 {sid} 的 Ms 矩阵: {sg.matrix}")
         
 
 
@@ -463,7 +473,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
     weights = nx.get_node_attributes(graph, 'weight')
 
-    return weights,sub_id_graph
+    return weights, sub_id_graph, all_subgraph_objects
 
 
 # from test_circuit_simple import (
@@ -489,3 +499,56 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 # for name, G in test_cases:
 #     weights = compute(G)
 #     print(f"{name}: {weights}")
+
+# def run_advanced_tests():
+#     # --- TEST 1: NOT Gate (验证负单调性 -1) ---
+#     print("\n" + "="*40)
+#     print("TEST 1: NOT Gate (Negative Monotonicity)")
+#     G1 = nx.DiGraph()
+#     G1.add_node('in0', label='input')
+#     G1.add_node('gate1', label='not')
+#     G1.add_node('out0', label='out0')
+#     G1.add_edges_from([('in0', 'gate1'), ('gate1', 'out0')])
+    
+#     w1, _, objs1 = compute(G1)
+#     print(f"Ms Matrix: {objs1['gate1_root'].matrix if 'gate1_root' in objs1 else 'Check ID'}")
+#     print(f"Weights: {w1}")
+
+#     # --- TEST 2: XOR Gate (验证非单调性 NM) ---
+#     print("\n" + "="*40)
+#     print("TEST 2: XOR Gate (Non-monotonicity)")
+#     G2 = nx.DiGraph()
+#     G2.add_node('in0', label='input')
+#     G2.add_node('in1', label='input')
+#     G2.add_node('gate1', label='xor')
+#     G2.add_node('out0', label='out0')
+#     G2.add_edges_from([('in0', 'gate1'), ('in1', 'gate1'), ('gate1', 'out0')])
+    
+#     w2, _, objs2 = compute(G2)
+#     # 这里的 Ms 应该是 [1] 或 [-1]，但 monotonicity 属性应为 'NM'
+#     print(f"Weights: {w2}")
+#     print(f"in0 Monotonicity: {G2.nodes['in0'].get('monotonicity')}")
+
+#     # --- TEST 3: Reconvergent Fan-out (验证 Equation 14 的分支叠加) ---
+#     # in0 分成两路，一路经过 NOT，两路最后汇总到 AND
+#     # 这种结构非常考验权重累加逻辑
+#     print("\n" + "="*40)
+#     print("TEST 3: Fan-out Reconvergent Path")
+#     G3 = nx.DiGraph()
+#     G3.add_node('in0', label='input')
+#     G3.add_node('branch_a', label='and') # 用 AND 当 buffer
+#     G3.add_node('branch_b', label='not') # 负向路径
+#     G3.add_node('final_gate', label='and')
+#     G3.add_node('out0', label='out0')
+    
+#     G3.add_edges_from([
+#         ('in0', 'branch_a'), ('in0', 'branch_b'),
+#         ('branch_a', 'final_gate'), ('branch_b', 'final_gate'),
+#         ('final_gate', 'out0')
+#     ])
+    
+#     w3, _, _ = compute(G3)
+#     print(f"Weights: {w3}")
+
+# # 执行测试
+# run_advanced_tests()
