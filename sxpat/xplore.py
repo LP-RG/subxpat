@@ -163,7 +163,7 @@ def _get_termination_error_ceiling(specs_obj: Specifications) -> int | None:
         thresholds = generate_zone_aet_thresholds(
             input_count=_get_operand_input_bits(specs_obj.exact_benchmark) * 2
             if _get_operand_input_bits(specs_obj.exact_benchmark) is not None else 0,
-            max_error=specs_obj.max_error,
+            base_error=specs_obj.max_error,
             beta=specs_obj.beta,
             alpha=specs_obj.alpha,
         )
@@ -264,6 +264,26 @@ def _store_trace_row(trace_rows: List[Dict[str, Any]], **kwargs: Any) -> None:
     trace_rows.append(kwargs)
 
 
+def _dominates_pareto(candidate: Dict[str, float], incumbent: Dict[str, float]) -> bool:
+    candidate_metrics = (candidate['area'], candidate['power'], candidate['delay'])
+    incumbent_metrics = (incumbent['area'], incumbent['power'], incumbent['delay'])
+    return (
+        all(c_metric <= i_metric for c_metric, i_metric in zip(candidate_metrics, incumbent_metrics))
+        and any(c_metric < i_metric for c_metric, i_metric in zip(candidate_metrics, incumbent_metrics))
+    )
+
+
+def _update_pareto_frontier(frontier: List[Dict[str, Any]], point: Dict[str, Any]) -> bool:
+    # return True iff the new point expands the frontier; otherwise it is
+    # dominated by an existing point and provides no new Pareto tradeoff.
+    if any(_dominates_pareto(existing, point) for existing in frontier):
+        return False
+
+    frontier[:] = [existing for existing in frontier if not _dominates_pareto(point, existing)]
+    frontier.append(point)
+    return True
+
+
 def _write_termination_trace(summary_stem: str, trace_rows: List[Dict[str, Any]]) -> str:
     # the csv trace stores one row per outer exploration iteration so sweeps can
     # be analyzed without reparsing the verbose console log.
@@ -288,6 +308,9 @@ def _write_termination_trace(summary_stem: str, trace_rows: List[Dict[str, Any]]
         'verified_error_prev',
         'subgraph_available',
         'subgraph_repeated',
+        'pareto_efficient',
+        'pareto_frontier_size',
+        'pareto_stagnation',
     ]
     with open(trace_path, 'w', newline='') as trace_file:
         writer = csv.DictWriter(trace_file, fieldnames=fieldnames)
@@ -356,6 +379,8 @@ def explore_grid(specs_obj: Specifications):
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
     max_out_node = _get_max_output_node(specs_obj) if specs_obj.extraction_mode == 0 else None
+    pareto_frontier: List[Dict[str, Any]] = []
+    pareto_stagnation = 0
 
     run_started_at = time.time()
     trace_rows: List[Dict[str, Any]] = []
@@ -380,6 +405,7 @@ def explore_grid(specs_obj: Specifications):
         status = None
         best_data = None
         best_name = None
+        selected_result_this_iteration = False
 
         # Record one trace row per outer iteration, even if we later discover
         # there was no usable subgraph or no SAT model in the selected cell.
@@ -401,6 +427,9 @@ def explore_grid(specs_obj: Specifications):
             'verified_error_prev': None,
             'subgraph_available': None,
             'subgraph_repeated': False,
+            'pareto_efficient': None,
+            'pareto_frontier_size': len(pareto_frontier),
+            'pareto_stagnation': pareto_stagnation,
         }
 
         if not specs_obj.subxpat:
@@ -707,6 +736,14 @@ def explore_grid(specs_obj: Specifications):
                     'verified_error_prev': best_data[5],
                     'cell': (lpp, ppo),
                 }
+                selected_result_this_iteration = True
+
+                if specs_obj.termination_mode is TerminationMode.PARETO:
+                    is_pareto_efficient = _update_pareto_frontier(pareto_frontier, last_selected_result)
+                    pareto_stagnation = 0 if is_pareto_efficient else pareto_stagnation + 1
+                    trace_row['pareto_efficient'] = is_pareto_efficient
+                    trace_row['pareto_frontier_size'] = len(pareto_frontier)
+                    trace_row['pareto_stagnation'] = pareto_stagnation
 
                 print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
                 store_current_model(
@@ -724,8 +761,29 @@ def explore_grid(specs_obj: Specifications):
 
             prev_actual_error = 0
 
+        if (
+            specs_obj.termination_mode is TerminationMode.PARETO
+            and selected_result_this_iteration
+            and pareto_stagnation >= persistance_limit
+        ):
+            stop_reason = 'pareto_termination'
+            trace_row['stop_reason'] = stop_reason
+            trace_row['status'] = 'STOPPED'
+            trace_row['pareto_frontier_size'] = len(pareto_frontier)
+            trace_row['pareto_stagnation'] = pareto_stagnation
+            pprint.warning(
+                'Pareto termination fired: no new non-dominated '
+                f'(area, power, delay) point in the last {pareto_stagnation} accepted iteration(s).'
+            )
+            _store_trace_row(trace_rows, **trace_row)
+            break
+
         if trace_row['status'] is None and status is not None:
             trace_row['status'] = status.upper()
+        if trace_row['pareto_frontier_size'] is None:
+            trace_row['pareto_frontier_size'] = len(pareto_frontier)
+        if trace_row['pareto_stagnation'] is None:
+            trace_row['pareto_stagnation'] = pareto_stagnation
         _store_trace_row(trace_rows, **trace_row)
 
         if status == SAT and best_data[0] == 0:
@@ -764,6 +822,8 @@ def explore_grid(specs_obj: Specifications):
         'final_verified_error_exact': None if last_selected_result is None else last_selected_result['verified_error_exact'],
         'final_verified_error_prev': None if last_selected_result is None else last_selected_result['verified_error_prev'],
         'final_cell': None if last_selected_result is None else last_selected_result['cell'],
+        'pareto_frontier_size': len(pareto_frontier),
+        'pareto_stagnation': pareto_stagnation,
         'grid_csv': stats_obj.grid_path,
     }
 

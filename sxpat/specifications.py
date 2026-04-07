@@ -18,6 +18,7 @@ class ErrorPartitioningType(enum.Enum):
 class TerminationMode(enum.Enum):
     NONE = 'none'
     TRIVIAL = 'trivial'
+    PARETO = 'pareto'
 
 class EncodingType(enum.Enum):
     Z3_FUNC_INTEGER = 'z3int'
@@ -375,7 +376,7 @@ class Specifications:
                                     type=TerminationMode,
                                     action=EnumChoicesAction,
                                     default=TerminationMode.TRIVIAL,
-                                    help='Termination behavior for extraction-mode 0: none or trivial (default: trivial)')
+                                    help='Termination behavior for extraction-mode 0: none, trivial, or pareto (default: trivial)')
 
         # > other stuff
 

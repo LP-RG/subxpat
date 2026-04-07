@@ -21,7 +21,10 @@ def _operand_domain_size_from_input_count(input_count: int) -> int:
         return 2 ** operand_bits
 
 
-def generate_zone_aet_thresholds(input_count: int, max_error: int, beta: int, alpha: int) -> List[int]:
+def generate_zone_aet_thresholds(input_count: int, base_error: int, beta: int, alpha: int) -> List[int]:
+        # compute one integer score per zone
+        # turn it into the zone threshold via `score * base_error`
+        # `base_error` is not a hard ceiling; it is the base ET multiplier.
         domain_size = _operand_domain_size_from_input_count(input_count)
         half = (domain_size - 1) // 2
         zone_size = max(1, beta)
@@ -39,8 +42,8 @@ def generate_zone_aet_thresholds(input_count: int, max_error: int, beta: int, al
                 for input_one_value in range(row_start, row_end + 1):
                     for input_two_value in range(col_start, col_end + 1):
                         numerator = (abs(input_two_value - half) * alpha) + input_one_value
-                        scale = max(1, math.ceil(numerator / zone_size))
-                        zone_max = max(zone_max, scale * max_error)
+                        score = max(1, math.ceil(numerator / zone_size))
+                        zone_max = max(zone_max, score * base_error)
                 thresholds.append(zone_max)
 
         return thresholds
