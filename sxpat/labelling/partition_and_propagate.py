@@ -55,6 +55,8 @@ class Subgraph:
         self.outputs = outputs    
         self.truth_table = {}     # 真值表 Truth table
         self.matrix = []          # 传播矩阵 Ms Propagation Matrix Ms
+        self.input_tags = {}      # {in_node: 'S'/'NS'/'NM'}
+        self.input_weights = {}   # {in_node: weight_value}
 
     def build_truth_table(self, graph):
         # add output node
@@ -85,7 +87,84 @@ class Subgraph:
 
             res_out = tuple(values.get(out, 0) for out in self.outputs)
             self.truth_table[combo] = res_out
+    
+    def calculate_weight_and_local_tag(self, in_idx, out_tags, out_weights, already_nm=False):
+        in_node = self.inputs[in_idx]
+        max_weight = 0
+    
+        # 优化：只有在尚未确诊为 NM 时，才需要建立追踪器
+        # A tracker is only needed when NM has not yet been diagnosed.It is created to calculate the NM,S,NS
+        diff_tracker = None
+        if not already_nm:
+            diff_tracker = {out: set() for out in self.outputs}
+        
+        # use truth table to calculate the result after input(1->0)
+        for combo_1, out_vals_1 in self.truth_table.items():
+            # if the input node is 0,continue
+            if combo_1[in_idx] != 1:
+                continue
 
+
+            # if the input node is 1,we change it to 0,
+            combo_0_list = list(combo_1)
+            combo_0_list[in_idx] = 0
+            combo_0 = tuple(combo_0_list)
+            
+            out_vals_0 = self.truth_table[combo_0]
+            
+            base_sum = 0
+            ns_pos_group = 0 #store the ns output nodes weight which increase
+            ns_neg_group = 0 #store the ns output nodes weight which decrease
+            
+            for j, out_node in enumerate(self.outputs):
+                diff = out_vals_1[j] - out_vals_0[j]
+                
+                # if we know the input node is nm, Skip state tracking and calculate weight directly
+                if not already_nm:
+                    diff_tracker[out_node].add(diff)
+                
+                if diff == 0:
+                    continue 
+                    
+                tag = out_tags[out_node]
+                w = out_weights[out_node]
+                
+                # --- Weight Calculation ---
+                if tag == 'S':
+                    base_sum += w * diff
+                elif tag == 'NM':
+                    base_sum += w * abs(diff)
+                elif tag == 'NS':
+                    partial_product = w * diff
+                    if partial_product > 0:
+                        ns_pos_group += partial_product
+                    else:
+                        ns_neg_group += partial_product
+                        
+            impact_pos = abs(base_sum + ns_pos_group)
+            impact_neg = abs(base_sum + ns_neg_group)
+            combo_max_impact = max(impact_pos, impact_neg)
+            
+            if combo_max_impact > max_weight:
+                max_weight = combo_max_impact
+
+        # --- get the Local Tag ---
+        if already_nm:
+            local_tag = 'NM' 
+        else:  
+            local_tag = 'S' 
+            for out_node, diffs in diff_tracker.items():
+                if 1 in diffs and -1 in diffs:
+                    local_tag = 'NM'
+                    break 
+                elif (0 in diffs and 1 in diffs) or (0 in diffs and -1 in diffs):
+                    if local_tag == 'S': 
+                        local_tag = 'NS'
+
+        self.input_tags[in_node] = local_tag
+        self.input_weights[in_node] = max_weight
+            
+        return max_weight, local_tag
 
     # # TODO:这个函数可能需要删除或者改变
     # # Analyze monotonicity and generate matrix Ms
@@ -123,78 +202,7 @@ class Subgraph:
     #              if 1 in s: self.matrix[i][j] = 1
     #              elif -1 in s:           self.matrix[i][j] = 1
 
-def calculate_weight_and_local_tag(sg_truth_table, in_idx, out_nodes, out_tags, out_weights, already_nm=False):
-    max_weight = 0
-    
-    # 优化：只有在尚未确诊为 NM 时，才需要建立追踪器
-    # A tracker is only needed when NM has not yet been diagnosed.It is created to calculate the NM,S,NS
-    if not already_nm:
-        diff_tracker = {out: set() for out in out_nodes}
-    
-    # use truth table to calculate the result after input(1->0)
-    for combo_1, out_vals_1 in sg_truth_table.items():
-        # if the input node is 0,continue
-        if combo_1[in_idx] != 1:
-            continue
 
-
-        # if the input node is 1,we change it to 0,
-        combo_0_list = list(combo_1)
-        combo_0_list[in_idx] = 0
-        combo_0 = tuple(combo_0_list)
-        
-        out_vals_0 = sg_truth_table[combo_0]
-        
-        base_sum = 0
-        ns_pos_group = 0 #store the ns output nodes weight which increase
-        ns_neg_group = 0 #store the ns output nodes weight which decrease
-        
-        for j, out_node in enumerate(out_nodes):
-            diff = out_vals_1[j] - out_vals_0[j]
-            
-            # if we know the input node is nm, Skip state tracking and calculate weight directly
-            if not already_nm:
-                diff_tracker[out_node].add(diff)
-            
-            if diff == 0:
-                continue 
-                
-            tag = out_tags[out_node]
-            w = out_weights[out_node]
-            
-            # --- Weight Calculation ---
-            if tag == 'S':
-                base_sum += w * diff
-            elif tag == 'NM':
-                base_sum += w * abs(diff)
-            elif tag == 'NS':
-                partial_product = w * diff
-                if partial_product > 0:
-                    ns_pos_group += partial_product
-                else:
-                    ns_neg_group += partial_product
-                    
-        impact_pos = abs(base_sum + ns_pos_group)
-        impact_neg = abs(base_sum + ns_neg_group)
-        combo_max_impact = max(impact_pos, impact_neg)
-        
-        if combo_max_impact > max_weight:
-            max_weight = combo_max_impact
-
-    # --- get the Local Tag ---
-    if already_nm:
-        return max_weight, 'NM'
-        
-    local_tag = 'S' 
-    for out_node, diffs in diff_tracker.items():
-        if 1 in diffs and -1 in diffs:
-            local_tag = 'NM'
-            break 
-        elif (0 in diffs and 1 in diffs) or (0 in diffs and -1 in diffs):
-            if local_tag == 'S': 
-                local_tag = 'NS'
-         
-    return max_weight, local_tag
 
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
@@ -284,6 +292,9 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     #  Find all nodes of sub_id and input/output node of the graph
          sub_inputs = sorted(list(inputs_of_subgraph[sub_id]))
          sub_outputs = sorted(list(outputs_of_subgraph[sub_id]))
+         
+        #  print(f"the input of {sub_id} is {sub_inputs}./n")
+        #  print(f"the output of {sub_id} is {sub_outputs}.")
 
          #if the subgraph only has primary nodes/only has primary output nodes
          #Question？有可能存在一个subgraph只存在input和output吗？  
@@ -332,6 +343,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
                         sub_id_graph.add_node(child_sub_id)
                     sub_id_graph.add_edge(sub_id, child_sub_id)
     
+    
     # get the sorted subgraph list, use it to calculate the weight of each subgraph
     # include primary input/inside node/primary output
     sorted_sub_id_list=list(reversed(list(nx.topological_sort(sub_id_graph))))
@@ -379,8 +391,8 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
              already_nm = is_fanout or has_global_nm
         
              # 3. calculate weight and tag（if already_nm == True，we will not calculate nm in the truth table）
-             calculated_weight, local_tag = calculate_weight_and_local_tag(
-            sg.truth_table, in_idx, sg.outputs, out_tags, out_weights, already_nm
+             calculated_weight, local_tag = sg.calculate_weight_and_local_tag(
+             in_idx, out_tags, out_weights, already_nm
         )
         
              # 4. calculate input Weight node
@@ -449,8 +461,9 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
                     graph.nodes[target_node]['weight'] = current_impact
                     
 
+    weights = nx.get_node_attributes(graph, 'weight')
 
-    return nx.get_node_attributes(graph, 'weight')
+    return weights,sub_id_graph
 
 
 # from test_circuit_simple import (
