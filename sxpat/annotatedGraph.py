@@ -80,11 +80,11 @@ class AnnotatedGraph(Graph):
 
         new_size = max(3, new_size)
         if cls.__cached_loading_callable is not None: cls.__cached_loading_callable.cache_clear()
-        
+
         def make_cached_function(cache_size: int):
             cached = ft.lru_cache(cache_size)(cls)
             return ft.wraps(cls)(lambda *a, **k: deepcopy(cached(*a, **k)))
-        
+
         cls.__cached_loading_callable = make_cached_function(new_size)
 
     @property

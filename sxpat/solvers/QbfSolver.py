@@ -43,33 +43,46 @@ TRUE = '91'
 FALSE = '92'
 
 
-CQESTO_PATH = 'cq'
-
-
 def free(next_id_gen: UniqueIdGen) -> NodeID:
     """Return the the first free available name"""
     return f'4{next_id_gen()}'
 
 
-def _and(a: NodeID, b: NodeID, next_id_gen: UniqueIdGen, destination: IO[str]) -> NodeID:
+def _and(
+    a: NodeID, b: NodeID,
+    next_id_gen: UniqueIdGen,
+    destination: IO[str]
+) -> NodeID:
     gate = free(next_id_gen)
     destination.write(f'{gate} = and({a}, {b})\n')
     return gate
 
 
-def _or(a: NodeID, b: NodeID, next_id_gen: UniqueIdGen, destination: IO[str]) -> NodeID:
+def _or(
+    a: NodeID, b: NodeID,
+    next_id_gen: UniqueIdGen,
+    destination: IO[str]
+) -> NodeID:
     gate = free(next_id_gen)
     destination.write(f'{gate} = or({a}, {b})\n')
     return gate
 
 
-def _xor(a: NodeID, b: NodeID, next_id_gen: UniqueIdGen, destination: IO[str]) -> NodeID:
+def _xor(
+    a: NodeID, b: NodeID,
+    next_id_gen: UniqueIdGen,
+    destination: IO[str]
+) -> NodeID:
     gate = free(next_id_gen)
     destination.write(f'{gate} = xor({a}, {b})\n')
     return gate
 
 
-def _adder_bit3(a: NodeID, b: NodeID, c: NodeID, next_id_gen: UniqueIdGen, destination: IO[str]) -> NodeIDSeq:
+def _adder_bit3(
+    a: NodeID, b: NodeID, c: NodeID,
+    next_id_gen: UniqueIdGen,
+    destination: IO[str]
+) -> NodeIDSeq:
     results = []
     partial_xor = _xor(a, b, next_id_gen, destination)
     results.append(_xor(partial_xor, c, next_id_gen, destination))
