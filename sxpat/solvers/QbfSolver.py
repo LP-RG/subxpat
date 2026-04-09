@@ -2,12 +2,12 @@
     :author: Lorenzo Spada
 """
 
-from typing import IO, Any, Callable, Mapping, Optional, Sequence, Tuple, TypeVar, Union, Dict, List
-from typing_extensions import TypeAlias
+from typing import IO, Any, Callable, Iterable, Mapping, Optional, Sequence, Tuple, TypeVar, Union, Dict, List, Protocol
+from typing_extensions import TypeAlias, Self
 
 import copy
 import subprocess
-from itertools import count
+from itertools import chain, count
 from collections import deque
 from os.path import join as path_join
 
@@ -20,14 +20,12 @@ from sxpat.converting.utils import set_bool_constants, crystallise as crystalliz
 
 
 _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, PGraph, SGraph]])
-UniqueIdGen: TypeAlias = Callable[[], int]
 NodeID: TypeAlias = str
 NodeIDSeq: TypeAlias = Sequence[NodeID]
 
 
 # first elements of list should always be the least significant digit
 # `destination` is instead the file where the qbf code needs to be written
-
 
 # This format uses gates, I used a prefix for every type of gates, all the ones that starts with 4 are the 'free' gates:
 # all those that don't have a specific purpose but are used in all the functions
@@ -39,692 +37,492 @@ NodeIDSeq: TypeAlias = Sequence[NodeID]
 # 91 true constant
 # 92 false constant
 
-TRUE = '91'
-FALSE = '92'
+# TRUE = '91'
+# FALSE = '92'
+
+class node_maker_varargs(Protocol):
+    def __call__(self, *n: NodeID) -> NodeID: ...
 
 
-def free(next_id_gen: UniqueIdGen) -> NodeID:
-    """Return the the first free available name"""
-    return f'4{next_id_gen()}'
+class node_maker_seq(Protocol):
+    def __call__(self, ns: NodeIDSeq) -> NodeID: ...
 
 
-def _and(
-    a: NodeID, b: NodeID,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str]
-) -> NodeID:
-    gate = free(next_id_gen)
-    destination.write(f'{gate} = and({a}, {b})\n')
-    return gate
+class NodeIdGen:
+    def __init__(self): self._id_iter = count()
+    def _next(self): return next(self._id_iter)
+
+    def gen_input(self): return f'1{self._next()}'
+    def gen_free_gate(self): return f'4{self._next()}'
+    def gen_variable(self): return f'7{self._next()}'
+    def gen_parameter(self): return f'7{self._next()}'
+    def get_sat_problem(self): return '90'
+    def get_const_true(self): return '91'
+    def get_const_false(self): return '92'
+    def get_const(self, v: bool): return self.get_const_true() if v else self.get_const_false()
 
 
-def _or(
-    a: NodeID, b: NodeID,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str]
-) -> NodeID:
-    gate = free(next_id_gen)
-    destination.write(f'{gate} = or({a}, {b})\n')
-    return gate
+class Encoder:
+    def __init__(self, id_gen: NodeIdGen, file: IO[str]):
+        self.id_gen = id_gen
+        self.file = file
 
+        self.node_processors = {
+            # variables
+            BoolVariable: self.process_BoolVariable,
+            IntVariable: self.process_IntVariable,  # TODO: implement
+            # constants
+            BoolConstant: self.process_BoolConstant,
+            IntConstant: self.process_IntConstant,
+            # output
+            Identity: self.process_Identity,
+            Target: self.process_Target,
+            # placeholder
+            PlaceHolder: self.process_PlaceHolder,
+            # boolean operations
+            Not: self.process_Not,
+            And: self.process_And,
+            Or: self.process_Or,
+            Xor: self.process_Xor,  # Needs testing
+            Implies: self.process_Implies,
+            # integer operations
+            Sum: self.process_Sum,
+            AbsDiff: self.process_AbsDiff,
+            Mul: self.process_Mul,
+            # comparison operations
+            Equals: self.process_Equals,  # Needs testing
+            NotEquals: self.process_NotEquals,  # Needs testing
+            LessThan: self.process_LessThan,  # Needs testing
+            LessEqualThan: self.process_LessEqualThan,
+            GreaterThan: self.process_GreaterThan,
+            GreaterEqualThan: self.process_GreaterEqualThan,
+            # quantifier operations
+            AtLeast: self.process_AtLeast,
+            AtMost: self.process_AtMost,
+            # branching operations
+            Multiplexer: self.process_Multiplexer,
+            If: self.process_If,  # Needs testing for Integers
+            ToInt: self.process_ToInt,
+            Constraint: self.process_Constraint,
+        }
 
-def _xor(
-    a: NodeID, b: NodeID,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str]
-) -> NodeID:
-    gate = free(next_id_gen)
-    destination.write(f'{gate} = xor({a}, {b})\n')
-    return gate
+    def __make_gate_func(gate_operator: str) -> Union[node_maker_varargs, node_maker_seq]:
+        def write_gate(self: Self, *o) -> NodeID:
+            if len(o) == 1 and not isinstance(o[0], str): o = o[0]
+            gate = self.id_gen.gen_free_gate()
+            self.file.write(f'{gate} = {gate_operator}({", ".join(o)})\n')
+            self.file.write(f'#{gate_operator}\n')
+            return gate
 
+        return write_gate
 
-def _adder_bit3(
-    a: NodeID, b: NodeID, c: NodeID,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str]
-) -> NodeIDSeq:
-    results = []
-    partial_xor = _xor(a, b, next_id_gen, destination)
-    results.append(_xor(partial_xor, c, next_id_gen, destination))
-    partial_and1 = _and(a, b, next_id_gen, destination)
-    partial_and2 = _and(c, partial_xor, next_id_gen, destination)
-    results.append(_or(partial_and1, partial_and2, next_id_gen, destination))
-    return results
+    _and = __make_gate_func('and')
+    _or = __make_gate_func('or')
+    _xor = __make_gate_func('xor')
 
+    def _not(self, o: NodeID) -> NodeID:
+        gate = self.id_gen.gen_free_gate()
+        self.file.write(f'{gate} = and(-{o})\n')
+        return gate
 
-def _adder(
-    a: NodeIDSeq, b: NodeIDSeq,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str],
-    carry=False,
-) -> NodeIDSeq:
-    if len(a) == 0:
-        a.append(FALSE)
-    if len(a) < len(b):
-        a, b = b, a
-    while len(b) < len(a):
-        b.append(FALSE)
+    def _adder_bit3(self, a: NodeID, b: NodeID, c: NodeID) -> NodeIDSeq:
+        results = []
+        partial_xor = self._xor(a, b)
+        results.append(self._xor(partial_xor, c))
+        partial_and1 = self._and(a, b)
+        partial_and2 = self._and(c, partial_xor)
+        results.append(self._or(partial_and1, partial_and2))
+        self.file.write('#add3\n')
+        return results
 
-    results = [_xor(a[0], b[0], next_id_gen, destination)]
-    carry_in = free(next_id_gen)
-    destination.write(f'{carry_in} = and({a[0]}, {b[0]})\n')
-    for i in range(1, len(a)):
-        next, carry_in = _adder_bit3(a[i], b[i], carry_in, next_id_gen, destination)
-        results.append(next)
-    if carry:
-        results.append(carry_in)
-    return results
+    def _adder(self, a: NodeIDSeq, b: NodeIDSeq, carry: bool = False) -> NodeIDSeq:
+        if len(a) == 0:
+            a.append(self.id_gen.get_const_false())
+        if len(a) < len(b):
+            a, b = b, a
+        while len(b) < len(a):
+            b.append(self.id_gen.get_const_false())
 
+        results = [self._xor(a[0], b[0])]
+        carry_in = self._and(a[0], b[0])
+        for i in range(1, len(a)):
+            next, carry_in = self._adder_bit3(a[i], b[i], carry_in)
+            results.append(next)
 
-def _multiplier(
-    a: NodeIDSeq, b: NodeIDSeq,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str]
-) -> NodeIDSeq:
-    n = len(a)
-    m = len(b)
+        if carry:
+            results.append(carry_in)
+        self.file.write('#add\n')
 
-    result = [FALSE] * (n + m)
+        return results
 
-    for i, bi in enumerate(b):
-        partial = []
-        for j, aj in enumerate(a):
-            tmp = free(next_id_gen)
-            destination.write(f'{tmp} = and({aj}, {bi})\n')
-            partial.append(tmp)
-        partial = [FALSE] * i + partial
-        # add to result
-        result = _adder(result, partial, next_id_gen, destination)
+    def _multiplier(self, a: NodeIDSeq, b: NodeIDSeq) -> NodeIDSeq:
+        #
+        n = len(a)
+        m = len(b)
 
-    return result
+        #
+        result = [self.id_gen.get_const_false()] * (n + m)
+        for i, bi in enumerate(b):
+            partial = [self.id_gen.get_const_false()] * i + [self._and(aj, bi) for aj in a]
+            result = self._adder(result, partial)
+        self.file.write('#mul\n')
 
+        return result
 
-def _inverse(
-    a: NodeIDSeq,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str]
-) -> NodeIDSeq:
-    results = []
-    for x in a:
-        results.append(free(next_id_gen))
-        destination.write(f'{results[-1]} = and(-{x})\n')
-    return results
+    def _inverse(self, a: NodeIDSeq) -> NodeIDSeq:
+        return [self._not(x) for x in a]
 
+    def _increment(self, a: NodeIDSeq, carry: bool = False) -> NodeIDSeq:
+        assert len(a) > 0, "length of a should be higher than 0"
 
-def _increment(
-    a: NodeIDSeq,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str],
-    carry=False
-) -> NodeIDSeq:
-    assert len(a) > 0, "lenght of a should be higher than 0"
+        if carry:
+            a.append(a[-1])
 
-    if carry:
-        a.append(a[-1])
-    results = [free(next_id_gen)]
-    destination.write(f'{results[0]} = and(-{a[0]})\n')
-    last_and = a[0]
-    for i in range(1, len(a)):
-        results.append(_xor(last_and, a[i], next_id_gen, destination))
-        temp = free(next_id_gen)
-        destination.write(f'{temp} = and({last_and}, {a[i]})\n')
-        last_and = temp
-    return results
+        results = [self._not(a[0])]
+        last_and = a[0]
+        for i in range(1, len(a)):
+            results.append(self._xor(last_and, a[i]))
+            last_and = self._and(last_and, a[i])
 
+        return results
 
-def _test_equality_bits(
-    a: NodeID, b: NodeID,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str]
-) -> NodeID:
-    and1 = free(next_id_gen)
-    and2 = free(next_id_gen)
-    destination.write(f'{and1} = and({a}, {b})\n')
-    destination.write(f'{and2} = and(-{a}, -{b})\n')
-    result_gate_name = free(next_id_gen)
-    destination.write(f'{result_gate_name} = or({and1}, {and2})\n')
-    return result_gate_name
+    def _test_equality_bits(self, a: NodeID, b: NodeID) -> NodeID:
+        and1 = self._and(a, b)
+        and2 = self._and(f'-{a}', f'-{b}')
+        self.file.write('#testeqbits\n')
+        return self._or(and1, and2)
 
+    def _test_equality_list(self, a: NodeIDSeq, b: NodeIDSeq) -> NodeID:
+        # normalize
+        while len(a) < len(b):
+            a.append(self.id_gen.get_const_false())
+        while len(b) < len(a):
+            b.append(self.id_gen.get_const_false())
 
-def _test_equality_list(
-    a: NodeIDSeq, b: NodeIDSeq,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str]
-) -> NodeID:
-    while len(a) < len(b):
-        a.append(FALSE)
-    while len(b) < len(a):
-        b.append(FALSE)
+        #
+        equals = [
+            self._test_equality_bits(ai, bi)
+            for ai, bi in zip(a, b)
+        ]
+        self.file.write('#testeqlist\n')
+        return self._and(equals)
 
-    equals = []
-    for i in range(len(a)):
-        equals.append(_test_equality_bits(a[i], b[i], next_id_gen, destination))
+    def _comparator_greater_than(self, a: NodeIDSeq, b: NodeIDSeq, or_equal: bool = False) -> NodeID:
+        # TODO: many other versions of comparator
 
-    res = free(next_id_gen)
-    destination.write(f'{res} = and(')
-    first = True
-    for x in equals:
-        if not first:
-            destination.write(', ')
-        first = False
-        destination.write(x)
+        while len(a) < len(b):
+            a.append(self.id_gen.get_const_false())
+        while len(b) < len(a):
+            b.append(self.id_gen.get_const_false())
 
-    return res
+        equal = []
+        one_of = []
+        for i in range(len(a) - 1, -1, -1):
 
+            to_be_anded: Iterable[str]
+            if i > 0 or not or_equal:
+                to_be_anded = [a[i], f'-{b[i]}']
+            else:
+                save = self._and(f'-{a[i]}', b[i])
+                to_be_anded = [f'-{save}']
 
-def _comparator_greater_than(
-    a: NodeIDSeq, b: NodeIDSeq,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str],
-    or_equal=False,
-) -> NodeID:
-    # TODO: many other versions of comparator
+            one_of.append(self._and(chain(to_be_anded, equal)))
+            equal.append(self._test_equality_bits(a[i], b[i]))
 
-    while len(a) < len(b):
-        a.append(FALSE)
-    while len(b) < len(a):
-        b.append(FALSE)
+        return self._or(one_of)
 
-    equal = []
-    one_of = []
-    for i in range(len(a) - 1, -1, -1):
-        one_of.append(free(next_id_gen))
-        if i > 0 or not or_equal:
-            destination.write(f'{one_of[-1]} = and({a[i]}, -{b[i]}')
+    def _xor_bits_with_bit(self, a: NodeIDSeq, b: NodeID) -> NodeIDSeq:
+        return [self._xor(ai, b) for ai in a]
+
+    def _adder_bits_with_bit(self, a: NodeIDSeq, b: NodeID) -> NodeIDSeq:
+        results = []
+        last_and = b
+        for ai in a:
+            results.append(self._xor(last_and, ai))
+            last_and = self._and(last_and, ai)
+        return results
+
+    def _absolute_value(self, a: NodeIDSeq) -> NodeIDSeq:
+        return self._adder_bits_with_bit(self._xor_bits_with_bit(a, a[-1]), a[-1])
+
+    def _count_bits(self, a: NodeIDSeq) -> NodeIDSeq:
+        # TODO: optimize for various numbers
+
+        remaining = deque(a, len(a))
+        while len(remaining) >= 2:
+            n0 = remaining.popleft()
+            n1 = remaining.popleft()
+            remaining.append(self._adder(n0, n1, True))
+
+        return remaining.popleft()
+
+    def _num_to_bits(self, v: int) -> NodeIDSeq:
+        return [self.id_gen.get_const((v >> i) & 1) for i in range(v.bit_length())]
+
+    def process_BoolVariable(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        pass
+
+    def process_IntVariable(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        raise NotImplementedError(f'this function isn\'t implemented yet')
+
+    def process_BoolConstant(
+        self,
+        n: BoolConstant, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        mapping[n.name] = [self.id_gen.get_const(n.value)]
+
+    def process_IntConstant(
+        self,
+        n: IntConstant, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        mapping[n.name] = self._num_to_bits(n.value)
+
+    def process_Identity(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        mapping[n.name] = mapping[operands[0]]
+
+    def process_Target(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        pass
+
+    def process_PlaceHolder(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        pass
+
+    def process_Not(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        gate = self._not(mapping[operands[0]][0])
+        mapping[n.name] = [gate]
+
+    def process_And(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        gate = self._and(mapping[x][0] for x in operands)
+        mapping[n.name] = [gate]
+
+    def process_Or(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        gate = self._or(mapping[x][0] for x in operands)
+        mapping[n.name] = [gate]
+
+    def process_Xor(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        mapping[n.name] = [self._xor(mapping[operands[0]][0], mapping[operands[1]][0])]
+
+    def process_Implies(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        gate1 = self._and(mapping[operands[0]][0], f'-{mapping[operands[1]][0]}')
+        gate2 = self._not(gate1)
+        mapping[n.name] = [gate2]
+
+    def process_Sum(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        if len(operands) == 0:
+            mapping[n.name] = [self.id_gen.get_const_false()]
 
         else:
-            save = free(next_id_gen)
-            destination.write(f'{save} = and(-{a[i]}, {b[i]})\n')
-            destination.write(f'{one_of[-1]} = and(-{save}')
+            num = mapping[operands[0]]
+            for i in range(1, len(operands)):
+                num = self._adder(num, mapping[operands[i]], carry=True)
 
-        for x in equal:
-            destination.write(f', {x}')
-        destination.write(')\n')
+            mapping[n.name] = num
 
-        equal.append(_test_equality_bits(a[i], b[i], next_id_gen, destination))
+    def process_Mul(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        if len(operands) == 0:
+            mapping[n.name] = [self.id_gen.get_const_false()]
 
-    res = free(next_id_gen)
-    destination.write(f'{res} = or(')
-    first = True
-    for x in one_of:
-        if not first:
-            destination.write(', ')
-        first = False
-        destination.write(f'{x}')
-    destination.write(')\n')
-    return res
-
-
-def _xor_bits_with_bit(
-    a: NodeIDSeq, b: NodeID,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str]
-) -> NodeIDSeq:
-    results = []
-    for i in range(len(a)):
-        results.append(_xor(a[i], b, next_id_gen, destination))
-    return results
-
-
-def _adder_bits_with_bit(
-    a: NodeIDSeq, b: NodeID,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str]
-) -> NodeIDSeq:
-    results = []
-    last_and = b
-    for i in range(len(a)):
-        results.append(_xor(last_and, a[i], next_id_gen, destination))
-        temp = free(next_id_gen)
-        destination.write(f'{temp} = and({last_and}, {a[i]})\n')
-        last_and = temp
-    return results
-
-
-def _absolute_value(
-    a: NodeIDSeq,
-    next_id_gen: UniqueIdGen,
-    destination: IO[str]
-) -> NodeIDSeq:
-    return _adder_bits_with_bit(_xor_bits_with_bit(a, a[-1], next_id_gen, destination), a[-1], next_id_gen, destination)
-
-
-def process_BoolVariable(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    pass
-
-
-def process_IntVariable(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    raise NotImplementedError(f'this function isn\'t implemented yet')
-
-
-def process_BoolConstant(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    if n.value:
-        first = TRUE
-    else:
-        first = FALSE
-    mapping[n.name] = [first]
-
-
-def process_IntConstant(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    temp = n.value
-    res = []
-    while temp > 0:
-        if temp % 2 == 1:
-            res.append(TRUE)
         else:
-            res.append(FALSE)
-        temp >>= 1
-    mapping[n.name] = res
-    return
-
-
-def process_Identity(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    mapping[n.name] = mapping[operands[0]]
-
-
-def process_Target(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    pass
-
-
-def process_PlaceHolder(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    pass
-
-
-def process_Not(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    gate = free(next_id_gen)
-    destination.write(f'{gate} = and(-{mapping[operands[0]][0]})\n')
-    mapping[n.name] = [gate]
-
-
-def _process_f(
-    operands: list,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    first = True
-    for x in operands:
-        if not first:
-            destination.write(', ')
-        first = False
-        destination.write(f'{mapping[x][0]}')
-    destination.write(')\n')
-
-
-def process_And(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    gate = free(next_id_gen)
-    mapping[n.name] = [gate]
-    destination.write(f'{gate} = and(')
-    _process_f(operands, mapping, destination)
-
-
-def process_Or(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    gate = free(next_id_gen)
-    mapping[n.name] = [gate]
-    destination.write(f'{gate} = or(')
-    _process_f(operands, mapping, destination)
-
-
-def process_Xor(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    mapping[n.name] = [_xor(mapping[operands[0]][0], mapping[operands[1]][0], next_id_gen, destination)]
-
-
-def process_Implies(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    gate1 = free(next_id_gen)
-    gate2 = free(next_id_gen)
-    mapping[n.name] = [gate2]
-    destination.write(f'{gate1} = and({mapping[operands[0]][0]}, -{mapping[operands[1]][0]})\n')
-    destination.write(f'{gate2} = and(-{gate1})\n')
-
-
-def process_Sum(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    if len(operands) == 0:
-        mapping[n.name] = [FALSE]
-        return
-
-    num = mapping[operands[0]]
-    for i in range(1, len(operands)):
-        num = _adder(num, mapping[operands[i]], next_id_gen, destination, carry=True)
-
-    mapping[n.name] = num
-
-
-def process_Mul(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    if len(operands) == 0:
-        mapping[n.name] = [FALSE]
-        return
-
-    num = mapping[operands[0]]
-    for i in range(1, len(operands)):
-        num = _multiplier(num, mapping[operands[i]], next_id_gen, destination)
-
-    mapping[n.name] = num
-
-
-def process_AbsDiff(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    # TODO: remove one bit
-
-    mapping[operands[0]].append(FALSE)
-    mapping[operands[1]].append(FALSE)
-
-    sub = _increment(_inverse(mapping[operands[1]], next_id_gen, destination), next_id_gen, destination)
-    mapping[n.name] = _absolute_value(_adder(mapping[operands[0]], sub, next_id_gen, destination), next_id_gen, destination)
-
-    mapping[operands[0]].pop()
-    mapping[operands[1]].pop()
-
-
-def process_Equals(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    res = _test_equality_list(mapping[operands[0]], mapping[operands[1]], next_id_gen, destination)
-    mapping[n.name] = [res]
-
-
-def process_NotEquals(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    ans = _test_equality_list(mapping[operands[0]], mapping[operands[1]], next_id_gen, destination)
-    gate = free(next_id_gen)
-    destination.write(f'{gate} = and(-{ans})\n')
-    mapping[n.name] = [gate]
-
-
-def process_LessThan(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    ans = _comparator_greater_than(mapping[operands[0]], mapping[operands[1]], next_id_gen, destination, or_equal=True)
-    res = free(next_id_gen)
-    destination.write(f'{res} = and(-{ans})\n')
-    mapping[n.name] = [res]
-
-
-def process_LessEqualThan(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    ans = _comparator_greater_than(mapping[operands[0]], mapping[operands[1]], next_id_gen, destination)
-    res = free(next_id_gen)
-    destination.write(f'{res} = and(-{ans})\n')
-    mapping[n.name] = [res]
-
-
-def process_GreaterThan(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    ans = _comparator_greater_than(mapping[operands[0]], mapping[operands[1]], next_id_gen, destination)
-    mapping[n.name] = [ans]
-
-
-def process_GreaterEqualThan(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    ans = _comparator_greater_than(mapping[operands[0]], mapping[operands[1]], next_id_gen, destination, or_equal=True)
-    mapping[n.name] = [ans]
-
-
-def process_AtLeast(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    remaining = deque()
-    for x in operands:
-        remaining.append(mapping[x])
-
-    while len(remaining) > 1:
-        a = remaining.popleft()
-        b = remaining.popleft()
-        remaining.append(_adder(a, b, next_id_gen, destination, True))
-
-    sum = remaining.popleft()
-    num = []
-    rem = n.value
-    while rem > 0:
-        if rem % 2 == 1:
-            num.append(TRUE)
-        else:
-            num.append(FALSE)
-        rem >>= 1
-
-    mapping[n.name] = [_comparator_greater_than(sum, num, next_id_gen, destination, True)]
-
-
-def process_AtMost(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    # TODO: optimize for various numbers
-
-    remaining = deque()
-    for x in operands:
-        remaining.append(mapping[x])
-
-    while len(remaining) > 1:
-        a = remaining.popleft()
-        b = remaining.popleft()
-        remaining.append(_adder(a, b, next_id_gen, destination, True))
-
-    sum = remaining.popleft()
-    num = []
-    rem = n.value
-    while rem > 0:
-        if rem % 2 == 1:
-            num.append(TRUE)
-        else:
-            num.append(FALSE)
-        rem >>= 1
-
-    mapping[n.name] = [_comparator_greater_than(num, sum, next_id_gen, destination, True)]
-
-
-def process_Multiplexer(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    monos = []
-
-    monos.append(free(next_id_gen))
-    destination.write(f'{monos[-1]} = and(-{mapping[operands[1]][0]}, {mapping[operands[2]][0]})\n')
-
-    monos.append(free(next_id_gen))
-    destination.write(f'{monos[-1]} = and({mapping[operands[1]][0]}, {mapping[operands[2]][0]}, {mapping[operands[0]][0]})\n')
-
-    monos.append(free(next_id_gen))
-    destination.write(f'{monos[-1]} = and({mapping[operands[1]][0]}, -{mapping[operands[2]][0]}, -{mapping[operands[0]][0]})\n')
-
-    res = free(next_id_gen)
-    destination.write(f'{res} = or({monos[0]}, {monos[1]}, {monos[2]})\n')
-    mapping[n.name] = [res]
-
-
-def process_If(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    op1 = copy.copy(mapping[operands[1]])
-    op2 = copy.copy(mapping[operands[2]])
-
-    while len(op1) < len(op2):
-        op1.append(FALSE)
-    while len(op2) < len(op1):
-        op2.append(FALSE)
-
-    ifTrue = []
-    for x in op1:
-        ifTrue.append(free(next_id_gen))
-        destination.write(f'{ifTrue[-1]} = and({mapping[operands[0]][0]}, {x})\n')
-
-    ifFalse = []
-    for x in op2:
-        ifFalse.append(free(next_id_gen))
-        destination.write(f'{ifFalse[-1]} = and(-{mapping[operands[0]][0]}, {x})\n')
-
-    res = []
-    for i in range(len(op1)):
-        res.append(free(next_id_gen))
-        destination.write(f'{res[-1]} = or({ifTrue[i]}, {ifFalse[i]})\n')
-
-    mapping[n.name] = res
-
-
-def process_ToInt(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    res = []
-    for x in operands:
-        res.append(mapping[x][0])
-    mapping[n.name] = res
-
-
-def process_Constraint(
-    n: Node, operands: list, accs: list, param: list,
-    next_id_gen: UniqueIdGen,
-    mapping: Dict[str, List[str]],
-    destination: IO[str]
-):
-    mapping[n.name] = mapping[operands[0]]
-
-
-Node_Mapping = {
-    # variables
-    BoolVariable: process_BoolVariable,
-    IntVariable: process_IntVariable,  # TODO: implement
-    # constants
-    BoolConstant: process_BoolConstant,
-    IntConstant: process_IntConstant,
-    # output
-    Identity: process_Identity,
-    Target: process_Target,
-    # placeholder
-    PlaceHolder: process_PlaceHolder,
-    # boolean operations
-    Not: process_Not,
-    And: process_And,
-    Or: process_Or,
-    Xor: process_Xor,  # Needs testing
-    Implies: process_Implies,
-    # integer operations
-    Sum: process_Sum,
-    AbsDiff: process_AbsDiff,
-    Mul: process_Mul,
-    # comparison operations
-    Equals: process_Equals,  # Needs testing
-    NotEquals: process_NotEquals,  # Needs testing
-    LessThan: process_LessThan,  # Needs testing
-    LessEqualThan: process_LessEqualThan,
-    GreaterThan: process_GreaterThan,
-    GreaterEqualThan: process_GreaterEqualThan,
-    # quantifier operations
-    AtLeast: process_AtLeast,
-    AtMost: process_AtMost,
-    # branching operations
-    Multiplexer: process_Multiplexer,
-    If: process_If,  # Needs testing for Integers
-    ToInt: process_ToInt,
-    Constraint: process_Constraint,
-}
+            num = mapping[operands[0]]
+            for i in range(1, len(operands)):
+                num = self._multiplier(num, mapping[operands[i]])
+
+            mapping[n.name] = num
+
+    def process_AbsDiff(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        # TODO: remove one bit
+
+        mapping[operands[0]].append(self.id_gen.get_const_false())
+        mapping[operands[1]].append(self.id_gen.get_const_false())
+
+        sub = self._increment(self._inverse(mapping[operands[1]]))
+        mapping[n.name] = self._absolute_value(self._adder(mapping[operands[0]], sub))
+
+        mapping[operands[0]].pop()
+        mapping[operands[1]].pop()
+
+    def process_Equals(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        res = self._test_equality_list(mapping[operands[0]], mapping[operands[1]])
+        mapping[n.name] = [res]
+
+    def process_NotEquals(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        ans = self._test_equality_list(mapping[operands[0]], mapping[operands[1]])
+        gate = self._not(ans)
+        # destination.write(f'{gate} = and(-{ans})\n')
+        mapping[n.name] = [gate]
+
+    def process_LessThan(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        ans = self._comparator_greater_than(mapping[operands[0]], mapping[operands[1]], or_equal=True)
+        res = self._not(ans)
+        # destination.write(f'{res} = and(-{ans})\n')
+        mapping[n.name] = [res]
+
+    def process_LessEqualThan(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        ans = self._comparator_greater_than(mapping[operands[0]], mapping[operands[1]])
+        res = self._not(ans)
+        mapping[n.name] = [res]
+
+    def process_GreaterThan(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        ans = self._comparator_greater_than(mapping[operands[0]], mapping[operands[1]])
+        mapping[n.name] = [ans]
+
+    def process_GreaterEqualThan(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        ans = self._comparator_greater_than(mapping[operands[0]], mapping[operands[1]], or_equal=True)
+        mapping[n.name] = [ans]
+
+    def process_AtLeast(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        sum = self._count_bits([mapping[x] for x in operands])
+        num = self._num_to_bits(n.value)
+        mapping[n.name] = [self._comparator_greater_than(sum, num, or_equal=True)]
+
+    def process_AtMost(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        sum = self._count_bits([mapping[x] for x in operands])
+        num = self._num_to_bits(n.value)
+        mapping[n.name] = [self._comparator_greater_than(num, sum, or_equal=True)]
+
+    def process_Multiplexer(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        monos = []
+        monos.append(self._and(f'-{mapping[operands[1]][0]}', mapping[operands[2]][0]))
+        monos.append(self._and(mapping[operands[1]][0], mapping[operands[2]][0], mapping[operands[0]][0]))
+        monos.append(self._and(mapping[operands[1]][0], f'-{mapping[operands[2]][0]}', f'-{mapping[operands[0]][0]}'))
+        res = self._or(monos)
+        mapping[n.name] = [res]
+
+    def process_If(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        # normalize
+        op1 = copy.copy(mapping[operands[1]])
+        op2 = copy.copy(mapping[operands[2]])
+        while len(op1) < len(op2):
+            op1.append(self.id_gen.get_const_false())
+        while len(op2) < len(op1):
+            op2.append(self.id_gen.get_const_false())
+
+        res = []
+        for op1i, op2i in zip(op1, op2):
+            ifTrue = self._and(mapping[operands[0]][0], op1i)
+            ifFalse = self._and(f'-{mapping[operands[0]][0]}', op2i)
+            res.append(self._or(ifTrue, ifFalse))
+
+        mapping[n.name] = res
+
+    def process_ToInt(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        res = [mapping[x][0] for x in operands]
+        mapping[n.name] = res
+
+    def process_Constraint(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        mapping[n.name] = mapping[operands[0]]
+
+    def process_node(
+        self,
+        n: Node, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        self.file.write(f'# {n}\n')
+        self.node_processors[type(n)](n, getattr(n, "operands", []), accs, param, mapping)
+
+    def write_custom(self, s: str):
+        self.file.write(s)
 
 
 class QbfSolver(Solver):
@@ -734,10 +532,10 @@ class QbfSolver(Solver):
                specifications: Specifications,
                forall=[]) -> Tuple[str, Optional[Mapping[str, Any]]]:
 
-        next_id_iter = count()
-        next_id_gen = lambda: next(next_id_iter)
-
-        script_path = path_join(specifications.path.run.solver_scripts, f'iter{specifications.iteration}_{specifications.sub_iteration}.txt')
+        script_path = path_join(
+            specifications.path.run.solver_scripts,
+            f'iter{specifications.iteration}_{specifications.sub_iteration}.txt'
+        )
 
         mapping = {}
         forall.sort()
@@ -746,65 +544,59 @@ class QbfSolver(Solver):
         variables.sort()
 
         with open(script_path, 'w') as f:
+            id_gen = NodeIdGen()
+            encoder = Encoder(id_gen, f)
 
-            f.write('#QCIR-14\nexists(')
-            first = True
-            for i in range(len(variables)):
-                if not first:
-                    f.write(', ')
-                first = False
-                f.write(f'7{i}')
-                mapping[variables[i]] = [f'7{i}']
+            encoder.write_custom('#QCIR-14\n')
 
-            f.write(')\nforall(')
-            first = True
-            for i in range(len(forall)):
-                if not first:
-                    f.write(', ')
-                first = False
-                f.write(f'1{i}')
-                mapping[forall[i]] = [f'1{i}']
-            f.write(')\noutput(90)\n91 = and()\n92 = or()\n#\n')
+            #
+            _vs = [id_gen.gen_variable() for _ in variables]
+            encoder.write_custom(f'exists({", ".join(_vs)})\n')
+            mapping.update(zip(variables, map(lambda o: [o], _vs)))
+
+            #
+            _fas = [id_gen.gen_input() for _ in forall]
+            encoder.write_custom(f'forall({", ".join(_fas)})\n')
+            mapping.update(zip(forall, map(lambda o: [o], _fas)))
+
+            #
+            encoder.write_custom(f'output({id_gen.get_sat_problem()})\n')
+            encoder.write_custom(f'{id_gen.get_const_true()} = and()\n')
+            encoder.write_custom(f'{id_gen.get_const_false()} = or()\n')
 
             in_the_output = []
             targets = []
-
             for graph in graphs:
                 for node in graph.nodes:
                     # TODO : add accessories (accs)
-                    Node_Mapping[type(node)](node, getattr(node, "operands", []), [], variables, next_id_gen, mapping, f)
+                    encoder.process_node(node, [], variables, mapping)
+
                     if isinstance(graph, CGraph):
                         if isinstance(node, Constraint):
-                            assert (len(mapping[node.name]) == 1)
+                            assert len(mapping[node.name]) == 1
                             in_the_output.append(node.name)
-
-                        if isinstance(node, Target):
+                        elif isinstance(node, Target):
                             targets.append(node.operands[0])
 
-                f.write('#\n')
+                encoder.write_custom('#\n')
 
-            f.write(f'90 = and(')
-            first = True
-            for x in in_the_output:
-                if not first:
-                    f.write(', ')
-                first = False
-                f.write(f'{mapping[x][0]}')
-            f.write(')\n')
+            #
+            encoder.write_custom(f'{id_gen.get_sat_problem()} = and({", ".join(mapping[x][0] for x in in_the_output)})\n')
 
         result = subprocess.run([specifications.path.tools.cqesto, script_path], capture_output=True, text=True)
 
-        if result.stdout.strip()[-1] == '1':
-            answer_vars = {}
-            for x in result.stdout.split('\n')[3].split()[1:-1]:
-                answer_vars[variables[int(x[2:])]] = True if x[0] == '+' else False
+        if result.returncode == 10:
+            answer_vars = {
+                variables[int(x[2:])]: x[0] == '+'
+                for x in result.stdout.split('\n')[3].split()[1:-1]
+            }
+
+            graphs = crystallize.graphs([
+                set_bool_constants(graph, answer_vars, skip_missing=True)
+                for graph in graphs
+            ])
 
             result = {}
-            new_graphs = []
-            for graph in graphs:
-                new_graphs.append(set_bool_constants(graph, answer_vars, skip_missing=True))
-
-            graphs = crystallize.graphs(new_graphs)
             for graph in graphs:
                 for node in graph.nodes:
                     if node.name in targets and not isinstance(node, PlaceHolder):
@@ -812,8 +604,14 @@ class QbfSolver(Solver):
 
             return ('sat', result)
 
-        else:
+        elif result.returncode == 20:
             return ('unsat', None)
+
+        else:
+            raise RuntimeError(
+                f'command `{specifications.path.tools.cqesto} {script_path}` failed with code {result.returncode}\n'
+                f'{result.stderr}'
+            )
 
     @classmethod
     def solve_exists(cls,
