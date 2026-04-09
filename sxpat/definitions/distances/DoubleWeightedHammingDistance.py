@@ -47,11 +47,11 @@ class DoubleWeightedHammingDistance(DistanceSpecification):
             w_nodes_b,
         ):
             # create constants
-            val: list = [int(string(node_a.weight).split('.')[0]), int(string(node_a.weight).split('.')[1])]
+            val: list = [int(node_a.weight.split()[0]), int(node_a.weight.split()[1])]
             consts.extend([
                 const_0 := IntConstant(f'dist_a{i}_const_0', 0),
-                const_n0 := IntConstant(f'dist_a0{i}_const_{val[0]}', val),
-                const_n1 := IntConstant(f'dist_a1{i}_const_{val[1]}', val),
+                const_n0 := IntConstant(f'dist_a0{i}_const_{val[0]}', val[0]),
+                const_n1 := IntConstant(f'dist_a1{i}_const_{val[1]}', val[1]),
                 const_n := If(f'dist_a{i}_const', operands=[node_a, const_n0, const_n1]),
             ])
 

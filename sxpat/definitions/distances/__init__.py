@@ -16,3 +16,4 @@ from .AbsoluteDifferenceOfInteger import AbsoluteDifferenceOfInteger
 from .AbsoluteDifferenceOfWeightedSum import AbsoluteDifferenceOfWeightedSum
 from .HammingDistance import HammingDistance
 from .WeightedHammingDistance import WeightedHammingDistance
+from .DoubleWeightedHammingDistance import DoubleWeightedHammingDistance
