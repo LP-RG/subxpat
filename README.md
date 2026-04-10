@@ -9,7 +9,7 @@ For details on the XPAT algorithm, please see our [DSN-W'23] paper.
 
 SubXPAT has been developed for a **Linux** environment and requires the manual installation of the following dependencies:
 
-- [Python] (version 3.8 or higher)
+- [Python] (version 3.13 or higher)
 - [Yosys] (using apt: `sudo apt install yosys`)
 - [GraphViz] (you also need the headers for development, using apt: `sudo apt install graphviz graphviz-dev`)
 - [OpenSTA] (using apt: `sudo apt install opensta`)
