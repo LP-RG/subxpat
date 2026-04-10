@@ -101,7 +101,7 @@ class Paths:
             # main files
             object.__setattr__(self, 'run_details', os.path.join(self.base_folder, self.run_details))
             object.__setattr__(self, 'run_stats', os.path.join(self.base_folder, self.run_stats))
-            
+
             # temporary folder
             tempdir = os.path.join(self.base_folder, self.temporary)
             if not debug:
@@ -109,7 +109,7 @@ class Paths:
                 if _tempdir != os.path.curdir and _tempdir != os.path.abspath(os.path.curdir):
                     tempdir = os.path.join(_tempdir, run_id)
             object.__setattr__(self, 'temporary', tempdir)
-            
+
             # debug folders
             object.__setattr__(self, 'debug', debug)
             if debug:
@@ -138,12 +138,18 @@ class Paths:
         cell_library: str = 'config/gscl45nm.lib'
         abc_script: str = dc.field(default='config/abc.script', init=False)
 
+    @dc.dataclass(frozen=True)
+    class Tools:
+        cqesto: str = 'cqesto'
+
     run: RunFiles
     synthesis: Synthesis
+    tools: Tools
 
-    def __init__(self, output_base: str, run_id: str, cell_library: str, keep_temporary: bool) -> None:
+    def __init__(self, output_base: str, run_id: str, cell_library: str, cqesto: str, keep_temporary: bool) -> None:
         object.__setattr__(self, 'run', self.RunFiles(run_id, output_base, keep_temporary))
         object.__setattr__(self, 'synthesis', self.Synthesis(cell_library))
+        object.__setattr__(self, 'tools', self.Tools(cqesto))
 
     def __repr__(self):
         params = ', '.join(f'{name}={getattr(self, name)!r}' for name in vars(self).keys())
@@ -197,6 +203,7 @@ class Specifications:
     # files and folders
     path_output: dc.InitVar[str]
     path_cell_library: dc.InitVar[str]
+    path_cqesto: dc.InitVar[str]
     path: Paths = dc.field(init=False)
     should_archive: bool
 
@@ -211,12 +218,17 @@ class Specifications:
     stats_storage: LiveStorage = dc.field(init=False, default=None, metadata={'writable': True})  # writable once
     details_storage: AppendStorage = dc.field(init=False, default=None, metadata={'writable': True})  # writable once
 
-    def __post_init__(self, path_output: str, path_cell_library: str):
+    def __post_init__(self, path_output: str, path_cell_library: str, path_cqesto: str):
         # computed constants
         self.run_id = FS.get_unique_dirname(prefix=f'{int_to_strbase(self.timestamp)}_')
 
         # construct instance
-        self.path = Paths(path_output, self.run_id, path_cell_library, self.debug)
+        self.path = Paths(
+            path_output, self.run_id,
+            path_cell_library,
+            path_cqesto,
+            self.debug
+        )
 
     # > computed
 
@@ -412,6 +424,12 @@ class Specifications:
                                             dest='path_cell_library',
                                             default=Paths.Synthesis.cell_library,
                                             help=f'The cell library file to use in the metrics estimation (default: {Paths.Synthesis.cell_library})')
+
+        _tool_cqesto = _faf_group.add_argument('--cqesto',
+                                               type=str,
+                                               dest='path_cqesto',
+                                               default=Paths.Tools.cqesto,
+                                               help=f'The path of the executable of cqesto (default: {Paths.Tools.cqesto})')
 
         _shd_archive = _faf_group.add_argument('--archive',
                                                action='store_true',
