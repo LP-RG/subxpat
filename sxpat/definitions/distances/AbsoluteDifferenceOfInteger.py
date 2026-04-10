@@ -1,6 +1,8 @@
 from typing import Sequence, Tuple
 from typing_extensions import override
 
+from sxpat.graph.builder import GraphBuilder
+
 from .DistanceSpecification import DistanceSpecification
 
 from sxpat.graph import CGraph
@@ -20,30 +22,28 @@ class AbsoluteDifferenceOfInteger(DistanceSpecification):
     @override
     @classmethod
     def _define(cls, _0, _1,
-                wanted_a: Sequence[str], wanted_b: Sequence[str],
-                ) -> Tuple[CGraph, str]:
+                  wanted_a: Sequence[str], wanted_b: Sequence[str],
+                  ) -> Tuple[CGraph, str]:
+        # prepare builder
+        builder = GraphBuilder()
+
+        # add placeholders
+        builder.add_placeholders(wanted_a).add_placeholders(wanted_b)
 
         # define outputs of a and of b as integers
-        int_a = ToInt('dist_int_a_adoi', operands=wanted_a)
-        int_b = ToInt('dist_int_b_adoi', operands=wanted_b)
+        builder.push_recording()
+        builder.add_node('dist_int_a_adoi', ToInt, operands=wanted_a)
+        builder.add_node('dist_int_b_adoi', ToInt, operands=wanted_b)
 
         # distance
-        distance = AbsDiff('dist_distance', operands=[int_a, int_b])
+        distance_name = 'dist_distance'
+        builder.add_node(distance_name, AbsDiff, operands=builder.pop_recording())
 
-        # construct CGraph
-        dist_func = CGraph((
-            *(PlaceHolder(name) for name in wanted_a),
-            int_a,
-            *(PlaceHolder(name) for name in wanted_b),
-            int_b,
-            distance,
-        ))
-
-        return (dist_func, distance.name)
+        return (builder.build(CGraph), distance_name)
 
     @override
     @classmethod
     def _minimum_distance(cls, _0,
-                wanted_a: Sequence[str]
-                ) -> int:
+                          wanted_a: Sequence[str]
+                          ) -> int:
         return 1
