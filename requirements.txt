@@ -1,8 +1,7 @@
-bidict==0.23.1
-colorama==0.4.6
-matplotlib==3.6.2
-networkx==2.8.8
-tabulate==0.9.0
-typing_extensions==4.13.0
-z3-solver==4.11.2.0
-z3log==2.2.13
+bidict            == 0.23.1
+colorama          == 0.4.6
+networkx          == 3.6.1
+tabulate          == 0.10.0
+typing_extensions == 4.15.0
+z3-solver         == 4.16.0.0
+z3log @ git+https://github.com/LP-RG/z3log@compat-py-3.13
