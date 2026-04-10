@@ -156,8 +156,8 @@ def explore_grid(specs_obj: Specifications):
 
         # import the graph
         _time = Timer.now()
-        current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark, specs_obj.path.run)
-        exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark, specs_obj.path.run)
+        current_graph = AnnotatedGraph(specs_obj.current_benchmark, specs_obj.path.run)
+        exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, specs_obj.path.run)
         _time = Timer.now() - _time
         # logging
         specs_obj.stats_storage.stage(annotated_graphs_initialization_time=_time)
@@ -327,7 +327,7 @@ def explore_grid(specs_obj: Specifications):
                 for candidate_data in cur_model_results:
                     #
                     _time = Timer.now()
-                    current = AnnotatedGraph.cached_load(candidate_data.path, specs_obj.path.run)
+                    current = AnnotatedGraph(candidate_data.path, specs_obj.path.run)
                     cur_graph = iograph_from_legacy(current)
                     _time = Timer.now() - _time
                     # logging

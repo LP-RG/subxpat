@@ -76,9 +76,16 @@ class AnnotatedGraph(Graph):
 
             @warning: a call to this method invalidates the previous cache
         """
+        from copy import deepcopy
+
         new_size = max(3, new_size)
         if cls.__cached_loading_callable is not None: cls.__cached_loading_callable.cache_clear()
-        cls.__cached_loading_callable = ft.lru_cache(new_size)(lambda p, rp, c: cls(p, rp, c))
+
+        def make_cached_function(cache_size: int):
+            cached = ft.lru_cache(cache_size)(cls)
+            return ft.wraps(cls)(lambda *a, **k: deepcopy(cached(*a, **k)))
+
+        cls.__cached_loading_callable = make_cached_function(new_size)
 
     @property
     def subgraph_candidates(self):
@@ -90,11 +97,8 @@ class AnnotatedGraph(Graph):
 
     @property
     def subgraph(self):
-        return self.__subgraph
-
-    @subgraph.setter
-    def subgraph(self, this_subgraph):
-        self.__subgraph = this_subgraph
+        """[DEPRECATED] Alias of `.graph`"""
+        return self.graph
 
     @property
     def subgraph_out_path(self):
@@ -262,12 +266,12 @@ class AnnotatedGraph(Graph):
         if self.num_gates == 0:
             pprint.with_color(Fore.LIGHTYELLOW_EX)('No gates are found in the graph! Skipping the subgraph extraction')
             return False
-        
+
         else:
             if specs_obj.requires_subgraph_extraction:
                 if specs_obj.extraction_mode == 1:
                     pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
-                    self.subgraph = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
+                    tmp_graph = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 2:
                     pprint.info2(f"Partition with sensitivity start... Using imax={specs_obj.imax}, omax={specs_obj.omax},"
@@ -280,7 +284,7 @@ class AnnotatedGraph(Graph):
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                         # specs_obj.sensitivity = iteration
                         pprint.with_color(Fore.LIGHTBLUE_EX)(f"Sugraph iteration {iteration} ")
-                        self.subgraph = self.find_subgraph_sensitivity(specs_obj)
+                        tmp_graph = self.find_subgraph_sensitivity(specs_obj)
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
@@ -296,7 +300,7 @@ class AnnotatedGraph(Graph):
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                         # specs_obj.sensitivity = iteration
                         pprint.info2(f"Sugraph iteration {iteration}")
-                        self.subgraph = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
+                        tmp_graph = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
@@ -304,45 +308,45 @@ class AnnotatedGraph(Graph):
 
                 elif specs_obj.extraction_mode == 4:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible(specs_obj)  # Cristian's subgraph extraction
+                    tmp_graph = self.find_subgraph_feasible(specs_obj)  # Cristian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 5:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and hard feasibility constraints. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible_hard(specs_obj)  # Critian's subgraph extraction
+                    tmp_graph = self.find_subgraph_feasible_hard(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 55:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and hard constraints, imax, omax, assumptions, and BitVec, DataType. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)  # Critian's subgraph extraction
+                    tmp_graph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 6:
                     pprint.info2(f"Partition with hard constraints, imax={specs_obj.imax}, omax={specs_obj.omax}, assumptions, and BitVec, DataType. Looking for largest partition for smallest possible threshold")
-                    self.subgraph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(specs_obj)
+                    tmp_graph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(specs_obj)
 
                 elif specs_obj.extraction_mode == 100:
                     pprint.info2(f"Test with no imax, omax")
-                    self.subgraph = self.slash_to_kill(specs_obj)
+                    tmp_graph = self.slash_to_kill(specs_obj)
 
                 elif specs_obj.extraction_mode == 11:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible_soft(specs_obj)  # Critian's subgraph extraction
+                    tmp_graph = self.find_subgraph_feasible_soft(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 12:
                     if self.subgraph_candidates:
                         pprint.info2(f"Selecting the next subgraph candidate")
-                        self.subgraph = self.form_subgraph_from_partition()
+                        tmp_graph = self.form_subgraph_from_partition()
                     else:
                         pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints on subgraph outputs. Looking for largest partition")
-                        self.subgraph = self.find_subgraph_feasible_soft_outputs(specs_obj)  # Critian's subgraph extraction
+                        tmp_graph = self.find_subgraph_feasible_soft_outputs(specs_obj)  # Critian's subgraph extraction
 
                 else:
                     raise Exception('invalid extraction mode!')
 
             else:
-                self.subgraph = self.entire_graph()
+                tmp_graph = self.entire_graph()
 
-            # Set new name for the subgraph
-            # self.subgraph_out_path = self.get_subgraph_path(specs_obj)
-            # self.export_annotated_graph()
+            for gate_id in self.gate_dict.values():
+                self.graph.nodes[gate_id][SUBGRAPH] = tmp_graph.nodes[gate_id][SUBGRAPH]
+                self.graph.nodes[gate_id][COLOR] = tmp_graph.nodes[gate_id][COLOR]
 
             self.subgraph_input_dict = self.extract_subgraph_inputs()
             self.subgraph_output_dict = self.extract_subgraph_outputs()
