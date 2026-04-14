@@ -283,7 +283,8 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
         #  所以就是primary out put只有inputs；而primary input 只有outputs
         if subId_u != subId_v:
             inputs_of_subgraph[subId_v].add(u)
-            outputs_of_subgraph[subId_u].add(v)
+            outputs_of_subgraph[subId_u].add(u)
+            # u->v,则u是u的output，u是v的input
 
 
     # step 2: Derivation of the propagation matrix (section 3.3)
