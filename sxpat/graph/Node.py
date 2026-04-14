@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable, Tuple, Generic, TypeVar
+from typing import Iterable, Tuple, Generic, TypeVar, Union
 from typing_extensions import Self
 
 import dataclasses as dc
@@ -11,6 +11,7 @@ __all__ = [
     'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
     'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'NotEquals',
     'Not', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'UDiv', 'Mul', 'Target', 'ToInt', 'Valued',
+     'Constant', 'Xor', 'Xnor',
     # nodes groups
     'boolean_nodes', 'integer_nodes', 'untyped_nodes', 'contact_nodes', 'origin_nodes', 'end_nodes',
 ]
@@ -140,15 +141,20 @@ class IntVariable(Node):
 # constants
 
 
+@dc.dataclass(frozen=True, repr=False)
+class Constant(Valued[T]):
+    pass
+
+
 @dc.dataclass(frozen=True)
-class BoolConstant(Valued[bool], Node):
+class BoolConstant(Constant[bool], Node):
     """
         Boolean constant.
     """
 
 
 @dc.dataclass(frozen=True)
-class IntConstant(Valued[int], Node):
+class IntConstant(Constant[int], Node):
     """
         Integer constant.
     """
@@ -171,6 +177,22 @@ class Target(Copy):  # TODO:MARCO: or result/question/...?
         Special solver node: specifies a node which value must be returned when solving.  
         The only operand represents the wanted value.
     """
+
+@dc.dataclass(frozen=True)
+class Constraint(Op1Node):
+    """
+        Special solver node: specifies a node which value must be asserted when solving.  
+        The only operand represents the value to assert.
+        
+        # marco: ONLY PARTIALLY IMPLEMENTED IN THIS BRANCH, WAIT FOR THE MERGE FROM DEV
+    """
+
+    @classmethod
+    def of(cls, other: Union[Node, str]) -> Self:
+        """Helper constructor with automatic naming."""
+        name = other.name if isinstance(other, Node) else other
+        return cls(f'constraint_{name}', operands=[name])
+
 
 
 # placeholder
@@ -212,6 +234,22 @@ class Or(OperationNode):
     """
 
 
+@dc.dataclass(frozen=True)
+class Xor(Op2Node):
+    """
+        Boolean exclusive disjunction ( `a xor b` ) expression.  
+        This node must have two operads.
+    """
+
+
+@dc.dataclass(frozen=True)
+class Xnor(Op2Node):
+    """
+        Boolean negated exclusive disjunction ( `a xnor b` ) expression.  
+        This node must have two operads.
+    """
+
+
 @dc.dataclass(frozen=True, repr=False)
 class Implies(Op2Node):
     """
@@ -234,9 +272,11 @@ class Sum(OperationNode):
 @dc.dataclass(frozen=True, repr=False)
 class UDiv(Op2Node):
     """
-        Integer Divsion ( `a / b ` ) operation.  
+        Integer Divsion ( `a / b` ) operation.  
         This node can have two operands.
     """
+
+
 @dc.dataclass(frozen=True, repr=False)
 class Mul(Op2Node):
     """

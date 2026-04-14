@@ -7,6 +7,7 @@ __all__ = [
     'Equals', 'GreaterEqualThan', 'GreaterThan', 'If', 'Implies', 'IntConstant',
     'IntVariable', 'LessEqualThan', 'LessThan', 'Multiplexer', 'Node', 'NotEquals',
     'Not', 'OperationNode', 'Or', 'PlaceHolder', 'Sum', 'UDiv', 'Mul', 'Target', 'ToInt', 'Valued',
+    'Constant', 'Xor', 'Xnor',
     # nodes groups
     'boolean_nodes', 'integer_nodes', 'untyped_nodes', 'contact_nodes', 'origin_nodes', 'end_nodes',
     # graphs
