@@ -288,7 +288,7 @@ class AnnotatedGraph(Graph):
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
-                        cnt_nodes = self.get_subgraph_nodes_count()
+                        cnt_nodes = self.get_subgraph_nodes_count(tmp_graph)
 
                 elif specs_obj.extraction_mode == 3:
                     pprint.info2(f"Partition with sensitivity start... Using only min_subgraph_size={specs_obj.min_subgraph_size} parameter")
@@ -304,7 +304,7 @@ class AnnotatedGraph(Graph):
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
-                        cnt_nodes = self.get_subgraph_nodes_count()
+                        cnt_nodes = self.get_subgraph_nodes_count(tmp_graph)
 
                 elif specs_obj.extraction_mode == 4:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition")
@@ -337,6 +337,21 @@ class AnnotatedGraph(Graph):
                     else:
                         pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints on subgraph outputs. Looking for largest partition")
                         tmp_graph = self.find_subgraph_feasible_soft_outputs(specs_obj)  # Critian's subgraph extraction
+
+                elif specs_obj.extraction_mode == 42:
+                    from sxpat.subgraph_extractions.manual import extract
+
+                    subgraph_nodes = extract(self.graph, specs_obj)
+
+                    # TODO: refactor and move later (this is common of all subex)
+                    tmp_graph = self.graph.copy()
+                    for gate in self.gate_dict.values():
+                        if gate in subgraph_nodes:
+                            tmp_graph.nodes[gate][SUBGRAPH] = 1
+                            tmp_graph.nodes[gate][COLOR] = RED
+                        else:
+                            tmp_graph.nodes[gate][SUBGRAPH] = 0
+                            tmp_graph.nodes[gate][COLOR] = WHITE
 
                 else:
                     raise Exception('invalid extraction mode!')
@@ -2070,9 +2085,9 @@ class AnnotatedGraph(Graph):
             subgraph.nodes[gate_name][COLOR] = WHITE
         return subgraph
 
-    def get_subgraph_nodes_count(self) -> int:
+    def get_subgraph_nodes_count(self, graph: nx.DiGraph) -> int:
         return sum(
-            self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1
+            graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1
             for gate_idx in self.gate_dict
         )
 
