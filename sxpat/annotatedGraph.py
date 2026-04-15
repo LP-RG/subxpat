@@ -21,7 +21,6 @@ from Z3Log_patched.utils import convert_verilog_to_gv, get_pure_name
 from sxpat.utils.print import pprint
 from sxpat.utils.graph import is_selection_convex
 
-
 from .specifications import Specifications, Paths
 from .config.config import (
     SUBGRAPH, WEIGHT,
