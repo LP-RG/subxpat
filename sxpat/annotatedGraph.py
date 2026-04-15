@@ -19,6 +19,8 @@ from Z3Log_patched.verilog import Verilog
 
 from Z3Log_patched.utils import convert_verilog_to_gv, get_pure_name
 from sxpat.utils.print import pprint
+from sxpat.utils.graph import is_selection_convex
+
 
 from .specifications import Specifications, Paths
 from .config.config import (
@@ -271,7 +273,7 @@ class AnnotatedGraph(Graph):
             if specs_obj.requires_subgraph_extraction:
                 if specs_obj.extraction_mode == 1:
                     pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
-                    tmp_graph = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
+                    subgraph_nodes = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 2:
                     pprint.info2(f"Partition with sensitivity start... Using imax={specs_obj.imax}, omax={specs_obj.omax},"
@@ -284,11 +286,11 @@ class AnnotatedGraph(Graph):
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                         # specs_obj.sensitivity = iteration
                         pprint.with_color(Fore.LIGHTBLUE_EX)(f"Sugraph iteration {iteration} ")
-                        tmp_graph = self.find_subgraph_sensitivity(specs_obj)
+                        subgraph_nodes = self.find_subgraph_sensitivity(specs_obj)
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
-                        cnt_nodes = self.get_subgraph_nodes_count(tmp_graph)
+                        cnt_nodes = len(subgraph_nodes)
 
                 elif specs_obj.extraction_mode == 3:
                     pprint.info2(f"Partition with sensitivity start... Using only min_subgraph_size={specs_obj.min_subgraph_size} parameter")
@@ -300,69 +302,64 @@ class AnnotatedGraph(Graph):
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                         # specs_obj.sensitivity = iteration
                         pprint.info2(f"Sugraph iteration {iteration}")
-                        tmp_graph = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
+                        subgraph_nodes = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
-                        cnt_nodes = self.get_subgraph_nodes_count(tmp_graph)
+                        cnt_nodes = len(subgraph_nodes)
 
                 elif specs_obj.extraction_mode == 4:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition")
-                    tmp_graph = self.find_subgraph_feasible(specs_obj)  # Cristian's subgraph extraction
+                    subgraph_nodes = self.find_subgraph_feasible(specs_obj)  # Cristian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 5:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and hard feasibility constraints. Looking for largest partition")
-                    tmp_graph = self.find_subgraph_feasible_hard(specs_obj)  # Critian's subgraph extraction
+                    subgraph_nodes = self.find_subgraph_feasible_hard(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 55:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and hard constraints, imax, omax, assumptions, and BitVec, DataType. Looking for largest partition")
-                    tmp_graph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)  # Critian's subgraph extraction
+                    subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 6:
                     pprint.info2(f"Partition with hard constraints, imax={specs_obj.imax}, omax={specs_obj.omax}, assumptions, and BitVec, DataType. Looking for largest partition for smallest possible threshold")
-                    tmp_graph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(specs_obj)
+                    subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(specs_obj)
 
                 elif specs_obj.extraction_mode == 100:
                     pprint.info2(f"Test with no imax, omax")
-                    tmp_graph = self.slash_to_kill(specs_obj)
+                    subgraph_nodes = self.slash_to_kill(specs_obj)
 
                 elif specs_obj.extraction_mode == 11:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints. Looking for largest partition")
-                    tmp_graph = self.find_subgraph_feasible_soft(specs_obj)  # Critian's subgraph extraction
+                    subgraph_nodes = self.find_subgraph_feasible_soft(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 12:
                     if self.subgraph_candidates:
                         pprint.info2(f"Selecting the next subgraph candidate")
-                        tmp_graph = self.form_subgraph_from_partition()
+                        subgraph_nodes = self.form_subgraph_from_partition()
                     else:
                         pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints on subgraph outputs. Looking for largest partition")
-                        tmp_graph = self.find_subgraph_feasible_soft_outputs(specs_obj)  # Critian's subgraph extraction
+                        subgraph_nodes = self.find_subgraph_feasible_soft_outputs(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 42:
                     from sxpat.subgraph_extractions.manual import extract
 
                     subgraph_nodes = extract(self.graph, specs_obj)
 
-                    # TODO: refactor and move later (this is common of all subex)
-                    tmp_graph = self.graph.copy()
-                    for gate in self.gate_dict.values():
-                        if gate in subgraph_nodes:
-                            tmp_graph.nodes[gate][SUBGRAPH] = 1
-                            tmp_graph.nodes[gate][COLOR] = RED
-                        else:
-                            tmp_graph.nodes[gate][SUBGRAPH] = 0
-                            tmp_graph.nodes[gate][COLOR] = WHITE
 
                 else:
                     raise Exception('invalid extraction mode!')
 
             else:
-                tmp_graph = self.entire_graph()
+                subgraph_nodes = list(self.gate_dict.values())
 
-            for gate_id in self.gate_dict.values():
-                self.graph.nodes[gate_id][SUBGRAPH] = tmp_graph.nodes[gate_id][SUBGRAPH]
-                self.graph.nodes[gate_id][COLOR] = tmp_graph.nodes[gate_id][COLOR]
-
+            for gate in self.gate_dict.values():
+                if gate in subgraph_nodes:
+                    self.graph.nodes[gate][SUBGRAPH] = 1
+                    self.graph.nodes[gate][COLOR] = RED
+                else:
+                    self.graph.nodes[gate][SUBGRAPH] = 0
+                    self.graph.nodes[gate][COLOR] = WHITE
+            
             self.subgraph_input_dict = self.extract_subgraph_inputs()
             self.subgraph_output_dict = self.extract_subgraph_outputs()
             self.subgraph_gate_dict = self.extract_subgraph_gates()
@@ -385,7 +382,7 @@ class AnnotatedGraph(Graph):
 
             return self.subgraph_num_gates != 0
 
-    def find_subgraph(self, specs_obj: Specifications):
+    def find_subgraph(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -625,51 +622,12 @@ class AnnotatedGraph(Graph):
                     node_partition.append(gate_id)  # Gates inside the partition
 
         # Check partition convexity
-        for i in range(len(node_partition) - 1):
-            for j in range(i + 1, len(node_partition)):
-                u = node_partition[i]
-                v = node_partition[j]
-                try:
-                    # print(f'{u = }')
-                    # print(f'{v = }')
-                    # print(f'{G.nodes = }')
-                    # print(f'{G.edges = }')
-                    # print(f'{gate_literals = }')
-                    # print(f'{node_partition = }')
-                    path = nx.shortest_path(G, source=u, target=v)
-                    all_nodes_in_partition = True
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
-                    # Check that all the nodes in the shortest path are in the partition
-                    for n in path:
-                        if n not in node_partition:
-                            all_nodes_in_partition = False
+        return [self.gate_dict[idx] for idx in node_partition]
 
-                    if not all_nodes_in_partition:
-                        print("Partition is not convex")
-                        raise
-
-                except nx.exception.NetworkXNoPath:
-                    # print('Here')
-                    # except:
-                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
-                    # raise nx.exception.NetworkXNoPath
-                    # No path between u and v
-
-                    # print("No path", u, v)
-                    pass
-
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
-
-    def find_subgraph_sensitivity(self, specs_obj: Specifications):
+    def find_subgraph_sensitivity(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -927,51 +885,12 @@ class AnnotatedGraph(Graph):
                     node_partition.append(gate_id)  # Gates inside the partition
 
         # Check partition convexity
-        for i in range(len(node_partition) - 1):
-            for j in range(i + 1, len(node_partition)):
-                u = node_partition[i]
-                v = node_partition[j]
-                try:
-                    # print(f'{u = }')
-                    # print(f'{v = }')
-                    # print(f'{G.nodes = }')
-                    # print(f'{G.edges = }')
-                    # print(f'{gate_literals = }')
-                    # print(f'{node_partition = }')
-                    path = nx.shortest_path(G, source=u, target=v)
-                    all_nodes_in_partition = True
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
-                    # Check that all the nodes in the shortest path are in the partition
-                    for n in path:
-                        if n not in node_partition:
-                            all_nodes_in_partition = False
+        return [self.gate_dict[idx] for idx in node_partition]
 
-                    if not all_nodes_in_partition:
-                        print("Partition is not convex")
-                        raise
-
-                except nx.exception.NetworkXNoPath:
-                    # print('Here')
-                    # except:
-                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
-                    # raise nx.exception.NetworkXNoPath
-                    # No path between u and v
-
-                    # print("No path", u, v)
-                    pass
-
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
-
-    def find_subgraph_sensitivity_no_io_constraints(self, specs_obj: Specifications):
+    def find_subgraph_sensitivity_no_io_constraints(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -1222,51 +1141,12 @@ class AnnotatedGraph(Graph):
                     node_partition.append(gate_id)  # Gates inside the partition
 
         # Check partition convexity
-        for i in range(len(node_partition) - 1):
-            for j in range(i + 1, len(node_partition)):
-                u = node_partition[i]
-                v = node_partition[j]
-                try:
-                    # print(f'{u = }')
-                    # print(f'{v = }')
-                    # print(f'{G.nodes = }')
-                    # print(f'{G.edges = }')
-                    # print(f'{gate_literals = }')
-                    # print(f'{node_partition = }')
-                    path = nx.shortest_path(G, source=u, target=v)
-                    all_nodes_in_partition = True
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
-                    # Check that all the nodes in the shortest path are in the partition
-                    for n in path:
-                        if n not in node_partition:
-                            all_nodes_in_partition = False
+        return [self.gate_dict[idx] for idx in node_partition]
 
-                    if not all_nodes_in_partition:
-                        print("Partition is not convex")
-                        raise
-
-                except nx.exception.NetworkXNoPath:
-                    # print('Here')
-                    # except:
-                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
-                    # raise nx.exception.NetworkXNoPath
-                    # No path between u and v
-
-                    # print("No path", u, v)
-                    pass
-
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
-
-    def find_subgraph_feasible(self, specs_obj: Specifications):
+    def find_subgraph_feasible(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -1522,51 +1402,12 @@ class AnnotatedGraph(Graph):
                     node_partition.append(gate_id)  # Gates inside the partition
 
         # Check partition convexity
-        for i in range(len(node_partition) - 1):
-            for j in range(i + 1, len(node_partition)):
-                u = node_partition[i]
-                v = node_partition[j]
-                try:
-                    # print(f'{u = }')
-                    # print(f'{v = }')
-                    # print(f'{G.nodes = }')
-                    # print(f'{G.edges = }')
-                    # print(f'{gate_literals = }')
-                    # print(f'{node_partition = }')
-                    path = nx.shortest_path(G, source=u, target=v)
-                    all_nodes_in_partition = True
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
-                    # Check that all the nodes in the shortest path are in the partition
-                    for n in path:
-                        if n not in node_partition:
-                            all_nodes_in_partition = False
+        return [self.gate_dict[idx] for idx in node_partition]
 
-                    if not all_nodes_in_partition:
-                        print("Partition is not convex")
-                        raise
-
-                except nx.exception.NetworkXNoPath:
-                    # print('Here')
-                    # except:
-                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
-                    # raise nx.exception.NetworkXNoPath
-                    # No path between u and v
-
-                    # print("No path", u, v)
-                    pass
-
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
-
-    def find_subgraph_feasible_hard(self, specs_obj: Specifications):
+    def find_subgraph_feasible_hard(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -1824,51 +1665,12 @@ class AnnotatedGraph(Graph):
                     node_partition.append(gate_id)  # Gates inside the partition
 
         # Check partition convexity
-        for i in range(len(node_partition) - 1):
-            for j in range(i + 1, len(node_partition)):
-                u = node_partition[i]
-                v = node_partition[j]
-                try:
-                    # print(f'{u = }')
-                    # print(f'{v = }')
-                    # print(f'{G.nodes = }')
-                    # print(f'{G.edges = }')
-                    # print(f'{gate_literals = }')
-                    # print(f'{node_partition = }')
-                    path = nx.shortest_path(G, source=u, target=v)
-                    all_nodes_in_partition = True
+        if not is_selection_convex(self.graph, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
-                    # Check that all the nodes in the shortest path are in the partition
-                    for n in path:
-                        if n not in node_partition:
-                            all_nodes_in_partition = False
+        return [self.gate_dict[idx] for idx in node_partition]
 
-                    if not all_nodes_in_partition:
-                        print("Partition is not convex")
-                        raise
-
-                except nx.exception.NetworkXNoPath:
-                    # print('Here')
-                    # except:
-                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
-                    # raise nx.exception.NetworkXNoPath
-                    # No path between u and v
-
-                    # print("No path", u, v)
-                    pass
-
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
-
-    def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(self, specs_obj: Specifications):
+    def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -2039,43 +1841,12 @@ class AnnotatedGraph(Graph):
                         node_partition.append(str(t))
                         n_nodes += 1
 
-        tmp_graph = self.graph.copy(as_view=False)
-        # print(f'{node_partition = }')
         # Check partition convexity
-        for i in range(len(node_partition) - 1):
-            for j in range(i + 1, len(node_partition)):
-                u = node_partition[i]
-                v = node_partition[j]
-                try:
-                    path = nx.shortest_path(tmp_graph, source=u, target=v)
-                    all_nodes_in_partition = True
-
-                    for n in path:
-                        if n not in node_partition:
-                            # print(f'{node_partition = }')
-                            # print(f'{n = }')
-                            # print(f'{path = }')
-                            all_nodes_in_partition = False
-
-                    if not all_nodes_in_partition:
-                        print("Partition is not convex")
-                        raise
-
-                except nx.exception.NetworkXNoPath:
-                    pass
+        if not is_selection_convex(self.graph, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
         node_partition_idx = [int(re.search('g(\d+)', node).group(1)) for node in node_partition]
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition_idx:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-
-        return tmp_graph
+        return [self.gate_dict[idx] for idx in node_partition_idx]
 
     def get_null_subgraph(self) -> nx.DiGraph:
         """Returns a graph with subgraph information for the null subgraph"""
@@ -2091,7 +1862,7 @@ class AnnotatedGraph(Graph):
             for gate_idx in self.gate_dict
         )
 
-    def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(self, specs_obj: Specifications) -> nx.DiGraph:
+    def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(self, specs_obj: Specifications) -> List[str]:
         # store parameters that will be updated
         saved_et = specs_obj.et
 
@@ -2101,7 +1872,7 @@ class AnnotatedGraph(Graph):
             for gate_name in self.gate_dict.values()
             if (weight := self.graph.nodes[gate_name][WEIGHT]) >= 0
         ))
-        if len(weights) == 0: return self.get_null_subgraph()
+        if len(weights) == 0: return []
         min_weight = max(0, min(weights))
         max_weight = min(saved_et, max(weights))
 
@@ -2128,7 +1899,7 @@ class AnnotatedGraph(Graph):
 
         return found_subgraph
 
-    def slash_to_kill(self, specs_obj: Specifications):
+    def slash_to_kill(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -2314,45 +2085,14 @@ class AnnotatedGraph(Graph):
                         node_partition.append(str(t))
                         n_nodes += 1
 
-        tmp_graph = self.graph.copy(as_view=False)
-        # print(f'{node_partition = }')
         # Check partition convexity
-        for i in range(len(node_partition) - 1):
-            for j in range(i + 1, len(node_partition)):
-                u = node_partition[i]
-                v = node_partition[j]
-                try:
-                    path = nx.shortest_path(tmp_graph, source=u, target=v)
-                    all_nodes_in_partition = True
-
-                    for n in path:
-                        if n not in node_partition:
-                            # print(f'{node_partition = }')
-                            # print(f'{n = }')
-                            # print(f'{path = }')
-                            all_nodes_in_partition = False
-
-                    if not all_nodes_in_partition:
-                        print("Partition is not convex")
-                        raise
-
-                except nx.exception.NetworkXNoPath:
-                    pass
+        if not is_selection_convex(self.graph, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
         node_partition_idx = [int(re.search('g(\d+)', node).group(1)) for node in node_partition]
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition_idx:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
+        return [self.gate_dict[idx] for idx in node_partition_idx]
 
-        return tmp_graph
-
-    def find_subgraph_feasible_soft(self, specs_obj: Specifications):
+    def find_subgraph_feasible_soft(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -2629,25 +2369,8 @@ class AnnotatedGraph(Graph):
                 count = 0
 
             # Check partition convexity
-            for i in range(len(node_partition) - 1):
-                for j in range(i + 1, len(node_partition)):
-                    u = node_partition[i]
-                    v = node_partition[j]
-                    try:
-                        path = nx.shortest_path(G, source=u, target=v)
-                        all_nodes_in_partition = True
-
-                        # Check that all the nodes in the shortest path are in the partition
-                        for n in path:
-                            if n not in node_partition:
-                                all_nodes_in_partition = False
-
-                        if not all_nodes_in_partition:
-                            print("Partition is not convex")
-                            raise
-
-                    except nx.exception.NetworkXNoPath:
-                        pass
+            if not is_selection_convex(G, node_partition):
+                raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
             # ========================================================================
             if c == sat:
@@ -2674,18 +2397,9 @@ class AnnotatedGraph(Graph):
 
         # ================================================================
 
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
+        return [self.gate_dict[idx] for idx in node_partition]
 
-    def find_subgraph_feasible_soft_outputs(self, specs_obj: Specifications):
+    def find_subgraph_feasible_soft_outputs(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -2984,26 +2698,10 @@ class AnnotatedGraph(Graph):
 
             else:
                 count = 0
+            
             # Check partition convexity
-            for i in range(len(node_partition) - 1):
-                for j in range(i + 1, len(node_partition)):
-                    u = node_partition[i]
-                    v = node_partition[j]
-                    try:
-                        path = nx.shortest_path(G, source=u, target=v)
-                        all_nodes_in_partition = True
-
-                        # Check that all the nodes in the shortest path are in the partition
-                        for n in path:
-                            if n not in node_partition:
-                                all_nodes_in_partition = False
-
-                        if not all_nodes_in_partition:
-                            print("Partition is not convex")
-                            raise
-
-                    except nx.exception.NetworkXNoPath:
-                        pass
+            if not is_selection_convex(G, node_partition):
+                raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
             # ========================================================================
             if c == sat:
@@ -3032,26 +2730,8 @@ class AnnotatedGraph(Graph):
         # ================================================================
         self.subgraph_candidates = sorted_partitions
 
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
+        return [self.gate_dict[idx] for idx in node_partition]
 
-    def entire_graph(self):
-        tmp_graph = self.graph.copy()
-
-        for gate_idx in self.gate_dict:
-
-            tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-            tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-
-        return tmp_graph
 
     def export_annotated_graph(self, filename: str = None):
         """
