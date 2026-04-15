@@ -34,7 +34,7 @@ def is_selection_convex(graph: nx.DiGraph, selected_nodes: Iterable[str]) -> boo
                     # meaning that a non selected node was traversed before re-entering in the selection
                     if exited: return False
                     # continue to next neighbour
-                    # we do not care of path beyond it as it will be done in its own dfs run
+                    # we do not care of paths beyond that as they will be managed in their own dfs runs
                     else: continue
 
                 # if the destination is outside the selection
