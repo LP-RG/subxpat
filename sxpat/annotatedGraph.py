@@ -345,7 +345,6 @@ class AnnotatedGraph(Graph):
 
                     subgraph_nodes = extract(self.graph, specs_obj)
 
-
                 else:
                     raise Exception('invalid extraction mode!')
 
@@ -359,7 +358,7 @@ class AnnotatedGraph(Graph):
                 else:
                     self.graph.nodes[gate][SUBGRAPH] = 0
                     self.graph.nodes[gate][COLOR] = WHITE
-            
+
             self.subgraph_input_dict = self.extract_subgraph_inputs()
             self.subgraph_output_dict = self.extract_subgraph_outputs()
             self.subgraph_gate_dict = self.extract_subgraph_gates()
@@ -2698,7 +2697,7 @@ class AnnotatedGraph(Graph):
 
             else:
                 count = 0
-            
+
             # Check partition convexity
             if not is_selection_convex(G, node_partition):
                 raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
@@ -2731,7 +2730,6 @@ class AnnotatedGraph(Graph):
         self.subgraph_candidates = sorted_partitions
 
         return [self.gate_dict[idx] for idx in node_partition]
-
 
     def export_annotated_graph(self, filename: str = None):
         """
