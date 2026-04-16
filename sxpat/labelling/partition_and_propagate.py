@@ -31,7 +31,6 @@ class UnionFind:
             return
         self.parent[root_v] = root_u
 
-# TODO:do you need any other gate?
 # input:op is string; bits is list of 0/1 [0,1]
 def apply_logic(op, inputs):
     if op == 'and':
@@ -169,44 +168,6 @@ class Subgraph:
             
         return max_weight, local_tag
 
-    # # TODO:这个函数可能需要删除或者改变
-    # # Analyze monotonicity and generate matrix Ms
-    # def derive_ms(self): #derive_propagation_matrix
-
-    #     #  创造空的M矩阵 
-    #     #  Create an empty Ms matrix
-    #     num_in = len(self.inputs)
-    #     num_out = len(self.outputs)
-
-    #     self.matrix = [[0] * num_out for i in range(num_in)] 
-
-    #     # store the different between different output
-    #     diff_sets = [[set() for _ in range(num_out)] for _ in range(num_in)]
-    #     # 如果真的要根据情况来存的话，这里需要存所有的情况，因为后需要比较
-    #     for combo, out_v1 in self.truth_table.items():
-    #          for i in range(num_in):
-    #              if combo[i] == 0:
-    #                  twin_list = list(combo)
-    #                  twin_list[i] = 1
-    #                  twin_combo = tuple(twin_list)
-    #                  out_v2 = self.truth_table[twin_combo]
-
-    #                  for j in range(num_out):
-    #                      diff = out_v2[j] - out_v1[j]
-
-    #                      if diff != 0:
-    #                          diff_sets[i][j].add(diff)
-
-    #     # TODO: the logic has problem
-    #     for i in range(num_in):
-    #          for j in range(num_out):
-    #              s = diff_sets[i][j]
-    #              #  Fill in with monotonicity
-    #              if 1 in s: self.matrix[i][j] = 1
-    #              elif -1 in s:           self.matrix[i][j] = 1
-
-
-
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
     # TODO: Xiaozihan
@@ -219,6 +180,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     TI_LIMIT = 10
     nodes_by_subid = defaultdict(list) #用于记录最终的subid:[这个subgraph所有node]
 
+    #TODO：需要在第一步之后开始寻找环，如果有环，就把他们全部合并，然后第二步检查是否两个集合合并以后，input的数目是否小于input的最大值，如果小于，则合并这两个，然后才是第三步
     # --- 2.Node Labeling ---
 
     # ID Assignment: If two nodes n' and n'' are "children" of the same node, assign them to the same subgraph ID.
@@ -477,79 +439,79 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     return weights, sub_id_graph, all_subgraph_objects
 
 
-# from test_circuit_simple import (
-#     create_test_1_single_not_gate,
-#     create_test_2_and_gate,
-#     create_test_3_xor_gate,
-#     create_test_4_fanout,
-#     create_test_5_series,
-#     create_test_6_complex
-# )
+from test_circuit_simple import (
+    create_test_1_single_not_gate,
+    create_test_2_and_gate,
+    create_test_3_xor_gate,
+    create_test_4_fanout,
+    create_test_5_series,
+    create_test_6_complex
+)
 
-# # 创建所有测试
-# test_cases = [
-#     ("TEST 1: 单个NOT门", create_test_1_single_not_gate()),
-#     ("TEST 2: AND门", create_test_2_and_gate()),
-#     ("TEST 3: XOR门（非单调）", create_test_3_xor_gate()),
-#     ("TEST 4: 扇出电路", create_test_4_fanout()),
-#     ("TEST 5: 串联电路", create_test_5_series()),
-#     ("TEST 6: 较复杂电路", create_test_6_complex()),
-# ]
+# 创建所有测试
+test_cases = [
+    ("TEST 1: 单个NOT门", create_test_1_single_not_gate()),
+    ("TEST 2: AND门", create_test_2_and_gate()),
+    ("TEST 3: XOR门（非单调）", create_test_3_xor_gate()),
+    ("TEST 4: 扇出电路", create_test_4_fanout()),
+    ("TEST 5: 串联电路", create_test_5_series()),
+    ("TEST 6: 较复杂电路", create_test_6_complex()),
+]
 
 
-# for name, G in test_cases:
-#     weights = compute(G)
-#     print(f"{name}: {weights}")
+for name, G in test_cases:
+    weights = compute(G)
+    print(f"{name}: {weights}")
 
-# def run_advanced_tests():
-#     # --- TEST 1: NOT Gate (验证负单调性 -1) ---
-#     print("\n" + "="*40)
-#     print("TEST 1: NOT Gate (Negative Monotonicity)")
-#     G1 = nx.DiGraph()
-#     G1.add_node('in0', label='input')
-#     G1.add_node('gate1', label='not')
-#     G1.add_node('out0', label='out0')
-#     G1.add_edges_from([('in0', 'gate1'), ('gate1', 'out0')])
+def run_advanced_tests():
+    # --- TEST 1: NOT Gate (验证负单调性 -1) ---
+    print("\n" + "="*40)
+    print("TEST 1: NOT Gate (Negative Monotonicity)")
+    G1 = nx.DiGraph()
+    G1.add_node('in0', label='input')
+    G1.add_node('gate1', label='not')
+    G1.add_node('out0', label='out0')
+    G1.add_edges_from([('in0', 'gate1'), ('gate1', 'out0')])
     
-#     w1, _, objs1 = compute(G1)
-#     print(f"Ms Matrix: {objs1['gate1_root'].matrix if 'gate1_root' in objs1 else 'Check ID'}")
-#     print(f"Weights: {w1}")
+    w1, _, objs1 = compute(G1)
+    print(f"Ms Matrix: {objs1['gate1_root'].matrix if 'gate1_root' in objs1 else 'Check ID'}")
+    print(f"Weights: {w1}")
 
-#     # --- TEST 2: XOR Gate (验证非单调性 NM) ---
-#     print("\n" + "="*40)
-#     print("TEST 2: XOR Gate (Non-monotonicity)")
-#     G2 = nx.DiGraph()
-#     G2.add_node('in0', label='input')
-#     G2.add_node('in1', label='input')
-#     G2.add_node('gate1', label='xor')
-#     G2.add_node('out0', label='out0')
-#     G2.add_edges_from([('in0', 'gate1'), ('in1', 'gate1'), ('gate1', 'out0')])
+    # --- TEST 2: XOR Gate (验证非单调性 NM) ---
+    print("\n" + "="*40)
+    print("TEST 2: XOR Gate (Non-monotonicity)")
+    G2 = nx.DiGraph()
+    G2.add_node('in0', label='input')
+    G2.add_node('in1', label='input')
+    G2.add_node('gate1', label='xor')
+    G2.add_node('out0', label='out0')
+    G2.add_edges_from([('in0', 'gate1'), ('in1', 'gate1'), ('gate1', 'out0')])
     
-#     w2, _, objs2 = compute(G2)
-#     # 这里的 Ms 应该是 [1] 或 [-1]，但 monotonicity 属性应为 'NM'
-#     print(f"Weights: {w2}")
-#     print(f"in0 Monotonicity: {G2.nodes['in0'].get('monotonicity')}")
+    w2, _, objs2 = compute(G2)
+    # 这里的 Ms 应该是 [1] 或 [-1]，但 monotonicity 属性应为 'NM'
+    print(f"Weights: {w2}")
+    print(f"in0 Monotonicity: {G2.nodes['in0'].get('monotonicity')}")
 
-#     # --- TEST 3: Reconvergent Fan-out (验证 Equation 14 的分支叠加) ---
-#     # in0 分成两路，一路经过 NOT，两路最后汇总到 AND
-#     # 这种结构非常考验权重累加逻辑
-#     print("\n" + "="*40)
-#     print("TEST 3: Fan-out Reconvergent Path")
-#     G3 = nx.DiGraph()
-#     G3.add_node('in0', label='input')
-#     G3.add_node('branch_a', label='and') # 用 AND 当 buffer
-#     G3.add_node('branch_b', label='not') # 负向路径
-#     G3.add_node('final_gate', label='and')
-#     G3.add_node('out0', label='out0')
+    # --- TEST 3: Reconvergent Fan-out (验证 Equation 14 的分支叠加) ---
+    # in0 分成两路，一路经过 NOT，两路最后汇总到 AND
+    # 这种结构非常考验权重累加逻辑
+    print("\n" + "="*40)
+    print("TEST 3: Fan-out Reconvergent Path")
+    G3 = nx.DiGraph()
+    G3.add_node('in0', label='input')
+    G3.add_node('branch_a', label='and') # 用 AND 当 buffer
+    G3.add_node('branch_b', label='not') # 负向路径
+    G3.add_node('final_gate', label='and')
+    G3.add_node('out0', label='out0')
     
-#     G3.add_edges_from([
-#         ('in0', 'branch_a'), ('in0', 'branch_b'),
-#         ('branch_a', 'final_gate'), ('branch_b', 'final_gate'),
-#         ('final_gate', 'out0')
-#     ])
+    G3.add_edges_from([
+        ('in0', 'branch_a'), ('in0', 'branch_b'),
+        ('branch_a', 'final_gate'), ('branch_b', 'final_gate'),
+        ('final_gate', 'out0')
+    ])
     
-#     w3, _, _ = compute(G3)
-#     print(f"Weights: {w3}")
+    w3, _, _ = compute(G3)
+    print(f"Weights: {w3}")
 
-# # 执行测试
-# run_advanced_tests()
+# 执行测试
+run_advanced_tests()
