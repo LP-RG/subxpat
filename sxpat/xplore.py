@@ -11,7 +11,7 @@ from os.path import join as path_join
 from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.graph import IOGraph
 
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType, LabelingType, LabelingRelativeTo, SlashType
 
 from sxpat.config.config import UNKNOWN, SAT, WEIGHT
 
@@ -34,11 +34,20 @@ from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
 from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
 
+from Z3Log.verilog import Verilog
+from Z3Log.utils import convert_verilog_to_gv
+from Z3Log.graph import Graph
+from Z3Log.config.config import SINGLE, MAXIMIZE
+
+from sxpat.slash_inputs import remove_inputs
+from sxpat.fast_labeling import fast_labeling, upper_bound, lower_bound, calc_label
+from sxpat.z3solver_wrapper import Z3solver
 
 def explore_grid(specs_obj: Specifications):
 
     # initial setup
     # store circuits
+    exact_benchmark = os.path.basename(specs_obj.exact_benchmark)
     FS.copy(specs_obj.exact_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'origin.v'))
     specs_obj.exact_benchmark = tmp
     FS.copy(specs_obj.current_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'current.v'))
@@ -75,6 +84,9 @@ def explore_grid(specs_obj: Specifications):
         # compute error threshold for the iteration
         if not specs_obj.subxpat:
             if prev_actual_error == 0: break
+            specs_obj.et = specs_obj.max_error
+        
+        elif specs_obj.error_partitioning is ErrorPartitioningType.MAX:
             specs_obj.et = specs_obj.max_error
 
         elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
@@ -118,28 +130,41 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.et > specs_obj.max_error or specs_obj.et <= 0: break
 
         # slash to kill
-        if specs_obj.slash_to_kill:
-            # first iteration: apply slash
-            if specs_obj.iteration == 1:
-                # store relevant specifications values
-                saved_min_labeling = specs_obj.min_labeling
-                saved_exctraction_mode = specs_obj.extraction_mode
+        if specs_obj.slash != SlashType.NONE:
+            if specs_obj.slash == SlashType.SLASH_SUBGRAPH:
+                if specs_obj.iteration == 1:
+                    # store relevant specifications values
+                    saved_min_labeling = specs_obj.min_labeling
+                    saved_exctraction_mode = specs_obj.extraction_mode
 
-                # update specifications
-                specs_obj.min_labeling = False
-                specs_obj.extraction_mode = 100
-                specs_obj.et = specs_obj.error_for_slash
+                    # update specifications
+                    specs_obj.min_labeling = False
+                    specs_obj.extraction_mode = 100
+                    specs_obj.et = specs_obj.error_for_slash
 
-            # second iteration: restore state
-            elif specs_obj.iteration == 2:
-                # restore specifications values
-                specs_obj.min_labeling = saved_min_labeling
-                specs_obj.extraction_mode = saved_exctraction_mode
+                # second iteration: restore state
+                elif specs_obj.iteration == 2:
+                    # restore specifications values
+                    specs_obj.min_labeling = saved_min_labeling
+                    specs_obj.extraction_mode = saved_exctraction_mode
 
-            # skip all iterations implicitly achieved through the slash to kill step
-            if specs_obj.iteration > 1 and specs_obj.et < specs_obj.error_for_slash:
-                specs_obj.stats_storage.ignore()
-                continue
+                # skip all iterations implicitly achieved through the slash to kill step
+                if specs_obj.iteration > 1 and specs_obj.et < specs_obj.error_for_slash:
+                    specs_obj.stats_storage.ignore()
+                    continue
+            
+            else:
+                specs_obj.current_benchmark = remove_inputs(specs_obj, exact_benchmark)
+                specs_obj.slash = SlashType.NONE
+                exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, specs_obj.path.run)
+                exact_circ = iograph_from_legacy(exact_graph)
+                current = iograph_from_legacy(AnnotatedGraph(specs_obj.current_benchmark, specs_obj.path.run))
+                obtained_wce_exact = error_evaluation(exact_circ, current, specs_obj)
+                metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, specs_obj.current_benchmark, True)
+                print(f"slash_inputs_error = {obtained_wce_exact}")
+                print(f"slash_inputs_area = {metrics.area}")
+                print(f"slash_inputs_power = {metrics.power}")
+                print(f"slash_inputs_delay = {metrics.delay}")
 
         # logging
         specs_obj.stats_storage.stage(
@@ -166,7 +191,7 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.requires_labeling:
             print('started labelling')
             _time = Timer.now()
-            label_graph(specs_obj.current_benchmark, current_graph, specs_obj)
+            label_graph(specs_obj.exact_benchmark, specs_obj.current_benchmark, current_graph, specs_obj)
             _time = Timer.now() - _time
             # logging
             specs_obj.stats_storage.stage(labelling_time=_time)
@@ -506,20 +531,52 @@ def print_current_model(
     pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
 
-def label_graph(circuit_verilog_path: str, graph: AnnotatedGraph, specs_obj: Specifications) -> None:
+def label_graph(exact_path: str, circuit_verilog_path: str, graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     """This function adds the labels inplace to the given graph"""
+
+    current_graph = AnnotatedGraph(circuit_verilog_path, specs_obj.path.run)
+    current = iograph_from_legacy(current_graph)
+
+    exact_graph = AnnotatedGraph(exact_path, specs_obj.path.run) if specs_obj.labeling_relative_to == LabelingRelativeTo.ORIGIN else current_graph
+    exact = iograph_from_legacy(exact_graph)
 
     # imports
     from sxpat.labeling import labeling_explicit
 
-    # compute weights
-    ET_COEFFICIENT = 1
-    weights, _ = labeling_explicit(
-        circuit_verilog_path, circuit_verilog_path, specs_obj.path.run,
-        min_labeling=specs_obj.min_labeling,
-        partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
-        parallel=specs_obj.parallel
-    )
+    if specs_obj.labeling == LabelingType.SIMPLE_MIN:
+        weights = lower_bound(current)
+    elif specs_obj.labeling == LabelingType.SIMPLE_MAX:
+        weights = upper_bound(current)
+    elif specs_obj.iteration == 1:
+        weights = fast_labeling(exact, current, specs_obj.et, specs_obj)
+    else:
+        exact_benchmark_name = exact_graph.name
+        approximate_benchmark = current_graph.name
+        verilog_obj_exact = Verilog(exact_benchmark_name, specs_obj.path.run)
+        verilog_obj_exact.export_circuit()
+
+        verilog_obj_approx = Verilog(approximate_benchmark, specs_obj.path.run)
+        verilog_obj_approx.export_circuit()
+
+        convert_verilog_to_gv(exact_benchmark_name)
+        convert_verilog_to_gv(approximate_benchmark)
+
+        # 2) convert clean exact and approximate circuits into their gv formats
+        graph_obj_exact = Graph(exact_benchmark_name)
+        graph_obj_approx = Graph(approximate_benchmark)
+
+        graph_obj_exact.export_graph()
+        graph_obj_approx.export_graph()
+
+        exact = iograph_from_legacy(exact_graph)
+        current = iograph_from_legacy(current_graph)
+        style = 'min' if specs_obj.slash == LabelingType.MIN else 'max'
+        z3solver = Z3solver(
+            exact_graph.name, current_graph.name,
+            experiment=SINGLE, optimization=MAXIMIZE, style=style,
+            # partial=partial_labeling, parallel=parallel
+        )
+        weights = fast_labeling(exact, current, specs_obj.et, specs_obj, z3solver= z3solver)
 
     # apply weights to graph
     inner_graph: nx.DiGraph = graph.graph

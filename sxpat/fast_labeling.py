@@ -1,0 +1,152 @@
+from typing import Set
+from sxpat.graph.graph import IOGraph
+from sxpat.graph.node import BoolConstant, BoolVariable
+from sxpat.specifications import Specifications, LabelingType
+from sxpat.definitions.templates.Labeling import Labeling
+# from sxpat.definitions.templates.LabelingConstants import LabelingConstants
+from sxpat.solvers.QbfSolver import QbfSolver
+from sxpat.utils.timer import Timer
+from sxpat.z3solver_wrapper import Z3solver
+from typing import Callable
+
+def calc_label(exact_graph: IOGraph, current_graph: IOGraph, cur_node, specs_obj: Specifications):
+    define_template = Labeling.define
+    p_graph, c_graph = define_template(current_graph, [cur_node],min_labeling=specs_obj.labeling == LabelingType.MIN)
+    solve = QbfSolver.solve
+    status, model = solve((exact_graph, p_graph, c_graph), specs_obj)
+    return model['weight']
+
+def calc_double_label(exact_graph: IOGraph, current_graph: IOGraph, cur_node, specs_obj: Specifications):
+    pass
+
+# def calc_double_label(exact_graph: IOGraph, current_graph: IOGraph, cur_node, specs_obj: Specifications):
+#     define_template = LabelingConstants.define
+
+#     p_graph, c_graph = define_template(current_graph, False, [cur_node],min_labeling=specs_obj.min_labeling)
+#     solve = QbfSolver.solve
+#     status, model = solve((exact_graph, p_graph, c_graph), specs_obj)
+#     false = model['weight']
+
+#     p_graph, c_graph = define_template(current_graph, False, [cur_node],min_labeling=specs_obj.min_labeling)
+#     solve = QbfSolver.solve
+#     status, model = solve((exact_graph, p_graph, c_graph), specs_obj)
+#     true = model['weight']
+#     return f'{false} {true}'
+
+def calc_label_legacy(z3solver: Z3solver, cur_node):
+    return z3solver.label_gate(cur_node)
+
+def fast_labeling(exact_graph: IOGraph, current_graph: IOGraph, et, specs_obj: Specifications, skip_at_output=True, threshold_for_max_imprecision=10, skip_input=True, weights = {}, upper_bound = {}, z3solver = None):
+    """
+if skip_at_output is true then the nodes at the output will have automatically their weights set to the value of the output
+threshold_for_max_imprecision set the weight of the node that you must have compared to et to skip the parents that only have the current node
+as the child, for example if the current et is 1000 and threshold_for_max_imprecision is 10 then all the nodes that have weight 100 or less will
+make their children that have only them as output equivalent to them this is imprecise since their weight could be less, that's why you can decrease
+the value, set to 0 to never use 
+    """
+    
+    tot_time = 0
+    stack = []
+    visited = set()
+    weights = dict(weights)
+    # upper_bound = dict(upper_bound)
+
+    def recursive_cases(start_node, value):
+        nonlocal weights
+
+        st = [start_node]
+        while len(st):
+            cur_node = st.pop()
+            if (threshold_for_max_imprecision != 0 and value <= et/threshold_for_max_imprecision) or (len(current_graph.predecessors(cur_node)) == 1 and len(current_graph.successors(current_graph.predecessors(cur_node)[0])) == 1):
+                for pred in current_graph.predecessors(cur_node):
+                    if len(current_graph.successors(pred.name)) == 1:
+                        weights[pred.name] = value
+                        st.append(pred.name)
+
+    minimum_found = 2 ** len(current_graph.outputs)
+    for node in reversed(current_graph.outputs):
+        value = 2 ** int(node.name[3:])
+        
+        for x in current_graph.predecessors(node):
+            if(value <= et):
+                stack.append(x.name)
+                visited.add(x.name)
+
+    while len(stack):
+        cur_node = stack.pop()
+        if cur_node[:2] == 'in' and skip_input:
+            continue
+        if specs_obj.labeling == LabelingType.SIMPLE_MIN and current_graph.successors(cur_node)[0].name[:3] == 'out': # should actually check all children
+            output = current_graph.successors(cur_node)[0].name
+            value = 2 ** int(output[3:])
+            if value > minimum_found:
+                return weights
+
+        if cur_node in weights:
+            for succ in current_graph.predecessors(cur_node):
+                if succ.name not in visited:
+                    stack.append(succ.name)
+                    visited.add(succ.name)
+            continue
+
+        if len(current_graph.successors(cur_node)) == 1 and current_graph.successors(cur_node)[0] in current_graph.outputs and skip_at_output:
+            value = 2 ** int(current_graph.successors(cur_node)[0].name[3:])
+        
+        else:
+            if z3solver is None:
+                value = calc_label(exact_graph, current_graph, cur_node, specs_obj)
+            else:
+                value = calc_label_legacy(z3solver, cur_node)
+            # value = allweights[cur_node]
+            # tot_time += alltimes[cur_node]
+        
+        if not isinstance(current_graph[cur_node], BoolConstant) and not isinstance(current_graph[cur_node], BoolVariable):
+            minimum_found = min(minimum_found, value)
+        weights[cur_node] = value
+
+        recursive_cases(cur_node, value)
+
+        for succ in current_graph.predecessors(cur_node):
+            if succ.name not in visited:
+                stack.append(succ.name)
+                visited.add(succ.name)
+    
+    # print(f'cashed_labeling_time = {tot_time}')
+    return weights
+
+
+def compute_bound(current_graph: IOGraph, combine: Callable[[int,int], int], init_value: int):
+    stack = []
+    count = {}  #counts the number of nodes that have reached a node when this equal the number of sucessor of the node we can continue the exploration
+    weights = {}
+
+    # initialize
+    for x in current_graph.nodes:
+        weights[x.name] = init_value
+        count[x.name] = 0
+
+    for node in current_graph.outputs:
+        value = 2 ** int(node.name[3:])
+
+        for x in current_graph.predecessors(node):
+            count[x.name] += 1
+            weights[x.name] = combine(value, weights[x.name])
+            if count[x.name] == len(current_graph.successors(x.name)):
+                stack.append(x.name)
+
+    while stack:
+        cur_node = stack.pop()
+        value = weights[cur_node]
+        for x in current_graph.predecessors(cur_node):
+            count[x.name] += 1
+            weights[x.name] = combine(value, weights[x.name])
+            if count[x.name] == len(current_graph.successors(x.name)):
+                stack.append(x.name)
+    
+    return weights
+
+def upper_bound(current_graph):
+    return compute_bound(current_graph, combine=lambda v, w: v | w, init_value=0)
+
+def lower_bound(current_graph):
+    return compute_bound(current_graph, combine=min, init_value=2**len(current_graph.outputs))

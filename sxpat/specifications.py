@@ -28,8 +28,23 @@ class Dependency:
     SourceItem = Union[argparse.Action, Tuple[argparse.Action, Any]]
     TargetItem = Union[argparse.Action, Tuple[argparse.Action, List[Any]]]
 
+class LabelingRelativeTo(enum.Enum):
+    ORIGIN = 'origin'
+    CURRENT = 'current'
+
+class LabelingType(enum.Enum):
+    MIN = 'min'
+    MAX = 'max'
+    SIMPLE_MIN = 'simple_min'
+    SIMPLE_MAX = 'simple_max'
+
+class SlashType(enum.Enum):
+    NONE = 'none'
+    SLASH_SUBGRAPH = 'slash_to_kill'
+    SLASH_INPUT_ITERATIVE = 'slash_it'
 
 class ErrorPartitioningType(enum.Enum):
+    MAX = 'max'
     ASCENDING = 'asc'
     DESCENDING = 'desc'
     SMART_ASCENDING = 'smart_asc'
@@ -163,8 +178,12 @@ class Specifications:
     current_benchmark: str = dc.field(metadata={'writable': True})  # rw
 
     # labeling
-    min_labeling: bool
-    partial_labeling: bool
+    labeling: LabelingType
+    labeling_relative_to: LabelingRelativeTo
+
+    # slash
+    slash: SlashType
+    error_for_slash: int
 
     # subgraph extraction
     extraction_mode: int
@@ -174,8 +193,6 @@ class Specifications:
     num_subgraphs: int
     max_sensitivity: int
     sensitivity: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
-    slash_to_kill: bool
-    error_for_slash: int
 
     # exploration (1)
     subxpat: bool
@@ -299,15 +316,17 @@ class Specifications:
         # > graph labeling
         _lab_group = parser.add_argument_group('Labeling')
 
-        _max_lab = _lab_group.add_argument('--max-labeling',
-                                           action='store_false',
-                                           dest='min_labeling',
-                                           help='Nodes are weighted using their maximum error, instead of minimum error')
-
-        _part_lab = _lab_group.add_argument('--no-partial-labeling',
-                                            action='store_false',
-                                            dest='partial_labeling',
-                                            help='Weights are assigned to all nodes, not only to the relevant ones')
+        _lab = _lab_group.add_argument('--labeling',
+                                            type=LabelingType,
+                                            action=EnumChoicesAction,
+                                            default=LabelingType.SIMPLE_MIN,
+                                            help='Labeling Type (default: simple_min)')
+        
+        _lab_rel_to = _lab_group.add_argument('--labeling-relative-to',
+                                            type=LabelingRelativeTo,
+                                            action=EnumChoicesAction,
+                                            default=LabelingRelativeTo.CURRENT,
+                                            help='Labeling relative to a circuit (default: current)')
 
         # > subgraph extraction stuff
         _subex_group = parser.add_argument_group('Subgraph extraction')
@@ -341,9 +360,11 @@ class Specifications:
                                              default=1,
                                              help='The number of attempts for subgraph extraction (default: 1)')
 
-        _slash = _subex_group.add_argument('--slash-to-kill',
-                                           action='store_true',
-                                           help='Enable the slash pass for the first iteration')
+        _slash = _subex_group.add_argument('--slash',
+                                            type=SlashType,
+                                            action=EnumChoicesAction,
+                                            default=SlashType.NONE,
+                                            help='type of slash to use (default: none)')
 
         _error_slash = _subex_group.add_argument('--error-for-slash',
                                                  type=int,
@@ -408,7 +429,7 @@ class Specifications:
         _ep = _error_group.add_argument('--error-partitioning', '--epar',
                                         type=ErrorPartitioningType,
                                         action=EnumChoicesAction,
-                                        default=ErrorPartitioningType.ASCENDING,
+                                        default=ErrorPartitioningType.MAX,
                                         help='The error partitioning algorithm to use (default: asc)')
 
         # > files and folders stuff
