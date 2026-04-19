@@ -178,7 +178,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     # --- 1. Initialization ---
     uf = UnionFind(graph.nodes)
     TI_LIMIT = 10
-    nodes_by_subid = defaultdict(list) #用于记录最终的subid:[这个subgraph所有node]
+    nodes_by_subid = defaultdict(list) #Used to record the final subid: [all nodes in this subgraph]
 
     #TODO：需要在第一步之后开始寻找环，如果有环，就把他们全部合并，然后第二步检查是否两个集合合并以后，input的数目是否小于input的最大值，如果小于，则合并这两个，然后才是第三步
     # --- 2.Node Labeling ---
@@ -220,8 +220,8 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
         # TODO：fix the problem
         # Special handling for the main output node: It's in its own group
         if label.startswith("out") or label.startswith("in"):
-            graph.nodes[node]['subgraph_id'] = node  # 自己一个ID
-            continue  # 不加入 nodes_by_subid
+            graph.nodes[node]['subgraph_id'] = node 
+            continue  # Do not add nodes_by_subid
 
         root = uf.find(node)
         
@@ -242,11 +242,11 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
         subId_u = graph.nodes[u]['subgraph_id']
         subId_v = graph.nodes[v]['subgraph_id']
          
-        #  所以就是primary out put只有inputs；而primary input 只有outputs
+        #  If u->v, then u is the output of u and u is the input of v.
         if subId_u != subId_v:
             inputs_of_subgraph[subId_v].add(u)
             outputs_of_subgraph[subId_u].add(u)
-            # u->v,则u是u的output，u是v的input
+            
 
 
     # step 2: Derivation of the propagation matrix (section 3.3)
@@ -259,7 +259,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
          sub_inputs = sorted(list(inputs_of_subgraph[sub_id]))
          sub_outputs = sorted(list(outputs_of_subgraph[sub_id]))
          
-        #  print(f"the input of {sub_id} is {sub_inputs}./n")
+        #  print(f"the input of {sub_id} is {sub_inputs}.")
         #  print(f"the output of {sub_id} is {sub_outputs}.")
 
          #if the subgraph only has primary nodes/only has primary output nodes
@@ -297,7 +297,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
                         sub_id_graph.add_node(parent_sub_id)
                         
                     sub_id_graph.add_edge(parent_sub_id,sub_id)
-       
+        
         for out_node in sg.outputs:
         
             for successor in graph.successors(out_node):
@@ -332,30 +332,35 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
             # set the monitonicity
             graph.nodes[node]['monotonicity'] = 'S'
 
+            # we didn't add primary output node to sub_id_graph, we need to pass it to the previous node first.
+            # Question? can two nodes point to a output node?
+            preds = list(graph.predecessors(node))
+
+            for p in preds:
+                graph.nodes[p]['weight'] = 1 << bit_index
+                graph.nodes[p]['monotonicity'] = 'S'
     
     #3.3 start Propagation the label and monotonicity 
     for sub_id in sorted_sub_id_list:
-
-        # print(f"\n--- 正在传播子图: {sub_id} ---")
-        # for out_node in sg.outputs:
-        #     print(f"  检查输出口 {out_node} 的当前权重: {graph.nodes[out_node]['weight']}")
 
         # if the sub_id is primary input or output
         if sub_id not in all_subgraph_objects:
             continue
 
         sg = all_subgraph_objects[sub_id]#use sub_id to get subgraph object
+
+        
         
         # get all the tags and weights of output
-        out_tags = {out: graph.nodes[out].get('monotonicity', 'S') for out in sg.outputs}
-        out_weights = {out: graph.nodes[out].get('weight', 0) for out in sg.outputs}
+        out_tags = {out: graph.nodes[out].get('monotonicity') for out in sg.outputs}
+        out_weights = {out: graph.nodes[out].get('weight') for out in sg.outputs}
 
         has_global_nm = 'NM' in out_tags.values() #if output node has "NM"
 
         for in_idx, in_node in enumerate(sg.inputs):
         
              # 1. Check for special case 1: Fan-out(if the node point to different group)
-             is_fanout = graph.nodes[in_node].get('weight', 0) > 0
+             is_fanout = graph.nodes[in_node].get('weight') > 0
         
              # 2. if the output node has nm or is_fanout
              already_nm = is_fanout or has_global_nm
@@ -382,7 +387,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     # --- Step 4: 内部节点权重仿真 ---
     for sid, sg in all_subgraph_objects.items():
 
-        local_nodes = set(sg.members) | set(sg.inputs) | set(sg.outputs)
+        local_nodes = set(sg.members) | set(sg.inputs)
         sub_g = graph.subgraph(local_nodes)
         sorted_local = list(nx.topological_sort(sub_g))
 
@@ -437,81 +442,3 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     weights = nx.get_node_attributes(graph, 'weight')
 
     return weights, sub_id_graph, all_subgraph_objects
-
-
-from test_circuit_simple import (
-    create_test_1_single_not_gate,
-    create_test_2_and_gate,
-    create_test_3_xor_gate,
-    create_test_4_fanout,
-    create_test_5_series,
-    create_test_6_complex
-)
-
-# 创建所有测试
-test_cases = [
-    ("TEST 1: 单个NOT门", create_test_1_single_not_gate()),
-    ("TEST 2: AND门", create_test_2_and_gate()),
-    ("TEST 3: XOR门（非单调）", create_test_3_xor_gate()),
-    ("TEST 4: 扇出电路", create_test_4_fanout()),
-    ("TEST 5: 串联电路", create_test_5_series()),
-    ("TEST 6: 较复杂电路", create_test_6_complex()),
-]
-
-
-for name, G in test_cases:
-    weights = compute(G)
-    print(f"{name}: {weights}")
-
-def run_advanced_tests():
-    # --- TEST 1: NOT Gate (验证负单调性 -1) ---
-    print("\n" + "="*40)
-    print("TEST 1: NOT Gate (Negative Monotonicity)")
-    G1 = nx.DiGraph()
-    G1.add_node('in0', label='input')
-    G1.add_node('gate1', label='not')
-    G1.add_node('out0', label='out0')
-    G1.add_edges_from([('in0', 'gate1'), ('gate1', 'out0')])
-    
-    w1, _, objs1 = compute(G1)
-    print(f"Ms Matrix: {objs1['gate1_root'].matrix if 'gate1_root' in objs1 else 'Check ID'}")
-    print(f"Weights: {w1}")
-
-    # --- TEST 2: XOR Gate (验证非单调性 NM) ---
-    print("\n" + "="*40)
-    print("TEST 2: XOR Gate (Non-monotonicity)")
-    G2 = nx.DiGraph()
-    G2.add_node('in0', label='input')
-    G2.add_node('in1', label='input')
-    G2.add_node('gate1', label='xor')
-    G2.add_node('out0', label='out0')
-    G2.add_edges_from([('in0', 'gate1'), ('in1', 'gate1'), ('gate1', 'out0')])
-    
-    w2, _, objs2 = compute(G2)
-    # 这里的 Ms 应该是 [1] 或 [-1]，但 monotonicity 属性应为 'NM'
-    print(f"Weights: {w2}")
-    print(f"in0 Monotonicity: {G2.nodes['in0'].get('monotonicity')}")
-
-    # --- TEST 3: Reconvergent Fan-out (验证 Equation 14 的分支叠加) ---
-    # in0 分成两路，一路经过 NOT，两路最后汇总到 AND
-    # 这种结构非常考验权重累加逻辑
-    print("\n" + "="*40)
-    print("TEST 3: Fan-out Reconvergent Path")
-    G3 = nx.DiGraph()
-    G3.add_node('in0', label='input')
-    G3.add_node('branch_a', label='and') # 用 AND 当 buffer
-    G3.add_node('branch_b', label='not') # 负向路径
-    G3.add_node('final_gate', label='and')
-    G3.add_node('out0', label='out0')
-    
-    G3.add_edges_from([
-        ('in0', 'branch_a'), ('in0', 'branch_b'),
-        ('branch_a', 'final_gate'), ('branch_b', 'final_gate'),
-        ('final_gate', 'out0')
-    ])
-    
-    w3, _, _ = compute(G3)
-    print(f"Weights: {w3}")
-
-# 执行测试
-run_advanced_tests()
