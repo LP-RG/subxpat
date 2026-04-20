@@ -31,6 +31,221 @@ class UnionFind:
             return
         self.parent[root_v] = root_u
 
+
+def label_nodes(graph):
+    """
+    use union find label nodes
+    """
+    uf = UnionFind(graph.nodes)
+    
+    for node in graph.nodes:
+        if graph.out_degree(node) <= 1: 
+            continue
+        
+        children = [child for child in graph.successors(node) 
+                    if not graph.nodes[child].get("label", "").startswith("out")]
+        
+        if len(children) > 1:
+            first_child = children[0]
+            for other_child in islice(children, 1, None):
+                uf.union(first_child, other_child)
+
+    # 2. map UnionFind to Graph and  Subgraph dictionary
+    nodes_by_subid = defaultdict(list)
+    
+    for node in graph.nodes:
+        label = graph.nodes[node].get("label", "")
+        
+        # do not combine Primary In/Out 
+        if label.startswith("out") or label.startswith("in"):
+            sub_id = node
+        else:
+            sub_id = uf.find(node)
+        
+        graph.nodes[node]['subgraph_id'] = sub_id
+
+        nodes_by_subid[sub_id].append(node)
+        
+    return nodes_by_subid
+
+
+# use nodes_by_subid to create a graph
+def build_sub_id_graph(graph, nodes_by_subid):
+    # create empty graph
+    sub_id_graph = nx.DiGraph()
+    # add nodes
+    sub_id_graph.add_nodes_from(nodes_by_subid.keys())
+    
+    # add edges
+    for u, v in graph.edges:
+        sid_u = graph.nodes[u]['subgraph_id']
+        sid_v = graph.nodes[v]['subgraph_id']
+        
+        if sid_u != sid_v:
+            sub_id_graph.add_edge(sid_u, sid_v)
+            
+    return sub_id_graph
+
+
+# Use strongly connected components to find circle and merge circle
+def merge_cycles(graph, nodes_by_subid):
+    sub_id_graph = build_sub_id_graph(graph, nodes_by_subid)
+    
+    # 2. find all scc 
+    # the results is like [{A, B}, {C}, {D, E, F}]
+    sccs = list(nx.strongly_connected_components(sub_id_graph))
+    
+    # 3. if the length of  SCC > 1，it has circle
+    for scc in sccs:
+        if len(scc) > 1:
+            scc_list = list(scc)
+            main_id = scc_list[0]
+            
+            # union other sub id
+            for secondary_id in scc_list[1:]:
+                # A. move all the nodes to main_id
+                nodes_by_subid[main_id].extend(nodes_by_subid[secondary_id])
+                
+                # B. renew subgraph_id of each node
+                for node in nodes_by_subid[secondary_id]:
+                    graph.nodes[node]['subgraph_id'] = main_id
+                
+                # C.delete secondary_id
+                del nodes_by_subid[secondary_id]
+                
+    return nodes_by_subid
+
+
+# find all input nodes of nodes_in_sub
+def get_subgraph_inputs(nodes_in_sub, graph):
+    """
+    The input set for computing the subgraph is all nodes that are not inside the subgraph but point to nodes inside the subgraph.
+
+    """
+    sub_nodes = set(nodes_in_sub)
+    inputs = set()
+    for node in sub_nodes:
+        for pred in graph.predecessors(node):
+            if pred not in sub_nodes:
+                inputs.add(pred)
+    return inputs
+
+
+
+def get_all_subgraph_boundaries(graph, nodes_by_subid):
+    """
+    Traverse the entire graph in one go and calculate the input and output sets of all subgraphs.
+
+    inputs_map: {sid: {all external nodes pointing to this group}}
+    """
+    inputs_map = defaultdict(set)
+    outputs_map = defaultdict(set)
+    
+    for u, v in graph.edges:
+        sid_u = graph.nodes[u]['subgraph_id']
+        sid_v = graph.nodes[v]['subgraph_id']
+         
+        if sid_u != sid_v:
+
+            inputs_map[sid_v].add(u)
+            outputs_map[sid_u].add(u)
+            
+    return inputs_map, outputs_map
+
+
+def greedy_merge(graph, nodes_by_subid,inputs_map):
+    
+    # 1. Initial construction of the meta-graph
+    sub_id_graph = build_sub_id_graph(graph, nodes_by_subid)
+
+    # 2.Store the input set of each subgraph into the metagraph node.
+    for sid in sub_id_graph.nodes:
+        sub_id_graph.nodes[sid]['inputs'] = inputs_map[sid]
+
+    changed = True
+    while changed:
+        changed = False
+        
+        # Traverse the edges of the graph and look for merging opportunities.
+        #use list to avoid delete the edges
+        for u, v in list(sub_id_graph.edges):
+            # if has deleted u or v
+            if not sub_id_graph.has_node(u) or not sub_id_graph.has_node(v):
+                continue
+
+            # if it is input or output node
+            u_is_boundary = str(u).startswith('in') or str(u).startswith('out')
+            v_is_boundary = str(v).startswith('in') or str(v).startswith('out')
+            
+            if u_is_boundary or v_is_boundary:
+                continue
+            
+            inputs_u = sub_id_graph.nodes[u]['inputs']
+            inputs_v = sub_id_graph.nodes[v]['inputs']
+            
+            # calculate the inputs after merge
+            nodes_u = set(nodes_by_subid[u])
+            nodes_v = set(nodes_by_subid[v])
+
+            inputs_merged = (inputs_u | inputs_v) - (nodes_u | nodes_v)
+            
+
+            if len(inputs_merged) <= max(len(inputs_u), len(inputs_v)):
+                
+                # --- Perform the merge (merge v into u) ---
+                
+                # 1. Update main graph attributes
+                for node in nodes_by_subid[v]:
+                    graph.nodes[node]['subgraph_id'] = u
+                
+                # 2. Update group dictionary
+                nodes_by_subid[u].extend(nodes_by_subid[v])
+                del nodes_by_subid[v]
+                
+                # 3. Merge the information of v into u
+                # Update u's inputs
+                sub_id_graph.nodes[u]['inputs'] = inputs_merged
+                
+
+                # Reconnect the edges (connect all of v's neighbors to u).
+                for neighbor in list(sub_id_graph.successors(v)):
+                    if neighbor != u:
+                        sub_id_graph.add_edge(u, neighbor)
+                for predecessor in list(sub_id_graph.predecessors(v)):
+                    if predecessor != u:
+                        sub_id_graph.add_edge(predecessor, u)
+                
+                # Remove v from the metagraph
+                sub_id_graph.remove_node(v)
+
+                changed = True
+                break 
+    
+    return nodes_by_subid
+
+
+def apply_constraints(graph, nodes_by_subid, TI_LIMIT,inputs_map):
+    """
+    Check the input nodes of each subgraph; if the number exceed TI_LIMIT, break the group down into individual nodes.
+    """
+    new_nodes_by_subid = defaultdict(list)
+    
+    for sid, nodes in nodes_by_subid.items():
+
+        if len(inputs_map[sid]) > TI_LIMIT:
+
+            for node in nodes:
+                graph.nodes[node]['subgraph_id'] = node
+                new_nodes_by_subid[node].append(node)
+
+        else:
+
+            for node in nodes:
+                graph.nodes[node]['subgraph_id'] = sid
+                new_nodes_by_subid[sid].append(node)
+                
+    return new_nodes_by_subid
+
 # input:op is string; bits is list of 0/1 [0,1]
 def apply_logic(op, inputs):
     if op == 'and':
@@ -168,84 +383,51 @@ class Subgraph:
             
         return max_weight, local_tag
 
+
+
+
+
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
     # TODO: Xiaozihan
     # Implement the "partition and propagate" algorithm
 
-
-    # --- 1. 初始化 ---
     # --- 1. Initialization ---
-    uf = UnionFind(graph.nodes)
     TI_LIMIT = 10
-    nodes_by_subid = defaultdict(list) #Used to record the final subid: [all nodes in this subgraph]
 
-    #TODO：需要在第一步之后开始寻找环，如果有环，就把他们全部合并，然后第二步检查是否两个集合合并以后，input的数目是否小于input的最大值，如果小于，则合并这两个，然后才是第三步
     # --- 2.Node Labeling ---
-
+    
+    #2.1label_nodes
     # ID Assignment: If two nodes n' and n'' are "children" of the same node, assign them to the same subgraph ID.
-    for node in graph.nodes:
 
-        #for node doesn't has out edge or only has one
-        if graph.out_degree(node) <= 1: 
-            continue
-        
-        # # Get child nodes, but filter out PO nodes whose tags start with "out".
+    # nodes_by_subid structure:
+    # {
+    #     sub_id: [node_id_1, node_id_2, ...], 
+    #     ----------------------------------------------
+    #     # Key  : The representative ID (Union-Find root or unique identifier)
+    #     # Value: A list of all nodes belonging to this subgraph
+    # }
 
-        children = [child for child in graph.successors(node) 
-                if not graph.nodes[child].get("label", "").startswith("out")]
-        
-        if len(children) > 1:
-            first_child = children[0]
-            for other_child in islice(children, 1, None):
-                uf.union(first_child, other_child)
-       
-    # find the input of each group，use to calculate the number of input
-    temp_group_inputs = defaultdict(set)
+    nodes_by_subid = label_nodes(graph)
+
+    #2.2 merge circle
     
-    for u, v in graph.edges:
-         root_u = uf.find(u)
-         root_v = uf.find(v)
-         if root_u != root_v:
-             temp_group_inputs[root_v].add(u)
 
-     # Brute-force decomposition: If the input count |I_s| > T_I of a subgraph, directly de compose all nodes in this subgraph, returning it to a state of "one node per subgraph". (This can be improved.)
+    nodes_by_subid = merge_cycles(graph, nodes_by_subid)
+
+    inputs_map, _ = get_all_subgraph_boundaries(graph, nodes_by_subid)
     
-    
-    # TODO:improve it
-    for node in graph.nodes:
+    #2.3keep |I_s+t|<=Max(|I_s|,|I_t|)
+    nodes_by_subid = greedy_merge(graph, nodes_by_subid,inputs_map)
 
-        label = graph.nodes[node].get("label", "")
-    
-        # TODO：fix the problem
-        # Special handling for the main output node: It's in its own group
-        if label.startswith("out") or label.startswith("in"):
-            graph.nodes[node]['subgraph_id'] = node 
-            continue  # Do not add nodes_by_subid
+    #gerdy merge change the nodes by subid,so update inputs_map
+    inputs_map, _ = get_all_subgraph_boundaries(graph, nodes_by_subid)
+    #2.4 keep |I_s|<= TI_LIMIT 
+    nodes_by_subid = apply_constraints(graph, nodes_by_subid, TI_LIMIT,inputs_map)
 
-        root = uf.find(node)
-        
-        if len(temp_group_inputs[root]) > TI_LIMIT:
-             uf.parent[node]=node
-             sub_id = node
-        else:
-             sub_id = root
-
-        graph.nodes[node]['subgraph_id'] = sub_id
-        nodes_by_subid[sub_id].append(node)
 
     # record the final input and output of every graph
-    inputs_of_subgraph = defaultdict(set)
-    outputs_of_subgraph = defaultdict(set)
-
-    for u, v in graph.edges:
-        subId_u = graph.nodes[u]['subgraph_id']
-        subId_v = graph.nodes[v]['subgraph_id']
-         
-        #  If u->v, then u is the output of u and u is the input of v.
-        if subId_u != subId_v:
-            inputs_of_subgraph[subId_v].add(u)
-            outputs_of_subgraph[subId_u].add(u)
+    inputs_of_subgraph,outputs_of_subgraph = get_all_subgraph_boundaries(graph, nodes_by_subid)
             
 
 
@@ -281,33 +463,7 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
     #3.1 create sorted subgraph id list
     # create a graph only with the sub_id node and all the outside edges of this subgraph
     # 这个不存在primary input 和 outputnode
-    sub_id_graph = nx.DiGraph()
-
-    for sub_id, sg in all_subgraph_objects.items():
-
-        sub_id_graph.add_node(sub_id)
-
-        for in_node in sg.inputs:
-
-            parent_sub_id = graph.nodes[in_node].get('subgraph_id')
-
-            if parent_sub_id is not None and parent_sub_id != sub_id:
-                    # if the input is primary input, the nodes are not in all_subgraph_objects
-                    if parent_sub_id not in sub_id_graph:
-                        sub_id_graph.add_node(parent_sub_id)
-                        
-                    sub_id_graph.add_edge(parent_sub_id,sub_id)
-        
-        for out_node in sg.outputs:
-        
-            for successor in graph.successors(out_node):
-                child_sub_id = graph.nodes[successor].get('subgraph_id')
-            
-                if child_sub_id is not None and child_sub_id != sub_id:
-                    # if the output is primary output, the nodes are not in all_subgraph_objects
-                    if child_sub_id not in sub_id_graph:
-                        sub_id_graph.add_node(child_sub_id)
-                    sub_id_graph.add_edge(sub_id, child_sub_id)
+    sub_id_graph = build_sub_id_graph(graph, nodes_by_subid)
     
     
     # get the sorted subgraph list, use it to calculate the weight of each subgraph
@@ -376,9 +532,6 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
              # 5. Label input node
              graph.nodes[in_node]['monotonicity'] = local_tag
 
-        # print("\n==== 实时子图矩阵监测 ====")
-        # for sid, sg in all_subgraph_objects.items():
-        #     print(f"子图 {sid} 的 Ms 矩阵: {sg.matrix}")
         
 
 
