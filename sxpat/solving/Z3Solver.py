@@ -3,6 +3,7 @@ from typing import IO, Any, Callable, Container, Mapping, NoReturn, Optional, Se
 
 import itertools as it
 import subprocess
+import sys
 from sxpat.specifications import Specifications
 from sxpat.utils.functions import str_to_int_or_bool
 from .Solver import Solver
@@ -433,7 +434,7 @@ class Z3Solver(Solver):
             cls.encoder.encode(graphs, f)
         try:
             process = subprocess.run(
-                [sxpat_cfg.PYTHON3, script_path],
+                [sys.executable or sxpat_cfg.PYTHON3, script_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 timeout=specifications.timeout   )

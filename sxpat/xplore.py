@@ -9,6 +9,7 @@ import csv
 import json
 import time
 import math
+import random
 import re
 import networkx as nx
 from Z3Log.config import path as z3logpath
@@ -153,23 +154,55 @@ def _get_termination_error_ceiling(specs_obj: Specifications) -> int | None:
         return max(thresholds)
 
     if cnn_constraint is CnnErrorConstraintTypes.ZONE_AET:
-        if (
-            specs_obj.beta is None
-            or specs_obj.beta <= 0
-            or specs_obj.alpha is None
-        ):
-            return None
-
-        thresholds = generate_zone_aet_thresholds(
-            input_count=_get_operand_input_bits(specs_obj.exact_benchmark) * 2
-            if _get_operand_input_bits(specs_obj.exact_benchmark) is not None else 0,
+        ceiling, _, _ = _get_zone_aet_termination_threshold_selection(
+            benchmark_name=specs_obj.exact_benchmark,
             base_error=specs_obj.max_error,
             beta=specs_obj.beta,
             alpha=specs_obj.alpha,
+            rank_from_max=specs_obj.termination_zone_rank_from_max,
         )
-        return max(thresholds) if thresholds else None
+        return ceiling
 
     return None
+
+
+def _get_effective_zone_rank_from_max(specs_obj: Specifications, best_seen_stagnation: int) -> int:
+    requested_rank = max(0, int(specs_obj.termination_zone_rank_from_max))
+    if (
+        specs_obj.cnn_constraint is not CnnErrorConstraintTypes.ZONE_AET
+        or not specs_obj.adaptive_termination_zone_rank
+    ):
+        return requested_rank
+
+    step_interval = max(1, int(specs_obj.adaptive_termination_zone_rank_step_interval))
+    return requested_rank + (max(0, int(best_seen_stagnation)) // step_interval)
+
+
+@ft.lru_cache(maxsize=None)
+def _get_zone_aet_termination_threshold_selection(
+    benchmark_name: str,
+    base_error: int,
+    beta: int | None,
+    alpha: int | None,
+    rank_from_max: int,
+) -> Tuple[int | None, int | None, int | None]:
+    operand_bits = _get_operand_input_bits(benchmark_name)
+    if operand_bits is None or beta is None or beta <= 0 or alpha is None:
+        return (None, None, None)
+
+    thresholds = generate_zone_aet_thresholds(
+        input_count=operand_bits * 2,
+        base_error=base_error,
+        beta=beta,
+        alpha=alpha,
+    )
+    unique_levels = sorted(set(int(value) for value in thresholds))
+    if not unique_levels:
+        return (None, None, None)
+
+    requested_rank = max(0, int(rank_from_max))
+    applied_rank = min(requested_rank, len(unique_levels) - 1)
+    return (unique_levels[-1 - applied_rank], applied_rank, len(unique_levels))
 
 
 @dc.dataclass(frozen=True)
@@ -183,9 +216,40 @@ class TerminationSnapshot:
     should_stop: bool
     reason: str | None = None
     message_lines: Tuple[str, ...] = ()
+    zone_rank_requested: int | None = None
+    zone_rank_effective: int | None = None
+    zone_rank_applied: int | None = None
+    zone_level_count: int | None = None
+    best_seen_guard_blocked: bool = False
+    best_seen_guard_gap_pct: float | None = None
+    best_seen_stagnation: int | None = None
 
 
-def _check_termination(specs_obj: Specifications, max_out_node: int | None) -> TerminationSnapshot:
+def _check_best_seen_guard(
+    specs_obj: Specifications,
+    current_result: Dict[str, Any] | None,
+    best_seen_result: Dict[str, Any] | None,
+) -> Tuple[bool, float | None, float | None, float | None]:
+    guard_pct = float(getattr(specs_obj, 'best_seen_guard_pct', 0.0) or 0.0)
+    if guard_pct <= 0.0 or current_result is None or best_seen_result is None:
+        return (False, None, None, None)
+
+    current_area = current_result.get('area')
+    best_area = best_seen_result.get('area')
+    if current_area is None or best_area is None or best_area <= 0:
+        return (False, None, current_area, best_area)
+
+    gap_pct = ((current_area - best_area) / best_area) * 100.0
+    return (gap_pct > guard_pct, gap_pct, current_area, best_area)
+
+
+def _check_termination(
+    specs_obj: Specifications,
+    max_out_node: int | None,
+    current_result: Dict[str, Any] | None,
+    best_seen_result: Dict[str, Any] | None,
+    best_seen_stagnation: int,
+) -> TerminationSnapshot:
     if specs_obj.extraction_mode != 0:
         return TerminationSnapshot(
             mode=specs_obj.termination_mode.value,
@@ -193,17 +257,88 @@ def _check_termination(specs_obj: Specifications, max_out_node: int | None) -> T
             bit_weight=None,
             ceiling=None,
             should_stop=False,
+            zone_rank_requested=None,
+            zone_rank_effective=None,
+            zone_rank_applied=None,
+            zone_level_count=None,
+            best_seen_guard_blocked=False,
+            best_seen_guard_gap_pct=None,
+            best_seen_stagnation=best_seen_stagnation,
         )
 
     out_node = specs_obj.out_node
     bit_weight = 2 ** out_node
+    zone_rank_requested = (
+        specs_obj.termination_zone_rank_from_max
+        if specs_obj.cnn_constraint is CnnErrorConstraintTypes.ZONE_AET
+        else None
+    )
+    zone_rank_effective = zone_rank_requested
+    zone_rank_applied = None
+    zone_level_count = None
 
-    if specs_obj.termination_mode is TerminationMode.TRIVIAL:
+    if max_out_node is not None and max_out_node == out_node:
+        return TerminationSnapshot(
+            mode=specs_obj.termination_mode.value,
+            out_node=out_node,
+            bit_weight=bit_weight,
+            ceiling=None,
+            should_stop=True,
+            reason='error_space_exhausted',
+            message_lines=('The error space is exhausted (reached max bit)!',),
+            zone_rank_requested=zone_rank_requested,
+            zone_rank_effective=zone_rank_effective,
+            zone_rank_applied=zone_rank_applied,
+            zone_level_count=zone_level_count,
+            best_seen_guard_blocked=False,
+            best_seen_guard_gap_pct=None,
+            best_seen_stagnation=best_seen_stagnation,
+        )
+
+    if specs_obj.termination_mode in {TerminationMode.TRIVIAL, TerminationMode.HYBRID, TerminationMode.SENTINEL}:
         # if the current bit alone already exceeds the strongest legal
         # error permitted by the active constraint, there is no
         # point exploring higher bits.
-        ceiling = _get_termination_error_ceiling(specs_obj)
+        if specs_obj.cnn_constraint is CnnErrorConstraintTypes.ZONE_AET:
+            zone_rank_effective = _get_effective_zone_rank_from_max(specs_obj, best_seen_stagnation)
+            ceiling, zone_rank_applied, zone_level_count = _get_zone_aet_termination_threshold_selection(
+                benchmark_name=specs_obj.exact_benchmark,
+                base_error=specs_obj.max_error,
+                beta=specs_obj.beta,
+                alpha=specs_obj.alpha,
+                rank_from_max=zone_rank_effective,
+            )
+        else:
+            ceiling = _get_termination_error_ceiling(specs_obj)
         if ceiling is not None and bit_weight > ceiling:
+            guard_blocked, guard_gap_pct, current_area, best_area = _check_best_seen_guard(
+                specs_obj,
+                current_result=current_result,
+                best_seen_result=best_seen_result,
+            )
+            if guard_blocked:
+                return TerminationSnapshot(
+                    mode=specs_obj.termination_mode.value,
+                    out_node=out_node,
+                    bit_weight=bit_weight,
+                    ceiling=ceiling,
+                    should_stop=False,
+                    reason=None,
+                    message_lines=(
+                        '',
+                        '[!] BEST-SEEN GUARD BLOCKED TRIVIAL TERMINATION!',
+                        f'Current accepted area {current_area:.4f} is {guard_gap_pct:.2f}% above the run-best area {best_area:.4f}.',
+                        f'Configured best-seen guard is {specs_obj.best_seen_guard_pct:.2f}%. Continuing exploration.',
+                        '',
+                    ),
+                    zone_rank_requested=zone_rank_requested,
+                    zone_rank_effective=zone_rank_effective,
+                    zone_rank_applied=zone_rank_applied,
+                    zone_level_count=zone_level_count,
+                    best_seen_guard_blocked=True,
+                    best_seen_guard_gap_pct=guard_gap_pct,
+                    best_seen_stagnation=best_seen_stagnation,
+                )
             return TerminationSnapshot(
                 mode=specs_obj.termination_mode.value,
                 out_node=out_node,
@@ -218,20 +353,16 @@ def _check_termination(specs_obj: Specifications, max_out_node: int | None) -> T
                     f'Bit {out_node} weight ({bit_weight}) is strictly impossible. Stopping exploration.',
                     '',
                 ),
+                zone_rank_requested=zone_rank_requested,
+                zone_rank_effective=zone_rank_effective,
+                zone_rank_applied=zone_rank_applied,
+                zone_level_count=zone_level_count,
+                best_seen_guard_blocked=False,
+                best_seen_guard_gap_pct=guard_gap_pct,
+                best_seen_stagnation=best_seen_stagnation,
             )
     else:
         ceiling = None
-
-    if max_out_node is not None and max_out_node == out_node:
-        return TerminationSnapshot(
-            mode=specs_obj.termination_mode.value,
-            out_node=out_node,
-            bit_weight=bit_weight,
-            ceiling=ceiling,
-            should_stop=True,
-            reason='error_space_exhausted',
-            message_lines=('The error space is exhausted (reached max bit)!',),
-        )
 
     return TerminationSnapshot(
         mode=specs_obj.termination_mode.value,
@@ -239,6 +370,13 @@ def _check_termination(specs_obj: Specifications, max_out_node: int | None) -> T
         bit_weight=bit_weight,
         ceiling=ceiling,
         should_stop=False,
+        zone_rank_requested=zone_rank_requested,
+        zone_rank_effective=zone_rank_effective,
+        zone_rank_applied=zone_rank_applied,
+        zone_level_count=zone_level_count,
+        best_seen_guard_blocked=False,
+        best_seen_guard_gap_pct=None,
+        best_seen_stagnation=best_seen_stagnation,
     )
 
 
@@ -284,6 +422,365 @@ def _update_pareto_frontier(frontier: List[Dict[str, Any]], point: Dict[str, Any
     return True
 
 
+def _pareto_weights(specs_obj: Specifications) -> Tuple[float, float, float]:
+    raw_weights = (
+        max(0.0, float(specs_obj.pareto_area_weight)),
+        max(0.0, float(specs_obj.pareto_power_weight)),
+        max(0.0, float(specs_obj.pareto_delay_weight)),
+    )
+    total = sum(raw_weights)
+    if total <= 0.0:
+        return (1.0, 0.0, 0.0)
+    return tuple(weight / total for weight in raw_weights)
+
+
+def _pareto_regret(point: Dict[str, Any], incumbent: Dict[str, Any], weights: Tuple[float, float, float]) -> float:
+    regret = 0.0
+    for metric_name, weight in zip(('area', 'power', 'delay'), weights):
+        incumbent_value = float(incumbent[metric_name])
+        point_value = float(point[metric_name])
+        baseline = max(incumbent_value, 1e-9)
+        regret += weight * max(0.0, (point_value / baseline) - 1.0)
+    return regret
+
+
+def _effective_pareto_forgiveness(specs_obj: Specifications, best_seen_stagnation: int) -> float:
+    aggressive_stagnation = max(
+        0,
+        int(best_seen_stagnation) - int(specs_obj.pareto_aggressive_after_stagnation),
+    )
+    return max(
+        float(specs_obj.pareto_min_forgiveness),
+        float(specs_obj.pareto_forgiveness) * (
+            float(specs_obj.pareto_forgiveness_decay) ** aggressive_stagnation
+        ),
+    )
+
+
+def _classify_pareto_point(
+    frontier: List[Dict[str, Any]],
+    point: Dict[str, Any],
+    specs_obj: Specifications,
+    best_seen_stagnation: int,
+) -> Tuple[str, bool, float]:
+    if not frontier:
+        frontier.append(point)
+        return ('frontier_expanding', True, 0.0)
+
+    weights = _pareto_weights(specs_obj)
+    effective_forgiveness = _effective_pareto_forgiveness(specs_obj, best_seen_stagnation)
+    min_regret = min(_pareto_regret(point, existing, weights) for existing in frontier)
+    if any(
+        all(float(existing[metric_name]) == float(point[metric_name]) for metric_name in ('area', 'power', 'delay'))
+        for existing in frontier
+    ):
+        return ('near_frontier', False, min_regret)
+    is_exactly_dominated = any(_dominates_pareto(existing, point) for existing in frontier)
+    if is_exactly_dominated:
+        if min_regret <= effective_forgiveness:
+            return ('near_frontier', False, min_regret)
+        return ('dominated', False, min_regret)
+
+    frontier[:] = [existing for existing in frontier if not _dominates_pareto(point, existing)]
+    frontier.append(point)
+    return ('frontier_expanding', True, min_regret)
+
+
+def _update_pareto_annealed_score(
+    current_score: float,
+    classification: str,
+    regret: float,
+    specs_obj: Specifications,
+    best_seen_stagnation: int,
+) -> float:
+    if classification == 'frontier_expanding':
+        return max(0.0, current_score - 1.5)
+    if classification == 'near_frontier':
+        return current_score + float(specs_obj.pareto_near_frontier_penalty)
+    effective_forgiveness = _effective_pareto_forgiveness(specs_obj, best_seen_stagnation)
+    excess_regret = max(0.0, regret - effective_forgiveness)
+    return (
+        current_score
+        + float(specs_obj.pareto_dominated_penalty)
+        + (float(specs_obj.pareto_regret_scale) * excess_regret)
+    )
+
+
+def _pareto_annealed_temperature(
+    specs_obj: Specifications,
+    iteration: int,
+    best_seen_stagnation: int,
+    runtime_seconds: float,
+) -> float:
+    base_temperature = float(specs_obj.pareto_temperature_init) * (
+        float(specs_obj.pareto_temperature_decay) ** max(0, int(iteration) - 1)
+    )
+    timeout = max(float(specs_obj.timeout), 1.0)
+    runtime_ratio = max(0.0, float(runtime_seconds)) / timeout
+    aggressive_stagnation = max(
+        0,
+        int(best_seen_stagnation) - int(specs_obj.pareto_aggressive_after_stagnation),
+    )
+    pressure = 1.0 + (
+        float(specs_obj.pareto_runtime_pressure_scale)
+        * runtime_ratio
+        * aggressive_stagnation
+    )
+    return max(1e-6, base_temperature / pressure)
+
+
+def _pareto_stop_probability(score: float, threshold: float, temperature: float) -> float:
+    if temperature <= 1e-9:
+        return 1.0 if score > threshold else 0.0
+    scaled_margin = (score - threshold) / temperature
+    scaled_margin = max(-60.0, min(60.0, scaled_margin))
+    return 1.0 / (1.0 + math.exp(-scaled_margin))
+
+
+def _sentinel_should_stop(
+    specs_obj: Specifications,
+    *,
+    best_seen_stagnation: int,
+    best_seen_iteration_age: int,
+    best_seen_improvement_pct: float | None,
+    same_subgraph_streak: int,
+    structural_stall_streak: int,
+    negative_ratio: float | None,
+    timeout_count: int,
+    runtime_seconds: float,
+    current_result: Dict[str, Any] | None,
+    best_seen_result: Dict[str, Any] | None,
+) -> Tuple[bool, float | None, float | None, float | None, Tuple[str, ...] | None]:
+    if int(specs_obj.beta or 0) < int(specs_obj.sentinel_min_beta):
+        return (False, None, None, None, None)
+    if best_seen_stagnation < int(specs_obj.sentinel_best_seen_patience):
+        return (False, None, None, None, None)
+    if best_seen_iteration_age < int(specs_obj.sentinel_best_seen_iteration_patience):
+        return (False, None, None, None, None)
+
+    gain_is_marginal = (
+        best_seen_improvement_pct is None
+        or best_seen_improvement_pct < float(specs_obj.sentinel_marginal_gain_pct)
+    )
+    repeated_subgraph_tail = same_subgraph_streak >= int(specs_obj.sentinel_same_subgraph_streak)
+    structurally_stalled = (
+        repeated_subgraph_tail
+        or structural_stall_streak >= int(specs_obj.sentinel_structural_stall_streak)
+    )
+    if not (gain_is_marginal and structurally_stalled):
+        return (False, None, None, None, None)
+
+    runtime_fraction = float(runtime_seconds) / max(float(specs_obj.timeout), 1.0)
+    timeout_tail = timeout_count >= int(specs_obj.sentinel_min_timeout_count)
+    negative_tail = (
+        negative_ratio is not None
+        and negative_ratio >= float(specs_obj.sentinel_negative_cell_ratio)
+        and runtime_fraction >= float(specs_obj.sentinel_min_runtime_fraction)
+    )
+    if negative_ratio is not None and negative_ratio < float(specs_obj.sentinel_negative_cell_ratio) and not repeated_subgraph_tail:
+        return (False, None, None, None, None)
+    if not (repeated_subgraph_tail or timeout_tail or negative_tail):
+        return (False, None, None, None, None)
+
+    guard_blocked, guard_gap_pct, current_area, best_area = _check_best_seen_guard(
+        specs_obj,
+        current_result=current_result,
+        best_seen_result=best_seen_result,
+    )
+    if guard_blocked:
+        return (
+            False,
+            guard_gap_pct,
+            current_area,
+            best_area,
+            (
+                'Best-seen guard blocked sentinel termination: '
+                f'current accepted area {current_area:.4f} is {guard_gap_pct:.2f}% '
+                f'above run-best area {best_area:.4f}.',
+            ),
+        )
+
+    reason_lines = (
+        'Sentinel termination fired:',
+        f'best-seen stagnation = {best_seen_stagnation}',
+        f'iterations since best-seen improved = {best_seen_iteration_age}',
+        f'same-subgraph streak = {same_subgraph_streak}',
+        f'structural-stall streak = {structural_stall_streak}',
+        f'negative-cell ratio = {negative_ratio:.3f}' if negative_ratio is not None else 'negative-cell ratio = n/a',
+        f'timeout count this iteration = {timeout_count}',
+        f'elapsed runtime fraction = {runtime_fraction:.3f}',
+        f'best-seen improvement this iteration = {best_seen_improvement_pct:.3f}%'
+        if best_seen_improvement_pct is not None else
+        'best-seen improvement this iteration = none',
+    )
+    return (True, guard_gap_pct, current_area, best_area, reason_lines)
+
+
+_PREDICTOR_MODEL_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
+def _load_predictor_model(model_path: str) -> Dict[str, Any]:
+    resolved = str(Path(model_path).expanduser().resolve())
+    cached = _PREDICTOR_MODEL_CACHE.get(resolved)
+    if cached is not None:
+        return cached
+    with open(resolved) as model_file:
+        model = json.load(model_file)
+    _PREDICTOR_MODEL_CACHE[resolved] = model
+    return model
+
+
+def _predictor_feature_vector(
+    specs_obj: Specifications,
+    *,
+    iteration: int,
+    out_node: int | None,
+    bit_weight: float | None,
+    termination_ceiling: float | None,
+    best_seen_stagnation: int,
+    best_seen_iteration_age: int,
+    same_subgraph_streak: int,
+    structural_stall_streak: int,
+    negative_ratio: float | None,
+    timeout_count: int,
+    runtime_seconds: float,
+    best_seen_improvement_pct: float | None,
+) -> Dict[str, float]:
+    runtime_fraction = float(runtime_seconds) / max(float(specs_obj.timeout), 1.0)
+    ceiling = float(termination_ceiling) if termination_ceiling not in (None, '') else 0.0
+    weight = float(bit_weight) if bit_weight not in (None, '') else 0.0
+    return {
+        'iteration': float(iteration),
+        'out_node': float(out_node or 0),
+        'beta': float(specs_obj.beta or 0),
+        'max_error': float(specs_obj.max_error or 0),
+        'best_seen_stagnation': float(best_seen_stagnation),
+        'best_seen_iteration_age': float(best_seen_iteration_age),
+        'same_subgraph_streak': float(same_subgraph_streak),
+        'structural_stall_streak': float(structural_stall_streak),
+        'negative_ratio': 0.0 if negative_ratio in (None, '') else float(negative_ratio),
+        'timeout_count': float(timeout_count),
+        'runtime_fraction': float(runtime_fraction),
+        'best_seen_improvement_pct': 0.0 if best_seen_improvement_pct in (None, '') else float(best_seen_improvement_pct),
+        'bit_weight_over_ceiling': (weight / max(ceiling, 1e-9)) if ceiling > 0 else 0.0,
+    }
+
+
+def _predictor_stop_probability(model: Dict[str, Any], feature_values: Dict[str, float]) -> float:
+    feature_order = model['feature_names']
+    means = model['feature_means']
+    stds = model['feature_stds']
+    weights = model['weights']
+    bias = float(model['bias'])
+    score = bias
+    for idx, feature_name in enumerate(feature_order):
+        raw_value = float(feature_values.get(feature_name, 0.0))
+        normalized = (raw_value - float(means[idx])) / max(float(stds[idx]), 1e-9)
+        score += float(weights[idx]) * normalized
+    score = max(-60.0, min(60.0, score))
+    return 1.0 / (1.0 + math.exp(-score))
+
+
+def _predictor_should_stop(
+    specs_obj: Specifications,
+    *,
+    iteration: int,
+    out_node: int | None,
+    bit_weight: float | None,
+    termination_ceiling: float | None,
+    best_seen_stagnation: int,
+    best_seen_iteration_age: int,
+    same_subgraph_streak: int,
+    structural_stall_streak: int,
+    negative_ratio: float | None,
+    timeout_count: int,
+    runtime_seconds: float,
+    best_seen_improvement_pct: float | None,
+    current_result: Dict[str, Any] | None,
+    best_seen_result: Dict[str, Any] | None,
+) -> Tuple[bool, float, float | None, float | None, float | None, Tuple[str, ...] | None]:
+    if iteration < int(specs_obj.predictor_min_iteration):
+        return (False, 0.0, None, None, None, None)
+
+    model = _load_predictor_model(specs_obj.predictor_model_path)
+    feature_values = _predictor_feature_vector(
+        specs_obj,
+        iteration=iteration,
+        out_node=out_node,
+        bit_weight=bit_weight,
+        termination_ceiling=termination_ceiling,
+        best_seen_stagnation=best_seen_stagnation,
+        best_seen_iteration_age=best_seen_iteration_age,
+        same_subgraph_streak=same_subgraph_streak,
+        structural_stall_streak=structural_stall_streak,
+        negative_ratio=negative_ratio,
+        timeout_count=timeout_count,
+        runtime_seconds=runtime_seconds,
+        best_seen_improvement_pct=best_seen_improvement_pct,
+    )
+    stop_probability = _predictor_stop_probability(model, feature_values)
+    if stop_probability < float(specs_obj.predictor_probability_threshold):
+        return (False, stop_probability, None, None, None, None)
+
+    guard_blocked, guard_gap_pct, current_area, best_area = _check_best_seen_guard(
+        specs_obj,
+        current_result=current_result,
+        best_seen_result=best_seen_result,
+    )
+    if guard_blocked:
+        return (
+            False,
+            stop_probability,
+            guard_gap_pct,
+            current_area,
+            best_area,
+            (
+                'Best-seen guard blocked predictor termination: '
+                f'current accepted area {current_area:.4f} is {guard_gap_pct:.2f}% '
+                f'above run-best area {best_area:.4f}.',
+            ),
+        )
+
+    reason_lines = (
+        'Predictor termination fired:',
+        f'predicted stop probability = {stop_probability:.3f}',
+        f'best-seen stagnation = {best_seen_stagnation}',
+        f'iterations since best-seen improved = {best_seen_iteration_age}',
+        f'structural-stall streak = {structural_stall_streak}',
+        f'same-subgraph streak = {same_subgraph_streak}',
+        f'negative-cell ratio = {negative_ratio:.3f}' if negative_ratio is not None else 'negative-cell ratio = n/a',
+        f'timeout count this iteration = {timeout_count}',
+    )
+    return (True, stop_probability, guard_gap_pct, current_area, best_area, reason_lines)
+
+
+def _is_better_run_result(candidate: Dict[str, Any], incumbent: Dict[str, Any] | None) -> bool:
+    if incumbent is None:
+        return True
+
+    candidate_area = candidate.get('area')
+    incumbent_area = incumbent.get('area')
+    if candidate_area != incumbent_area:
+        return candidate_area < incumbent_area
+
+    candidate_delay = candidate.get('delay')
+    incumbent_delay = incumbent.get('delay')
+    if candidate_delay != incumbent_delay:
+        return candidate_delay < incumbent_delay
+
+    candidate_power = candidate.get('power')
+    incumbent_power = incumbent.get('power')
+    if candidate_power != incumbent_power:
+        return candidate_power < incumbent_power
+
+    candidate_iteration = candidate.get('iteration')
+    incumbent_iteration = incumbent.get('iteration')
+    if candidate_iteration != incumbent_iteration:
+        return candidate_iteration < incumbent_iteration
+
+    return False
+
+
 def _write_termination_trace(summary_stem: str, trace_rows: List[Dict[str, Any]]) -> str:
     # the csv trace stores one row per outer exploration iteration so sweeps can
     # be analyzed without reparsing the verbose console log.
@@ -293,10 +790,17 @@ def _write_termination_trace(summary_stem: str, trace_rows: List[Dict[str, Any]]
     fieldnames = [
         'iteration',
         'termination_mode',
+        'termination_zone_rank_from_max',
+        'termination_zone_rank_effective',
+        'termination_zone_rank_applied',
+        'termination_zone_level_count',
         'stop_reason',
         'out_node',
         'bit_weight',
         'termination_ceiling',
+        'best_seen_guard_pct',
+        'best_seen_guard_blocked',
+        'best_seen_guard_gap_pct',
         'et',
         'benchmark',
         'selected_cell',
@@ -306,11 +810,32 @@ def _write_termination_trace(summary_stem: str, trace_rows: List[Dict[str, Any]]
         'best_delay',
         'verified_error_exact',
         'verified_error_prev',
+        'run_best_area',
+        'run_best_iteration',
+        'best_seen_iteration_age',
+        'best_seen_improved',
+        'best_seen_stagnation',
+        'best_seen_improvement_pct',
         'subgraph_available',
         'subgraph_repeated',
+        'same_subgraph_streak',
+        'structural_stall_streak',
+        'grid_sat_count',
+        'grid_unsat_count',
+        'grid_unknown_count',
+        'grid_dominated_count',
+        'grid_timeout_count',
+        'grid_negative_ratio',
         'pareto_efficient',
+        'pareto_classification',
+        'pareto_regret',
         'pareto_frontier_size',
         'pareto_stagnation',
+        'pareto_stagnation_score',
+        'pareto_temperature',
+        'pareto_stop_probability',
+        'pareto_random_draw',
+        'predictor_stop_probability',
     ]
     with open(trace_path, 'w', newline='') as trace_file:
         writer = csv.DictWriter(trace_file, fieldnames=fieldnames)
@@ -381,10 +906,16 @@ def explore_grid(specs_obj: Specifications):
     max_out_node = _get_max_output_node(specs_obj) if specs_obj.extraction_mode == 0 else None
     pareto_frontier: List[Dict[str, Any]] = []
     pareto_stagnation = 0
+    pareto_stagnation_score = 0.0
+    best_seen_stagnation = 0
+    same_subgraph_streak = 0
+    structural_stall_streak = 0
+    pareto_rng = random.Random(specs_obj.pareto_rng_seed)
 
     run_started_at = time.time()
     trace_rows: List[Dict[str, Any]] = []
     last_selected_result: Dict[str, Any] | None = None
+    best_seen_result: Dict[str, Any] | None = None
     stop_snapshot: TerminationSnapshot | None = None
     stop_reason: str | None = None
 
@@ -412,10 +943,21 @@ def explore_grid(specs_obj: Specifications):
         trace_row: Dict[str, Any] = {
             'iteration': specs_obj.iteration,
             'termination_mode': specs_obj.termination_mode.value,
+            'termination_zone_rank_from_max': (
+                specs_obj.termination_zone_rank_from_max
+                if specs_obj.cnn_constraint is CnnErrorConstraintTypes.ZONE_AET
+                else None
+            ),
+            'termination_zone_rank_effective': None,
+            'termination_zone_rank_applied': None,
+            'termination_zone_level_count': None,
             'stop_reason': None,
             'out_node': specs_obj.out_node if specs_obj.extraction_mode == 0 else None,
             'bit_weight': None,
             'termination_ceiling': None,
+            'best_seen_guard_pct': specs_obj.best_seen_guard_pct,
+            'best_seen_guard_blocked': False,
+            'best_seen_guard_gap_pct': None,
             'et': specs_obj.et,
             'benchmark': specs_obj.current_benchmark,
             'selected_cell': None,
@@ -425,11 +967,32 @@ def explore_grid(specs_obj: Specifications):
             'best_delay': None,
             'verified_error_exact': None,
             'verified_error_prev': None,
+            'run_best_area': None if best_seen_result is None else best_seen_result['area'],
+            'run_best_iteration': None if best_seen_result is None else best_seen_result['iteration'],
+            'best_seen_iteration_age': None if best_seen_result is None else specs_obj.iteration - int(best_seen_result['iteration']),
+            'best_seen_improved': None,
+            'best_seen_stagnation': best_seen_stagnation,
             'subgraph_available': None,
             'subgraph_repeated': False,
+            'same_subgraph_streak': same_subgraph_streak,
+            'structural_stall_streak': structural_stall_streak,
+            'grid_sat_count': 0,
+            'grid_unsat_count': 0,
+            'grid_unknown_count': 0,
+            'grid_dominated_count': 0,
+            'grid_timeout_count': 0,
+            'grid_negative_ratio': None,
+            'best_seen_improvement_pct': None,
             'pareto_efficient': None,
+            'pareto_classification': None,
+            'pareto_regret': None,
             'pareto_frontier_size': len(pareto_frontier),
             'pareto_stagnation': pareto_stagnation,
+            'pareto_stagnation_score': pareto_stagnation_score,
+            'pareto_temperature': None,
+            'pareto_stop_probability': None,
+            'pareto_random_draw': None,
+            'predictor_stop_probability': None,
         }
 
         if not specs_obj.subxpat:
@@ -443,10 +1006,22 @@ def explore_grid(specs_obj: Specifications):
         elif specs_obj.extraction_mode == 0:
             print(f"Current out_node: {specs_obj.out_node}")
             # termination logic
-            snapshot = _check_termination(specs_obj, max_out_node)
+            snapshot = _check_termination(
+                specs_obj,
+                max_out_node,
+                current_result=last_selected_result,
+                best_seen_result=best_seen_result,
+                best_seen_stagnation=best_seen_stagnation,
+            )
             trace_row['out_node'] = snapshot.out_node
             trace_row['bit_weight'] = snapshot.bit_weight
             trace_row['termination_ceiling'] = snapshot.ceiling
+            trace_row['termination_zone_rank_effective'] = snapshot.zone_rank_effective
+            trace_row['termination_zone_rank_applied'] = snapshot.zone_rank_applied
+            trace_row['termination_zone_level_count'] = snapshot.zone_level_count
+            trace_row['best_seen_guard_blocked'] = snapshot.best_seen_guard_blocked
+            trace_row['best_seen_guard_gap_pct'] = snapshot.best_seen_guard_gap_pct
+            trace_row['best_seen_stagnation'] = snapshot.best_seen_stagnation
             if snapshot.should_stop:
                 stop_snapshot = snapshot
                 stop_reason = snapshot.reason
@@ -458,6 +1033,8 @@ def explore_grid(specs_obj: Specifications):
                     print('\n'.join(snapshot.message_lines))
                 _store_trace_row(trace_rows, **trace_row)
                 break
+            if snapshot.best_seen_guard_blocked:
+                print('\n'.join(snapshot.message_lines))
         elif (
             specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING
             or specs_obj.error_partitioning is ErrorPartitioningType.EXPONENTIAL
@@ -557,7 +1134,11 @@ def explore_grid(specs_obj: Specifications):
 
         if not subgraph_is_available:
             pprint.warning('No subgraph available.')
+            structural_stall_streak += 1
+            same_subgraph_streak = 0
             trace_row['status'] = 'NO_SUBGRAPH'
+            trace_row['same_subgraph_streak'] = same_subgraph_streak
+            trace_row['structural_stall_streak'] = structural_stall_streak
             _store_trace_row(trace_rows, **trace_row)
             prev_actual_error = 0
             continue
@@ -567,20 +1148,55 @@ def explore_grid(specs_obj: Specifications):
             and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
         ):
             pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
+            same_subgraph_streak += 1
+            structural_stall_streak += 1
             trace_row['status'] = 'DUPLICATE_SUBGRAPH'
             trace_row['subgraph_repeated'] = True
+            trace_row['same_subgraph_streak'] = same_subgraph_streak
+            trace_row['structural_stall_streak'] = structural_stall_streak
+            if specs_obj.termination_mode is TerminationMode.SENTINEL:
+                should_stop, guard_gap_pct, current_area, best_area, reason_lines = _sentinel_should_stop(
+                    specs_obj,
+                    best_seen_stagnation=best_seen_stagnation,
+                    best_seen_iteration_age=(
+                        0 if best_seen_result is None else specs_obj.iteration - int(best_seen_result['iteration'])
+                    ),
+                    best_seen_improvement_pct=None,
+                    same_subgraph_streak=same_subgraph_streak,
+                    structural_stall_streak=structural_stall_streak,
+                    negative_ratio=None,
+                    timeout_count=0,
+                    runtime_seconds=time.time() - run_started_at,
+                    current_result=last_selected_result,
+                    best_seen_result=best_seen_result,
+                )
+                trace_row['best_seen_guard_gap_pct'] = guard_gap_pct
+                if should_stop:
+                    stop_reason = 'sentinel_termination'
+                    trace_row['stop_reason'] = stop_reason
+                    trace_row['status'] = 'STOPPED'
+                    pprint.warning('\n'.join(reason_lines or ('Sentinel termination fired.',)))
+                    _store_trace_row(trace_rows, **trace_row)
+                    break
             _store_trace_row(trace_rows, **trace_row)
             prev_actual_error = 0
             continue
+        same_subgraph_streak = 0
 
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
         exact_stats = MetricsEstimator.estimate_metrics(exact_file_path)
+        grid_sat_count = 0
+        grid_unsat_count = 0
+        grid_unknown_count = 0
+        grid_dominated_count = 0
+        grid_timeout_count = 0
 
         for lpp, ppo in CellIterator.factory(specs_obj):
             if is_dominated((lpp, ppo), dominant_cells):
                 pprint.info1(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> DOMINATED')
+                grid_dominated_count += 1
                 continue
 
             # > cell step settings
@@ -629,11 +1245,17 @@ def explore_grid(specs_obj: Specifications):
                 stats_obj.grid.cells[lpp][ppo].store_model_info(this_model_info)
 
                 if status == UNKNOWN:
+                    if solve_timer.total >= max(0.0, float(specs_obj.timeout) - 1.0):
+                        grid_timeout_count += 1
+                    grid_unknown_count += 1
                     # store cell as dominant (to skip dominated subgrid)
                     dominant_cells.append((lpp, ppo))
+                elif status == UNSAT:
+                    grid_unsat_count += 1
 
             else:
                 pprint.success(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()} ({len(models)} models found)')
+                grid_sat_count += 1
 
                 # keep both qor metrics and verified errors for every candidate
                 # so post-processing can reconstruct why a specific circuit was
@@ -735,15 +1357,61 @@ def explore_grid(specs_obj: Specifications):
                     'verified_error_exact': best_data[4],
                     'verified_error_prev': best_data[5],
                     'cell': (lpp, ppo),
+                    'iteration': specs_obj.iteration,
+                    'runtime_at_accept_seconds': round(time.time() - run_started_at, 6),
                 }
+                previous_best_seen_result = None if best_seen_result is None else dict(best_seen_result)
+                best_seen_improved = _is_better_run_result(last_selected_result, best_seen_result)
+                if best_seen_improved:
+                    best_seen_result = dict(last_selected_result)
+                    best_seen_stagnation = 0
+                else:
+                    best_seen_stagnation += 1
+                if best_seen_improved and previous_best_seen_result is not None and previous_best_seen_result.get('area'):
+                    previous_best_area = float(previous_best_seen_result['area'])
+                    best_seen_improvement_pct = (
+                        ((previous_best_area - float(best_seen_result['area'])) / previous_best_area) * 100.0
+                        if previous_best_area > 0 else None
+                    )
+                elif best_seen_improved:
+                    best_seen_improvement_pct = None
+                else:
+                    best_seen_improvement_pct = 0.0
+                trace_row['best_seen_improved'] = best_seen_improved
+                trace_row['best_seen_stagnation'] = best_seen_stagnation
+                trace_row['best_seen_improvement_pct'] = best_seen_improvement_pct
+                trace_row['best_seen_iteration_age'] = specs_obj.iteration - int(best_seen_result['iteration'])
                 selected_result_this_iteration = True
 
-                if specs_obj.termination_mode is TerminationMode.PARETO:
+                if specs_obj.termination_mode in {TerminationMode.PARETO, TerminationMode.HYBRID}:
                     is_pareto_efficient = _update_pareto_frontier(pareto_frontier, last_selected_result)
                     pareto_stagnation = 0 if is_pareto_efficient else pareto_stagnation + 1
                     trace_row['pareto_efficient'] = is_pareto_efficient
+                    trace_row['pareto_classification'] = 'frontier_expanding' if is_pareto_efficient else 'dominated'
+                    trace_row['pareto_regret'] = 0.0 if is_pareto_efficient else None
                     trace_row['pareto_frontier_size'] = len(pareto_frontier)
                     trace_row['pareto_stagnation'] = pareto_stagnation
+                elif specs_obj.termination_mode is TerminationMode.PARETO_ANNEALED:
+                    pareto_classification, is_pareto_efficient, pareto_regret = _classify_pareto_point(
+                        pareto_frontier,
+                        last_selected_result,
+                        specs_obj,
+                        best_seen_stagnation,
+                    )
+                    pareto_stagnation_score = _update_pareto_annealed_score(
+                        pareto_stagnation_score,
+                        pareto_classification,
+                        pareto_regret,
+                        specs_obj,
+                        best_seen_stagnation,
+                    )
+                    pareto_stagnation = 0 if pareto_classification == 'frontier_expanding' else pareto_stagnation + 1
+                    trace_row['pareto_efficient'] = is_pareto_efficient
+                    trace_row['pareto_classification'] = pareto_classification
+                    trace_row['pareto_regret'] = pareto_regret
+                    trace_row['pareto_frontier_size'] = len(pareto_frontier)
+                    trace_row['pareto_stagnation'] = pareto_stagnation
+                    trace_row['pareto_stagnation_score'] = pareto_stagnation_score
 
                 print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
                 store_current_model(
@@ -761,8 +1429,96 @@ def explore_grid(specs_obj: Specifications):
 
             prev_actual_error = 0
 
+        trace_row['grid_sat_count'] = grid_sat_count
+        trace_row['grid_unsat_count'] = grid_unsat_count
+        trace_row['grid_unknown_count'] = grid_unknown_count
+        trace_row['grid_dominated_count'] = grid_dominated_count
+        trace_row['grid_timeout_count'] = grid_timeout_count
+        negative_cell_count = grid_unsat_count + grid_unknown_count + grid_dominated_count
+        considered_cell_count = grid_sat_count + negative_cell_count
+        negative_ratio = (
+            negative_cell_count / considered_cell_count
+            if considered_cell_count > 0 else None
+        )
+        trace_row['grid_negative_ratio'] = negative_ratio
+
+        if selected_result_this_iteration:
+            iteration_structurally_stalled = (
+                trace_row['best_seen_improved'] is False
+                and (
+                    (negative_ratio is not None and negative_ratio >= float(specs_obj.sentinel_negative_cell_ratio))
+                    or grid_timeout_count > 0
+                )
+            )
+            structural_stall_streak = structural_stall_streak + 1 if iteration_structurally_stalled else 0
+        elif trace_row['status'] not in {'DUPLICATE_SUBGRAPH', 'NO_SUBGRAPH'}:
+            structural_stall_streak = 0
+        trace_row['same_subgraph_streak'] = same_subgraph_streak
+        trace_row['structural_stall_streak'] = structural_stall_streak
+
         if (
-            specs_obj.termination_mode is TerminationMode.PARETO
+            specs_obj.termination_mode is TerminationMode.SENTINEL
+            and selected_result_this_iteration
+        ):
+            should_stop, guard_gap_pct, current_area, best_area, reason_lines = _sentinel_should_stop(
+                specs_obj,
+                best_seen_stagnation=best_seen_stagnation,
+                best_seen_iteration_age=(
+                    0 if best_seen_result is None else specs_obj.iteration - int(best_seen_result['iteration'])
+                ),
+                best_seen_improvement_pct=trace_row['best_seen_improvement_pct'],
+                same_subgraph_streak=same_subgraph_streak,
+                structural_stall_streak=structural_stall_streak,
+                negative_ratio=negative_ratio,
+                timeout_count=grid_timeout_count,
+                runtime_seconds=time.time() - run_started_at,
+                current_result=last_selected_result,
+                best_seen_result=best_seen_result,
+            )
+            trace_row['best_seen_guard_gap_pct'] = guard_gap_pct
+            if should_stop:
+                stop_reason = 'sentinel_termination'
+                trace_row['stop_reason'] = stop_reason
+                trace_row['status'] = 'STOPPED'
+                pprint.warning('\n'.join(reason_lines or ('Sentinel termination fired.',)))
+                _store_trace_row(trace_rows, **trace_row)
+                break
+
+        if (
+            specs_obj.termination_mode is TerminationMode.PREDICTOR
+            and selected_result_this_iteration
+        ):
+            should_stop, stop_probability, guard_gap_pct, current_area, best_area, reason_lines = _predictor_should_stop(
+                specs_obj,
+                iteration=specs_obj.iteration,
+                out_node=trace_row['out_node'],
+                bit_weight=trace_row['bit_weight'],
+                termination_ceiling=trace_row['termination_ceiling'],
+                best_seen_stagnation=best_seen_stagnation,
+                best_seen_iteration_age=(
+                    0 if best_seen_result is None else specs_obj.iteration - int(best_seen_result['iteration'])
+                ),
+                same_subgraph_streak=same_subgraph_streak,
+                structural_stall_streak=structural_stall_streak,
+                negative_ratio=negative_ratio,
+                timeout_count=grid_timeout_count,
+                runtime_seconds=time.time() - run_started_at,
+                best_seen_improvement_pct=trace_row['best_seen_improvement_pct'],
+                current_result=last_selected_result,
+                best_seen_result=best_seen_result,
+            )
+            trace_row['predictor_stop_probability'] = stop_probability
+            trace_row['best_seen_guard_gap_pct'] = guard_gap_pct
+            if should_stop:
+                stop_reason = 'predictor_termination'
+                trace_row['stop_reason'] = stop_reason
+                trace_row['status'] = 'STOPPED'
+                pprint.warning('\n'.join(reason_lines or ('Predictor termination fired.',)))
+                _store_trace_row(trace_rows, **trace_row)
+                break
+
+        if (
+            specs_obj.termination_mode in {TerminationMode.PARETO, TerminationMode.HYBRID}
             and selected_result_this_iteration
             and pareto_stagnation >= persistance_limit
         ):
@@ -778,12 +1534,69 @@ def explore_grid(specs_obj: Specifications):
             _store_trace_row(trace_rows, **trace_row)
             break
 
+        if (
+            specs_obj.termination_mode is TerminationMode.PARETO_ANNEALED
+            and selected_result_this_iteration
+            and pareto_stagnation_score >= persistance_limit
+        ):
+            guard_blocked, guard_gap_pct, current_area, best_area = _check_best_seen_guard(
+                specs_obj,
+                current_result=last_selected_result,
+                best_seen_result=best_seen_result,
+            )
+            trace_row['best_seen_guard_blocked'] = guard_blocked
+            trace_row['best_seen_guard_gap_pct'] = guard_gap_pct
+            trace_row['pareto_stagnation_score'] = pareto_stagnation_score
+            temperature = _pareto_annealed_temperature(
+                specs_obj,
+                specs_obj.iteration,
+                best_seen_stagnation,
+                time.time() - run_started_at,
+            )
+            stop_probability = _pareto_stop_probability(
+                pareto_stagnation_score,
+                float(persistance_limit),
+                temperature,
+            )
+            random_draw = pareto_rng.random()
+            trace_row['pareto_temperature'] = temperature
+            trace_row['pareto_stop_probability'] = stop_probability
+            trace_row['pareto_random_draw'] = random_draw
+
+            if guard_blocked:
+                pprint.warning(
+                    'Best-seen guard blocked pareto_annealed termination: '
+                    f'current accepted area {current_area:.4f} is {guard_gap_pct:.2f}% '
+                    f'above run-best area {best_area:.4f}.'
+                )
+            elif random_draw < stop_probability:
+                stop_reason = 'pareto_annealed_termination'
+                trace_row['stop_reason'] = stop_reason
+                trace_row['status'] = 'STOPPED'
+                trace_row['pareto_frontier_size'] = len(pareto_frontier)
+                trace_row['pareto_stagnation'] = pareto_stagnation
+                pprint.warning(
+                    'Pareto-annealed termination fired: '
+                    f'stagnation score {pareto_stagnation_score:.3f} >= threshold {persistance_limit}, '
+                    f'temperature {temperature:.3f}, stop probability {stop_probability:.3f}, '
+                    f'draw {random_draw:.3f}.'
+                )
+                _store_trace_row(trace_rows, **trace_row)
+                break
+
         if trace_row['status'] is None and status is not None:
             trace_row['status'] = status.upper()
         if trace_row['pareto_frontier_size'] is None:
             trace_row['pareto_frontier_size'] = len(pareto_frontier)
         if trace_row['pareto_stagnation'] is None:
             trace_row['pareto_stagnation'] = pareto_stagnation
+        if trace_row['pareto_stagnation_score'] is None:
+            trace_row['pareto_stagnation_score'] = pareto_stagnation_score
+        if trace_row['run_best_area'] is None and best_seen_result is not None:
+            trace_row['run_best_area'] = best_seen_result['area']
+            trace_row['run_best_iteration'] = best_seen_result['iteration']
+        if trace_row['best_seen_stagnation'] is None:
+            trace_row['best_seen_stagnation'] = best_seen_stagnation
         _store_trace_row(trace_rows, **trace_row)
 
         if status == SAT and best_data[0] == 0:
@@ -799,6 +1612,43 @@ def explore_grid(specs_obj: Specifications):
         'exact_benchmark': specs_obj.exact_benchmark,
         'final_benchmark': specs_obj.current_benchmark,
         'termination_mode': specs_obj.termination_mode.value,
+        'termination_zone_rank_from_max': (
+            specs_obj.termination_zone_rank_from_max
+            if specs_obj.cnn_constraint is CnnErrorConstraintTypes.ZONE_AET
+            else None
+        ),
+        'adaptive_termination_zone_rank': specs_obj.adaptive_termination_zone_rank,
+        'adaptive_termination_zone_rank_step_interval': specs_obj.adaptive_termination_zone_rank_step_interval,
+        'best_seen_guard_pct': specs_obj.best_seen_guard_pct,
+        'pareto_forgiveness': specs_obj.pareto_forgiveness,
+        'pareto_forgiveness_decay': specs_obj.pareto_forgiveness_decay,
+        'pareto_min_forgiveness': specs_obj.pareto_min_forgiveness,
+        'pareto_aggressive_after_stagnation': specs_obj.pareto_aggressive_after_stagnation,
+        'pareto_area_weight': specs_obj.pareto_area_weight,
+        'pareto_power_weight': specs_obj.pareto_power_weight,
+        'pareto_delay_weight': specs_obj.pareto_delay_weight,
+        'pareto_near_frontier_penalty': specs_obj.pareto_near_frontier_penalty,
+        'pareto_dominated_penalty': specs_obj.pareto_dominated_penalty,
+        'pareto_regret_scale': specs_obj.pareto_regret_scale,
+        'pareto_temperature_init': specs_obj.pareto_temperature_init,
+        'pareto_temperature_decay': specs_obj.pareto_temperature_decay,
+        'pareto_runtime_pressure_scale': specs_obj.pareto_runtime_pressure_scale,
+        'pareto_rng_seed': specs_obj.pareto_rng_seed,
+        'sentinel_best_seen_patience': specs_obj.sentinel_best_seen_patience,
+        'sentinel_structural_stall_streak': specs_obj.sentinel_structural_stall_streak,
+        'sentinel_same_subgraph_streak': specs_obj.sentinel_same_subgraph_streak,
+        'sentinel_negative_cell_ratio': specs_obj.sentinel_negative_cell_ratio,
+        'sentinel_marginal_gain_pct': specs_obj.sentinel_marginal_gain_pct,
+        'sentinel_min_runtime_fraction': specs_obj.sentinel_min_runtime_fraction,
+        'sentinel_min_timeout_count': specs_obj.sentinel_min_timeout_count,
+        'sentinel_best_seen_iteration_patience': specs_obj.sentinel_best_seen_iteration_patience,
+        'sentinel_min_beta': specs_obj.sentinel_min_beta,
+        'predictor_model_path': specs_obj.predictor_model_path,
+        'predictor_probability_threshold': specs_obj.predictor_probability_threshold,
+        'predictor_min_iteration': specs_obj.predictor_min_iteration,
+        'termination_zone_rank_effective': None if stop_snapshot is None else stop_snapshot.zone_rank_effective,
+        'termination_zone_rank_applied': None if stop_snapshot is None else stop_snapshot.zone_rank_applied,
+        'termination_zone_level_count': None if stop_snapshot is None else stop_snapshot.zone_level_count,
         'metric': specs_obj.metric.value,
         'cnn_constraint': specs_obj.cnn_constraint.value if specs_obj.cnn_constraint is not None else None,
         'extraction_mode': specs_obj.extraction_mode,
@@ -822,8 +1672,21 @@ def explore_grid(specs_obj: Specifications):
         'final_verified_error_exact': None if last_selected_result is None else last_selected_result['verified_error_exact'],
         'final_verified_error_prev': None if last_selected_result is None else last_selected_result['verified_error_prev'],
         'final_cell': None if last_selected_result is None else last_selected_result['cell'],
+        'final_iteration': None if last_selected_result is None else last_selected_result['iteration'],
+        'final_runtime_at_accept_seconds': None if last_selected_result is None else last_selected_result['runtime_at_accept_seconds'],
+        'best_seen_benchmark': None if best_seen_result is None else best_seen_result['benchmark'],
+        'best_seen_area': None if best_seen_result is None else best_seen_result['area'],
+        'best_seen_power': None if best_seen_result is None else best_seen_result['power'],
+        'best_seen_delay': None if best_seen_result is None else best_seen_result['delay'],
+        'best_seen_verified_error_exact': None if best_seen_result is None else best_seen_result['verified_error_exact'],
+        'best_seen_verified_error_prev': None if best_seen_result is None else best_seen_result['verified_error_prev'],
+        'best_seen_cell': None if best_seen_result is None else best_seen_result['cell'],
+        'best_seen_iteration': None if best_seen_result is None else best_seen_result['iteration'],
+        'best_seen_runtime_at_accept_seconds': None if best_seen_result is None else best_seen_result['runtime_at_accept_seconds'],
+        'best_seen_stagnation': best_seen_stagnation,
         'pareto_frontier_size': len(pareto_frontier),
         'pareto_stagnation': pareto_stagnation,
+        'pareto_stagnation_score': pareto_stagnation_score,
         'grid_csv': stats_obj.grid_path,
     }
 
