@@ -7,6 +7,7 @@ import networkx as nx
 import itertools
 from itertools import islice
 
+# MARCO-REVIEW
 # Union find class
 class UnionFind:
     def __init__(self, nodes):
@@ -31,7 +32,7 @@ class UnionFind:
             return
         self.parent[root_v] = root_u
 
-
+# MARCO-REVIEW
 def label_nodes(graph):
     """
     use union find label nodes
@@ -68,7 +69,7 @@ def label_nodes(graph):
         
     return nodes_by_subid
 
-
+# MARCO-REVIEW
 # use nodes_by_subid to create a graph
 def build_sub_id_graph(graph, nodes_by_subid):
     # create empty graph
@@ -86,16 +87,16 @@ def build_sub_id_graph(graph, nodes_by_subid):
             
     return sub_id_graph
 
-
+# MARCO-REVIEW
 # Use strongly connected components to find circle and merge circle
 def merge_cycles(graph, nodes_by_subid):
     sub_id_graph = build_sub_id_graph(graph, nodes_by_subid)
     
-    # 2. find all scc 
+    # 1. find all scc 
     # the results is like [{A, B}, {C}, {D, E, F}]
     sccs = list(nx.strongly_connected_components(sub_id_graph))
     
-    # 3. if the length of  SCC > 1，it has circle
+    # 2. if the length of  SCC > 1，it has circle
     for scc in sccs:
         if len(scc) > 1:
             scc_list = list(scc)
@@ -115,7 +116,7 @@ def merge_cycles(graph, nodes_by_subid):
                 
     return nodes_by_subid
 
-
+# MARCO-REVIEW
 # find all input nodes of nodes_in_sub
 def get_subgraph_inputs(nodes_in_sub, graph):
     """
@@ -131,7 +132,7 @@ def get_subgraph_inputs(nodes_in_sub, graph):
     return inputs
 
 
-
+# MARCO-REVIEW
 def get_all_subgraph_boundaries(graph, nodes_by_subid):
     """
     Traverse the entire graph in one go and calculate the input and output sets of all subgraphs.
@@ -152,10 +153,10 @@ def get_all_subgraph_boundaries(graph, nodes_by_subid):
             
     return inputs_map, outputs_map
 
-
+# MARCO-REVIEW
 def greedy_merge(graph, nodes_by_subid,inputs_map):
     
-    # 1. Initial construction of the meta-graph
+    # 1. Initial construction of the metagraph
     sub_id_graph = build_sub_id_graph(graph, nodes_by_subid)
 
     # 2.Store the input set of each subgraph into the metagraph node.
@@ -173,7 +174,7 @@ def greedy_merge(graph, nodes_by_subid,inputs_map):
             if not sub_id_graph.has_node(u) or not sub_id_graph.has_node(v):
                 continue
 
-            # if it is input or output node
+            # if it is input or output node(we do not merge primary input/output into othe subgraph node)
             u_is_boundary = str(u).startswith('in') or str(u).startswith('out')
             v_is_boundary = str(v).startswith('in') or str(v).startswith('out')
             
@@ -208,9 +209,9 @@ def greedy_merge(graph, nodes_by_subid,inputs_map):
                 
 
                 # Reconnect the edges (connect all of v's neighbors to u).
-                for neighbor in list(sub_id_graph.successors(v)):
-                    if neighbor != u:
-                        sub_id_graph.add_edge(u, neighbor)
+                for successor in list(sub_id_graph.successors(v)):
+                    if successor != u:
+                        sub_id_graph.add_edge(u, successor)
                 for predecessor in list(sub_id_graph.predecessors(v)):
                     if predecessor != u:
                         sub_id_graph.add_edge(predecessor, u)
@@ -223,7 +224,7 @@ def greedy_merge(graph, nodes_by_subid,inputs_map):
     
     return nodes_by_subid
 
-
+# MARCO-REVIEW
 def apply_constraints(graph, nodes_by_subid, TI_LIMIT,inputs_map):
     """
     Check the input nodes of each subgraph; if the number exceed TI_LIMIT, break the group down into individual nodes.
@@ -302,6 +303,7 @@ class Subgraph:
             res_out = tuple(values.get(out, 0) for out in self.outputs)
             self.truth_table[combo] = res_out
     
+    # MARCO-REVIEW
     def calculate_weight_and_local_tag(self, in_idx, out_tags, out_weights, already_nm=False):
         in_node = self.inputs[in_idx]
         max_weight = 0
@@ -386,7 +388,7 @@ class Subgraph:
 
 
 
-
+# MARCO-REVIEW
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
     # TODO: Xiaozihan
