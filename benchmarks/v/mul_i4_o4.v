@@ -1,6 +1,7 @@
-module top(a, b, c);
-input [1:0]a;
-input [1:0]b;
-output [3:0]c;
-assign c = a * b;
+module mul_i4_o4 (a, b, r);
+input [1:0] a,b;
+output [3:0] r;
+
+assign r = a * b;
+
 endmodule

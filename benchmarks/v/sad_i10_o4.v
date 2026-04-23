@@ -1,4 +1,4 @@
-module sad_i20_o5 (x0,x1,x2,x3,x4,r);
+module sad_i10_o4 (x0,x1,x2,x3,x4,r);
 input [1:0] x0,x1,x2,x3,x4;
 output [3:0] r;
 wire [1:0] s1,s2,s3,s4;

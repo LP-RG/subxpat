@@ -1,8 +1,7 @@
-module top(a, b, c);
-input [7:0]a;
-input [7:0]b;
-output [8:0]c;
+module adder_i16_o9(a,b,r);
+input [7:0] a,b;
+output [9:0] r;
 
-assign c = a + b;
+assign r = a+b;
 
 endmodule

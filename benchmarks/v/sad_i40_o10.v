@@ -1,4 +1,4 @@
-module sad_i40_o9 (x0,x1,x2,x3,x4,r);
+module sad_i40_o10 (x0,x1,x2,x3,x4,r);
 input [7:0] x0,x1,x2,x3,x4;
 output [9:0] r;
 wire [7:0] s1,s2,s3,s4;

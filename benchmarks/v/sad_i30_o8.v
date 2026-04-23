@@ -1,4 +1,4 @@
-module sad_i30_o7 (x0,x1,x2,x3,x4,r);
+module sad_i30_o8 (x0,x1,x2,x3,x4,r);
 input [5:0] x0,x1,x2,x3,x4;
 output [7:0] r;
 wire [5:0] s1,s2,s3,s4;

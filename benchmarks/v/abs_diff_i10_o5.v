@@ -1,4 +1,4 @@
-module top (a,b,r);
+module abs_diff_i10_o5(a,b,r);
 input [4:0] a,b;
 output [4:0] r;
 

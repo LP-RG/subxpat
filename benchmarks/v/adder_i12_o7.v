@@ -1,8 +1,7 @@
-module top(a, b, c);
-input [5:0]a;
-input [5:0]b;
-output [6:0]c;
+module adder_i12_o7(a,b,r);
+input [5:0] a,b;
+output [7:0] r;
 
-assign c = a + b;
+assign r = a+b;
 
 endmodule

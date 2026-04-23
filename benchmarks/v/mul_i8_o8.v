@@ -1,6 +1,7 @@
-module top(a, b, c);
-input [3:0]a;
-input [3:0]b;
-output [7:0]c;
-assign c = a * b;
+module mul_i8_o8 (a, b, r);
+input [3:0] a,b;
+output [7:0] r;
+
+assign r = a * b;
+
 endmodule
