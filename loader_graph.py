@@ -1,6 +1,6 @@
 import networkx as nx
 import os
-from sxpat.labelling.partition_and_propagate import compute  # 导入 compute 函数
+from sxpat.labelling.partition_and_propagate import compute 
 
 
 def load_digraph(circuit_name: str) -> nx.digraph.DiGraph:
