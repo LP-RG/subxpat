@@ -30,6 +30,7 @@ def main():
         _t = Timer.now()
         results = explore_grid(specs_obj)
         _t = Timer.now() - _t
+        print(f'total_time = {_t}')
         specs_obj.details_storage.add(total_time=_t)
 
         # print results for each relevance of metrics
