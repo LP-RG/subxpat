@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Mapping
+from typing import Mapping, Iterable, Dict
 from collections import defaultdict
 
 
@@ -7,14 +7,59 @@ import networkx as nx
 import itertools
 from itertools import islice
 
-# MARCO-REVIEW
+
+# MARCO-COMMENT: 
+# (This is not a requirement, just a suggestion in case you are interested)
+# If you want, you can expand and improve the typing of your code;
+# the way to this in python is through type annotations.
+# 
+# These annotations do not force a type (like in C), but are helpful for 
+# development and for the users of your code; if you IDE supports it, it
+# may even allow for some autocomplete or better hints.
+# 
+# Type annotations have many features, such as generic types, but can also
+# be used more simply though concrete types.
+# 
+# An example of using type annotations for generic types can be seen in 
+# the UnionFind class.
+from typing import Generic, TypeVar
+T = TypeVar('T')
+# 
+# Once you start using type annotations with an IDE that understands them, 
+# you will see that in many cases the type annotations get propagated.
+# 
+# From the example I gave you, I think you will be able to understand how 
+# type annotations work, if you are interested in exploring more of what they
+# allow you to do you can find more in the documentation
+# (https://docs.python.org/3.8/library/typing.html), or if you have specific
+# questions/doubts you can always ask me.
+
+# MARCO-COMMENT:
+# (This is not a requirement, just a suggestion in case you are interested)
+# When working with data you do not plan to change, it is usually better
+# to use immutable data structures, to make it clear that it is not planned for change
+# and to prevent accidental modifications; depending on the data structure and 
+# its use-case it could also bring an improvement in performance (less memory, faster operations, etc.).
+# 
+# In python you will see very performance improvement (if any), but the approach
+# is still beneficial for readability and development.
+# 
+# An example would be in the get_subgraph_inputs(...) function: instead of using a set()
+# for sub_nodes, you could use a frozenset().
+
+
+# MARCO-REVIEW (2026-04-24 11:45)
+# - ALL GOOD
 # Union find class
-class UnionFind:
-    def __init__(self, nodes):
+class UnionFind(Generic[T]):
+    def __init__(self, nodes: Iterable[T]):
         self.parent = {node: node for node in nodes}
+        # MARCO-COMMENT: Here self.parent gets the implicit type of dict[T,T],
+        #                but if you prefer you can make the annotation explicit.
+        # self.parent: Dict[T, T] = {node: node for node in nodes}
 
     # get root and use path compression optimization
-    def find(self, i):
+    def find(self, i: T) -> T:
         root=i
         while self.parent[root]!=root:
             root = self.parent[root]
@@ -25,20 +70,23 @@ class UnionFind:
         return root
 
     # if u and v belongs to different union,let v point to u
-    def union(self, u, v):
+    def union(self, u: T, v: T) -> None:
         root_u = self.find(u)
         root_v = self.find(v)
         if root_u == root_v:
             return
         self.parent[root_v] = root_u
 
-# MARCO-REVIEW
-def label_nodes(graph):
+# MARCO-REVIEW (2026-04-24 13:55)
+# - a few more high-level comments would be helpful (places marked below)
+# - rest is all good
+def label_nodes(graph: nx.DiGraph[str]):
     """
     use union find label nodes
     """
     uf = UnionFind(graph.nodes)
     
+    # MARCO-MARK: add a brief high-level comment of the block
     for node in graph.nodes:
         if graph.out_degree(node) <= 1: 
             continue
@@ -69,7 +117,8 @@ def label_nodes(graph):
         
     return nodes_by_subid
 
-# MARCO-REVIEW
+# MARCO-REVIEW (2026-04-24 14:05)
+# - ALL GOOD
 # use nodes_by_subid to create a graph
 def build_sub_id_graph(graph, nodes_by_subid):
     # create empty graph
@@ -87,7 +136,9 @@ def build_sub_id_graph(graph, nodes_by_subid):
             
     return sub_id_graph
 
-# MARCO-REVIEW
+# MARCO-REVIEW (2026-04-24 14:15)
+# - some questions (see below)
+# - the rest is all good
 # Use strongly connected components to find circle and merge circle
 def merge_cycles(graph, nodes_by_subid):
     sub_id_graph = build_sub_id_graph(graph, nodes_by_subid)
@@ -99,6 +150,8 @@ def merge_cycles(graph, nodes_by_subid):
     # 2. if the length of  SCC > 1，it has circle
     for scc in sccs:
         if len(scc) > 1:
+            # MARCO-QUESTION: How do you make sure that the scc_list[0] is the id of the subgraph?
+            #                 Couldn't it be that you have some other node at position 0?
             scc_list = list(scc)
             main_id = scc_list[0]
             
@@ -116,7 +169,8 @@ def merge_cycles(graph, nodes_by_subid):
                 
     return nodes_by_subid
 
-# MARCO-REVIEW
+# MARCO-REVIEW (2026-04-24 14:20)
+# - ALL GOOD
 # find all input nodes of nodes_in_sub
 def get_subgraph_inputs(nodes_in_sub, graph):
     """
@@ -132,7 +186,8 @@ def get_subgraph_inputs(nodes_in_sub, graph):
     return inputs
 
 
-# MARCO-REVIEW
+# MARCO-REVIEW (2026-04-24 14:30)
+# - ALL GOOD
 def get_all_subgraph_boundaries(graph, nodes_by_subid):
     """
     Traverse the entire graph in one go and calculate the input and output sets of all subgraphs.
@@ -153,7 +208,9 @@ def get_all_subgraph_boundaries(graph, nodes_by_subid):
             
     return inputs_map, outputs_map
 
-# MARCO-REVIEW
+# MARCO-REVIEW (2026-04-24 14:45)
+# - ALL GOOD
+# - a few comments (see below)
 def greedy_merge(graph, nodes_by_subid,inputs_map):
     
     # 1. Initial construction of the metagraph
@@ -209,6 +266,7 @@ def greedy_merge(graph, nodes_by_subid,inputs_map):
                 
 
                 # Reconnect the edges (connect all of v's neighbors to u).
+                # MARCO-COMMENT: Why are you casting this to a list? for this use-case you can simply loop over the .successors(v)
                 for successor in list(sub_id_graph.successors(v)):
                     if successor != u:
                         sub_id_graph.add_edge(u, successor)
@@ -220,11 +278,13 @@ def greedy_merge(graph, nodes_by_subid,inputs_map):
                 sub_id_graph.remove_node(v)
 
                 changed = True
+                # MARCO-COMMENT: Why do you break here? Is it for performance, for correctness, or for some other reason?
                 break 
     
     return nodes_by_subid
 
-# MARCO-REVIEW
+# MARCO-REVIEW (2026-04-24 14:50)
+# - ALL GOOD
 def apply_constraints(graph, nodes_by_subid, TI_LIMIT,inputs_map):
     """
     Check the input nodes of each subgraph; if the number exceed TI_LIMIT, break the group down into individual nodes.
@@ -303,7 +363,8 @@ class Subgraph:
             res_out = tuple(values.get(out, 0) for out in self.outputs)
             self.truth_table[combo] = res_out
     
-    # MARCO-REVIEW
+    # MARCO-REVIEW (2026-04-24 16:50)
+    # - some comments to be discussed (see below)
     def calculate_weight_and_local_tag(self, in_idx, out_tags, out_weights, already_nm=False):
         in_node = self.inputs[in_idx]
         max_weight = 0
@@ -350,6 +411,8 @@ class Subgraph:
                 if tag == 'S':
                     base_sum += w * diff
                 elif tag == 'NM':
+                    # MARCO-COMMENT: I am not sure about this, but maybe I am remembering a bit wrong.
+                    #                We can discuss about this next meeting.
                     base_sum += w * abs(diff)
                 elif tag == 'NS':
                     partial_product = w * diff
@@ -381,6 +444,7 @@ class Subgraph:
                         local_tag = 'NS'
 
         self.input_tags[in_node] = local_tag
+        # MARCO-COMMENT: From the code above, max_weight is always positive, is this correct?
         self.input_weights[in_node] = max_weight
             
         return max_weight, local_tag
@@ -388,7 +452,10 @@ class Subgraph:
 
 
 
-# MARCO-REVIEW
+# MARCO-REVIEW (2026-04-24 17:45)
+# - ALL GOOD
+# - I answered some of the questions left in comments (see below at MARCO-ANSWER)
+# - I did not check step 4 (it is marked as todo:working)
 def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
     # TODO: Xiaozihan
@@ -492,6 +559,8 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
             # we didn't add primary output node to sub_id_graph, we need to pass it to the previous node first.
             # Question? can two nodes point to a output node?
+            # MARCO-ANSWER: No, a primary output (out###) has exactly one edge going into it.
+            #               A node that has an outgoing edge to a primary output has no other outgoing edges.
             preds = list(graph.predecessors(node))
 
             for p in preds:
