@@ -70,6 +70,7 @@ def explore_grid(specs_obj: Specifications):
         )
     ]
     previous_subgraphs = []
+    previous_graphs = []
     obtained_wce_exact = 0
     specs_obj.iteration = 0
     persistence = 0
@@ -87,7 +88,7 @@ def explore_grid(specs_obj: Specifications):
             et_array = iter(list(range(step, orig_et + step, step)))
 
     #
-    while (obtained_wce_exact < specs_obj.max_error):
+    while (obtained_wce_exact <= specs_obj.max_error):
         specs_obj.iteration += 1
         specs_obj.stats_storage.stage(iteration=specs_obj.iteration)
 
@@ -98,6 +99,19 @@ def explore_grid(specs_obj: Specifications):
         
         elif specs_obj.error_partitioning is ErrorPartitioningType.MAX:
             specs_obj.et = specs_obj.max_error
+            stop = False
+            current_circ = iograph_from_legacy(current_graph)
+            for previous_graph in previous_graphs:
+                if current_circ == previous_graph:
+                    stop = True
+                    break
+
+            if stop:
+                print('current graph is equivalent to previous iteration, stopping')
+                break
+            else:
+                previous_graphs.append(current_circ)
+
 
         elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
             if (persistence == persistence_limit or prev_actual_error == 0):
