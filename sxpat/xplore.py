@@ -179,17 +179,28 @@ def explore_grid(specs_obj: Specifications):
                     continue
             
             else:
+                start = Timer.now()
                 specs_obj.current_benchmark = remove_inputs(specs_obj, exact_benchmark)
+                tot = Timer.now() - start
                 specs_obj.slash = SlashType.NONE
                 exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, specs_obj.path.run)
                 exact_circ = iograph_from_legacy(exact_graph)
                 current = iograph_from_legacy(AnnotatedGraph(specs_obj.current_benchmark, specs_obj.path.run))
                 obtained_wce_exact = error_evaluation(exact_circ, current, specs_obj)
                 metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, specs_obj.current_benchmark, True)
-                print(f"slash_inputs_error = {obtained_wce_exact}")
-                print(f"slash_inputs_area = {metrics.area}")
-                print(f"slash_inputs_power = {metrics.power}")
-                print(f"slash_inputs_delay = {metrics.delay}")
+                print(f"slash_error = {obtained_wce_exact}")
+                print(f"slash_area = {metrics.area}")
+                print(f"slash_power = {metrics.power}")
+                print(f"slash_delay = {metrics.delay}")
+                specs_obj.stats_storage.stage(
+                    slash_error=obtained_wce_exact,
+                    slash_area=metrics.area,
+                    slash_power=metrics.power,
+                    slash_delay=metrics.delay,
+                    slash_time=tot,
+                )
+                specs_obj.stats_storage.commit()
+                continue
 
         # logging
         specs_obj.stats_storage.stage(
