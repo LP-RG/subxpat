@@ -58,7 +58,17 @@ def explore_grid(specs_obj: Specifications):
     exact_circuit_metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, specs_obj.exact_benchmark, specs_obj.path.run.temporary)
 
     #
-    all_generated_circuits_data = list()
+    all_generated_circuits_data = [
+        ExpandedCircuitData(
+            'origin.v',
+            path_join(specs_obj.path.run.verilog, f'origin.v'),
+            exact_circuit_metrics.area,
+            exact_circuit_metrics.power,
+            exact_circuit_metrics.delay,
+            0,
+            0
+        )
+    ]
     previous_subgraphs = []
     obtained_wce_exact = 0
     specs_obj.iteration = 0
