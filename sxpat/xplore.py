@@ -100,6 +100,7 @@ def explore_grid(specs_obj: Specifications):
         elif specs_obj.error_partitioning is ErrorPartitioningType.MAX:
             specs_obj.et = specs_obj.max_error
             stop = False
+            current_graph = AnnotatedGraph(specs_obj.current_benchmark, specs_obj.path.run) 
             current_circ = iograph_from_legacy(current_graph)
             for previous_graph in previous_graphs:
                 if current_circ == previous_graph:
@@ -204,7 +205,7 @@ def explore_grid(specs_obj: Specifications):
 
         # import the graph
         _time = Timer.now()
-        current_graph = AnnotatedGraph(specs_obj.current_benchmark, specs_obj.path.run)
+        # current_graph = AnnotatedGraph(specs_obj.current_benchmark, specs_obj.path.run)
         exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, specs_obj.path.run)
         _time = Timer.now() - _time
         # logging
