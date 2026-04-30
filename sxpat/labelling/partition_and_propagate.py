@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Mapping, Iterable, Dict
 from collections import defaultdict
 
 
@@ -22,8 +21,27 @@ from itertools import islice
 # 
 # An example of using type annotations for generic types can be seen in 
 # the UnionFind class.
-from typing import Generic, TypeVar
+from typing import (
+    TypeVar,      # 用于泛型类型变量
+    Generic,      # 用于创建泛型类
+    Dict,         # 字典类型
+    List,         # 列表类型
+    Set,          # 集合类型
+    Tuple,        # 元组类型
+    Iterable,     # 可迭代对象类型
+    Mapping,      # 只读映射类型（返回值的推荐类型）
+    Optional,     # 可选类型（可以是None）
+    DefaultDict,  # 带默认值的字典类型
+)
 T = TypeVar('T')
+
+
+NodeID = str
+SubID = str
+OutNodeID = str
+NodeTag = str
+NodeWeight = int
+
 # 
 # Once you start using type annotations with an IDE that understands them, 
 # you will see that in many cases the type annotations get propagated.
@@ -80,7 +98,8 @@ class UnionFind(Generic[T]):
 # MARCO-REVIEW (2026-04-24 13:55)
 # - a few more high-level comments would be helpful (places marked below)
 # - rest is all good
-def label_nodes(graph: nx.DiGraph[str]):
+def label_nodes(graph: nx.DiGraph[NodeID]
+                ) -> DefaultDict[SubID,List[NodeID]]:
     """
     use union find label nodes
     """
@@ -120,7 +139,9 @@ def label_nodes(graph: nx.DiGraph[str]):
 # MARCO-REVIEW (2026-04-24 14:05)
 # - ALL GOOD
 # use nodes_by_subid to create a graph
-def build_sub_id_graph(graph, nodes_by_subid):
+def build_sub_id_graph(graph:nx.DiGraph[NodeID], 
+                       nodes_by_subid:DefaultDict[SubID,List[NodeID]]
+                       )->nx.DiGraph[SubID]:
     # create empty graph
     sub_id_graph = nx.DiGraph()
     # add nodes
@@ -140,11 +161,15 @@ def build_sub_id_graph(graph, nodes_by_subid):
 # - some questions (see below)
 # - the rest is all good
 # Use strongly connected components to find circle and merge circle
-def merge_cycles(graph, nodes_by_subid):
+def merge_cycles(
+        graph:nx.DiGraph[NodeID], 
+        nodes_by_subid:DefaultDict[SubID,List[NodeID]]
+        )->DefaultDict[SubID,List[NodeID]]:
+    
     sub_id_graph = build_sub_id_graph(graph, nodes_by_subid)
     
     # 1. find all scc 
-    # the results is like [{A, B}, {C}, {D, E, F}]
+    # the results is like [{A, B}, {C}, {D, E, F}] A-F is the id of each node in sub_id_graph
     sccs = list(nx.strongly_connected_components(sub_id_graph))
     
     # 2. if the length of  SCC > 1，it has circle
@@ -172,23 +197,26 @@ def merge_cycles(graph, nodes_by_subid):
 # MARCO-REVIEW (2026-04-24 14:20)
 # - ALL GOOD
 # find all input nodes of nodes_in_sub
-def get_subgraph_inputs(nodes_in_sub, graph):
-    """
-    The input set for computing the subgraph is all nodes that are not inside the subgraph but point to nodes inside the subgraph.
+# def get_subgraph_inputs(nodes_in_sub, graph:nx.DiGraph[str]):
+#     """
+#     The input set for computing the subgraph is all nodes that are not inside the subgraph but point to nodes inside the subgraph.
 
-    """
-    sub_nodes = set(nodes_in_sub)
-    inputs = set()
-    for node in sub_nodes:
-        for pred in graph.predecessors(node):
-            if pred not in sub_nodes:
-                inputs.add(pred)
-    return inputs
+#     """
+#     sub_nodes = set(nodes_in_sub)
+#     inputs = set()
+#     for node in sub_nodes:
+#         for pred in graph.predecessors(node):
+#             if pred not in sub_nodes:
+#                 inputs.add(pred)
+#     return inputs
 
 
 # MARCO-REVIEW (2026-04-24 14:30)
 # - ALL GOOD
-def get_all_subgraph_boundaries(graph, nodes_by_subid):
+def get_all_subgraph_boundaries(graph:nx.DiGraph[NodeID],
+                                nodes_by_subid:DefaultDict[SubID,List[NodeID]]
+                                )->Tuple[DefaultDict[SubID,Set[NodeID]],
+                                         DefaultDict[SubID,Set[NodeID]]]:
     """
     Traverse the entire graph in one go and calculate the input and output sets of all subgraphs.
 
@@ -211,7 +239,10 @@ def get_all_subgraph_boundaries(graph, nodes_by_subid):
 # MARCO-REVIEW (2026-04-24 14:45)
 # - ALL GOOD
 # - a few comments (see below)
-def greedy_merge(graph, nodes_by_subid,inputs_map):
+def greedy_merge(graph:nx.DiGraph[NodeID], 
+                 nodes_by_subid:DefaultDict[SubID,List[NodeID]],
+                 inputs_map:DefaultDict[SubID,Set[NodeID]]
+                 )->DefaultDict[SubID,List[NodeID]]:
     
     # 1. Initial construction of the metagraph
     sub_id_graph = build_sub_id_graph(graph, nodes_by_subid)
@@ -279,13 +310,18 @@ def greedy_merge(graph, nodes_by_subid,inputs_map):
 
                 changed = True
                 # MARCO-COMMENT: Why do you break here? Is it for performance, for correctness, or for some other reason?
+                #Beacause the whole graph has changed(we merge some subgraph), we start the whole progress in new graph
                 break 
     
     return nodes_by_subid
 
 # MARCO-REVIEW (2026-04-24 14:50)
 # - ALL GOOD
-def apply_constraints(graph, nodes_by_subid, TI_LIMIT,inputs_map):
+def apply_constraints(graph:nx.DiGraph[NodeID], 
+                      nodes_by_subid:DefaultDict[SubID,List[NodeID]],
+                      TI_LIMIT:int,
+                      inputs_map:DefaultDict[SubID,Set[NodeID]]
+                      )-> DefaultDict[SubID,List[NodeID]]:
     """
     Check the input nodes of each subgraph; if the number exceed TI_LIMIT, break the group down into individual nodes.
     """
@@ -308,7 +344,9 @@ def apply_constraints(graph, nodes_by_subid, TI_LIMIT,inputs_map):
     return new_nodes_by_subid
 
 # input:op is string; bits is list of 0/1 [0,1]
-def apply_logic(op, inputs):
+def apply_logic(op:str,
+                inputs:List[int]
+                )-> int:
     if op == 'and':
         return 1 if all(inputs) else 0
     elif op == 'or':
@@ -323,7 +361,29 @@ def apply_logic(op, inputs):
     return 0
 
 class Subgraph:
-    def __init__(self, sub_id, members, inputs, outputs):
+    #define the type
+    sub_id: str                                   
+    members: List[NodeID]                          
+    inputs: List[NodeID]                           
+    outputs: List[NodeID]                          
+    
+    # truth_table：{(in1_val, in2_val, ...): (out1_val, out2_val, ...)}
+    truth_table: Dict[Tuple[int, ...], Tuple[int, ...]]
+    
+    # eg:matrix[0] = [1, -1, 0] 
+    matrix: List[List[int]]
+    
+    # eg: {'input_node_1': 'S', 'input_node_2': 'NM'}
+    input_tags: Dict[str, str]
+    
+    # eg:{'input_node_1': 5, 'input_node_2': 3}
+    input_weights: Dict[str, int]
+
+    def __init__(self,
+                 sub_id:str,
+                 members:List[NodeID],
+                 inputs:List[NodeID],
+                 outputs:List[NodeID]):
         self.sub_id = sub_id
         self.members = members    # Nodes within the subgraph
         self.inputs = inputs      
@@ -333,7 +393,9 @@ class Subgraph:
         self.input_tags = {}      # {in_node: 'S'/'NS'/'NM'}
         self.input_weights = {}   # {in_node: weight_value}
 
-    def build_truth_table(self, graph):
+    def build_truth_table(self,
+                          graph:nx.DiGraph[NodeID]
+                          )-> None:
         # add output node
         nodes_to_simulate = set(self.members) | set(self.outputs)
 
@@ -365,7 +427,11 @@ class Subgraph:
     
     # MARCO-REVIEW (2026-04-24 16:50)
     # - some comments to be discussed (see below)
-    def calculate_weight_and_local_tag(self, in_idx, out_tags, out_weights, already_nm=False):
+    def calculate_weight_and_local_tag(self,
+                                       in_idx:int,
+                                       out_tags:Dict[OutNodeID, NodeTag],out_weights:Dict[OutNodeID, NodeWeight],already_nm:bool=False
+                                       )->Tuple[NodeWeight,NodeTag]:
+        
         in_node = self.inputs[in_idx]
         max_weight = 0
     
@@ -456,7 +522,8 @@ class Subgraph:
 # - ALL GOOD
 # - I answered some of the questions left in comments (see below at MARCO-ANSWER)
 # - I did not check step 4 (it is marked as todo:working)
-def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
+def compute(graph: nx.DiGraph
+            ) -> tuple[Mapping[NodeID, int],nx.DiGraph[SubID]]:
 
     # TODO: Xiaozihan
     # Implement the "partition and propagate" algorithm
@@ -606,7 +673,6 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
         
 
 
-    # TODO:working
     # step 4: Subgraph simulation for internal nodes
     # --- Step 4: 内部节点权重仿真 ---
     for sid, sg in all_subgraph_objects.items():
@@ -665,4 +731,4 @@ def compute(graph: nx.digraph.DiGraph) -> Mapping[str, int]:
 
     weights = nx.get_node_attributes(graph, 'weight')
 
-    return weights, sub_id_graph, all_subgraph_objects
+    return weights, sub_id_graph
