@@ -272,8 +272,8 @@ def greedy_merge(graph:nx.DiGraph[NodeID],
             inputs_v = sub_id_graph.nodes[v]['inputs']
             
             # calculate the inputs after merge
-            nodes_u = set(nodes_by_subid[u])
-            nodes_v = set(nodes_by_subid[v])
+            nodes_u = frozenset(nodes_by_subid[u])
+            nodes_v = frozenset(nodes_by_subid[v])
 
             inputs_merged = (inputs_u | inputs_v) - (nodes_u | nodes_v)
             
@@ -396,7 +396,7 @@ class Subgraph:
                           graph:nx.DiGraph[NodeID]
                           )-> None:
         # add output node
-        nodes_to_simulate = set(self.members) | set(self.outputs)
+        nodes_to_simulate = frozenset(self.members) | frozenset(self.outputs)
 
         sub_g = graph.subgraph(nodes_to_simulate)
 
