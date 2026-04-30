@@ -22,16 +22,15 @@ from itertools import islice
 # An example of using type annotations for generic types can be seen in 
 # the UnionFind class.
 from typing import (
-    TypeVar,      # 用于泛型类型变量
-    Generic,      # 用于创建泛型类
-    Dict,         # 字典类型
-    List,         # 列表类型
-    Set,          # 集合类型
-    Tuple,        # 元组类型
-    Iterable,     # 可迭代对象类型
-    Mapping,      # 只读映射类型（返回值的推荐类型）
-    Optional,     # 可选类型（可以是None）
-    DefaultDict,  # 带默认值的字典类型
+    TypeVar,      
+    Generic,      
+    Dict,         
+    List,        
+    Set,          
+    Tuple,        
+    Iterable,     
+    Mapping,    
+    DefaultDict, 
 )
 T = TypeVar('T')
 
