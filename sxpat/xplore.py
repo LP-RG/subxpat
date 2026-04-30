@@ -199,6 +199,17 @@ def explore_grid(specs_obj: Specifications):
                     slash_delay=metrics.delay,
                     slash_time=tot,
                 )
+                all_generated_circuits_data.append(
+                    ExpandedCircuitData(
+                        specs_obj.current_benchmark,
+                        path_join(specs_obj.path.run.verilog, specs_obj.current_benchmark),
+                        metrics.area,
+                        metrics.power,
+                        metrics.delay,
+                        obtained_wce_exact,
+                        obtained_wce_exact,
+                    )
+                )
                 specs_obj.stats_storage.commit()
                 continue
 
