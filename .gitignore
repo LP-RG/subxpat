@@ -8,6 +8,7 @@
 .codex
 nine_prime_check.py
 plots/
+termination_master_report.py
 
 #> local
 /local.mk

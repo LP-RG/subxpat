@@ -149,6 +149,8 @@ class Specifications:
     pareto_temperature_decay: float
     pareto_runtime_pressure_scale: float
     pareto_rng_seed: int
+    pareto_candidate_patience: int
+    pareto_candidate_step_stop_probability: float
     sentinel_best_seen_patience: int
     sentinel_structural_stall_streak: int
     sentinel_same_subgraph_streak: int
@@ -410,7 +412,7 @@ class Specifications:
                                     type=TerminationMode,
                                     action=EnumChoicesAction,
                                     default=TerminationMode.TRIVIAL,
-                                    help='Termination behavior for extraction-mode 0: none, trivial, pareto, pareto_annealed, sentinel, or hybrid (default: trivial)')
+                                    help='Termination behavior for extraction-mode 0: none, trivial, pareto, pareto_annealed, sentinel, or hybrid (default: trivial). pareto-family modes now use consecutive no-SAT-candidate iterations instead of QoR Pareto dominance.')
         _termination_zone_rank_from_max = parser.add_argument(
                                     '--termination-zone-rank-from-max',
                                     type=int,
@@ -500,6 +502,16 @@ class Specifications:
                                     type=int,
                                     default=0,
                                     help='Deterministic RNG seed for pareto_annealed stop decisions (default: 0)')
+        _pareto_candidate_patience = parser.add_argument(
+                                    '--pareto-candidate-patience',
+                                    type=int,
+                                    default=3,
+                                    help='Minimum consecutive iterations without any accepted SAT candidate before pareto stops deterministically and pareto_annealed becomes eligible to stop probabilistically (default: 3)')
+        _pareto_candidate_step_stop_probability = parser.add_argument(
+                                    '--pareto-candidate-step-stop-probability',
+                                    type=float,
+                                    default=0.90,
+                                    help='Base stop probability for pareto_annealed once the no-SAT-candidate patience is reached; it compounds on each further consecutive no-SAT-candidate iteration (default: 0.90)')
         _sentinel_best_seen_patience = parser.add_argument(
                                     '--sentinel-best-seen-patience',
                                     type=int,
@@ -634,6 +646,13 @@ class Specifications:
             parser.error('--pareto-runtime-pressure-scale must be a non-negative number')
         if raw_args.pareto_rng_seed < 0:
             parser.error('--pareto-rng-seed must be a non-negative integer')
+        if raw_args.pareto_candidate_patience <= 0:
+            parser.error('--pareto-candidate-patience must be a positive integer')
+        if (
+            raw_args.pareto_candidate_step_stop_probability < 0
+            or raw_args.pareto_candidate_step_stop_probability > 1
+        ):
+            parser.error('--pareto-candidate-step-stop-probability must be in the interval [0, 1]')
         if raw_args.sentinel_best_seen_patience < 0:
             parser.error('--sentinel-best-seen-patience must be a non-negative integer')
         if raw_args.sentinel_structural_stall_streak <= 0:

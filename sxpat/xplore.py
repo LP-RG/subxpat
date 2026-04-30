@@ -45,7 +45,6 @@ from sxpat.converting import set_bool_constants, prevent_combination
 
 from sxpat.utils.utils import pprint
 
-# todo: try picking up the different zones values, for instance 270 (max aet) minus the zone number * zone error introcued
 
 _BENCHMARK_WIDTHS_RE = re.compile(r'_i(?P<input_bits>\d+)_o(?P<output_bits>\d+)$')
 
@@ -389,6 +388,43 @@ def _verification_limit(specs_obj: Specifications) -> int:
     return specs_obj.max_error
 
 
+def _current_error_budget_snapshot(
+    specs_obj: Specifications,
+    current_result: Dict[str, Any] | None,
+) -> Tuple[float, float | None, float | None, float | None]:
+    verification_limit = float(_verification_limit(specs_obj))
+
+    # At the first iteration the current benchmark is still exact, so the
+    # consumed error is provably zero and the whole budget is still available.
+    if current_result is None and specs_obj.current_benchmark == specs_obj.exact_benchmark:
+        return (verification_limit, 0.0, 0.0, verification_limit)
+
+    if current_result is None:
+        return (verification_limit, None, None, None)
+
+    exact_error_raw = current_result.get('verified_error_exact')
+    prev_error_raw = current_result.get('verified_error_prev')
+
+    exact_error = None
+    if exact_error_raw is not None and float(exact_error_raw) >= 0:
+        exact_error = float(exact_error_raw)
+
+    prev_error = None
+    if prev_error_raw is not None and float(prev_error_raw) >= 0:
+        prev_error = float(prev_error_raw)
+
+    available_error = None if exact_error is None else verification_limit - exact_error
+    return (verification_limit, exact_error, prev_error, available_error)
+
+
+def _format_optional_metric(value: float | None) -> str:
+    if value is None:
+        return 'n/a'
+    if float(value).is_integer():
+        return str(int(value))
+    return f'{float(value):.6g}'
+
+
 def _is_plain_metric_verification(specs_obj: Specifications) -> bool:
     """
     true when:
@@ -535,6 +571,143 @@ def _pareto_stop_probability(score: float, threshold: float, temperature: float)
     scaled_margin = (score - threshold) / temperature
     scaled_margin = max(-60.0, min(60.0, scaled_margin))
     return 1.0 / (1.0 + math.exp(-scaled_margin))
+
+
+def _pareto_candidate_stop_probability(
+    candidate_streak: int,
+    patience: int,
+    step_stop_probability: float,
+) -> float:
+    effective_patience = max(1, int(patience))
+    if int(candidate_streak) < effective_patience:
+        return 0.0
+
+    effective_step_probability = min(1.0, max(0.0, float(step_stop_probability)))
+    eligible_steps = int(candidate_streak) - effective_patience + 1
+    return 1.0 - ((1.0 - effective_step_probability) ** eligible_steps)
+
+
+def _apply_pareto_candidate_termination(
+    specs_obj: Specifications,
+    *,
+    selected_result_this_iteration: bool,
+    iteration_status: str | None,
+    pareto_stagnation: int,
+    pareto_stagnation_score: float,
+    persistance_limit: int,
+    iteration: int,
+    runtime_seconds: float,
+    best_seen_stagnation: int,
+    current_result: Dict[str, Any] | None,
+    best_seen_result: Dict[str, Any] | None,
+    trace_row: Dict[str, Any],
+    pareto_rng: random.Random,
+) -> Tuple[int, float, str | None, Tuple[str, ...] | None]:
+    if specs_obj.termination_mode not in {
+        TerminationMode.PARETO,
+        TerminationMode.PARETO_ANNEALED,
+        TerminationMode.HYBRID,
+    }:
+        return (pareto_stagnation, pareto_stagnation_score, None, None)
+
+    trace_row['pareto_frontier_size'] = 0
+    if selected_result_this_iteration:
+        pareto_stagnation = 0
+        pareto_stagnation_score = 0.0
+        trace_row['pareto_efficient'] = True
+        trace_row['pareto_classification'] = 'sat_candidate'
+        trace_row['pareto_regret'] = 0.0
+        trace_row['pareto_stagnation'] = pareto_stagnation
+        trace_row['pareto_stagnation_score'] = pareto_stagnation_score
+        return (pareto_stagnation, pareto_stagnation_score, None, None)
+
+    pareto_stagnation += 1
+    pareto_stagnation_score = float(pareto_stagnation)
+    status_suffix = 'candidate' if iteration_status in (None, '') else str(iteration_status).lower()
+    trace_row['pareto_efficient'] = False
+    trace_row['pareto_classification'] = f'no_sat_{status_suffix}'
+    trace_row['pareto_regret'] = None
+    trace_row['pareto_stagnation'] = pareto_stagnation
+    trace_row['pareto_stagnation_score'] = pareto_stagnation_score
+
+    candidate_patience = max(int(specs_obj.pareto_candidate_patience), int(persistance_limit))
+    temperature = None
+    if specs_obj.termination_mode in {TerminationMode.PARETO, TerminationMode.HYBRID}:
+        if pareto_stagnation < candidate_patience:
+            trace_row['pareto_stop_probability'] = 0.0
+            return (pareto_stagnation, pareto_stagnation_score, None, None)
+        stop_probability = 1.0
+    else:
+        stop_probability = _pareto_candidate_stop_probability(
+            pareto_stagnation,
+            candidate_patience,
+            specs_obj.pareto_candidate_step_stop_probability,
+        )
+        if stop_probability > 0.0:
+            temperature = _pareto_annealed_temperature(
+                specs_obj,
+                iteration,
+                best_seen_stagnation,
+                runtime_seconds,
+            )
+            annealed_probability = _pareto_stop_probability(
+                pareto_stagnation_score,
+                float(candidate_patience) - 0.5,
+                temperature,
+            )
+            stop_probability = max(stop_probability, annealed_probability)
+            trace_row['pareto_temperature'] = temperature
+
+    trace_row['pareto_stop_probability'] = stop_probability
+    if stop_probability <= 0.0:
+        return (pareto_stagnation, pareto_stagnation_score, None, None)
+
+    random_draw = pareto_rng.random()
+    trace_row['pareto_random_draw'] = random_draw
+
+    guard_blocked, guard_gap_pct, current_area, best_area = _check_best_seen_guard(
+        specs_obj,
+        current_result=current_result,
+        best_seen_result=best_seen_result,
+    )
+    trace_row['best_seen_guard_blocked'] = guard_blocked
+    trace_row['best_seen_guard_gap_pct'] = guard_gap_pct
+    if guard_blocked:
+        return (
+            pareto_stagnation,
+            pareto_stagnation_score,
+            None,
+            (
+                'Best-seen guard blocked pareto candidate termination: '
+                f'current accepted area {current_area:.4f} is {guard_gap_pct:.2f}% '
+                f'above run-best area {best_area:.4f}.',
+            ),
+        )
+
+    if specs_obj.termination_mode is TerminationMode.PARETO_ANNEALED:
+        if random_draw >= stop_probability:
+            return (pareto_stagnation, pareto_stagnation_score, None, None)
+
+        reason = 'pareto_annealed_termination'
+        reason_lines = (
+            'Pareto-annealed termination fired:',
+            f'no accepted SAT candidate streak = {pareto_stagnation}',
+            f'candidate patience = {candidate_patience}',
+            f'temperature = {temperature:.3f}' if temperature is not None else 'temperature = n/a',
+            f'stop probability = {stop_probability:.3f}',
+            f'draw = {random_draw:.3f}',
+        )
+        return (pareto_stagnation, pareto_stagnation_score, reason, reason_lines)
+
+    reason = 'pareto_termination'
+    reason_lines = (
+        'Pareto termination fired:',
+        f'no accepted SAT candidate streak = {pareto_stagnation}',
+        f'candidate patience = {candidate_patience}',
+        'stop probability = 1.000',
+        f'draw = {random_draw:.3f}',
+    )
+    return (pareto_stagnation, pareto_stagnation_score, reason, reason_lines)
 
 
 def _sentinel_should_stop(
@@ -789,6 +962,8 @@ def _write_termination_trace(summary_stem: str, trace_rows: List[Dict[str, Any]]
     trace_path = f'{folder}/{summary_stem}_trace.csv'
     fieldnames = [
         'iteration',
+        'runtime_elapsed_seconds',
+        'iteration_runtime_seconds',
         'termination_mode',
         'termination_zone_rank_from_max',
         'termination_zone_rank_effective',
@@ -808,16 +983,20 @@ def _write_termination_trace(summary_stem: str, trace_rows: List[Dict[str, Any]]
         'best_area',
         'best_power',
         'best_delay',
+        'selected_runtime_at_accept_seconds',
         'verified_error_exact',
         'verified_error_prev',
         'run_best_area',
         'run_best_iteration',
+        'run_best_runtime_at_accept_seconds',
         'best_seen_iteration_age',
         'best_seen_improved',
         'best_seen_stagnation',
         'best_seen_improvement_pct',
         'subgraph_available',
         'subgraph_repeated',
+        'labeling_time_seconds',
+        'subgraph_extraction_time_seconds',
         'same_subgraph_streak',
         'structural_stall_streak',
         'grid_sat_count',
@@ -933,15 +1112,35 @@ def explore_grid(specs_obj: Specifications):
 
     while (obtained_wce_exact <= specs_obj.max_error or specs_obj.extraction_mode == 0):
         specs_obj.iteration += 1
+        iteration_started_at = time.time()
         status = None
         best_data = None
         best_name = None
         selected_result_this_iteration = False
 
+        def commit_trace_row() -> None:
+            trace_row['runtime_elapsed_seconds'] = round(time.time() - run_started_at, 6)
+            trace_row['iteration_runtime_seconds'] = round(time.time() - iteration_started_at, 6)
+            trace_row['selected_runtime_at_accept_seconds'] = (
+                None
+                if last_selected_result is None or int(last_selected_result['iteration']) != specs_obj.iteration
+                else last_selected_result['runtime_at_accept_seconds']
+            )
+            trace_row['run_best_runtime_at_accept_seconds'] = (
+                None if best_seen_result is None else best_seen_result['runtime_at_accept_seconds']
+            )
+            trace_row['labeling_time_seconds'] = None if labeling_time < 0 else labeling_time
+            trace_row['subgraph_extraction_time_seconds'] = (
+                None if subgraph_extraction_time < 0 else subgraph_extraction_time
+            )
+            _store_trace_row(trace_rows, **trace_row)
+
         # Record one trace row per outer iteration, even if we later discover
         # there was no usable subgraph or no SAT model in the selected cell.
         trace_row: Dict[str, Any] = {
             'iteration': specs_obj.iteration,
+            'runtime_elapsed_seconds': None,
+            'iteration_runtime_seconds': None,
             'termination_mode': specs_obj.termination_mode.value,
             'termination_zone_rank_from_max': (
                 specs_obj.termination_zone_rank_from_max
@@ -959,21 +1158,31 @@ def explore_grid(specs_obj: Specifications):
             'best_seen_guard_blocked': False,
             'best_seen_guard_gap_pct': None,
             'et': specs_obj.et,
+            'verification_limit': None,
+            'current_verified_error_exact': None,
+            'current_verified_error_prev': None,
+            'current_available_error': None,
             'benchmark': specs_obj.current_benchmark,
             'selected_cell': None,
             'status': None,
             'best_area': None,
             'best_power': None,
             'best_delay': None,
+            'selected_runtime_at_accept_seconds': None,
             'verified_error_exact': None,
             'verified_error_prev': None,
             'run_best_area': None if best_seen_result is None else best_seen_result['area'],
             'run_best_iteration': None if best_seen_result is None else best_seen_result['iteration'],
+            'run_best_runtime_at_accept_seconds': (
+                None if best_seen_result is None else best_seen_result['runtime_at_accept_seconds']
+            ),
             'best_seen_iteration_age': None if best_seen_result is None else specs_obj.iteration - int(best_seen_result['iteration']),
             'best_seen_improved': None,
             'best_seen_stagnation': best_seen_stagnation,
             'subgraph_available': None,
             'subgraph_repeated': False,
+            'labeling_time_seconds': None,
+            'subgraph_extraction_time_seconds': None,
             'same_subgraph_streak': same_subgraph_streak,
             'structural_stall_streak': structural_stall_streak,
             'grid_sat_count': 0,
@@ -1000,7 +1209,7 @@ def explore_grid(specs_obj: Specifications):
                 stop_reason = 'no_progress'
                 trace_row['stop_reason'] = stop_reason
                 trace_row['status'] = 'STOPPED'
-                _store_trace_row(trace_rows, **trace_row)
+                commit_trace_row()
                 break
             specs_obj.et = specs_obj.max_error
         elif specs_obj.extraction_mode == 0:
@@ -1031,7 +1240,7 @@ def explore_grid(specs_obj: Specifications):
                     pprint.warning(snapshot.message_lines[0])
                 else:
                     print('\n'.join(snapshot.message_lines))
-                _store_trace_row(trace_rows, **trace_row)
+                commit_trace_row()
                 break
             if snapshot.best_seen_guard_blocked:
                 print('\n'.join(snapshot.message_lines))
@@ -1048,7 +1257,7 @@ def explore_grid(specs_obj: Specifications):
                     trace_row['stop_reason'] = stop_reason
                     trace_row['status'] = 'STOPPED'
                     pprint.warning('The error space is exhausted!')
-                    _store_trace_row(trace_rows, **trace_row)
+                    commit_trace_row()
                     break
             else:
                 persistance += 1
@@ -1065,16 +1274,29 @@ def explore_grid(specs_obj: Specifications):
             raise NotImplementedError('invalid status')
 
         trace_row['et'] = specs_obj.et
+        (
+            current_verification_limit,
+            current_verified_error_exact,
+            current_verified_error_prev,
+            current_available_error,
+        ) = _current_error_budget_snapshot(specs_obj, last_selected_result)
+        trace_row['verification_limit'] = current_verification_limit
+        trace_row['current_verified_error_exact'] = current_verified_error_exact
+        trace_row['current_verified_error_prev'] = current_verified_error_prev
+        trace_row['current_available_error'] = current_available_error
 
         if (specs_obj.et > specs_obj.max_error and specs_obj.metric != MetricType.RELATIVE) or specs_obj.et <= 0:
             stop_reason = 'invalid_et'
             trace_row['stop_reason'] = stop_reason
             trace_row['status'] = 'STOPPED'
-            _store_trace_row(trace_rows, **trace_row)
+            commit_trace_row()
             break
 
         pprint.info1(
-            f'iteration {specs_obj.iteration} with et {specs_obj.et}, available error {specs_obj.max_error}'
+            f'iteration {specs_obj.iteration} with et {specs_obj.et}, '
+            f'configured error bound {_format_optional_metric(current_verification_limit)}, '
+            f'current exact error {_format_optional_metric(current_verified_error_exact)}, '
+            f'actual available error {_format_optional_metric(current_available_error)}'
             if specs_obj.subxpat else
             f'Only one iteration with et {specs_obj.et}'
         )
@@ -1139,7 +1361,32 @@ def explore_grid(specs_obj: Specifications):
             trace_row['status'] = 'NO_SUBGRAPH'
             trace_row['same_subgraph_streak'] = same_subgraph_streak
             trace_row['structural_stall_streak'] = structural_stall_streak
-            _store_trace_row(trace_rows, **trace_row)
+            pareto_reason_lines: Tuple[str, ...] | None = None
+            pareto_stagnation, pareto_stagnation_score, pareto_stop_reason, pareto_reason_lines = _apply_pareto_candidate_termination(
+                specs_obj,
+                selected_result_this_iteration=False,
+                iteration_status=trace_row['status'],
+                pareto_stagnation=pareto_stagnation,
+                pareto_stagnation_score=pareto_stagnation_score,
+                persistance_limit=persistance_limit,
+                iteration=specs_obj.iteration,
+                runtime_seconds=time.time() - run_started_at,
+                best_seen_stagnation=best_seen_stagnation,
+                current_result=last_selected_result,
+                best_seen_result=best_seen_result,
+                trace_row=trace_row,
+                pareto_rng=pareto_rng,
+            )
+            if trace_row['best_seen_guard_blocked'] and pareto_reason_lines is not None:
+                pprint.warning('\n'.join(pareto_reason_lines))
+            elif pareto_stop_reason is not None:
+                stop_reason = pareto_stop_reason
+                trace_row['stop_reason'] = stop_reason
+                trace_row['status'] = 'STOPPED'
+                pprint.warning('\n'.join(pareto_reason_lines or ('Pareto candidate termination fired.',)))
+                commit_trace_row()
+                break
+            commit_trace_row()
             prev_actual_error = 0
             continue
 
@@ -1176,9 +1423,34 @@ def explore_grid(specs_obj: Specifications):
                     trace_row['stop_reason'] = stop_reason
                     trace_row['status'] = 'STOPPED'
                     pprint.warning('\n'.join(reason_lines or ('Sentinel termination fired.',)))
-                    _store_trace_row(trace_rows, **trace_row)
+                    commit_trace_row()
                     break
-            _store_trace_row(trace_rows, **trace_row)
+            pareto_reason_lines: Tuple[str, ...] | None = None
+            pareto_stagnation, pareto_stagnation_score, pareto_stop_reason, pareto_reason_lines = _apply_pareto_candidate_termination(
+                specs_obj,
+                selected_result_this_iteration=False,
+                iteration_status=trace_row['status'],
+                pareto_stagnation=pareto_stagnation,
+                pareto_stagnation_score=pareto_stagnation_score,
+                persistance_limit=persistance_limit,
+                iteration=specs_obj.iteration,
+                runtime_seconds=time.time() - run_started_at,
+                best_seen_stagnation=best_seen_stagnation,
+                current_result=last_selected_result,
+                best_seen_result=best_seen_result,
+                trace_row=trace_row,
+                pareto_rng=pareto_rng,
+            )
+            if trace_row['best_seen_guard_blocked'] and pareto_reason_lines is not None:
+                pprint.warning('\n'.join(pareto_reason_lines))
+            elif pareto_stop_reason is not None:
+                stop_reason = pareto_stop_reason
+                trace_row['stop_reason'] = stop_reason
+                trace_row['status'] = 'STOPPED'
+                pprint.warning('\n'.join(pareto_reason_lines or ('Pareto candidate termination fired.',)))
+                commit_trace_row()
+                break
+            commit_trace_row()
             prev_actual_error = 0
             continue
         same_subgraph_streak = 0
@@ -1383,36 +1655,6 @@ def explore_grid(specs_obj: Specifications):
                 trace_row['best_seen_iteration_age'] = specs_obj.iteration - int(best_seen_result['iteration'])
                 selected_result_this_iteration = True
 
-                if specs_obj.termination_mode in {TerminationMode.PARETO, TerminationMode.HYBRID}:
-                    is_pareto_efficient = _update_pareto_frontier(pareto_frontier, last_selected_result)
-                    pareto_stagnation = 0 if is_pareto_efficient else pareto_stagnation + 1
-                    trace_row['pareto_efficient'] = is_pareto_efficient
-                    trace_row['pareto_classification'] = 'frontier_expanding' if is_pareto_efficient else 'dominated'
-                    trace_row['pareto_regret'] = 0.0 if is_pareto_efficient else None
-                    trace_row['pareto_frontier_size'] = len(pareto_frontier)
-                    trace_row['pareto_stagnation'] = pareto_stagnation
-                elif specs_obj.termination_mode is TerminationMode.PARETO_ANNEALED:
-                    pareto_classification, is_pareto_efficient, pareto_regret = _classify_pareto_point(
-                        pareto_frontier,
-                        last_selected_result,
-                        specs_obj,
-                        best_seen_stagnation,
-                    )
-                    pareto_stagnation_score = _update_pareto_annealed_score(
-                        pareto_stagnation_score,
-                        pareto_classification,
-                        pareto_regret,
-                        specs_obj,
-                        best_seen_stagnation,
-                    )
-                    pareto_stagnation = 0 if pareto_classification == 'frontier_expanding' else pareto_stagnation + 1
-                    trace_row['pareto_efficient'] = is_pareto_efficient
-                    trace_row['pareto_classification'] = pareto_classification
-                    trace_row['pareto_regret'] = pareto_regret
-                    trace_row['pareto_frontier_size'] = len(pareto_frontier)
-                    trace_row['pareto_stagnation'] = pareto_stagnation
-                    trace_row['pareto_stagnation_score'] = pareto_stagnation_score
-
                 print_current_model(sorted_circuits, normalize=False, exact_stats=exact_stats)
                 store_current_model(
                     cur_model_results,
@@ -1456,6 +1698,32 @@ def explore_grid(specs_obj: Specifications):
         trace_row['same_subgraph_streak'] = same_subgraph_streak
         trace_row['structural_stall_streak'] = structural_stall_streak
 
+        pareto_reason_lines: Tuple[str, ...] | None = None
+        pareto_stagnation, pareto_stagnation_score, pareto_stop_reason, pareto_reason_lines = _apply_pareto_candidate_termination(
+            specs_obj,
+            selected_result_this_iteration=selected_result_this_iteration,
+            iteration_status=trace_row['status'],
+            pareto_stagnation=pareto_stagnation,
+            pareto_stagnation_score=pareto_stagnation_score,
+            persistance_limit=persistance_limit,
+            iteration=specs_obj.iteration,
+            runtime_seconds=time.time() - run_started_at,
+            best_seen_stagnation=best_seen_stagnation,
+            current_result=last_selected_result,
+            best_seen_result=best_seen_result,
+            trace_row=trace_row,
+            pareto_rng=pareto_rng,
+        )
+        if trace_row['best_seen_guard_blocked'] and pareto_reason_lines is not None:
+            pprint.warning('\n'.join(pareto_reason_lines))
+        elif pareto_stop_reason is not None:
+            stop_reason = pareto_stop_reason
+            trace_row['stop_reason'] = stop_reason
+            trace_row['status'] = 'STOPPED'
+            pprint.warning('\n'.join(pareto_reason_lines or ('Pareto candidate termination fired.',)))
+            commit_trace_row()
+            break
+
         if (
             specs_obj.termination_mode is TerminationMode.SENTINEL
             and selected_result_this_iteration
@@ -1481,7 +1749,7 @@ def explore_grid(specs_obj: Specifications):
                 trace_row['stop_reason'] = stop_reason
                 trace_row['status'] = 'STOPPED'
                 pprint.warning('\n'.join(reason_lines or ('Sentinel termination fired.',)))
-                _store_trace_row(trace_rows, **trace_row)
+                commit_trace_row()
                 break
 
         if (
@@ -1514,74 +1782,7 @@ def explore_grid(specs_obj: Specifications):
                 trace_row['stop_reason'] = stop_reason
                 trace_row['status'] = 'STOPPED'
                 pprint.warning('\n'.join(reason_lines or ('Predictor termination fired.',)))
-                _store_trace_row(trace_rows, **trace_row)
-                break
-
-        if (
-            specs_obj.termination_mode in {TerminationMode.PARETO, TerminationMode.HYBRID}
-            and selected_result_this_iteration
-            and pareto_stagnation >= persistance_limit
-        ):
-            stop_reason = 'pareto_termination'
-            trace_row['stop_reason'] = stop_reason
-            trace_row['status'] = 'STOPPED'
-            trace_row['pareto_frontier_size'] = len(pareto_frontier)
-            trace_row['pareto_stagnation'] = pareto_stagnation
-            pprint.warning(
-                'Pareto termination fired: no new non-dominated '
-                f'(area, power, delay) point in the last {pareto_stagnation} accepted iteration(s).'
-            )
-            _store_trace_row(trace_rows, **trace_row)
-            break
-
-        if (
-            specs_obj.termination_mode is TerminationMode.PARETO_ANNEALED
-            and selected_result_this_iteration
-            and pareto_stagnation_score >= persistance_limit
-        ):
-            guard_blocked, guard_gap_pct, current_area, best_area = _check_best_seen_guard(
-                specs_obj,
-                current_result=last_selected_result,
-                best_seen_result=best_seen_result,
-            )
-            trace_row['best_seen_guard_blocked'] = guard_blocked
-            trace_row['best_seen_guard_gap_pct'] = guard_gap_pct
-            trace_row['pareto_stagnation_score'] = pareto_stagnation_score
-            temperature = _pareto_annealed_temperature(
-                specs_obj,
-                specs_obj.iteration,
-                best_seen_stagnation,
-                time.time() - run_started_at,
-            )
-            stop_probability = _pareto_stop_probability(
-                pareto_stagnation_score,
-                float(persistance_limit),
-                temperature,
-            )
-            random_draw = pareto_rng.random()
-            trace_row['pareto_temperature'] = temperature
-            trace_row['pareto_stop_probability'] = stop_probability
-            trace_row['pareto_random_draw'] = random_draw
-
-            if guard_blocked:
-                pprint.warning(
-                    'Best-seen guard blocked pareto_annealed termination: '
-                    f'current accepted area {current_area:.4f} is {guard_gap_pct:.2f}% '
-                    f'above run-best area {best_area:.4f}.'
-                )
-            elif random_draw < stop_probability:
-                stop_reason = 'pareto_annealed_termination'
-                trace_row['stop_reason'] = stop_reason
-                trace_row['status'] = 'STOPPED'
-                trace_row['pareto_frontier_size'] = len(pareto_frontier)
-                trace_row['pareto_stagnation'] = pareto_stagnation
-                pprint.warning(
-                    'Pareto-annealed termination fired: '
-                    f'stagnation score {pareto_stagnation_score:.3f} >= threshold {persistance_limit}, '
-                    f'temperature {temperature:.3f}, stop probability {stop_probability:.3f}, '
-                    f'draw {random_draw:.3f}.'
-                )
-                _store_trace_row(trace_rows, **trace_row)
+                commit_trace_row()
                 break
 
         if trace_row['status'] is None and status is not None:
@@ -1597,7 +1798,7 @@ def explore_grid(specs_obj: Specifications):
             trace_row['run_best_iteration'] = best_seen_result['iteration']
         if trace_row['best_seen_stagnation'] is None:
             trace_row['best_seen_stagnation'] = best_seen_stagnation
-        _store_trace_row(trace_rows, **trace_row)
+        commit_trace_row()
 
         if status == SAT and best_data[0] == 0:
             stop_reason = 'area_zero_found'
@@ -1634,6 +1835,8 @@ def explore_grid(specs_obj: Specifications):
         'pareto_temperature_decay': specs_obj.pareto_temperature_decay,
         'pareto_runtime_pressure_scale': specs_obj.pareto_runtime_pressure_scale,
         'pareto_rng_seed': specs_obj.pareto_rng_seed,
+        'pareto_candidate_patience': specs_obj.pareto_candidate_patience,
+        'pareto_candidate_step_stop_probability': specs_obj.pareto_candidate_step_stop_probability,
         'sentinel_best_seen_patience': specs_obj.sentinel_best_seen_patience,
         'sentinel_structural_stall_streak': specs_obj.sentinel_structural_stall_streak,
         'sentinel_same_subgraph_streak': specs_obj.sentinel_same_subgraph_streak,
@@ -1684,7 +1887,7 @@ def explore_grid(specs_obj: Specifications):
         'best_seen_iteration': None if best_seen_result is None else best_seen_result['iteration'],
         'best_seen_runtime_at_accept_seconds': None if best_seen_result is None else best_seen_result['runtime_at_accept_seconds'],
         'best_seen_stagnation': best_seen_stagnation,
-        'pareto_frontier_size': len(pareto_frontier),
+        'pareto_frontier_size': 0,
         'pareto_stagnation': pareto_stagnation,
         'pareto_stagnation_score': pareto_stagnation_score,
         'grid_csv': stats_obj.grid_path,
