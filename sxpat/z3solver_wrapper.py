@@ -1,4 +1,4 @@
-from Z3Log.z3solver import Z3solver as _Z3solver
+from Z3Log_patched.z3solver import Z3solver as _Z3solver
 
 from Z3Log.config.config import SINGLE, MONOTONIC
 

@@ -34,10 +34,11 @@ from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
 from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
 
-from Z3Log.verilog import Verilog
-from Z3Log.utils import convert_verilog_to_gv
-from Z3Log.graph import Graph
-from Z3Log.config.config import SINGLE, MAXIMIZE
+from Z3Log_patched.utils import get_pure_name, convert_verilog_to_gv
+from Z3Log_patched.verilog import Verilog
+from Z3Log_patched.graph import Graph
+from Z3Log_patched.config.config import SINGLE, MAXIMIZE
+# from Z3Log_patched.z3solver import Z3solver
 
 from sxpat.slash_inputs import remove_inputs
 from sxpat.fast_labeling import fast_labeling, upper_bound, lower_bound, calc_label
@@ -599,27 +600,29 @@ def label_graph(exact_path: str, circuit_verilog_path: str, graph: AnnotatedGrap
     else:
         exact_benchmark_name = exact_graph.name
         approximate_benchmark = current_graph.name
-        verilog_obj_exact = Verilog(exact_benchmark_name, specs_obj.path.run)
+        exact_name = get_pure_name(exact_path)
+        verilog_obj_exact = Verilog(exact_path, tmp_v_exact := path_join(specs_obj.path.run.verilog, f'{exact_name}.v'), specs_obj.path.run.temporary)
         verilog_obj_exact.export_circuit()
 
-        verilog_obj_approx = Verilog(approximate_benchmark, specs_obj.path.run)
+        approximate_name = get_pure_name(circuit_verilog_path)
+        verilog_obj_approx = Verilog(circuit_verilog_path, tmp_v_approx := path_join(specs_obj.path.run.verilog, f'{approximate_name}.v'), specs_obj.path.run.temporary)
         verilog_obj_approx.export_circuit()
 
-        convert_verilog_to_gv(exact_benchmark_name)
-        convert_verilog_to_gv(approximate_benchmark)
+        convert_verilog_to_gv(tmp_v_exact, tmp_gv_exact := path_join(specs_obj.path.run.temporary, f'{exact_name}.gv'), specs_obj.path.run.temporary)
+        convert_verilog_to_gv(tmp_v_approx, tmp_gv_approximate := path_join(specs_obj.path.run.temporary, f'{approximate_name}.gv'), specs_obj.path.run.temporary)
 
         # 2) convert clean exact and approximate circuits into their gv formats
-        graph_obj_exact = Graph(exact_benchmark_name)
-        graph_obj_approx = Graph(approximate_benchmark)
+        graph_obj_exact = Graph(tmp_gv_exact)
+        graph_obj_approx = Graph(tmp_gv_approximate)
 
         graph_obj_exact.export_graph()
         graph_obj_approx.export_graph()
 
         exact = iograph_from_legacy(exact_graph)
         current = iograph_from_legacy(current_graph)
-        style = 'min' if specs_obj.slash == LabelingType.MIN else 'max'
+        style = 'min' if specs_obj.labeling == LabelingType.MIN else 'max'
         z3solver = Z3solver(
-            exact_graph.name, current_graph.name,
+            tmp_gv_exact, tmp_gv_approximate, specs_obj.path.run.temporary,
             experiment=SINGLE, optimization=MAXIMIZE, style=style,
             # partial=partial_labeling, parallel=parallel
         )
