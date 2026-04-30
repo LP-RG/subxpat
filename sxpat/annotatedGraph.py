@@ -1809,7 +1809,7 @@ class AnnotatedGraph(Graph):
 
         opt.add(And(feasibility_constraints))
 
-        opt.maximize(Sum(max_nodes))
+        h = opt.maximize(Sum(max_nodes))
 
         # inputs = Int('inputs')
         # outputs = Int('outputs')
@@ -1830,6 +1830,19 @@ class AnnotatedGraph(Graph):
         if res == sat:
             n_nodes = 0
             m = opt.model()
+            model_maximized = m.eval(Sum(max_nodes), model_completion=True).as_long()
+            correct_maximum = h.upper().as_long()
+            
+            if correct_maximum != model_maximized:
+                pprint.info2("\nmodel isn't maximized, running another solver call")
+                opt.add(Sum(max_nodes) == correct_maximum)
+                start = time.perf_counter()
+                if opt.check() == sat:
+                    print(f'Subgraph_extraction_second_call_time = {time.perf_counter() - start}')
+                    m = opt.model()
+                else:
+                    raise Exception("Impossible, error in z3py")
+
             # print(f'{m = }')
             for t in m.decls():
                 # print(f'{type(t) = }')
@@ -2049,7 +2062,7 @@ class AnnotatedGraph(Graph):
 
         opt.add(feasibility_sum <= BitVecVal(feasibility_threshold, NUM_BITS))
 
-        opt.maximize(Sum(max_nodes))
+        h = opt.maximize(Sum(max_nodes))
 
         # inputs = Int('inputs')
         # outputs = Int('outputs')
@@ -2070,6 +2083,19 @@ class AnnotatedGraph(Graph):
         if res == sat:
             n_nodes = 0
             m = opt.model()
+            model_maximized = m.eval(Sum(max_nodes), model_completion=True).as_long()
+            correct_maximum = h.upper().as_long()
+            
+            if correct_maximum != model_maximized:
+                pprint.info2("\nmodel isn't maximized, running another solver call")
+                opt.add(Sum(max_nodes) == correct_maximum)
+                start = time.perf_counter()
+                if opt.check() == sat:
+                    print(f'Subgraph_extraction_second_call_time = {time.perf_counter() - start}')
+                    m = opt.model()
+                else:
+                    raise Exception("Impossible, error in z3py")
+
             # print(f'{m = }')
             for t in m.decls():
                 # print(f'{type(t) = }')

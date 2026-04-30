@@ -2,7 +2,8 @@
 
 SubXPAT is a fully automated framework for approximate logic synthesis (ALS) based on the XPAT algorithm. It targets circuits described in Verilog and its core idea is to perform circuit rewriting in a way that is both local, i.e., is applied piece-wise to selected subcircuits, and extensive, i.e., systematically explores the design space for good solutions.
 
-For details on the XPAT algorithm, please see our [DSN-W'23] paper.
+For details on the SubXPAT framework and the XPAT algorithm, please see our papers published at [IEEE TCAD] and [DSN-W'23].
+Details on template logic can be found on [arXiv][arXiv-shared].
 
 
 ## Dependencies
@@ -101,6 +102,7 @@ Here are all the parameters with their arguments and descriptions:
 | `--error-partitioning` <br> `--epar`          | { asc, desc, smart_asc, smart_desc }    | asc                                | The error partitioning algorithm to use                                |
 | `--output`                                    | `path` to folder                        | `output/`                          | The base directory for the output                                      |
 | `--cell-library`                              | `path` to lib file                      | `config/gscl45nm.lib`              | The cell library file to use in the metrics estimation                 |
+| `--cqesto`                                    | `path`                                  | `cqesto`                           | The path of the cqesto executable                                      |
 | `--archive`                                   |                                         |                                    | If the generated files should be archived at the end of the execution  |
 | `--debug`                                     |                                         | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
 | `--timeout`                                   | `float` > 0                             | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
@@ -145,7 +147,9 @@ python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extracti
 
 
 <!-- links -->
+[IEEE TCAD]: https://doi.org/10.1109/TCAD.2025.3638267
 [DSN-W'23]: https://doi.org/10.1109/DSN-W58399.2023.00049
+[arXiv-shared]: https://doi.org/10.48550/arXiv.2509.06162
 [Python]: https://www.python.org/downloads
 [Yosys]: https://github.com/YosysHQ/yosys
 [GraphViz]: https://gitlab.com/graphviz/graphviz
