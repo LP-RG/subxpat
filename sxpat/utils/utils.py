@@ -1,13 +1,43 @@
 # typing
 from typing import Iterable, Callable, Any
 
+import os
+import re
+import sys
 import time
 import colorama
 
 
+ANSI_ESCAPE_RE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+
+def _stream_supports_color(stream: Any) -> bool:
+    isatty = getattr(stream, 'isatty', None)
+    return callable(isatty) and bool(isatty())
+
+
+def _color_output_enabled() -> bool:
+    if os.getenv('NO_COLOR') is not None:
+        return False
+    if os.getenv('FORCE_COLOR') is not None:
+        return True
+    return _stream_supports_color(sys.stdout) and _stream_supports_color(sys.stderr)
+
+
+colorama.init(strip=not _color_output_enabled())
+
+
+def strip_ansi(text: str) -> str:
+    return ANSI_ESCAPE_RE.sub('', text)
+
+
 class color:
     def factory(color: str) -> Callable[[str], str]:
-        return lambda s: color + s + colorama.Fore.RESET
+        def wrap(s: str) -> str:
+            if not _color_output_enabled():
+                return s
+            return color + s + colorama.Fore.RESET
+        return wrap
 
     with_color = staticmethod(factory)
 
@@ -24,7 +54,10 @@ class color:
 class pprint:
     def factory(color: str):
         def p(title: Any, *args: Any, **kwargs: Any) -> None:
-            print(color + str(title) + colorama.Fore.RESET, *args, **kwargs)
+            title_str = str(title)
+            if _color_output_enabled():
+                title_str = color + title_str + colorama.Fore.RESET
+            print(title_str, *args, **kwargs)
         return p
 
     with_color = staticmethod(factory)

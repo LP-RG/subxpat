@@ -4,6 +4,8 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import argparse
 
+from sxpat.utils.utils import strip_ansi
+
 
 def copy_project_to_exp(base: str, destination: str):
     """
@@ -86,9 +88,9 @@ def run_experiment(name, circuit, args, base_dir, destination_root):
     out_log = os.path.join(dest_dir, 'terminal.out.log')
     err_log = os.path.join(dest_dir, 'terminal.err.log')
     with open(out_log, 'w') as f_out:
-        f_out.write(result.stdout or '')
+        f_out.write(strip_ansi(result.stdout or ''))
     with open(err_log, 'w') as f_err:
-        f_err.write(result.stderr or '')
+        f_err.write(strip_ansi(result.stderr or ''))
     return name, result
 
 
