@@ -482,7 +482,7 @@ def apply_constraints(graph:nx.DiGraph[NodeID],
         if len(inputs_map[sid]) > TI_LIMIT:
             subgraph_outputs = outputs_map[sid]
             
-            
+            #it is the list of nodes in each small subgraph(cluster)
             new_clusters = _split_subgraph_by_logic_cones(
                 nodes, graph, TI_LIMIT, subgraph_outputs
             )
