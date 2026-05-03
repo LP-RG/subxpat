@@ -424,8 +424,16 @@ def _split_subgraph_by_logic_cones(S_nodes: List[NodeID],
     # 1.Calculate the input set for each output
     ext_inputs_map = {out: _get_external_inputs(out, S_set, graph) for out in outputs}
 
+    # Filter out outputs that exceed the limit to prevent them from participating in the merging process.
+    valid_outputs = []
+    for out in outputs:
+        inputs = ext_inputs_map[out]
+        if len(inputs) <= TI_LIMIT:
+            valid_outputs.append(out)
+    # Note: Outputs that failed the filter will naturally fall into leftovers later.
+
     # 2. merge，merged_bundle=List[Tuple[List[OutputNodeID], Set[InputNodeID]]
-    merged_bundles = _cluster_outputs(outputs, ext_inputs_map, TI_LIMIT)
+    merged_bundles = _cluster_outputs(valid_outputs, ext_inputs_map, TI_LIMIT)
 
     # 3. Sort by the merged input numbers in descending order.
     sorted_bundles = sorted(merged_bundles, key=lambda x: len(x[1]), reverse=True)
@@ -435,6 +443,7 @@ def _split_subgraph_by_logic_cones(S_nodes: List[NodeID],
 
     # 4. assign node
     for cluster_outputs, cluster_inputs_estimate in sorted_bundles:
+
         #get the node in this cluster
         cluster_content = _collect_nodes_with_truncation(
             cluster_outputs, S_set, graph, assigned_nodes
@@ -451,10 +460,11 @@ def _split_subgraph_by_logic_cones(S_nodes: List[NodeID],
                 if pred not in cluster_set:
                     real_inputs.add(pred)
         
-        
         if len(real_inputs) <= TI_LIMIT:
             new_subgraphs_nodes.append(cluster_content)
             assigned_nodes.update(cluster_content)
+        # If check fails, cluster_content is NOT added to assigned_nodes, 
+        # effectively releasing these nodes for the next candidates in the loop.
 
     # All unassigned nodes are scattered(its subgraph belongs to itself).
     leftovers = S_set - assigned_nodes
@@ -462,7 +472,6 @@ def _split_subgraph_by_logic_cones(S_nodes: List[NodeID],
         new_subgraphs_nodes.append([node])
 
     return new_subgraphs_nodes
-    
 
 # MARCO-REVIEW (2026-04-24 14:50)
 # - ALL GOOD
