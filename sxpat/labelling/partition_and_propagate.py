@@ -214,7 +214,9 @@ def merge_cycles(
 # - ALL GOOD
 def get_all_subgraph_boundaries(graph:nx.DiGraph[NodeID],
                                 nodes_by_subid:DefaultDict[SubID,List[NodeID]]
+                                        #inputs_map
                                 )->Tuple[DefaultDict[SubID,Set[NodeID]],
+                                         #outputs_map
                                          DefaultDict[SubID,Set[NodeID]]]:
     """
     Traverse the entire graph in one go and calculate the input and output sets of all subgraphs.
@@ -240,7 +242,8 @@ def get_all_subgraph_boundaries(graph:nx.DiGraph[NodeID],
 # - a few comments (see below)
 def greedy_merge(graph:nx.DiGraph[NodeID], 
                  nodes_by_subid:DefaultDict[SubID,List[NodeID]],
-                 inputs_map:DefaultDict[SubID,Set[NodeID]]
+                 inputs_map:DefaultDict[SubID,Set[NodeID]],
+                 TI_LIMIT:int
                  )->DefaultDict[SubID,List[NodeID]]:
     
     # 1. Initial construction of the metagraph
@@ -277,8 +280,9 @@ def greedy_merge(graph:nx.DiGraph[NodeID],
 
             inputs_merged = (inputs_u | inputs_v) - (nodes_u | nodes_v)
             
+            max_inputs_before = max(len(inputs_u), len(inputs_v))
 
-            if len(inputs_merged) <= max(len(inputs_u), len(inputs_v)):
+            if len(inputs_merged) <= max_inputs_before and max_inputs_before <= TI_LIMIT :
                 
                 # --- Perform the merge (merge v into u) ---
                 
@@ -314,12 +318,159 @@ def greedy_merge(graph:nx.DiGraph[NodeID],
     
     return nodes_by_subid
 
+#Update:
+#from the input nodes of outnode of Subset
+def _get_external_inputs(out_node: NodeID,
+                         S_set: frozenset,
+                         graph: nx.DiGraph
+                         ) -> Set[NodeID]:
+    """
+    Perform a reverse DFS from the specified output node to find the set of external inputs that it depends on and that are not in S_set.
+    """
+    visited = set()
+    stack = [out_node]
+    ext_inputs = set()
+
+    while stack:
+        curr = stack.pop()
+        if curr not in visited:
+            visited.add(curr)
+            for pred in graph.predecessors(curr):
+                if pred in S_set:
+                    if pred not in visited:
+                        stack.append(pred)
+                else:
+                    ext_inputs.add(pred)
+    return ext_inputs
+
+def _cluster_outputs(outputs: List[NodeID], 
+                     ext_inputs_map: Dict[NodeID, Set[NodeID]], 
+                     TI_LIMIT: int
+                     ) -> List[Tuple[List[NodeID], Set[NodeID]]]:
+
+    # Initialization: Each output forms its own cluster, along with its own input set.
+    # value is [outnode list, input node set] 
+    clusters_data = {out: ([out], set(ext_inputs_map[out])) for out in outputs}
+
+    # Merge pairs of inputs, where the input overlap is the largest and the overall number of inputs is smaller after the overlap.
+    while True:
+        best_pair = None
+        max_overlap = -1
+        ids = list(clusters_data.keys())
+        
+        for i in range(len(ids)):
+            for j in range(i + 1, len(ids)):
+                id_a, id_b = ids[i], ids[j]
+                
+                list_a, set_a = clusters_data[id_a]
+                list_b, set_b = clusters_data[id_b]
+                
+                union_set = set_a | set_b
+                if len(union_set) <= TI_LIMIT:
+                    overlap_size = len(set_a & set_b)
+                    
+                    if overlap_size > max_overlap:
+                        max_overlap = overlap_size
+                        best_pair = (id_a, id_b, union_set)
+                    elif overlap_size == max_overlap and max_overlap != -1:
+                        if len(union_set) < len(best_pair[2]):
+                            best_pair = (id_a, id_b, union_set)
+
+        if not best_pair:
+            break
+            
+        target, source, new_union = best_pair
+        
+        # Merge the list from the source into the target and update union_set.
+        clusters_data[target][0].extend(clusters_data[source][0])
+        # Update the input set bound to this cluster
+        clusters_data[target] = (clusters_data[target][0], new_union)
+        
+        del clusters_data[source]
+
+    return list(clusters_data.values())
+
+#collect nodes :start from the outputs node,until meet the assigned_nodes
+def _collect_nodes_with_truncation(cluster_outputs: List[NodeID], 
+                                   S_set: frozenset, 
+                                   graph: nx.DiGraph, 
+                                   assigned_nodes: Set[NodeID]
+                                   ) -> List[NodeID]:
+
+    collected = []
+    visited = set()
+    stack = list(cluster_outputs)
+
+    while stack:
+        curr = stack.pop()
+        if curr not in visited and curr not in assigned_nodes:
+            visited.add(curr)
+            collected.append(curr)
+            for pred in graph.predecessors(curr):
+                if pred in S_set and pred not in assigned_nodes:
+                    stack.append(pred)
+    return collected
+
+def _split_subgraph_by_logic_cones(S_nodes: List[NodeID], 
+                                   graph: nx.DiGraph, 
+                                   TI_LIMIT: int, 
+                                   subgraph_outputs: Set[NodeID]
+                                   ) -> List[List[NodeID]]:
+
+    S_set = frozenset(S_nodes)
+    outputs = list(subgraph_outputs)
+    
+
+    # 1.Calculate the input set for each output
+    ext_inputs_map = {out: _get_external_inputs(out, S_set, graph) for out in outputs}
+
+    # 2. merge，merged_bundle=List[Tuple[List[OutputNodeID], Set[InputNodeID]]
+    merged_bundles = _cluster_outputs(outputs, ext_inputs_map, TI_LIMIT)
+
+    # 3. Sort by the merged input numbers in descending order.
+    sorted_bundles = sorted(merged_bundles, key=lambda x: len(x[1]), reverse=True)
+
+    new_subgraphs_nodes = []
+    assigned_nodes = set()
+
+    # 4. assign node
+    for cluster_outputs, cluster_inputs_estimate in sorted_bundles:
+        #get the node in this cluster
+        cluster_content = _collect_nodes_with_truncation(
+            cluster_outputs, S_set, graph, assigned_nodes
+        )
+        
+        if not cluster_content:
+            continue
+
+        # 5. Check the actual input (considering the impact of truncation,so it will has no circle after this).
+        real_inputs = set()
+        cluster_set = set(cluster_content)
+        for node in cluster_content:
+            for pred in graph.predecessors(node):
+                if pred not in cluster_set:
+                    real_inputs.add(pred)
+        
+        
+        if len(real_inputs) <= TI_LIMIT:
+            new_subgraphs_nodes.append(cluster_content)
+            assigned_nodes.update(cluster_content)
+
+    # All unassigned nodes are scattered(its subgraph belongs to itself).
+    leftovers = S_set - assigned_nodes
+    for node in leftovers:
+        new_subgraphs_nodes.append([node])
+
+    return new_subgraphs_nodes
+    
+
 # MARCO-REVIEW (2026-04-24 14:50)
 # - ALL GOOD
 def apply_constraints(graph:nx.DiGraph[NodeID], 
                       nodes_by_subid:DefaultDict[SubID,List[NodeID]],
                       TI_LIMIT:int,
-                      inputs_map:DefaultDict[SubID,Set[NodeID]]
+                      inputs_map:DefaultDict[SubID,Set[NodeID]],
+                      outputs_map:DefaultDict[SubID,Set[NodeID]]
                       )-> DefaultDict[SubID,List[NodeID]]:
     """
     Check the input nodes of each subgraph; if the number exceed TI_LIMIT, break the group down into individual nodes.
@@ -329,10 +480,19 @@ def apply_constraints(graph:nx.DiGraph[NodeID],
     for sid, nodes in nodes_by_subid.items():
 
         if len(inputs_map[sid]) > TI_LIMIT:
-
-            for node in nodes:
-                graph.nodes[node]['subgraph_id'] = node
-                new_nodes_by_subid[node].append(node)
+            subgraph_outputs = outputs_map[sid]
+            
+            
+            new_clusters = _split_subgraph_by_logic_cones(
+                nodes, graph, TI_LIMIT, subgraph_outputs
+            )
+            
+            for cluster_nodes in new_clusters:
+                
+                new_sid = cluster_nodes[0] 
+                for node in cluster_nodes:
+                    graph.nodes[node]['subgraph_id'] = new_sid
+                    new_nodes_by_subid[new_sid].append(node)
 
         else:
 
@@ -553,7 +713,7 @@ def compute(graph: nx.DiGraph
     inputs_map, _ = get_all_subgraph_boundaries(graph, nodes_by_subid)
     
     #2.3keep |I_s+t|<=Max(|I_s|,|I_t|)
-    nodes_by_subid = greedy_merge(graph, nodes_by_subid,inputs_map)
+    nodes_by_subid = greedy_merge(graph, nodes_by_subid,inputs_map,TI_LIMIT)
 
     #gerdy merge change the nodes by subid,so update inputs_map
     inputs_map, _ = get_all_subgraph_boundaries(graph, nodes_by_subid)
