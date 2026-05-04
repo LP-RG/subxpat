@@ -1,4 +1,6 @@
 from sxpat.annotatedGraph import AnnotatedGraph
+from sxpat.graph import IOGraph
+from sxpat.converting.legacy import iograph_from_legacy
 from time import perf_counter
 import sys
 import os
@@ -18,7 +20,7 @@ def main():
         print("***")
         print("Testing MyAnnotatedGraph performance with benchmark " + benchmark_name)
         start = perf_counter()
-        AnnotatedGraph(benchmark_name)
+        iograph_from_legacy(AnnotatedGraph(benchmark_name))
         end = perf_counter()
         time = end - start
         total_time += time
