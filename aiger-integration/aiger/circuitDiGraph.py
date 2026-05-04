@@ -163,6 +163,10 @@ class MyAnnotatedGraph():
 
         # TODO: maybe gates dicts, and gates fields
 
+    @property
+    def graph(self):
+        return self.__graph
+
     # not_gates_integration:
     #  - adds NOT gates and their adjacent edges (while keeping topological order!)
     #  - increases '__num_gates' to account for NOT gates (-> count all gates, not only AND gates)

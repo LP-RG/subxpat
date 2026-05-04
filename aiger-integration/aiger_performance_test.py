@@ -1,6 +1,7 @@
 from aiger.circuitDiGraph import gen_circuit_digraph
 from aiger.circuitDiGraph import MyAnnotatedGraph
 from time import perf_counter
+from aiger.legacy import my_iograph_from_legacy
 import sys
 import os
 import re
@@ -19,7 +20,8 @@ def main():
         print("***")
         print("Testing MyAnnotatedGraph performance with benchmark " + benchmark_name)
         start = perf_counter()
-        MyAnnotatedGraph(benchmark_name, gen_circuit_digraph(benchmark_name))
+        g = MyAnnotatedGraph(benchmark_name, gen_circuit_digraph(benchmark_name))
+        iograph = my_iograph_from_legacy(g)
         end = perf_counter()
         time = end - start
         total_time += time
