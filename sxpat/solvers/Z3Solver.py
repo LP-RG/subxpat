@@ -1,9 +1,10 @@
-from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union, overload
+from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, overload
 from typing_extensions import override
 from abc import abstractmethod
 
 import itertools as it
 import subprocess
+from os.path import join as path_join
 
 from sxpat.specifications import Specifications
 from sxpat.utils.functions import str_to_int_or_bool
@@ -431,6 +432,7 @@ Z3_INT_NODE_MAPPING = {
     Sum: lambda n, operands, accs: f'Sum({", ".join(operands)})',
     AbsDiff: lambda n, operands, accs: f'If({operands[0]} >= {operands[1]}, {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
     Mul: lambda n, operands, accs: f'{" * ".join(operands)}',
+    Div: lambda n, operands, accs: f'({operands[0]} / {operands[1]})',
     # comparison operations
     Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
     NotEquals: lambda n, operands, accs: f'({operands[0]} != {operands[1]})',
@@ -453,6 +455,7 @@ Z3_BITVEC_NODE_MAPPING = {
     IntConstant: lambda n, operands, accs: f'BitVecVal({n.value}, {accs[0]})',
     # integer operations
     AbsDiff: lambda n, operands, accs: f'If(UGE({operands[0]}, {operands[1]}), {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
+    Div: lambda n, operands, accs: f'UDiv({operands[0]}, {operands[1]})',
     # comparison operations
     Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
     LessThan: lambda n, operands, accs: f'ULT({operands[0]}, {operands[1]})',
@@ -567,8 +570,7 @@ class Z3Solver(Solver):
                   global_task: Union[ForAll, Min, Max, None],
                   ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
 
-        # TODO:#15: how do we generate a name here
-        script_path = f'output/z3/{specifications.exact_benchmark}_iter{specifications.iteration}.py'
+        script_path = path_join(specifications.path.run.solver_scripts, f'iter{specifications.iteration}_{specifications.sub_iteration}.py')
 
         # encode
         with open(script_path, 'w') as f: cls.encoder.encode(graphs, f, global_task)
