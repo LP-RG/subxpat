@@ -105,6 +105,7 @@ def label_nodes(graph: nx.DiGraph[NodeID]
     uf = UnionFind(graph.nodes)
     
     # MARCO-MARK: add a brief high-level comment of the block
+    # use union to merge nodes which belongs to same parents
     for node in graph.nodes:
         if graph.out_degree(node) <= 1: 
             continue
@@ -117,7 +118,7 @@ def label_nodes(graph: nx.DiGraph[NodeID]
             for other_child in islice(children, 1, None):
                 uf.union(first_child, other_child)
 
-    # 2. map UnionFind to Graph and  Subgraph dictionary
+    # 2. map UnionFind to Graph and Subgraph dictionary
     nodes_by_subid = defaultdict(list)
     
     for node in graph.nodes:
@@ -301,10 +302,10 @@ def greedy_merge(graph:nx.DiGraph[NodeID],
 
                 # Reconnect the edges (connect all of v's neighbors to u).
                 # MARCO-COMMENT: Why are you casting this to a list? for this use-case you can simply loop over the .successors(v)
-                for successor in list(sub_id_graph.successors(v)):
+                for successor in sub_id_graph.successors(v):
                     if successor != u:
                         sub_id_graph.add_edge(u, successor)
-                for predecessor in list(sub_id_graph.predecessors(v)):
+                for predecessor in sub_id_graph.predecessors(v):
                     if predecessor != u:
                         sub_id_graph.add_edge(predecessor, u)
                 
@@ -355,7 +356,7 @@ def _cluster_outputs(outputs: List[NodeID],
     # Merge pairs of inputs, where the input overlap is the largest and the overall number of inputs is smaller after the overlap.
     while True:
         best_pair = None
-        max_overlap = -1
+        max_overlap = 0
         ids = list(clusters_data.keys())
         
         for i in range(len(ids)):
@@ -411,67 +412,104 @@ def _collect_nodes_with_truncation(cluster_outputs: List[NodeID],
                     stack.append(pred)
     return collected
 
+def _count_actual_inputs_dynamic(nodes: List[NodeID], graph: nx.DiGraph) -> Set[NodeID]:
+    """
+    Helper function: Calculates the actual external input nodes for a given set of nodes 
+    under the current truncation state.
+    """
+    node_set = set(nodes)
+    inputs = set()
+    for n in nodes:
+        for pred in graph.predecessors(n):
+            if pred not in node_set:
+                inputs.add(pred)
+    return inputs
+
 def _split_subgraph_by_logic_cones(S_nodes: List[NodeID], 
                                    graph: nx.DiGraph, 
                                    TI_LIMIT: int, 
                                    subgraph_outputs: Set[NodeID]
                                    ) -> List[List[NodeID]]:
-
+    """
+    Splits a given subgraph into smaller logic cones based on a Terminal Input (TI) limit.
+    Uses a dynamic, state-feedback greedy approach with restarts to maximize node merging.
+    """
     S_set = frozenset(S_nodes)
     outputs = list(subgraph_outputs)
     
+    # Handle extreme cases: if no outputs are defined, use the last node as the starting point.
+    if not outputs and S_nodes: 
+        outputs = [S_nodes[-1]]
 
-    # 1.Calculate the input set for each output
+    # 1. Initial Evaluation: Calculate the initial external inputs for each output node.
+    # This provides a baseline "potential" for each logic cone.
     ext_inputs_map = {out: _get_external_inputs(out, S_set, graph) for out in outputs}
-
-    # Filter out outputs that exceed the limit to prevent them from participating in the merging process.
-    valid_outputs = []
-    for out in outputs:
-        inputs = ext_inputs_map[out]
-        if len(inputs) <= TI_LIMIT:
-            valid_outputs.append(out)
-    # Note: Outputs that failed the filter will naturally fall into leftovers later.
-
-    # 2. merge，merged_bundle=List[Tuple[List[OutputNodeID], Set[InputNodeID]]
-    merged_bundles = _cluster_outputs(valid_outputs, ext_inputs_map, TI_LIMIT)
-
-    # 3. Sort by the merged input numbers in descending order.
+    
+    # 2. Initial Clustering: Form initial bundles (clusters) without strict filtering.
+    merged_bundles = _cluster_outputs(outputs, ext_inputs_map, TI_LIMIT)
+    
+    # 3. Sorting: Sort bundles by their initial input count in descending order.
+    # Larger logic cones get the priority to attempt merging first.
     sorted_bundles = sorted(merged_bundles, key=lambda x: len(x[1]), reverse=True)
 
     new_subgraphs_nodes = []
     assigned_nodes = set()
 
-    # 4. assign node
-    for cluster_outputs, cluster_inputs_estimate in sorted_bundles:
+    # 4. Dynamic Assignment (State-Feedback Greedy with Restart):
+    # Maintain a list of bundles that haven't been successfully assigned yet.
+    unassigned_bundles = sorted_bundles.copy()
 
-        #get the node in this cluster
-        cluster_content = _collect_nodes_with_truncation(
-            cluster_outputs, S_set, graph, assigned_nodes
-        )
+    # The outer 'while' loop controls the "restart" mechanism.
+    while True:
+        made_progress = False  # Tracks if any bundle successfully claimed territory in this iteration
         
-        if not cluster_content:
-            continue
+        # The inner 'for' loop always starts trying from the 0th element of the current unassigned list.
+        for i in range(len(unassigned_bundles)):
+            cluster_outputs = unassigned_bundles[i][0]
+            
+            # A. Territory Claiming (with dynamic truncation):
+            # Attempt to collect nodes, stopping at the boundaries of already 'assigned_nodes'.
+            cluster_content = _collect_nodes_with_truncation(
+                cluster_outputs, S_set, graph, assigned_nodes
+            )
+            
+            if not cluster_content:
+                continue
 
-        # 5. Check the actual input (considering the impact of truncation,so it will has no circle after this).
-        real_inputs = set()
-        cluster_set = set(cluster_content)
-        for node in cluster_content:
-            for pred in graph.predecessors(node):
-                if pred not in cluster_set:
-                    real_inputs.add(pred)
-        
-        if len(real_inputs) <= TI_LIMIT:
-            new_subgraphs_nodes.append(cluster_content)
-            assigned_nodes.update(cluster_content)
-        # If check fails, cluster_content is NOT added to assigned_nodes, 
-        # effectively releasing these nodes for the next candidates in the loop.
+            # B. Dynamic Recalculation:
+            # Calculate the *actual* external inputs for the truncated cluster in the current state.
+            real_inputs = _count_actual_inputs_dynamic(cluster_content, graph)
+            
+            # C. Decision Making:
+            if len(real_inputs) <= TI_LIMIT:
+                # Success: The dynamically truncated cluster satisfies the TI limit.
+                new_subgraphs_nodes.append(cluster_content)
+                assigned_nodes.update(cluster_content) # Permanently occupy these nodes
+                
+                # Remove this successfully assigned bundle from the waiting list.
+                unassigned_bundles.pop(i)
+                made_progress = True
+                
+                # CRITICAL STEP: Break the 'for' loop!
+                # Since the environment (assigned_nodes) has changed, we MUST restart 
+                # the evaluation from the beginning of the unassigned list. 
+                # Previously failed bundles might now succeed due to the new boundaries.
+                break 
 
-    # All unassigned nodes are scattered(its subgraph belongs to itself).
+        # If a full pass over the list yields no successful assignments, we've reached the limit.
+        if not made_progress:
+            break
+
+    # 5. Leftovers Handling:
+    # Any nodes that could not be merged into valid clusters are scattered into single-node subgraphs.
     leftovers = S_set - assigned_nodes
     for node in leftovers:
         new_subgraphs_nodes.append([node])
 
     return new_subgraphs_nodes
+
+
+
 
 # MARCO-REVIEW (2026-04-24 14:50)
 # - ALL GOOD
@@ -744,17 +782,9 @@ def compute(graph: nx.DiGraph
     #  Find all nodes of sub_id and input/output node of the graph
          sub_inputs = sorted(list(inputs_of_subgraph[sub_id]))
          sub_outputs = sorted(list(outputs_of_subgraph[sub_id]))
-         
-        #  print(f"the input of {sub_id} is {sub_inputs}.")
-        #  print(f"the output of {sub_id} is {sub_outputs}.")
 
-         #if the subgraph only has primary nodes/only has primary output nodes
-         #Question？有可能存在一个subgraph只存在input和output吗？  
-        #  if not sub_inputs or not sub_outputs:
-        #     continue
         
         # 2. 实例化你的 Subgraph 类
-        # TODO:有没有办法可以优化那些只有一个节点的值？有必要吗
         # create subgraph objects
          sg = Subgraph(sub_id, nodes_in_group, sub_inputs, sub_outputs)
 
