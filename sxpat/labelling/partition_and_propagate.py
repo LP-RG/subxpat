@@ -319,6 +319,7 @@ def greedy_merge(graph:nx.DiGraph[NodeID],
     
     return nodes_by_subid
 
+# MARCO-REVIEW 
 #Update:
 #from the input nodes of outnode of Subset
 def _get_external_inputs(out_node: NodeID,
@@ -344,6 +345,7 @@ def _get_external_inputs(out_node: NodeID,
                     ext_inputs.add(pred)
     return ext_inputs
 
+# MARCO-REVIEW 
 def _cluster_outputs(outputs: List[NodeID], 
                      ext_inputs_map: Dict[NodeID, Set[NodeID]], 
                      TI_LIMIT: int
@@ -373,7 +375,7 @@ def _cluster_outputs(outputs: List[NodeID],
                     if overlap_size > max_overlap:
                         max_overlap = overlap_size
                         best_pair = (id_a, id_b, union_set)
-                    elif overlap_size == max_overlap and max_overlap != -1:
+                    elif overlap_size == max_overlap and max_overlap > 0 and best_pair is not None:
                         if len(union_set) < len(best_pair[2]):
                             best_pair = (id_a, id_b, union_set)
 
@@ -391,6 +393,7 @@ def _cluster_outputs(outputs: List[NodeID],
 
     return list(clusters_data.values())
 
+# MARCO-REVIEW 
 #collect nodes :start from the outputs node,until meet the assigned_nodes
 def _collect_nodes_with_truncation(cluster_outputs: List[NodeID], 
                                    S_set: frozenset, 
@@ -412,6 +415,7 @@ def _collect_nodes_with_truncation(cluster_outputs: List[NodeID],
                     stack.append(pred)
     return collected
 
+# MARCO-REVIEW 
 def _count_actual_inputs_dynamic(nodes: List[NodeID], graph: nx.DiGraph) -> Set[NodeID]:
     """
     Helper function: Calculates the actual external input nodes for a given set of nodes 
@@ -425,6 +429,7 @@ def _count_actual_inputs_dynamic(nodes: List[NodeID], graph: nx.DiGraph) -> Set[
                 inputs.add(pred)
     return inputs
 
+# MARCO-REVIEW 
 def _split_subgraph_by_logic_cones(S_nodes: List[NodeID], 
                                    graph: nx.DiGraph, 
                                    TI_LIMIT: int, 
@@ -735,7 +740,7 @@ def compute(graph: nx.DiGraph
     # Implement the "partition and propagate" algorithm
 
     # --- 1. Initialization ---
-    TI_LIMIT = 10
+    TI_LIMIT = 3
 
     # --- 2.Node Labeling ---
     
@@ -763,9 +768,9 @@ def compute(graph: nx.DiGraph
     nodes_by_subid = greedy_merge(graph, nodes_by_subid,inputs_map,TI_LIMIT)
 
     #gerdy merge change the nodes by subid,so update inputs_map
-    inputs_map, _ = get_all_subgraph_boundaries(graph, nodes_by_subid)
+    inputs_map, outputs_map = get_all_subgraph_boundaries(graph, nodes_by_subid)
     #2.4 keep |I_s|<= TI_LIMIT 
-    nodes_by_subid = apply_constraints(graph, nodes_by_subid, TI_LIMIT,inputs_map)
+    nodes_by_subid = apply_constraints(graph, nodes_by_subid, TI_LIMIT,inputs_map,outputs_map)
 
 
     # record the final input and output of every graph
@@ -870,7 +875,7 @@ def compute(graph: nx.DiGraph
 
         
 
-
+    # MARCO-REVIEW 
     # step 4: Subgraph simulation for internal nodes
     # --- Step 4: 内部节点权重仿真 ---
     for sid, sg in all_subgraph_objects.items():
