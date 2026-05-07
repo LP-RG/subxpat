@@ -10,7 +10,7 @@ Details on template logic can be found on [arXiv][arXiv-shared].
 
 SubXPAT has been developed for a **Linux** environment and requires the manual installation of the following dependencies:
 
-- [Python] (version 3.13 or higher)
+- [Python] (version 3.8 or higher)
 - [Yosys] (using apt: `sudo apt install yosys`)
 - [GraphViz] (you also need the headers for development, using apt: `sudo apt install graphviz graphviz-dev`)
 - [OpenSTA] (using apt: `sudo apt install opensta`)
