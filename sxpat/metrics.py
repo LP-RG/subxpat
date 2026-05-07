@@ -7,6 +7,7 @@ import functools as ft
 from .config import config as sxpatconfig
 from sxpat.utils.decorators import make_utility_class
 from sxpat.specifications import Paths
+from Z3Log_patched.utils import get_pure_name
 
 
 __all__ = ['MetricsEstimator']
@@ -48,42 +49,63 @@ class MetricsEstimator:
 
     @classmethod
     @overload
-    def estimate_metrics(cls, paths: Paths.Synthesis, verilog_path: str) -> Metrics:
+    def estimate_metrics(
+        cls,
+        syn_paths: Paths.Synthesis,
+        verilog_path: str,
+        temporary_path: str,
+    ) -> Metrics:
         """
             Sythesize a circuit and estimate its metrics.
         """
 
     @classmethod
     @overload
-    def estimate_metrics(cls, paths: Paths.Synthesis, verilog_path: str, cached: Literal[True]) -> Metrics:
+    def estimate_metrics(
+        cls,
+        syn_paths: Paths.Synthesis,
+        verilog_path: str,
+        temporary_path: str,
+        cached: Literal[True],
+    ) -> Metrics:
         """
             Sythesize a circuit and estimate its metrics.
 
-            Cached on the assumption that the same `paths`/`verilog_path` generate the same results.
+            Cached on the assumption that the same `syn_paths`/`verilog_path` generate the same results.
         """
 
     @classmethod
-    def estimate_metrics(cls, paths: Paths.Synthesis, verilog_path: str, cached: bool = False) -> Metrics:
-        if cached:
-            return cls._estimate_metrics_cached(paths, verilog_path)
-        else:
-            return cls._estimate_metrics(paths, verilog_path)
+    def estimate_metrics(
+        cls,
+        syn_paths: Paths.Synthesis,
+        verilog_path: str,
+        temporary_path: str,
+        cached: bool = False,
+    ) -> Metrics:
+        if cached: return cls._estimate_metrics_cached(syn_paths, verilog_path, temporary_path)
+        else: return cls._estimate_metrics(syn_paths, verilog_path, temporary_path)
 
     @classmethod
-    def _estimate_metrics(cls, paths: Paths.Synthesis, verilog_path: str) -> Metrics:
+    def _estimate_metrics(
+        cls,
+        syn_paths: Paths.Synthesis,
+        circuit_in_verilog_path: str,
+        temporary_path: str,
+    ) -> Metrics:
         # compute names and paths
-        metrics_verilog_path = f'{verilog_path[:-2]}_for_metrics.v'
-        module_name = cls._extract_module_name(verilog_path)
+        circuit_name = get_pure_name(circuit_in_verilog_path)
+        metrics_verilog_path = f'{temporary_path}/{circuit_name}_for_metrics.v'
+        module_name = cls._extract_module_name(circuit_in_verilog_path)
 
         # > define commands
         # yosys command to get area and to generate metrics verilog
         yosys_command = cls.YOSYS_BASE_COMMAND.format(
             # circuit
-            verilog_path=verilog_path,
+            verilog_path=circuit_in_verilog_path,
             metrics_verilog_path=metrics_verilog_path,
             # config
-            lib_path=paths.cell_library,
-            abc_script_path=paths.abc_script,
+            lib_path=syn_paths.cell_library,
+            abc_script_path=syn_paths.abc_script,
         )
         # sta command to get delay and power
         sta_command = cls.STA_BASE_COMMAND.format(
@@ -91,7 +113,7 @@ class MetricsEstimator:
             metrics_verilog_path=metrics_verilog_path,
             module_name=module_name,
             # config
-            lib_path=paths.cell_library,
+            lib_path=syn_paths.cell_library,
         )
 
         # > execute commands
@@ -122,11 +144,19 @@ class MetricsEstimator:
 
     @classmethod
     @ft.lru_cache(None)
-    def _estimate_metrics_cached(cls, paths: Paths.Synthesis, verilog_path: str) -> Metrics:
-        return cls._estimate_metrics(paths, verilog_path)
+    def _estimate_metrics_cached(
+        cls,
+        paths: Paths.Synthesis,
+        verilog_path: str,
+        temporary_path: str,
+    ) -> Metrics:
+        return cls._estimate_metrics(paths, verilog_path, temporary_path)
 
     @classmethod
-    def _extract_module_name(cls, verilog_path: str):
+    def _extract_module_name(
+        cls,
+        verilog_path: str,
+    ) -> str:
         with open(verilog_path, 'r') as f: verilog_str = f.read()
 
         if m := cls.MODULE_NAME_PATTERN.search(verilog_str): return m.group(1)

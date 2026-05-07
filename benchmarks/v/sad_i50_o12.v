@@ -1,7 +1,7 @@
-module sad_i40_o9 (x0,x1,x2,x3,x4,r);
-input [7:0] x0,x1,x2,x3,x4;
-output [8:0] r;
-wire [7:0] s1,s2,s3,s4;
+module sad_i50_o11 (x0,x1,x2,x3,x4,r);
+input [9:0] x0,x1,x2,x3,x4;
+output [11:0] r;
+wire [9:0] s1,s2,s3,s4;
 
 assign s1 = (x0>x1) ? (x0-x1) : (x1-x0);
 assign s2 = (x0>x2) ? (x0-x2) : (x2-x0);

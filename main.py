@@ -1,48 +1,53 @@
-from sxpat.specifications import Specifications
-from sxpat.utils.print import pprint
-
 
 def main():
+    # instrumentations
+    from instrumentations.import_timer import ImportTimer
+    import_timer = ImportTimer.instrument()
+
+    # > parse arguments and prepare specifications
+    from sxpat.specifications import Specifications
     specs_obj = Specifications.parse_args()
-    print(f'{specs_obj = }')
+    print('id:', specs_obj.run_id)
+    print('directory:', specs_obj.path.run.base_folder)
 
-    if specs_obj.plot: plot(specs_obj)
-    else: run(specs_obj)
-
-
-def plot(specs_obj: Specifications) -> None:
-    from sxpat.stats import Stats
-
-    pprint.info2('generating plots from matching data')
-    stats_obj = Stats(specs_obj)
-    stats_obj.gather_results()
-
-
-def run(specs_obj: Specifications) -> None:
-    # select wanted directories
-    from sxpat.config import paths as sxpatpaths
-    from Z3Log.config import path as z3logpath
-    WANTED_DIRECTORIES = [
-        sxpatpaths.OUTPUT_PATH['ver'][0],
-        sxpatpaths.OUTPUT_PATH['gv'][0],
-        sxpatpaths.OUTPUT_PATH['z3'][0],
-        sxpatpaths.OUTPUT_PATH['report'][0],
-        z3logpath.TEST_PATH['tb'][0],
-    ]
-    # create/empty the wanted directories
+    # > create wanted directories
     from sxpat.utils.filesystem import FS
-    for dir in WANTED_DIRECTORIES: FS.mkdir(dir)
-    if specs_obj.clean:  # clean if wanted
-        pprint.info2('removing final and intermediary data')
-        for dir in WANTED_DIRECTORIES: FS.emptydir(dir)
+    for dir in specs_obj.path.run.folders: FS.mkdir(dir)
 
-    # run system
-    from sxpat.xplore import explore_grid
-    explore_grid(specs_obj)
+    # > prepare storage
+    from sxpat.utils.storage import LiveStorage, AppendStorage
+    specs_obj.stats_storage = LiveStorage(specs_obj.path.run.run_stats)
+    specs_obj.details_storage = AppendStorage(specs_obj.path.run.run_details)
 
-
-if __name__ == '__main__':
+    # > run system
+    from sxpat.xplore import explore_grid, print_results
     from sxpat.utils.timer import Timer
+    #
+    with specs_obj.stats_storage, specs_obj.details_storage:
+        specs_obj.details_storage.add(specs_obj.constant_fields)
 
-    main()
-    print(f'total_time = {Timer.now()}')
+        #
+        _t = Timer.now()
+        results = explore_grid(specs_obj)
+        _t = Timer.now() - _t
+        specs_obj.details_storage.add(total_time=_t)
+
+        # print results for each relevance of metrics
+        print_results(results)
+
+        # misc
+        specs_obj.details_storage.add(import_time=import_timer.time)
+
+    # > remove temporary files
+    if not specs_obj.debug: FS.rmdir(specs_obj.path.run.temporary, True)
+
+    # > archive run (and delete raw files)
+    if specs_obj.should_archive:
+        from sxpat.utils.archive import archive_files
+        # create and fill archive
+        archive_path = f'{specs_obj.path.run.base_folder.rstrip("/")}.zip'
+        archive_files(archive_path, specs_obj.path.run.base_folder)
+        # delete raw files
+        if not specs_obj.debug: FS.rmdir(specs_obj.path.run.base_folder, recursive=True)
+
+if __name__ == '__main__': main()
