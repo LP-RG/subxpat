@@ -60,6 +60,11 @@ def explore_grid(specs_obj: Specifications):
             0
         )
     ]
+    specs_obj.details_storage.add(
+        origin_circuit_area=exact_circuit_metrics.area,
+        origin_circuit_power=exact_circuit_metrics.power,
+        origin_circuit_delay=exact_circuit_metrics.delay,
+    )
     previous_subgraphs = []
     obtained_wce_exact = 0
     specs_obj.iteration = 0
