@@ -112,7 +112,10 @@ def explore_grid(specs_obj: Specifications):
                 if current_circ == previous_graph:
                     stop = True
                     break
-
+            
+            if specs_obj.iteration > max(specs_obj.outputs * 2, 16):
+                print(f'reached maximum number of iterations = {max(specs_obj.outputs * 2, 16)}, stopping')
+                break
             if stop:
                 print('current graph is equivalent to previous iteration, stopping')
                 break
