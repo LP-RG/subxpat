@@ -176,6 +176,7 @@ class Specifications:
     # benchmark
     exact_benchmark: str
     current_benchmark: str = dc.field(metadata={'writable': True})  # rw
+    outputs: int = dc.field(init=False)
 
     # labeling
     labeling: LabelingType
@@ -237,6 +238,12 @@ class Specifications:
 
     def __post_init__(self, path_output: str, path_cell_library: str, path_cqesto: str):
         # computed constants
+        benchmark_name = os.path.basename(self.exact_benchmark)
+        match = re.search(r'_o(\d+)', benchmark_name)
+        if match is None:
+            raise ValueError(f'Unable to parse the number of outputs from benchmark name {benchmark_name!r}.')
+        self.outputs = int(match.group(1))
+
         self.run_id = FS.get_unique_dirname(prefix=f'{int_to_strbase(self.timestamp)}_')
 
         # construct instance
@@ -252,12 +259,6 @@ class Specifications:
     @property
     def max_its(self) -> int:
         return self.max_pit + 3
-
-    @property
-    def outputs(self) -> int:
-        """Get the number of outputs of the circuit."""
-        # TODO: Temporary implementation.
-        return int(re.search('_o(\d+)', self.exact_benchmark)[1])
 
     @property
     def template_name(self) -> str:
