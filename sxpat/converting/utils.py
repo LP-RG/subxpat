@@ -22,7 +22,7 @@ __all__ = [
     # compute graph accessories
     'get_nodes_type', 'get_nodes_bitwidth',
 
-    'get_rolling_code',
+    'get_unique_code',
 
     # others
     # (this could be in questions? or a new module? maybe called constraints::? or maybe something else)
@@ -913,11 +913,12 @@ def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N
     return cls(**kwargs)
 
 
-class get_rolling_code:
+class get_unique_code:
     """
-        Returns a two letters code, by selecting a new permutation of two letters (upper and lower case).
+        Returns a unique alphabetical code made of upper and lower case letters.
 
-        Will start repeating after 2704 (26\*2 \* 26\*2) calls.
+        The first 2704 calls use a two-letter format (AA..zz).
+        After that, the code grows to three letters, then four, and so on.
     """
 
     _chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -930,7 +931,23 @@ class get_rolling_code:
 
     @classmethod
     def prefix_for_index(cls, idx: int) -> str:
-        i0 = idx // len(cls._chars)
-        i1 = idx % len(cls._chars)
+        if idx < 0:
+            raise ValueError('idx must be non-negative')
 
-        return cls._chars[i0] + cls._chars[i1]
+        base = len(cls._chars)
+        size = cls._size
+        span = base ** size
+
+        # Keep the historical AA..zz sequence for the first two-letter block,
+        # then extend to longer codes instead of overflowing the alphabet.
+        while idx >= span:
+            idx -= span
+            size += 1
+            span = base ** size
+
+        digits = []
+        for _ in range(size):
+            idx, rem = divmod(idx, base)
+            digits.append(cls._chars[rem])
+
+        return ''.join(reversed(digits))
