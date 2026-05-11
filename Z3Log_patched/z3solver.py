@@ -11,7 +11,7 @@ from .graph import Graph
 
 from .config.config import (
     SINGLE, WAE, RANDOM, WRE, OPTIMIZE, MAXIMIZE, BISECTION,
-    WHD, WCE, DEFAULT_STRATEGY, QOR,
+    WHD, WCE, DEFAULT_STRATEGY, QOR, PRUNED,
 )
 
 # patched:
@@ -105,6 +105,10 @@ class Z3solver(_Z3solver):
     def approximate_in_path(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
 
     def import_labels(self, constant_value: bool = False) -> Dict:
+        # Rebuild the cache from scratch each time. `label_gate()` reuses the
+        # same solver instance across many single-gate runs, and this method
+        # rereads the same CSV reports on every call.
+        self.__labels = {}
         label_dict: Dict[str, int] = {}
         folder = path_join(self.temporary_folder_path, 'outreport')
         extension = 'csv'
@@ -227,6 +231,37 @@ class Z3solver(_Z3solver):
 
     # TODO
     # Naming problems for more than one gate removal
+
+    def create_pruned_graph_approximate(self, gates: list, constant_value: bool = False):
+        """
+        Build the labeling graph used by the legacy labeler without changing its
+        node namespace.
+
+        The upstream implementation relabels an already app_* graph again here,
+        which can desynchronize the expected node names from the copied graph.
+        For the labeling path we only need to mark the requested node as pruned
+        and refresh the derived dictionaries.
+        """
+
+        tmp_graph = copy.deepcopy(self.labeling_graph)
+        self.set_approximate_graph(tmp_graph)
+
+        for gate in gates:
+            if self.approximate_graph.graph.has_node(gate):
+                resolved_gate = gate
+            elif self.approximate_graph.graph.has_node(f'app_{gate}'):
+                resolved_gate = f'app_{gate}'
+            elif gate.startswith('app_') and self.approximate_graph.graph.has_node(gate[4:]):
+                resolved_gate = gate[4:]
+            else:
+                raise KeyError(f'{gate!r} is not present in the labeling graph')
+
+            self.approximate_graph.graph.nodes[resolved_gate][PRUNED] = constant_value
+
+        self.approximate_graph.set_input_dict(self.approximate_graph.extract_inputs())
+        self.approximate_graph.set_output_dict(self.approximate_graph.extract_outputs())
+        self.approximate_graph.set_gate_dict(self.approximate_graph.extract_gates())
+        self.approximate_graph.set_constant_dict(self.approximate_graph.extract_constants())
 
     def create_pruned_z3pyscript(self, gates: list, constant_value: bool = False):
         self.create_pruned_graph_approximate(gates, constant_value)
