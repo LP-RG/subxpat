@@ -522,7 +522,8 @@ def apply_constraints(graph:nx.DiGraph[NodeID],
                       nodes_by_subid:DefaultDict[SubID,List[NodeID]],
                       TI_LIMIT:int,
                       inputs_map:DefaultDict[SubID,Set[NodeID]],
-                      outputs_map:DefaultDict[SubID,Set[NodeID]]
+                      outputs_map:DefaultDict[SubID,Set[NodeID]],
+                      use_smart_split: bool = True
                       )-> DefaultDict[SubID,List[NodeID]]:
     """
     Check the input nodes of each subgraph; if the number exceed TI_LIMIT, break the group down into individual nodes.
@@ -530,8 +531,13 @@ def apply_constraints(graph:nx.DiGraph[NodeID],
     new_nodes_by_subid = defaultdict(list)
     
     for sid, nodes in nodes_by_subid.items():
+        if len(inputs_map[sid]) <= TI_LIMIT:
+            for node in nodes:
+                graph.nodes[node]['subgraph_id'] = sid
+                new_nodes_by_subid[sid].append(node)
 
-        if len(inputs_map[sid]) > TI_LIMIT:
+        #use smart split
+        elif use_smart_split:
             subgraph_outputs = outputs_map[sid]
             
             #it is the list of nodes in each small subgraph(cluster)
@@ -546,11 +552,15 @@ def apply_constraints(graph:nx.DiGraph[NodeID],
                     graph.nodes[node]['subgraph_id'] = new_sid
                     new_nodes_by_subid[new_sid].append(node)
 
+        #use the normal one
         else:
 
             for node in nodes:
-                graph.nodes[node]['subgraph_id'] = sid
-                new_nodes_by_subid[sid].append(node)
+                new_sid = node 
+                graph.nodes[node]['subgraph_id'] = new_sid
+                new_nodes_by_subid[new_sid].append(node)
+
+            
                 
     return new_nodes_by_subid
 
@@ -733,7 +743,8 @@ class Subgraph:
 # - ALL GOOD
 # - I answered some of the questions left in comments (see below at MARCO-ANSWER)
 # - I did not check step 4 (it is marked as todo:working)
-def compute(graph: nx.DiGraph
+def compute(graph: nx.DiGraph,
+            use_smart_split: bool = True
             ) -> tuple[Mapping[NodeID, int],nx.DiGraph[SubID]]:
 
     # TODO: Xiaozihan
@@ -770,7 +781,7 @@ def compute(graph: nx.DiGraph
     #gerdy merge change the nodes by subid,so update inputs_map
     inputs_map, outputs_map = get_all_subgraph_boundaries(graph, nodes_by_subid)
     #2.4 keep |I_s|<= TI_LIMIT 
-    nodes_by_subid = apply_constraints(graph, nodes_by_subid, TI_LIMIT,inputs_map,outputs_map)
+    nodes_by_subid = apply_constraints(graph, nodes_by_subid, TI_LIMIT,inputs_map,outputs_map,use_smart_split)
 
 
     # record the final input and output of every graph
