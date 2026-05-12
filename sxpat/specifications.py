@@ -68,6 +68,8 @@ class ConstantFalseType(enum.Enum):
 class LabellingAlgorithmType(enum.Enum):
     SUM = "sum"   # direct sum
     PP = "pp"    # Partition and Propagate 
+    SPP = "spp"   # Smart Partition and Propagate ：Adding logical cone partitioning + greedy merging
+    
 
 class EnumChoicesAction(argparse.Action):
     def __init__(self, *args, type: enum.Enum, **kwargs) -> None:
