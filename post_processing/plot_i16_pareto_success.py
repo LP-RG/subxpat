@@ -175,10 +175,32 @@ def _format_elapsed_label(hours: float) -> str:
     return f"{hours:.2f}h"
 
 
+def _format_seconds_label(seconds: object) -> str:
+    if pd.isna(seconds):
+        return "-"
+    value = float(seconds)
+    if value < 60.0:
+        return f"{value:.0f}s"
+    if value < 3600.0:
+        return f"{value / 60.0:.1f}m"
+    return f"{value / 3600.0:.2f}h"
+
+
 def _format_float_label(value: object, digits: int = 1) -> str:
     if pd.isna(value):
         return "-"
     return f"{float(value):.{digits}f}"
+
+
+def _status_short_label(status: object) -> str:
+    text = str(status).upper()
+    return {
+        "SAT": "S",
+        "UNSAT": "U",
+        "UNKNOWN": "?",
+        "DOMINATED": "D",
+        "STOPPED": "stop",
+    }.get(text, text[:1])
 
 
 def _lighten(hex_color: str, weight: float = 0.55) -> str:
@@ -1029,6 +1051,20 @@ def build_row_timeline_tables(case: dict[str, object]) -> tuple[pd.DataFrame, pd
         on="iteration",
         how="left",
     )
+    export_rows["cell_label"] = export_rows["cell"].fillna("-").astype(str)
+    export_rows["cell_runtime_label"] = export_rows["runtime"].map(_format_seconds_label)
+    export_rows["status_short"] = export_rows["status"].map(_status_short_label)
+    export_rows["row_area_label"] = export_rows["area"].map(lambda value: _format_float_label(value, digits=1))
+    export_rows["current_area_label"] = export_rows["current_area_after_row"].map(
+        lambda value: _format_float_label(value, digits=1)
+    )
+    export_rows["cell_event_label"] = (
+        export_rows["cell_label"]
+        + " "
+        + export_rows["status_short"]
+        + " "
+        + export_rows["cell_runtime_label"]
+    )
 
     return export_rows, iteration_meta
 
@@ -1039,15 +1075,24 @@ def plot_annealed_row_timeline(
     output_path: Path,
 ) -> Path:
     configure_style()
+    row_df = row_df.copy()
+    if "elapsed_label" not in row_df.columns:
+        elapsed_by_iteration = (
+            iteration_meta[["iteration", "elapsed_label"]]
+            .drop_duplicates("iteration")
+            .set_index("iteration")["elapsed_label"]
+        )
+        row_df["elapsed_label"] = row_df["iteration"].map(elapsed_by_iteration)
+
     row_count = int(row_df["row_index"].max())
 
     fig_width = max(18.0, 4.5 + (0.12 * row_count))
     fig, (ax_plot, ax_notes) = plt.subplots(
         2,
         1,
-        figsize=(fig_width, 11.2),
+        figsize=(fig_width, 12.0),
         sharex=True,
-        gridspec_kw={"height_ratios": [3.2, 1.95], "hspace": 0.05},
+        gridspec_kw={"height_ratios": [3.2, 2.25], "hspace": 0.05},
     )
 
     for idx, row in iteration_meta.iterrows():
@@ -1141,6 +1186,27 @@ def plot_annealed_row_timeline(
             },
         )
 
+    timeout_rows = row_df[row_df["status"] == "UNKNOWN"].copy()
+    for _, row in timeout_rows.iterrows():
+        if pd.isna(row["current_area_after_row"]):
+            continue
+        ax_plot.annotate(
+            f"{row['cell_label']}\n{row['cell_runtime_label']}",
+            (row["row_index"], row["current_area_after_row"]),
+            xytext=(0, 13),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=6.8,
+            color=STATUS_COLORS["UNKNOWN"],
+            bbox={
+                "boxstyle": "round,pad=0.12",
+                "facecolor": "#fffaf5",
+                "edgecolor": "none",
+                "alpha": 0.82,
+            },
+        )
+
     for _, row in iteration_meta.iterrows():
         ax_plot.axvline(row["row_end"] + 0.5, color="#b9ac9c", linewidth=0.8, alpha=0.65, zorder=1)
 
@@ -1164,12 +1230,13 @@ def plot_annealed_row_timeline(
     ax_plot.legend(loc="upper right", ncol=2)
 
     note_rows = [
-        ("rows", "row_span_label"),
-        ("out", "out_label"),
-        ("result", "status_label"),
-        ("area", "area_label"),
-        ("S/U/?/D", "grid_summary"),
-        ("time", "elapsed_label"),
+        ("iter", "iteration"),
+        ("elapsed", "elapsed_label"),
+        ("cell", "cell_label"),
+        ("result", "status_short"),
+        ("cell time", "cell_runtime_label"),
+        ("row area", "row_area_label"),
+        ("current area", "current_area_label"),
     ]
     ax_notes.set_xlim(0.5, row_count + 0.5)
     ax_notes.set_ylim(0, len(note_rows))
@@ -1187,40 +1254,42 @@ def plot_annealed_row_timeline(
             fontweight="bold",
             color=TEXT,
         )
-        for idx, data in iteration_meta.iterrows():
-            span_width = float(data["row_end"] - data["row_start"] + 1.0)
-            base_fill = PANEL if idx % 2 else "#f4eee6"
+        for _, data in row_df.iterrows():
+            x = float(data["row_index"])
+            base_fill = PANEL if int(x) % 2 else "#f4eee6"
             facecolor = base_fill
-            if column == "status_label":
+            if column == "status_short":
                 facecolor = STATUS_BACKGROUNDS.get(str(data["status"]), base_fill)
-            elif column == "area_label" and bool(data["accepted"]):
+            elif column in {"row_area_label", "current_area_label"} and str(data["status"]) == "SAT":
                 facecolor = "#eef7f0"
 
             rect = Rectangle(
-                (data["row_start"] - 0.5, y),
-                data["row_end"] - data["row_start"] + 1.0,
+                (x - 0.5, y),
+                1.0,
                 1.0,
                 facecolor=facecolor,
                 edgecolor=GRID,
                 linewidth=0.8,
             )
             ax_notes.add_patch(rect)
-            color = STATUS_COLORS.get(str(data["status"]), TEXT) if column == "status_label" else TEXT
+            color = STATUS_COLORS.get(str(data["status"]), TEXT) if column == "status_short" else TEXT
+            rotation = 0 if column == "status_short" else 90
+            fontsize = 6.3 if column in {"cell_label", "cell_runtime_label", "elapsed_label"} else 5.9
             ax_notes.text(
-                data["row_mid"],
+                x,
                 y + 0.5,
                 str(data[column]),
                 ha="center",
                 va="center",
-                fontsize=7.0 if span_width <= 2.0 else 7.3,
+                fontsize=fontsize,
                 color=color,
-                rotation=90 if span_width <= 2.0 else 0,
+                rotation=rotation,
             )
 
     fig.text(
         0.5,
         0.02,
-        "Rows are sorted by iteration while preserving their original order inside each iteration. The main line forward-fills the last accepted area across UNSAT and UNKNOWN rows so plateaus show how much of the CSV was spent without improving area.",
+        "Rows are sorted by iteration while preserving their original order inside each iteration. The lower panel is cell-level: every grid row shows elapsed cumulative time, explored cell, result, per-cell runtime, row area, and current accepted area. UNKNOWN markers on the plot show the timeout cell and runtime.",
         ha="center",
         va="bottom",
         fontsize=9,
@@ -1261,6 +1330,7 @@ def main() -> None:
     row_df, iteration_meta = build_row_timeline_tables(annealed_case)
     annealed_timeline_csv = output_dir / "mul_i16_o16_pareto_annealed_row_timeline.csv"
     annealed_timeline_png = output_dir / "mul_i16_o16_pareto_annealed_row_timeline.png"
+    main_annealed_timeline_png = output_dir / "mul_i16_o16_main_pareto_annealed_row_timeline.png"
     row_export = row_df.merge(
         iteration_meta[
             [
@@ -1277,6 +1347,7 @@ def main() -> None:
     )
     row_export.to_csv(annealed_timeline_csv, index=False)
     plot_annealed_row_timeline(row_df, iteration_meta, annealed_timeline_png)
+    plot_annealed_row_timeline(row_df, iteration_meta, main_annealed_timeline_png)
 
     print(f"Wrote dashboard CSV to {dashboard_csv}")
     print(f"Wrote dashboard plot to {dashboard_png}")
@@ -1284,6 +1355,7 @@ def main() -> None:
     print(f"Wrote pareto story plot to {pareto_story_png}")
     print(f"Wrote annealed row timeline CSV to {annealed_timeline_csv}")
     print(f"Wrote annealed row timeline plot to {annealed_timeline_png}")
+    print(f"Wrote main annealed row timeline plot to {main_annealed_timeline_png}")
 
 
 if __name__ == "__main__":
