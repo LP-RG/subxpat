@@ -475,17 +475,23 @@ def store_current_model(cur_model_result: Dict, benchmark_name: str, et: int, en
         )
         csvwriter.writerow(approx_data)
 
+import time
+import json
+import os
 
 def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     """This function adds the labels inplace to the given graph"""
 
     # TODO: Xiaozihan
     # Update this function to use the "partition and propagate" algorithm if the specifications ask for it
+    start_time = time.time()
 
     # compute weights
     if specs_obj.labelling_algorithm == LabellingAlgorithmType.PP:
-        print(" P&P...")
-        weights = compute(graph.graph)
+        weights,_ = compute(graph.graph,False)
+
+    elif specs_obj.labelling_algorithm == LabellingAlgorithmType.SPP:
+        weights,_ = compute(graph.graph,True)
 
     elif specs_obj.labelling_algorithm == LabellingAlgorithmType.SUM:
         
@@ -496,6 +502,40 @@ def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
             partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
             parallel=specs_obj.parallel
           )
+         
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+
+    num_nodes = len(graph.graph.nodes)
+
+    output_data = {
+    "circuit_name": graph.name,
+    "algorithm": specs_obj.labelling_algorithm.value,
+    "num_nodes": num_nodes,
+    "time_seconds": elapsed_time,
+    "time_per_node": elapsed_time / num_nodes if num_nodes > 0 else 0,
+    "weights": weights  
+    }
+
+    output_dir = os.path.join('sxpat', 'labelling', 'weight_outputs')
+
+    # 2. Check and create the directory
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # 3. Construct the complete file path
+    file_name = f"results_{specs_obj.labelling_algorithm.value}_{graph.name}.json"
+    file_path = os.path.join(output_dir, file_name)
+
+    # 4. Write data
+    with open(file_path, 'w') as f:
+        json.dump(output_data, f, indent=4)
+
+
+    # 5. Task completed, stop running.
+    import sys
+    sys.exit(0)
+
 
     # apply weights to graph
     inner_graph: nx.DiGraph = graph.graph
