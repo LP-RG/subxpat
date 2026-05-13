@@ -211,7 +211,7 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missin
         if isinstance(graph[name], PlaceHolder): continue
 
         node = graph[name]
-        new_nodes[node.name] = BoolConstant(node.name, value, node.weight, node.in_subgraph)
+        new_nodes[node.name] = BoolConstant(node.name, node.weight, node.in_subgraph, value)
 
     return graph.copy(new_nodes.values())
 
