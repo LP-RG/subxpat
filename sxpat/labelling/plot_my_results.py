@@ -102,4 +102,5 @@ def plot_bottom_left_comparison():
 if __name__ == "__main__":
     plot_top_left('adder_i16_o9')
     plot_top_left('abs_diff_i16_o8')
+    plot_top_left('mul_i16_o16')
     plot_bottom_left_comparison()
