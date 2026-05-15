@@ -66,7 +66,7 @@ class ConstantFalseType(enum.Enum):
 # TODO: Xiaozihan
 # Create an enumerator for the different labelling algorithms
 class LabellingAlgorithmType(enum.Enum):
-    SUM = "sum"   # direct sum
+    SIM = "sim"   # exact error simulation
     PP = "pp"    # Partition and Propagate 
     SPP = "spp"   # Smart Partition and Propagate ：Adding logical cone partitioning + greedy merging
     

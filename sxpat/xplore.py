@@ -128,6 +128,8 @@ def explore_grid(specs_obj: Specifications):
 
             # second iteration: restore state
             elif specs_obj.iteration == 2:
+                import sys
+                sys.exit(0)
                 # restore specifications values
                 specs_obj.min_labeling = saved_min_labeling
                 specs_obj.extraction_mode = saved_exctraction_mode
@@ -493,7 +495,7 @@ def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
     elif specs_obj.labelling_algorithm == LabellingAlgorithmType.SPP:
         weights,_ = compute(graph.graph,True)
 
-    elif specs_obj.labelling_algorithm == LabellingAlgorithmType.SUM:
+    elif specs_obj.labelling_algorithm == LabellingAlgorithmType.SIM:
         
          ET_COEFFICIENT = 1
          weights, _ = labeling_explicit(
@@ -533,8 +535,8 @@ def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> None:
 
 
     # 5. Task completed, stop running.
-    import sys
-    sys.exit(0)
+    # import sys
+    # sys.exit(0)
 
 
     # apply weights to graph
