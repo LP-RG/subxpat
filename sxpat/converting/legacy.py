@@ -1,45 +1,63 @@
+from typing import Type, Union
+
+import functools
+import networkx as nx
+
 from sxpat.annotatedGraph import AnnotatedGraph
 
 from sxpat.graph import IOGraph, SGraph
-from sxpat.graph.node import BoolVariable, BoolConstant, And, Not, Identity
+from sxpat.graph.builder import GraphBuilder
+from sxpat.graph.node import BoolVariable, BoolConstant, And, Extras, Node, Not, Identity
+
 from sxpat.utils.functions import str_to_bool
 
 
 __all__ = ['iograph_from_legacy', 'sgraph_from_legacy']
 
 
-def _nodes_from_inner_legacy(inner_graph):
-    nodes = list()
-    for (name, value) in inner_graph.nodes(True):
+def _add_nodes_from_legacy(builder: GraphBuilder, digraph: nx.digraph.DiGraph) -> GraphBuilder:
+    def get_type(label: str) -> Type[Union[Node, Extras]]:
+        if label.startswith('in'): return BoolVariable
+        elif label.startswith('out'): return Identity
+        elif label == 'and': return And
+        elif label == 'not': return Not
+        elif label in ('FALSE', 'TRUE'): return functools.partial(BoolConstant, value=str_to_bool(label))
+        else: raise RuntimeError(f'Unable to parse node {name} from AnnotatedGraph ({value})')
+
+    # add all nodes (and edges)
+    for (name, value) in digraph.nodes(True):
         # get features
         label = value.get('label')
         weight = value.get('weight', None)
         in_subgraph = bool(value.get('subgraph', False))
-        operands = inner_graph.predecessors(name)
+        operands = digraph.predecessors(name)
 
-        # create node
-        if label.startswith('in'):  # input
-            nodes.append(BoolVariable(name, weight, in_subgraph))
-        elif label.startswith('out'):  # output
-            nodes.append(Identity(name, operands, weight, in_subgraph))
-        elif label in ('and', 'not'):  # and/not
-            cls = {'not': Not, 'and': And}[label]
-            nodes.append(cls(name, operands, weight, in_subgraph))
-        elif label in ('FALSE', 'TRUE'):  # constant
-            nodes.append(BoolConstant(name, str_to_bool(label), weight, in_subgraph))
-        else:
-            raise RuntimeError(f'Unable to parse node {name} from AnnotatedGraph ({value})')
-
-    return nodes
+        # add node
+        builder.add_node(name, get_type(label), weight=weight, in_subgraph=in_subgraph)
+        if digraph.in_degree(name) > 0: builder.add_operands(operands)
 
 
 def iograph_from_legacy(l_graph: AnnotatedGraph) -> IOGraph:
-    return IOGraph(_nodes_from_inner_legacy(l_graph.graph),
-                   l_graph.input_dict.values(),
-                   l_graph.output_dict.values())
+    return (
+        GraphBuilder()
+        # add nodes
+        .update_with(_add_nodes_from_legacy, l_graph.graph)
+        # mark inputs/outputs
+        .mark_inputs(l_graph.input_dict.values())
+        .mark_outputs(l_graph.output_dict.values())
+        #
+        .build(IOGraph)
+    )
 
 
 def sgraph_from_legacy(l_graph: AnnotatedGraph) -> SGraph:
-    return SGraph(_nodes_from_inner_legacy(l_graph.subgraph),
-                  l_graph.input_dict.values(),
-                  l_graph.output_dict.values())
+    return (
+        GraphBuilder()
+        # add nodes
+        .update_with(_add_nodes_from_legacy, l_graph.subgraph)
+        # mark inputs/outputs
+        .mark_inputs(l_graph.input_dict.values())
+        .mark_outputs(l_graph.output_dict.values())
+        #
+        .build(SGraph)
+    )

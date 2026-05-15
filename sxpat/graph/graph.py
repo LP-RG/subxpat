@@ -9,13 +9,12 @@ import functools as ft
 import itertools as it
 
 from .node import (
-    AnyVariable, BoolConstant, Expression, Extras, Node, Operation, Constant, GlobalTask,
+    BoolConstant, BoolVariable, Constraint, PlaceHolder, Target,
     #
-    BoolVariable, PlaceHolder,
-    Target, Constraint,
+    Expression, Extras, Node, Operation, Constant, GlobalTask, Variable,
     #
     AnyNode, AnyConstant, AnyOperation, AnyExpression, AnyGlobalObjective,
-    AnyNonEndPoint, AnyNonEntryPoint, Variable,
+    AnyNonEndPoint, AnyNonEntryPoint, AnyVariable,
 )
 from .error import UndefinedNodeError
 
