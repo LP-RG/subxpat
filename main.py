@@ -12,7 +12,7 @@ def main():
 
     # > create wanted directories
     from sxpat.utils.filesystem import FS
-    for dir in specs_obj.path.run.folders: FS.mkdir(dir)
+    for _dir in specs_obj.path.run.folders: FS.mkdir(_dir)
 
     # > prepare storage
     from sxpat.utils.storage import LiveStorage, AppendStorage
@@ -37,7 +37,7 @@ def main():
 
     except BaseException as ex:
         # if exception
-        specs_obj.details_storage.add(exception=ex)
+        specs_obj.details_storage.add(exception=repr(ex))
         raise ex
 
     finally:
