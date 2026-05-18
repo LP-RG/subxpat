@@ -4,6 +4,10 @@ def main():
     from instrumentations.import_timer import ImportTimer
     import_timer = ImportTimer.instrument()
 
+    # misc
+    from sxpat.utils.timer import Timer
+    start_time = Timer.now()
+
     # > parse arguments and prepare specifications
     from sxpat.specifications import Specifications
     specs_obj = Specifications.parse_args()
@@ -21,13 +25,11 @@ def main():
 
     # > run system
     from sxpat.xplore import explore_grid, print_results
-    from sxpat.utils.timer import Timer
     #
     try:
-        _t0 = Timer.now()
         specs_obj.details_storage.add(specs_obj.constant_fields)
 
-        #
+        # run the exploration
         results = explore_grid(specs_obj)
         # print results for each relevance of metrics
         print_results(results)
@@ -42,7 +44,7 @@ def main():
 
     finally:
         # timings
-        _td = Timer.now() - _t0
+        _td = Timer.now() - start_time
         print(f'total_time = {_td}')
         specs_obj.details_storage.add(total_time=_td)
         specs_obj.details_storage.add(import_time=import_timer.time)
