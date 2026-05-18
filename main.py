@@ -35,10 +35,9 @@ def main():
         # if no exception
         specs_obj.details_storage.add(exception='')
 
-    except Exception as ex:
+    except BaseException as ex:
         # if exception
         specs_obj.details_storage.add(exception=ex)
-
         raise ex
 
     finally:
