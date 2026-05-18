@@ -23,21 +23,33 @@ def main():
     from sxpat.xplore import explore_grid, print_results
     from sxpat.utils.timer import Timer
     #
-    with specs_obj.stats_storage, specs_obj.details_storage:
+    try:
+        _t0 = Timer.now()
         specs_obj.details_storage.add(specs_obj.constant_fields)
 
         #
-        _t = Timer.now()
         results = explore_grid(specs_obj)
-        _t = Timer.now() - _t
-        print(f'total_time = {_t}')
-        specs_obj.details_storage.add(total_time=_t)
-
         # print results for each relevance of metrics
         print_results(results)
 
-        # misc
+        # if no exception
+        specs_obj.details_storage.add(exception='')
+
+    except BaseException as ex:
+        # if exception
+        specs_obj.details_storage.add(exception=ex)
+        raise ex
+
+    finally:
+        # timings
+        _td = Timer.now() - _t0
+        print(f'total_time = {_td}')
+        specs_obj.details_storage.add(total_time=_td)
         specs_obj.details_storage.add(import_time=import_timer.time)
+
+        # gracefully close storages
+        specs_obj.stats_storage.save()
+        specs_obj.details_storage.close()
 
     # > remove temporary files
     if not specs_obj.debug: FS.rmdir(specs_obj.path.run.temporary, True)
@@ -50,5 +62,6 @@ def main():
         archive_files(archive_path, specs_obj.path.run.base_folder)
         # delete raw files
         if not specs_obj.debug: FS.rmdir(specs_obj.path.run.base_folder, recursive=True)
+
 
 if __name__ == '__main__': main()
