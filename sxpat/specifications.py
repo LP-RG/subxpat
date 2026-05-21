@@ -194,6 +194,9 @@ class Specifications:
     num_subgraphs: int
     max_sensitivity: int
     sensitivity: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
+    persistance: int
+    persistance_counter: int = dc.field(init=False, default=0)  # rw
+    out_node: int = dc.field(init=False, default=0)  # rw\
 
     # exploration (1)
     subxpat: bool
@@ -334,7 +337,7 @@ class Specifications:
 
         _ex_mode = _subex_group.add_argument('--extraction-mode', '--mode',
                                              type=int,
-                                             choices=[1, 2, 3, 4, 5, 55, 6, 11, 12, 42],
+                                             choices=[0, 1, 2, 3, 4, 5, 55, 6, 11, 12, 42],
                                              default=55,
                                              help='Subgraph extraction algorithm to use (default: 55)')
 
@@ -351,6 +354,10 @@ class Specifications:
         _msens = _subex_group.add_argument('--max-sensitivity',
                                            type=int,
                                            help='Maximum partitioning sensitivity')
+        
+        _persistance = _subex_group.add_argument('--persistance',
+                                          type=int,
+                                          help='max-persistance for subgraph extraction 0')
 
         _msub_size = _subex_group.add_argument('--min-subgraph-size',
                                                type=int,
