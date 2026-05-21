@@ -270,7 +270,10 @@ class AnnotatedGraph(Graph):
 
         else:
             if specs_obj.requires_subgraph_extraction:
-                if specs_obj.extraction_mode == 1:
+                if specs_obj.extraction_mode == 0:
+                    pprint.info2(f"Partition with hard constraints, imax={specs_obj.imax}, omax={specs_obj.omax}, assumptions, and BitVec, DataType. Looking for largest partition for smallest possible threshold")
+                    subgraph_nodes = self.find_subgraph_output_nodes_ascendant(specs_obj)
+                elif specs_obj.extraction_mode == 1:
                     pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
                     subgraph_nodes = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
 
@@ -1668,6 +1671,248 @@ class AnnotatedGraph(Graph):
 
         return [self.gate_dict[idx] for idx in node_partition]
 
+    def find_subgraph_output_nodes_ascendant(self, specs_obj: Specifications):
+        WEIGHT_BITS = self.num_outputs
+        CONS_BITS = 1
+        GATE_BITS = math.log2(self.num_gates) + 1
+        IN_BITS = self.num_inputs
+
+        omax = specs_obj.omax
+        imax = specs_obj.imax
+
+        opt = Optimize()
+
+        Node = Datatype('Node')
+        Node.declare('mk_node', ('id', BitVecSort(32)), ('in_subgraph', BoolSort()))
+        Node = Node.create()
+
+        Edge = Datatype('Edge')
+        Edge.declare('mk_edge', ('source', Node), ('target', Node))
+        Edge = Edge.create()
+
+        nodes = {}
+        edges = []
+        specs_obj.out_node
+
+        output_node_label = self.output_dict.get(specs_obj.out_node)
+        if output_node_label is None:
+            print(f"Error: output node {specs_obj.out_node} not in output_dict.")
+            return self.graph
+
+        if output_node_label not in self.graph.nodes:
+            print(f"Error: output node '{output_node_label}' doesn't exist.")
+            return self.graph
+
+        list_of_constant_node = self.extract_constants()
+
+        output_node_label = self.output_dict.get(specs_obj.out_node)
+        if output_node_label is None:
+            print(f"Error: output node {specs_obj.out_node} not in output_dict.")
+            return self.graph
+
+        if output_node_label not in self.graph.nodes:
+            print(f"Error: output'{output_node_label}' doesn't exist.")
+            return self.graph
+
+        ancestors_output = ordered_ancestors(self.graph, output_node_label)
+        list_of_ancestors = [node for node in ancestors_output if str(node).startswith("g")]
+
+        print(list_of_ancestors)
+
+        list_of_constant_node = self.extract_constants()
+        print(list_of_constant_node)
+
+        if (len(list_of_ancestors) == 1 and
+            list_of_ancestors[0] in list_of_constant_node.values()):
+            print(f"Skipping node {output_node_label}")
+            specs_obj.out_node += 1
+            output_node_label = self.output_dict.get(specs_obj.out_node)
+            ancestors_output = ordered_ancestors(self.graph, output_node_label)
+
+        for in_idx in self.input_dict:
+            node_label = self.input_dict[in_idx]
+            node = Node.mk_node(BitVecVal(in_idx, 32), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(in_idx, 32))
+            opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+
+        for g_idx in self.gate_dict:
+            node_label = self.gate_dict[g_idx]
+            node = Node.mk_node(BitVecVal(g_idx, 32), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(g_idx, 32))
+            if node_label not in ancestors_output:
+                opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+
+        for o_idx in self.output_dict:
+            node_label = self.output_dict[o_idx]
+            node = Node.mk_node(BitVecVal(o_idx, 32), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(o_idx, 32))
+            opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+
+        for c_idx in self.constant_dict:
+            node_label = self.constant_dict[c_idx]
+            node = Node.mk_node(BitVecVal(c_idx, 32), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(c_idx, 32))
+            opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+
+        for src, des in self.graph.edges:
+            edge = Edge.mk_edge(nodes[src], nodes[des])
+            opt.add(Edge.source(edge) == nodes[src])
+            opt.add(Edge.target(edge) == nodes[des])
+            edges.append(edge)
+
+        unique_outgoing_edges = []
+        unique_incoming_edges = []
+
+        for node_label in nodes:
+            outgoing_conditions = []
+            incoming_conditions = []
+
+            for src, des in self.graph.edges(node_label):
+                if src == node_label:
+                    outgoing_conditions.append(
+                        And(Node.in_subgraph(nodes[src]),
+                            Not(Node.in_subgraph(nodes[des])))
+                    )
+                    incoming_conditions.append(
+                        And(Not(Node.in_subgraph(nodes[src])),
+                            Node.in_subgraph(nodes[des]))
+                    )
+
+            if outgoing_conditions:
+                unique_outgoing_edges.append(
+                    If(Or(outgoing_conditions),
+                    BitVecVal(1, 32),
+                    BitVecVal(0, 32))
+                )
+
+            if incoming_conditions:
+                unique_incoming_edges.append(
+                    If(Or(incoming_conditions),
+                    BitVecVal(1, 32),
+                    BitVecVal(0, 32))
+                )
+
+        max_nodes = [
+            If(Node.in_subgraph(node),
+            BitVecVal(1, 32),
+            BitVecVal(0, 32))
+            for node in nodes.values()
+        ]
+
+        descendants = {}
+        ancestors = {}
+
+        for node in nodes:
+            if node not in descendants:
+                descendants[node] = ordered_descendants(self.graph, node)
+            if node not in ancestors:
+                ancestors[node] = ordered_ancestors(self.graph, node)
+
+        for src in nodes:
+            for des in self.graph.successors(src):
+
+                if len(descendants[des]) > 0:
+                    not_descendants = [
+                        Not(Node.in_subgraph(nodes[l]))
+                        for l in descendants[des]
+                    ]
+                    not_descendants.append(
+                        Not(Node.in_subgraph(nodes[des]))
+                    )
+
+                    descendant_condition = Implies(
+                        And(Node.in_subgraph(nodes[src]),
+                            Not(Node.in_subgraph(nodes[des]))),
+                        And(not_descendants)
+                    )
+                    opt.add(descendant_condition)
+
+                if len(ancestors[src]) > 0:
+                    not_ancestors = [
+                        Not(Node.in_subgraph(nodes[l]))
+                        for l in ancestors[src]
+                    ]
+                    not_ancestors.append(
+                        Not(Node.in_subgraph(nodes[src]))
+                    )
+
+                    ancestor_condition = Implies(
+                        And(Not(Node.in_subgraph(nodes[src])),
+                            Node.in_subgraph(nodes[des])),
+                        And(not_ancestors)
+                    )
+                    opt.add(ancestor_condition)
+
+        opt.add(Sum(unique_incoming_edges) <= imax)
+        opt.add(Sum(unique_outgoing_edges) <= omax)
+
+        opt.maximize(Sum(max_nodes))
+
+        res = opt.check()
+        node_partition = []
+
+        if res == sat:
+            n_nodes = 0
+            pprint.success("subgraph found -> SAT\n", end='')
+            m = opt.model()
+            for t in m.decls():
+                if str(t).startswith('g'):
+                    if is_true(m[t]):
+                        node_partition.append(str(t))
+                        n_nodes += 1
+        else:
+            pprint.warning("subgraph not found -> UNSAT\n")
+
+        ascendenti = [
+            node for node in ancestors_output
+            if node.startswith("g")
+        ]
+
+        print(f"node partition = {node_partition}")
+        print(f"all ascendants = {ascendenti}")
+
+        set_node_partition = set(node_partition)
+        set_all_ascendants = set(ascendenti)
+
+        if set_node_partition == set_all_ascendants:
+            specs_obj.out_node += 1
+            specs_obj.persistance_counter = 0
+        else:
+            if specs_obj.persistance_counter == specs_obj.persistance:
+                specs_obj.out_node += 1
+                specs_obj.persistance_counter = 0
+            else:
+                specs_obj.persistance_counter += 1
+
+        tmp_graph = self.graph.copy(as_view=False)
+
+        for i in range(len(node_partition) - 1):
+            for j in range(i + 1, len(node_partition)):
+                u = node_partition[i]
+                v = node_partition[j]
+                try:
+                    path = nx.shortest_path(tmp_graph, source=u, target=v)
+                    all_nodes_in_partition = True
+                    for n in path:
+                        if n not in node_partition:
+                            all_nodes_in_partition = False
+                    if not all_nodes_in_partition:
+                        print("Partition is not convex")
+                        exit(0)
+                except nx.exception.NetworkXNoPath:
+                    pass
+
+        node_partition_idx = [
+            int(re.search('g(\d+)', node).group(1))
+            for node in node_partition
+        ]
+        return [self.gate_dict[idx] for idx in node_partition_idx]
+
+
     def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
@@ -2995,3 +3240,45 @@ class AnnotatedGraph(Graph):
                 idx += 1
                 self.color_subgraph_node(n, WHITE)
         return tmp_fanout_dict
+
+def ordered_ancestors(graph: nx.DiGraph, source, order_topologically: bool = False):
+    """
+        Returns the ancestors of a `source` node inside a `graph`,
+        in the unique lexicographical order, or the unique reversed lexicographical topological order.
+
+        @authors: Marco Biasion
+    """
+
+    raw_ancestors = nx.ancestors(graph, source)
+
+    if order_topologically:
+        ordered_ancestors = [
+            node
+            for node in nx.lexicographical_topological_sort(graph)
+            if node in raw_ancestors
+        ]
+        ordered_ancestors.reverse()
+        return ordered_ancestors
+    else:
+        return sorted(raw_ancestors)
+
+
+def ordered_descendants(graph: nx.DiGraph, source, order_topologically: bool = False):
+    """
+        Returns the descendants of a `source` node inside a `graph`,
+        in the unique lexicographical order, or the unique lexicographical topological order
+
+        @authors: Marco Biasion
+    """
+
+    raw_ancestors = nx.descendants(graph, source)
+
+    if order_topologically:
+        ordered_ancestors = [
+            node
+            for node in nx.lexicographical_topological_sort(graph)
+            if node in raw_ancestors
+        ]
+        return ordered_ancestors
+    else:
+        return sorted(raw_ancestors)
