@@ -1717,15 +1717,19 @@ class AnnotatedGraph(Graph):
         ancestors_output = ordered_ancestors(self.graph, output_node_label)
         list_of_ancestors = [node for node in ancestors_output if str(node).startswith("g")]
 
-        print(list_of_ancestors)
+        # print(list_of_ancestors)
 
         list_of_constant_node = self.extract_constants()
-        print(list_of_constant_node)
+        # print(list_of_constant_node)
 
         if (len(list_of_ancestors) == 1 and
             list_of_ancestors[0] in list_of_constant_node.values()):
             print(f"Skipping node {output_node_label}")
             specs_obj.out_node += 1
+            specs_obj.persistance_counter = 0
+            if specs_obj.out_node >= specs_obj.outputs:
+                print(f'reached last possible node, returning empty subgraph')
+                return []
             output_node_label = self.output_dict.get(specs_obj.out_node)
             ancestors_output = ordered_ancestors(self.graph, output_node_label)
 
@@ -1872,21 +1876,21 @@ class AnnotatedGraph(Graph):
             if node.startswith("g")
         ]
 
-        print(f"node partition = {node_partition}")
-        print(f"all ascendants = {ascendenti}")
+        # print(f"node partition = {node_partition}")
+        # print(f"all ascendants = {ascendenti}")
 
         set_node_partition = set(node_partition)
         set_all_ascendants = set(ascendenti)
 
-        if set_node_partition == set_all_ascendants:
+        # if set_node_partition == set_all_ascendants:
+        #     specs_obj.out_node += 1
+        #     specs_obj.persistance_counter = 0
+        # else:
+        if specs_obj.persistance_counter == specs_obj.persistance:
             specs_obj.out_node += 1
             specs_obj.persistance_counter = 0
         else:
-            if specs_obj.persistance_counter == specs_obj.persistance:
-                specs_obj.out_node += 1
-                specs_obj.persistance_counter = 0
-            else:
-                specs_obj.persistance_counter += 1
+            specs_obj.persistance_counter += 1
 
         tmp_graph = self.graph.copy(as_view=False)
 
