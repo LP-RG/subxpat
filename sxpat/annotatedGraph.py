@@ -381,6 +381,24 @@ class AnnotatedGraph(Graph):
         
     def find_subgraph_output_nodes_ascendant(self, specs_obj: Specifications):
         total_s = time.time()
+        specs_obj.ancestor_gate_count = None
+        specs_obj.selected_subgraph_gate_count = None
+        specs_obj.ancestor_coverage_ratio = None
+        specs_obj.persistence_limit_used = None
+        specs_obj.persistence_counter_before = specs_obj.persistence_counter
+        specs_obj.persistence_counter_after = specs_obj.persistence_counter
+
+        def dynamic_persistence_limit(coverage_ratio) -> int:
+            if not specs_obj.dynamic_persistence or coverage_ratio is None:
+                return int(specs_obj.persistance)
+            max_limit = int(specs_obj.dynamic_persistence_max)
+            if coverage_ratio >= float(specs_obj.dynamic_persistence_high_coverage):
+                return 0
+            if coverage_ratio >= float(specs_obj.dynamic_persistence_mid_coverage):
+                return min(1, max_limit)
+            if coverage_ratio >= float(specs_obj.dynamic_persistence_low_coverage):
+                return min(2, max_limit)
+            return max_limit
 
         def empty_subgraph_graph() -> nx.DiGraph:
             empty_graph = nx.DiGraph(self.graph)
@@ -597,16 +615,47 @@ class AnnotatedGraph(Graph):
 
         set_node_partition = set(node_partition)
         set_all_ascendants = set(ascendenti)
+        ancestor_gate_count = len(set_all_ascendants)
+        selected_subgraph_gate_count = len(set_node_partition)
+        ancestor_coverage_ratio = (
+            selected_subgraph_gate_count / ancestor_gate_count
+            if ancestor_gate_count > 0 else None
+        )
+        persistence_limit_used = (
+            0
+            if set_node_partition == set_all_ascendants
+            else dynamic_persistence_limit(ancestor_coverage_ratio)
+        )
+        persistence_counter_before = int(specs_obj.persistence_counter)
+
+        specs_obj.ancestor_gate_count = ancestor_gate_count
+        specs_obj.selected_subgraph_gate_count = selected_subgraph_gate_count
+        specs_obj.ancestor_coverage_ratio = ancestor_coverage_ratio
+        specs_obj.persistence_limit_used = persistence_limit_used
+        specs_obj.persistence_counter_before = persistence_counter_before
 
         if set_node_partition == set_all_ascendants:
             specs_obj.out_node += 1
             specs_obj.persistence_counter = 0
         else:
-            if specs_obj.persistence_counter == specs_obj.persistance:
+            if specs_obj.persistence_counter >= persistence_limit_used:
                 specs_obj.out_node += 1
                 specs_obj.persistence_counter = 0
             else:
                 specs_obj.persistence_counter += 1
+        specs_obj.persistence_counter_after = specs_obj.persistence_counter
+
+        coverage_label = (
+            'n/a'
+            if ancestor_coverage_ratio is None
+            else f'{ancestor_coverage_ratio:.3f}'
+        )
+        print(
+            'ancestor/subgraph coverage = '
+            f'{selected_subgraph_gate_count}/{ancestor_gate_count} ({coverage_label}); '
+            f'persistence counter {persistence_counter_before}->{specs_obj.persistence_counter}; '
+            f'limit used {persistence_limit_used}'
+        )
 
         tmp_graph = self.graph.copy(as_view=False)
 

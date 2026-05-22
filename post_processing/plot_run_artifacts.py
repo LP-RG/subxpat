@@ -290,22 +290,63 @@ def make_trace_table(trace: pd.DataFrame, summary: Dict[str, Any]) -> pd.DataFra
 
 
 def make_grid_rows(grid: pd.DataFrame, trace_table: pd.DataFrame) -> pd.DataFrame:
-    if grid.empty:
+    cell_rows = pd.DataFrame()
+    if not grid.empty:
+        cell_rows = grid.copy().reset_index(drop=True)
+        cell_rows["source_row_index"] = range(1, len(cell_rows) + 1)
+        cell_rows["iteration"] = pd.to_numeric(cell_rows["iteration"], errors="coerce")
+        cell_rows = cell_rows.dropna(subset=["iteration"])
+        cell_rows["iteration"] = cell_rows["iteration"].astype(int)
+        cell_rows["runtime"] = pd.to_numeric(cell_rows.get("runtime", pd.Series(dtype=float)), errors="coerce")
+        cell_rows["area"] = pd.to_numeric(cell_rows.get("area", pd.Series(dtype=float)), errors="coerce")
+        cell_rows["status"] = cell_rows.get("status", pd.Series(["UNKNOWN"] * len(cell_rows))).fillna("UNKNOWN")
+        cell_rows["cell"] = cell_rows.get("cell", pd.Series(["-"] * len(cell_rows))).fillna("-").astype(str)
+        cell_rows["timeline_row_kind"] = "cell"
+
+    trace_only_rows = pd.DataFrame()
+    if not trace_table.empty:
+        existing_iterations = set(cell_rows["iteration"].unique()) if not cell_rows.empty else set()
+        trace_missing = trace_table[~trace_table["iteration"].isin(existing_iterations)].copy()
+        if not trace_missing.empty:
+            trace_only_rows = pd.DataFrame(
+                {
+                    "iteration": trace_missing["iteration"].astype(int),
+                    "source_row_index": 0,
+                    "status": trace_missing.get("status", pd.Series(["UNKNOWN"] * len(trace_missing))).fillna("UNKNOWN"),
+                    "runtime": pd.to_numeric(
+                        trace_missing.get("iteration_runtime_seconds", pd.Series(dtype=float)),
+                        errors="coerce",
+                    ),
+                    "area": pd.to_numeric(trace_missing.get("best_area", pd.Series(dtype=float)), errors="coerce"),
+                    "cell": trace_missing.get("selected_cell", pd.Series(["-"] * len(trace_missing))).fillna("-"),
+                    "out_node": trace_missing.get("out_node", pd.Series([math.nan] * len(trace_missing))),
+                    "current_area_after_row": pd.to_numeric(
+                        trace_missing.get("current_area", pd.Series(dtype=float)),
+                        errors="coerce",
+                    ),
+                    "timeline_row_kind": "trace",
+                }
+            )
+            trace_only_rows["cell"] = trace_only_rows["cell"].replace({"": "-", "nan": "-"}).fillna("-").astype(str)
+
+    rows = pd.concat([cell_rows, trace_only_rows], ignore_index=True, sort=False)
+    if rows.empty:
         return pd.DataFrame()
-    rows = grid.copy().reset_index(drop=True)
-    rows["source_row_index"] = range(1, len(rows) + 1)
-    rows["iteration"] = pd.to_numeric(rows["iteration"], errors="coerce")
-    rows = rows.dropna(subset=["iteration"]).sort_values(["iteration", "source_row_index"]).reset_index(drop=True)
-    rows["iteration"] = rows["iteration"].astype(int)
+
+    rows["source_row_index"] = pd.to_numeric(rows.get("source_row_index", pd.Series(dtype=float)), errors="coerce").fillna(0)
+    rows = rows.sort_values(["iteration", "source_row_index", "timeline_row_kind"]).reset_index(drop=True)
     rows["row_index"] = range(1, len(rows) + 1)
     rows["runtime"] = pd.to_numeric(rows.get("runtime", pd.Series(dtype=float)), errors="coerce")
     rows["area"] = pd.to_numeric(rows.get("area", pd.Series(dtype=float)), errors="coerce")
-    rows["current_area_after_row"] = rows["area"].ffill()
     rows["status"] = rows.get("status", pd.Series(["UNKNOWN"] * len(rows))).fillna("UNKNOWN")
     rows["cell_label"] = rows.get("cell", pd.Series(["-"] * len(rows))).fillna("-").astype(str)
     rows["cell_runtime_label"] = rows["runtime"].map(format_seconds)
     rows["status_short"] = rows["status"].map(short_status)
     rows["row_area_label"] = rows["area"].map(lambda value: format_float(value, 1))
+    if "current_area_after_row" not in rows.columns:
+        rows["current_area_after_row"] = math.nan
+    rows["current_area_after_row"] = pd.to_numeric(rows["current_area_after_row"], errors="coerce")
+    rows["current_area_after_row"] = rows["current_area_after_row"].fillna(rows["area"].ffill()).ffill()
     rows["current_area_label"] = rows["current_area_after_row"].map(lambda value: format_float(value, 1))
 
     if not trace_table.empty:
@@ -314,21 +355,48 @@ def make_grid_rows(grid: pd.DataFrame, trace_table: pd.DataFrame) -> pd.DataFram
             for column in (
                 "iteration",
                 "elapsed_label",
+                "out_node",
+                "ancestor_gate_count",
+                "selected_subgraph_gate_count",
                 "ancestor_coverage_ratio",
                 "persistence_limit_used",
                 "persistence_counter",
                 "persistence_counter_after",
+                "pareto_stagnation",
+                "pareto_classification",
+                "stop_reason",
             )
             if column in trace_table.columns
         ]
-        rows = rows.merge(trace_table[meta_columns].drop_duplicates("iteration"), on="iteration", how="left")
+        trace_meta = trace_table[meta_columns].drop_duplicates("iteration")
+        if "out_node" in rows.columns and "out_node" in trace_meta.columns:
+            rows = rows.rename(columns={"out_node": "grid_out_node"})
+            trace_meta = trace_meta.rename(columns={"out_node": "trace_out_node"})
+        rows = rows.merge(trace_meta, on="iteration", how="left")
+        if "trace_out_node" in rows.columns:
+            rows["out_node"] = rows["trace_out_node"]
+            if "grid_out_node" in rows.columns:
+                rows["out_node"] = rows["out_node"].fillna(rows["grid_out_node"])
+
+    rows["out_node_label"] = rows.get("out_node", pd.Series([math.nan] * len(rows))).map(
+        lambda value: "-" if pd.isna(value) else f"o{int(value)}"
+    )
+    rows["subgraph_size_label"] = rows.apply(
+        lambda row: "-"
+        if pd.isna(row.get("selected_subgraph_gate_count")) or pd.isna(row.get("ancestor_gate_count"))
+        else f"{int(row['selected_subgraph_gate_count'])}/{int(row['ancestor_gate_count'])}",
+        axis=1,
+    )
     rows["coverage_label"] = rows.get("ancestor_coverage_ratio", pd.Series([math.nan] * len(rows))).map(
         lambda value: "-" if pd.isna(value) else f"{float(value):.2f}"
+    )
+    rows["patience_label"] = rows.get("pareto_stagnation", pd.Series([math.nan] * len(rows))).map(
+        lambda value: "-" if pd.isna(value) else str(int(value))
     )
     rows["persist_label"] = rows.apply(
         lambda row: "-"
         if pd.isna(row.get("persistence_limit_used"))
-        else f"{int(row.get('persistence_counter', 0))}->{int(row.get('persistence_counter_after', 0))}/{int(row['persistence_limit_used'])}",
+        else f"{int(row.get('persistence_counter', 0))}->{int(row.get('persistence_counter_after', 0))} L{int(row['persistence_limit_used'])}",
         axis=1,
     )
     if "elapsed_label" not in rows.columns:
@@ -492,9 +560,9 @@ def plot_row_timeline(rows: pd.DataFrame, summary: Dict[str, Any], output_path: 
     fig, (ax_plot, ax_notes) = plt.subplots(
         2,
         1,
-        figsize=(fig_width, 11.5),
+        figsize=(fig_width, 12.8),
         sharex=True,
-        gridspec_kw={"height_ratios": [3.0, 2.1], "hspace": 0.05},
+        gridspec_kw={"height_ratios": [3.0, 2.75], "hspace": 0.05},
     )
 
     spans = rows.groupby("iteration", as_index=False).agg(
@@ -567,9 +635,12 @@ def plot_row_timeline(rows: pd.DataFrame, summary: Dict[str, Any], output_path: 
         ("elapsed", "elapsed_label"),
         ("cell", "cell_label"),
         ("result", "status_short"),
+        ("patience", "patience_label"),
         ("cell time", "cell_runtime_label"),
+        ("sub/anc", "subgraph_size_label"),
+        ("out node", "out_node_label"),
         ("coverage", "coverage_label"),
-        ("persist", "persist_label"),
+        ("persist b->a L", "persist_label"),
         ("current area", "current_area_label"),
     ]
     ax_notes.set_xlim(0.5, row_count + 0.5)
@@ -585,14 +656,23 @@ def plot_row_timeline(rows: pd.DataFrame, summary: Dict[str, Any], output_path: 
             rect = Rectangle((x - 0.5, y), 1.0, 1.0, facecolor=facecolor, edgecolor=GRID, linewidth=0.75)
             ax_notes.add_patch(rect)
             rotation = 0 if column == "status_short" else 90
-            fontsize = 6.1 if column in {"cell_label", "elapsed_label", "cell_runtime_label", "persist_label"} else 5.8
+            fontsize = 6.1 if column in {"cell_label", "elapsed_label", "cell_runtime_label", "persist_label", "subgraph_size_label"} else 5.8
             color = STATUS_COLORS.get(str(data["status"]), TEXT) if column == "status_short" else TEXT
             ax_notes.text(x, y + 0.5, str(data.get(column, "-")), ha="center", va="center", fontsize=fontsize, rotation=rotation, color=color)
 
     fig.text(
         0.5,
         0.02,
-        "Rows preserve grid exploration order within each iteration. Coverage is selected_subgraph_gate_count / ancestor_gate_count; persist is counter_before->counter_after/limit.",
+        "Rows preserve grid exploration order within each iteration. sub/anc = selected subgraph gates / ancestor gates of the out node; coverage = sub/anc ratio.",
+        ha="center",
+        va="bottom",
+        fontsize=9,
+        color=MUTED,
+    )
+    fig.text(
+        0.5,
+        0.005,
+        "persist b->a L = persistence counter before->after, with dynamic limit L. Low coverage raises L, so the extractor may retry the same out node.",
         ha="center",
         va="bottom",
         fontsize=9,
@@ -741,6 +821,9 @@ def write_group_dashboard(group_dir: Path, records: Sequence[Dict[str, Any]], pl
     fig.savefig(plots_dir / "group_dashboard.png", dpi=180, bbox_inches="tight")
     plt.close(fig)
 
+    matrix_plot = write_sweep_matrix_plot(numeric, plots_dir / "sweep_matrix.png")
+    tradeoff_plot = write_tradeoff_plot(numeric, plots_dir / "area_runtime_tradeoff.png")
+
     index_lines = [
         f"# {group_dir.name}",
         "",
@@ -748,6 +831,8 @@ def write_group_dashboard(group_dir: Path, records: Sequence[Dict[str, Any]], pl
         "",
         "- [run_summary_table.csv](run_summary_table.csv)",
         "- [group_dashboard.png](group_dashboard.png)",
+        *([] if matrix_plot is None else ["- [sweep_matrix.png](sweep_matrix.png)"]),
+        *([] if tradeoff_plot is None else ["- [area_runtime_tradeoff.png](area_runtime_tradeoff.png)"]),
         "",
         "## Runs",
         "",
@@ -758,6 +843,142 @@ def write_group_dashboard(group_dir: Path, records: Sequence[Dict[str, Any]], pl
         index_lines.append(f"- [{row.run}]({rel})")
     (plots_dir / "index.md").write_text("\n".join(index_lines) + "\n")
     return plots_dir
+
+
+def write_sweep_matrix_plot(table: pd.DataFrame, output_path: Path) -> Optional[Path]:
+    required = {"beta", "aet", "grid_lpp", "grid_ppo", "best_area", "runtime_hours"}
+    if not required.issubset(table.columns):
+        return None
+    frame = table.dropna(subset=list(required)).copy()
+    if frame.empty:
+        return None
+
+    frame["beta"] = frame["beta"].astype(int)
+    frame["aet"] = frame["aet"].astype(int)
+    frame["grid_lpp"] = frame["grid_lpp"].astype(int)
+    frame["grid_ppo"] = frame["grid_ppo"].astype(int)
+    frame["grid_label"] = frame["grid_lpp"].astype(str) + "x" + frame["grid_ppo"].astype(str)
+    frame["beta_grid"] = "b" + frame["beta"].astype(str) + " " + frame["grid_label"]
+
+    ordered_columns = [
+        f"b{beta} {grid}"
+        for beta in sorted(frame["beta"].unique())
+        for grid in sorted(frame.loc[frame["beta"] == beta, "grid_label"].unique())
+    ]
+    area_matrix = frame.pivot_table(index="aet", columns="beta_grid", values="best_area", aggfunc="first")
+    runtime_matrix = frame.pivot_table(index="aet", columns="beta_grid", values="runtime_hours", aggfunc="first")
+    area_matrix = area_matrix.reindex(columns=[col for col in ordered_columns if col in area_matrix.columns]).sort_index()
+    runtime_matrix = runtime_matrix.reindex(columns=area_matrix.columns).sort_index()
+
+    def grid_delta(metric: str) -> pd.DataFrame:
+        rows: List[Dict[str, Any]] = []
+        for (beta, aet), group in frame.groupby(["beta", "aet"]):
+            values = {int(row.grid_lpp): float(getattr(row, metric)) for row in group.itertuples()}
+            if 3 in values and 4 in values:
+                rows.append({"beta": beta, "aet": aet, "delta": values[4] - values[3]})
+        if not rows:
+            return pd.DataFrame()
+        return pd.DataFrame(rows).pivot_table(index="aet", columns="beta", values="delta", aggfunc="first").sort_index()
+
+    delta_area = grid_delta("best_area")
+    delta_runtime = grid_delta("runtime_hours")
+
+    configure_style()
+    fig, axes = plt.subplots(2, 2, figsize=(14, 8.5), gridspec_kw={"hspace": 0.38, "wspace": 0.24})
+
+    def draw_heatmap(ax: plt.Axes, matrix: pd.DataFrame, title: str, cmap_name: str, fmt: str) -> None:
+        if matrix.empty:
+            ax.axis("off")
+            ax.set_title(title)
+            ax.text(0.5, 0.5, "no data", ha="center", va="center", transform=ax.transAxes)
+            return
+        cmap = plt.get_cmap(cmap_name).copy()
+        cmap.set_bad("#eee8dd")
+        image = ax.imshow(matrix.astype(float).values, aspect="auto", cmap=cmap)
+        ax.set_title(title)
+        ax.set_xticks(range(len(matrix.columns)))
+        ax.set_xticklabels([str(col) for col in matrix.columns], rotation=35, ha="right")
+        ax.set_yticks(range(len(matrix.index)))
+        ax.set_yticklabels([f"e{int(idx)}" for idx in matrix.index])
+        for y, (_, row) in enumerate(matrix.iterrows()):
+            for x, value in enumerate(row):
+                if pd.notna(value):
+                    ax.text(x, y, fmt.format(float(value)), ha="center", va="center", fontsize=9, color=TEXT)
+        fig.colorbar(image, ax=ax, fraction=0.046, pad=0.03)
+
+    draw_heatmap(axes[0, 0], area_matrix, "Best area (lower is better)", "YlGn_r", "{:.1f}")
+    draw_heatmap(axes[0, 1], runtime_matrix, "Runtime [h] (lower is better)", "YlOrRd", "{:.1f}")
+    draw_heatmap(axes[1, 0], delta_area, "Area delta: 4x4 - 3x3", "RdYlGn_r", "{:+.1f}")
+    draw_heatmap(axes[1, 1], delta_runtime, "Runtime delta [h]: 4x4 - 3x3", "RdYlGn_r", "{:+.1f}")
+    fig.suptitle(f"{output_path.parent.parent.name}: sweep comparison matrix", fontsize=17, fontweight="bold", y=0.98)
+    fig.text(0.5, 0.02, "Negative area delta means 4x4 found a smaller circuit; positive runtime delta means 4x4 was slower.", ha="center", color=MUTED)
+    fig.savefig(output_path, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
+def write_tradeoff_plot(table: pd.DataFrame, output_path: Path) -> Optional[Path]:
+    required = {"beta", "aet", "grid_lpp", "grid_ppo", "best_area", "runtime_hours"}
+    if not required.issubset(table.columns):
+        return None
+    frame = table.dropna(subset=list(required)).copy()
+    if frame.empty:
+        return None
+    frame["beta"] = frame["beta"].astype(int)
+    frame["aet"] = frame["aet"].astype(int)
+    frame["grid_lpp"] = frame["grid_lpp"].astype(int)
+    frame["grid_ppo"] = frame["grid_ppo"].astype(int)
+    frame["best_area"] = pd.to_numeric(frame["best_area"], errors="coerce")
+    frame["runtime_hours"] = pd.to_numeric(frame["runtime_hours"], errors="coerce")
+    frame = frame.dropna(subset=["best_area", "runtime_hours"])
+    if frame.empty:
+        return None
+
+    configure_style()
+    fig, ax = plt.subplots(figsize=(10.5, 6.5))
+    colors = {250: "#b7791f", 300: "#2f6f9f", 350: "#1f6d3a"}
+    markers = {(3, 3): "o", (4, 4): "s"}
+    for row in frame.sort_values(["aet", "beta", "grid_lpp"]).itertuples():
+        marker = markers.get((row.grid_lpp, row.grid_ppo), "D")
+        ax.scatter(
+            row.runtime_hours,
+            row.best_area,
+            s=115,
+            marker=marker,
+            color=colors.get(row.aet, "#6c7688"),
+            edgecolor="#2b2724",
+            linewidth=0.8,
+            alpha=0.92,
+        )
+        ax.annotate(
+            f"b{row.beta} {row.grid_lpp}x{row.grid_ppo}",
+            (row.runtime_hours, row.best_area),
+            xytext=(5, 5),
+            textcoords="offset points",
+            fontsize=8.5,
+        )
+    ax.set_title(f"{output_path.parent.parent.name}: area/runtime tradeoff")
+    ax.set_xlabel("Runtime [h]")
+    ax.set_ylabel("Best area")
+    ax.grid(True, alpha=0.8)
+    area_best = frame.loc[frame["best_area"].idxmin()]
+    ax.scatter([area_best.runtime_hours], [area_best.best_area], s=260, facecolors="none", edgecolors="#d24b40", linewidths=2.0)
+    ax.annotate("best area", (area_best.runtime_hours, area_best.best_area), xytext=(10, -18), textcoords="offset points", color="#d24b40", fontsize=9)
+
+    handles = [
+        plt.Line2D([0], [0], marker="o", color="none", markerfacecolor=colors[aet], markeredgecolor="#2b2724", markersize=8, label=f"AET {aet}")
+        for aet in sorted(colors)
+    ]
+    handles.extend(
+        [
+            plt.Line2D([0], [0], marker="o", color="none", markerfacecolor="#8a8a8a", markeredgecolor="#2b2724", markersize=8, label="3x3"),
+            plt.Line2D([0], [0], marker="s", color="none", markerfacecolor="#8a8a8a", markeredgecolor="#2b2724", markersize=8, label="4x4"),
+        ]
+    )
+    ax.legend(handles=handles, loc="best")
+    fig.savefig(output_path, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    return output_path
 
 
 def common_parent(paths: Sequence[Path]) -> Path:

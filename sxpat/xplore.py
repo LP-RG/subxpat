@@ -997,6 +997,12 @@ def _write_termination_trace(summary_stem: str, trace_rows: List[Dict[str, Any]]
         'subgraph_repeated',
         'labeling_time_seconds',
         'subgraph_extraction_time_seconds',
+        'ancestor_gate_count',
+        'selected_subgraph_gate_count',
+        'ancestor_coverage_ratio',
+        'persistence_limit_used',
+        'persistence_counter',
+        'persistence_counter_after',
         'same_subgraph_streak',
         'structural_stall_streak',
         'grid_sat_count',
@@ -1183,6 +1189,12 @@ def explore_grid(specs_obj: Specifications):
             'subgraph_repeated': False,
             'labeling_time_seconds': None,
             'subgraph_extraction_time_seconds': None,
+            'ancestor_gate_count': None,
+            'selected_subgraph_gate_count': None,
+            'ancestor_coverage_ratio': None,
+            'persistence_limit_used': None,
+            'persistence_counter': None,
+            'persistence_counter_after': None,
             'same_subgraph_streak': same_subgraph_streak,
             'structural_stall_streak': structural_stall_streak,
             'grid_sat_count': 0,
@@ -1345,6 +1357,12 @@ def explore_grid(specs_obj: Specifications):
         print(f'subgraph_extraction_time = {(subgraph_extraction_time := subex_timer.total)}')
 
         trace_row['subgraph_available'] = subgraph_is_available
+        trace_row['ancestor_gate_count'] = specs_obj.ancestor_gate_count
+        trace_row['selected_subgraph_gate_count'] = specs_obj.selected_subgraph_gate_count
+        trace_row['ancestor_coverage_ratio'] = specs_obj.ancestor_coverage_ratio
+        trace_row['persistence_limit_used'] = specs_obj.persistence_limit_used
+        trace_row['persistence_counter'] = specs_obj.persistence_counter_before
+        trace_row['persistence_counter_after'] = specs_obj.persistence_counter_after
 
         FS.mkdir(folder := 'output/gv/subgraphs')
         graph_path = (
@@ -1849,6 +1867,11 @@ def explore_grid(specs_obj: Specifications):
         'predictor_model_path': specs_obj.predictor_model_path,
         'predictor_probability_threshold': specs_obj.predictor_probability_threshold,
         'predictor_min_iteration': specs_obj.predictor_min_iteration,
+        'dynamic_persistence': specs_obj.dynamic_persistence,
+        'dynamic_persistence_max': specs_obj.dynamic_persistence_max,
+        'dynamic_persistence_low_coverage': specs_obj.dynamic_persistence_low_coverage,
+        'dynamic_persistence_mid_coverage': specs_obj.dynamic_persistence_mid_coverage,
+        'dynamic_persistence_high_coverage': specs_obj.dynamic_persistence_high_coverage,
         'termination_zone_rank_effective': None if stop_snapshot is None else stop_snapshot.zone_rank_effective,
         'termination_zone_rank_applied': None if stop_snapshot is None else stop_snapshot.zone_rank_applied,
         'termination_zone_level_count': None if stop_snapshot is None else stop_snapshot.zone_level_count,

@@ -117,6 +117,12 @@ class Specifications:
     sensitivity: int = dc.field(init=False, default=None)  # rw
     #Extraction_mode_0
     persistence_counter: int = dc.field(init=False, default=0)  # rw
+    persistence_counter_before: int = dc.field(init=False, default=None)  # rw
+    persistence_counter_after: int = dc.field(init=False, default=None)  # rw
+    persistence_limit_used: int = dc.field(init=False, default=None)  # rw
+    ancestor_gate_count: int = dc.field(init=False, default=None)  # rw
+    selected_subgraph_gate_count: int = dc.field(init=False, default=None)  # rw
+    ancestor_coverage_ratio: float = dc.field(init=False, default=None)  # rw
     out_node: int = dc.field(init=False, default=0)  # rw\
     #Zone AE
     baseet: int
@@ -172,6 +178,11 @@ class Specifications:
     wanted_models: int
     iteration: int = dc.field(init=False, default=None)  # rw
     persistance: int 
+    dynamic_persistence: bool
+    dynamic_persistence_max: int
+    dynamic_persistence_low_coverage: float
+    dynamic_persistence_mid_coverage: float
+    dynamic_persistence_high_coverage: float
     partition_divider: int
     # exploration (2)
     max_lpp: int
@@ -354,6 +365,25 @@ class Specifications:
                                     type=int,
                                     default=1,
                                     help='The number of attempts made with partial ET (default: 2)')
+        _dynamic_persistence = parser.add_argument('--dynamic-persistence',
+                                    action='store_true',
+                                    help='For extraction-mode 0, choose the persistence limit from ancestor/subgraph coverage instead of using --persistance directly')
+        _dynamic_persistence_max = parser.add_argument('--dynamic-persistence-max',
+                                    type=int,
+                                    default=3,
+                                    help='Maximum dynamic persistence counter limit for very low ancestor coverage; total attempts can be this value plus one (default: 3)')
+        _dynamic_persistence_low_coverage = parser.add_argument('--dynamic-persistence-low-coverage',
+                                    type=float,
+                                    default=0.20,
+                                    help='Coverage below this value uses --dynamic-persistence-max (default: 0.20)')
+        _dynamic_persistence_mid_coverage = parser.add_argument('--dynamic-persistence-mid-coverage',
+                                    type=float,
+                                    default=0.40,
+                                    help='Coverage at least this value uses persistence limit 1; lower values use limit 2 unless below the low-coverage threshold (default: 0.40)')
+        _dynamic_persistence_high_coverage = parser.add_argument('--dynamic-persistence-high-coverage',
+                                    type=float,
+                                    default=0.75,
+                                    help='Coverage at least this value uses persistence limit 0, moving to the next output after one attempt (default: 0.75)')
         # > error stuff
         _et = parser.add_argument('--max-error', '-e',
                                   type=int,
@@ -677,6 +707,26 @@ class Specifications:
             parser.error('--predictor-min-iteration must be a positive integer')
         if raw_args.termination_mode is TerminationMode.PREDICTOR and not raw_args.predictor_model_path:
             parser.error('--predictor-model-path is required when --termination-mode predictor')
+        if raw_args.persistance < 0:
+            parser.error('--persistance must be a non-negative integer')
+        if raw_args.dynamic_persistence_max < 0:
+            parser.error('--dynamic-persistence-max must be a non-negative integer')
+        dynamic_thresholds = (
+            raw_args.dynamic_persistence_low_coverage,
+            raw_args.dynamic_persistence_mid_coverage,
+            raw_args.dynamic_persistence_high_coverage,
+        )
+        if any(value < 0 or value > 1 for value in dynamic_thresholds):
+            parser.error('--dynamic-persistence-*-coverage values must be in the interval [0, 1]')
+        if not (
+            raw_args.dynamic_persistence_low_coverage
+            <= raw_args.dynamic_persistence_mid_coverage
+            <= raw_args.dynamic_persistence_high_coverage
+        ):
+            parser.error(
+                '--dynamic-persistence coverage thresholds must satisfy '
+                'low <= mid <= high'
+            )
 
 
         # define dependencies
