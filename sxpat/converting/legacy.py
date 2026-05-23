@@ -64,10 +64,10 @@ def iograph_from_legacy(l_graph: AnnotatedGraph) -> IOGraph:
                    l_graph.input_dict.values(),
                    l_graph.output_dict.values())
 
-def my_iograph_from_legacy(l_graph, inputs_names, outputs_names) -> IOGraph:
+def my_iograph_from_legacy(l_graph) -> IOGraph:
     return IOGraph(_my_nodes_from_inner_legacy(l_graph.graph),
-                   inputs_names,
-                   outputs_names)
+                   l_graph.input_dict.values(),
+                   l_graph.output_dict.values())
 
 def sgraph_from_legacy(l_graph: AnnotatedGraph) -> SGraph:
     return SGraph(_nodes_from_inner_legacy(l_graph.subgraph),

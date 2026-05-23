@@ -155,19 +155,21 @@ class IOGraph(Graph):
 
     EXTRAS: Sequence[str] = ('inputs_names', 'outputs_names')
 
-    def __init__(self, nodes: Iterable[AnyNode]) -> None:
+    def __init__(self, nodes: Iterable[AnyNode],
+                 inputs_names: Sequence[str], outputs_names: Sequence[str]
+                 ) -> None:
         # construct base
         super().__init__(nodes)
 
         # freeze local instances
-        # self.inputs_names = tuple(inputs_names)
-        # self.outputs_names = tuple(outputs_names)
+        self.inputs_names = tuple(inputs_names)
+        self.outputs_names = tuple(outputs_names)
 
         # guard
-        # if len(missing := tuple(name for name in self.inputs_names if name not in self)) > 0:
-        #     raise UndefinedNodeError(f'The following nodes are not defined but are being used as inputs: {missing}')
-        # if len(missing := tuple(name for name in self.outputs_names if name not in self)) > 0:
-        #     raise UndefinedNodeError(f'The following nodes are not defined but are being used as outputs: {missing}')
+        if len(missing := tuple(name for name in self.inputs_names if name not in self)) > 0:
+            raise UndefinedNodeError(f'The following nodes are not defined but are being used as inputs: {missing}')
+        if len(missing := tuple(name for name in self.outputs_names if name not in self)) > 0:
+            raise UndefinedNodeError(f'The following nodes are not defined but are being used as outputs: {missing}')
 
     def __eq__(self, other) -> bool:
         return (

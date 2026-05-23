@@ -1,5 +1,6 @@
 from aiger.my_graph.node import BoolVariable, BoolConstant, And, Not, Identity
 from aiger.my_graph.graph import IOGraph
+from aiger.circuitDiGraph import MyAnnotatedGraph
 
 
 __all__ = ['my_iograph_from_legacy']
@@ -30,5 +31,7 @@ def _my_nodes_from_inner_legacy(inner_graph):
 
     return nodes
 
-def my_iograph_from_legacy(l_graph) -> IOGraph:
-    return IOGraph(_my_nodes_from_inner_legacy(l_graph.graph))
+def my_iograph_from_legacy(l_graph: MyAnnotatedGraph) -> IOGraph:
+    return IOGraph(_my_nodes_from_inner_legacy(l_graph.graph),
+                   l_graph.input_dict.values(),
+                   l_graph.output_dict.values())

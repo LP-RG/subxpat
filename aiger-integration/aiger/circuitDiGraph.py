@@ -95,6 +95,10 @@ class MyAnnotatedGraph():
             for u, v in self.__graph.edges: f.write(f'"{u}" -> "{v}";\n')
             f.write('}')
 
+        input_nodes, output_nodes = self.extract_inputs_outputs()
+        self.__input_dict = self.sort_dict(input_nodes)
+        self.__output_dict = self.sort_dict(output_nodes)
+
         self.__num_inputs = self.__graph.graph["num_pis"] #num_pis = number of primary inputs.
         self.__num_outputs = self.__graph.graph["num_pos"] #num_pos = number of primary outputs.
         self.__num_AND_gates = self.__graph.graph["num_gates"] #num_gates = number of AND gates.
@@ -166,6 +170,14 @@ class MyAnnotatedGraph():
     @property
     def graph(self):
         return self.__graph
+    
+    @property
+    def input_dict(self):
+        return self.__input_dict
+
+    @property
+    def output_dict(self):
+        return self.__output_dict
 
     # not_gates_integration:
     #  - adds NOT gates and their adjacent edges (while keeping topological order!)
@@ -212,3 +224,23 @@ class MyAnnotatedGraph():
             and_gates_ptr += 1
         for tmp_e in tmp_edges:
             new_edges.append(tmp_e)
+    
+    def extract_inputs_outputs(self):
+        input_dict = {}
+        output_dict = {}
+        for n in self.graph.nodes():
+            idx = int(self.graph.nodes[n]['index'])
+            node_type = self.graph.nodes[n]['type']    
+            if node_type[1]:  # input
+                input_dict[idx] = n
+            elif node_type[3]:  # output
+                output_dict[idx] = n
+        return input_dict, output_dict
+    
+    def sort_dict(self, this_dict: Dict) -> Dict:
+        sorted_dict = {}
+        this_dict_ids = list(this_dict.keys())
+        this_dict_ids.sort()
+        for i in this_dict_ids:
+            sorted_dict[i] = this_dict[i]
+        return sorted_dict

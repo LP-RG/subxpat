@@ -20,8 +20,7 @@ def main():
         print("***")
         print("Testing MyAnnotatedGraph performance with benchmark " + benchmark_name)
         start = perf_counter()
-        g = MyAnnotatedGraph(benchmark_name, gen_circuit_digraph(benchmark_name))
-        iograph = my_iograph_from_legacy(g)
+        g = my_iograph_from_legacy(MyAnnotatedGraph(benchmark_name, gen_circuit_digraph(benchmark_name)))
         end = perf_counter()
         time = end - start
         total_time += time
