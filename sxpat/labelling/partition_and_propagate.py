@@ -244,7 +244,8 @@ def get_all_subgraph_boundaries(graph:nx.DiGraph[NodeID],
 def greedy_merge(graph:nx.DiGraph[NodeID], 
                  nodes_by_subid:DefaultDict[SubID,List[NodeID]],
                  inputs_map:DefaultDict[SubID,Set[NodeID]],
-                 TI_LIMIT:int
+                 TI_LIMIT:int,
+                 use_smart_split: bool = True
                  )->DefaultDict[SubID,List[NodeID]]:
     
     # 1. Initial construction of the metagraph
@@ -283,7 +284,9 @@ def greedy_merge(graph:nx.DiGraph[NodeID],
             
             max_inputs_before = max(len(inputs_u), len(inputs_v))
 
-            if len(inputs_merged) <= max_inputs_before and max_inputs_before <= TI_LIMIT :
+            current_limit = float('inf') if use_smart_split else TI_LIMIT
+
+            if len(inputs_merged) <= max_inputs_before and max_inputs_before <= current_limit :
                 
                 # --- Perform the merge (merge v into u) ---
                 
@@ -316,6 +319,8 @@ def greedy_merge(graph:nx.DiGraph[NodeID],
                 # MARCO-COMMENT: Why do you break here? Is it for performance, for correctness, or for some other reason?
                 #Beacause the whole graph has changed(we merge some subgraph), we start the whole progress in new graph
                 break 
+
+
     
     return nodes_by_subid
 
@@ -751,7 +756,7 @@ def compute(graph: nx.DiGraph,
     # Implement the "partition and propagate" algorithm
 
     # --- 1. Initialization ---
-    TI_LIMIT = 3
+    TI_LIMIT = 10
 
     # --- 2.Node Labeling ---
     
