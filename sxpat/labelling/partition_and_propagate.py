@@ -284,7 +284,7 @@ def greedy_merge(graph:nx.DiGraph[NodeID],
             
             max_inputs_before = max(len(inputs_u), len(inputs_v))
 
-            current_limit = float('inf') if use_smart_split else TI_LIMIT
+            current_limit = float('inf') if (not use_smart_split) else TI_LIMIT
 
             if len(inputs_merged) <= max_inputs_before and max_inputs_before <= current_limit :
                 
