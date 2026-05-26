@@ -1,7 +1,7 @@
 from typing import Set
 from sxpat.graph.graph import IOGraph
 from sxpat.graph.node import BoolConstant, BoolVariable
-from sxpat.specifications import Specifications, LabelingType
+from sxpat.specifications import Specifications, LabelingType, LabelingRelativeTo
 from sxpat.definitions.templates.Labeling import Labeling
 # from sxpat.definitions.templates.LabelingConstants import LabelingConstants
 from sxpat.solvers.QbfSolver import QbfSolver
@@ -68,7 +68,7 @@ the value, set to 0 to never use
         value = 2 ** int(node.name[3:])
         
         for x in current_graph.predecessors(node):
-            if(value <= et):
+            if(value <= et) or specs_obj.labeling_relative_to == LabelingRelativeTo.ORIGIN:
                 stack.append(x.name)
                 visited.add(x.name)
 

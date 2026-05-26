@@ -593,7 +593,9 @@ def label_graph(exact_path: str, circuit_verilog_path: str, graph: AnnotatedGrap
     current_graph = AnnotatedGraph(circuit_verilog_path, specs_obj.path.run)
     current = iograph_from_legacy(current_graph)
 
-    exact_graph = AnnotatedGraph(exact_path, specs_obj.path.run) if specs_obj.labeling_relative_to == LabelingRelativeTo.ORIGIN else current_graph
+
+    relativeToOrigin = specs_obj.labeling_relative_to == LabelingRelativeTo.ORIGIN
+    exact_graph = AnnotatedGraph(exact_path, specs_obj.path.run) if relativeToOrigin else current_graph
     exact = iograph_from_legacy(exact_graph)
 
     # imports
@@ -604,7 +606,7 @@ def label_graph(exact_path: str, circuit_verilog_path: str, graph: AnnotatedGrap
     elif specs_obj.labeling == LabelingType.SIMPLE_MAX:
         weights = upper_bound(current)
     elif specs_obj.iteration == 1:
-        weights = fast_labeling(exact, current, specs_obj.et, specs_obj)
+        weights = fast_labeling(exact, current, specs_obj.et, specs_obj, skip_at_output=not relativeToOrigin)
     else:
         exact_benchmark_name = exact_graph.name
         approximate_benchmark = current_graph.name
@@ -634,7 +636,7 @@ def label_graph(exact_path: str, circuit_verilog_path: str, graph: AnnotatedGrap
             experiment=SINGLE, optimization=MAXIMIZE, style=style,
             # partial=partial_labeling, parallel=parallel
         )
-        weights = fast_labeling(exact, current, specs_obj.et, specs_obj, z3solver= z3solver)
+        weights = fast_labeling(exact, current, specs_obj.et, specs_obj, skip_at_output=not relativeToOrigin, z3solver= z3solver)
 
     # apply weights to graph
     inner_graph: nx.DiGraph = graph.graph
