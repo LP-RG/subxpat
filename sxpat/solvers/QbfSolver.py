@@ -89,6 +89,8 @@ class Encoder:
             Sum: self.process_Sum,
             AbsDiff: self.process_AbsDiff,
             Mul: self.process_Mul,
+            RightShift: self.process_RightShift,
+            LeftShift: self.process_LeftShift,
             # comparison operations
             Equals: self.process_Equals,  # Needs testing
             NotEquals: self.process_NotEquals,  # Needs testing
