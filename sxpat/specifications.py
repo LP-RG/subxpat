@@ -54,6 +54,7 @@ class DistanceType(enum.Enum):
     ABSOLUTE_DIFFERENCE_OF_WEIGHTED_SUM = 'adows'
     HAMMING_DISTANCE = 'hd'
     WEIGHTED_HAMMING_DISTANCE = 'whd'
+    RELATIVE_DIFFERENCE_OF_INTEGERS_BINARY = 'rdoib'
 
 
 class ConstantsType(enum.Enum):
@@ -184,6 +185,8 @@ class Specifications:
     encoding: EncodingType
     constants: ConstantsType
     constant_false: ConstantFalseType
+    distance: DistanceType
+    binary_part: str
     wanted_models: int
     iteration: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     sub_iteration: str = dc.field(init=False, default=None, metadata={'writable': True})  # rw
@@ -368,6 +371,17 @@ class Specifications:
                                               action=EnumChoicesAction,
                                               default=ConstantFalseType.OUTPUT,
                                               help='Representation of false constants from the subgraph (default: output)')
+        
+        _dist = _explor_group.add_argument('--distance',
+                                              type=DistanceType,
+                                              action=EnumChoicesAction,
+                                              default=DistanceType.ABSOLUTE_DIFFERENCE_OF_INTEGERS,
+                                              help='The distance to use at the output')
+        
+        _binary_p = _explor_group.add_argument('--binary-part',
+                                              type=str,
+                                              default=None,
+                                              help='The floating point part of the relative allowed error, only use with --distance=rdoib (10 = 50%, 01 = 25%, 11 = 75%, 001 = 12.5%...)')
 
         _template = _explor_group.add_argument('--template',
                                                type=TemplateType,

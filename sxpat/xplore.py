@@ -23,6 +23,7 @@ from sxpat.metrics import MetricsEstimator
 
 from sxpat.definitions.templates import get_specialized as get_templater
 from sxpat.definitions.distances import *
+from sxpat.definitions.distances import get_specialized as get_distance, get_threshold
 
 from sxpat.definitions.questions import exists_parameters
 from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
@@ -265,7 +266,7 @@ def explore_grid(specs_obj: Specifications):
             _time = Timer.now()
             base_question = exists_parameters.not_above_threshold_forall_inputs(
                 current_circ, param_circ,
-                AbsoluteDifferenceOfInteger, specs_obj.et,
+                get_distance(specs_obj), get_threshold(specs_obj),
             )
             _time_define += Timer.now() - _time
             # logging
