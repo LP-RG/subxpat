@@ -15,7 +15,8 @@ from z3 import (
 )
 
 from Z3Log_patched.graph import Graph
-from Z3Log_patched.verilog import Verilog
+# from Z3Log_patched.verilog import Verilog
+from sxpat.verilog import synthesize_verilog_to_gate_level
 
 from Z3Log_patched.utils import convert_verilog_to_gv, get_pure_name
 from sxpat.utils.print import pprint
@@ -36,7 +37,8 @@ class AnnotatedGraph(Graph):
         circuit_name = get_pure_name(circuit_verilog_path)
 
         # prepare a clean Verilog
-        Verilog(circuit_verilog_path, tmp_v := path_join(run_paths.verilog, f'{circuit_name}.v'), run_paths.temporary)
+        synthesize_verilog_to_gate_level(circuit_verilog_path, tmp_v := path_join(run_paths.temporary, f'{circuit_name}.v'))
+        # Verilog(circuit_verilog_path, tmp_v := path_join(run_paths.verilog, f'{circuit_name}.v'), run_paths.temporary)
 
         # convert the clean Verilog into a Yosys GV
         convert_verilog_to_gv(tmp_v, tmp_gv := path_join(run_paths.temporary, f'{circuit_name}.gv'), run_paths.temporary)
@@ -1832,7 +1834,7 @@ class AnnotatedGraph(Graph):
             m = opt.model()
             model_maximized = m.eval(Sum(max_nodes), model_completion=True).as_long()
             correct_maximum = h.upper().as_long()
-            
+
             if correct_maximum != model_maximized:
                 pprint.info2("\nmodel isn't maximized, running another solver call")
                 opt.add(Sum(max_nodes) == correct_maximum)
@@ -2085,7 +2087,7 @@ class AnnotatedGraph(Graph):
             m = opt.model()
             model_maximized = m.eval(Sum(max_nodes), model_completion=True).as_long()
             correct_maximum = h.upper().as_long()
-            
+
             if correct_maximum != model_maximized:
                 pprint.info2("\nmodel isn't maximized, running another solver call")
                 opt.add(Sum(max_nodes) == correct_maximum)

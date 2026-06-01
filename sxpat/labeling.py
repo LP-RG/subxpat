@@ -4,7 +4,8 @@ import os
 from os.path import join as path_join
 from contextlib import redirect_stdout
 
-from Z3Log_patched.verilog import Verilog
+# from Z3Log_patched.verilog import Verilog
+from sxpat.verilog import synthesize_verilog_to_gate_level
 from Z3Log_patched.graph import Graph
 from Z3Log_patched.z3solver import Z3solver
 
@@ -22,10 +23,13 @@ def labeling_explicit(exact_in_verilog_path: str, current_in_verilog_path: str,
                       ) -> Tuple[Dict[str, int], Dict[str, int]]:
 
     # 1) create a clean verilog out of exact and approximate circuits
-    verilog_obj_exact = Verilog(exact_in_verilog_path, tmp_exact_v := path_join(run_paths.temporary, f'lbl_exact.v'), run_paths.temporary)
-    verilog_obj_exact.export_circuit()
-    verilog_obj_approx = Verilog(current_in_verilog_path, tmp_current_v := path_join(run_paths.temporary, f'lbl_current.v'), run_paths.temporary)
-    verilog_obj_approx.export_circuit()
+    verilog_obj_exact = synthesize_verilog_to_gate_level(exact_in_verilog_path, tmp_exact_v := path_join(run_paths.temporary, f'lbl_exact.v'))
+    # verilog_obj_exact = Verilog(exact_in_verilog_path, tmp_exact_v := path_join(run_paths.temporary, f'lbl_exact.v'), run_paths.temporary)
+    # verilog_obj_exact.export_circuit()
+
+    verilog_obj_exact = synthesize_verilog_to_gate_level(current_in_verilog_path, tmp_current_v := path_join(run_paths.temporary, f'lbl_current.v'))
+    # verilog_obj_approx = Verilog(current_in_verilog_path, tmp_current_v := path_join(run_paths.temporary, f'lbl_current.v'), run_paths.temporary)
+    # verilog_obj_approx.export_circuit()
 
     convert_verilog_to_gv(tmp_exact_v, tmp_exact_gv := path_join(run_paths.temporary, 'lbl_exact.gv'), run_paths.temporary)
     convert_verilog_to_gv(tmp_current_v, tmp_current_gv := path_join(run_paths.temporary, 'lbl_current.gv'), run_paths.temporary)
