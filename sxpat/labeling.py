@@ -4,12 +4,10 @@ import os
 from os.path import join as path_join
 from contextlib import redirect_stdout
 
-# from Z3Log_patched.verilog import Verilog
-from sxpat.verilog import synthesize_verilog_to_gate_level
+from sxpat.utils.formats.verilog import synthesize_verilog_to_gate_level, convert_verilog_to_gv
 from Z3Log_patched.graph import Graph
 from Z3Log_patched.z3solver import Z3solver
 
-from Z3Log_patched.utils import convert_verilog_to_gv
 from Z3Log_patched.config.config import SINGLE, MAXIMIZE
 from sxpat.specifications import Paths
 
@@ -23,13 +21,8 @@ def labeling_explicit(exact_in_verilog_path: str, current_in_verilog_path: str,
                       ) -> Tuple[Dict[str, int], Dict[str, int]]:
 
     # 1) create a clean verilog out of exact and approximate circuits
-    verilog_obj_exact = synthesize_verilog_to_gate_level(exact_in_verilog_path, tmp_exact_v := path_join(run_paths.temporary, f'lbl_exact.v'))
-    # verilog_obj_exact = Verilog(exact_in_verilog_path, tmp_exact_v := path_join(run_paths.temporary, f'lbl_exact.v'), run_paths.temporary)
-    # verilog_obj_exact.export_circuit()
-
-    verilog_obj_exact = synthesize_verilog_to_gate_level(current_in_verilog_path, tmp_current_v := path_join(run_paths.temporary, f'lbl_current.v'))
-    # verilog_obj_approx = Verilog(current_in_verilog_path, tmp_current_v := path_join(run_paths.temporary, f'lbl_current.v'), run_paths.temporary)
-    # verilog_obj_approx.export_circuit()
+    synthesize_verilog_to_gate_level(exact_in_verilog_path, tmp_exact_v := path_join(run_paths.temporary, f'lbl_exact.v'))
+    synthesize_verilog_to_gate_level(current_in_verilog_path, tmp_current_v := path_join(run_paths.temporary, f'lbl_current.v'))
 
     convert_verilog_to_gv(tmp_exact_v, tmp_exact_gv := path_join(run_paths.temporary, 'lbl_exact.gv'), run_paths.temporary)
     convert_verilog_to_gv(tmp_current_v, tmp_current_gv := path_join(run_paths.temporary, 'lbl_current.gv'), run_paths.temporary)
@@ -49,16 +42,17 @@ def labeling_explicit(exact_in_verilog_path: str, current_in_verilog_path: str,
     )
 
     with open(os.devnull, 'w') as f, redirect_stdout(f): # suppress prints
+        labels_pair: Tuple[Dict[str, int], Dict[str, int]]
         if constant_value is False:
-            labels_pair = (
+            labels_pair = ( # type: ignore
                 z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
             ) * 2
         elif constant_value is True:
-            labels_pair = (
+            labels_pair = ( # type: ignore
                 z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
             ) * 2
         else:
-            labels_pair = (
+            labels_pair = ( # type: ignore
                 z3py_obj.label_circuit(False, partial=partial_labeling, et=partial_cutoff),
                 z3py_obj.label_circuit(True, partial=partial_labeling, et=partial_cutoff),
             )

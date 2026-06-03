@@ -15,10 +15,9 @@ from z3 import (
 )
 
 from Z3Log_patched.graph import Graph
-# from Z3Log_patched.verilog import Verilog
-from sxpat.verilog import synthesize_verilog_to_gate_level
+from sxpat.utils.formats.verilog import synthesize_verilog_to_gate_level, convert_verilog_to_gv
 
-from Z3Log_patched.utils import convert_verilog_to_gv, get_pure_name
+from Z3Log_patched.utils import get_pure_name
 from sxpat.utils.print import pprint
 from sxpat.utils.graph import is_selection_convex
 
@@ -38,7 +37,6 @@ class AnnotatedGraph(Graph):
 
         # prepare a clean Verilog
         synthesize_verilog_to_gate_level(circuit_verilog_path, tmp_v := path_join(run_paths.temporary, f'{circuit_name}.v'))
-        # Verilog(circuit_verilog_path, tmp_v := path_join(run_paths.verilog, f'{circuit_name}.v'), run_paths.temporary)
 
         # convert the clean Verilog into a Yosys GV
         convert_verilog_to_gv(tmp_v, tmp_gv := path_join(run_paths.temporary, f'{circuit_name}.gv'), run_paths.temporary)

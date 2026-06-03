@@ -1,4 +1,6 @@
 import re
+from shutil import move
+from os.path import join as path_join
 from subprocess import run, PIPE, DEVNULL
 from typing import ClassVar, Dict, Iterable, List, Mapping, Sequence, Tuple
 
@@ -50,9 +52,10 @@ class synthesize_verilog_to_gate_level:
         if _process.returncode: raise YosysError(yosys_command, _process.stderr)
 
         # post-processing
-        cls.rename_variables(output_path, output_path)
+        cls._rename_variables(output_path, output_path)
 
-    def rename_variables(cls, input_path: str, output_path: str):
+    @classmethod
+    def _rename_variables(cls, input_path: str, output_path: str):
         with open(input_path, 'r+') as _f:
             verilog = _f.read()
             lines = verilog.split(';')
@@ -65,16 +68,17 @@ class synthesize_verilog_to_gate_level:
         port_list = cls.SPACES_PATTERN.sub('', match.group(1)).split(',')
 
         # EXTRACT INPUTS/OUTPUTS
-        input_dict, output_dict = cls.extract_inputs_outputs(lines, port_list)
+        input_dict, output_dict = cls._extract_inputs_outputs(lines, port_list)
 
         # RELABEL
-        new_labels = cls.create_new_labels(port_list, input_dict, output_dict)
-        lines = cls.relabel_variables(verilog.split('\n'), new_labels)
+        new_labels = cls._create_new_labels(port_list, input_dict, output_dict)
+        lines = cls._relabel_variables(verilog.split('\n'), new_labels)
 
         with open(output_path, 'w') as _f:
             _f.writelines(f'{l}\n' for l in lines)
 
-    def extract_inputs_outputs(cls, verilog_lines: List[str], port_list: Iterable[str]):
+    @classmethod
+    def _extract_inputs_outputs(cls, verilog_lines: List[str], port_list: Iterable[str]):
         # example input:
         #   module circuit(a, b, c, d)
         #   input [1:0] a;
@@ -96,55 +100,60 @@ class synthesize_verilog_to_gate_level:
             if match := cls.INPUT_PATTERN.search(line):
                 # get all inputs on the line
                 input_list = cls.SPACES_PATTERN.sub('', match.group(1)).split(',')
-                input_list = cls.propagate_bitwidth(input_list)
+                input_list = cls._propagate_bitwidth(input_list)
 
                 # store widths
                 for inp in input_list:
-                    name = cls.extract_name(inp)
+                    name = cls._extract_name(inp)
                     if name not in ports:
-                        raise Exception(f'Input {name} is not in the port list.')
+                        raise RuntimeError(f'Input {name} is not in the port list.')
 
                     _index = ports[name]
-                    input_dict[_index] = (name, cls.compute_width(inp))
+                    input_dict[_index] = (name, cls._compute_width(inp))
 
             # extract outputs
             elif match := cls.OUTPUT_PATTERN.search(line):
                 # get all outputs on the line
                 output_list = cls.SPACES_PATTERN.sub('', match.group(1)).split(',')
-                output_list = cls.propagate_bitwidth(output_list)
+                output_list = cls._propagate_bitwidth(output_list)
 
                 # store widths
                 for out in output_list:
-                    name = cls.extract_name(out)
+                    name = cls._extract_name(out)
                     if name not in ports:
-                        raise Exception(f'Output {name} is not in the port list.')
+                        raise RuntimeError(f'Output {name} is not in the port list.')
 
                     _index = ports[name]
-                    output_dict[_index] = (name, cls.compute_width(out))
+                    output_dict[_index] = (name, cls._compute_width(out))
 
         return (
             dict(sorted(input_dict.items())),
             dict(sorted(output_dict.items())),
         )
 
-    def create_new_labels(cls, port_list: List, input_dict: Dict, output_dict: Dict):
-        new_labels: Dict = {}
-        for port_idx in input_dict:
-            if input_dict[port_idx][0] == port_list[port_idx]:
-                new_labels[port_list[port_idx]] = f'in{port_idx}'
-            else:
-                raise Exception(f'Error!!! {input_dict[port_idx][0]} is not equal to {port_list[port_idx]}')
+    @classmethod
+    def _create_new_labels(
+        cls,
+        port_list: Sequence[str],
+        input_dict: Mapping[int, Tuple[str, int]],
+        output_dict: Mapping[int, Tuple[str, int]],
+    ) -> Dict[str, str]:
+        new_labels: Dict[str, str] = dict()
 
-        out_idx = 0
-        for port_idx in output_dict:
-            if output_dict[port_idx][0] == port_list[port_idx]:
-                new_labels[port_list[port_idx]] = f'out{out_idx}'
-                out_idx += 1
-            else:
-                raise Exception(f'Error!!! {output_dict[port_idx][0]} is not equal to {port_list[port_idx]}')
+        for port_idx in input_dict:
+            port = port_list[port_idx]
+            if input_dict[port_idx][0] != port: raise RuntimeError(f'Input `{input_dict[port_idx][0]}` does not match port {port}')
+            new_labels[port] = f'in{port_idx}'
+
+        for (out_idx, port_idx) in enumerate(output_dict):
+            port = port_list[port_idx]
+            if output_dict[port_idx][0] != port: raise RuntimeError(f'Output `{input_dict[port_idx][0]}` does not match port {port}')
+            new_labels[port_list[port_idx]] = f'out{out_idx}'
+
         return new_labels
 
-    def relabel_variables(cls, verilog_lines: Iterable[str], labels: Mapping[str, str]) -> List[str]:
+    @classmethod
+    def _relabel_variables(cls, verilog_lines: Iterable[str], labels: Mapping[str, str]) -> List[str]:
         """
             Relabel all variables with their new representation.
 
@@ -165,7 +174,8 @@ class synthesize_verilog_to_gate_level:
 
         return verilog_lines
 
-    def propagate_bitwidth(cls, inputs: Sequence[str]) -> List[str]:
+    @classmethod
+    def _propagate_bitwidth(cls, inputs: Sequence[str]) -> List[str]:
         """
             Given a sequence of inputs, propagate the size of the first to the others.
 
@@ -189,7 +199,8 @@ class synthesize_verilog_to_gate_level:
 
         return inputs
 
-    def extract_name(cls, variable: str) -> str:
+    @classmethod
+    def _extract_name(cls, variable: str) -> str:
         """
             Extract the name of the variable.
 
@@ -201,7 +212,8 @@ class synthesize_verilog_to_gate_level:
         if match: return match.group(1)
         else: return variable
 
-    def compute_width(cls, variable: str) -> int:
+    @classmethod
+    def _compute_width(cls, variable: str) -> int:
         """
             Compute the bit-width of the variable.
 
@@ -218,11 +230,24 @@ class synthesize_verilog_to_gate_level:
             return 1
 
 
-if __name__ == '__main__':
-    import sys
-    synthesize_verilog_to_gate_level(sys.argv[1], 'banana.v')
+class convert_verilog_to_gv:
+    YOSYS_COMMAND: ClassVar = """
+        read_verilog {input_verilog_path}
+        opt
+        clean
+        show -prefix {output_dot_path} -format dot
+    """
 
-    from Z3Log_patched.verilog import Verilog
-    import os
-    os.makedirs('bpapaya_t', exist_ok=True)
-    Verilog(sys.argv[1], 'bpapaya.v', 'bpapaya_t')
+    def __new__(cls, input_verilog_path: str, output_gv_path: str, temporary_path: str):
+        # prepare
+        tmp_dot_path = path_join(temporary_path, 'cvtgv_to_fd.dot')
+        yosys_command = cls.YOSYS_COMMAND.format(input_verilog_path=input_verilog_path, output_dot_path=tmp_dot_path[:-4])
+
+        # run
+        with open(path_join(temporary_path, 'yosys_convert_verilog_to_gv.log'), 'w') as f:
+            # run yosys command (dump log to temporary file)
+            _process = run(['yosys', '-p', yosys_command], stdout=f, stderr=f)
+            assert _process.returncode == 0
+
+        # move .dot to .gv
+        move(tmp_dot_path, output_gv_path)
