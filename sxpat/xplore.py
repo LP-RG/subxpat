@@ -579,7 +579,6 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
         partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
         parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
     )
-    input()
     print('new labelling time: ', time.perf_counter() - _time)
 
     # testing new labelling with functions
