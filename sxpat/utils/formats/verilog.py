@@ -20,6 +20,10 @@ class YosysError(Exception):
 
 
 class synthesize_verilog_to_gate_level:
+    """
+        @author: Morteza Rezaalipour, Marco Biasion
+    """
+
     YOSYS_COMMAND: ClassVar = """
         read_verilog {input_path};
         synth -flatten;

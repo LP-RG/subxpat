@@ -486,7 +486,7 @@ def update_context(specs_obj: Specifications, lpp: int, ppo: int):
 
 def print_current_model(
         sorted_models_data: List[ExpandedCircuitData],
-        origin_circuit_data: MetricsEstimator.Metrics = None,
+        origin_circuit_data: Optional[MetricsEstimator.Metrics] = None,
         normalize: bool = False
 ) -> None:
     # imports

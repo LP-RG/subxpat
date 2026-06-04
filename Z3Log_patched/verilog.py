@@ -1,4 +1,4 @@
 # discarded:
-# from Z3Log.specs import Specs
+# from Z3Log.verilog import Verilog
 
 raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
