@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable, Iterator, List, Literal, Tuple, Union
+from typing import Dict, Iterable, Iterator, List, Literal, Optional, Tuple, Union
 import dataclasses as dc
 
 import functools as ft
@@ -181,8 +181,14 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.requires_labeling:
             print('started labelling')
             _time = Timer.now()
-            label_graph(specs_obj.current_benchmark, current_graph, specs_obj)
+            weights = label_graph(iograph_from_legacy(current_graph), specs_obj)
+            inner_graph: nx.DiGraph = current_graph.graph
+            for (node_name, node_data) in inner_graph.nodes.items():
+                node_data[WEIGHT] = weights.get(node_name, -1)
+                # TODO: get output's weights in the correct way
+                if node_name.startswith('out'): node_data[WEIGHT] = 2**int(node_name[3:])
             _time = Timer.now() - _time
+
             # logging
             specs_obj.stats_storage.stage(labelling_time=_time)
             print(f'labelling_time = {_time}')
@@ -201,7 +207,7 @@ def explore_grid(specs_obj: Specifications):
         )
         print(f'subgraph_extraction_time = {_time}')
         # logging
-        if specs_obj.debug: 
+        if specs_obj.debug:
             specs_obj.stats_storage.stage(subgraph_dot=os.path.relpath(current_graph.subgraph_out_path, specs_obj.path.run.base_folder))
             current_graph.export_annotated_graph()
             print(f'subgraph exported at {current_graph.subgraph_out_path}')
@@ -237,8 +243,8 @@ def explore_grid(specs_obj: Specifications):
         for lpp, ppo in CellIterator.factory(specs_obj):
             _cell_time = Timer.now()
             print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
-            
-            if lpp > len(current_circ.subgraph_inputs): 
+
+            if lpp > len(current_circ.subgraph_inputs):
                 pprint.info3('SKIPPED (lpp > #subgraph_inputs)')
                 continue
 
@@ -499,6 +505,7 @@ def print_current_model(
         if normalize:
             sorted_models_data = [
                 ExpandedCircuitData(
+                    '',
                     model_data.path,
                     model_data.area / origin_area,
                     model_data.power / origin_power,
@@ -521,28 +528,83 @@ def print_current_model(
     pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
 
-def label_graph(circuit_verilog_path: str, graph: AnnotatedGraph, specs_obj: Specifications) -> None:
+def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     """This function adds the labels inplace to the given graph"""
 
     # imports
-    from sxpat.labeling import labeling_explicit
+    from sxpat.labelling.labelling import Labelling
+    from sxpat.labelling.qbf_labelling import label_node
+    from sxpat.graph.node import BoolVariable
+    import time
 
-    # compute weights
-    ET_COEFFICIENT = 1
-    weights, _ = labeling_explicit(
-        circuit_verilog_path, circuit_verilog_path, specs_obj.path.run,
-        min_labeling=specs_obj.min_labeling,
-        partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
-        parallel=specs_obj.parallel
+    # settings
+    if specs_obj.partial_labeling:
+        et_coefficient = 1
+        partial_cutoff = specs_obj.et * et_coefficient
+    else:
+        partial_cutoff = None
+
+    # WIP: update parameters
+    reference: IOGraph = circuit
+    to_be_labelled: IOGraph = circuit
+
+    # select nodes to label (all non-input ancestors of outputs under the cutoff)
+    nodes_to_label = set()
+    for (i, output) in enumerate(to_be_labelled.outputs_names):
+        if 2**i <= partial_cutoff:
+            for ancestor in nx.ancestors(to_be_labelled._inner, output):
+                if not isinstance(to_be_labelled[ancestor], BoolVariable):
+                    nodes_to_label.add(ancestor)
+    nodes_to_label = sorted(nodes_to_label)
+
+    # WIP
+    folder = 'labelling_scripts'
+    os.makedirs(folder, exist_ok=True)
+
+    # testing qbf
+    _time = time.perf_counter()
+    solver_weights = dict()
+    for n in nodes_to_label:
+        solver_weights[n] = label_node(reference, to_be_labelled, n, specs_obj)
+    print('qbf labelling time: ', time.perf_counter() - _time)
+
+    # testing new labelling without functions
+    _time = time.perf_counter()
+    labeller = Labelling(
+        reference, to_be_labelled, folder,
+        minimize=specs_obj.min_labeling,
+        use_functions=False,
     )
+    new_weights = labeller.label_graph(
+        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
+        parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
+    )
+    input()
+    print('new labelling time: ', time.perf_counter() - _time)
 
-    # apply weights to graph
-    inner_graph: nx.DiGraph = graph.graph
-    for (node_name, node_data) in inner_graph.nodes.items():
-        node_data[WEIGHT] = weights.get(node_name, -1)
-        # TODO: get output's weights in the correct way
-        if node_name[:3] == 'out':
-            node_data[WEIGHT] = 2**int(node_name[3:])
+    # testing new labelling with functions
+    _time = time.perf_counter()
+    func_weights = dict()
+    labeller = Labelling(
+        reference, to_be_labelled, folder,
+        minimize=specs_obj.min_labeling,
+        use_functions=True,
+    )
+    func_weights = labeller.label_graph(
+        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
+        parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
+    )
+    print('func labelling time:', time.perf_counter() - _time)
+
+    # show differences, if any
+    for k in nodes_to_label:
+        _w0 = solver_weights[k]
+        _w1 = new_weights[k]
+        _w2 = func_weights[k]
+        diff = (_w0 != _w1 or _w1 != _w2)
+        if diff: print(f'different {_w0: <4}: {_w1: >3} / {_w2: >3} <---------')
+
+    return new_weights
 
 
 def node_matcher(n1: dict, n2: dict) -> bool:
@@ -560,8 +622,8 @@ class ExpandedCircuitData:
     area: float
     power: float
     delay: float
-    error_to_origin: int = None
-    error_to_previous: int = None
+    error_to_origin: Optional[int] = None
+    error_to_previous: Optional[int] = None
 
 
 @dc.dataclass(frozen=True)
@@ -603,7 +665,7 @@ def print_results(sel: ResultCircuitsSelection):
     ))
 
 
-def model_compare(a: ExpandedCircuitData, b: ExpandedCircuitData) -> Union[Literal[-1] | Literal[0] | Literal[+1]]:
+def model_compare(a: ExpandedCircuitData, b: ExpandedCircuitData) -> Union[Literal[-1], Literal[0], Literal[+1]]:
     if a.area < b.area: return -1
     elif a.area > b.area: return +1
     elif a.error_to_origin < b.error_to_origin: return -1

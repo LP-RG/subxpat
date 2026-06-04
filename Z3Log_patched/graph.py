@@ -1,5 +1,6 @@
-from typing import Mapping
+from typing import Dict, Mapping
 
+import networkx as nx
 from .utils import get_pure_name
 
 # patched:
@@ -20,7 +21,7 @@ class Graph(_Graph):
         self.__graph_name = get_pure_name(circuit_in_gv_path)
         self.__graph_out_path = circuit_in_gv_path
 
-        self.__graph = self.import_graph()
+        self.__graph: nx.DiGraph = self.import_graph()  # type: ignore
 
         self.__sorted_node_list = None
         self.__is_clean = is_clean
@@ -48,7 +49,11 @@ class Graph(_Graph):
     @property
     def dot_in_path(self): raise RuntimeError('[DEPRECATED] talk with Marco if you need this')
 
-    def sort_dict(self, mapping: Mapping) -> dict:
+    @property
+    def graph(self) -> nx.DiGraph:
+        return self.__graph
+
+    def sort_dict(self, mapping: Mapping) -> Dict:
         sorted_keys = sorted(mapping.keys())
         return {k: mapping[k] for k in sorted_keys}
 
