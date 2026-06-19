@@ -129,12 +129,24 @@ def explore_grid(specs_obj: Specifications):
                 specs_obj.extraction_mode = saved_extraction_mode
                 specs_obj.baseet = saved_baseet
                 specs_obj.remove_most_significant_output = False
+
+                specs_obj.threshold_array_idx = saved_threshold_array_idx
+
             else:
                 saved_extraction_mode = specs_obj.extraction_mode
                 saved_baseet = specs_obj.baseet
                 specs_obj.extraction_mode = 123
                 specs_obj.baseet = 2 ** exact_graph.num_outputs - 1
                 removed_output = True
+
+                saved_threshold_array_idx = specs_obj.threshold_array_idx
+                if specs_obj.threshold_array_idx is not None:
+                    if specs_obj.beta == 32:
+                        specs_obj.threshold_array_idx = 0
+                    elif specs_obj.beta == 16:
+                        specs_obj.threshold_array_idx = 1
+                
+
 
         # label graph
         if specs_obj.requires_labeling:
@@ -177,6 +189,7 @@ def explore_grid(specs_obj: Specifications):
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
+        consecutive_unsat = 0
         for lpp, ppo in CellIterator.factory(specs_obj):
             if is_dominated((lpp, ppo), dominant_cells):
                 pprint.info1(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> DOMINATED')
@@ -209,6 +222,7 @@ def explore_grid(specs_obj: Specifications):
 
             if len(models) == 0:
                 pprint.warning(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration} -> {status.upper()}')
+                consecutive_unsat = consecutive_unsat + 1 if status == UNSAT else 0
 
                 # store model
                 this_model_info = Model(id=0, status=status.upper(), cell=(lpp, ppo), et=specs_obj.et, iteration=specs_obj.iteration,
@@ -307,6 +321,10 @@ def explore_grid(specs_obj: Specifications):
                 break  # SAT found, stop grid exploration
 
             prev_actual_error = 0
+
+        if consecutive_unsat >= 2:
+            pprint.warning('Two consecutive UNSAT cells found at the end of the grid exploration. Terminating.')
+            break
 
         if status == SAT and best_data[0] == 0:
             pprint.info3('Area zero found!\nTerminated.')
