@@ -7,7 +7,6 @@
 
 # replaced:
 # from Z3Log.utils import get_pure_name
-# from Z3Log.utils import convert_verilog_to_gv
 
 __all__ = ['get_pure_name']
 
