@@ -271,53 +271,81 @@ class AnnotatedGraph(Graph):
         else:
             if specs_obj.requires_subgraph_extraction:
                 if specs_obj.extraction_mode == 1:
+                    from sxpat.subgraph_extractions.legacy import find_subgraph
                     pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
-                    subgraph_nodes = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
+
+                    _legacy = self.find_subgraph(specs_obj)
+                    subgraph_nodes = find_subgraph(self, specs_obj)
+                    assert frozenset(_legacy) == frozenset(subgraph_nodes)
 
                 elif specs_obj.extraction_mode == 2:
+                    from sxpat.subgraph_extractions.legacy import find_subgraph_sensitivity
                     pprint.info2(f"Partition with sensitivity start... Using imax={specs_obj.imax}, omax={specs_obj.omax},"
                                  f"and min_subgraph_size={specs_obj.min_subgraph_size}")
+
                     iteration = 1
                     cnt_nodes = 0
                     specs_obj.sensitivity = 1
                     n_outputs = len(self.output_dict)
 
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
-                        # specs_obj.sensitivity = iteration
                         pprint.with_color(Fore.LIGHTBLUE_EX)(f"Sugraph iteration {iteration} ")
-                        subgraph_nodes = self.find_subgraph_sensitivity(specs_obj)
+
+                        _legacy = self.find_subgraph_sensitivity(specs_obj)
+                        subgraph_nodes = find_subgraph_sensitivity(self, specs_obj)
+                        assert frozenset(_legacy) == frozenset(subgraph_nodes)
+
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
                         cnt_nodes = len(subgraph_nodes)
 
                 elif specs_obj.extraction_mode == 3:
+                    from sxpat.subgraph_extractions.legacy import find_subgraph_sensitivity_no_io_constraints
                     pprint.info2(f"Partition with sensitivity start... Using only min_subgraph_size={specs_obj.min_subgraph_size} parameter")
+
                     iteration = 1
                     cnt_nodes = 0
                     specs_obj.sensitivity = 1
                     n_outputs = len(self.output_dict)
 
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
-                        # specs_obj.sensitivity = iteration
                         pprint.info2(f"Sugraph iteration {iteration}")
-                        subgraph_nodes = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
+
+                        _legacy = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
+                        subgraph_nodes = find_subgraph_sensitivity_no_io_constraints(self, specs_obj)
+                        assert frozenset(_legacy) == frozenset(subgraph_nodes)
+
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
                         cnt_nodes = len(subgraph_nodes)
 
                 elif specs_obj.extraction_mode == 4:
+                    from sxpat.subgraph_extractions.legacy import find_subgraph_feasible
                     pprint.info2(f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition")
-                    subgraph_nodes = self.find_subgraph_feasible(specs_obj)  # Cristian's subgraph extraction
+
+                    _legacy = self.find_subgraph_feasible(specs_obj)
+                    subgraph_nodes = find_subgraph_feasible(self, specs_obj)
+                    assert frozenset(_legacy) == frozenset(subgraph_nodes)
 
                 elif specs_obj.extraction_mode == 5:
+                    from sxpat.subgraph_extractions.legacy import find_subgraph_feasible_hard
                     pprint.info2(f"Partition with omax={specs_obj.omax} and hard feasibility constraints. Looking for largest partition")
-                    subgraph_nodes = self.find_subgraph_feasible_hard(specs_obj)  # Critian's subgraph extraction
+
+                    _legacy = self.find_subgraph_feasible_hard(specs_obj)
+                    subgraph_nodes = find_subgraph_feasible_hard(self, specs_obj)
+                    assert frozenset(_legacy) == frozenset(subgraph_nodes)
 
                 elif specs_obj.extraction_mode == 55:
+                    from sxpat.subgraph_extractions.legacy import find_subgraph_feasible_hard_datatype_bitvec
                     pprint.info2(f"Partition with omax={specs_obj.omax} and hard constraints, imax, omax, assumptions, and BitVec, DataType. Looking for largest partition")
-                    subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)  # Critian's subgraph extraction
+                    
+                    _legacy = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)
+                    subgraph_nodes = find_subgraph_feasible_hard_datatype_bitvec(self, specs_obj)
+                    assert frozenset(_legacy) == frozenset(subgraph_nodes)
+
+                    input('done')
 
                 elif specs_obj.extraction_mode == 6:
                     pprint.info2(f"Partition with hard constraints, imax={specs_obj.imax}, omax={specs_obj.omax}, assumptions, and BitVec, DataType. Looking for largest partition for smallest possible threshold")
@@ -1663,7 +1691,7 @@ class AnnotatedGraph(Graph):
                     node_partition.append(gate_id)  # Gates inside the partition
 
         # Check partition convexity
-        if not is_selection_convex(self.graph, node_partition):
+        if not is_selection_convex(G, node_partition):
             raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
         return [self.gate_dict[idx] for idx in node_partition]
