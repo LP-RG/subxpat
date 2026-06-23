@@ -1,6 +1,6 @@
 # settings
 
-PY := python3
+PY := python3.8
 ENV_NAME := .venv
 DELETION_DELAY ?= 10
 
