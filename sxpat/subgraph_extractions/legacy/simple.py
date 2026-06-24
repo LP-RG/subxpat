@@ -9,7 +9,7 @@ import functools
 
 from z3 import (
     Optimize,
-    Bool, And, Or, Not, Implies, Sum, BoolVal,
+    Bool, And, Or, Not, Implies, Sum, BoolVal, Int, If, IntVal,
     BoolRef,
     sat, is_true, Context
 )
@@ -328,7 +328,7 @@ def find_subgraph(circuit: AnnotatedGraph, specs: Specifications) -> List[str]:
     gates_weight = _extract_gates_weights(graph, G, g_gates)
     # find max weight
     max_weight = max(gates_weight.values())
-    # update weights with their complement (max_weight - gate_weight)
+    # update weights with their complement (max_weight - gates_weight)
     for _id, _g_weight in gates_weight.items():
         # TODO:preexisting: + 1 must be removed, I'm leaving it just for the initial debugging phase
         gates_weight[_id] = max_weight - _g_weight + 1
@@ -393,7 +393,7 @@ def find_subgraph_sensitivity(circuit: AnnotatedGraph, specs: Specifications) ->
     gates_weight = _extract_gates_weights(graph, G, g_gates)
     # find max weight
     max_weight = max(gates_weight.values())
-    # update weights with their complement (max_weight - gate_weight)
+    # update weights with their complement (max_weight - gates_weight)
     for _id, _g_weight in gates_weight.items():
         # TODO:preexisting: + 1 must be removed, I'm leaving it just for the initial debugging phase
         gates_weight[_id] = max_weight - _g_weight + 1
@@ -551,3 +551,308 @@ def find_subgraph_feasible_hard(
     """
 
     return _find_subgraph_feasible(circuit, specs, None)
+
+def find_subgraph_feasible_soft(
+    circuit: AnnotatedGraph,
+    specs: Specifications,
+    required_feasible_outputs: Optional[int] = None,
+) -> List[str]:
+    """
+    Extract a subgraph, enforcing the feasibility of the subgraph outputs.
+
+    :param required_feasible_outputs: the number of feasible outputs required for the subgraph to be valid; 
+        `None` means that all subgraph outputs must be fasible
+    :return: the sequence of nodes composing the subgraph
+    """
+
+    # prepare
+    feasibility_threshold = specs.et
+    count = specs.num_subgraphs
+    graph: nx.DiGraph = circuit.graph
+    constants_ids: Container[int] = circuit.constant_dict.keys()
+    g_gates: Mapping[int, str] = circuit.gate_dict
+
+    # literals
+    (input_literals, gate_literals, output_literals) = literals = _encode_literals(graph, constants_ids)
+    # edges
+    (input_edges, gate_edges, output_edges) = edges = _extract_edges(graph, constants_ids)
+
+    # z3 encoded subgraph edges and weights
+    (z3_subinput_edges, z3_suboutput_edges) = z3_subgraph_edges = _encode_subgraph_edges(*literals, *edges)
+
+    # Optimizer
+    opt = Optimize()
+
+    # create graph containing only inner logic (excludes inputs, outputs, and constants)
+    G = _generate_gates_graph(graph, constants_ids)
+
+    # extract weights
+    gates_weight = _extract_gates_weights(graph, G, g_gates)
+
+    # convexity constraints
+    opt.add(_encode_convexity_constraints(gate_literals, gate_edges, G))
+
+    # limit input/output subgraph nodes if wanted
+    opt.add(_encode_iomax_constraints(z3_subinput_edges, z3_suboutput_edges.values(), specs))
+
+    # feasibility constraints
+    _feasible_subgraph_edges = [
+        z3_suboutput_edges[_id]
+        for _id, _w in gates_weight.items()
+        if _w <= feasibility_threshold
+    ]
+    if required_feasible_outputs is None:
+        opt.add(Sum(_feasible_subgraph_edges) == Sum(list(z3_suboutput_edges.values())))
+    else:
+        # TODO:marco: should this be an AtLeast(_feasible_subgraph_edges, required_feasible_outputs) ?
+        opt.add(Sum(_feasible_subgraph_edges) >= required_feasible_outputs)
+
+    # generate function to maximize
+    max_func: List[...] = list()
+    for _id in gate_literals:
+        max_func.append(gate_literals[_id])
+    # add function to maximize to solver
+    opt.maximize(Sum(max_func))
+
+    # force inputs/outputs to not be in the subgraph
+    opt.add(_encode_not_in_subgraph(input_literals.values()))
+    opt.add(_encode_not_in_subgraph(output_literals.values()))
+    # force unlabelled nodes to not be in the subgraph
+    opt.add(_encode_not_in_subgraph(
+        Bool(_parse_node_name(node)[0])
+        for node in graph.nodes()
+        if ((_w := graph.nodes[node][WEIGHT]) is None) or (_w <= -1)
+    ))
+
+    # =========================== Coming up with a penalty for each subgraph =============================
+    penalty = Int('penalty')
+
+    output_individual_penalty = []
+    penalty_coefficient = 1
+    for s in gates_weight:
+        if gates_weight[s] > feasibility_threshold:
+            output_individual_penalty.append(If(gate_literals[s],
+                                                penalty_coefficient * (gates_weight[s] - feasibility_threshold),
+                                                0))
+    opt.add(penalty == Sum(output_individual_penalty))
+    opt.add_soft(Sum(output_individual_penalty) <= 2 * feasibility_threshold, weight=1)
+
+    # ========================================================
+
+    # opt.add(Sum(max_func) > 1)
+    # ======================== Check for multiple subgraphs =======================================
+    all_partitions = {}
+    while count > 0:
+        node_partition = []
+        c = opt.check()
+        if c == sat:
+            # print(opt.model())
+            m = opt.model()
+            # print(f'{m = }')
+            for t in m.decls():
+                if 'penalty' in str(t):
+                    print(f'{t} = {m[t]}')
+                if 'g' not in str(t):  # Look only the literals associate to the gates
+                    continue
+                if is_true(m[t]):
+                    gate_id = int(str(t)[2:])
+                    node_partition.append(gate_id)  # Gates inside the partition
+
+        else:
+            count = 0
+
+        # Check partition convexity
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+        # ========================================================================
+        if c == sat:
+            block_clause = [d() == True if m[d] else d() == False for d in m.decls() if 'g' in d.name()]
+            opt.add(Not(And(block_clause)))
+            current_penalty = m[penalty].as_long()
+            print(f'{current_penalty}, {node_partition}')
+            all_partitions[count] = (current_penalty, node_partition)
+        count -= 1
+    # ================================================================
+    # =======================Pick the Subgraph with the lowest penalty ==============================
+    if all_partitions:
+        sorted_partitions = dict(
+            sorted(
+                all_partitions.items(),
+                key=lambda item: (-len(item[1][1]), item[1][0])
+            )
+        )
+
+        for par in sorted_partitions:
+            print(f'{sorted_partitions[par] = }')
+        penalty, node_partition = next(iter(sorted_partitions.values()))
+        print(f'{penalty, node_partition}')
+
+    return [g_gates[_i] for _i in node_partition]
+
+def find_subgraph_feasible_soft_outputs(
+    circuit: AnnotatedGraph,
+    specs: Specifications,
+    required_feasible_outputs: Optional[int] = None,
+) -> List[str]:
+    """
+    Extract a subgraph, enforcing the feasibility of the subgraph outputs.
+
+    :param required_feasible_outputs: the number of feasible outputs required for the subgraph to be valid; 
+        `None` means that all subgraph outputs must be fasible
+    :return: the sequence of nodes composing the subgraph
+    """
+
+    # prepare
+    feasibility_threshold = specs.et
+    count = specs.num_subgraphs
+    imax = specs.imax
+    omax = specs.omax
+    graph: nx.DiGraph = circuit.graph
+    constants_ids: Container[int] = circuit.constant_dict.keys()
+    g_gates: Mapping[int, str] = circuit.gate_dict
+
+    # literals
+    (input_literals, gate_literals, output_literals) = literals = _encode_literals(graph, constants_ids)
+    # edges
+    (input_edges, gate_edges, output_edges) = edges = _extract_edges(graph, constants_ids)
+
+    # z3 encoded subgraph edges and weights
+    (z3_subinput_edges, z3_suboutput_edges) = z3_subgraph_edges = _encode_subgraph_edges(*literals, *edges)
+
+    # Optimizer
+    opt = Optimize()
+
+    # create graph containing only inner logic (excludes inputs, outputs, and constants)
+    G = _generate_gates_graph(graph, constants_ids)
+
+    # extract weights
+    gates_weight = _extract_gates_weights(graph, G, g_gates)
+
+    # convexity constraints
+    opt.add(_encode_convexity_constraints(gate_literals, gate_edges, G))
+
+    # limit input/output subgraph nodes if wanted
+    opt.add(_encode_iomax_constraints(z3_subinput_edges, z3_suboutput_edges.values(), specs))
+
+    # feasibility constraints
+    _feasible_subgraph_edges = [
+        z3_suboutput_edges[_id]
+        for _id, _w in gates_weight.items()
+        if _w <= feasibility_threshold
+    ]
+    if required_feasible_outputs is None:
+        opt.add(Sum(_feasible_subgraph_edges) == Sum(list(z3_suboutput_edges.values())))
+    else:
+        # TODO:marco: should this be an AtLeast(_feasible_subgraph_edges, required_feasible_outputs) ?
+        opt.add(Sum(_feasible_subgraph_edges) >= required_feasible_outputs)
+
+    # generate function to maximize
+    max_func: List[...] = list()
+    for _id in gate_literals:
+        max_func.append(gate_literals[_id])
+    # add function to maximize to solver
+    opt.maximize(Sum(max_func))
+
+    # force inputs/outputs to not be in the subgraph
+    opt.add(_encode_not_in_subgraph(input_literals.values()))
+    opt.add(_encode_not_in_subgraph(output_literals.values()))
+    # force unlabelled nodes to not be in the subgraph
+    opt.add(_encode_not_in_subgraph(
+        Bool(_parse_node_name(node)[0])
+        for node in graph.nodes()
+        if ((_w := graph.nodes[node][WEIGHT]) is None) or (_w <= -1)
+    ))
+
+    # =========================== Coming up with a penalty for each subgraph =============================
+
+    partition_output_edges_penalty = []
+    for output_id in output_edges:
+        predecessor = output_edges[output_id][
+            0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
+
+        if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
+            continue
+        e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+
+        if graph.nodes[g_gates[predecessor]][WEIGHT] > feasibility_threshold:
+            this_output_penalty = graph.nodes[g_gates[predecessor]][WEIGHT] - feasibility_threshold
+            partition_output_edges_penalty.append(e_out * this_output_penalty)
+
+    penalty_output = Int('penalty_output')
+    penalty_gate = Int('penalty_gate')
+
+    output_individual_penalty = []
+    penalty_coefficient = 1
+    for s in gates_weight:
+        if gates_weight[s] > feasibility_threshold:
+            output_individual_penalty.append(If(gate_literals[s],
+                                                penalty_coefficient * (gates_weight[s] - feasibility_threshold),
+                                                0))
+
+    opt.add(penalty_output == Sum(partition_output_edges_penalty))
+    # Why IntVal(1)? => Because sometimes the Sum results into an integer "Python number (e.g., int)", but we need a "Z3 number (e.g., ArithRef)"
+    opt.add_soft(IntVal(1) * Sum(partition_output_edges_penalty) <= omax * feasibility_threshold, weight=100)
+    opt.add(penalty_gate == Sum(output_individual_penalty))
+    opt.add_soft(IntVal(1) * Sum(output_individual_penalty) <= omax * feasibility_threshold, weight=1)
+
+    # ========================================================
+    # ======================== Check for multiple subgraphs =======================================
+    all_partitions = {}
+    count = specs.num_subgraphs
+    while count > 0:
+        node_partition = []
+        c = opt.check()
+        if c == sat:
+            # print(opt.model())
+            m = opt.model()
+            # print(f'{m = }')
+            for t in m.decls():
+                if 'penalty_output' in str(t):
+                    # print(f'{t} = {m[t]}')
+                    penalty_output = m[t].as_long()
+                    pass
+                if 'penalty_gate' in str(t):
+                    # print(f'{t} = {m[t]}')
+                    penalty_gate = m[t].as_long()
+                if 'g' not in str(t):  # Look only the literals associate to the gates
+                    continue
+                if is_true(m[t]):
+                    gate_id = int(str(t)[2:])
+                    node_partition.append(gate_id)  # Gates inside the partition
+
+        else:
+            count = 0
+
+        # Check partition convexity
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+        # ========================================================================
+        if c == sat:
+            block_clause = [d() == True if m[d] else d() == False for d in m.decls() if 'g_' in d.name()]
+            opt.add(Not(And(block_clause)))
+
+            all_partitions[count] = (penalty_output, penalty_gate, node_partition)
+        count -= 1
+    # ================================================================
+    # =======================Pick the Subgraph with the lowest penalty ==============================2
+    sorted_partitions = {}
+    if all_partitions:
+        sorted_partitions = dict(
+            sorted(
+                all_partitions.items(),
+                key=lambda item: (-len(item[1][2]), item[1][0], item[1][1])
+            )
+        )
+
+        for par in sorted_partitions:
+            print(f'{sorted_partitions[par] = }')
+
+        first_key = next(iter(sorted_partitions))
+        penalty_output, penalty_gate, node_partition = sorted_partitions.pop(first_key)
+
+    # ================================================================
+    subgraph_candidates = sorted_partitions
+
+    return [g_gates[_i] for _i in node_partition]

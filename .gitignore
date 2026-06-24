@@ -15,6 +15,7 @@
 # scripts
 /scripts
 /*.sh
+labelling_scripts/*
 
 #> generated
 /venv

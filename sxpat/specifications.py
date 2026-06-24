@@ -315,7 +315,7 @@ class Specifications:
 
         _ex_mode = _subex_group.add_argument('--extraction-mode', '--mode',
                                              type=int,
-                                             choices=[1, 2, 3, 4, 5, 55, 6, 11, 12, 42],
+                                             choices=[1, 2, 3, 4, 5, 55, 6, 100, 11, 12, 42],
                                              default=55,
                                              help='Subgraph extraction algorithm to use (default: 55)')
 

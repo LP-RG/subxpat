@@ -4,7 +4,10 @@ from .simple import (
     find_subgraph_sensitivity_no_io_constraints,
     find_subgraph_feasible,
     find_subgraph_feasible_hard,
+    find_subgraph_feasible_soft
 )
 from .datatype import (
-    find_subgraph_feasible_hard_datatype_bitvec
+    find_subgraph_feasible_hard_datatype_bitvec,
+    find_subgraph_feasible_hard_datatype_bitvec_mintreshold,
+    slash_to_kill,
 )

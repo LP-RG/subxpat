@@ -9,7 +9,7 @@ import functools as ft
 from colorama import Fore
 from os.path import join as path_join
 from z3 import (
-    And, Not, Sum, Bool, Implies, BoolVal, If, Or, BitVecVal, Int, IntVal,
+    And, Not, Sum, Bool, Implies, BoolVal, If, Or, BitVecVal, Int, IntVal, ULE,
     Optimize, sat, is_true,
     Datatype, BoolSort, BitVecSort,
 )
@@ -345,19 +345,27 @@ class AnnotatedGraph(Graph):
                     subgraph_nodes = find_subgraph_feasible_hard_datatype_bitvec(self, specs_obj)
                     assert frozenset(_legacy) == frozenset(subgraph_nodes)
 
-                    input('done')
-
                 elif specs_obj.extraction_mode == 6:
+                    from sxpat.subgraph_extractions.legacy import find_subgraph_feasible_hard_datatype_bitvec_mintreshold
                     pprint.info2(f"Partition with hard constraints, imax={specs_obj.imax}, omax={specs_obj.omax}, assumptions, and BitVec, DataType. Looking for largest partition for smallest possible threshold")
-                    subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(specs_obj)
+
+                    _legacy = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(specs_obj)
+                    subgraph_nodes = find_subgraph_feasible_hard_datatype_bitvec_mintreshold(self, specs_obj)
+                    assert frozenset(_legacy) == frozenset(subgraph_nodes)
 
                 elif specs_obj.extraction_mode == 100:
+                    from sxpat.subgraph_extractions.legacy import slash_to_kill
                     pprint.info2(f"Test with no imax, omax")
-                    subgraph_nodes = self.slash_to_kill(specs_obj)
+
+                    _legacy = self.slash_to_kill(specs_obj)
+                    subgraph_nodes = slash_to_kill(self, specs_obj)
 
                 elif specs_obj.extraction_mode == 11:
+                    from sxpat.subgraph_extractions.legacy import find_subgraph_feasible_soft
                     pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints. Looking for largest partition")
-                    subgraph_nodes = self.find_subgraph_feasible_soft(specs_obj)  # Critian's subgraph extraction
+
+                    _legacy = self.find_subgraph_feasible_soft(specs_obj)
+                    subgraph_nodes = find_subgraph_feasible_soft(self, specs_obj)
 
                 elif specs_obj.extraction_mode == 12:
                     if self.subgraph_candidates:
@@ -1703,8 +1711,7 @@ class AnnotatedGraph(Graph):
         """
 
         # loose bound but since it's logarithmic it's still ok
-        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates))
-
+        NUM_BITS = max(self.num_outputs + math.ceil(math.log2(self.num_gates)), math.ceil(math.log2(specs_obj.et)) + 1)
         omax = specs_obj.omax
         imax = specs_obj.imax
         feasibility_threshold = specs_obj.et
@@ -1830,7 +1837,7 @@ class AnnotatedGraph(Graph):
         feasibility_constraints = [
             Implies(
                 And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),
-                Node.weight(Edge.source(edge)) <= BitVecVal(feasibility_threshold, NUM_BITS)
+                ULE(Node.weight(Edge.source(edge)), BitVecVal(feasibility_threshold, NUM_BITS))
             )
             for edge in edges
         ]
@@ -1941,7 +1948,7 @@ class AnnotatedGraph(Graph):
         """
 
         # loose bound but since it's logarithmic it's still ok
-        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates))
+        NUM_BITS = max(self.num_outputs + math.ceil(math.log2(self.num_gates)), math.ceil(math.log2(specs_obj.et)) + 1)
 
         omax = specs_obj.omax
         imax = specs_obj.imax
