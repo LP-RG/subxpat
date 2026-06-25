@@ -565,14 +565,10 @@ def find_subgraph_feasible_hard(
 def find_subgraph_feasible_soft(
     circuit: AnnotatedGraph,
     specs: Specifications,
-    required_feasible_outputs: Optional[int] = None,
 ) -> List[str]:
     """
-    Extract a subgraph, enforcing the feasibility of the subgraph outputs.
-
-    :param required_feasible_outputs: the number of feasible outputs required for the subgraph to be valid; 
-        `None` means that all subgraph outputs must be fasible
-    :return: the sequence of nodes composing the subgraph
+        extracts a colored subgraph from the original non-partitioned graph object
+        :return: an annotated graph in which the extracted subgraph is colored
     """
 
     # prepare
@@ -611,11 +607,7 @@ def find_subgraph_feasible_soft(
         for _id, _w in gates_weight.items()
         if _w <= feasibility_threshold
     ]
-    if required_feasible_outputs is None:
-        opt.add(Sum(_feasible_subgraph_edges) == Sum(list(z3_suboutput_edges.values())))
-    else:
-        # TODO:marco: should this be an AtLeast(_feasible_subgraph_edges, required_feasible_outputs) ?
-        opt.add(Sum(_feasible_subgraph_edges) >= required_feasible_outputs)
+    opt.add(Sum(_feasible_subgraph_edges) >= 1)
 
     # generate function to maximize
     max_func: List[...] = list()
@@ -704,14 +696,10 @@ def find_subgraph_feasible_soft(
 def find_subgraph_feasible_soft_outputs(
     circuit: AnnotatedGraph,
     specs: Specifications,
-    required_feasible_outputs: Optional[int] = None,
 ) -> Tuple[List[str], Dict]:
     """
-    Extract a subgraph, enforcing the feasibility of the subgraph outputs.
-
-    :param required_feasible_outputs: the number of feasible outputs required for the subgraph to be valid; 
-        `None` means that all subgraph outputs must be fasible
-    :return: the sequence of nodes composing the subgraph
+        extracts a colored subgraph from the original non-partitioned graph object
+        :return: an annotated graph in which the extracted subgraph is colored
     """
 
     # prepare
@@ -752,11 +740,7 @@ def find_subgraph_feasible_soft_outputs(
         for _id, _w in gates_weight.items()
         if _w <= feasibility_threshold
     ]
-    if required_feasible_outputs is None:
-        opt.add(Sum(_feasible_subgraph_edges) == Sum(list(z3_suboutput_edges.values())))
-    else:
-        # TODO:marco: should this be an AtLeast(_feasible_subgraph_edges, required_feasible_outputs) ?
-        opt.add(Sum(_feasible_subgraph_edges) >= required_feasible_outputs)
+    opt.add(Sum(_feasible_subgraph_edges) >= 1)
 
     # generate function to maximize
     max_func: List[...] = list()
