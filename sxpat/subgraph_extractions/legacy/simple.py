@@ -1,26 +1,35 @@
 from collections import defaultdict
 import enum
-from typing import Callable, Collection, Container, Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple
-from typing_extensions import Self
+from typing import Collection, Container, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import re
 import networkx as nx
-import functools
 
 from z3 import (
     Optimize,
     Bool, And, Or, Not, Implies, Sum, BoolVal, Int, If, IntVal,
     BoolRef,
-    sat, is_true, Context
+    sat, is_true
 )
 
 from sxpat.annotatedGraph import AnnotatedGraph
-from sxpat.graph.graph import IOGraph
 
 from sxpat.config.config import WEIGHT
 from sxpat.specifications import Specifications
 
 from sxpat.utils.graph import is_selection_convex
+
+
+__all__ = [
+    'find_subgraph',
+    'find_subgraph_sensitivity',
+    'find_subgraph_sensitivity_no_io_constraints',
+    'find_subgraph_feasible',
+    'find_subgraph_feasible_hard',
+    'find_subgraph_feasible_soft',
+    'find_subgraph_feasible_soft_outputs',
+]
+
 
 NUMBER_PATTERN = re.compile(r'\d+')
 NAME_PATTERN = re.compile(r'(g|in|out)(\d+)')
@@ -552,6 +561,7 @@ def find_subgraph_feasible_hard(
 
     return _find_subgraph_feasible(circuit, specs, None)
 
+
 def find_subgraph_feasible_soft(
     circuit: AnnotatedGraph,
     specs: Specifications,
@@ -689,6 +699,7 @@ def find_subgraph_feasible_soft(
         print(f'{penalty, node_partition}')
 
     return [g_gates[_i] for _i in node_partition]
+
 
 def find_subgraph_feasible_soft_outputs(
     circuit: AnnotatedGraph,

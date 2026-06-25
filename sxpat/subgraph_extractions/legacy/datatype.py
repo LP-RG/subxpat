@@ -1,36 +1,34 @@
-from typing import Protocol
-from collections import defaultdict
-import enum
 import itertools
 import math
-from typing import Callable, Collection, Container, Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple
-from typing_extensions import Self
+from typing import Dict, Iterable, List, Mapping, Tuple
 
 import re
 import networkx as nx
-import functools
 
 from z3 import (
-    BitVec,
-    BitVecNumRef,
     BitVecRef,
     BitVecVal,
-    ExprRef,
     If,
     Optimize,
     Bool, And, Or, Not, Implies, Sum, BoolVal,
     Datatype, BitVecSort, BoolSort, ULE,
     BoolRef, DatatypeSortRef, DatatypeRef,
-    sat, is_true, Context
+    sat, is_true
 )
 
 from sxpat.annotatedGraph import AnnotatedGraph
-from sxpat.graph.graph import IOGraph
 
 from sxpat.config.config import WEIGHT
 from sxpat.specifications import Specifications
 
 from sxpat.utils.graph import is_selection_convex
+
+
+__all__ = [
+    'find_subgraph_feasible_hard_datatype_bitvec',
+    'find_subgraph_feasible_hard_datatype_bitvec_mintreshold',
+    'slash_to_kill',
+]
 
 
 class NodeDatatype(DatatypeRef): ...
@@ -169,6 +167,7 @@ def _setup_problem(circuit: AnnotatedGraph, specs: Specifications):
 
     return optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width
 
+
 def _add_boundary_edges(graph, Node, z3_nodes, bit_width):
     z3_bitvec_0 = BitVecVal(0, bit_width)
     z3_bitvec_1 = BitVecVal(1, bit_width)
@@ -196,6 +195,7 @@ def _add_boundary_edges(graph, Node, z3_nodes, bit_width):
             )
 
     return z3_subinput_edges, z3_suboutput_edges
+
 
 def _add_convexity(optimizer, graph, Node, z3_nodes):
     descendants = {n: sorted(nx.descendants(graph, n)) for n in z3_nodes}
@@ -236,6 +236,7 @@ def _add_convexity(optimizer, graph, Node, z3_nodes):
                     )
                 )
 
+
 def _solve_and_extract(optimizer, max_nodes, h, circuit):
     graph = circuit.graph
     g_gates = circuit.gate_dict
@@ -263,6 +264,7 @@ def _solve_and_extract(optimizer, max_nodes, h, circuit):
 
     idxs = [int(re.search(r'g(\d+)', n).group(1)) for n in node_partition]
     return [g_gates[i] for i in idxs]
+
 
 def find_subgraph_feasible_hard_datatype_bitvec(circuit, specs):
     optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = \
@@ -304,6 +306,7 @@ def find_subgraph_feasible_hard_datatype_bitvec(circuit, specs):
 
     return _solve_and_extract(optimizer, max_nodes, h, circuit)
 
+
 def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
     circuit: AnnotatedGraph,
     specs: Specifications,
@@ -335,14 +338,15 @@ def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
     # find subgraph
     # NOTE: given that the node with the smallest weight is a valid subgraph, this loop should only iterate once
     for (i, test_feasibility_threshold) in enumerate(actual_partition):
-        specs.et = test_feasibility_threshold # TODO: remove when removing annotated graph
+        specs.et = test_feasibility_threshold  # TODO: remove when removing annotated graph
         subgraph_nodes = find_subgraph_feasible_hard_datatype_bitvec(circuit, specs)
         if len(subgraph_nodes) > 0: break
 
     # restore updated parameters
-    specs.et = feasibility_threshold # TODO: remove when removing annotated graph
+    specs.et = feasibility_threshold  # TODO: remove when removing annotated graph
 
-    return subgraph_nodes # type: ignore
+    return subgraph_nodes  # type: ignore
+
 
 def slash_to_kill(circuit, specs):
     optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = \
