@@ -705,7 +705,7 @@ def find_subgraph_feasible_soft_outputs(
     circuit: AnnotatedGraph,
     specs: Specifications,
     required_feasible_outputs: Optional[int] = None,
-) -> List[str]:
+) -> Tuple[List[str], Dict]:
     """
     Extract a subgraph, enforcing the feasibility of the subgraph outputs.
 
@@ -864,6 +864,8 @@ def find_subgraph_feasible_soft_outputs(
         penalty_output, penalty_gate, node_partition = sorted_partitions.pop(first_key)
 
     # ================================================================
-    subgraph_candidates = sorted_partitions
 
-    return [g_gates[_i] for _i in node_partition]
+    return (
+        [g_gates[_i] for _i in node_partition],
+        sorted_partitions
+    )
