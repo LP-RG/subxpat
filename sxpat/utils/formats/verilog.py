@@ -5,7 +5,11 @@ from subprocess import run, PIPE, DEVNULL
 from typing import ClassVar, Dict, Iterable, List, Mapping, Sequence, Tuple
 
 
-__all__ = ['synthesize_verilog_to_gate_level', 'YosysError']
+__all__ = [
+    'synthesize_verilog_to_notand_gate_level',
+    'convert_verilog_to_dot',
+    'YosysError',
+]
 
 
 class YosysError(Exception):
@@ -19,9 +23,9 @@ class YosysError(Exception):
         self.stderr = stderr
 
 
-class synthesize_verilog_to_gate_level:
+class synthesize_verilog_to_notand_gate_level:
     """
-        @author: Morteza Rezaalipour, Marco Biasion
+    :authors: Morteza Rezaalipour, Marco Biasion
     """
 
     YOSYS_COMMAND: ClassVar = """
@@ -234,7 +238,11 @@ class synthesize_verilog_to_gate_level:
             return 1
 
 
-class convert_verilog_to_gv:
+class convert_verilog_to_dot:
+    """
+    :authors: Morteza Rezaalipour, Marco Biasion
+    """
+
     YOSYS_COMMAND: ClassVar = """
         read_verilog {input_verilog_path}
         opt
@@ -248,7 +256,7 @@ class convert_verilog_to_gv:
         yosys_command = cls.YOSYS_COMMAND.format(input_verilog_path=input_verilog_path, output_dot_path=tmp_dot_path[:-4])
 
         # run
-        with open(path_join(temporary_path, 'yosys_convert_verilog_to_gv.log'), 'w') as f:
+        with open(path_join(temporary_path, 'yosys_convert_verilog_to_dot.log'), 'w') as f:
             # run yosys command (dump log to temporary file)
             _process = run(['yosys', '-p', yosys_command], stdout=f, stderr=f)
             assert _process.returncode == 0
