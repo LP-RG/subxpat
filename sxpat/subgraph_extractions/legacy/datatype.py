@@ -348,9 +348,11 @@ def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
     return subgraph_nodes  # type: ignore
 
 
-def slash_to_kill(circuit, specs):
-    optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = \
-        _setup_problem(circuit, specs)
+def slash_to_kill(
+    circuit: AnnotatedGraph,
+    specs: Specifications,
+) -> List[str]:
+    optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = _setup_problem(circuit, specs)
 
     _add_convexity(optimizer, graph, Node, z3_nodes)
 

@@ -15,6 +15,7 @@ from z3 import (
 from sxpat.annotatedGraph import AnnotatedGraph
 
 from sxpat.config.config import WEIGHT
+from sxpat.graph.graph import IOGraph
 from sxpat.specifications import Specifications
 
 from sxpat.utils.graph import is_selection_convex
@@ -306,7 +307,7 @@ def _solve_and_verify(
     return node_partition
 
 
-def find_subgraph(circuit: AnnotatedGraph, specs: Specifications) -> List[str]:
+def find_subgraph(circuit: AnnotatedGraph, _circuit:IOGraph, specs: Specifications) -> List[str]:
     """
     Extract a subgraph, maximising the number of nodes in the subgraph (1).  
         (1) does this only if all weights are equal.
@@ -315,8 +316,14 @@ def find_subgraph(circuit: AnnotatedGraph, specs: Specifications) -> List[str]:
     """
 
     # prepare
-    graph: nx.DiGraph = circuit.graph
-    constants_ids: Container[int] = circuit.constant_dict.keys()
+    graph: nx.DiGraph = _circuit._inner
+    _nodes_ids = {
+        i: g.name
+        for i, g in enumerate(_circuit.nodes)
+    }
+    # TODO:HERE LORENZO MARCO
+    # constants_ids: Container[int] = circuit.constant_dict.keys()
+    # constants_ids: Container[int] = frozenset(c.name for c in _circuit.constants)
     g_gates: Mapping[int, str] = circuit.gate_dict
 
     # literals

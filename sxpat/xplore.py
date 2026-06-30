@@ -8,9 +8,11 @@ import networkx as nx
 import os
 from os.path import join as path_join
 
-from sxpat.annotatedGraph import AnnotatedGraph
+# from sxpat.annotatedGraph import AnnotatedGraph  # MARCO:AG
+from sxpat.converting.legacy import iograph_with_weights
 from sxpat.graph import IOGraph
 
+from sxpat.newag import load_circuit_from_verilog
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
 
 from sxpat.config.config import UNKNOWN, SAT, WEIGHT
@@ -32,7 +34,7 @@ from sxpat.solvers import Z3DirectBitVecSolver
 
 from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
-from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
+# from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
 
 
 def explore_grid(specs_obj: Specifications):
@@ -44,7 +46,7 @@ def explore_grid(specs_obj: Specifications):
     FS.copy(specs_obj.current_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'current.v'))
     specs_obj.current_benchmark = tmp
     # setup caches
-    AnnotatedGraph.set_loading_cache_size(specs_obj.wanted_models + 2)
+    # AnnotatedGraph.set_loading_cache_size(specs_obj.wanted_models + 2)  # MARCO:AG
     # constant metrics
     exact_circuit_metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, specs_obj.exact_benchmark, specs_obj.path.run.temporary)
 
@@ -170,8 +172,11 @@ def explore_grid(specs_obj: Specifications):
 
         # import the graph
         _time = Timer.now()
-        current_graph = AnnotatedGraph(specs_obj.current_benchmark, specs_obj.path.run)
-        exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, specs_obj.path.run)
+        _MA_current_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
+        _MA_exact_graph = load_circuit_from_verilog(specs_obj.exact_benchmark, specs_obj.path.run)
+
+        # current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark, specs_obj.path.run)  # MARCO:AG
+        # exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark, specs_obj.path.run)  # MARCO:AG
         _time = Timer.now() - _time
         # logging
         specs_obj.stats_storage.stage(annotated_graphs_initialization_time=_time)
@@ -181,12 +186,18 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.requires_labeling:
             print('started labelling')
             _time = Timer.now()
-            weights = label_graph(iograph_from_legacy(current_graph), specs_obj)
-            inner_graph: nx.DiGraph = current_graph.graph
-            for (node_name, node_data) in inner_graph.nodes.items():
-                node_data[WEIGHT] = weights.get(node_name, -1)
-                # TODO: get output's weights in the correct way
-                if node_name.startswith('out'): node_data[WEIGHT] = 2**int(node_name[3:])
+            # _iograph = iograph_from_legacy(current_graph)  # MARCO:AG
+
+            weights = label_graph(_MA_current_graph, specs_obj)
+            for (i, n) in enumerate(_MA_current_graph.outputs_names):
+                weights[n] = 2 ** i
+
+            # inner_graph: nx.DiGraph = _iograph._inner
+            # for (node_name, node_data) in inner_graph.nodes.items():
+            #     node_data[WEIGHT] = weights.get(node_name, -1)
+            #     if node_name.startswith('out'): node_data[WEIGHT] = 2**int(node_name[3:])
+
+            _MA_current_graph = iograph_with_weights(_MA_current_graph, weights)
             _time = Timer.now() - _time
 
             # logging
@@ -195,22 +206,23 @@ def explore_grid(specs_obj: Specifications):
 
         # extract subgraph
         _time = Timer.now()
-        subgraph_is_available = current_graph.extract_subgraph(specs_obj)
+        # subgraph_is_available = current_graph.extract_subgraph(specs_obj)  # MARCO:AG
+        subgraph_is_available = True  # TODO
         _time = Timer.now() - _time
         previous_subgraphs.append(current_graph.subgraph)
         # logging
         specs_obj.stats_storage.stage(
             subgraph_extraction_time=_time,
-            subgraph_nodes_count=current_graph.subgraph_num_gates,
-            subgraph_inputs_count=current_graph.subgraph_num_inputs,
-            subgraph_outputs_count=current_graph.subgraph_num_outputs,
+            subgraph_nodes_count=current_graph.subgraph_num_gates,  # MARCO:AG
+            subgraph_inputs_count=current_graph.subgraph_num_inputs,  # MARCO:AG
+            subgraph_outputs_count=current_graph.subgraph_num_outputs,  # MARCO:AG
         )
         print(f'subgraph_extraction_time = {_time}')
         # logging
         if specs_obj.debug:
-            specs_obj.stats_storage.stage(subgraph_dot=os.path.relpath(current_graph.subgraph_out_path, specs_obj.path.run.base_folder))
-            current_graph.export_annotated_graph()
-            print(f'subgraph exported at {current_graph.subgraph_out_path}')
+            specs_obj.stats_storage.stage(subgraph_dot=os.path.relpath(current_graph.subgraph_out_path, specs_obj.path.run.base_folder))  # MARCO:AG
+            current_graph.export_annotated_graph()  # MARCO:AG
+            print(f'subgraph exported at {current_graph.subgraph_out_path}')  # MARCO:AG
 
         # guard: skip if no subgraph was found
         if not subgraph_is_available:
@@ -234,8 +246,8 @@ def explore_grid(specs_obj: Specifications):
             continue
 
         # convert from legacy graphs to refactored circuits
-        exact_circ = iograph_from_legacy(exact_graph)
-        current_circ = sgraph_from_legacy(current_graph)
+        exact_circ = iograph_from_legacy(exact_graph)  # MARCO:AG
+        current_circ = sgraph_from_legacy(current_graph)  # MARCO:AG
 
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
@@ -349,8 +361,8 @@ def explore_grid(specs_obj: Specifications):
                 for candidate_data in cur_model_results:
                     #
                     _time = Timer.now()
-                    current = AnnotatedGraph(candidate_data.path, specs_obj.path.run)
-                    cur_graph = iograph_from_legacy(current)
+                    current = AnnotatedGraph.cached_load(candidate_data.path, specs_obj.path.run)  # MARCO:AG
+                    cur_graph = iograph_from_legacy(current)  # MARCO:AG
                     _time = Timer.now() - _time
                     # logging
                     specs_obj.stats_storage.stage(erroreval_annotated_graphs_initialization_time=_time)
