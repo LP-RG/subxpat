@@ -324,7 +324,7 @@ def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
 
 
 def slash_to_kill(
-    circuit: AnnotatedGraph,
+    circuit: IOGraph,
     specs: Specifications,
 ) -> List[str]:
     optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = _setup_problem(circuit, specs)
