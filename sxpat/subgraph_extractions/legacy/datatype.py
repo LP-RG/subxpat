@@ -19,6 +19,7 @@ from z3 import (
 from sxpat.annotatedGraph import AnnotatedGraph
 
 from sxpat.config.config import WEIGHT
+from sxpat.graph.graph import IOGraph
 from sxpat.specifications import Specifications
 
 from sxpat.utils.graph import is_selection_convex
@@ -134,29 +135,29 @@ def _encode_edges(
     return z3_edges
 
 
-def _setup_problem(circuit: AnnotatedGraph, specs: Specifications):
-    graph = circuit.graph
+def _setup_problem(circuit: IOGraph, specs: Specifications):
+    graph = circuit._inner
     feasibility_threshold = specs.et
 
     bit_width = max(
-        circuit.num_outputs + math.ceil(math.log2(circuit.num_gates)),
+        len(circuit.outputs) + math.ceil(math.log2(len(circuit.nodes))),
         math.ceil(math.log2(feasibility_threshold)) + 1
     )
 
     optimizer = Optimize()
     Node, Edge = _declare_datatypes(bit_width)
 
-    available_nodes = circuit.gate_dict.values()
+    available_nodes = [node.name for node in circuit.nodes]
     unavailable_nodes = itertools.chain(
-        circuit.input_dict.values(),
-        circuit.output_dict.values(),
-        circuit.constant_dict.values(),
+        [name for name in circuit.inputs_names],
+        [name for name in circuit.outputs_names],
+        [node.name for node in circuit.constants],
     )
 
     z3_nodes, base_constraints = _encode_nodes(
         available_nodes,
         unavailable_nodes,
-        graph.nodes(WEIGHT, -1),
+        {node.name: (getattr(node, WEIGHT, None) or -1) for node in circuit.nodes},
         bit_width,
         Node,
     )
@@ -237,9 +238,8 @@ def _add_convexity(optimizer, graph, Node, z3_nodes):
                 )
 
 
-def _solve_and_extract(optimizer, max_nodes, h, circuit):
-    graph = circuit.graph
-    g_gates = circuit.gate_dict
+def _solve_and_extract(optimizer, max_nodes, h, circuit: IOGraph) -> List[str]:
+    graph = circuit._inner
 
     if optimizer.check() != sat:
         return []
@@ -262,16 +262,13 @@ def _solve_and_extract(optimizer, max_nodes, h, circuit):
     if not is_selection_convex(graph, node_partition):
         raise RuntimeError("non-convex subgraph")
 
-    idxs = [int(re.search(r'g(\d+)', n).group(1)) for n in node_partition]
-    return [g_gates[i] for i in idxs]
+    return node_partition
 
 
-def find_subgraph_feasible_hard_datatype_bitvec(circuit, specs):
-    optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = \
-        _setup_problem(circuit, specs)
+def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
+    optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = _setup_problem(circuit, specs)
 
-    z3_subinput_edges, z3_suboutput_edges = \
-        _add_boundary_edges(graph, Node, z3_nodes, bit_width)
+    z3_subinput_edges, z3_suboutput_edges = _add_boundary_edges(graph, Node, z3_nodes, bit_width)
 
     _add_convexity(optimizer, graph, Node, z3_nodes)
 
@@ -308,42 +305,20 @@ def find_subgraph_feasible_hard_datatype_bitvec(circuit, specs):
 
 
 def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
-    circuit: AnnotatedGraph,
+    circuit: IOGraph,
     specs: Specifications,
 ) -> List[str]:
 
     # prepare
     feasibility_threshold = specs.et
-    graph: nx.DiGraph = circuit.graph
-    g_gates: Mapping[int, str] = circuit.gate_dict
-
-    # get graph weights, then min/max (bounded)
-    weights = sorted(frozenset(
-        weight
-        for gate_name in g_gates.values()
-        if (weight := graph.nodes[gate_name][WEIGHT]) >= 0
-    ))
-    if len(weights) == 0: return []
-    min_weight = max(0, min(weights))
-    max_weight = min(feasibility_threshold, max(weights))
-
-    # use linear partition to find best match in weights
-    partition_step = (max_weight - min_weight) / (8 - 1)
-    linear_partition = [min_weight + partition_step * i for i in range(8)]
-    actual_partition = sorted(frozenset(
-        min(weights, key=lambda w: abs(w - p))
-        for p in linear_partition
-    ))
-
-    # find subgraph
-    # NOTE: given that the node with the smallest weight is a valid subgraph, this loop should only iterate once
-    for (i, test_feasibility_threshold) in enumerate(actual_partition):
-        specs.et = test_feasibility_threshold  # TODO: remove when removing annotated graph
-        subgraph_nodes = find_subgraph_feasible_hard_datatype_bitvec(circuit, specs)
-        if len(subgraph_nodes) > 0: break
+    graph: nx.DiGraph = circuit._inner
+    min_weight = min([getattr(node, "weight") for node in circuit.nodes if getattr(node, "weight", None) is not None])
+    print(min_weight)
+    specs.et = min_weight
+    subgraph_nodes = find_subgraph_feasible_hard_datatype_bitvec(circuit, specs)
 
     # restore updated parameters
-    specs.et = feasibility_threshold  # TODO: remove when removing annotated graph
+    specs.et = feasibility_threshold
 
     return subgraph_nodes  # type: ignore
 

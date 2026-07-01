@@ -15,7 +15,7 @@ from z3 import (
 )
 
 from Z3Log_patched.graph import Graph
-from sxpat.utils.formats.verilog import synthesize_verilog_to_gate_level, convert_verilog_to_gv
+from sxpat.utils.formats.verilog import synthesize_verilog_to_notand_gate_level, convert_verilog_to_dot
 
 from Z3Log_patched.utils import get_pure_name
 from sxpat.utils.print import pprint
@@ -36,10 +36,10 @@ class AnnotatedGraph(Graph):
         circuit_name = get_pure_name(circuit_verilog_path)
 
         # prepare a clean Verilog
-        synthesize_verilog_to_gate_level(circuit_verilog_path, tmp_v := path_join(run_paths.temporary, f'{circuit_name}.v'))
+        synthesize_verilog_to_notand_gate_level(circuit_verilog_path, tmp_v := path_join(run_paths.temporary, f'{circuit_name}.v'))
 
         # convert the clean Verilog into a Yosys GV
-        convert_verilog_to_gv(tmp_v, tmp_gv := path_join(run_paths.temporary, f'{circuit_name}.gv'), run_paths.temporary)
+        convert_verilog_to_dot(tmp_v, tmp_gv := path_join(run_paths.temporary, f'{circuit_name}.gv'), run_paths.temporary)
 
         # initialize the super class using the Yosys GV
         super().__init__(tmp_gv, is_clean)

@@ -162,11 +162,12 @@ class Labelling:
 
         # select nodes to label (all non-input ancestors of outputs under the cutoff)
         if partial_cutoff is None: partial_cutoff = 2**len(self.to_be_labelled.outputs_names)
-        nodes_to_label: List[str] = sorted(frozenset(chain.from_iterable(
-            nx.ancestors(self.to_be_labelled._inner, output)
-            for (i, output) in enumerate(self.to_be_labelled.outputs_names)
-            if 2**i <= partial_cutoff
-        )))
+        nodes_to_label = []
+        for (i, output) in enumerate(self.to_be_labelled.outputs_names):
+            if 2**i <= partial_cutoff:
+                for ancestor in nx.ancestors(self.to_be_labelled._inner, output):
+                    if not isinstance(self.to_be_labelled[ancestor], BoolVariable):
+                        nodes_to_label.append(ancestor)
 
         # label nodes
         weights: Dict[str, int] = dict()
