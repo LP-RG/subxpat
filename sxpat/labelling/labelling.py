@@ -108,26 +108,26 @@ class Labelling:
                         strings.append('solver.add(error(r_out, l_out) == If(UGE(r_out, l_out), r_out - l_out, l_out - r_out))\n')
                         if self._minimize:
                             strings.append('solver.add(error(r_out, l_out) > 0)\n')
-                            strings.append('handle = solver.minimize(error(r_out, l_out))\n\n')
+                            strings.append('opt_objective = solver.minimize(error(r_out, l_out))\n\n')
                         else:
-                            strings.append('handle = solver.maximize(error(r_out, l_out))\n\n')
+                            strings.append('opt_objective = solver.maximize(error(r_out, l_out))\n\n')
                         # run
                         strings.append('solver.check()\n')
                         strings.append('model = solver.model()\n')
-                        strings.append('print(solver.lower(handle))\n')
+                        strings.append('print(opt_objective.value())\n')  # .value() is equivalent to the correct alternative between .upper() and .lower()
                     else:
                         strings.append('solver = Optimize()\n\n')
                         # error
                         strings.append('error = If(UGE(r_out, l_out), r_out - l_out, l_out - r_out)\n')
                         if self._minimize:
                             strings.append('solver.add(error > 0)\n')
-                            strings.append('handle = solver.minimize(error)\n\n')
+                            strings.append('opt_objective = solver.minimize(error)\n\n')
                         else:
-                            strings.append('handle = solver.maximize(error)\n\n')
+                            strings.append('opt_objective = solver.maximize(error)\n\n')
                         # run
                         strings.append('solver.check()\n')
                         strings.append('model = solver.model()\n')
-                        strings.append('print(solver.lower(handle))\n')
+                        strings.append('print(opt_objective.value())\n')  # .value() is equivalent to the correct alternative between .upper() and .lower()
 
                     self.__base_script = ''.join(strings)
 
