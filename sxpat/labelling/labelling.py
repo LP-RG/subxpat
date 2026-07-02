@@ -108,28 +108,26 @@ class Labelling:
                         strings.append('solver.add(error(r_out, l_out) == If(UGE(r_out, l_out), r_out - l_out, l_out - r_out))\n')
                         if self._minimize:
                             strings.append('solver.add(error(r_out, l_out) > 0)\n')
-                            strings.append('solver.minimize(error(r_out, l_out))\n\n')
+                            strings.append('handle = solver.minimize(error(r_out, l_out))\n\n')
                         else:
-                            strings.append('solver.maximize(error(r_out, l_out))\n\n')
+                            strings.append('handle = solver.maximize(error(r_out, l_out))\n\n')
                         # run
                         strings.append('solver.check()\n')
                         strings.append('model = solver.model()\n')
-                        # TODO: SHOULD THIS BE solver.upper(...)/solver.lower(...) ?
-                        strings.append('print(model.eval(error(r_out, l_out), model_completion=True))\n')
+                        strings.append('print(solver.lower(handle))\n')
                     else:
                         strings.append('solver = Optimize()\n\n')
                         # error
                         strings.append('error = If(UGE(r_out, l_out), r_out - l_out, l_out - r_out)\n')
                         if self._minimize:
                             strings.append('solver.add(error > 0)\n')
-                            strings.append('solver.minimize(error)\n\n')
+                            strings.append('handle = solver.minimize(error)\n\n')
                         else:
-                            strings.append('solver.maximize(error)\n\n')
+                            strings.append('handle = solver.maximize(error)\n\n')
                         # run
                         strings.append('solver.check()\n')
                         strings.append('model = solver.model()\n')
-                        # TODO: SHOULD THIS BE solver.upper(...)/solver.lower(...) ?
-                        strings.append('print(model.eval(error, model_completion=True))\n')
+                        strings.append('print(solver.lower(handle))\n')
 
                     self.__base_script = ''.join(strings)
 
