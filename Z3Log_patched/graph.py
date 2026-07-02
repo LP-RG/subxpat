@@ -1,4 +1,4 @@
-from typing import Dict, Mapping
+from typing import Dict, Mapping, Optional
 
 import networkx as nx
 from .utils import get_pure_name
@@ -56,6 +56,15 @@ class Graph(_Graph):
     def sort_dict(self, mapping: Mapping) -> Dict:
         sorted_keys = sorted(mapping.keys())
         return {k: mapping[k] for k in sorted_keys}
+
+    def export_graph(self, path: Optional[str] = None):
+        with open(path or self.out_path, 'w') as f:
+            f.write(f"strict digraph \"\" {{\n")
+            for n in self.graph.nodes:
+                self.export_node(n, f)
+            for e in self.graph.edges:
+                self.export_edge(e, f)
+            f.write(f"}}\n")
 
     def __repr__(self):
         return (

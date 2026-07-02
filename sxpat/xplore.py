@@ -554,7 +554,7 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
         et_coefficient = 1
         partial_cutoff = specs_obj.et * et_coefficient
     else:
-        partial_cutoff = None
+        partial_cutoff = 2**len(circuit.outputs_names)
 
     # WIP: update parameters
     reference: IOGraph = circuit

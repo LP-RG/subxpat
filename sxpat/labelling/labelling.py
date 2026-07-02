@@ -86,7 +86,7 @@ class Labelling:
                     strings.append('# variables (inputs, parameters)\n')
                     for inp in self.reference.inputs_names:
                         strings.append(f'{inp} = Bool(\'{inp}\')\n')
-                    strings.append('# numberic constants\n')
+                    strings.append('# numeric constants\n')
                     strings.append(f'constf = BitVecVal(0, {num_outputs})\n')
                     for i in range(num_outputs):
                         strings.append(f'const{i} = BitVecVal({2**i}, {num_outputs})\n')
@@ -107,7 +107,7 @@ class Labelling:
                         strings.append(f'error = Function("error", BitVecSort({num_outputs}), BitVecSort({num_outputs}), BitVecSort({num_outputs}))\n')
                         strings.append('solver.add(error(r_out, l_out) == If(UGE(r_out, l_out), r_out - l_out, l_out - r_out))\n')
                         if self._minimize:
-                            strings.append('solver.add(error(r_out, l_out) > 0)\n')
+                            strings.append('solver.add(UGE(error(r_out, l_out), BitVecVal(0, {num_outputs}))\n')
                             strings.append('opt_objective = solver.minimize(error(r_out, l_out))\n\n')
                         else:
                             strings.append('opt_objective = solver.maximize(error(r_out, l_out))\n\n')
@@ -120,7 +120,7 @@ class Labelling:
                         # error
                         strings.append('error = If(UGE(r_out, l_out), r_out - l_out, l_out - r_out)\n')
                         if self._minimize:
-                            strings.append('solver.add(error > 0)\n')
+                            strings.append(f'solver.add(UGE(error, BitVecVal(0, {num_outputs}))\n')
                             strings.append('opt_objective = solver.minimize(error)\n\n')
                         else:
                             strings.append('opt_objective = solver.maximize(error)\n\n')
