@@ -1,10 +1,11 @@
-from typing import ClassVar, Dict, Optional, Union
+from typing import ClassVar, Dict, List, Optional, Union
 
 import os
 from os.path import join as path_join
 import subprocess
 import networkx as nx
 from threading import Lock
+from itertools import chain
 from collections import deque
 from multiprocessing.pool import ThreadPool
 
@@ -14,7 +15,7 @@ from sxpat.graph.node import BoolConstant, Node, And, Not, BoolVariable
 
 class Labelling:
     """
-        :authors: Lorenzo Spada, Marco Biasion
+        @author: Lorenzo Spada, Marco Biasion
     """
 
     __slots__ = [
@@ -107,28 +108,26 @@ class Labelling:
                         strings.append('solver.add(error(r_out, l_out) == If(UGE(r_out, l_out), r_out - l_out, l_out - r_out))\n')
                         if self._minimize:
                             strings.append('solver.add(error(r_out, l_out) > 0)\n')
-                            strings.append('solver.minimize(error(r_out, l_out))\n\n')
+                            strings.append('opt_objective = solver.minimize(error(r_out, l_out))\n\n')
                         else:
-                            strings.append('solver.maximize(error(r_out, l_out))\n\n')
+                            strings.append('opt_objective = solver.maximize(error(r_out, l_out))\n\n')
                         # run
                         strings.append('solver.check()\n')
                         strings.append('model = solver.model()\n')
-                        # TODO: SHOULD THIS BE solver.upper(...)/solver.lower(...) ?
-                        strings.append('print(model.eval(error(r_out, l_out), model_completion=True))\n')
+                        strings.append('print(opt_objective.value())\n')  # .value() is equivalent to the correct alternative between .upper() and .lower()
                     else:
                         strings.append('solver = Optimize()\n\n')
                         # error
                         strings.append('error = If(UGE(r_out, l_out), r_out - l_out, l_out - r_out)\n')
                         if self._minimize:
                             strings.append('solver.add(error > 0)\n')
-                            strings.append('solver.minimize(error)\n\n')
+                            strings.append('opt_objective = solver.minimize(error)\n\n')
                         else:
-                            strings.append('solver.maximize(error)\n\n')
+                            strings.append('opt_objective = solver.maximize(error)\n\n')
                         # run
                         strings.append('solver.check()\n')
                         strings.append('model = solver.model()\n')
-                        # TODO: SHOULD THIS BE solver.upper(...)/solver.lower(...) ?
-                        strings.append('print(model.eval(error, model_completion=True))\n')
+                        strings.append('print(opt_objective.value())\n')  # .value() is equivalent to the correct alternative between .upper() and .lower()
 
                     self.__base_script = ''.join(strings)
 
