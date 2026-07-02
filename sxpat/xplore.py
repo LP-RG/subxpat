@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable, Iterator, List, Literal, Tuple, Union
+from typing import Dict, Iterable, Iterator, List, Literal, Tuple, Union
 import dataclasses as dc
 
 import functools as ft
@@ -182,10 +182,12 @@ def explore_grid(specs_obj: Specifications):
             print('started labelling')
             _time = Timer.now()
             label_graph(specs_obj.current_benchmark, current_graph, specs_obj)
+            label_graph_new(iograph_from_legacy(current_graph),specs_obj)
             _time = Timer.now() - _time
             # logging
             specs_obj.stats_storage.stage(labelling_time=_time)
             print(f'labelling_time = {_time}')
+            input('PAUSED: enter to continue')
 
         # extract subgraph
         _time = Timer.now()
@@ -521,20 +523,25 @@ def print_current_model(
     pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
 
-def label_graph(circuit_verilog_path: str, graph: AnnotatedGraph, specs_obj: Specifications) -> None:
+def label_graph(circuit_verilog_path: str, graph: AnnotatedGraph, specs_obj: Specifications) -> Dict[str, int]:
     """This function adds the labels inplace to the given graph"""
 
     # imports
     from sxpat.labeling import labeling_explicit
+    import time
 
-    # compute weights
+    # settings
     ET_COEFFICIENT = 1
+    
+    # compute weights
+    _time = time.perf_counter()
     weights, _ = labeling_explicit(
         circuit_verilog_path, circuit_verilog_path, specs_obj.path.run,
         min_labeling=specs_obj.min_labeling,
         partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
         parallel=specs_obj.parallel
     )
+    print('current labelling time:', time.perf_counter() - _time)
 
     # apply weights to graph
     inner_graph: nx.DiGraph = graph.graph
@@ -543,6 +550,74 @@ def label_graph(circuit_verilog_path: str, graph: AnnotatedGraph, specs_obj: Spe
         # TODO: get output's weights in the correct way
         if node_name[:3] == 'out':
             node_data[WEIGHT] = 2**int(node_name[3:])
+
+    return inner_graph
+
+def label_graph_new(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
+    """This function adds the labels inplace to the given graph"""
+
+    # imports
+    from sxpat.labelling.labelling import Labelling
+    from sxpat.graph.node import BoolVariable
+    import time
+
+    # settings
+    if specs_obj.partial_labeling:
+        et_coefficient = 1
+        partial_cutoff = specs_obj.et * et_coefficient
+    else:
+        partial_cutoff = None
+
+    # WIP: update parameters
+    reference: IOGraph = circuit
+    to_be_labelled: IOGraph = circuit
+
+    # select nodes to label (all non-input ancestors of outputs under the cutoff)
+    nodes_to_label = set()
+    for (i, output) in enumerate(to_be_labelled.outputs_names):
+        if 2**i <= partial_cutoff:
+            for ancestor in nx.ancestors(to_be_labelled._inner, output):
+                if not isinstance(to_be_labelled[ancestor], BoolVariable):
+                    nodes_to_label.add(ancestor)
+    nodes_to_label = sorted(nodes_to_label)
+
+    # WIP
+    folder = os.path.join(specs_obj.path.run.base_folder, 'new_labelling')
+    os.makedirs(folder, exist_ok=True)
+
+    # testing new labelling without functions
+    # _time = time.perf_counter()
+    # labeller = Labelling(
+    #     reference, to_be_labelled, folder,
+    #     minimize=specs_obj.min_labeling,
+    #     use_functions=False,
+    # )
+    # direct_weights = labeller.label_graph(
+    #     partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
+    #     parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
+    # )
+    # print('new labelling time: ', time.perf_counter() - _time)
+
+    # testing new labelling with functions
+    _time = time.perf_counter()
+    labeller = Labelling(
+        reference, to_be_labelled, folder,
+        minimize=specs_obj.min_labeling,
+        use_functions=True,
+    )
+    weights = labeller.label_graph(
+        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
+        parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
+    )
+    print('new labelling time:', time.perf_counter() - _time)
+
+    # for k in nodes_to_label:
+    #     _w1 = direct_weights[k]
+    #     _w2 = weights[k]
+    #     diff = (_w1 != _w2)
+    #     if diff: print(f'different weight for {k}: {_w1: >3} != {_w2: >3}')
+
+    return weights
 
 
 def node_matcher(n1: dict, n2: dict) -> bool:
