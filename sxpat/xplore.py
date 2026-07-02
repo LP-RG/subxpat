@@ -180,9 +180,11 @@ def explore_grid(specs_obj: Specifications):
         # label graph
         if specs_obj.requires_labeling:
             print('started labelling')
+            print(list(current_graph.gate_dict.keys()))
             _time = Timer.now()
-            label_graph(specs_obj.current_benchmark, current_graph, specs_obj)
-            label_graph_new(iograph_from_legacy(current_graph),specs_obj)
+            w0 = label_graph(current_graph, specs_obj)
+            w1 = label_graph_new(iograph_from_legacy(current_graph), specs_obj)
+            print(len(w0), len(w1))
             _time = Timer.now() - _time
             # logging
             specs_obj.stats_storage.stage(labelling_time=_time)
@@ -203,7 +205,7 @@ def explore_grid(specs_obj: Specifications):
         )
         print(f'subgraph_extraction_time = {_time}')
         # logging
-        if specs_obj.debug: 
+        if specs_obj.debug:
             specs_obj.stats_storage.stage(subgraph_dot=os.path.relpath(current_graph.subgraph_out_path, specs_obj.path.run.base_folder))
             current_graph.export_annotated_graph()
             print(f'subgraph exported at {current_graph.subgraph_out_path}')
@@ -239,8 +241,8 @@ def explore_grid(specs_obj: Specifications):
         for lpp, ppo in CellIterator.factory(specs_obj):
             _cell_time = Timer.now()
             print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
-            
-            if lpp > len(current_circ.subgraph_inputs): 
+
+            if lpp > len(current_circ.subgraph_inputs):
                 pprint.info3('SKIPPED (lpp > #subgraph_inputs)')
                 continue
 
@@ -523,7 +525,7 @@ def print_current_model(
     pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
 
-def label_graph(circuit_verilog_path: str, graph: AnnotatedGraph, specs_obj: Specifications) -> Dict[str, int]:
+def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> Dict[str, int]:
     """This function adds the labels inplace to the given graph"""
 
     # imports
@@ -532,14 +534,14 @@ def label_graph(circuit_verilog_path: str, graph: AnnotatedGraph, specs_obj: Spe
 
     # settings
     ET_COEFFICIENT = 1
-    
+
     # compute weights
     _time = time.perf_counter()
     weights, _ = labeling_explicit(
-        circuit_verilog_path, circuit_verilog_path, specs_obj.path.run,
+        graph, graph, specs_obj.path.run,
         min_labeling=specs_obj.min_labeling,
         partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
-        parallel=specs_obj.parallel
+        parallel=specs_obj.parallel,
     )
     print('current labelling time:', time.perf_counter() - _time)
 
@@ -551,13 +553,14 @@ def label_graph(circuit_verilog_path: str, graph: AnnotatedGraph, specs_obj: Spe
         if node_name[:3] == 'out':
             node_data[WEIGHT] = 2**int(node_name[3:])
 
-    return inner_graph
+    return weights
+
 
 def label_graph_new(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     """This function adds the labels inplace to the given graph"""
 
     # imports
-    from sxpat.labelling.labelling import Labelling
+    from sxpat.labelling.labelling import Labelling, LabellingBV
     from sxpat.graph.node import BoolVariable
     import time
 
@@ -566,7 +569,7 @@ def label_graph_new(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, in
         et_coefficient = 1
         partial_cutoff = specs_obj.et * et_coefficient
     else:
-        partial_cutoff = None
+        partial_cutoff = 2**len(circuit.outputs_names)
 
     # WIP: update parameters
     reference: IOGraph = circuit
@@ -585,20 +588,20 @@ def label_graph_new(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, in
     folder = os.path.join(specs_obj.path.run.base_folder, 'new_labelling')
     os.makedirs(folder, exist_ok=True)
 
-    # testing new labelling without functions
-    # _time = time.perf_counter()
-    # labeller = Labelling(
-    #     reference, to_be_labelled, folder,
-    #     minimize=specs_obj.min_labeling,
-    #     use_functions=False,
-    # )
-    # direct_weights = labeller.label_graph(
-    #     partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
-    #     parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
-    # )
-    # print('new labelling time: ', time.perf_counter() - _time)
+    # testing new labelling BV
+    _time = time.perf_counter()
+    labeller = Labelling(
+        reference, to_be_labelled, folder,
+        minimize=specs_obj.min_labeling,
+        use_functions=False,
+    )
+    bv_weights = labeller.label_graph(
+        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
+        parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
+    )
+    print('new bv labelling time: ', time.perf_counter() - _time)
 
-    # testing new labelling with functions
+    # testing new labelling
     _time = time.perf_counter()
     labeller = Labelling(
         reference, to_be_labelled, folder,
@@ -611,8 +614,13 @@ def label_graph_new(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, in
     )
     print('new labelling time:', time.perf_counter() - _time)
 
+    # assign outputs
+    # for (i, n) in enumerate(to_be_labelled.outputs_names):
+    #     bv_weights[n] = weights[n] = 2 ** i
+
+    # print('nodes_to_label', len(nodes_to_label))
     # for k in nodes_to_label:
-    #     _w1 = direct_weights[k]
+    #     _w1 = bv_weights[k]
     #     _w2 = weights[k]
     #     diff = (_w1 != _w2)
     #     if diff: print(f'different weight for {k}: {_w1: >3} != {_w2: >3}')

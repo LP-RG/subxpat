@@ -9,7 +9,7 @@ __all__ = ['Graph']
 
 
 class Graph(_Graph):
-    def __init__(self, circuit_in_gv_path: str, is_clean: bool = False):
+    def __init__(self, circuit_in_gv_path: str, is_clean: bool = False, _copy_of: _Graph = None):
         """
         takes in a circuit and creates a networkx graph out of it
         :param benchmark_name: the input benchmark in gv format
@@ -20,16 +20,23 @@ class Graph(_Graph):
         self.__graph_name = get_pure_name(circuit_in_gv_path)
         self.__graph_out_path = circuit_in_gv_path
 
-        self.__graph = self.import_graph()
+        if _copy_of is None:
+            self.__graph = self.import_graph()
 
-        self.__sorted_node_list = None
-        self.__is_clean = is_clean
+            self.__sorted_node_list = None
+            self.__is_clean = is_clean
 
-        if not self.is_clean:
-            self.clean_graph()
-            self.sort_graph()
+            if not self.is_clean:
+                self.clean_graph()
+                self.sort_graph()
+            self.remove_output_outgoing_edges()
 
-        self.remove_output_outgoing_edges()
+        else:
+            self.__graph = _copy_of.graph.copy()
+            self.delete_extra_fields()
+
+            self.__sorted_node_list = list(self.__graph.nodes())
+            self.__is_clean = True
 
         self.__input_dict = self.sort_dict(self.extract_inputs())
         self.__output_dict = self.sort_dict(self.extract_outputs())
@@ -51,6 +58,15 @@ class Graph(_Graph):
     def sort_dict(self, mapping: Mapping) -> dict:
         sorted_keys = sorted(mapping.keys())
         return {k: mapping[k] for k in sorted_keys}
+
+    def export_graph(self, path: str = None):
+        with open(path or self.out_path, 'w') as f:
+            f.write(f"strict digraph \"\" {{\n")
+            for n in self.graph.nodes:
+                self.export_node(n, f)
+            for e in self.graph.edges:
+                self.export_edge(e, f)
+            f.write(f"}}\n")
 
     def __repr__(self):
         return (
