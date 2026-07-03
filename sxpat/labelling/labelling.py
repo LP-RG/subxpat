@@ -107,7 +107,7 @@ class Labelling:
                         strings.append(f'error = Function("error", BitVecSort({num_outputs}), BitVecSort({num_outputs}), BitVecSort({num_outputs}))\n')
                         strings.append('solver.add(error(r_out, l_out) == If(UGE(r_out, l_out), r_out - l_out, l_out - r_out))\n')
                         if self._minimize:
-                            strings.append('solver.add(UGE(error(r_out, l_out), BitVecVal(0, {num_outputs}))\n')
+                            strings.append(f'solver.add(UGT(error(r_out, l_out), BitVecVal(0, {num_outputs})))\n')
                             strings.append('opt_objective = solver.minimize(error(r_out, l_out))\n\n')
                         else:
                             strings.append('opt_objective = solver.maximize(error(r_out, l_out))\n\n')
@@ -120,7 +120,7 @@ class Labelling:
                         # error
                         strings.append('error = If(UGE(r_out, l_out), r_out - l_out, l_out - r_out)\n')
                         if self._minimize:
-                            strings.append(f'solver.add(UGE(error, BitVecVal(0, {num_outputs}))\n')
+                            strings.append(f'solver.add(UGT(error, BitVecVal(0, {num_outputs})))\n')
                             strings.append('opt_objective = solver.minimize(error)\n\n')
                         else:
                             strings.append('opt_objective = solver.maximize(error)\n\n')
@@ -241,7 +241,10 @@ class Labelling:
         names = list()
         for (i, output) in enumerate(circuit.outputs_names):
             proutput = prefix + output
-            strings.append(f'{proutput} = {prefix}{circuit.predecessors(output)[0].name}\n')
+            if isinstance(circuit.predecessors(output)[0], BoolVariable):
+                strings.append(f'{proutput} = {circuit.predecessors(output)[0].name}\n')
+            else:
+                strings.append(f'{proutput} = {prefix}{circuit.predecessors(output)[0].name}\n')
 
             names.append(name := f'if_{proutput}')
             strings.append(f'{name} = If({proutput}, const{i}, constf)\n')

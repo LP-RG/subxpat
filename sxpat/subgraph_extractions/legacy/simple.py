@@ -378,7 +378,7 @@ def find_subgraph(circuit: AnnotatedGraph, _circuit:IOGraph, specs: Specificatio
     return [g_gates[_i] for _i in _partition]
 
 
-def find_subgraph_sensitivity(circuit: AnnotatedGraph, specs: Specifications) -> List[str]:
+def find_subgraph_sensitivity(circuit: AnnotatedGraph, _circuit: IOGraph, specs: Specifications) -> List[str]:
     """
     Extract a subgraph, enforcing the sum of the weights of subgraph ouputs to be upper bounded by the `sensitivity`.
 
@@ -387,7 +387,7 @@ def find_subgraph_sensitivity(circuit: AnnotatedGraph, specs: Specifications) ->
 
     # prepare
     sensitivity_threshold = specs.sensitivity
-    graph: nx.DiGraph = circuit.graph
+    graph: nx.DiGraph = _circuit._inner
     constants_ids: Container[int] = circuit.constant_dict.keys()
     g_gates: Mapping[int, str] = circuit.gate_dict
 

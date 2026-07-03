@@ -102,7 +102,7 @@ def iograph_to_sgraph(graph: IOGraph, subgraph_nodes: Iterable[str]) -> SGraph:
     subgraph_nodes = frozenset(subgraph_nodes)
     return SGraph(
         (
-            node.copy(in_subraph=node.name in subgraph_nodes)
+            node.copy(in_subgraph=node.name in subgraph_nodes)
             for node in graph.nodes
         ),
         graph.inputs_names,

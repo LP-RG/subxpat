@@ -8,8 +8,7 @@ import networkx as nx
 import os
 from os.path import join as path_join
 
-# from sxpat.annotatedGraph import AnnotatedGraph  # MARCO:AG
-from sxpat.converting.legacy import iograph_with_weights
+from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
 from sxpat.graph import IOGraph
 
 from sxpat.newag import load_circuit_from_verilog
@@ -17,6 +16,7 @@ from sxpat.specifications import Specifications, TemplateType, ErrorPartitioning
 
 from sxpat.config.config import UNKNOWN, SAT, WEIGHT
 
+from sxpat.subgraph_extractions.legacy import *
 from sxpat.utils.filesystem import FS
 from sxpat.utils.timer import Timer
 from sxpat.utils.print import pprint
@@ -34,7 +34,6 @@ from sxpat.solvers import Z3DirectBitVecSolver
 
 from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
-# from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
 
 
 def explore_grid(specs_obj: Specifications):
@@ -45,8 +44,6 @@ def explore_grid(specs_obj: Specifications):
     specs_obj.exact_benchmark = tmp
     FS.copy(specs_obj.current_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'current.v'))
     specs_obj.current_benchmark = tmp
-    # setup caches
-    # AnnotatedGraph.set_loading_cache_size(specs_obj.wanted_models + 2)  # MARCO:AG
     # constant metrics
     exact_circuit_metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, specs_obj.exact_benchmark, specs_obj.path.run.temporary)
 
@@ -67,7 +64,7 @@ def explore_grid(specs_obj: Specifications):
         origin_circuit_power=exact_circuit_metrics.power,
         origin_circuit_delay=exact_circuit_metrics.delay,
     )
-    previous_subgraphs = []
+    previous_graphs = []
     obtained_wce_exact = 0
     specs_obj.iteration = 0
     persistence = 0
@@ -175,8 +172,6 @@ def explore_grid(specs_obj: Specifications):
         _MA_current_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
         _MA_exact_graph = load_circuit_from_verilog(specs_obj.exact_benchmark, specs_obj.path.run)
 
-        # current_graph = AnnotatedGraph.cached_load(specs_obj.current_benchmark, specs_obj.path.run)  # MARCO:AG
-        # exact_graph = AnnotatedGraph.cached_load(specs_obj.exact_benchmark, specs_obj.path.run)  # MARCO:AG
         _time = Timer.now() - _time
         # logging
         specs_obj.stats_storage.stage(annotated_graphs_initialization_time=_time)
@@ -186,16 +181,10 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.requires_labeling:
             print('started labelling')
             _time = Timer.now()
-            # _iograph = iograph_from_legacy(current_graph)  # MARCO:AG
 
             weights = label_graph(_MA_current_graph, specs_obj)
             for (i, n) in enumerate(_MA_current_graph.outputs_names):
                 weights[n] = 2 ** i
-
-            # inner_graph: nx.DiGraph = _iograph._inner
-            # for (node_name, node_data) in inner_graph.nodes.items():
-            #     node_data[WEIGHT] = weights.get(node_name, -1)
-            #     if node_name.startswith('out'): node_data[WEIGHT] = 2**int(node_name[3:])
 
             _MA_current_graph = iograph_with_weights(_MA_current_graph, weights)
             _time = Timer.now() - _time
@@ -206,23 +195,26 @@ def explore_grid(specs_obj: Specifications):
 
         # extract subgraph
         _time = Timer.now()
-        # subgraph_is_available = current_graph.extract_subgraph(specs_obj)  # MARCO:AG
-        subgraph_is_available = True  # TODO
+        subgraph_nodes = extract_subgraph(_MA_current_graph, specs_obj)
+        subgraph_is_available = len(subgraph_nodes) > 0
+        _MA_current_sgraph = iograph_to_sgraph(_MA_current_graph, subgraph_nodes)
         _time = Timer.now() - _time
-        previous_subgraphs.append(current_graph.subgraph)
+        previous_graphs.append(_MA_current_sgraph._inner)
+
         # logging
         specs_obj.stats_storage.stage(
             subgraph_extraction_time=_time,
-            subgraph_nodes_count=current_graph.subgraph_num_gates,  # MARCO:AG
-            subgraph_inputs_count=current_graph.subgraph_num_inputs,  # MARCO:AG
-            subgraph_outputs_count=current_graph.subgraph_num_outputs,  # MARCO:AG
+            subgraph_nodes_count=len(_MA_current_sgraph.subgraph_nodes),
+            subgraph_inputs_count=len(_MA_current_sgraph.subgraph_inputs),
+            subgraph_outputs_count=len(_MA_current_sgraph.subgraph_outputs),
         )
         print(f'subgraph_extraction_time = {_time}')
         # logging
         if specs_obj.debug:
-            specs_obj.stats_storage.stage(subgraph_dot=os.path.relpath(current_graph.subgraph_out_path, specs_obj.path.run.base_folder))  # MARCO:AG
-            current_graph.export_annotated_graph()  # MARCO:AG
-            print(f'subgraph exported at {current_graph.subgraph_out_path}')  # MARCO:AG
+            # specs_obj.stats_storage.stage(subgraph_dot=os.path.relpath(current_graph.subgraph_out_path, specs_obj.path.run.base_folder))  # MARCO:AG
+            # current_graph.export_annotated_graph()  # MARCO:AG
+            # print(f'subgraph exported at {current_graph.subgraph_out_path}')  # MARCO:AG
+            pass
 
         # guard: skip if no subgraph was found
         if not subgraph_is_available:
@@ -236,18 +228,14 @@ def explore_grid(specs_obj: Specifications):
         # note:  does not apply for extraction mode 6
         if (
             specs_obj.extraction_mode != 6
-            and len(previous_subgraphs) >= 2
-            and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
+            and len(previous_graphs) >= 2
+            and nx.is_isomorphic(previous_graphs[-2], previous_graphs[-1], node_match=node_matcher)
         ):
             prev_actual_error = 0
             # logging
             pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
             specs_obj.stats_storage.commit()
             continue
-
-        # convert from legacy graphs to refactored circuits
-        exact_circ = iograph_from_legacy(exact_graph)  # MARCO:AG
-        current_circ = sgraph_from_legacy(current_graph)  # MARCO:AG
 
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
@@ -256,7 +244,7 @@ def explore_grid(specs_obj: Specifications):
             _cell_time = Timer.now()
             print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
 
-            if lpp > len(current_circ.subgraph_inputs):
+            if lpp > len(_MA_current_sgraph.subgraph_inputs):
                 pprint.info3('SKIPPED (lpp > #subgraph_inputs)')
                 continue
 
@@ -277,12 +265,12 @@ def explore_grid(specs_obj: Specifications):
 
             # define template (and relative constraints)
             _time = Timer.now()
-            param_circ, *param_circ_constr = get_templater(specs_obj).define(current_circ, specs_obj)
+            param_circ, *param_circ_constr = get_templater(specs_obj).define(_MA_current_sgraph, specs_obj)
             _time_define = Timer.now() - _time
             # define question
             _time = Timer.now()
             base_question = exists_parameters.not_above_threshold_forall_inputs(
-                current_circ, param_circ,
+                _MA_current_sgraph, param_circ,
                 AbsoluteDifferenceOfInteger, specs_obj.et,
             )
             _time_define += Timer.now() - _time
@@ -291,7 +279,7 @@ def explore_grid(specs_obj: Specifications):
 
             # prepare solver/question
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
-            question = [exact_circ, param_circ, *param_circ_constr, *base_question]
+            question = [_MA_exact_graph, param_circ, *param_circ_constr, *base_question]
             #
             models = []
             for i in range(specs_obj.wanted_models):
@@ -361,16 +349,15 @@ def explore_grid(specs_obj: Specifications):
                 for candidate_data in cur_model_results:
                     #
                     _time = Timer.now()
-                    current = AnnotatedGraph.cached_load(candidate_data.path, specs_obj.path.run)  # MARCO:AG
-                    cur_graph = iograph_from_legacy(current)  # MARCO:AG
+                    cur_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
                     _time = Timer.now() - _time
                     # logging
                     specs_obj.stats_storage.stage(erroreval_annotated_graphs_initialization_time=_time)
                     print(f'erreval_annotated_graph_loading_time = {_time}')
 
                     # compute errors relative to origin and previous
-                    candidate_data.error_to_origin = _error_evaluation(exact_circ, cur_graph, specs_obj)
-                    candidate_data.error_to_previous = _error_evaluation(current_circ, cur_graph, specs_obj)
+                    candidate_data.error_to_origin = _error_evaluation(_MA_exact_graph, cur_graph, specs_obj)
+                    candidate_data.error_to_previous = _error_evaluation(_MA_current_sgraph, cur_graph, specs_obj)
 
                     #
                     if candidate_data.error_to_origin > specs_obj.et:
@@ -539,6 +526,19 @@ def print_current_model(
     # print table
     pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
+def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
+    return {
+            # 1: find_subgraph,
+            # 2: find_subgraph_sensitivity,
+            # 3: find_subgraph_sensitivity_no_io_constraints,
+            # 4: find_subgraph_feasible,
+            # 5: find_subgraph_feasible_hard,
+            55: find_subgraph_feasible_hard_datatype_bitvec,
+            6: find_subgraph_feasible_hard_datatype_bitvec_mintreshold,
+            100: slash_to_kill,
+            # 11: find_subgraph_feasible_soft,
+            # 12: find_subgraph_feasible_soft_outputs,
+        }[specs_obj.extraction_mode](circuit, specs_obj)
 
 def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     """This function adds the labels inplace to the given graph"""

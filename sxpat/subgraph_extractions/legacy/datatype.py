@@ -313,7 +313,7 @@ def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
     feasibility_threshold = specs.et
     graph: nx.DiGraph = circuit._inner
     min_weight = min([getattr(node, "weight") for node in circuit.nodes if getattr(node, "weight", None) is not None])
-    print(min_weight)
+    
     specs.et = min_weight
     subgraph_nodes = find_subgraph_feasible_hard_datatype_bitvec(circuit, specs)
 
