@@ -429,3 +429,17 @@
         
 - # Heuristic/Manual Strategies: 42, 100
     Represent manual overrides or experimental testing modes that bypass the standard solver optimization process. The reliance on imax and omax for finding the 'largest partition' is replaced by deterministic or experimental selection criteria
+
+    - # 42 - extract
+        Interactive Selection Loop:
+            Purpose: Provides complete control to the user, bypassing the solver logic. This allows for manual prototyping, debugging, or creating specific subgraphs that the solver might struggle to find.
+            Logic: __while True: selected_nodes = input(...).split()__
+        Validation & Topological Guardrails:
+            Purpose: Ensures the manual selection adheres to the same structural integrity requirements as the automated methods, preventing the creation of disconnected or non-functional logic fragments.
+            Logic:  # check nodes existance
+                    __if not all(n in graph.nodes for n in selected_nodes): continue__
+                    # check convexity
+                    __if not is_selection_convex(graph, selected_nodes): continue__
+        Visualization & Feedback Loop:
+            Purpose: Provides immediate visual verification. By exporting the graph state before and after selection to *.gv* files, it bridges the gap between the user's textual input and the logical structure of the circuit.
+            Logic: __export(graph, after_path, selected_nodes)__
