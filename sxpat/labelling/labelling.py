@@ -245,7 +245,10 @@ class Labelling:
         names = list()
         for (i, output) in enumerate(circuit.outputs_names):
             proutput = prefix + output
-            strings.append(f'{proutput} = {prefix}{circuit.predecessors(output)[0].name}\n')
+            if isinstance(circuit.predecessors(output)[0], BoolVariable):
+                strings.append(f'{proutput} = {circuit.predecessors(output)[0].name}\n')
+            else:
+                strings.append(f'{proutput} = {prefix}{circuit.predecessors(output)[0].name}\n')
 
             names.append(name := f'if_{proutput}')
             strings.append(f'{name} = If({proutput}, const{i}, constf)\n')
