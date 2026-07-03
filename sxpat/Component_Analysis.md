@@ -389,7 +389,7 @@
             Logic: For each node in the graph, the solver registers the following constraints simultaneously to establish the node's formal state:
                 # Identity Anchor: __Node.id(node) == BitVecVal(id, NUM_BITS)__
                 # Weight Property: __Node.weight(node) == BitVecVal(weight, NUM_BITS)__
-                # State Binding: __Node.in_subgraph(node) == BoolVal(False)__ (Locks external nodes/constants out of the partition scope).
+                # State Binding: __Node.in_subgraph(node) == BoolVal(False)__ (Locks external nodes/constants out of the partition scope)
 
         Symbolic Cut & Flow Constraints:
             Purpose: Detects boundary cuts dynamically. Instead of pre-calculating every edge, the solver evaluates the in_subgraph status of the source vs. target of every declared Edge object to identify entry/exit points and enforces bandwidth constraints.
@@ -443,3 +443,61 @@
         Visualization & Feedback Loop:
             Purpose: Provides immediate visual verification. By exporting the graph state before and after selection to *.gv* files, it bridges the gap between the user's textual input and the logical structure of the circuit.
             Logic: __export(graph, after_path, selected_nodes)__
+
+    - # 100 - slash_to_kill
+        Architecture Initialization:
+            Purpose: Establishes a formal, typed environment for the circuit. By declaring Node and Edge as Datatypes, you enable the solver to perform attribute-based operations (ID, Weight, In-Subgraph) rather than managing large lists of disconnected Boolean variables.
+            Logic:  __Node = Datatype('Node'); Node.declare('mk_node', ('id', BitVecSort), ('weight', BitVecSort),('in_subgraph', BoolSort))__
+                    __Edge = Datatype('Edge'); Edge.declare('mk_edge', ('source', Node), ('target', Node))__
+
+        Graph Data Ingestion:
+            Purpose: Maps the physical circuit topology into the solver's memory. This phase initializes every node by binding its unique identity, weight properties, and initial subgraph membership status to a symbolic Node object.
+            Logic: For each node in the graph, the solver registers the following constraints simultaneously to establish the node's formal state:
+                # Identity Anchor: __Node.id(node) == BitVecVal(id, NUM_BITS)__
+                # Weight Property: __Node.weight(node) == BitVecVal(weight, NUM_BITS)__
+                # State Binding: __Node.in_subgraph(node) == BoolVal(False)__ (Locks external nodes/constants out of the partition scope)
+
+        Symbolic Cut & Flow Constraints:
+            Purpose: Detects boundary cuts dynamically. Instead of pre-calculating every edge, the solver evaluates the in_subgraph status of the source vs. target of every declared Edge object to identify entry/exit points and enforces bandwidth constraints.
+            Logic:  # Boundary Detection:
+                        + Outgoing Cut: __And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des])))__
+                        + Incoming Cut: __And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des]))__
+                    # Symbolic Counting: Uses an If statement to map boolean cut conditions to BitVec values for summation.
+                        __If(Or(outgoing_conditions or incoming_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))__
+                    # Bandwidth Enforcement:
+                        + Max Incoming: __opt.add(Sum(unique_incoming_edges) <= imax)__
+                        + Max Outgoing: __opt.add(Sum(unique_outgoing_edges) <= omax)__
+
+        Structural & Convexity Constraints:
+            i) Descendant Consistency:
+                Purpose: Ensures that if a signal path is broken at the boundary (source is in_subgraph, destination is out), no downstream nodes can be included in the subgraph. This prevents the solver from picking "floating" logic fragments downstream that have no connection to the partition's internal logic.
+                Logic: __Implies(And(src_in, Not(des_in)), And(Not(descendants_in)))__
+
+            ii) Ancestor Consistency:
+                Purpose: Ensures that if a destination node is included in the subgraph while its source is not, no upstream nodes (ancestors) can be included. This prevents the solver from creating "spontaneously generated" logic fragments that are fed by external nodes not present in the subgraph.
+                Logic: __Implies(And(Not(src_in), des_in), And(Not(ancestors_in)))__
+        
+        Structural Cohesion (Child-Consistency)
+            Purpose: Enforces strict logical integrity for signal paths. If a parent node is included in the subgraph and at least one child node is also selected, the solver is forced to include all children. This prevents the solver from selecting "partial" logic paths, ensuring that if a signal starts propagating through a gate, the entire downstream branch must be captured.
+            Logic: __Implies(And(Node.in_subgraph(parent), Or(children_in)), And(children_in))__
+
+        Global Feasibility Budgeting
+            Purpose: Implements a cumulative constraint on the interface cost. Instead of filtering individual edges against the threshold (which is binary/permissive), this method aggregates the weight of all boundary-crossing edges into a single feasibility_sum. This budget-based approach allows for flexible partitioning where a single high-weight boundary edge might be permitted as long as the total "cut cost" remains below the defined feasibility_threshold.
+            Logic:  # Cost Aggregation: Sums the weights of all edges crossing the partition boundary
+                    __feasibility_sum = Sum([ If(__
+                        __And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),__
+                        __Node.weight(Edge.source(edge)),__
+                        __BitVecVal(0, NUM_BITS))__
+                    __for edge in edges])__
+                    Global Budget Enforcement: Ensures the total interface cost is strictly bounded.
+                    __opt.add(feasibility_sum <= BitVecVal(feasibility_threshold, NUM_BITS))__
+
+        Optimization & Maximization Objective:
+            Purpose: Guarantees the absolute maximum density of the subgraph. It employs a two-stage solver strategy: it finds the theoretical maximum (h.upper()) and, if the initial model falls short, forces a second pass to guarantee optimality.
+            Logic:  __h = opt.maximize(Sum(max_nodes))__
+                    __if correct_maximum != model_maximized: opt.add(Sum(max_nodes) == correct_maximum)__
+
+        Post-Partitioning Validation and Mapping: 
+            Purpose: Acts as the final safety auditor and translator. It ensures that the symbolic result from the solver is topologically sound (convex) and maps the internal Z3 identifiers back to the original graph's gate references.
+            Logic:  # Integrity Audit: Discards any result that fails the connectivity test, raising a *RuntimeError* if the subgraph is non-convex.
+                        __if not is_selection_convex(self.graph, node_partition): raise RuntimeError(...)__
