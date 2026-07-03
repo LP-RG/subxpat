@@ -275,8 +275,12 @@
         ii) Weight Normalization:
             Purpose: Inverts gate weights (max - weight + 1) to prioritize the inclusion of high-weight (critical) gates by making them "cheaper" to fit within the sensitivity budget.
             Logic: __gate_weight[id] = max_weight - gate_weight[id] + 1__
+        iii) Structural Integrity (Universal):
+            Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
+            Logic: __is_selection_convex(G, node_partition)__
 
     - # 3 - find_subgraph_sensitivity_no_io_constraints
+        
 
 - # Formal/Hard Feasibility Strategies: 5, 6, 55
     Use mathematical rigor. They employ Datatypes and BitVec to enforce strict logical feasibility, often including weight-based thresholding for the subgraph boundaries.
