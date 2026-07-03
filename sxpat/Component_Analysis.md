@@ -362,6 +362,21 @@
             Logic: __is_selection_convex(G, node_partition)__
 
     - # 6 - find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold
+        Purpose-Logic Documentation:
+        i) Weight Distribution Analysis:
+            Purpose: Dynamically determines the range of gate weights (min_weight to max_weight) to calibrate the feasibility search space based on the specific circuit instance. It then discretizes this range into 8 representative threshold levels to ensure the search is both efficient and aligned with the actual weight distribution of the graph.
+            Logic: # Linear Scaling: Creates 8 linearly spaced steps across the weight range.
+                    __weights = sorted(frozenset(...)), partition_step = (max_weight - min_weight) / (8 - 1)__
+                    __linear_partition = [min_weight + partition_step * i for i in range(8)]__
+                   # Weight Mapping: Maps the linear steps to the actual nearest gate weights present in the circuit to avoid testing "impossible" thresholds.
+                    __actual_partition = sorted(frozenset(min(weights, key=lambda w: abs(w - p)) for p in linear_partition))__
+        ii) Iterative Threshold Sweep:
+            Purpose: Implements a coarse-to-fine search by testing 8 discretized threshold levels (actual_partition). It attempts to extract a valid subgraph starting from the lowest threshold level, ensuring the most restrictive (and often most conservative/safe) feasible partition is found first.
+            Logic: __for (i, specs_obj.et) in enumerate(actual_partition):__
+                   __subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)__
+        iii) State Restoration:
+            Purpose: Ensures that the Specifications object is returned to its original state after the execution,preventing side effects on other parts of your engine.
+            Logic: __specs_obj.et = saved_et__
 
 
     - # 55 - find_subgraph_feasible_hard_limited_inputs_datatype_bitvec
