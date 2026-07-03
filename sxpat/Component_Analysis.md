@@ -361,6 +361,11 @@
             Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
             Logic: __is_selection_convex(G, node_partition)__
 
+    - # 6 - find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold
+
+
+    - # 55 - find_subgraph_feasible_hard_limited_inputs_datatype_bitvec
+
 
 - # Heuristic/Manual Strategies: 42, 100
     Represent manual overrides or experimental testing modes that bypass the standard solver optimization process. The reliance on imax and omax for finding the 'largest partition' is replaced by deterministic or experimental selection criteria
