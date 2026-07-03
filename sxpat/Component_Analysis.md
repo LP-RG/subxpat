@@ -46,7 +46,7 @@
             Purpose: The solver prioritizes nodes with higher weight values. By maximizing this sum, the engine selects the most "critical" or "valuable" logic gates that still satisfy the integrity constraints.
             Logic: __opt.maximize(Sum(gate_literals * gate_weight))__
         iii) Mandatory Inactivity (skipped_nodes):
-            Purpose: Explicitly excludes nodes marked with WEIGHT == -1, ensuring they are treated as inactive and are not included in the final node_partition.
+            Purpose: Explicitly excludes nodes marked with *WEIGHT == -1*, ensuring they are treated as inactive and are not included in the final node_partition.
             Logic: __node_literal == False__
     
     - # 4 - find_subgraph_feasible
@@ -90,7 +90,7 @@
             Purpose: Shifts the optimization goal from maximizing total weighted utility to maximizing the total number of logic gates (density) within the partition.
             Logic: __opt.maximize(Sum(gate_literals))__
         iii) Mandatory Inactivity (skipped_nodes):
-            Purpose: Explicitly excludes nodes marked with WEIGHT == -1, ensuring they are treated as inactive and are not included in the final node_partition.
+            Purpose: Explicitly excludes nodes marked with *WEIGHT == -1*, ensuring they are treated as inactive and are not included in the final node_partition.
             Logic: __node_literal == False__
 
     - # 11 - find_subgraph_feasible_soft
@@ -134,7 +134,7 @@
             Purpose: Shifts the optimization goal from maximizing total weighted utility to maximizing the total number of logic gates (density) within the partition.
             Logic: __opt.maximize(Sum(gate_literals))__
         iii) Mandatory Inactivity (skipped_nodes):
-            Purpose: Explicitly excludes nodes marked with WEIGHT == -1, ensuring they are treated as inactive and are not included in the final node_partition.
+            Purpose: Explicitly excludes nodes marked with *WEIGHT == -1*, ensuring they are treated as inactive and are not included in the final node_partition.
             Logic: __node_literal == False__
 
         Penalty-based Soft Constraints:
@@ -196,7 +196,7 @@
             Purpose: Shifts the optimization goal from maximizing total weighted utility to maximizing the total number of logic gates (density) within the partition.
             Logic: __opt.maximize(Sum(max_func))__
         iii) Mandatory Inactivity (skipped_nodes):
-            Purpose: Explicitly excludes nodes marked with WEIGHT == -1, ensuring they are treated as inactive and are not included in the final node_partition.
+            Purpose: Explicitly excludes nodes marked with *WEIGHT == -1*, ensuring they are treated as inactive and are not included in the final node_partition.
             Logic: __node_literal == False__
 
         Penalty-based Soft Constraints:
@@ -205,7 +205,7 @@
             Logic:  # For internal gate density
                     __output_individual_penalty.append(If(gate_literals[s], penalty_coefficient * (gate_weight[s] - feasibility_treshold), 0))__
         ii) Soft Constraint Enforcement (Hierarchical)
-            Purpose: To establish a priority hierarchy (Lexicographical Preference). The engine treats output-side cut feasibility as a critical requirement (weight=100) while treating internal gate density as a flexible optimization goal (weight=1).
+            Purpose: To establish a priority hierarchy (Lexicographical Preference). The engine treats output-side cut feasibility as a critical requirement (*weight=100*) while treating internal gate density as a flexible optimization goal (*weight=1*).
             Logic:  # High-priority constraint for interface modularity
                     __opt.add_soft(IntVal(1) * Sum(partition_output_edges_penalty) <= omax * threshold, weight=100)__
                     # Lower-priority constraint for internal gate density
@@ -256,7 +256,7 @@
             Purpose: Shifts the optimization goal from maximizing total weighted utility to maximizing the total number of logic gates (density) within the partition.
             Logic: __opt.maximize(Sum(max_func))__
         iii) Mandatory Inactivity (skipped_nodes):
-            Purpose: Explicitly excludes nodes marked with WEIGHT == -1, ensuring they are treated as inactive and are not included in the final node_partition.
+            Purpose: Explicitly excludes nodes marked with *WEIGHT == -1*, ensuring they are treated as inactive and are not included in the final node_partition.
             Logic: __node_literal == False__
         
         Sensitivity Budget Constraints:
@@ -297,7 +297,7 @@
             Purpose: Shifts the optimization goal from maximizing total weighted utility to maximizing the total number of logic gates (density) within the partition.
             Logic: __opt.maximize(Sum(max_func))__
         ii) Mandatory Inactivity (skipped_nodes):
-            Purpose: Explicitly excludes nodes marked with WEIGHT == -1, ensuring they are treated as inactive and are not included in the final node_partition.
+            Purpose: Explicitly excludes nodes marked with *WEIGHT == -1*, ensuring they are treated as inactive and are not included in the final node_partition.
             Logic: __node_literal == False__
 
         Sensitivity Budget Constraints:
@@ -305,7 +305,7 @@
             Purpose: Enforces a hard limit on the total accumulated sensitivity at the boundary. Unlike soft penalties, this acts as a "hard budget," ensuring the partition stays within critical exposure limits
             Logic: __opt.add(Sum([edge_constraint[s] * edge_w[s]]) <= sensitivity_t)__
         ii) Weight Normalization:
-            Purpose: Inverts gate weights (max - weight + 1) to prioritize the inclusion of high-weight (critical) gates by making them "cheaper" to fit within the sensitivity budget.
+            Purpose: Inverts gate weights (*max - weight + 1*) to prioritize the inclusion of high-weight (critical) gates by making them "cheaper" to fit within the sensitivity budget.
             Logic: __gate_weight[id] = max_weight - gate_weight[id] + 1__
         iii) Structural Integrity (Universal):
             Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
@@ -347,7 +347,7 @@
             Purpose: Shifts the optimization goal from maximizing total weighted utility to maximizing the total number of logic gates (density) within the partition.
             Logic: __opt.maximize(Sum(max_func))__
         iii) Mandatory Inactivity (skipped_nodes):
-            Purpose: Explicitly excludes nodes marked with WEIGHT == -1, ensuring they are treated as inactive and are not included in the final node_partition.
+            Purpose: Explicitly excludes nodes marked with *WEIGHT == -1*, ensuring they are treated as inactive and are not included in the final node_partition.
             Logic: __node_literal == False__
 
         Feasibility and Filtering Constraints:
@@ -378,9 +378,54 @@
             Purpose: Ensures that the Specifications object is returned to its original state after the execution,preventing side effects on other parts of your engine.
             Logic: __specs_obj.et = saved_et__
 
-
     - # 55 - find_subgraph_feasible_hard_limited_inputs_datatype_bitvec
+        Architecture Initialization:
+            Purpose: Establishes a formal, typed environment for the circuit. By declaring Node and Edge as Datatypes, you enable the solver to perform attribute-based operations (ID, Weight, In-Subgraph) rather than managing large lists of disconnected Boolean variables.
+            Logic:  __Node = Datatype('Node'); Node.declare('mk_node', ('id', BitVecSort), ('weight', BitVecSort),('in_subgraph', BoolSort))__
+                    __Edge = Datatype('Edge'); Edge.declare('mk_edge', ('source', Node), ('target', Node))__
 
+        Graph Data Ingestion:
+            Purpose: Maps the physical circuit topology into the solver's memory. This phase initializes every node by binding its unique identity, weight properties, and initial subgraph membership status to a symbolic Node object.
+            Logic: For each node in the graph, the solver registers the following constraints simultaneously to establish the node's formal state:
+                # Identity Anchor: __Node.id(node) == BitVecVal(id, NUM_BITS)__
+                # Weight Property: __Node.weight(node) == BitVecVal(weight, NUM_BITS)__
+                # State Binding: __Node.in_subgraph(node) == BoolVal(False)__ (Locks external nodes/constants out of the partition scope).
 
+        Symbolic Cut & Flow Constraints:
+            Purpose: Detects boundary cuts dynamically. Instead of pre-calculating every edge, the solver evaluates the in_subgraph status of the source vs. target of every declared Edge object to identify entry/exit points and enforces bandwidth constraints.
+            Logic:  # Boundary Detection:
+                        + Outgoing Cut: __And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des])))__
+                        + Incoming Cut: __And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des]))__
+                    # Symbolic Counting: Uses an If statement to map boolean cut conditions to BitVec values for summation.
+                        __If(Or(outgoing_conditions or incoming_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))__
+                    # Bandwidth Enforcement:
+                        + Max Incoming: __opt.add(Sum(unique_incoming_edges) <= imax)__
+                        + Max Outgoing: __opt.add(Sum(unique_outgoing_edges) <= omax)__
+
+        Structural & Convexity Constraints:
+            i) Descendant Consistency:
+                Purpose: Ensures that if a signal path is broken at the boundary (source is in_subgraph, destination is out), no downstream nodes can be included in the subgraph. This prevents the solver from picking "floating" logic fragments downstream that have no connection to the partition's internal logic.
+                Logic: __Implies(And(src_in, Not(des_in)), And(Not(descendants_in)))__
+
+            ii) Ancestor Consistency:
+                Purpose: Ensures that if a destination node is included in the subgraph while its source is not, no upstream nodes (ancestors) can be included. This prevents the solver from creating "spontaneously generated" logic fragments that are fed by external nodes not present in the subgraph.
+                Logic: __Implies(And(Not(src_in), des_in), And(Not(ancestors_in)))__
+                
+        Formal Feasibility Filter:
+            Purpose: Enforces an absolute constraint where boundary edges are only permissible if the source gate meets the *feasibility_threshold*. This is a symbolic verification of the signal path's integrity at the partition boundary.
+            Logic: __opt.add(And([Implies__
+                        __(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),__
+                        __Node.weight(Edge.source(edge)) <= BitVecVal(feasibility_threshold, NUM_BITS))]))__
+        
+        Optimization & Maximization Objective:
+            Purpose: Guarantees the absolute maximum density of the subgraph. It employs a two-stage solver strategy: it finds the theoretical maximum (h.upper()) and, if the initial model falls short, forces a second pass to guarantee optimality.
+            Logic:  __h = opt.maximize(Sum(max_nodes))__
+                    __if correct_maximum != model_maximized: opt.add(Sum(max_nodes) == correct_maximum)__
+        
+        Post-Partitioning Validation and Mapping: 
+            Purpose: Acts as the final safety auditor and translator. It ensures that the symbolic result from the solver is topologically sound (convex) and maps the internal Z3 identifiers back to the original graph's gate references.
+            Logic:  # Integrity Audit: Discards any result that fails the connectivity test, raising a *RuntimeError* if the subgraph is non-convex.
+                        __if not is_selection_convex(self.graph, node_partition): raise RuntimeError(...)__
+        
 - # Heuristic/Manual Strategies: 42, 100
     Represent manual overrides or experimental testing modes that bypass the standard solver optimization process. The reliance on imax and omax for finding the 'largest partition' is replaced by deterministic or experimental selection criteria
