@@ -117,8 +117,8 @@
         
         Feasibility and Filtering Constraints:
         i) Feasibility Threshold Filtering:
-            Purpose: Identifies "safe-to-cut" interface edges. Only edges connected to gates with a weight lower than or equal to the feasibility_threshold are eligible for selection as boundary points.
-            Logic: __feasibility_constraints = [edge_constraint(s) for s in edge_w if gate_weight(s) <= feasibility_threshold]__
+            Purpose: dentifies "safe-to-cut" interface edges. Only edges connected to gates with a weight lower than or equal to the feasibility_threshold are eligible for selection as boundary points, while strictly excluding inactive/skipped nodes (-1 weight).
+            Logic: __feasibility_constraints = [edge_constraint(s) for s in edge_w if gate_weight(s) <= feasibility_threshold and gate_weight[s] != -1]__
         ii) Minimum Feasibility Guarantee:
             Purpose: Forces the partition to possess at least one interface point that meets the feasibility threshold, preventing the extraction of an overly isolated or "locked" subgraph.
             Logic: __opt.add(Sum(feasibility_constraints) >= 1)__
@@ -179,8 +179,8 @@
 
         Feasibility and Filtering Constraints:
         i) Feasibility Threshold Filtering:
-            Purpose: Identifies "safe-to-cut" interface edges. Only edges connected to gates with a weight lower than or equal to the feasibility_threshold are eligible for selection as boundary points.
-            Logic: __feasibility_constraints = [edge_constraint(s) for s in edge_w if gate_weight(s) <= feasibility_threshold]__
+            Purpose: dentifies "safe-to-cut" interface edges. Only edges connected to gates with a weight lower than or equal to the feasibility_threshold are eligible for selection as boundary points, while strictly excluding inactive/skipped nodes (-1 weight).
+            Logic: __feasibility_constraints = [edge_constraint(s) for s in edge_w if gate_weight(s) <= feasibility_threshold and gate_weight[s] != -1]__
         ii) Minimum Feasibility Guarantee:
             Purpose: Forces the partition to possess at least one interface point that meets the feasibility threshold, preventing the extraction of an overly isolated or "locked" subgraph.
             Logic: __opt.add(Sum(feasibility_constraints) >= 1)__
@@ -506,17 +506,17 @@
 
 #
 --- 
-Signal Propagation Constraints:             | 1                                 |                        
+Signal Propagation Constraints              | 1                                 |                        
 (Basic/Structural)                          |                                   |
 Logic Gates (AND/OR gates for cuts)
 
 ---
-Signal Propagation Constraints:             | 2, 3, 4, 5, 11                    |                        
+Signal Propagation Constraints              | 2, 3, 4, 5, 11                    |                        
 (with Feasibility/Sensitivity Metadata)     |                                   |
 Boundary Metadata (Weights + Constraint Mapping)
 
 ---
-Signal Propagation Constraints:             | 12                                |                        
+Signal Propagation Constraints              | 12                                |                        
 (Penalty-based (Soft))                      |                                   |
 Defines boundaries + computes numeric "penalty" costs for the solver
 
@@ -548,9 +548,30 @@ Optimization and Selection Constraints      | 1, 2, 3, 4, 5, 11, 12             
 ---
 Optimization and Selection Constraints      | 1                                 |
 (Utility Maximization (gate_weight))        |                                   |
-Logic: max_func.append(gate_literals[gate_id] * gate_weight[gate_id])
+Logic: *max_func.append(gate_literals[gate_id] * gate_weight[gate_id])*
 
 ---
 Optimization and Selection Constraints      | 2, 3, 4, 5, 11, 12                |
 (Utility Maximization (gate_weight))        |                                   |
-Logic: max_func.append(gate_literals[gate_id])
+Logic: *max_func.append(gate_literals[gate_id])*
+
+#
+---
+Feasibility and Filtering Constraints       | 4, 5                              |
+(Feasibility Threshold Filtering)           |                                   |
+Logic: *feasibility_constraints = [edge_constraint(s) for s in edge_w if gate_weight(s) <= feasibility_threshold]*
+
+---
+Feasibility and Filtering Constraints       | 11, 12                            |
+(Feasibility Threshold Filtering)           |                                   |
+Logic: *feasibility_constraints = [edge_constraint(s) for s in edge_w if gate_weight(s) <= feasibility_threshold and gate_weight[s] != -1]*
+
+---
+Feasibility and Filtering Constraints       | 4, 11, 12                         |
+(Minimum Feasibility Guarantee)             |                                   |
+Logic: *opt.add(Sum(feasibility_constraints) >= 1)*
+
+---
+Feasibility and Filtering Constraints       | 5                                 |
+(Strict Boundary Feasibility)               |                                   |
+Logic: *opt.add(Sum(feasibility_constraints) == Sum(partition_output_edges))*
