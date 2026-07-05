@@ -88,7 +88,7 @@
             Logic: __opt.add(Sum(partition_input_edges) <= imax) and opt.add(Sum(partition_output_edges) <= omax)__
         ii) Gate Count Maximization:
             Purpose: Shifts the optimization goal from maximizing total weighted utility to maximizing the total number of logic gates (density) within the partition.
-            Logic: __opt.maximize(Sum(gate_literals))__
+            Logic: __opt.maximize(Sum(max_func))__
         iii) Mandatory Inactivity (skipped_nodes):
             Purpose: Explicitly excludes nodes marked with *WEIGHT == -1*, ensuring they are treated as inactive and are not included in the final node_partition.
             Logic: __node_literal == False__
@@ -132,7 +132,7 @@
             Logic: __opt.add(Sum(partition_input_edges) <= imax) and opt.add(Sum(partition_output_edges) <= omax)__
         ii) Gate Count Maximization:
             Purpose: Shifts the optimization goal from maximizing total weighted utility to maximizing the total number of logic gates (density) within the partition.
-            Logic: __opt.maximize(Sum(gate_literals))__
+            Logic: __opt.maximize(Sum(max_func))__
         iii) Mandatory Inactivity (skipped_nodes):
             Purpose: Explicitly excludes nodes marked with *WEIGHT == -1*, ensuring they are treated as inactive and are not included in the final node_partition.
             Logic: __node_literal == False__
@@ -504,6 +504,7 @@
 
 ===================================================================================================================================
 
+#
 --- 
 Signal Propagation Constraints:             | 1                                 |                        
 (Basic/Structural)                          |                                   |
@@ -524,6 +525,7 @@ Symbolic State Propagation                  | 6, 55, 100                        
 (Constraints)                               |                                   |
 It dynamically calculates boundary conditions based on the *in_subgraph* attribute of the *Node* datatype during the solver's execution.
 
+#
 ---
 Structural & Convexity Constraints          | 1, 2, 3, 4, 5, 11, 12             | 
 (Path-Centric Convexity)                    |                                   |
@@ -533,3 +535,22 @@ Topology-based: Validates the integrity of logic paths and partition "cuts" to p
 Structural & Convexity Constraints          | 6, 55, 100                        | 
 (Node-Centric Convexity)                    |                                   |
 Attribute-based: Validates the boolean *in_subgraph* state of individual nodes and their neighbors to ensure structural continuity.
+
+#
+---
+Optimization and Selection Constraints      | 1, 2, 4, 5, 11, 12                |
+(Boundary Bandwidth (imax/omax))            |                                   |
+
+---
+Optimization and Selection Constraints      | 1, 2, 3, 4, 5, 11, 12             |
+(Mandatory Inactivity (skipped_nodes))      |                                   |
+
+---
+Optimization and Selection Constraints      | 1                                 |
+(Utility Maximization (gate_weight))        |                                   |
+Logic: max_func.append(gate_literals[gate_id] * gate_weight[gate_id])
+
+---
+Optimization and Selection Constraints      | 2, 3, 4, 5, 11, 12                |
+(Utility Maximization (gate_weight))        |                                   |
+Logic: max_func.append(gate_literals[gate_id])
