@@ -504,12 +504,32 @@
 
 ===================================================================================================================================
 
+--- 
+Signal Propagation Constraints:             | 1                                 |                        
+(Basic/Structural)                          |                                   |
+Logic Gates (AND/OR gates for cuts)
+
+---
+Signal Propagation Constraints:             | 2, 3, 4, 5, 11                    |                        
+(with Feasibility/Sensitivity Metadata)     |                                   |
+Boundary Metadata (Weights + Constraint Mapping)
+
+---
+Signal Propagation Constraints:             | 12                                |                        
+(Penalty-based (Soft))                      |                                   |
+Defines boundaries + computes numeric "penalty" costs for the solver
+
+---
+Symbolic State Propagation                  | 6, 55, 100                        |
+(Constraints)                               |                                   |
+It dynamically calculates boundary conditions based on the *in_subgraph* attribute of the *Node* datatype during the solver's execution.
+
 ---
 Structural & Convexity Constraints          | 1, 2, 3, 4, 5, 11, 12             | 
-(Node-Centric Convexity)                    |                                   |
+(Path-Centric Convexity)                    |                                   |
 Topology-based: Validates the integrity of logic paths and partition "cuts" to prevent the fragmentation of signal flows.
 
 ---
 Structural & Convexity Constraints          | 6, 55, 100                        | 
 (Node-Centric Convexity)                    |                                   |
-Attribute-based: Validates the boolean in_subgraph state of individual nodes and their neighbors to ensure structural continuity.
+Attribute-based: Validates the boolean *in_subgraph* state of individual nodes and their neighbors to ensure structural continuity.
