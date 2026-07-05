@@ -501,3 +501,15 @@
             Purpose: Acts as the final safety auditor and translator. It ensures that the symbolic result from the solver is topologically sound (convex) and maps the internal Z3 identifiers back to the original graph's gate references.
             Logic:  # Integrity Audit: Discards any result that fails the connectivity test, raising a *RuntimeError* if the subgraph is non-convex.
                         __if not is_selection_convex(self.graph, node_partition): raise RuntimeError(...)__
+
+===================================================================================================================================
+
+---
+Structural & Convexity Constraints          | 1, 2, 3, 4, 5, 11, 12             | 
+(Node-Centric Convexity)                    |                                   |
+Topology-based: Validates the integrity of logic paths and partition "cuts" to prevent the fragmentation of signal flows.
+
+---
+Structural & Convexity Constraints          | 6, 55, 100                        | 
+(Node-Centric Convexity)                    |                                   |
+Attribute-based: Validates the boolean in_subgraph state of individual nodes and their neighbors to ensure structural continuity.
