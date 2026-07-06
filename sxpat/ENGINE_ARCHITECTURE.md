@@ -34,6 +34,10 @@
         Purpose: Ensures that even during the optimization phase, the partition adheres to convexity and continuity requirements established by the core integrity modules.
 
 - __Sensitivity Budget Constraints__
-    
+    Manages the accumulation of sensitivity metrics across the partition boundary, ensuring that the selected subgraph remains within defined operational exposure limits.
 
     Core Mechanisms & Constraints:
+    i) Sensitivity Budgeting (Hard Constraint):
+        Purpose: Imposes a strict "hard budget" on the total accumulated sensitivity, acting as a safeguard to prevent the selection of partitions that exceed critical exposure thresholds.
+    ii) Weight Normalization:
+        Purpose: Re-calculates gate weights to favor the inclusion of high-value (critical) logic. By inversely scaling weights, this mechanism makes high-priority gates "cheaper" to fit within the sensitivity budget.
