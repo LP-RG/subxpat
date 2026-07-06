@@ -41,3 +41,15 @@
         Purpose: Imposes a strict "hard budget" on the total accumulated sensitivity, acting as a safeguard to prevent the selection of partitions that exceed critical exposure thresholds.
     ii) Weight Normalization:
         Purpose: Re-calculates gate weights to favor the inclusion of high-value (critical) logic. By inversely scaling weights, this mechanism makes high-priority gates "cheaper" to fit within the sensitivity budget.
+
+- __Feasibility and Filtering Constraints__
+    Defines the rules for identifying "safe-to-cut" boundaries within the circuit, ensuring that extracted subgraphs meet defined feasibility and connectivity criteria.
+
+    Core Mechanisms & Constraints:
+    i) Feasibility Threshold Filtering:
+        Purpose: Identifies "safe-to-cut" interface edges by qualifying them based on weight thresholds. Beyond the standard weight threshold check, this mechanism implicitly applies Mandatory Inactivity (Skip-Logic) filters. Any gate marked with a specific weight identifier (e.g., -1) is automatically excluded from the eligibility pool, ensuring that only "active" and "weight-compliant" gates serve as valid boundary points.
+    ii) Feasibility Enforcement Strategies:
+            - Strategy A (Minimum Guarantee): Forces the partition to contain at least one interface point meeting the threshold, preventing the extraction of overly isolated or "locked" logic blocks.
+            - Strategy B (Strict Boundary): Enforces an absolute constraint where all output edges must originate from feasible gates. This acts as a "zero-tolerance" mode for boundary integrity; if a cut cannot be formed purely by feasible gates, the solver returns no solution.
+
+- 
