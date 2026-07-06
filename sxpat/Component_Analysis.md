@@ -48,6 +48,12 @@
         iii) Mandatory Inactivity (skipped_nodes):
             Purpose: Explicitly excludes nodes marked with *WEIGHT == -1*, ensuring they are treated as inactive and are not included in the final node_partition.
             Logic: __node_literal == False__
+
+        Optimization and Selection Constraints:
+        i) Structural Integrity Audit (Local Graph Context)
+            Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
+            Logic: __is_selection_convex(G, node_partition)__
+
     
     - # 4 - find_subgraph_feasible
         Signal Propagation Constraints: 
@@ -78,7 +84,7 @@
         ii) Minimum Feasibility Guarantee:
             Purpose: Forces the partition to possess at least one interface point that meets the feasibility threshold, preventing the extraction of an overly isolated or "locked" subgraph.
             Logic: __opt.add(Sum(feasibility_constraints) >= 1)__
-        iii) Structural Integrity (Universal):
+        iii) Structural Integrity Audit (Local Graph Context)
             Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
             Logic: __is_selection_convex(G, node_partition)__
 
@@ -122,7 +128,7 @@
         ii) Minimum Feasibility Guarantee:
             Purpose: Forces the partition to possess at least one interface point that meets the feasibility threshold, preventing the extraction of an overly isolated or "locked" subgraph.
             Logic: __opt.add(Sum(feasibility_constraints) >= 1)__
-        iii) Structural Integrity (Universal):
+        iii) Structural Integrity Audit (Local Graph Context)
             Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
             Logic: __is_selection_convex(G, node_partition)__
 
@@ -184,7 +190,7 @@
         ii) Minimum Feasibility Guarantee:
             Purpose: Forces the partition to possess at least one interface point that meets the feasibility threshold, preventing the extraction of an overly isolated or "locked" subgraph.
             Logic: __opt.add(Sum(feasibility_constraints) >= 1)__
-        iii) Structural Integrity (Universal):
+        iii) Structural Integrity Audit (Local Graph Context)
             Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
             Logic: __is_selection_convex(G, node_partition)__
 
@@ -266,7 +272,7 @@
         ii) Weight Normalization:
             Purpose: Inverts gate weights (max - weight + 1) to prioritize the inclusion of high-weight (critical) gates by making them "cheaper" to fit within the sensitivity budget.
             Logic: __gate_weight[id] = max_weight - gate_weight[id] + 1__
-        iii) Structural Integrity (Universal):
+        iii) Structural Integrity Audit (Local Graph Context)
             Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
             Logic: __is_selection_convex(G, node_partition)__
 
@@ -307,7 +313,7 @@
         ii) Weight Normalization:
             Purpose: Inverts gate weights (*max - weight + 1*) to prioritize the inclusion of high-weight (critical) gates by making them "cheaper" to fit within the sensitivity budget.
             Logic: __gate_weight[id] = max_weight - gate_weight[id] + 1__
-        iii) Structural Integrity (Universal):
+        iii) Structural Integrity Audit (Local Graph Context)
             Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
             Logic: __is_selection_convex(G, node_partition)__
 
@@ -357,9 +363,10 @@
         ii) Strict Boundary Feasibility:
             Purpose: Enforces an absolute constraint where every single output edge of the partition must originate from a "feasible" gate (a gate with a weight below or equal to the feasibility_threshold). Unlike the soft-constraint variant, this method permits no exceptions; if a boundary cut cannot be formed by feasible gates, the solver will return no solution.
             Logic: __opt.add(Sum(feasibility_constraints) == Sum(partition_output_edges))__
-        iii) Structural Integrity (Universal):
-            Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
-            Logic: __is_selection_convex(G, node_partition)__
+        iii) Structural Integrity Audit (Global Graph Context):
+            Purpose: Acts as the final safety auditor and translator. It ensures that the symbolic result from the solver is topologically sound (convex) and maps the internal Z3 identifiers back to the original graph's gate references.
+            Logic:  # Integrity Audit: Discards any result that fails the connectivity test, raising a *RuntimeError* if the subgraph is non-convex.
+                        __if not is_selection_convex(self.graph, node_partition): raise RuntimeError(...)__
 
     - # 6 - find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold
         Purpose-Logic Documentation:
@@ -422,7 +429,7 @@
             Logic:  __h = opt.maximize(Sum(max_nodes))__
                     __if correct_maximum != model_maximized: opt.add(Sum(max_nodes) == correct_maximum)__
         
-        Post-Partitioning Validation and Mapping: 
+        Structural Integrity Audit (Global Graph Context):
             Purpose: Acts as the final safety auditor and translator. It ensures that the symbolic result from the solver is topologically sound (convex) and maps the internal Z3 identifiers back to the original graph's gate references.
             Logic:  # Integrity Audit: Discards any result that fails the connectivity test, raising a *RuntimeError* if the subgraph is non-convex.
                         __if not is_selection_convex(self.graph, node_partition): raise RuntimeError(...)__
@@ -497,7 +504,7 @@
             Logic:  __h = opt.maximize(Sum(max_nodes))__
                     __if correct_maximum != model_maximized: opt.add(Sum(max_nodes) == correct_maximum)__
 
-        Post-Partitioning Validation and Mapping: 
+        Structural Integrity Audit (Global Graph Context): 
             Purpose: Acts as the final safety auditor and translator. It ensures that the symbolic result from the solver is topologically sound (convex) and maps the internal Z3 identifiers back to the original graph's gate references.
             Logic:  # Integrity Audit: Discards any result that fails the connectivity test, raising a *RuntimeError* if the subgraph is non-convex.
                         __if not is_selection_convex(self.graph, node_partition): raise RuntimeError(...)__
@@ -575,3 +582,15 @@ Logic: *opt.add(Sum(feasibility_constraints) >= 1)*
 Feasibility and Filtering Constraints       | 5                                 |
 (Strict Boundary Feasibility)               |                                   |
 Logic: *opt.add(Sum(feasibility_constraints) == Sum(partition_output_edges))*
+
+---
+Optimization and Selection Constraints      | 1, 2, 3, 4, 11, 12                |
+(Structural Integrity Audit                 |                                   |
+(Local Graph Context))
+Logic: *is_selection_convex(G, node_partition)*
+
+---
+Optimization and Selection Constraints      | 5, 6, 55, 100                     |
+(Structural Integrity Audit                 |                                   |
+(Global Graph Context))
+Logic: *if not is_selection_convex(self.graph, node_partition): raise RuntimeError(...)*
