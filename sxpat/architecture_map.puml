@@ -1,0 +1,52 @@
+@startuml
+skinparam componentStyle uml2
+
+package "Components (Logic Blocks)" {
+    [Signal Propagation] as SP
+    [Feasibility Filter] as FF
+    [Structural Integrity Audit] as SIA
+    [Optimization Engine] as OE
+    [Multi-Partition Engine] as MPE
+}
+
+package "Algorithms" {
+    node "Connectivity-based" {
+        [Algo 1] as A1
+        [Algo 4] as A4
+        [Algo 11] as A11
+        [Algo 12] as A12
+    }
+    node "Sensitivity-based" {
+        [Algo 2] as A2
+        [Algo 3] as A3
+    }
+    node "Formal/Hard Feasibility" {
+        [Algo 5] as A5
+        [Algo 6] as A6
+        [Algo 55] as A55
+    }
+    node "Heuristic" {
+        [Algo 100] as A100
+    }
+}
+
+' (Mapping)
+SP --> A1 : Standard Cut
+SP --> A55 : Symbolic Flow
+SP --> A100 : Symbolic Flow
+
+FF --> A5 : Hard Bound
+FF --> A11 : Soft Penalty
+FF --> A100 : Global Budget
+
+SIA --> A1 : Local Context
+SIA --> A55 : Global Context
+SIA --> A100 : Global Context
+
+OE --> A1 : Utility Max
+OE --> A11 : Soft Penalty Hierarchical
+
+MPE --> A11 : Exhaustive
+MPE --> A100 : Exhaustive
+
+@enduml
