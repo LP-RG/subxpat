@@ -502,7 +502,7 @@
                         __Node.weight(Edge.source(edge)),__
                         __BitVecVal(0, NUM_BITS))__
                     __for edge in edges])__
-                    Global Budget Enforcement: Ensures the total interface cost is strictly bounded.
+                    # Global Budget Enforcement: Ensures the total interface cost is strictly bounded.
                     __opt.add(feasibility_sum <= BitVecVal(feasibility_threshold, NUM_BITS))__
 
         Optimization & Maximization Objective:
@@ -669,3 +669,47 @@ Logic: *for (i, specs_obj.et) in enumerate(actual_partition):*
 Purpose-Logic Documentation                 | 6                                 |
 (State Restoration)                         |                                   |
 Logic: *specs_obj.et = saved_et*
+
+#
+---
+Graph Data Ingestion                        | 55, 100                           |
+Logic:  # Identity Anchor: *Node.id(node) == BitVecVal(id, NUM_BITS)*
+        # Weight Property: *Node.weight(node) == BitVecVal(weight, NUM_BITS)*
+        # State Binding: *Node.in_subgraph(node) == BoolVal(False)*
+
+---
+Symbolic Cut & Flow Constraints             | 55, 100                           |
+Logic:  # Boundary Detection:
+            + Outgoing Cut: *And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des])))*
+            + Incoming Cut: *And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des]))*
+        # Symbolic Counting: Uses an If statement to map boolean cut conditions to BitVec values for summation.
+            *If(Or(outgoing_conditions or incoming_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))*
+        # Bandwidth Enforcement:
+            + Max Incoming: *opt.add(Sum(unique_incoming_edges) <= imax)*
+            + Max Outgoing: *opt.add(Sum(unique_outgoing_edges) <= omax)*
+
+---
+Optimization & Maximization Objective       | 55, 100                           |
+Logic:  *h = opt.maximize(Sum(max_nodes))*
+        *if correct_maximum != model_maximized: opt.add(Sum(max_nodes) == correct_maximum)*
+
+---
+Formal Feasibility Filter                   | 55                                |
+Logic: *opt.add(And([Implies*
+            *(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),*
+            *Node.weight(Edge.source(edge)) <= BitVecVal(feasibility_threshold, NUM_BITS))]))*
+
+---
+Structural Cohesion (Child-Consistency)     | 100                               |
+Logic: *Implies(And(Node.in_subgraph(parent), Or(children_in)), And(children_in))*
+
+---
+Global Feasibility Budgeting                | 100                               |
+Logic:  # Cost Aggregation: Sums the weights of all edges crossing the partition boundary
+            *feasibility_sum = Sum([ If(*
+                *And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),*
+                *Node.weight(Edge.source(edge)),*
+                *BitVecVal(0, NUM_BITS))*
+            *for edge in edges])*
+        # Global Budget Enforcement: Ensures the total interface cost is strictly bounded.
+            *opt.add(feasibility_sum <= BitVecVal(feasibility_threshold, NUM_BITS))*
