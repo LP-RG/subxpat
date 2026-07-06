@@ -85,3 +85,38 @@
     iii) State Restoration:
         Purpose: Guarantees functional atomicity by reverting the specifications object to its original configuration after execution, effectively preventing side effects within the engine.
 
+- __Symbolic Topology Management__
+    Establishes the formal, typed environment for circuit representation and enforces topological soundness at the node level. This component maps physical circuit topology into a verifiable symbolic format for the solver.
+
+    Core Mechanisms & Constraints:
+    i) Architecture Initialization:
+        Purpose: Establishes a formal, typed environment for the circuit. By declaring Node and Edge as symbolic datatypes, it enables the solver to perform attribute-based operations (ID, Weight, Subgraph-Membership) rather than managing raw lists of variables.
+    ii) Graph Data Ingestion:
+        Purpose: Maps the physical circuit topology into the solver's memory. This phase initializes every node by binding its unique identity, weight properties, and initial subgraph membership status to a symbolic object. Mechanism: Registers identity anchors and state bindings simultaneously to establish the node's formal symbolic state.
+    iii) Symbolic Cut & Flow Analysis:
+        Purpose: Detects boundary cuts dynamically. Instead of pre-calculating every edge, the solver evaluates the in_subgraph status of the source vs. target of every declared Edge object to identify entry/exit points and enforces bandwidth constraints.
+    iv) Node-Level Structural Integrity:
+        Purpose: Maintains topological consistency by enforcing convexity constraints (Descendant and Ancestor Consistency) to prevent floating logic or spontaneously generated fragments.
+    v) Formal Feasibility Filter:
+        Purpose: Enforces an absolute constraint where boundary edges are only permissible if the source gate meets the feasibility_threshold. This is a symbolic verification of the signal path's integrity at the partition boundary.
+    vi) Optimization & Maximization Objective:
+        Purpose: Guarantees the absolute maximum density of the subgraph. It employs a two-stage solver strategy: it finds the theoretical maximum (h.upper()) and, if the initial model falls short, forces a second pass to guarantee optimality.
+    vii) Structural Integrity Audit (Global Graph Context)
+        Purpose: Acts as the final safety auditor and translator. It ensures that the symbolic result from the solver is topologically sound (convex) and maps the internal Z3 identifiers back to the original graph's gate references.
+    ix) Structural Cohesion (Child-Consistency):
+        Purpose: Enforces strict logical integrity for signal paths. If a parent node is included in the subgraph and at least one child node is also selected, the solver is forced to include all children. This prevents the solver from selecting "partial" logic paths, ensuring that if a signal starts propagating through a gate, the entire downstream branch must be captured.
+    x) Global Feasibility Budgeting:
+        Purpose: Implements a cumulative constraint on the interface cost. Instead of filtering individual edges against the threshold (which is binary/permissive), this method aggregates the weight of all boundary-crossing edges into a single feasibility_sum. This budget-based approach allows for flexible partitioning where a single high-weight boundary edge might be permitted as long as the total "cut cost" remains below the defined feasibility_threshold.
+    
+- __Interactive & Diagnostic Tools__
+
+
+    Core Mechanisms & Constraints:
+    i) Interactive Selection Loop:
+        Purpose: Provides complete control to the user, bypassing the solver logic. This allows for manual prototyping, debugging, or creating specific subgraphs that the solver might struggle to find.
+    ii) Validation & Topological Guardrails:
+        Purpose: Ensures the manual selection adheres to the same structural integrity requirements as the automated methods, preventing the creation of disconnected or non-functional logic fragments.
+            - Logic (Existence): Validates node presence within the graph.
+            - Logic (Convexity): Enforces convex selection criteria.
+    iii) Visualization & Feedback Loop:
+        Purpose:
