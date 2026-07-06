@@ -109,8 +109,8 @@
         Purpose: Implements a cumulative constraint on the interface cost. Instead of filtering individual edges against the threshold (which is binary/permissive), this method aggregates the weight of all boundary-crossing edges into a single feasibility_sum. This budget-based approach allows for flexible partitioning where a single high-weight boundary edge might be permitted as long as the total "cut cost" remains below the defined feasibility_threshold.
     
 - __Interactive & Diagnostic Tools__
-
-
+    Provides a manual interface for circuit exploration and subgraph definition, enabling direct user intervention outside of the automated solver loop. This component bridges the gap between manual prototyping and the formal integrity requirements of the engine, ensuring that all user-selected subgraphs remain topologically valid and functional.
+    
     Core Mechanisms & Constraints:
     i) Interactive Selection Loop:
         Purpose: Provides complete control to the user, bypassing the solver logic. This allows for manual prototyping, debugging, or creating specific subgraphs that the solver might struggle to find.
@@ -119,4 +119,4 @@
             - Logic (Existence): Validates node presence within the graph.
             - Logic (Convexity): Enforces convex selection criteria.
     iii) Visualization & Feedback Loop:
-        Purpose:
+        Purpose: Provides immediate visual verification. By exporting the graph state before and after selection to *.gv* files, it bridges the gap between the user's textual input and the logical structure of the circuit.
