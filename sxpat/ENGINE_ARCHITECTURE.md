@@ -52,4 +52,14 @@
             - Strategy A (Minimum Guarantee): Forces the partition to contain at least one interface point meeting the threshold, preventing the extraction of overly isolated or "locked" logic blocks.
             - Strategy B (Strict Boundary): Enforces an absolute constraint where all output edges must originate from feasible gates. This acts as a "zero-tolerance" mode for boundary integrity; if a cut cannot be formed purely by feasible gates, the solver returns no solution.
 
-- 
+- __Penalty-based Soft Constraints__
+    Introduces flexibility into the feasibility boundary by treating requirements as optimization goals rather than hard logical constraints. This allows the solver to balance modularity against internal density.
+
+    Core Mechanisms & Constraints:
+    i) Penalty Modeling:
+        Purpose: To create a "soft" boundary for feasibility. By differentiating between interface (output) costs and internal (gate) costs, the solver can prioritize modular connections over internal gate weight.
+    ii) Soft Constraint Enforcement:
+            - Strategy A (Flexible Goal): Treats the feasibility boundary as a general optimization objective (weight = 1), allowing for minor deviations if necessary to find a valid solution.
+            - Strategy B (Hierarchical): Establishes a priority hierarchy to manage conflicting goals.
+                High-Priority (weight = 100): Treats interface modularity as a critical requirement.
+                Low-Priority (weight = 1): Treats internal gate density as a secondary, flexible optimization goal.
