@@ -63,3 +63,15 @@
             - Strategy B (Hierarchical): Establishes a priority hierarchy to manage conflicting goals.
                 High-Priority (weight = 100): Treats interface modularity as a critical requirement.
                 Low-Priority (weight = 1): Treats internal gate density as a secondary, flexible optimization goal.
+
+- __Multi-Partition Iteration Engine__
+    Orchestrates the exhaustive discovery of valid subgraphs and performs multi-criteria ranking to select the most effective partition.
+
+    Core Mechanisms & Constraints:
+    i) Partition Enumeration (Exhaustive Search):
+        Purpose: Enables the discovery of multiple unique valid partitions by iteratively extracting solutions and applying blocking clauses to prevent the solver from finding the same partition twice.
+    ii) Lowest Penalty Selection:
+            - Strategy A (Balanced Penalty Ranking): Sorts partitions based on cost and size to balance logical density against the feasibility threshold.
+            - Strategy B (Multi-Attribute Hierarchical Ranking): Implements a comprehensive post-processing hierarchy to optimize for three distinct criteria: partition size (maximization), output interface cost (minimization), and internal gate cost (minimization).
+
+- 
