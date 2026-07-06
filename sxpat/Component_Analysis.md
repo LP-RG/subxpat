@@ -648,3 +648,24 @@ Logic: *gate_weight[id] = max_weight - gate_weight[id] + 1*
 Sensitivity Budget Constraints              | 2, 3                              |
 (Sensitivity Budgeting (Hard Constraint))   |                                   |
 Logic: *opt.add(Sum([edge_constraint[s] * edge_w[s]]) <= sensitivity_t)*
+
+#
+---
+Purpose-Logic Documentation                 | 6                                 |
+(Weight Distribution Analysis)              |                                   |
+Logic:  *# Linear Scaling: Creates 8 linearly spaced steps across the weight range.*
+            *weights = sorted(frozenset(...)), partition_step = (max_weight - min_weight) / (8 - 1)*
+            *linear_partition = [min_weight + partition_step * i for i in range(8)]*   
+        *# Weight Mapping: Maps the linear steps to the actual nearest gate weights present in the circuit to avoid testing "impossible" thresholds.*
+            *actual_partition = sorted(frozenset(min(weights, key=lambda w: abs(w - p)) for p in linear_partition))*
+
+---
+Purpose-Logic Documentation                 | 6                                 |
+(Iterative Threshold Sweep)                 |                                   |
+Logic: *for (i, specs_obj.et) in enumerate(actual_partition):*
+       *subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)*
+
+---
+Purpose-Logic Documentation                 | 6                                 |
+(State Restoration)                         |                                   |
+Logic: *specs_obj.et = saved_et*
