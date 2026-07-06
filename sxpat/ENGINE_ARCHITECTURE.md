@@ -110,7 +110,7 @@
     
 - __Interactive & Diagnostic Tools__
     Provides a manual interface for circuit exploration and subgraph definition, enabling direct user intervention outside of the automated solver loop. This component bridges the gap between manual prototyping and the formal integrity requirements of the engine, ensuring that all user-selected subgraphs remain topologically valid and functional.
-    
+
     Core Mechanisms & Constraints:
     i) Interactive Selection Loop:
         Purpose: Provides complete control to the user, bypassing the solver logic. This allows for manual prototyping, debugging, or creating specific subgraphs that the solver might struggle to find.
@@ -120,3 +120,32 @@
             - Logic (Convexity): Enforces convex selection criteria.
     iii) Visualization & Feedback Loop:
         Purpose: Provides immediate visual verification. By exporting the graph state before and after selection to *.gv* files, it bridges the gap between the user's textual input and the logical structure of the circuit.
+
+# Part 2: Algorithm Catalog
+- __Algorithm 1: find_subgraph__
+    Components Utilized:
+        + Signal Propagation Constraints
+        + Convexity and Structural Constraints
+        + Optimization and Selection Constraints (i, ii, iii, iv)
+        + Sensitivity Budget Constraints (ii)
+
+- __Algorithm 2: find_subgraph_sensitivity__
+    Components Utilized:
+        + Signal Propagation Constraints
+        + Convexity and Structural Constraints
+        + Optimization and Selection Constraints (i, ii, iii, iv)
+        + Sensitivity Budget Constraints (i, ii)
+
+- __Algorithm 3: find_subgraph_sensitivity_no_io_constraints__
+    Components Utilized:
+        + Signal Propagation Constraints
+        + Convexity and Structural Constraints
+        + Optimization and Selection Constraints (i, ii, iv)
+        + Sensitivity Budget Constraints (i, ii)
+
+- __Algorithm 4: find_subgraph_feasible__
+    Components Utilized:
+        + Signal Propagation Constraints
+        + Convexity and Structural Constraints
+        + Feasibility and Filtering Constraints (i, ii-Strategy A)
+        + Optimization and Selection Constraints (i, ii, iii, iv)
