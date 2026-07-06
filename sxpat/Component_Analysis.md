@@ -54,6 +54,11 @@
             Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
             Logic: __is_selection_convex(G, node_partition)__
 
+        Sensitivity Budget Constraints:
+        i) Weight Normalization
+            Purpose: Inverts gate weights (*max - weight + 1*) to prioritize the inclusion of high-weight (critical) gates by making them "cheaper" to fit within the sensitivity budget.
+            Logic: __gate_weight[id] = max_weight - gate_weight[id] + 1__
+
     
     - # 4 - find_subgraph_feasible
         Signal Propagation Constraints: 
@@ -144,15 +149,16 @@
             Logic: __node_literal == False__
 
         Penalty-based Soft Constraints:
-        i) Penalty Modeling:
-            Purpose: Instead of strictly rejecting gates above the feasibility_threshold, the engine assigns a numerical cost to them. This creates a "soft" boundary where the solver prefers feasible cuts but can "afford" to include slightly heavier gates if it results in a larger or better-connected subgraph.
-            Logic: __If(gate_literals[s], penalty_coefficient * (gate_weight[s] - threshold), 0)__
+        i) Penalty Modeling: 
+            Purpose: To create a "soft" boundary for feasibility. By differentiating between interface (output) costs and internal (gate) costs, the solver can prioritize modular connections over internal gate weight.
+            Logic:  # For internal gate density
+                    __output_individual_penalty.append(If(gate_literals[s], penalty_coefficient * (gate_weight[s] - feasibility_treshold), 0))__
         ii) Soft Constraint Enforcement:
             Purpose: Allows the solver to treat the feasibility boundary as a flexible goal (weight=1) rather than a hard logical requirement.
             Logic: __opt.add_soft(Sum(output_individual_penalty) <= 2 * feasibility_treshold, weight=1)__
 
         Multi-Partition Iteration Engine:
-        i) Partition Enumeration:
+        i) Partition Enumeration (Exhaustive Search):
             Purpose: Instead of finding one "optimal" subgraph, the method iteratively extracts and blocks __(opt.add(Not(And(block_clause))))__ multiple valid partitions.
             Logic: Uses a __while count > 0__ loop to repeatedly query the solver for unique solutions.
         ii) Lowest Penalty Selection: 
@@ -269,8 +275,8 @@
         i) Sensitivity Budgeting (Hard Constraint):
             Purpose: Enforces a hard limit on the total accumulated sensitivity at the boundary. Unlike soft penalties, this acts as a "hard budget," ensuring the partition stays within critical exposure limits
             Logic: __opt.add(Sum([edge_constraint[s] * edge_w[s]]) <= sensitivity_t)__
-        ii) Weight Normalization:
-            Purpose: Inverts gate weights (max - weight + 1) to prioritize the inclusion of high-weight (critical) gates by making them "cheaper" to fit within the sensitivity budget.
+        ii) Weight Normalization
+            Purpose: Inverts gate weights (*max - weight + 1*) to prioritize the inclusion of high-weight (critical) gates by making them "cheaper" to fit within the sensitivity budget.
             Logic: __gate_weight[id] = max_weight - gate_weight[id] + 1__
         iii) Structural Integrity Audit (Local Graph Context)
             Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
@@ -310,7 +316,7 @@
         i) Sensitivity Budgeting (Hard Constraint):
             Purpose: Enforces a hard limit on the total accumulated sensitivity at the boundary. Unlike soft penalties, this acts as a "hard budget," ensuring the partition stays within critical exposure limits
             Logic: __opt.add(Sum([edge_constraint[s] * edge_w[s]]) <= sensitivity_t)__
-        ii) Weight Normalization:
+        ii) Weight Normalization
             Purpose: Inverts gate weights (*max - weight + 1*) to prioritize the inclusion of high-weight (critical) gates by making them "cheaper" to fit within the sensitivity budget.
             Logic: __gate_weight[id] = max_weight - gate_weight[id] + 1__
         iii) Structural Integrity Audit (Local Graph Context)
@@ -556,11 +562,13 @@ Optimization and Selection Constraints      | 1, 2, 3, 4, 5, 11, 12             
 Optimization and Selection Constraints      | 1                                 |
 (Utility Maximization (gate_weight))        |                                   |
 Logic: *max_func.append(gate_literals[gate_id] * gate_weight[gate_id])*
+        *opt.maximize(Sum(max_func))*
 
 ---
 Optimization and Selection Constraints      | 2, 3, 4, 5, 11, 12                |
 (Utility Maximization (gate_weight))        |                                   |
 Logic: *max_func.append(gate_literals[gate_id])*
+        *opt.maximize(Sum(max_func))*
 
 #
 ---
@@ -583,6 +591,7 @@ Feasibility and Filtering Constraints       | 5                                 
 (Strict Boundary Feasibility)               |                                   |
 Logic: *opt.add(Sum(feasibility_constraints) == Sum(partition_output_edges))*
 
+#
 ---
 Optimization and Selection Constraints      | 1, 2, 3, 4, 11, 12                |
 (Structural Integrity Audit                 |                                   |
@@ -594,3 +603,48 @@ Optimization and Selection Constraints      | 5, 6, 55, 100                     
 (Structural Integrity Audit                 |                                   |
 (Global Graph Context))
 Logic: *if not is_selection_convex(self.graph, node_partition): raise RuntimeError(...)*
+
+#
+---
+Penalty-based Soft Constraints              | 11, 12                            |
+(Penalty Modeling)                          |                                   |
+Logic: *output_individual_penalty.append(If(gate_literals[s], penalty_coefficient * (gate_weight[s] - feasibility_treshold), 0))*
+
+Penalty-based Soft Constraints              | 11                                |
+(Soft Constraint Enforcement)               |                                   |
+Logic: *opt.add_soft(Sum(output_individual_penalty) <= 2 * feasibility_treshold, weight=1)*
+
+Penalty-based Soft Constraints              | 12                                |
+(Soft Constraint Enforcement (Hierarchical))|                                   |
+Logic:  *# High-priority constraint for interface modularity*
+            *opt.add_soft(IntVal(1) * Sum(partition_output_edges_penalty) <= omax * threshold, weight=100)*
+        *# Lower-priority constraint for internal gate density* 
+            *opt.add_soft(IntVal(1) * Sum(output_individual_penalty) <= omax * threshold, weight=1)*
+
+#
+---
+Multi-Partition Iteration Engine            | 11, 12                            |
+(Partition Enumeration (Exhaustive Search)) |                                   |
+Logic: uses a *while count > 0* loop to repeatedly query the solver for unique solutions
+
+---
+Multi-Partition Iteration Engine            | 11                                |
+(Lowest Penalty Selection)                  |                                   |
+Logic: *sorted(all_partitions.items(), key=lambda item: (-len(item[1][1]), item[1][0]))*
+
+---
+Multi-Partition Iteration Engine            | 12                                |
+(Lowest Penalty Selection                   |                                   |
+(Multi-Attribute Ranking))
+Logic: *sorted(all_partitions.items(), key=lambda item: (-len(item[1][2]), item[1][0], item[1][1]))*
+
+#
+---
+Sensitivity Budget Constraints              | 1, 2, 3                           |
+(Weight Normalization)                      |                                   |
+Logic: *gate_weight[id] = max_weight - gate_weight[id] + 1*
+
+---
+Sensitivity Budget Constraints              | 2, 3                              |
+(Sensitivity Budgeting (Hard Constraint))   |                                   |
+Logic: *opt.add(Sum([edge_constraint[s] * edge_w[s]]) <= sensitivity_t)*
