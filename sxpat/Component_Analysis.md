@@ -48,9 +48,7 @@
         iii) Mandatory Inactivity (skipped_nodes):
             Purpose: Explicitly excludes nodes marked with *WEIGHT == -1*, ensuring they are treated as inactive and are not included in the final node_partition.
             Logic: __node_literal == False__
-
-        Optimization and Selection Constraints:
-        i) Structural Integrity Audit (Local Graph Context)
+        iv) Structural Integrity Audit (Local Graph Context)
             Purpose: Inherits convexity and skip-logic rules from the core engine to ensure the final partition remains a logically sound and continuous logic block.
             Logic: __is_selection_convex(G, node_partition)__
 
