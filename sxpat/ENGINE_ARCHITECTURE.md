@@ -74,4 +74,14 @@
             - Strategy A (Balanced Penalty Ranking): Sorts partitions based on cost and size to balance logical density against the feasibility threshold.
             - Strategy B (Multi-Attribute Hierarchical Ranking): Implements a comprehensive post-processing hierarchy to optimize for three distinct criteria: partition size (maximization), output interface cost (minimization), and internal gate cost (minimization).
 
-- 
+- __Search Space Calibration & State Management__
+    Orchestrates the adaptive search process by normalizing the problem space and ensuring functional isolation of the solver's state.
+
+    Core Mechanisms & Constraints:
+    i) Weight Distribution Analysis:
+        Purpose: Dynamically calibrates the feasibility search space by analyzing the range of gate weights unique to the current circuit instance. It then discretizes the weight range into representative threshold levels, mapping them to actual gate weights to avoid testing invalid search parameters.
+    ii) Iterative Threshold Sweep:
+        Purpose: Implements a coarse-to-fine search by testing 8 discretized threshold levels (actual_partition). It attempts to extract a valid subgraph starting from the lowest threshold level, ensuring the most restrictive (and often most conservative/safe) feasible partition is found first.
+    iii) State Restoration:
+        Purpose: Guarantees functional atomicity by reverting the specifications object to its original configuration after execution, effectively preventing side effects within the engine.
+

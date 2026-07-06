@@ -387,7 +387,7 @@
             Logic: __for (i, specs_obj.et) in enumerate(actual_partition):__
                    __subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)__
         iii) State Restoration:
-            Purpose: Ensures that the Specifications object is returned to its original state after the execution,preventing side effects on other parts of your engine.
+            Purpose: Ensures that the Specifications object is returned to its original state after the execution, preventing side effects on other parts of your engine.
             Logic: __specs_obj.et = saved_et__
 
     - # 55 - find_subgraph_feasible_hard_limited_inputs_datatype_bitvec
