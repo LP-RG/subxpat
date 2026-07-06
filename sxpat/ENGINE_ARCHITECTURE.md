@@ -12,3 +12,10 @@
         Purpose: Validates the exit point where internal logic connects to an external output node.
 
 - __Convexity and Structural Constraints__
+    Maintains logical soundness and topological continuity within subgraphs. This component ensures that partitions are free from "broken" signal paths or spontaneously generated logic.
+
+    Core Mechanisms & Constraints:
+    i) Descendant Consistency:
+            Purpose -> If a signal is blocked at the destination node, all logical descendants must be forced to an inactive state (False). This prevents "broken" signal paths within the partition.
+    ii) Ancestor Consistency:
+            Purpose -> If a signal appears at a destination while the source is inactive, the logic propagates False upstream to all ancestors. This ensures the partition does not contain "spontaneously generated" logic.
