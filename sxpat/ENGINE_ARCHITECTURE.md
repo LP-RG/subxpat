@@ -16,6 +16,24 @@
 
     Core Mechanisms & Constraints:
     i) Descendant Consistency:
-            Purpose -> If a signal is blocked at the destination node, all logical descendants must be forced to an inactive state (False). This prevents "broken" signal paths within the partition.
+        Purpose -> If a signal is blocked at the destination node, all logical descendants must be forced to an inactive state (False). This prevents "broken" signal paths within the partition.
     ii) Ancestor Consistency:
-            Purpose -> If a signal appears at a destination while the source is inactive, the logic propagates False upstream to all ancestors. This ensures the partition does not contain "spontaneously generated" logic.
+        Purpose -> If a signal appears at a destination while the source is inactive, the logic propagates False upstream to all ancestors. This ensures the partition does not contain "spontaneously generated" logic.
+
+- __Optimization and Selection Constraints__
+    Governs the selection criteria and performance goals for subgraph extraction, allowing the solver to balance structural modularity with the inclusion of high-value logic gates.
+
+    Core Mechanisms & Constraints:
+    i) Boundary Bandwidth Control:
+        Purpose: Limits the "interface bandwidth" of the subgraph. It forces the solver to find a clean, modular cut with a restricted number of external connections.
+    ii) Utility Maximization:
+        Purpose: The solver prioritizes nodes with higher weight values. By maximizing this sum, the engine selects the most "critical" or "valuable" logic gates that still satisfy the integrity constraints.
+    iii) Mandatory Inactivity (Skip-Logic):
+        Purpose: Explicitly excludes designated nodes (e.g., nodes marked with a specific weight identifier) from the partitioning process.
+    iv) Structural Integrity Integration:
+        Purpose: Ensures that even during the optimization phase, the partition adheres to convexity and continuity requirements established by the core integrity modules.
+
+- __Sensitivity Budget Constraints__
+    
+
+    Core Mechanisms & Constraints:
