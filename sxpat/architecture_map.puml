@@ -37,6 +37,7 @@ package "Algorithms" {
 }
 
 ' (Mapping)
+' mapping dependencies for 'Signal Propagation Constraints'
 SP --> A1 
 SP --> A2
 SP --> A3
@@ -44,6 +45,16 @@ SP --> A4
 SP --> A5
 SP --> A11
 SP --> A12
+
+' mapping dependencies for 'Convexity and Structural Constraints'
+CS --> A1
+CS --> A2
+CS --> A3
+CS --> A4
+CS --> A5
+CS --> A11
+CS --> A12
+
 
 FF --> A5 : Hard Bound
 FF --> A11 : Soft Penalty
