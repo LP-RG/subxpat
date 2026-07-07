@@ -107,6 +107,7 @@ SSCSM --> A6
 ' mapping dependencies for 'Symbolic Topology Management'
 STM --> A55
 STM --> A100
+A6 --> A55
 
 ' mapping dependencies for 'Interactive & Diagnostic Tools'
 IDT --> A42
