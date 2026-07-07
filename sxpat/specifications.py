@@ -191,8 +191,9 @@ class Specifications:
     slash_to_kill: bool
     error_for_slash: int
     #Extraction_mode_0
-    persistence_counter: int = dc.field(init=False, default=0)  # rw
-    out_node: int = dc.field(init=False, default=0)  # rw\
+    persistance: int
+    persistance_counter: int = dc.field(init=False, default=0, metadata={'writable': True})  # rw
+    out_node: int = dc.field(init=False, default=0, metadata={'writable': True})  # rw
     #Zone AE
     baseet: int
     beta: int
@@ -372,6 +373,10 @@ class Specifications:
         _msens = _subex_group.add_argument('--max-sensitivity',
                                            type=int,
                                            help='Maximum partitioning sensitivity')
+        
+        _persistance = _subex_group.add_argument('--persistance',
+                                          type=int,
+                                          help='max-persistance for subgraph extraction 0')
 
         _msub_size = _subex_group.add_argument('--min-subgraph-size',
                                                type=int,

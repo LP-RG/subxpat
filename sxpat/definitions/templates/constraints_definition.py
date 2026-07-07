@@ -27,7 +27,7 @@ def nine(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alpha: int
             condition := Equals('condition', operands = (cur_int, zero)),
             divider := If("divider", operands=(condition, one, cur_int)),
             abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
-            rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),    
+            rel_diff := Div('rel_diff',operands=(abs_diff_hundred, divider)),    
 
             #zone parameters
             half := IntConstant('half', value = 127),
@@ -41,7 +41,7 @@ def nine(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alpha: int
             x_factor := Mul('x_factor', operands=(distance_half, alpha)),
             numerator := Sum('numerator', operands=(x_factor, input_one_value)),
             low_bound_condition := LessThan('low_bound_condition', operands=(numerator,step_divider)),
-            et_function := UDiv('et_function', operands=(numerator,step_divider)),
+            et_function := Div('et_function', operands=(numerator,step_divider)),
             low_bounded_et_function := If('low_bounded_et_function', operands=(low_bound_condition, one, et_function)),
             scaled_et := Mul('scaled_et', operands=(low_bounded_et_function,et)),
 
@@ -79,7 +79,7 @@ def nine_prime(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alph
             condition := Equals('condition', operands = (cur_int, zero)),
             divider := If("divider", operands=(condition, one, cur_int)),
             abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
-            rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),    
+            rel_diff := Div('rel_diff',operands=(abs_diff_hundred, divider)),    
 
             #zone parameters
             half := IntConstant('half', value = 127),
@@ -95,7 +95,7 @@ def nine_prime(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alph
             x_factor := Mul('x_factor', operands=(distance_half, alpha)),
             numerator := Sum('numerator', operands=(x_factor, input_one_value)),
             low_bound_condition := LessThan('low_bound_condition', operands=(numerator,step_divider)),
-            et_function := UDiv('et_function', operands=(numerator,step_divider)),
+            et_function := Div('et_function', operands=(numerator,step_divider)),
             low_bounded_et_function := If('low_bounded_et_function', operands=(low_bound_condition, one, et_function)),
             et_increasing := Mul('et_increasing', operands = (low_bounded_et_function, increase_constant)),
             scaled_et := Sum('scaled_et', operands=(et_increasing,et)),
@@ -158,7 +158,7 @@ def explicit_constraints(s_graph: SGraph, t_graph: PGraph, et_array_idx: int, be
             condition := Equals('condition', operands=(cur_int, zero)),
             divider := If("divider", operands=(condition, one, cur_int)),
             abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
-            rel_diff := UDiv('rel_diff', operands=(abs_diff_hundred, divider)),
+            rel_diff := Div('rel_diff', operands=(abs_diff_hundred, divider)),
         ]
         
         ae_error_zone_nodes = []

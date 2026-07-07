@@ -131,7 +131,7 @@ class _NonSharedBase:
             condition := Equals('condition', operands = (cur_int, zero_constant)),
             divider := If("divider", operands=(condition, one, cur_int)),
             abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
-            rel_diff := UDiv('rel_diff',operands=(abs_diff_hundred, divider)),
+            rel_diff := Div('rel_diff',operands=(abs_diff_hundred, divider)),
             error_check := LessEqualThan('error_check', operands=(rel_diff, et)),
             ]
     
