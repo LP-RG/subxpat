@@ -83,7 +83,7 @@ PS --> A12
 MPE --> A11
 MPE --> A12
 
-MPE --> A11 : Exhaustive
-MPE --> A100 : Exhaustive
+' mapping dependencies for 'Search Space Calibration & State Management'
+SSCSM --> A6
 
 @enduml
