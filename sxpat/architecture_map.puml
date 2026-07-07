@@ -79,6 +79,10 @@ FF --> A12
 PS --> A11
 PS --> A12
 
+' mapping dependencies for 'Multi-Partition Iteration Engine'
+MPE --> A11
+MPE --> A12
+
 MPE --> A11 : Exhaustive
 MPE --> A100 : Exhaustive
 
