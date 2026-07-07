@@ -1,29 +1,49 @@
 from typing import Any, Dict, List
-from colorama import Fore
+from typing_extensions import Self
+
 import time
-import datetime  # precautionary measure
+import re
+import io
+import math
 import networkx as nx
-from Z3Log.graph import Graph
-from Z3Log.verilog import Verilog
-from Z3Log.utils import *
+import functools as ft
+from colorama import Fore
+from os.path import join as path_join
+from z3 import (
+    And, Not, Sum, Bool, Implies, BoolVal, If, Or, BitVecVal, Int, IntVal,
+    Optimize, sat, is_true,
+    Datatype, BoolSort, BitVecSort,
+)
 
-from .config.config import *
-from z3 import *
+from Z3Log_patched.graph import Graph
+from Z3Log_patched.verilog import Verilog
 
-from .specifications import Specifications, TemplateType
+from Z3Log_patched.utils import convert_verilog_to_gv, get_pure_name
+from sxpat.utils.print import pprint
+from sxpat.utils.graph import is_selection_convex
 
-from sxpat.utils.utils import pprint
+from .specifications import Specifications, Paths
+from .config.config import (
+    SUBGRAPH, WEIGHT,
+    COLOR, WHITE, RED, BLUE, OLIVE,
+    LABEL, SHAPE, STRICT, DIGRAPH, NODE, STYLE, FILLED, FILLCOLOR,
+)
 
 
 class AnnotatedGraph(Graph):
-    def __init__(self, benchmark_name: str, is_clean: bool = False) -> None:
-        # Prepare a clean Verilog
-        Verilog(benchmark_name)
-        # Convert the clean Verilog into a Yosys GV
-        convert_verilog_to_gv(benchmark_name)
-        # exit()
-        super().__init__(benchmark_name, is_clean)
-        folder, extension = INPUT_PATH['ver']
+    __cached_loading_callable = None
+
+    def __init__(self, circuit_verilog_path: str, run_paths: Paths.RunFiles, is_clean: bool = False) -> None:
+        circuit_name = get_pure_name(circuit_verilog_path)
+
+        # prepare a clean Verilog
+        Verilog(circuit_verilog_path, tmp_v := path_join(run_paths.verilog, f'{circuit_name}.v'), run_paths.temporary)
+
+        # convert the clean Verilog into a Yosys GV
+        convert_verilog_to_gv(tmp_v, tmp_gv := path_join(run_paths.temporary, f'{circuit_name}.gv'), run_paths.temporary)
+
+        # initialize the super class using the Yosys GV
+        super().__init__(tmp_gv, is_clean)
 
         self.set_output_dict(self.sort_dict(self.output_dict))
 
@@ -41,12 +61,33 @@ class AnnotatedGraph(Graph):
         self.__subgraph_num_gates = None
         self.__subgraph_num_fanin = None
         self.__subgraph_num_fanout = None
-        self.__graph_num_intact_gates = None
 
         self.__add_weights()
 
-        folder, extension = OUTPUT_PATH[GV]
-        self.__out_annotated_graph_path = f'{folder}/{self.name}_subgraph.{extension}'
+        self.__out_annotated_graph_path = path_join(run_paths.graphviz, f'{self.name}_subgraph.gv')
+
+    @classmethod
+    def cached_load(cls, circuit_verilog_path: str, run_paths: Paths.RunFiles, is_clean: bool = False) -> Self:
+        if cls.__cached_loading_callable is None: cls.set_loading_cache_size(-1)
+        return cls.__cached_loading_callable(circuit_verilog_path, run_paths, is_clean)
+
+    @classmethod
+    def set_loading_cache_size(cls, new_size: int) -> None:
+        """
+            Set the new size for the loading cache (minimum of 3: 1 exact + 1 current + 1 from model).
+
+            @warning: a call to this method invalidates the previous cache
+        """
+        from copy import deepcopy
+
+        new_size = max(3, new_size)
+        if cls.__cached_loading_callable is not None: cls.__cached_loading_callable.cache_clear()
+
+        def make_cached_function(cache_size: int):
+            cached = ft.lru_cache(cache_size)(cls)
+            return ft.wraps(cls)(lambda *a, **k: deepcopy(cached(*a, **k)))
+
+        cls.__cached_loading_callable = make_cached_function(new_size)
 
     @property
     def subgraph_candidates(self):
@@ -58,11 +99,8 @@ class AnnotatedGraph(Graph):
 
     @property
     def subgraph(self):
-        return self.__subgraph
-
-    @subgraph.setter
-    def subgraph(self, this_subgraph):
-        self.__subgraph = this_subgraph
+        """[DEPRECATED] Alias of `.graph`"""
+        return self.graph
 
     @property
     def subgraph_out_path(self):
@@ -164,53 +202,55 @@ class AnnotatedGraph(Graph):
         return dict(sorted(this_dict.items(), key=lambda x: x[0]))
 
     def get_subgraph_name(self, specs_obj: Specifications):
-        """
-        returns: a unique gv file name for this experiment (that is determined by specs_obj)
-        """
-        _, extension = OUTPUT_PATH[GV]
+        raise
+        # """
+        # returns: a unique gv file name for this experiment (that is determined by specs_obj)
+        # """
+        # _, extension = OUTPUT_PATH[GV]
 
-        # TODO: Morteza: this naming convention is not generic enough,
-        # I will try to add every type of specification of the experiment into the name so it wouldn't get overwritten
-        # new fields that are added:
-        # for subxpat_v2 => et_partitioning
-        # for all num_of_models, omax, imax
-        # as a precautionary measure, we also add the time stamp at the end of every generated file
+        # # TODO: Morteza: this naming convention is not generic enough,
+        # # I will try to add every type of specification of the experiment into the name so it wouldn't get overwritten
+        # # new fields that are added:
+        # # for subxpat_v2 => et_partitioning
+        # # for all num_of_models, omax, imax
+        # # as a precautionary measure, we also add the time stamp at the end of every generated file
 
-        # So we change the names from "grid_adder_i6_o4_10X20_et10_subxpat_v2_mode4_SOP1" to
-        # 'grid_adder_i6_o4_10X20_et10_subxpat_v2_desc_fef1_sef1_mode4_omax1_imax3_kucTrue_SOP1_time20240403:214107'
+        # # So we change the names from "grid_adder_i6_o4_10X20_et10_subxpat_v2_mode4_SOP1" to
+        # # 'grid_adder_i6_o4_10X20_et10_subxpat_v2_desc_fef1_sef1_mode4_omax1_imax3_kucTrue_SOP1_time20240403:214107'
 
-        # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
+        # # let's divide our nomenclature into X parts: head (common), technique_specific, tail (common)
 
-        head = f'grid_{specs_obj.current_benchmark}_{specs_obj.lpp}X{specs_obj.pit if specs_obj.template is TemplateType.SHARED else specs_obj.ppo}_et{specs_obj.et}_'
+        # head = f'grid_{specs_obj.current_benchmark}_{specs_obj.lpp}X{specs_obj.pit if specs_obj.template is TemplateType.SHARED else specs_obj.ppo}_et{specs_obj.et}_'
 
-        tool_name = {
-            (False, TemplateType.NON_SHARED): XPAT,
-            (False, TemplateType.SHARED): SHARED_XPAT,
-            (True, TemplateType.NON_SHARED): SUBXPAT,
-            (True, TemplateType.SHARED): SHARED_SUBXPAT,
-        }[(specs_obj.subxpat, specs_obj.template)]
+        # tool_name = {
+        #     (False, TemplateType.NON_SHARED): XPAT,
+        #     (False, TemplateType.SHARED): SHARED_XPAT,
+        #     (True, TemplateType.NON_SHARED): SUBXPAT,
+        #     (True, TemplateType.SHARED): SHARED_SUBXPAT,
+        # }[(specs_obj.subxpat, specs_obj.template)]
 
-        technique_specific = f'{tool_name}_{specs_obj.error_partitioning.value}_'
+        # technique_specific = f'{tool_name}_{specs_obj.error_partitioning.value}_'
 
-        tail = f'mode{specs_obj.extraction_mode}_omax{specs_obj.omax}_imax{specs_obj.imax}_'
-        tail += f'{specs_obj.template_name}_time'
+        # tail = f'mode{specs_obj.extraction_mode}_omax{specs_obj.omax}_imax{specs_obj.imax}_'
+        # tail += f'{specs_obj.template_name}_time'
 
-        # Get the current date and time
-        current_time = datetime.datetime.now()
-        # Format the date and time to create a unique identifier
-        time_stamp = current_time.strftime("%Y%m%d:%H%M%S")
+        # # Get the current date and time
+        # current_time = datetime.datetime.now()
+        # # Format the date and time to create a unique identifier
+        # time_stamp = current_time.strftime("%Y%m%d:%H%M%S")
 
-        name = head + technique_specific + tail + time_stamp
+        # name = head + technique_specific + tail + time_stamp
 
-        return f'{name}.{extension}'
+        # return f'{name}.{extension}'
 
     def get_subgraph_path(self, specs: Specifications):
-        """
-        returns: the path where the grid .gv file should be stored
-        """
-        folder, _ = OUTPUT_PATH[GV]
-        path = f'{folder}/{self.get_subgraph_name(specs)}'
-        return path
+        raise
+        # """
+        # returns: the path where the grid .gv file should be stored
+        # """
+        # folder, _ = OUTPUT_PATH[GV]
+        # path = f'{folder}/{self.get_subgraph_name(specs)}'
+        # return path
 
     def __add_weights(self):
         for n in self.graph.nodes:
@@ -226,14 +266,15 @@ class AnnotatedGraph(Graph):
     def extract_subgraph(self, specs_obj: Specifications):
 
         if self.num_gates == 0:
-            pprint.with_color(Fore.LIGHTYELLOW_EX)(f'No gates are found in the graph! Skipping the subgraph extraction')
+            pprint.with_color(Fore.LIGHTYELLOW_EX)('No gates are found in the graph! Skipping the subgraph extraction')
             return False
+
         else:
             print(f'Extracting subgraph for {specs_obj.extraction_mode}...')
             if specs_obj.requires_subgraph_extraction:
                 if specs_obj.extraction_mode == 0:
                     pprint.info2(f"starting subgraph extraction by output nodes ascendant")
-                    self.subgraph = self.find_subgraph_output_nodes_ascendant(specs_obj)
+                    subgraph_nodes = self.find_subgraph_output_nodes_ascendant(specs_obj)
                     cnt_nodes = 0
                     for gate_idx in self.gate_dict:
                         if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
@@ -242,13 +283,8 @@ class AnnotatedGraph(Graph):
                     pprint.success(f" (#ofNodes={cnt_nodes})")
                 elif specs_obj.extraction_mode == 1:
                     pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
-                    self.subgraph = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
-                    cnt_nodes = 0
-                    for gate_idx in self.gate_dict:
-                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                            cnt_nodes += 1
+                    subgraph_nodes = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
 
-                    pprint.success(f" (#ofNodes={cnt_nodes})")
                 elif specs_obj.extraction_mode == 2:
                     pprint.info2(f"Partition with sensitivity start... Using imax={specs_obj.imax}, omax={specs_obj.omax},"
                                  f"and min_subgraph_size={specs_obj.min_subgraph_size}")
@@ -260,18 +296,12 @@ class AnnotatedGraph(Graph):
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                         # specs_obj.sensitivity = iteration
                         pprint.with_color(Fore.LIGHTBLUE_EX)(f"Sugraph iteration {iteration} ")
-                        self.subgraph = self.find_subgraph_sensitivity(specs_obj)
-
-                        # Count how many nodes are in the subgraph
-                        cnt_nodes = 0
-                        for gate_idx in self.gate_dict:
-                            if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                                cnt_nodes += 1
-
-                        pprint.success(f" (#ofNodes={cnt_nodes})")
+                        subgraph_nodes = self.find_subgraph_sensitivity(specs_obj)
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
+                        cnt_nodes = len(subgraph_nodes)
+
                 elif specs_obj.extraction_mode == 3:
                     pprint.info2(f"Partition with sensitivity start... Using only min_subgraph_size={specs_obj.min_subgraph_size} parameter")
                     iteration = 1
@@ -282,71 +312,49 @@ class AnnotatedGraph(Graph):
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                         # specs_obj.sensitivity = iteration
                         pprint.info2(f"Sugraph iteration {iteration}")
-                        self.subgraph = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
-
-                        # Count how many nodes are in the subgraph
-                        cnt_nodes = 0
-                        for gate_idx in self.gate_dict:
-                            if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                                cnt_nodes += 1
-
-                        pprint.success(f"(#ofNodes={cnt_nodes})")
+                        subgraph_nodes = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
 
                         iteration += 1
                         specs_obj.sensitivity = 2 ** iteration - 1
+                        cnt_nodes = len(subgraph_nodes)
+
                 elif specs_obj.extraction_mode == 4:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible(specs_obj)  # Cristian's subgraph extraction
-                    cnt_nodes = 0
-                    for gate_idx in self.gate_dict:
-                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                            cnt_nodes += 1
+                    subgraph_nodes = self.find_subgraph_feasible(specs_obj)  # Cristian's subgraph extraction
 
-                    pprint.success(f" (#ofNodes={cnt_nodes})")
                 elif specs_obj.extraction_mode == 5:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and hard feasibility constraints. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible_hard(specs_obj)  # Critian's subgraph extraction
-                    cnt_nodes = 0
-                    for gate_idx in self.gate_dict:
-                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                            cnt_nodes += 1
-
-                    pprint.success(f" (#ofNodes={cnt_nodes})")
+                    subgraph_nodes = self.find_subgraph_feasible_hard(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 55:
-                    pprint.info2(
-                        f"Partition with omax={specs_obj.omax} and hard constraints, imax, omax, assumptions, and BitVec, DataType. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(
-                        specs_obj)  # Critian's subgraph extraction
-                    cnt_nodes = 0
-                    for gate_idx in self.gate_dict:
-                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                            cnt_nodes += 1
-                    pprint.success(f" (#ofNodes={cnt_nodes})")
+                    pprint.info2(f"Partition with omax={specs_obj.omax} and hard constraints, imax, omax, assumptions, and BitVec, DataType. Looking for largest partition")
+                    subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)  # Critian's subgraph extraction
+
+                elif specs_obj.extraction_mode == 6:
+                    pprint.info2(f"Partition with hard constraints, imax={specs_obj.imax}, omax={specs_obj.omax}, assumptions, and BitVec, DataType. Looking for largest partition for smallest possible threshold")
+                    subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(specs_obj)
+
+                elif specs_obj.extraction_mode == 100:
+                    pprint.info2(f"Test with no imax, omax")
+                    subgraph_nodes = self.slash_to_kill(specs_obj)
 
                 elif specs_obj.extraction_mode == 11:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints. Looking for largest partition")
-                    self.subgraph = self.find_subgraph_feasible_soft(specs_obj)  # Critian's subgraph extraction
-                    cnt_nodes = 0
-                    for gate_idx in self.gate_dict:
-                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                            cnt_nodes += 1
+                    subgraph_nodes = self.find_subgraph_feasible_soft(specs_obj)  # Critian's subgraph extraction
 
-                    pprint.success(f" (#ofNodes={cnt_nodes})")
                 elif specs_obj.extraction_mode == 12:
                     if self.subgraph_candidates:
-                        pprint.info2(
-                            f"Selecting the next subgraph candidate")
-                        self.subgraph = self.form_subgraph_from_partition()
+                        pprint.info2(f"Selecting the next subgraph candidate")
+                        subgraph_nodes = self.form_subgraph_from_partition()
                     else:
-                        pprint.info2(
-                            f"Partition with omax={specs_obj.omax} and soft feasibility constraints on subgraph outputs. Looking for largest partition")
-                        self.subgraph = self.find_subgraph_feasible_soft_outputs(
-                            specs_obj)  # Critian's subgraph extraction
-                    cnt_nodes = 0
-                    for gate_idx in self.gate_dict:
-                        if self.subgraph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1:
-                            cnt_nodes += 1
+                        pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints on subgraph outputs. Looking for largest partition")
+                        subgraph_nodes = self.find_subgraph_feasible_soft_outputs(specs_obj)  # Critian's subgraph extraction
+
+                elif specs_obj.extraction_mode == 42:
+                    from sxpat.subgraph_extractions.manual import extract
+
+                    subgraph_nodes = extract(self.graph, specs_obj)
+
                 elif specs_obj.extraction_mode == 123:
                     self.subgraph = self.remove_most_significant_output(specs_obj)
                     cnt_nodes = 0
@@ -356,12 +364,17 @@ class AnnotatedGraph(Graph):
                     pprint.success(f" (#ofNodes={cnt_nodes})")
                 else:
                     raise Exception('invalid extraction mode!')
-            else:
-                self.subgraph = self.entire_graph()
 
-            # Set new name for the subgraph
-            self.subgraph_out_path = self.get_subgraph_path(specs_obj)
-            self.export_annotated_graph()
+            else:
+                subgraph_nodes = list(self.gate_dict.values())
+
+            for gate in self.gate_dict.values():
+                if gate in subgraph_nodes:
+                    self.graph.nodes[gate][SUBGRAPH] = 1
+                    self.graph.nodes[gate][COLOR] = RED
+                else:
+                    self.graph.nodes[gate][SUBGRAPH] = 0
+                    self.graph.nodes[gate][COLOR] = WHITE
 
             self.subgraph_input_dict = self.extract_subgraph_inputs()
             self.subgraph_output_dict = self.extract_subgraph_outputs()
@@ -376,6 +389,12 @@ class AnnotatedGraph(Graph):
             self.subgraph_num_fanin = len(self.subgraph_fanin_dict)
             self.subgraph_num_fanout = len(self.subgraph_fanout_dict)
             self.graph_num_intact_gates = len(self.__graph_intact_gate_dict)
+
+            # logging
+            if self.subgraph_num_gates > 0:
+                pprint.success(f'subgraph found (#ofNodes={self.subgraph_num_gates})')
+            else:
+                pprint.warning('subgraph not found')
 
             return self.subgraph_num_gates != 0
         
@@ -631,294 +650,255 @@ class AnnotatedGraph(Graph):
         return tmp_graph
 
 
-    def find_subgraph(self, specs_obj: Specifications):
-            """
-            extracts a colored subgraph from the original non-partitioned graph object
-            :return: an annotated graph in which the extracted subgraph is colored
-            """
-            imax = specs_obj.imax
-            omax = specs_obj.omax
-            # pprint.info2( f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
-            # Todo:
-            # 1) First, the number of outputs or outgoing edges of the subgraph
-            # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
-            # print(f'Extracting subgraph...')
+    def find_subgraph(self, specs_obj: Specifications) -> List[str]:
+        """
+        extracts a colored subgraph from the original non-partitioned graph object
+        :return: an annotated graph in which the extracted subgraph is colored
+        """
+        imax = specs_obj.imax
+        omax = specs_obj.omax
+        # pprint.info2( f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
+        # Todo:
+        # 1) First, the number of outputs or outgoing edges of the subgraph
+        # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
+        # print(f'Extracting subgraph...')
 
-            tmp_graph: nx.DiGraph = self.graph.copy(as_view=False)
-            # print(f'{tmp_graph.nodes = }')
-            # Data structures containing the literals
-            input_literals = {}  # literals associated to the input nodes
-            gate_literals = {}  # literals associated to the gates in the circuit
-            output_literals = {}  # literals associated to the output nodes
+        tmp_graph: nx.DiGraph = self.graph.copy(as_view=False)
+        # print(f'{tmp_graph.nodes = }')
+        # Data structures containing the literals
+        input_literals = {}  # literals associated to the input nodes
+        gate_literals = {}  # literals associated to the gates in the circuit
+        output_literals = {}  # literals associated to the output nodes
 
-            # Data structures containing the edges
-            input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
-            gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
-            output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+        # Data structures containing the edges
+        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
+        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
 
-            # Optimizer
-            opt = Optimize()
+        # Optimizer
+        opt = Optimize()
 
-            # Function to maximize
-            max_func = []
+        # Function to maximize
+        max_func = []
 
-            # List of all the partition edges
-            partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
-            partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        # List of all the partition edges
+        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
 
-            # Generate all literals
-            for e in tmp_graph.edges:
-                if 'in' in e[0]:  # Generate literal for each input node
-                    in_id = int(e[0][2:])
-                    if in_id not in input_literals:
-                        input_literals[in_id] = Bool("in_%s" % str(in_id))
-                if 'g' in e[0]:  # Generate literal for each gate in the circuit
-                    g_id = int(e[0][1:])
-                    if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
-                        gate_literals[g_id] = Bool("g_%s" % str(g_id))
+        # Generate all literals
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Generate literal for each input node
+                in_id = int(e[0][2:])
+                if in_id not in input_literals:
+                    input_literals[in_id] = Bool("in_%s" % str(in_id))
+            if 'g' in e[0]:  # Generate literal for each gate in the circuit
+                g_id = int(e[0][1:])
+                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                    gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
-                if 'out' in e[1]:  # Generate literal for each output node
-                    out_id = int(e[1][3:])
-                    if out_id not in output_literals:
-                        output_literals[out_id] = Bool("out_%s" % str(out_id))
+            if 'out' in e[1]:  # Generate literal for each output node
+                out_id = int(e[1][3:])
+                if out_id not in output_literals:
+                    output_literals[out_id] = Bool("out_%s" % str(out_id))
 
-            # Generate structures holding edge information
-            for e in tmp_graph.edges:
-                if 'in' in e[0]:  # Populate input_edges structure
-                    in_id = int(e[0][2:])
+        # Generate structures holding edge information
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Populate input_edges structure
+                in_id = int(e[0][2:])
 
-                    if in_id not in input_edges:
-                        input_edges[in_id] = []
-                    # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
-                    # Morteza added ==============
-                    try:
-                        input_edges[in_id].append(int(e[1][1:]))
-                    except:
-                        if re.search('g(\d+)', e[1]):
-                            my_id = int(re.search('g(\d+)', e[1]).group(1))
-                            input_edges[in_id].append(my_id)
-                    # =============================
+                if in_id not in input_edges:
+                    input_edges[in_id] = []
+                # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
+                # Morteza added ==============
+                try:
+                    input_edges[in_id].append(int(e[1][1:]))
+                except:
+                    if re.search('g(\d+)', e[1]):
+                        my_id = int(re.search('g(\d+)', e[1]).group(1))
+                        input_edges[in_id].append(my_id)
+                # =============================
 
-                if 'g' in e[0] and 'g' in e[1]:  # Populate gate_edges structure
-                    ns_id = int(e[0][1:])
-                    nd_id = int(e[1][1:])
+            if 'g' in e[0] and 'g' in e[1]:  # Populate gate_edges structure
+                ns_id = int(e[0][1:])
+                nd_id = int(e[1][1:])
 
-                    if ns_id in self.constant_dict:
-                        print("ERROR: Constants should only be connected to output nodes")
-                        exit(0)
-                    if ns_id not in gate_edges:
-                        gate_edges[ns_id] = []
-                    # try:
-                    gate_edges[ns_id].append(nd_id)
+            if ns_id in self.constant_dict:
+                print("ERROR: Constants should only be connected to output nodes")
+                raise
+            if ns_id not in gate_edges:
+                gate_edges[ns_id] = []
+            # try:
+            gate_edges[ns_id].append(nd_id)
 
-                if 'out' in e[1]:  # Populate output_edges structure
-                    out_id = int(e[1][3:])
-                    if out_id not in output_edges:
-                        output_edges[out_id] = []
-                    # output_edges[out_id].append(int(e[0][1:]))
-                    # Morteza added ==============
-                    try:
-                        output_edges[out_id].append(int(e[0][1:]))
-                    except:
-                        my_id = int(re.search('(\d+)', e[0]).group(1))
-                        output_edges[out_id].append(my_id)
+            if 'out' in e[1]:  # Populate output_edges structure
+                out_id = int(e[1][3:])
+                if out_id not in output_edges:
+                    output_edges[out_id] = []
+                # output_edges[out_id].append(int(e[0][1:]))
+                # Morteza added ==============
+                try:
+                    output_edges[out_id].append(int(e[0][1:]))
+                except:
+                    my_id = int(re.search('(\d+)', e[0]).group(1))
+                    output_edges[out_id].append(my_id)
 
-                    # =============================
+                # =============================
 
-            # Define input edges
-            for source in input_edges:
-                edge_in_holder = []
-                edge_out_holder = []
+        # Define input edges
+        for source in input_edges:
+            edge_in_holder = []
+            edge_out_holder = []
 
-                for destination in input_edges[source]:
-                    e_in = And(Not(input_literals[source]), gate_literals[destination])
+            for destination in input_edges[source]:
+                e_in = And(Not(input_literals[source]), gate_literals[destination])
 
-                    edge_in_holder.append(e_in)
+                edge_in_holder.append(e_in)
 
-                partition_input_edges.append(Or(edge_in_holder))
+            partition_input_edges.append(Or(edge_in_holder))
 
-            # Define gate edges
-            for source in gate_edges:
-                edge_in_holder = []
-                edge_out_holder = []
+        # Define gate edges
+        for source in gate_edges:
+            edge_in_holder = []
+            edge_out_holder = []
 
-                for destination in gate_edges[source]:
-                    e_in = And(Not(gate_literals[source]), gate_literals[destination])
-                    e_out = And(gate_literals[source], Not(gate_literals[destination]))
+            for destination in gate_edges[source]:
+                e_in = And(Not(gate_literals[source]), gate_literals[destination])
+                e_out = And(gate_literals[source], Not(gate_literals[destination]))
 
-                    edge_in_holder.append(e_in)
-                    edge_out_holder.append(e_out)
+                edge_in_holder.append(e_in)
+                edge_out_holder.append(e_out)
 
-                partition_input_edges.append(Or(edge_in_holder))
-                partition_output_edges.append(Or(edge_out_holder))
+            partition_input_edges.append(Or(edge_in_holder))
+            partition_output_edges.append(Or(edge_out_holder))
 
-            # Define output edges
-            for output_id in output_edges:
-                predecessor = output_edges[output_id][
-                    0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
-                if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
+        # Define output edges
+        for output_id in output_edges:
+            predecessor = output_edges[output_id][
+                0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
+            if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
+                continue
+            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+
+            partition_output_edges.append(e_out)
+
+        # Create graph of the cicuit without input and output nodes
+        G = nx.DiGraph()
+        # print(f'{tmp_graph.edges = }')
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]) and 'g' in str(e[1]):
+                source = int(e[0][1:])
+                destination = int(e[1][1:])
+
+                G.add_edge(source, destination)
+        # Morteza added =====================
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]):
+                source = int(e[0][1:])
+                if source in self.constant_dict:
                     continue
-                e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+                G.add_node(source)
+        # ===================================
 
-                partition_output_edges.append(e_out)
+        # Generate structure with gate weights
+        gate_weight = {}
+        for gate_idx in G.nodes:
+            if gate_idx not in gate_weight:
+                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
 
-            # Create graph of the cicuit without input and output nodes
-            G = nx.DiGraph()
-            # print(f'{tmp_graph.edges = }')
-            for e in tmp_graph.edges:
-                if 'g' in str(e[0]) and 'g' in str(e[1]):
-                    source = int(e[0][1:])
-                    destination = int(e[1][1:])
+        # Find max weight
+        max_weight = 0
+        for gate_id in gate_weight:
+            max_weight = max(max_weight, gate_weight[gate_id])
 
-                    G.add_edge(source, destination)
-            # Morteza added =====================
-            for e in tmp_graph.edges:
-                if 'g' in str(e[0]):
-                    source = int(e[0][1:])
-                    if source in self.constant_dict:
-                        continue
-                    G.add_node(source)
-            # ===================================
+        # Update gate weights so that gate_weight = max_weight - max_weight
+        for gate_id in gate_weight:
+            gate_weight[gate_id] = max_weight - gate_weight[
+                gate_id] + 1  # + 1 must be removed, I'm leaving it just for the initial debugging phase
 
-            # Generate structure with gate weights
-            gate_weight = {}
-            for gate_idx in G.nodes:
-                if gate_idx not in gate_weight:
-                    gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
-                # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+        descendants = {}
+        ancestors = {}
+        for n in G:
+            if n not in descendants:
+                descendants[n] = sorted(nx.descendants(G, n))
+            if n not in ancestors:
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
-            # Find max weight
-            max_weight = 0
-            for gate_id in gate_weight:
-                max_weight = max(max_weight, gate_weight[gate_id])
+        # Generate convexity constraints
+        for source in gate_edges:
+            for destination in gate_edges[source]:
+                if len(descendants[destination]) > 0:  # Constraints on output edges
+                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants.append(Not(gate_literals[destination]))
+                    descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
+                                                And(not_descendants))
+                    opt.add(descendat_condition)
+                if len(ancestors[source]) > 0:  # Constraints on input edges
+                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors.append(Not(gate_literals[source]))
+                    ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
+                                                And(not_ancestors))
+                    opt.add(ancestor_condition)
 
-            # Update gate weights so that gate_weight = max_weight - max_weight
-            for gate_id in gate_weight:
-                gate_weight[gate_id] = max_weight - gate_weight[
-                    gate_id] + 1  # + 1 must be removed, I'm leaving it just for the initial debugging phase
+        # Set input nodes to False
+        for input_node_id in input_literals:
+            opt.add(input_literals[input_node_id] == False)
 
-            descendants = {}
-            ancestors = {}
-            for n in G:
-                if n not in descendants:
-                    descendants[n] = ordered_descendants(G, n)
-                if n not in ancestors:
-                    ancestors[n] = ordered_ancestors(G, n)
+        # Set output nodes to False
+        for output_node_id in output_literals:
+            opt.add(output_literals[output_node_id] == False)
 
-            # Generate convexity constraints
-            for source in gate_edges:
-                for destination in gate_edges[source]:
-                    if len(descendants[destination]) > 0:  # Constraints on output edges
-                        not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
-                        not_descendants.append(Not(gate_literals[destination]))
-                        descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
-                                                    And(not_descendants))
-                        opt.add(descendat_condition)
-                    if len(ancestors[source]) > 0:  # Constraints on input edges
-                        not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
-                        not_ancestors.append(Not(gate_literals[source]))
-                        ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
-                                                    And(not_ancestors))
-                        opt.add(ancestor_condition)
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
 
-            # Set input nodes to False
-            for input_node_id in input_literals:
-                opt.add(input_literals[input_node_id] == False)
+        # Generate function to maximize
+        for gate_id in gate_literals:
+            max_func.append(gate_literals[gate_id] * gate_weight[gate_id])
 
-            # Set output nodes to False
-            for output_node_id in output_literals:
-                opt.add(output_literals[output_node_id] == False)
+        # Add function to maximize to the solver
+        opt.maximize(Sum(max_func))
 
-            # Add constraints on the number of input/output edges
-            if imax is not None:
-                opt.add(Sum(partition_input_edges) <= imax)
-            if omax is not None:
-                opt.add(Sum(partition_output_edges) <= omax)
-
-            # Generate function to maximize
-            for gate_id in gate_literals:
-                max_func.append(gate_literals[gate_id] * gate_weight[gate_id])
-
-            # Add function to maximize to the solver
-            opt.maximize(Sum(max_func))
-
-            # =========================== Skipping the nodes that are not labeled ================================
-            skipped_nodes = []
-            for node in self.graph.nodes:
-                if self.graph.nodes[node][WEIGHT] == -1:
-                    if node.startswith('g'):
-                        node_literal = f'{node[0:1]}_{node[1:]}'
-                    elif node.startswith('in'):
-                        node_literal = f'{node[0:2]}_{node[2:]}'
-                    elif node.startswith('out'):
-                        node_literal = f'{node[0:3]}_{node[3:]}'
-                    else:
-                        print(f'Node is neither input, output, nor gate')
-                        raise
-                    skipped_nodes.append(Bool(node_literal))
-            skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
-            opt.add(skipped_nodes_constraints)
-            # ====================================================================================================
-
-            node_partition = []
-            if opt.check() == sat:
-                pprint.success("subgraph found -> SAT ", end='')
-                m = opt.model()
-                for t in m.decls():
-                    if 'g' not in str(t):  # Look only the literals associate to the gates
-                        continue
-                    if is_true(m[t]):
-                        gate_id = int(str(t)[2:])
-                        node_partition.append(gate_id)  # Gates inside the partition
-            else:
-                pprint.warning("subgraph not found -> UNSAT")
-
-            # Check partition convexity
-            for i in range(len(node_partition) - 1):
-                for j in range(i + 1, len(node_partition)):
-                    u = node_partition[i]
-                    v = node_partition[j]
-                    try:
-                        # print(f'{u = }')
-                        # print(f'{v = }')
-                        # print(f'{G.nodes = }')
-                        # print(f'{G.edges = }')
-                        # print(f'{gate_literals = }')
-                        # print(f'{node_partition = }')
-                        path = nx.shortest_path(G, source=u, target=v)
-                        all_nodes_in_partition = True
-
-                        # Check that all the nodes in the shortest path are in the partition
-                        for n in path:
-                            if n not in node_partition:
-                                all_nodes_in_partition = False
-
-                        if not all_nodes_in_partition:
-                            print("Partition is not convex")
-                            exit(0)
-
-                    except nx.exception.NetworkXNoPath:
-                        # print('Here')
-                        # except:
-                        # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
-                        # raise nx.exception.NetworkXNoPath
-                        # No path between u and v
-
-                        # print("No path", u, v)
-                        pass
-
-            for gate_idx in self.gate_dict:
-                # print(f'{gate_idx = }')
-                if gate_idx in node_partition:
-                    # print(f'{gate_idx} is in the node_partition')
-                    tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                    tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
+        # =========================== Skipping the nodes that are not labeled ================================
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
                 else:
-                    tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                    tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-            return tmp_graph
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
+        # ====================================================================================================
 
-    def find_subgraph_sensitivity(self, specs_obj: Specifications):
+        node_partition = []
+        if opt.check() == sat:
+            pprint.success("subgraph found -> SAT ", end='')
+            m = opt.model()
+            for t in m.decls():
+                if 'g' not in str(t):  # Look only the literals associate to the gates
+                    continue
+                if is_true(m[t]):
+                    gate_id = int(str(t)[2:])
+                    node_partition.append(gate_id)  # Gates inside the partition
+        else:
+            pprint.warning("subgraph not found -> UNSAT")
+
+        # Check partition convexity
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+        return [self.gate_dict[idx] for idx in node_partition]
+
+    def find_subgraph_sensitivity(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -994,7 +974,7 @@ class AnnotatedGraph(Graph):
 
                 if ns_id in self.constant_dict:
                     print("ERROR: Constants should only be connected to output nodes")
-                    exit(0)
+                    raise
                 if ns_id not in gate_edges:
                     gate_edges[ns_id] = []
                 # try:
@@ -1101,9 +1081,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = ordered_descendants(G, n)
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = ordered_ancestors(G, n)
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -1166,7 +1146,6 @@ class AnnotatedGraph(Graph):
         # ====================================================================================================
         node_partition = []
         if opt.check() == sat:
-            pprint.success("subgraph found -> SAT", end='')
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -1175,55 +1154,14 @@ class AnnotatedGraph(Graph):
                 if is_true(m[t]):
                     gate_id = int(str(t)[2:])
                     node_partition.append(gate_id)  # Gates inside the partition
-        else:
-            pprint.warning("subgraph not found -> UNSAT")
 
         # Check partition convexity
-        for i in range(len(node_partition) - 1):
-            for j in range(i + 1, len(node_partition)):
-                u = node_partition[i]
-                v = node_partition[j]
-                try:
-                    # print(f'{u = }')
-                    # print(f'{v = }')
-                    # print(f'{G.nodes = }')
-                    # print(f'{G.edges = }')
-                    # print(f'{gate_literals = }')
-                    # print(f'{node_partition = }')
-                    path = nx.shortest_path(G, source=u, target=v)
-                    all_nodes_in_partition = True
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
-                    # Check that all the nodes in the shortest path are in the partition
-                    for n in path:
-                        if n not in node_partition:
-                            all_nodes_in_partition = False
+        return [self.gate_dict[idx] for idx in node_partition]
 
-                    if not all_nodes_in_partition:
-                        print("Partition is not convex")
-                        exit(0)
-
-                except nx.exception.NetworkXNoPath:
-                    # print('Here')
-                    # except:
-                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
-                    # raise nx.exception.NetworkXNoPath
-                    # No path between u and v
-
-                    # print("No path", u, v)
-                    pass
-
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
-
-    def find_subgraph_sensitivity_no_io_constraints(self, specs_obj: Specifications):
+    def find_subgraph_sensitivity_no_io_constraints(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -1296,7 +1234,7 @@ class AnnotatedGraph(Graph):
 
                 if ns_id in self.constant_dict:
                     print("ERROR: Constants should only be connected to output nodes")
-                    exit(0)
+                    raise
                 if ns_id not in gate_edges:
                     gate_edges[ns_id] = []
                 # try:
@@ -1403,9 +1341,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = ordered_descendants(G, n)
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = ordered_ancestors(G, n)
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -1464,7 +1402,6 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            pprint.success("subgraph found -> SAT", end='')
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -1473,55 +1410,14 @@ class AnnotatedGraph(Graph):
                 if is_true(m[t]):
                     gate_id = int(str(t)[2:])
                     node_partition.append(gate_id)  # Gates inside the partition
-        else:
-            pprint.warning("subgraph not found -> UNSAT")
 
         # Check partition convexity
-        for i in range(len(node_partition) - 1):
-            for j in range(i + 1, len(node_partition)):
-                u = node_partition[i]
-                v = node_partition[j]
-                try:
-                    # print(f'{u = }')
-                    # print(f'{v = }')
-                    # print(f'{G.nodes = }')
-                    # print(f'{G.edges = }')
-                    # print(f'{gate_literals = }')
-                    # print(f'{node_partition = }')
-                    path = nx.shortest_path(G, source=u, target=v)
-                    all_nodes_in_partition = True
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
-                    # Check that all the nodes in the shortest path are in the partition
-                    for n in path:
-                        if n not in node_partition:
-                            all_nodes_in_partition = False
+        return [self.gate_dict[idx] for idx in node_partition]
 
-                    if not all_nodes_in_partition:
-                        print("Partition is not convex")
-                        exit(0)
-
-                except nx.exception.NetworkXNoPath:
-                    # print('Here')
-                    # except:
-                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
-                    # raise nx.exception.NetworkXNoPath
-                    # No path between u and v
-
-                    # print("No path", u, v)
-                    pass
-
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
-
-    def find_subgraph_feasible(self, specs_obj: Specifications):
+    def find_subgraph_feasible(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -1598,7 +1494,7 @@ class AnnotatedGraph(Graph):
 
                 if ns_id in self.constant_dict:
                     print("ERROR: Constants should only be connected to output nodes")
-                    exit(0)
+                    raise
                 if ns_id not in gate_edges:
                     gate_edges[ns_id] = []
                 # try:
@@ -1699,9 +1595,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = ordered_descendants(G, n)
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = ordered_ancestors(G, n)
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -1767,7 +1663,6 @@ class AnnotatedGraph(Graph):
         # ====================================================================================================
         node_partition = []
         if opt.check() == sat:
-            pprint.success("subgraph found -> SAT", end='')
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -1776,55 +1671,14 @@ class AnnotatedGraph(Graph):
                 if is_true(m[t]):
                     gate_id = int(str(t)[2:])
                     node_partition.append(gate_id)  # Gates inside the partition
-        else:
-            pprint.warning("subgraph not found -> UNSAT")
 
         # Check partition convexity
-        for i in range(len(node_partition) - 1):
-            for j in range(i + 1, len(node_partition)):
-                u = node_partition[i]
-                v = node_partition[j]
-                try:
-                    # print(f'{u = }')
-                    # print(f'{v = }')
-                    # print(f'{G.nodes = }')
-                    # print(f'{G.edges = }')
-                    # print(f'{gate_literals = }')
-                    # print(f'{node_partition = }')
-                    path = nx.shortest_path(G, source=u, target=v)
-                    all_nodes_in_partition = True
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
-                    # Check that all the nodes in the shortest path are in the partition
-                    for n in path:
-                        if n not in node_partition:
-                            all_nodes_in_partition = False
+        return [self.gate_dict[idx] for idx in node_partition]
 
-                    if not all_nodes_in_partition:
-                        print("Partition is not convex")
-                        exit(0)
-
-                except nx.exception.NetworkXNoPath:
-                    # print('Here')
-                    # except:
-                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
-                    # raise nx.exception.NetworkXNoPath
-                    # No path between u and v
-
-                    # print("No path", u, v)
-                    pass
-
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
-
-    def find_subgraph_feasible_hard(self, specs_obj: Specifications):
+    def find_subgraph_feasible_hard(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -1901,7 +1755,7 @@ class AnnotatedGraph(Graph):
 
                 if ns_id in self.constant_dict:
                     print("ERROR: Constants should only be connected to output nodes")
-                    exit(0)
+                    raise
                 if ns_id not in gate_edges:
                     gate_edges[ns_id] = []
                 # try:
@@ -2002,9 +1856,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = ordered_descendants(G, n)
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = ordered_ancestors(G, n)
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -2072,7 +1926,6 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            pprint.success("subgraph found -> SAT", end='')
             # print(opt.model())
             m = opt.model()
             for t in m.decls():
@@ -2081,64 +1934,21 @@ class AnnotatedGraph(Graph):
                 if is_true(m[t]):
                     gate_id = int(str(t)[2:])
                     node_partition.append(gate_id)  # Gates inside the partition
-        else:
-            pprint.warning("subgraph not found -> UNSAT")
 
         # Check partition convexity
-        for i in range(len(node_partition) - 1):
-            for j in range(i + 1, len(node_partition)):
-                u = node_partition[i]
-                v = node_partition[j]
-                try:
-                    # print(f'{u = }')
-                    # print(f'{v = }')
-                    # print(f'{G.nodes = }')
-                    # print(f'{G.edges = }')
-                    # print(f'{gate_literals = }')
-                    # print(f'{node_partition = }')
-                    path = nx.shortest_path(G, source=u, target=v)
-                    all_nodes_in_partition = True
+        if not is_selection_convex(self.graph, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
-                    # Check that all the nodes in the shortest path are in the partition
-                    for n in path:
-                        if n not in node_partition:
-                            all_nodes_in_partition = False
+        return [self.gate_dict[idx] for idx in node_partition]
 
-                    if not all_nodes_in_partition:
-                        print("Partition is not convex")
-                        exit(0)
-
-                except nx.exception.NetworkXNoPath:
-                    # print('Here')
-                    # except:
-                    # pprint.error(f'Node {u} or {v} do not belong to the graph G {G.nodes}')
-                    # raise nx.exception.NetworkXNoPath
-                    # No path between u and v
-
-                    # print("No path", u, v)
-                    pass
-
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
-
-    def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(self, specs_obj: Specifications):
+    def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-        total_s = time.time()
-        WEIGHT_BITS = self.num_outputs
-        CONS_BITS = 1
-        GATE_BITS = math.log2(self.num_gates) + 1
-        IN_BITS = self.num_inputs
+
+        # loose bound but since it's logarithmic it's still ok
+        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates))
 
         omax = specs_obj.omax
         imax = specs_obj.imax
@@ -2147,7 +1957,7 @@ class AnnotatedGraph(Graph):
         opt = Optimize()
 
         Node = Datatype('Node')
-        Node.declare('mk_node', ('id', BitVecSort(32)), ('weight', BitVecSort(32)), ('in_subgraph', BoolSort()))
+        Node.declare('mk_node', ('id', BitVecSort(NUM_BITS)), ('weight', BitVecSort(NUM_BITS)), ('in_subgraph', BoolSort()))
         Node = Node.create()
 
         # Define a custom datatype for Edge
@@ -2161,19 +1971,19 @@ class AnnotatedGraph(Graph):
         for in_idx in self.input_dict:
             node_label = self.input_dict[in_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(in_idx, 32), BitVecVal(weight, 32), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(in_idx, 32))
+            node = Node.mk_node(BitVecVal(in_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(in_idx, NUM_BITS))
 
-            opt.add(Node.weight(node) == BitVecVal(weight, 32))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
             opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
 
         for g_idx in self.gate_dict:
             node_label = self.gate_dict[g_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(g_idx, 32), BitVecVal(weight, 32), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(g_idx, 32))
-            opt.add(Node.weight(node) == BitVecVal(weight, 32))
+            node = Node.mk_node(BitVecVal(g_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(g_idx, NUM_BITS))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
             if weight == -1:
                 opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
@@ -2181,20 +1991,20 @@ class AnnotatedGraph(Graph):
         for o_idx in self.output_dict:
             node_label = self.output_dict[o_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(o_idx, 32), BitVecVal(weight, 32), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(o_idx, 32))
+            node = Node.mk_node(BitVecVal(o_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(o_idx, NUM_BITS))
 
-            opt.add(Node.weight(node) == BitVecVal(weight, 32))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
             opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
         #
         for c_idx in self.constant_dict:
             node_label = self.constant_dict[c_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(c_idx, 32), BitVecVal(weight, 32), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(c_idx, 32))
+            node = Node.mk_node(BitVecVal(c_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(c_idx, NUM_BITS))
 
-            opt.add(Node.weight(node) == BitVecVal(weight, 32))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
             opt.add(Node.in_subgraph(node) == BoolVal(False))
             nodes[node_label] = node
         #
@@ -2220,26 +2030,26 @@ class AnnotatedGraph(Graph):
                     incoming_conditions.append(And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])))
 
             if outgoing_conditions:
-                unique_outgoing_edges.append(If(Or(outgoing_conditions), BitVecVal(1, 32), BitVecVal(0, 32)))
+                unique_outgoing_edges.append(If(Or(outgoing_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
             if incoming_conditions:
-                unique_incoming_edges.append(If(Or(incoming_conditions), BitVecVal(1, 32), BitVecVal(0, 32)))
+                unique_incoming_edges.append(If(Or(incoming_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
 
-        # incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, 32), BitVecVal(0, 32))
+        # incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
         #                   for edge in edges]
-        # outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, 32), BitVecVal(0, 32))
+        # outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
         #                   for edge in edges]
-        max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, 32), BitVecVal(0, 32)) for node in nodes.values()]
+        max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)) for node in nodes.values()]
 
         # max_nodes = [  for edge in edges]
-        # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), 32) for node in nodes.values()]
+        # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), NUM_BITS) for node in nodes.values()]
 
         descendants = {}
         ancestors = {}
         for node in nodes:
             if node not in descendants:
-                descendants[node] = ordered_descendants(self.graph, node)
+                descendants[node] = sorted(nx.descendants(self.graph, node))
             if node not in ancestors:
-                ancestors[node] = ordered_ancestors(self.graph, node)
+                ancestors[node] = sorted(nx.ancestors(self.graph, node))
 
         for src in nodes:
             for des in self.graph.successors(src):
@@ -2266,36 +2076,47 @@ class AnnotatedGraph(Graph):
         feasibility_constraints = [
             Implies(
                 And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),
-                Node.weight(Edge.source(edge)) <= BitVecVal(feasibility_threshold, 32)
+                Node.weight(Edge.source(edge)) <= BitVecVal(feasibility_threshold, NUM_BITS)
             )
             for edge in edges
         ]
 
         opt.add(And(feasibility_constraints))
 
-        opt.maximize(Sum(max_nodes))
+        h = opt.maximize(Sum(max_nodes))
 
         # inputs = Int('inputs')
         # outputs = Int('outputs')
         # num_nodes = Int('num_nodes')
         #
-        # num_nodes = BitVec('num_nodes', 32)
-        # inputs = BitVec('inputs', 32)
-        # outputs = BitVec('outputs', 32)
+        # num_nodes = BitVec('num_nodes', NUM_BITS)
+        # inputs = BitVec('inputs', NUM_BITS)
+        # outputs = BitVec('outputs', NUM_BITS)
 
         # feasibility_constraints = [
-        #     Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, 32)) for node in
+        #     Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, NUM_BITS)) for node in
         #     nodes.values()
         # ]
 
-        sat_time_s = time.time()
         res = opt.check()
 
         node_partition = []
         if res == sat:
             n_nodes = 0
-            pprint.success("subgraph found -> SAT", end='')
             m = opt.model()
+            model_maximized = m.eval(Sum(max_nodes), model_completion=True).as_long()
+            correct_maximum = h.upper().as_long()
+            
+            if correct_maximum != model_maximized:
+                pprint.info2("\nmodel isn't maximized, running another solver call")
+                opt.add(Sum(max_nodes) == correct_maximum)
+                start = time.perf_counter()
+                if opt.check() == sat:
+                    print(f'Subgraph_extraction_second_call_time = {time.perf_counter() - start}')
+                    m = opt.model()
+                else:
+                    raise Exception("Impossible, error in z3py")
+
             # print(f'{m = }')
             for t in m.decls():
                 # print(f'{type(t) = }')
@@ -2304,52 +2125,268 @@ class AnnotatedGraph(Graph):
                     if is_true(m[t]):
                         node_partition.append(str(t))
                         n_nodes += 1
-            # pprint.success(f"(NumOfNodes = {n_nodes})")
-        else:
-            pprint.warning("subgraph not found -> UNSAT")
 
-        sat_time_e = time.time()
-
-        tmp_graph = self.graph.copy(as_view=False)
-        # print(f'{node_partition = }')
         # Check partition convexity
-        for i in range(len(node_partition) - 1):
-            for j in range(i + 1, len(node_partition)):
-                u = node_partition[i]
-                v = node_partition[j]
-                try:
-                    path = nx.shortest_path(tmp_graph, source=u, target=v)
-                    all_nodes_in_partition = True
-
-                    for n in path:
-                        if n not in node_partition:
-                            # print(f'{node_partition = }')
-                            # print(f'{n = }')
-                            # print(f'{path = }')
-                            all_nodes_in_partition = False
-
-                    if not all_nodes_in_partition:
-                        print("Partition is not convex")
-
-                        exit(0)
-
-                except nx.exception.NetworkXNoPath:
-                    pass
+        if not is_selection_convex(self.graph, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
         node_partition_idx = [int(re.search('g(\d+)', node).group(1)) for node in node_partition]
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition_idx:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
+        return [self.gate_dict[idx] for idx in node_partition_idx]
 
-        return tmp_graph
+    def get_null_subgraph(self) -> nx.DiGraph:
+        """Returns a graph with subgraph information for the null subgraph"""
+        subgraph = self.graph.copy()
+        for gate_name in self.gate_dict.values():
+            subgraph.nodes[gate_name][SUBGRAPH] = 0
+            subgraph.nodes[gate_name][COLOR] = WHITE
+        return subgraph
 
-    def find_subgraph_feasible_soft(self, specs_obj: Specifications):
+    def get_subgraph_nodes_count(self, graph: nx.DiGraph) -> int:
+        return sum(
+            graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] == 1
+            for gate_idx in self.gate_dict
+        )
+
+    def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(self, specs_obj: Specifications) -> List[str]:
+        # store parameters that will be updated
+        saved_et = specs_obj.et
+
+        # get graph weights, then min/max (bounded)
+        weights = sorted(frozenset(
+            weight
+            for gate_name in self.gate_dict.values()
+            if (weight := self.graph.nodes[gate_name][WEIGHT]) >= 0
+        ))
+        if len(weights) == 0: return []
+        min_weight = max(0, min(weights))
+        max_weight = min(saved_et, max(weights))
+
+        # use linear partition to find best match in weights
+        partition_step = (max_weight - min_weight) / (8 - 1)
+        linear_partition = [min_weight + partition_step * i for i in range(8)]
+        actual_partition = sorted(frozenset(
+            min(weights, key=lambda w: abs(w - p))
+            for p in linear_partition
+        ))
+
+        # find subgraph
+        # NOTE: given that the node with the smallest weight is a valid subgraph, this loop should only iterate once
+        for (i, specs_obj.et) in enumerate(actual_partition):
+            subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)  # Critian's subgraph extraction
+            if len(subgraph_nodes) > 0: break
+
+        # restore updated parameters
+        specs_obj.et = saved_et
+
+        return subgraph_nodes
+
+    def slash_to_kill(self, specs_obj: Specifications) -> List[str]:
+        """
+        extracts a colored subgraph from the original non-partitioned graph object
+        :return: an annotated graph in which the extracted subgraph is colored
+        """
+
+        # loose bound but since it's logarithmic it's still ok
+        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates))
+
+        omax = specs_obj.omax
+        imax = specs_obj.imax
+        feasibility_threshold = specs_obj.et
+
+        opt = Optimize()
+
+        Node = Datatype('Node')
+        Node.declare('mk_node', ('id', BitVecSort(NUM_BITS)), ('weight', BitVecSort(NUM_BITS)), ('in_subgraph', BoolSort()))
+        Node = Node.create()
+
+        # Define a custom datatype for Edge
+        Edge = Datatype('Edge')
+        Edge.declare('mk_edge', ('source', Node), ('target', Node))
+        Edge = Edge.create()
+
+        nodes = {}
+        edges = []
+
+        for in_idx in self.input_dict:
+            node_label = self.input_dict[in_idx]
+            weight = self.graph.nodes[node_label][WEIGHT]
+            node = Node.mk_node(BitVecVal(in_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(in_idx, NUM_BITS))
+
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
+            opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+
+        for g_idx in self.gate_dict:
+            node_label = self.gate_dict[g_idx]
+            weight = self.graph.nodes[node_label][WEIGHT]
+            node = Node.mk_node(BitVecVal(g_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(g_idx, NUM_BITS))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
+            if weight == -1:
+                opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+        #
+        for o_idx in self.output_dict:
+            node_label = self.output_dict[o_idx]
+            weight = self.graph.nodes[node_label][WEIGHT]
+            node = Node.mk_node(BitVecVal(o_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(o_idx, NUM_BITS))
+
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
+            opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+        #
+        for c_idx in self.constant_dict:
+            node_label = self.constant_dict[c_idx]
+            weight = self.graph.nodes[node_label][WEIGHT]
+            node = Node.mk_node(BitVecVal(c_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(c_idx, NUM_BITS))
+
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
+            opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+        #
+        for src, des in self.graph.edges:
+            edge = Edge.mk_edge(nodes[src], nodes[des])
+            opt.add(Edge.source(edge) == nodes[src])
+            opt.add(Edge.target(edge) == nodes[des])
+            edges.append(edge)
+
+        unique_outgoing_edges = []
+        unique_incoming_edges = []
+
+        for node_label in nodes:
+            node = nodes[node_label]
+            outgoing_conditions = []
+            incoming_conditions = []
+
+            for src, des in self.graph.edges(node_label):
+                if src == node_label:
+                    outgoing_conditions.append(And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des]))))
+                if src == node_label:
+                    incoming_conditions.append(And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])))
+
+            if outgoing_conditions:
+                unique_outgoing_edges.append(If(Or(outgoing_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
+            if incoming_conditions:
+                unique_incoming_edges.append(If(Or(incoming_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
+
+        # incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
+        #                   for edge in edges]
+        # outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
+        #                   for edge in edges]
+        max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)) for node in nodes.values()]
+
+        # max_nodes = [  for edge in edges]
+        # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), NUM_BITS) for node in nodes.values()]
+
+        descendants = {}
+        ancestors = {}
+        for node in nodes:
+            if node not in descendants:
+                descendants[node] = sorted(nx.descendants(self.graph, node))
+            if node not in ancestors:
+                ancestors[node] = sorted(nx.ancestors(self.graph, node))
+
+        for src in nodes:
+            for des in self.graph.successors(src):
+                if len(descendants[des]) > 0:
+                    not_descendants = [Not(Node.in_subgraph(nodes[l])) for l in descendants[des]]
+                    not_descendants.append(Not(Node.in_subgraph(nodes[des])))
+                    descendant_condition = Implies(
+                        And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des]))),
+                        And(not_descendants)
+                    )
+                    opt.add(descendant_condition)
+                if len(ancestors[src]) > 0:
+                    not_ancestors = [Not(Node.in_subgraph(nodes[l])) for l in ancestors[src]]
+                    not_ancestors.append(Not(Node.in_subgraph(nodes[src])))
+                    ancestor_condition = Implies(
+                        And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])),
+                        And(not_ancestors)
+                    )
+                    opt.add(ancestor_condition)
+
+        for parent in nodes:
+            children = list(self.graph.successors(parent))
+            if not children:
+                continue
+            in_subgraph_children = [Node.in_subgraph(nodes[child]) for child in children]
+
+            # If parent is in the subgraph and at least one child is in, then all children must be in
+            opt.add(
+                Implies(
+                    And(
+                        Node.in_subgraph(nodes[parent]),
+                        Or(in_subgraph_children)
+                    ),
+                    And(in_subgraph_children)
+                )
+            )
+
+        feasibility_sum = Sum([
+            If(
+                And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),
+                Node.weight(Edge.source(edge)),
+                BitVecVal(0, NUM_BITS)
+            )
+            for edge in edges
+        ])
+
+        opt.add(feasibility_sum <= BitVecVal(feasibility_threshold, NUM_BITS))
+
+        h = opt.maximize(Sum(max_nodes))
+
+        # inputs = Int('inputs')
+        # outputs = Int('outputs')
+        # num_nodes = Int('num_nodes')
+        #
+        # num_nodes = BitVec('num_nodes', NUM_BITS)
+        # inputs = BitVec('inputs', NUM_BITS)
+        # outputs = BitVec('outputs', NUM_BITS)
+
+        # feasibility_constraints = [
+        #     Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, NUM_BITS)) for node in
+        #     nodes.values()
+        # ]
+
+        res = opt.check()
+
+        node_partition = []
+        if res == sat:
+            n_nodes = 0
+            m = opt.model()
+            model_maximized = m.eval(Sum(max_nodes), model_completion=True).as_long()
+            correct_maximum = h.upper().as_long()
+            
+            if correct_maximum != model_maximized:
+                pprint.info2("\nmodel isn't maximized, running another solver call")
+                opt.add(Sum(max_nodes) == correct_maximum)
+                start = time.perf_counter()
+                if opt.check() == sat:
+                    print(f'Subgraph_extraction_second_call_time = {time.perf_counter() - start}')
+                    m = opt.model()
+                else:
+                    raise Exception("Impossible, error in z3py")
+
+            # print(f'{m = }')
+            for t in m.decls():
+                # print(f'{type(t) = }')
+                # print(f'{t = }')
+                if str(t).startswith('g'):  # Look only the literals associate to the gates
+                    if is_true(m[t]):
+                        node_partition.append(str(t))
+                        n_nodes += 1
+
+        # Check partition convexity
+        if not is_selection_convex(self.graph, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+        node_partition_idx = [int(re.search('g(\d+)', node).group(1)) for node in node_partition]
+        return [self.gate_dict[idx] for idx in node_partition_idx]
+
+    def find_subgraph_feasible_soft(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -2418,7 +2455,7 @@ class AnnotatedGraph(Graph):
 
                 if ns_id in self.constant_dict:
                     print("ERROR: Constants should only be connected to output nodes")
-                    exit(0)
+                    raise
                 if ns_id not in gate_edges:
                     gate_edges[ns_id] = []
                 # try:
@@ -2519,9 +2556,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = ordered_descendants(G, n)
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = ordered_ancestors(G, n)
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -2610,7 +2647,6 @@ class AnnotatedGraph(Graph):
             pprint.info1(f'Attempt {count}: ', end='')
             c = opt.check()
             if c == sat:
-                pprint.success(f"subgraph found -> SAT")
                 # print(opt.model())
                 m = opt.model()
                 # print(f'{m = }')
@@ -2624,28 +2660,11 @@ class AnnotatedGraph(Graph):
                         node_partition.append(gate_id)  # Gates inside the partition
 
             else:
-                pprint.warning("subgraph not found -> UNSAT")
                 count = 0
+
             # Check partition convexity
-            for i in range(len(node_partition) - 1):
-                for j in range(i + 1, len(node_partition)):
-                    u = node_partition[i]
-                    v = node_partition[j]
-                    try:
-                        path = nx.shortest_path(G, source=u, target=v)
-                        all_nodes_in_partition = True
-
-                        # Check that all the nodes in the shortest path are in the partition
-                        for n in path:
-                            if n not in node_partition:
-                                all_nodes_in_partition = False
-
-                        if not all_nodes_in_partition:
-                            print("Partition is not convex")
-                            exit(0)
-
-                    except nx.exception.NetworkXNoPath:
-                        pass
+            if not is_selection_convex(G, node_partition):
+                raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
             # ========================================================================
             if c == sat:
@@ -2672,18 +2691,9 @@ class AnnotatedGraph(Graph):
 
         # ================================================================
 
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
+        return [self.gate_dict[idx] for idx in node_partition]
 
-    def find_subgraph_feasible_soft_outputs(self, specs_obj: Specifications):
+    def find_subgraph_feasible_soft_outputs(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
@@ -2753,7 +2763,7 @@ class AnnotatedGraph(Graph):
 
                 if ns_id in self.constant_dict:
                     print("ERROR: Constants should only be connected to output nodes")
-                    exit(0)
+                    raise
                 if ns_id not in gate_edges:
                     gate_edges[ns_id] = []
                 # try:
@@ -2869,9 +2879,9 @@ class AnnotatedGraph(Graph):
         ancestors = {}
         for n in G:
             if n not in descendants:
-                descendants[n] = ordered_descendants(G, n)
+                descendants[n] = sorted(nx.descendants(G, n))
             if n not in ancestors:
-                ancestors[n] = ordered_ancestors(G, n)
+                ancestors[n] = sorted(nx.ancestors(G, n))
 
         # Generate convexity constraints
         for source in gate_edges:
@@ -2963,7 +2973,6 @@ class AnnotatedGraph(Graph):
             pprint.info1(f'Attempt {specs_obj.num_subgraphs - count + 1}: ', end='')
             c = opt.check()
             if c == sat:
-                pprint.success(f"subgraph found -> SAT")
                 # print(opt.model())
                 m = opt.model()
                 # print(f'{m = }')
@@ -2982,28 +2991,11 @@ class AnnotatedGraph(Graph):
                         node_partition.append(gate_id)  # Gates inside the partition
 
             else:
-                pprint.warning("subgraph not found -> UNSAT")
                 count = 0
+
             # Check partition convexity
-            for i in range(len(node_partition) - 1):
-                for j in range(i + 1, len(node_partition)):
-                    u = node_partition[i]
-                    v = node_partition[j]
-                    try:
-                        path = nx.shortest_path(G, source=u, target=v)
-                        all_nodes_in_partition = True
-
-                        # Check that all the nodes in the shortest path are in the partition
-                        for n in path:
-                            if n not in node_partition:
-                                all_nodes_in_partition = False
-
-                        if not all_nodes_in_partition:
-                            print("Partition is not convex")
-                            exit(0)
-
-                    except nx.exception.NetworkXNoPath:
-                        pass
+            if not is_selection_convex(G, node_partition):
+                raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
             # ========================================================================
             if c == sat:
@@ -3032,52 +3024,13 @@ class AnnotatedGraph(Graph):
         # ================================================================
         self.subgraph_candidates = sorted_partitions
 
-        for gate_idx in self.gate_dict:
-            # print(f'{gate_idx = }')
-            if gate_idx in node_partition:
-                # print(f'{gate_idx} is in the node_partition')
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-            else:
-                tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-                tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-        return tmp_graph
-
-    def remove_most_significant_output(self, specs_obj: Specifications):
-        """
-        only selects the node that preceeds the most significant output
-        """
-        tmp_graph = self.graph.copy(as_view=False)
-
-        for gate_idx in self.gate_dict:
-            tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 0
-            tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = WHITE
-
-        for out in reversed(self.output_dict.values()):
-            pred = next(tmp_graph.predecessors(out))
-            tmp_graph.nodes[pred][SUBGRAPH] = 1
-            tmp_graph.nodes[pred][COLOR] = RED
-            break
-
-        return tmp_graph
-
-    def entire_graph(self):
-        tmp_graph = self.graph.copy()
-
-        for gate_idx in self.gate_dict:
-
-            tmp_graph.nodes[self.gate_dict[gate_idx]][SUBGRAPH] = 1
-            tmp_graph.nodes[self.gate_dict[gate_idx]][COLOR] = RED
-
-        return tmp_graph
+        return [self.gate_dict[idx] for idx in node_partition]
 
     def export_annotated_graph(self, filename: str = None):
         """
         exports the subgraph (annotated graph) to a GV (GraphViz) file
         :return:
         """
-        # print(f'exporting the annotated subgraph!')
-        # print(f'{self.subgraph_out_path = }')
         with open(filename or self.subgraph_out_path, 'w') as f:
             f.write(f"{STRICT} {DIGRAPH} \"{self.name}\" {{\n")
             f.write(f"{NODE} [{STYLE} = {FILLED}, {FILLCOLOR} = {WHITE}]\n")
@@ -3086,10 +3039,6 @@ class AnnotatedGraph(Graph):
             for e in self.subgraph.edges:
                 self.export_edge(e, f)
             f.write(f"}}\n")
-        folder, extension = OUTPUT_PATH[GV]
-        # print(f'{self.subgraph_out_path = }')
-        # print(f'{self.name = }')
-        subprocess.run(f'dot -Tpng {self.subgraph_out_path} > {folder}/{self.name}_subgraph.png', shell=True)
 
     # TODO:for external modifications
     def evaluate_subgraph_error(self) -> float:
@@ -3152,7 +3101,7 @@ class AnnotatedGraph(Graph):
                 weight = f'{WEIGHT} = -1'
         else:
             pprint.error(f'ERROR!!! a problem occurred while exporting an annotated graph {self.__out_annotated_graph_path}')
-            exit()
+            raise
         line = f"{n} [{label}, {shape}, {color}, {weight}];\n"
         file_handler.write(line)
 

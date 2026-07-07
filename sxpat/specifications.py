@@ -1,11 +1,32 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Tuple, NamedTuple
-from collections import defaultdict
+from types import MappingProxyType
+from typing import Any, Dict, Iterable, List, Mapping, Tuple, Union
 import enum
 import dataclasses as dc
 
+import time
+import re
+import tempfile
 import argparse
-from pathlib import Path
+import functools as ft
+import os.path
+
+from sxpat.utils.filesystem import FS
+from sxpat.utils.functions import int_to_strbase
+from sxpat.utils.storage import AppendStorage, LiveStorage
+
+
+__all__ = [
+    'Specifications',
+    # enums
+    'ErrorPartitioningType', 'EncodingType',
+    'TemplateType', 'ConstantsType',
+]
+
+
+class Dependency:
+    SourceItem = Union[argparse.Action, Tuple[argparse.Action, Any]]
+    TargetItem = Union[argparse.Action, Tuple[argparse.Action, List[Any]]]
 
 
 class ErrorPartitioningType(enum.Enum):
@@ -27,9 +48,21 @@ class TemplateType(enum.Enum):
     SHARED = 'shared'
 
 
+class DistanceType(enum.Enum):
+    ABSOLUTE_DIFFERENCE_OF_INTEGERS = 'adoi'
+    ABSOLUTE_DIFFERENCE_OF_WEIGHTED_SUM = 'adows'
+    HAMMING_DISTANCE = 'hd'
+    WEIGHTED_HAMMING_DISTANCE = 'whd'
+
+
 class ConstantsType(enum.Enum):
     NEVER = 'never'
     ALWAYS = 'always'
+
+
+class ConstantFalseType(enum.Enum):
+    OUTPUT = 'output'
+    PRODUCT = 'product'
 
 class MetricType(enum.Enum):
     ABSOLUTE = 'wae'
@@ -50,42 +83,92 @@ class EnumChoicesAction(argparse.Action):
         setattr(namespace, self.dest, self.enum(value))
 
 
+@dc.dataclass(init=False, frozen=True)
 class Paths:
-    _Output = NamedTuple('Output', [
-        ('graphviz', str),
-        ('verilog', str),
-        ('solver_scripts', str),
-    ])
-    _output_graphviz_postdir = 'graphviz'
-    _output_verilog_postdir = 'verilog'
-    _output_solver_scripts_postdir = 'scripts'
+    @dc.dataclass(frozen=True)
+    class RunFiles:
+        run_id: dc.InitVar[str]
+        # main folders
+        base_folder: str = 'output'
+        verilog: str = dc.field(default='verilog', init=False)
+        # main files
+        run_details: str = dc.field(default='run_details.csv', init=False)
+        run_stats: str = dc.field(default='run_stats.csv', init=False)
+        # debug folders
+        graphviz: str = dc.field(default='graphviz', init=False)
+        solver_scripts: str = dc.field(default='scripts', init=False)
+        # temporary files and folders
+        temporary: str = dc.field(default='tmp', init=False)
+        debug: dc.InitVar[bool] = False
 
-    _Config = NamedTuple('Config', [
-        ('liberty', str),
-        ('abc_script', str),
-    ])
-    _config_default_base = 'config'
-    _config_liberty_default = 'gscl45nm.lib'
-    _config_abc_script_default = 'abc.script'
+        def __post_init__(self, run_id: str, debug: bool) -> None:
+            # main folders
+            object.__setattr__(self, 'base_folder', os.path.join(self.base_folder, run_id))
+            object.__setattr__(self, 'verilog', os.path.join(self.base_folder, self.verilog))
+            # main files
+            object.__setattr__(self, 'run_details', os.path.join(self.base_folder, self.run_details))
+            object.__setattr__(self, 'run_stats', os.path.join(self.base_folder, self.run_stats))
 
-    def __init__(self, output_base: str) -> None:
-        output_base = output_base.rstrip('/')
-        self.output = self._Output(
-            f'{output_base}/{self._output_graphviz_postdir}',
-            f'{output_base}/{self._output_verilog_postdir}',
-            f'{output_base}/{self._output_solver_scripts_postdir}',
-        )
-        self.config = self._Config(
-            f'{self._config_default_base}/{self._config_liberty_default}',
-            f'{self._config_default_base}/{self._config_abc_script_default}',
-        )
+            # temporary folder
+            tempdir = os.path.join(self.base_folder, self.temporary)
+            if not debug:
+                _tempdir = tempfile.gettempdir()
+                if _tempdir != os.path.curdir and _tempdir != os.path.abspath(os.path.curdir):
+                    tempdir = os.path.join(_tempdir, run_id)
+            object.__setattr__(self, 'temporary', tempdir)
+
+            # debug folders
+            object.__setattr__(self, 'debug', debug)
+            if debug:
+                object.__setattr__(self, 'solver_scripts', os.path.join(self.base_folder, self.solver_scripts))
+                object.__setattr__(self, 'graphviz', os.path.join(self.base_folder, self.graphviz))
+            else:
+                object.__setattr__(self, 'solver_scripts', os.path.join(self.temporary, self.solver_scripts))
+                object.__setattr__(self, 'graphviz', os.path.join(self.temporary, self.graphviz))
+
+        @property
+        def folders(self) -> Iterable[str]:
+            #
+            yield from (
+                self.base_folder,
+                self.verilog,
+            )
+            #
+            yield from (
+                self.temporary,
+                self.solver_scripts,
+                self.graphviz,
+            )
+
+    @dc.dataclass(frozen=True)
+    class Synthesis:
+        cell_library: str = 'config/gscl45nm.lib'
+        abc_script: str = dc.field(default='config/abc.script', init=False)
+
+    @dc.dataclass(frozen=True)
+    class Tools:
+        cqesto: str = 'cqesto'
+
+    run: RunFiles
+    synthesis: Synthesis
+    tools: Tools
+
+    def __init__(self, output_base: str, run_id: str, cell_library: str, cqesto: str, keep_temporary: bool) -> None:
+        object.__setattr__(self, 'run', self.RunFiles(run_id, output_base, keep_temporary))
+        object.__setattr__(self, 'synthesis', self.Synthesis(cell_library))
+        object.__setattr__(self, 'tools', self.Tools(cqesto))
+
+    def __repr__(self):
+        params = ', '.join(f'{name}={getattr(self, name)!r}' for name in vars(self).keys())
+        return f'{self.__class__.__qualname__}({params})'
 
 
 @dc.dataclass
 class Specifications:
-    # files
+    # benchmark
     exact_benchmark: str
-    current_benchmark: str  # rw
+    current_benchmark: str = dc.field(metadata={'writable': True})  # rw
+    outputs: int = dc.field(init=False)
     # metric
     metric: MetricType
     
@@ -104,7 +187,9 @@ class Specifications:
     num_subgraphs: int
     remove_most_significant_output: bool
     max_sensitivity: int
-    sensitivity: int = dc.field(init=False, default=None)  # rw
+    sensitivity: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
+    slash_to_kill: bool
+    error_for_slash: int
     #Extraction_mode_0
     persistence_counter: int = dc.field(init=False, default=0)  # rw
     out_node: int = dc.field(init=False, default=0)  # rw\
@@ -126,32 +211,60 @@ class Specifications:
     template: TemplateType
     encoding: EncodingType
     constants: ConstantsType
+    constant_false: ConstantFalseType
     wanted_models: int
-    iteration: int = dc.field(init=False, default=None)  # rw
-    persistance: int 
+    iteration: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
+    sub_iteration: str = dc.field(init=False, default=None, metadata={'writable': True})  # rw
+    persistence: int 
     partition_divider: int
     # exploration (2)
     max_lpp: int
-    lpp: int = dc.field(init=False, default=None)  # rw
+    lpp: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     max_ppo: int
-    ppo: int = dc.field(init=False, default=None)  # rw
+    ppo: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     max_pit: int
-    pit: int = dc.field(init=False, default=None)  # rw
-    its: int = dc.field(init=False, default=None)  # rw
+    pit: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
+    its: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
 
     # error
     max_error: int
-    et: int = dc.field(init=False, default=None)  # rw
+    et: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     error_partitioning: ErrorPartitioningType
+
+    # files and folders
+    path_output: dc.InitVar[str]
+    path_cell_library: dc.InitVar[str]
+    path_cqesto: dc.InitVar[str]
+    path: Paths = dc.field(init=False)
+    should_archive: bool
     # other
+    debug: bool
     timeout: float
     parallel: bool
-    plot: bool
-    clean: bool
+    timestamp: str = dc.field(init=False, default_factory=time.time_ns)
+    run_id: str = dc.field(init=False)
 
-    def __post_init__(self):
-        object.__setattr__(self, 'exact_benchmark', Path(self.exact_benchmark).stem)
-        object.__setattr__(self, 'current_benchmark', Path(self.current_benchmark).stem)
+    # storage
+    stats_storage: LiveStorage = dc.field(init=False, default=None, metadata={'writable': True})  # writable once
+    details_storage: AppendStorage = dc.field(init=False, default=None, metadata={'writable': True})  # writable once
+
+    def __post_init__(self, path_output: str, path_cell_library: str, path_cqesto: str):
+        # computed constants
+        benchmark_name = os.path.basename(self.exact_benchmark)
+        match = re.search(r'_o(\d+)', benchmark_name)
+        if match is None:
+            raise ValueError(f'Unable to parse the number of outputs from benchmark name {benchmark_name!r}.')
+        self.outputs = int(match.group(1))
+
+        self.run_id = FS.get_unique_dirname(prefix=f'{int_to_strbase(self.timestamp)}_')
+
+        # construct instance
+        self.path = Paths(
+            path_output, self.run_id,
+            path_cell_library,
+            path_cqesto,
+            self.debug
+        )
 
     # > computed
 
@@ -160,7 +273,7 @@ class Specifications:
         return self.max_pit + 3
 
     @property
-    def template_name(self):
+    def template_name(self) -> str:
         return {
             TemplateType.NON_SHARED: 'Sop1',
             TemplateType.SHARED: 'SharedLogic',
@@ -177,6 +290,7 @@ class Specifications:
         return (
             self.subxpat
             and self.extraction_mode >= 2 and self.extraction_mode!=123
+            and self.extraction_mode != 42
         )
 
     @property
@@ -193,28 +307,24 @@ class Specifications:
             TemplateType.SHARED: lambda: self.max_pit,
         }[self.template]()
 
-    @property
-    def total_number_of_cells_per_iter(self) -> int:
-        # special_cell + ROWS * COLUMNS
-        return 1 + self.grid_param_1 * self.grid_param_2
-
     @classmethod
     def parse_args(cls):
         parser = argparse.ArgumentParser(description='Run the XPat system',
                                          epilog='Developed by Prof. Pozzi research team',
                                          formatter_class=argparse.RawTextHelpFormatter)
+        parser.add_argument('-?', action='help')
 
-        # > files stuff
+        # > benchmark
 
         _ex_bench = parser.add_argument(metavar='exact-benchmark',
                                         dest='exact_benchmark',
                                         type=str,
-                                        help='Circuit to approximate (Verilog file in `input/ver/`)')
+                                        help='Circuit to approximate (in Verilog format)')
 
         _cur_bench = parser.add_argument('--current-benchmark', '--curr',
                                          type=str,
                                          default=None,
-                                         help='Approximated circuit used to continue the execution (Verilog file in `input/ver/`) (default: same as exact-benchmark)')
+                                         help='Approximated circuit used to continue the execution (in Verilog format) (default: same as exact-benchmark)')
 
         _metric = parser.add_argument('--metric',
                                        type=MetricType,
@@ -227,100 +337,126 @@ class Specifications:
                                        default=None,
                                        help='')#TODO HELP
 
-        # > graph labeling stuff
+        # > graph labeling
+        _lab_group = parser.add_argument_group('Labeling')
 
-        _min_lab = parser.add_argument('--min-labeling',
-                                       action='store_true',
-                                       help='Nodes are weighted using their minimum error, instead of maximum error')
+        _max_lab = _lab_group.add_argument('--max-labeling',
+                                           action='store_false',
+                                           dest='min_labeling',
+                                           help='Nodes are weighted using their maximum error, instead of minimum error')
 
-        _part_lab = parser.add_argument('--partial-labeling',
-                                        action='store_true',
-                                        help='Weights are assigned only to relevant nodes')
+        _part_lab = _lab_group.add_argument('--no-partial-labeling',
+                                            action='store_false',
+                                            dest='partial_labeling',
+                                            help='Weights are assigned to all nodes, not only to the relevant ones')
 
         # > subgraph extraction stuff
+        _subex_group = parser.add_argument_group('Subgraph extraction')
 
-        _ex_mode = parser.add_argument('--extraction-mode', '--mode',
-                                       type=int,
-                                       choices=[0,1, 2, 3, 4, 5, 55, 11, 12],
-                                       default=55,
-                                       help='Subgraph extraction algorithm to use (default: 55)')
+        _ex_mode = _subex_group.add_argument('--extraction-mode', '--mode',
+                                             type=int,
+                                             choices=[0, 1, 2, 3, 4, 5, 55, 6, 11, 12, 42],
+                                             default=55,
+                                             help='Subgraph extraction algorithm to use (default: 55)')
 
-        _imax = parser.add_argument('--input-max', '--imax',
-                                    type=int,
-                                    dest='imax',
-                                    help='Maximum allowed number of inputs to the subgraph')
+        _imax = _subex_group.add_argument('--input-max', '--imax',
+                                          type=int,
+                                          dest='imax',
+                                          help='Maximum allowed number of inputs to the subgraph')
 
-        _omax = parser.add_argument('--output-max', '--omax',
-                                    type=int,
-                                    dest='omax',
-                                    help='Maximum allowed number of outputs from the subgraph')
+        _omax = _subex_group.add_argument('--output-max', '--omax',
+                                          type=int,
+                                          dest='omax',
+                                          help='Maximum allowed number of outputs from the subgraph')
 
-        _msens = parser.add_argument('--max-sensitivity',
-                                     type=int,
-                                     help='Maximum partitioning sensitivity')
+        _msens = _subex_group.add_argument('--max-sensitivity',
+                                           type=int,
+                                           help='Maximum partitioning sensitivity')
 
-        _msub_size = parser.add_argument('--min-subgraph-size',
-                                         type=int,
-                                         help='Minimum valid size for the subgraph')
+        _msub_size = _subex_group.add_argument('--min-subgraph-size',
+                                               type=int,
+                                               help='Minimum valid size for the subgraph')
 
-        _num_sub = parser.add_argument('--num-subgraphs',
-                                       type=int,
-                                       default=1,
-                                       help='The number of attempts for subgraph extraction (default: 1)')
+        _num_sub = _subex_group.add_argument('--num-subgraphs',
+                                             type=int,
+                                             default=1,
+                                             help='The number of attempts for subgraph extraction (default: 1)')
         
-        _remove = parser.add_argument('--remove-most-significant-output', '--remove-mso',
+        _remove = _subex_group.add_argument('--remove-most-significant-output', '--remove-mso',
                                            action='store_true',
                                            help='before doing anything remove the most significant output of the circuit')
 
-        # > exploration stuff
+        _slash = _subex_group.add_argument('--slash-to-kill',
+                                           action='store_true',
+                                           help='Enable the slash pass for the first iteration')
 
-        _subxpat = parser.add_argument('--subxpat',
-                                       action='store_true',
-                                       help='Run SubXPAT iteratively, instead of standard XPAT')
+        _error_slash = _subex_group.add_argument('--error-for-slash',
+                                                 type=int,
+                                                 help='The error to use for the slash pass')
 
-        _consts = parser.add_argument('--constants',
-                                      type=ConstantsType,
-                                      action=EnumChoicesAction,
-                                      default=ConstantsType.NEVER,
-                                      help='Usage of constants (default: never)')
-        _template = parser.add_argument('--template',
-                                        type=TemplateType,
-                                        default=TemplateType.NON_SHARED,
-                                        action=EnumChoicesAction,
-                                        help='Template logic (default: nonshared)')
+        # > execution stuff
+        _explor_group = parser.add_argument_group('Execution')
 
-        _lpp = parser.add_argument('--max-lpp', '--literals-per-product',
-                                   type=int,
-                                   help='The maximum number of literals per product')
+        _subxpat = _explor_group.add_argument('--subxpat',
+                                              action='store_true',
+                                              help='Run SubXPAT iteratively, instead of standard XPAT')
 
-        _ppo = parser.add_argument('--max-ppo', '--products-per-output',
-                                   type=int,
-                                   help='The maximum number of products per output')
+        _consts = _explor_group.add_argument('--constants',
+                                             type=ConstantsType,
+                                             action=EnumChoicesAction,
+                                             default=ConstantsType.ALWAYS,
+                                             help='Usage of constants (default: always)')
 
-        _pit = parser.add_argument('--max-pit', '--products-in-total',
-                                   type=int,
-                                   help='The maximum number of products in total')
+        _const_f = _explor_group.add_argument('--constant-false',
+                                              type=ConstantFalseType,
+                                              action=EnumChoicesAction,
+                                              default=ConstantFalseType.OUTPUT,
+                                              help='Representation of false constants from the subgraph (default: output)')
+        _template = _explor_group.add_argument('--template',
+                                               type=TemplateType,
+                                               action=EnumChoicesAction,
+                                               default=TemplateType.NON_SHARED,
+                                               help='Template logic (default: nonshared)')
 
-        _nmod = parser.add_argument('--wanted-models',
-                                    type=int,
-                                    default=1,
-                                    help='Wanted number of models to generate at each step (default: 1)')
+        _lpp = _explor_group.add_argument('--max-lpp', '--max-literals-per-product',
+                                          type=int,
+                                          help='The maximum number of literals per product')
 
-        _persistance = parser.add_argument('--persistance',
+        _ppo = _explor_group.add_argument('--max-ppo', '--max-products-per-output',
+                                          type=int,
+                                          help='The maximum number of products per output')
+
+        _pit = _explor_group.add_argument('--max-pit', '--products-in-total',
+                                          type=int,
+                                          help='The maximum number of products in total')
+
+        _nmod = _explor_group.add_argument('--wanted-models',
+                                           type=int,
+                                           default=1,
+                                           help='Wanted number of models to generate at each step (default: 1)')
+
+        _enc = _explor_group.add_argument('--encoding',
+                                          type=EncodingType,
+                                          action=EnumChoicesAction,
+                                          default=EncodingType.Z3_FUNC_BITVECTOR,
+                                          help='The encoding to use in solving (default: z3bvec)')
+
+        _persistence = parser.add_argument('--persistence',
                                     type=int,
                                     default=1,
                                     help='The number of attempts made with partial ET (default: 2)')
         # > error stuff
-        _et = parser.add_argument('--max-error', '-e',
-                                  type=int,
-                                  required=True,
-                                  help='The maximum allowable error')
+        _error_group = parser.add_argument_group('Error')
+        _et = _error_group.add_argument('--max-error', '-e',
+                                        type=int,
+                                        required=True,
+                                        help='The maximum allowable error')
 
-        _ep = parser.add_argument('--error-partitioning', '--epar',
-                                  type=ErrorPartitioningType,
-                                  action=EnumChoicesAction,
-                                  default=ErrorPartitioningType.ASCENDING,
-                                  help='The error partitioning algorithm to use (default: asc)')
+        _ep = _error_group.add_argument('--error-partitioning', '--epar',
+                                        type=ErrorPartitioningType,
+                                        action=EnumChoicesAction,
+                                        default=ErrorPartitioningType.ASCENDING,
+                                        help='The error partitioning algorithm to use (default: asc)')
 
         _parition_divider = parser.add_argument('--partition-divider', '--pardiv', 
                                                 type=int, 
@@ -364,36 +500,52 @@ class Specifications:
                                     required=False)
                                     #help='...')
 
+        # > files and folders stuff
+        _faf_group = parser.add_argument_group('Files and folders')
+
+        _out_fold = _faf_group.add_argument('--output',
+                                            type=str,
+                                            dest='path_output',
+                                            default=Paths.RunFiles.base_folder,
+                                            help=f'The base directory for the output (default: {Paths.RunFiles.base_folder})')
+
+        _cell_lib = _faf_group.add_argument('--cell-library',
+                                            type=str,
+                                            dest='path_cell_library',
+                                            default=Paths.Synthesis.cell_library,
+                                            help=f'The cell library file to use in the metrics estimation (default: {Paths.Synthesis.cell_library})')
+
+        _tool_cqesto = _faf_group.add_argument('--cqesto',
+                                               type=str,
+                                               dest='path_cqesto',
+                                               default=Paths.Tools.cqesto,
+                                               help=f'The path of the executable of cqesto (default: {Paths.Tools.cqesto})')
+
+        _shd_archive = _faf_group.add_argument('--archive',
+                                               action='store_true',
+                                               dest='should_archive',
+                                               help='If the generated files should be archived at the end of the execution')
+
         # > other stuff
+        _misc_group = parser.add_argument_group('Miscellaneous')
 
-        _enc = parser.add_argument('--encoding',
-                                   type=EncodingType,
-                                   action=EnumChoicesAction,
-                                   default=EncodingType.Z3_FUNC_BITVECTOR,
-                                   help='The encoding to use in solving')
+        _debug = _misc_group.add_argument('--debug',
+                                          action='store_true',
+                                          help='If the system should be run in debug mode')
 
-        _timeout = parser.add_argument('--timeout',
-                                       type=float,
-                                       default=10800,
-                                       help='The maximum time each cell is given to run (in seconds) (default: 3h)')
+        _timeout = _misc_group.add_argument('--timeout',
+                                            type=float,
+                                            default=10800,
+                                            help='The maximum time each cell is given to run (in seconds) (default: 3h)')
 
-        _parallel = parser.add_argument('--parallel',
-                                        action='store_true',
-                                        help='Run in parallel whenever possible')
-
-        _plt = parser.add_argument('--plot',
-                                   action='store_true',
-                                   help='The system will be run as plotter (DEPRECATED?)')
-
-        _clean = parser.add_argument('--clean',
-                                     action='store_true',
-                                     help='Reset the output folder before running')
+        _parallel = _misc_group.add_argument('--parallel',
+                                             action='store_true',
+                                             help='Run in parallel whenever possible')
 
         raw_args = parser.parse_args()
 
         # custom defaults
-        if raw_args.current_benchmark is None:
-            raw_args.current_benchmark = raw_args.exact_benchmark
+        if raw_args.current_benchmark is None: raw_args.current_benchmark = raw_args.exact_benchmark
 
         #if the user specified a cnn constraint and did not specify the metric, set the metric to relative
         if raw_args.cnn_constraint is not None:
@@ -401,12 +553,23 @@ class Specifications:
 
 
         # define dependencies
-        dependencies: Dict[Tuple[argparse.Action, Optional[Any]], List[argparse.Action]] = defaultdict(list)
-        dependencies = {
-            # (source_argument, value | None): [dependent_arguments],
+        # the structure for each dependency is:
+        # - source: [target0, ..., targetN]
+        # a source must be either:
+        # - (argument_object, value) # the dependency is checked only if the argument has the given value
+        # - argument_object          # the dependency is checked no matter the actual value
+        # a target must be either:
+        # - (argument_object, value) # the dependency is accepted if the argument has the given value
+        # - argument_object          # the dependency is accepted if the argument is present
+        dependencies: Dict[Dependency.SourceItem, List[Dependency.TargetItem]] = {
             (_subxpat, True): [_ex_mode],
             (_template, TemplateType.NON_SHARED): [_lpp, _ppo],
             (_template, TemplateType.SHARED): [_pit],
+            # template variants only implemented by some templates
+            (_const_f, ConstantFalseType.PRODUCT): [(_template, [TemplateType.NON_SHARED])],
+            #
+            (_ex_mode, 55): [_imax, _omax],
+            (_slash, True): [_error_slash],
             (_ep, ErrorPartitioningType.ASCENDING): [_parition_divider],
             (_cnn_constraint, CnnErrorConstraintTypes.NINE): [_beta, _alpha, _baseet],
             (_cnn_constraint, CnnErrorConstraintTypes.NINE_PRIME): [_beta, _alpha, _c_constant, _baseet],
@@ -414,23 +577,84 @@ class Specifications:
         }
 
         # check dependencies
-        for (source, value), dependents in dependencies.items():
-            if value is None and getattr(raw_args, source.dest, None) is not None:
-                for dep in dependents:
-                    if getattr(raw_args, dep.dest, None) is None:
-                        parser.error(f'missing argument: argument `{source.option_strings[0]}` requires argument `{dep.option_strings[0]}`')
+        for (source, targets) in dependencies.items():
+            source_has_value = isinstance(source, tuple)
+            source_action = source[0] if source_has_value else source
+            if source_has_value: source_value = source[1]
 
-            elif value is not None and getattr(raw_args, source.dest, None) == value:
-                for dep in dependents:
-                    if getattr(raw_args, dep.dest, None) is None:
-                        parser.error(f'missing argument: argument `{source.option_strings[0]}` with value {value!r} requires argument `{dep.option_strings[0]}`')
+            # skip if source not present
+            if not hasattr(raw_args, source_action.dest): continue
+            # skip if source wants a specific value which is not the current one
+            if source_has_value and source_value != getattr(raw_args, source_action.dest): continue
 
+            source_message = ''.join((
+                f'missing or wrong argument: argument `{source_action.option_strings[0]}`',
+                f' with value {arg_value_to_string(source_value)}' if source_has_value else '',
+                ' requires argument',
+            ))
+
+            # verify targets
+            for target in targets:
+                target_has_values = isinstance(target, tuple)
+                target_action = target[0] if target_has_values else target
+                if target_has_values: target_values = target[1]
+
+                if (
+                    # target not present
+                    not hasattr(raw_args, target_action.dest)
+                    # target has wrong value
+                    or target_has_values and getattr(raw_args, target_action.dest) not in target_values
+                ):
+                    # improved error message
+                    if len(target_values) == 1:
+                        if target_action.const == True: msg = 'to not be used'
+                        elif target_action.const == False: msg = 'to be used'
+                        else: msg = f'to have the following value: {arg_value_to_string(target_values[0])}'
+                    else:
+                        msg = f'to have one of the following values: {", ".join(map(arg_value_to_string, target_values))}'
+
+                    parser.error(f'{source_message} `{target_action.option_strings[0]}` {msg}')
+
+        # construct specifications object
         return cls(**vars(raw_args))
 
     def __repr__(self):
         """
-        Procedurally generates the string representation of the object.  
-        The string will contain the name of the class, followed by one line for each field (name/value pair).
+            Procedurally generates the string representation of the object.  
+            The string will contain the name of the class, followed by one line for each field (name/value pair).
         """
         fields = ''.join(f'   {k} = {v},\n' for k, v in vars(self).items())
         return f'{self.__class__.__name__}(\n{fields})'
+
+    @ft.cached_property
+    def constant_fields(self) -> Mapping[str, Any]:
+        """
+            Returns a mapping containing all key/value pairs matching fields not marked as `writable`.
+             - fields that are instances of dataclasses are recursively explored, each subfield being returned as 'key.subkey...'/value.
+             - fields that are instances of enumerators are returned as 'key'/enum.value.
+        """
+
+        def extract(dc_obj: dc.DataclassInstance, prefix: str) -> Dict[str, Any]:
+            constant_fields = dict()
+
+            for field in dc.fields(dc_obj):
+                # skip writable fields
+                if field.metadata.get('writable', False): continue
+
+                value = getattr(dc_obj, field.name)
+
+                if dc.is_dataclass(value):
+                    constant_fields.update(extract(value, prefix + field.name + '.'))
+                elif isinstance(value, enum.Enum):
+                    constant_fields[prefix + field.name] = value.value
+                else:
+                    constant_fields[prefix + field.name] = value
+
+            return constant_fields
+
+        return MappingProxyType(extract(self, ''))
+
+
+def arg_value_to_string(value: Union[str, int, bool, enum.Enum, Any]) -> str:
+    if isinstance(value, enum.Enum): value = value.value
+    return repr(value)
