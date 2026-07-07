@@ -151,12 +151,18 @@
         + Optimization and Selection Constraints (i, ii, iii, iv)
 
 - __Algorithm 5: find_subgraph_feasible_hard__
-Components Utilized:
+    Components Utilized:
         + Signal Propagation Constraints
         + Convexity and Structural Constraints
         + Feasibility and Filtering Constraints (i, ii-Strategy B)
         + Optimization and Selection Constraints (i, ii, iii, iv)
 
 - __Algorithm 55: find_subgraph_feasible_hard_limited_inputs_datatype_bitvec__
-Components Utilized:
-        + Symbolic Topology Management()
+    Components Utilized:
+        + Symbolic Topology Management(i, ii, iii, iv, v, vi, vii)
+
+- __Algorithm 6: find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold__
+    Components Utilized:
+        + Search Space Calibration & State Management(i, ii, iii)
+
+- 
