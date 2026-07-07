@@ -1,5 +1,6 @@
 @startuml
 skinparam componentStyle uml2
+left to right direction
 
 package "Component Library" {
     [Signal Propagation Constraints] as SP
@@ -47,7 +48,7 @@ SP --> A11
 SP --> A12
 
 ' mapping dependencies for 'Convexity and Structural Constraints'
-CS --> A1
+CS --> A1 
 CS --> A2
 CS --> A3
 CS --> A4
