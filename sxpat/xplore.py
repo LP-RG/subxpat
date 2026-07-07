@@ -8,16 +8,16 @@ import networkx as nx
 import os
 from os.path import join as path_join
 
+from sxpat.newag import load_circuit_from_verilog
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
 from sxpat.graph import IOGraph
 
-from sxpat.newag import load_circuit_from_verilog
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
 
-from sxpat.config.config import UNKNOWN, SAT, WEIGHT
+from sxpat.config.config import UNKNOWN, SAT
 
-from sxpat.subgraph_extractions.legacy import *
 from sxpat.utils.filesystem import FS
+from sxpat.utils.names import extract_name
 from sxpat.utils.timer import Timer
 from sxpat.utils.print import pprint
 
@@ -28,6 +28,8 @@ from sxpat.definitions.distances import *
 
 from sxpat.definitions.questions import exists_parameters
 from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
+
+from sxpat.subgraph_extractions.legacy import *
 
 from sxpat.solvers import get_specialized as get_solver
 from sxpat.solvers import Z3DirectBitVecSolver
@@ -211,10 +213,14 @@ def explore_grid(specs_obj: Specifications):
         print(f'subgraph_extraction_time = {_time}')
         # logging
         if specs_obj.debug:
-            # specs_obj.stats_storage.stage(subgraph_dot=os.path.relpath(current_graph.subgraph_out_path, specs_obj.path.run.base_folder))  # MARCO:AG
-            # current_graph.export_annotated_graph()  # MARCO:AG
-            # print(f'subgraph exported at {current_graph.subgraph_out_path}')  # MARCO:AG
-            pass
+            from sxpat.newag import z3log_annotatedgraph_substitute
+            # construct path
+            _path = path_join(specs_obj.path.run.graphviz, f'{extract_name(specs_obj.current_benchmark)}_subgraph.gv')
+            _p_path = os.path.relpath(_path, specs_obj.path.run.base_folder)
+            # export graph
+            z3log_annotatedgraph_substitute.export_annotated_graph(_MA_current_sgraph, _path)
+            specs_obj.stats_storage.stage(subgraph_dot=_p_path)
+            print(f'subgraph exported at {_path}')
 
         # guard: skip if no subgraph was found
         if not subgraph_is_available:
@@ -526,19 +532,21 @@ def print_current_model(
     # print table
     pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
+
 def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
     return {
-            # 1: find_subgraph,
-            # 2: find_subgraph_sensitivity,
-            # 3: find_subgraph_sensitivity_no_io_constraints,
-            # 4: find_subgraph_feasible,
-            # 5: find_subgraph_feasible_hard,
-            55: find_subgraph_feasible_hard_datatype_bitvec,
-            6: find_subgraph_feasible_hard_datatype_bitvec_mintreshold,
-            100: slash_to_kill,
-            # 11: find_subgraph_feasible_soft,
-            # 12: find_subgraph_feasible_soft_outputs,
-        }[specs_obj.extraction_mode](circuit, specs_obj)
+        # 1: find_subgraph,
+        # 2: find_subgraph_sensitivity,
+        # 3: find_subgraph_sensitivity_no_io_constraints,
+        # 4: find_subgraph_feasible,
+        # 5: find_subgraph_feasible_hard,
+        55: find_subgraph_feasible_hard_datatype_bitvec,
+        6: find_subgraph_feasible_hard_datatype_bitvec_mintreshold,
+        100: slash_to_kill,
+        # 11: find_subgraph_feasible_soft,
+        # 12: find_subgraph_feasible_soft_outputs,
+    }[specs_obj.extraction_mode](circuit, specs_obj)
+
 
 def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     """This function adds the labels inplace to the given graph"""
