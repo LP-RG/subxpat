@@ -29,6 +29,8 @@ from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvalu
 
 from sxpat.solvers import get_specialized as get_solver
 from sxpat.solvers import Z3DirectBitVecSolver
+from sxpat.solvers import Z3FuncIntSolver
+from sxpat.solvers import Z3DirectIntSolver
 
 from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
@@ -182,6 +184,7 @@ def explore_grid(specs_obj: Specifications):
             print('started labelling')
             print(list(current_graph.gate_dict.keys()))
             _time = Timer.now()
+            z3labelling(iograph_from_legacy(current_graph), specs_obj)
             w0 = label_graph(current_graph, specs_obj)
             w1 = label_graph_new(iograph_from_legacy(current_graph), specs_obj)
             print(len(w0), len(w1))
@@ -435,6 +438,18 @@ def error_evaluation(reference_circuit: IOGraph, current_circuit: IOGraph, specs
     return next(iter(model.values()))
 
 
+def z3labelling(circuit: IOGraph, specs_obj: Specifications):
+    from sxpat.question_labelling import Labeling
+
+    to_be_labelled, constraints = Labeling.define(circuit, ['g0'], specs_obj.min_labeling)
+    status, result = Z3FuncIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+    # Z3DirectIntSolver.solve_exists((circuit, to_be_labelled, constraints), specs_obj)
+    # Z3FuncIntSolver.solve_exists((circuit, to_be_labelled, AbsoluteDifferenceOfInteger.define(circuit, to_be_labelled)[0]), specs_obj)
+
+    print(status, result)
+    input('pausami')
+    
+
 class CellIterator:
     @classmethod
     def factory(cls, specs: Specifications) -> Iterator[Tuple[int, int]]:
@@ -589,17 +604,17 @@ def label_graph_new(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, in
     os.makedirs(folder, exist_ok=True)
 
     # testing new labelling BV
-    _time = time.perf_counter()
-    labeller = Labelling(
-        reference, to_be_labelled, folder,
-        minimize=specs_obj.min_labeling,
-        use_functions=False,
-    )
-    bv_weights = labeller.label_graph(
-        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
-        parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
-    )
-    print('new bv labelling time: ', time.perf_counter() - _time)
+    # _time = time.perf_counter()
+    # labeller = Labelling(
+    #     reference, to_be_labelled, folder,
+    #     minimize=specs_obj.min_labeling,
+    #     use_functions=False,
+    # )
+    # dir_weights = labeller.label_graph(
+    #     partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
+    #     parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
+    # )
+    # print('new bv labelling time: ', time.perf_counter() - _time)
 
     # testing new labelling
     _time = time.perf_counter()
