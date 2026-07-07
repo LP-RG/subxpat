@@ -55,6 +55,14 @@ CS --> A5
 CS --> A11
 CS --> A12
 
+' mapping dependencies for 'Optimization and Selection Constraints'
+OS --> A1
+OS --> A2
+OS --> A3
+OS --> A4
+OS --> A5
+OS --> A11
+OS --> A12
 
 FF --> A5 : Hard Bound
 FF --> A11 : Soft Penalty
