@@ -165,4 +165,17 @@
     Components Utilized:
         + Search Space Calibration & State Management(i, ii, iii)
 
+- __Algorithm 100: slash_to_kill__
+    Components Utilized:
+        + Symbolic Topology Management(i, ii, iii, iv, vi, vii, ix, x)
+
+- __Algorithm 11: find_subgraph_feasible_soft__
+    Components Utilized:
+        + Signal Propagation Constraints
+        + Convexity and Structural Constraints
+        + Feasibility and Filtering Constraints (i, ii-Strategy A)
+        + Optimization and Selection Constraints (i, ii, iii, iv)
+        + Penalty-based Soft Constraints (i, ii-Strategy A)
+        + Multi-Partition Iteration Engine (i, ii-Strategy A)
+
 - 
