@@ -2,7 +2,24 @@
 skinparam componentStyle uml2
 left to right direction
 
-package "Component Library" {
+skinparam nodesep 50
+skinparam ranksep 400
+skinparam titleFontSize 25
+
+<style>
+node {
+    LineColor black
+    LineThickness 3.0
+    BackgroundColor #D9D7B6
+}
+</style>
+
+title 
+    <i>Architectural Traceability Diagram</i>: Component Library to Algorithm Mapping
+end title
+
+
+package "Component Library" #D9D7B6 {
     [Signal Propagation Constraints] as SP
     [Convexity and Structural Constraints] as CS
     [Optimization and Selection Constraints] as OS
@@ -57,7 +74,7 @@ CS --> A11
 CS --> A12
 
 ' mapping dependencies for 'Optimization and Selection Constraints'
-OS --> A1
+OS --> A1 
 OS --> A2
 OS --> A3
 OS --> A4
