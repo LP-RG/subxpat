@@ -180,7 +180,7 @@
         + Search Space Calibration & State Management(i, ii, iii)
 
 - __Algorithm 100: slash_to_kill__
-    Description: 
+    Description: A high-precision subgraph extraction algorithm that leverages Z3 custom Datatypes and BitVector logic to model circuit nodes and edges. It implements a rigorous constraint satisfaction approach where "cutting" edges (slashing) is evaluated against a bit-width constrained feasibility threshold. By encoding topology into symbolic structures, it enforces strict structural integrity, including mandatory child-inclusion rules for parent gates and exhaustive convexity validation, making it suitable for complex, constraint-heavy logic pruning.
 
     Components Utilized:
         + Symbolic Topology Management(i, ii, iii, iv, vi, vii, ix, x)
