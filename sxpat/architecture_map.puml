@@ -86,4 +86,8 @@ MPE --> A12
 ' mapping dependencies for 'Search Space Calibration & State Management'
 SSCSM --> A6
 
+' mapping dependencies for 'Symbolic Topology Management'
+STM --> A55
+STM --> A100
+
 @enduml
