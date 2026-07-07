@@ -2,31 +2,37 @@
 skinparam componentStyle uml2
 
 package "Components (Logic Blocks)" {
-    [Signal Propagation] as SP
-    [Feasibility Filter] as FF
-    [Structural Integrity Audit] as SIA
-    [Optimization Engine] as OE
-    [Multi-Partition Engine] as MPE
+    [Signal Propagation Constraints] as SP
+    [Convexity and Structural Constraints] as CS
+    [Optimization and Selection Constraints] as OS
+    [Sensitivity Budget Constraints] as SB
+    [Feasibility and Filtering Constraints] as FF
+    [Penalty-based Soft Constraints] as PS
+    [Multi-Partition Iteration Engine] as MPE
+    [Search Space Calibration & State Management] as SSCSM
+    [Symbolic Topology Management] as STM
+    [Interactive & Diagnostic Tools] as IDT
 }
 
 package "Algorithms" {
     node "Connectivity-based" {
-        [Algo 1] as A1
-        [Algo 4] as A4
-        [Algo 11] as A11
-        [Algo 12] as A12
+        [Algorithm 1] as A1
+        [Algorithm 4] as A4
+        [Algorithm 11] as A11
+        [Algorithm 12] as A12
     }
     node "Sensitivity-based" {
-        [Algo 2] as A2
-        [Algo 3] as A3
+        [Algorithm 2] as A2
+        [Algorithm 3] as A3
     }
     node "Formal/Hard Feasibility" {
-        [Algo 5] as A5
-        [Algo 6] as A6
-        [Algo 55] as A55
+        [Algorithm 5] as A5
+        [Algorithm 6] as A6
+        [Algorithm 55] as A55
     }
     node "Heuristic" {
-        [Algo 100] as A100
+        [Algorithm 100] as A100
+        [Algorithm 42] as A42
     }
 }
 
