@@ -168,7 +168,7 @@
         + Optimization and Selection Constraints (i, ii, iii, iv)
 
 - __Algorithm 55: find_subgraph_feasible_hard_limited_inputs_datatype_bitvec__
-    Description: 
+    Description: A high-precision extraction algorithm that integrates symbolic topological modeling with strict interface bandwidth constraints. By utilizing Datatype and BitVec for binary node and edge representation, it enforces rigid input/output limits (*imax / omax*) and filters interface edges through a strict feasibility threshold condition. The algorithm ensures robust gate density optimization within predefined structural and interface constraints, with all logic natively integrated into the symbolic topology.
 
     Components Utilized:
         + Symbolic Topology Management(i, ii, iii, iv, v, vi, vii)
