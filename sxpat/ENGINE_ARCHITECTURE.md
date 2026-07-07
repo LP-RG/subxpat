@@ -186,3 +186,8 @@
         + Optimization and Selection Constraints (i, ii, iii, iv)
         + Penalty-based Soft Constraints (i, ii-Strategy B)
         + Multi-Partition Iteration Engine (i, ii-Strategy B)
+    
+- __Algorithm 42: extract__
+    Components Utilized:
+        + Interactive & Diagnostic Tools(i, ii, iii)
+    
