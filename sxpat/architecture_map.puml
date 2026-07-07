@@ -69,16 +69,12 @@ SB --> A1
 SB --> A2
 SB --> A3
 
-FF --> A5 : Hard Bound
-FF --> A11 : Soft Penalty
-FF --> A100 : Global Budget
+' mapping dependencies for 'Feasibility and Filtering Constraints'
+FF --> A4
+FF --> A5 
+FF --> A11 
+FF --> A12 
 
-SIA --> A1 : Local Context
-SIA --> A55 : Global Context
-SIA --> A100 : Global Context
-
-OE --> A1 : Utility Max
-OE --> A11 : Soft Penalty Hierarchical
 
 MPE --> A11 : Exhaustive
 MPE --> A100 : Exhaustive
