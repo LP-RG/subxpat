@@ -9,6 +9,7 @@
 - 100. slash_to_kill
 - 11. find_subgraph_feasible_soft *
 - 12. find_subgraph_feasible_soft_outputs *
+- 42. extract
 
 * almost the same 
 
