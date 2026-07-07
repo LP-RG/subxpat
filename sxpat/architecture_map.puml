@@ -64,6 +64,11 @@ OS --> A5
 OS --> A11
 OS --> A12
 
+' mapping dependencies for 'Sensitivity Budget Constraints'
+SB --> A1
+SB --> A2
+SB --> A3
+
 FF --> A5 : Hard Bound
 FF --> A11 : Soft Penalty
 FF --> A100 : Global Budget
