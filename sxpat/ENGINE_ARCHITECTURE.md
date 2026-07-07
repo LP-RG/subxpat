@@ -178,4 +178,11 @@
         + Penalty-based Soft Constraints (i, ii-Strategy A)
         + Multi-Partition Iteration Engine (i, ii-Strategy A)
 
-- 
+- __Algorithm 12: find_subgraph_feasible_soft_outputs__
+    Components Utilized:
+        + Signal Propagation Constraints
+        + Convexity and Structural Constraints
+        + Feasibility and Filtering Constraints (i, ii-Strategy A)
+        + Optimization and Selection Constraints (i, ii, iii, iv)
+        + Penalty-based Soft Constraints (i, ii-Strategy B)
+        + Multi-Partition Iteration Engine (i, ii-Strategy B)
