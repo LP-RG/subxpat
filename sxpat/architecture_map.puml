@@ -90,4 +90,7 @@ SSCSM --> A6
 STM --> A55
 STM --> A100
 
+' mapping dependencies for 'Interactive & Diagnostic Tools'
+IDT --> A42
+
 @enduml
