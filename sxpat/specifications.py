@@ -178,8 +178,8 @@ class Specifications:
     slash_to_kill: bool
     error_for_slash: int
     persistance: int
-    persistance_counter: int = dc.field(init=False, default=0)  # rw
-    out_node: int = dc.field(init=False, default=0)  # rw\
+    persistance_counter: int = dc.field(init=False, default=0, metadata={'writable': True})  # rw
+    out_node: int = dc.field(init=False, default=0, metadata={'writable': True})  # rw
 
     # exploration (1)
     subxpat: bool
