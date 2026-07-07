@@ -208,7 +208,7 @@
         + Multi-Partition Iteration Engine (i, ii-Strategy B)
     
 - __Algorithm 42: extract__
-    Description: 
+    Description: An interactive diagnostic utility that allows users to manually define a subgraph through a command-line interface. The tool visualizes the original graph via *Graphviz*, validates the user's manual selection for node existence and convexity compliance, and provides a confirmation preview before finalizing the extraction. It serves as a verification tool for manually validating subgraph selections against structural rules.
     
     Components Utilized:
         + Interactive & Diagnostic Tools(i, ii, iii)
