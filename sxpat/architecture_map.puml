@@ -75,6 +75,9 @@ FF --> A5
 FF --> A11 
 FF --> A12 
 
+' mapping dependencies for 'Penalty-based Soft Constraints'
+PS --> A11
+PS --> A12
 
 MPE --> A11 : Exhaustive
 MPE --> A100 : Exhaustive
