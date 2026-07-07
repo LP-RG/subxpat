@@ -1,7 +1,7 @@
 @startuml
 skinparam componentStyle uml2
 
-package "Components (Logic Blocks)" {
+package "Component Library" {
     [Signal Propagation Constraints] as SP
     [Convexity and Structural Constraints] as CS
     [Optimization and Selection Constraints] as OS
@@ -31,15 +31,19 @@ package "Algorithms" {
         [Algorithm 55] as A55
     }
     node "Heuristic" {
-        [Algorithm 100] as A100
         [Algorithm 42] as A42
+        [Algorithm 100] as A100
     }
 }
 
 ' (Mapping)
-SP --> A1 : Standard Cut
-SP --> A55 : Symbolic Flow
-SP --> A100 : Symbolic Flow
+SP --> A1 
+SP --> A2
+SP --> A3
+SP --> A4
+SP --> A5
+SP --> A11
+SP --> A12
 
 FF --> A5 : Hard Bound
 FF --> A11 : Soft Penalty
