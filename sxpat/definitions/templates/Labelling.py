@@ -6,6 +6,7 @@ import itertools as it
 
 from sxpat.converting.utils import set_prefix_new
 from sxpat.graph import *
+from sxpat.graph.node import *
 from sxpat.specifications import ConstantsType, Specifications
 from sxpat.utils.collections import iterable_replace
 
