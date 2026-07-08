@@ -1987,6 +1987,8 @@ class AnnotatedGraph(Graph):
         # store parameters that will be updated
         saved_et = specs_obj.et
 
+        # COMPONENT START: Search Space Calibration & State Management (SSCSM)
+        # i)
         # get graph weights, then min/max (bounded)
         weights = sorted(frozenset(
             weight
@@ -2005,14 +2007,22 @@ class AnnotatedGraph(Graph):
             for p in linear_partition
         ))
 
+        # ii)
         # find subgraph
         # NOTE: given that the node with the smallest weight is a valid subgraph, this loop should only iterate once
         for (i, specs_obj.et) in enumerate(actual_partition):
+
+            # COMPONENT START: Symbolic Topology Management (STM)
+            # i, ii, iii, iv, v, vi, vii)
             subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)  # Critian's subgraph extraction
+            # COMPONENT END: Symbolic Topology Management (STM)
+
             if len(subgraph_nodes) > 0: break
 
+        # iii)
         # restore updated parameters
         specs_obj.et = saved_et
+        # COMPONENT END: Search Space Calibration & State Management (SSCSM)
 
         return subgraph_nodes
 
