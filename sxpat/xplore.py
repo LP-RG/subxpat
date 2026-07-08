@@ -32,6 +32,7 @@ from sxpat.definitions.questions import exists_parameters
 from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
 
 from sxpat.subgraph_extractions.legacy import *
+from sxpat.subgraph_extractions.manual import extract
 
 from sxpat.solvers import get_specialized as get_solver
 from sxpat.solvers import Z3DirectBitVecSolver
@@ -544,6 +545,7 @@ def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
         2: find_subgraph_sensitivity,
         3: find_subgraph_sensitivity_no_io_constraints,
         4: find_subgraph_feasible,
+        42: extract,
         5: find_subgraph_feasible_hard,
         55: find_subgraph_feasible_hard_datatype_bitvec,
         6: find_subgraph_feasible_hard_datatype_bitvec_mintreshold,

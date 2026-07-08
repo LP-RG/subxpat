@@ -378,6 +378,21 @@ def find_subgraph_sensitivity(circuit: IOGraph, specs: Specifications) -> List[s
     """
     raise NotImplementedError("Not implemented yet talk with Marco or Lorenzo")
 
+    # this algorithm is actually iterative and this is how you execute it
+    # NOTE: the subgraph extraction needs to be a single iteration of the aglorithm since more than one algorithm call this subgraph extraction
+
+    # iteration = 1
+    # cnt_nodes = 0
+    # specs_obj.sensitivity = 1
+    # n_outputs = len(self.output_dict)
+
+    # while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
+    #     pprint.info2(f"Sugraph iteration {iteration} ")
+    #     subgraph_nodes = find_subgraph_sensitivity(self, specs_obj)
+
+    #     iteration += 1
+    #     specs_obj.sensitivity = 2 ** iteration - 1
+    #     cnt_nodes = len(subgraph_nodes)
     # prepare
     assert specs.sensitivity is not None, "must pass --sensitivity"
     sensitivity_threshold = specs.sensitivity
@@ -458,6 +473,20 @@ def find_subgraph_sensitivity_no_io_constraints(
     imax, omax = specs.imax, specs.omax
     specs.imax, specs.omax = None, None  # type: ignore
     _res = find_subgraph_sensitivity(circuit, specs)
+
+    # this algorithm is actually iterative this is how you do it
+    # iteration = 1
+    # cnt_nodes = 0
+    # specs_obj.sensitivity = 1
+    # n_outputs = len(self.output_dict)
+
+    # while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
+    #     pprint.info2(f"Sugraph iteration {iteration}")
+    #     subgraph_nodes = find_subgraph_sensitivity_no_io_constraints(self, specs_obj)
+
+    #     iteration += 1
+    #     specs_obj.sensitivity = 2 ** iteration - 1
+    #     cnt_nodes = len(subgraph_nodes)
     specs.imax, specs.omax = imax, omax
     return _res
 
