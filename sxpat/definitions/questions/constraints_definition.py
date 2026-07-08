@@ -9,6 +9,9 @@ def nine(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alpha: int
         
         return [
             *(PlaceHolder(name) for name in s_graph.inputs_names[:]),
+            *(PlaceHolder(name) for name in s_graph.outputs_names),
+            *(PlaceHolder(name) for name in t_graph.outputs_names),
+
             input_one_value := ToInt('input_one_value', operands=s_graph.inputs_names[:len(s_graph.inputs_names)//2]),
             input_two_value := ToInt('input_two_value', operands=s_graph.inputs_names[len(s_graph.inputs_names)//2:]),
 
@@ -54,6 +57,7 @@ def nine(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alpha: int
             re_check_condition :=LessEqualThan('re_check_condition', operands = (input_two_value, input_one_value)),
             re_error := Implies("re_error", operands = (re_check_condition, re_constraint)),
             error_check := And('error_check', operands=(ae_error, re_error)),
+            Constraint.of(error_check)
         ]
 
 
@@ -61,6 +65,8 @@ def nine_prime(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alph
         
         return [
             *(PlaceHolder(name) for name in s_graph.inputs_names[:]),
+            *(PlaceHolder(name) for name in s_graph.outputs_names),
+            *(PlaceHolder(name) for name in t_graph.outputs_names),
             input_one_value := ToInt('input_one_value', operands=s_graph.inputs_names[:len(s_graph.inputs_names)//2]),
             input_two_value := ToInt('input_two_value', operands=s_graph.inputs_names[len(s_graph.inputs_names)//2:]),
 
@@ -111,6 +117,7 @@ def nine_prime(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alph
             re_error := Implies("re_error", operands = (re_check_condition, re_constraint)),
             
             error_check := And('error_check', operands=(ae_error, re_error)),
+            Constraint.of(error_check)
         ]
 
 # beta parameter defines the size of each zone (submatrix)
@@ -137,7 +144,8 @@ def explicit_constraints(s_graph: SGraph, t_graph: PGraph, et_array_idx: int, be
         nodes = [
 
             *(PlaceHolder(name) for name in s_graph.inputs_names[:]),
-
+            *(PlaceHolder(name) for name in s_graph.outputs_names),
+            *(PlaceHolder(name) for name in t_graph.outputs_names),
             input_one_value := ToInt('input_one_value', operands=s_graph.inputs_names[:len(s_graph.inputs_names)//2]),
             input_two_value := ToInt('input_two_value', operands=s_graph.inputs_names[len(s_graph.inputs_names)//2:]),
 
@@ -217,4 +225,6 @@ def explicit_constraints(s_graph: SGraph, t_graph: PGraph, et_array_idx: int, be
         error_check = And('error_check', operands=(ae_error, re_error))
         nodes.append(error_check)
         
+        nodes.append(Constraint.of(error_check))
+
         return nodes

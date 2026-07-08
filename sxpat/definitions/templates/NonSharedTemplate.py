@@ -11,7 +11,7 @@ from sxpat.graph.node import *
 from sxpat.specifications import ConstantsType, MetricType, Specifications
 from sxpat.utils.collections import flat, iterable_replace, pairwise
 
-from .constraints_definition import nine, nine_prime, explicit_constraints 
+from ..questions.constraints_definition import nine, nine_prime, explicit_constraints 
 
 from sxpat.specifications import CnnErrorConstraintTypes
 
@@ -103,19 +103,8 @@ class _NonSharedBase:
             abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
             et := IntConstant('et', value=error_threshold),
             error_check := LessEqualThan('error_check', operands=(abs_diff, et)),
+            Constraint.of(error_check),
         ]
-    
-    @classmethod
-    def cnn_error_constraint(cls, s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alpha: int, c_constant: int, threshold_array_idx: int, constraint_type: CnnErrorConstraintTypes) -> List[Node]:
-                
-        if(constraint_type == CnnErrorConstraintTypes.EXPLICIT):
-            return explicit_constraints(s_graph, t_graph, threshold_array_idx, beta)
-        elif(constraint_type == CnnErrorConstraintTypes.NINE):
-            return nine(s_graph, t_graph, max_error, beta, alpha)
-        elif(constraint_type == CnnErrorConstraintTypes.NINE_PRIME):
-            return nine_prime(s_graph, t_graph, max_error, beta, alpha, c_constant)
-        else:
-            raise ValueError(f'Unknown CNN constraint type: {constraint_type}')
 
     @classmethod
     def relative_error_constraint(cls, s_graph: SGraph, t_graph: PGraph, error_threshold: int) -> List[Node]:
@@ -133,6 +122,7 @@ class _NonSharedBase:
             abs_diff_hundred := Mul('abs_diff_hundred', operands=(abs_diff, hundred)),
             rel_diff := Div('rel_diff',operands=(abs_diff_hundred, divider)),
             error_check := LessEqualThan('error_check', operands=(rel_diff, et)),
+            Constraint.of(error_check)
             ]
     
     @classmethod
@@ -277,17 +267,19 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                     s_graph.outputs_names,
                     template_graph.outputs_names
                 )),
+                # targets
+                (Target.of(n.name) for n in parameters),
                 # behavioural constraints
-                cls.error_constraint(s_graph, template_graph, specs.et) if(specs.metric is MetricType.ABSOLUTE)
-                    else cls.relative_error_constraint(s_graph, template_graph, specs.et) if specs.cnn_constraint is None
-                    else cls.cnn_error_constraint(s_graph,
-                                                  template_graph,
-                                                  specs.max_error,
-                                                  specs.beta,
-                                                  specs.alpha,
-                                                  specs.c_constant,
-                                                  specs.threshold_array_idx,
-                                                  specs.cnn_constraint),
+                #cls.error_constraint(s_graph, template_graph, specs.et) if(specs.metric is MetricType.ABSOLUTE)
+                #    else cls.relative_error_constraint(s_graph, template_graph, specs.et) if specs.cnn_constraint is None
+                #    else cls.cnn_error_constraint(s_graph,
+                #                                  template_graph,
+                #                                  specs.max_error,
+                #                                  specs.beta,
+                #                                  specs.alpha,
+                #                                  specs.c_constant,
+                #                                  specs.threshold_array_idx,
+                #                                  specs.cnn_constraint),
                 cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp),
                 # redundancy constraints
                 mux_red_nodes,

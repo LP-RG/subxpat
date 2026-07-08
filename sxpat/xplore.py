@@ -9,6 +9,7 @@ import os
 from os.path import join as path_join
 
 from sxpat.annotatedGraph import AnnotatedGraph
+from sxpat.converting.porters import GraphVizPorter
 from sxpat.graph import IOGraph
 
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType, MetricType
@@ -24,7 +25,7 @@ from sxpat.metrics import MetricsEstimator
 from sxpat.definitions.templates import get_specialized as get_templater
 from sxpat.definitions.distances import *
 
-from sxpat.definitions.questions import exists_parameters
+from sxpat.definitions.questions import exists_parameters, distribution_aware_questions
 from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
 
 from sxpat.solvers import get_specialized as get_solver
@@ -288,10 +289,13 @@ def explore_grid(specs_obj: Specifications):
             _time_define = Timer.now() - _time
             # define question
             _time = Timer.now()
-            base_question = exists_parameters.not_above_threshold_forall_inputs(
-                current_circ, param_circ,
-                AbsoluteDifferenceOfInteger, specs_obj.et,
-            )
+            if(specs_obj.metric.value == 'wae'):
+                base_question = exists_parameters.not_above_threshold_forall_inputs(
+                    current_circ, param_circ,
+                    AbsoluteDifferenceOfInteger, specs_obj.et,
+                )
+            elif(specs_obj.metric.value == 'wre'):
+                base_question = distribution_aware_questions.cnn_error_constraint(current_circ, param_circ,specs_obj)
             _time_define += Timer.now() - _time
             # logging
             specs_obj.stats_storage.stage(grid_phase_definition_time=_time_define)
@@ -346,6 +350,7 @@ def explore_grid(specs_obj: Specifications):
                     # export approximate graph as verilog
                     circuit_id = f'gen_iter{specs_obj.iteration}_model{model_number}'
                     verilog_path = path_join(specs_obj.path.run.verilog, f'{circuit_id}.v')
+                    GraphVizPorter.to_file(a_graph, 'ciccio.gv')
                     VerilogExporter.to_file(
                         a_graph, verilog_path,
                         VerilogExporter.Info(model_number=model_number),
