@@ -102,7 +102,6 @@ def _encode_nodes(
             BitVecVal(_w, bit_width),
             Bool(_name),
         )
-        # TODO:marco: can we directly encode False?
         constraints.append(Node.in_subgraph(_node) == BoolVal(False))  # pyright: ignore
 
     for _name, _id in zip(available_nodes, ids):
@@ -113,7 +112,6 @@ def _encode_nodes(
             Bool(_name),
         )
         if _w == -1:
-            # TODO:marco: can we directly encode False?
             constraints.append(Node.in_subgraph(_node) == BoolVal(False))  # pyright: ignore
 
     return (z3_nodes, constraints)

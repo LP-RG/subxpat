@@ -126,7 +126,7 @@ def _extract_edges(
             try:
                 output_edges[_id_d] = int(_src[1:])
             except:
-                _id_s = int(NUMBER_PATTERN.search(_src).group())
+                _id_s = int(NUMBER_PATTERN.search(_src).group())  # type: ignore
                 output_edges[_id_d] = _id_s
 
     return (

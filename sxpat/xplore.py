@@ -206,7 +206,6 @@ def explore_grid(specs_obj: Specifications):
         _MA_current_sgraph = iograph_to_sgraph(_MA_current_graph, subgraph_nodes)
         _time = Timer.now() - _time
         previous_graphs.append(_MA_current_sgraph)
-        input('asdasd')
 
         # logging
         specs_obj.stats_storage.stage(
@@ -578,10 +577,11 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
                     nodes_to_label.add(ancestor)
     nodes_to_label = sorted(nodes_to_label)
 
-    # TODO: MARCO
-    folder = 'labelling_scripts'
+    # create folder
+    folder = os.path.join(specs_obj.path.run.solver_scripts, f'labelling_{specs_obj.iteration}')
     os.makedirs(folder, exist_ok=True)
 
+    #
     labeller = Labelling(
         reference, to_be_labelled, folder,
         minimize=specs_obj.min_labeling,
