@@ -7,3 +7,5 @@ typing_extensions==4.13.0
 z3-solver==4.11.2.0
 z3log @ git+https://github.com/LP-RG/z3log.git@4-problems-with-relative-error
 jinja2
+reportlab==3.6.13
+svglib

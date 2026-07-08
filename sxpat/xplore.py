@@ -196,12 +196,24 @@ def explore_grid(specs_obj: Specifications):
                 specs_obj.extraction_mode = saved_extraction_mode
                 specs_obj.baseet = saved_baseet
                 specs_obj.remove_most_significant_output = False
+
+                specs_obj.threshold_array_idx = saved_threshold_array_idx
+
             else:
                 saved_extraction_mode = specs_obj.extraction_mode
                 saved_baseet = specs_obj.baseet
                 specs_obj.extraction_mode = 123
                 specs_obj.baseet = 2 ** exact_graph.num_outputs - 1
                 removed_output = True
+
+                saved_threshold_array_idx = specs_obj.threshold_array_idx
+                if specs_obj.threshold_array_idx is not None:
+                    if specs_obj.beta == 32:
+                        specs_obj.threshold_array_idx = 0
+                    elif specs_obj.beta == 16:
+                        specs_obj.threshold_array_idx = 1
+                
+
 
         # label graph
         if specs_obj.requires_labeling:
@@ -260,6 +272,7 @@ def explore_grid(specs_obj: Specifications):
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
+        consecutive_unsat = 0
         for lpp, ppo in CellIterator.factory(specs_obj):
             _cell_time = Timer.now()
             print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
