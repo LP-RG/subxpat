@@ -8,11 +8,10 @@ import networkx as nx
 import os
 from os.path import join as path_join
 
-from sxpat.graph.graph import SGraph
+from sxpat.graph.graph import SGraph, IOGraph
 from sxpat.graph.node import Extras, Node
 from sxpat.newag import load_circuit_from_verilog
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
-from sxpat.graph import IOGraph
 
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
 
@@ -558,15 +557,6 @@ def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
 
 def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     """This function adds the labels inplace to the given graph"""
-
-    from sxpat.graph.node import BoolVariable
-
-    # settings
-    if specs_obj.partial_labeling:
-        et_coefficient = 1
-        partial_cutoff = specs_obj.et * et_coefficient
-    else:
-        partial_cutoff = 2**len(circuit.outputs_names)
 
     reference: IOGraph = circuit
     to_be_labelled: IOGraph = circuit
