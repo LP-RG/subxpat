@@ -1,16 +1,21 @@
-from typing import NamedTuple, NoReturn
+from typing import Literal, NamedTuple, overload
 
 import re
 import subprocess
+import functools as ft
 
 from .config import config as sxpatconfig
+from sxpat.utils.decorators import make_utility_class
+from sxpat.specifications import Paths
+from Z3Log_patched.utils import get_pure_name
 
 
 __all__ = ['MetricsEstimator']
 
 
+@make_utility_class
 class MetricsEstimator:
-    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
+    """@authors: Marco Biasion"""
 
     MODULE_NAME_PATTERN = re.compile(r'module\s+([a-zA-Z0-9_$]+)\s*\(')
 
@@ -24,12 +29,12 @@ class MetricsEstimator:
         f'synth -flatten',
         f'opt',
         f'opt_clean -purge',
-        f'abc -liberty {sxpatconfig.LIB_PATH} -script {sxpatconfig.ABC_SCRIPT_PATH}',
-        f'stat -liberty {sxpatconfig.LIB_PATH}',
+        f'abc -liberty {{lib_path}} -script {{abc_script_path}}',
+        f'stat -liberty {{lib_path}}',
         f'write_verilog -noattr "{{metrics_verilog_path}}"',
     ))
     STA_BASE_COMMAND = '; '.join((
-        f'read_liberty "{sxpatconfig.LIB_PATH}"',
+        f'read_liberty "{{lib_path}}"',
         f'read_verilog "{{metrics_verilog_path}}"',
         f'link_design "{{module_name}}"',
         f'create_clock -name clk -period 1',
@@ -43,18 +48,73 @@ class MetricsEstimator:
     Metrics = NamedTuple('Metrics', [('area', float), ('power', float), ('delay', float)])
 
     @classmethod
-    def estimate_metrics(cls, verilog_path: str) -> Metrics:
+    @overload
+    def estimate_metrics(
+        cls,
+        syn_paths: Paths.Synthesis,
+        verilog_path: str,
+        temporary_path: str,
+    ) -> Metrics:
+        """
+            Sythesize a circuit and estimate its metrics.
+        """
+
+    @classmethod
+    @overload
+    def estimate_metrics(
+        cls,
+        syn_paths: Paths.Synthesis,
+        verilog_path: str,
+        temporary_path: str,
+        cached: Literal[True],
+    ) -> Metrics:
+        """
+            Sythesize a circuit and estimate its metrics.
+
+            Cached on the assumption that the same `syn_paths`/`verilog_path` generate the same results.
+        """
+
+    @classmethod
+    def estimate_metrics(
+        cls,
+        syn_paths: Paths.Synthesis,
+        verilog_path: str,
+        temporary_path: str,
+        cached: bool = False,
+    ) -> Metrics:
+        if cached: return cls._estimate_metrics_cached(syn_paths, verilog_path, temporary_path)
+        else: return cls._estimate_metrics(syn_paths, verilog_path, temporary_path)
+
+    @classmethod
+    def _estimate_metrics(
+        cls,
+        syn_paths: Paths.Synthesis,
+        circuit_in_verilog_path: str,
+        temporary_path: str,
+    ) -> Metrics:
         # compute names and paths
-        metrics_verilog_path = f'{verilog_path[:-2]}_for_metrics.v'
-        module_name = cls._extract_module_name(verilog_path)
+        circuit_name = get_pure_name(circuit_in_verilog_path)
+        metrics_verilog_path = f'{temporary_path}/{circuit_name}_for_metrics.v'
+        module_name = cls._extract_module_name(circuit_in_verilog_path)
 
         # > define commands
         # yosys command to get area and to generate metrics verilog
-        yosys_command = cls.YOSYS_BASE_COMMAND.format(verilog_path=verilog_path,
-                                                      metrics_verilog_path=metrics_verilog_path)
+        yosys_command = cls.YOSYS_BASE_COMMAND.format(
+            # circuit
+            verilog_path=circuit_in_verilog_path,
+            metrics_verilog_path=metrics_verilog_path,
+            # config
+            lib_path=syn_paths.cell_library,
+            abc_script_path=syn_paths.abc_script,
+        )
         # sta command to get delay and power
-        sta_command = cls.STA_BASE_COMMAND.format(metrics_verilog_path=metrics_verilog_path,
-                                                  module_name=module_name)
+        sta_command = cls.STA_BASE_COMMAND.format(
+            # circuit
+            metrics_verilog_path=metrics_verilog_path,
+            module_name=module_name,
+            # config
+            lib_path=syn_paths.cell_library,
+        )
 
         # > execute commands
         yosys_result = subprocess.run([sxpatconfig.YOSYS, '-QT'],
@@ -83,7 +143,20 @@ class MetricsEstimator:
         return cls.Metrics(area, power, delay)
 
     @classmethod
-    def _extract_module_name(cls, verilog_path: str):
+    @ft.lru_cache(None)
+    def _estimate_metrics_cached(
+        cls,
+        paths: Paths.Synthesis,
+        verilog_path: str,
+        temporary_path: str,
+    ) -> Metrics:
+        return cls._estimate_metrics(paths, verilog_path, temporary_path)
+
+    @classmethod
+    def _extract_module_name(
+        cls,
+        verilog_path: str,
+    ) -> str:
         with open(verilog_path, 'r') as f: verilog_str = f.read()
 
         if m := cls.MODULE_NAME_PATTERN.search(verilog_str): return m.group(1)

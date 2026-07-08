@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Type, Callable, Mapping, NoReturn, Optional, Union, Generic
+from typing import Type, Callable, Mapping, Optional, Union, Generic
 import dataclasses as dc
 
 from bidict import bidict
@@ -9,9 +9,11 @@ import re
 import json
 
 from sxpat.graph import *
+from sxpat.graph.node import *
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
 from sxpat.utils.functions import str_to_bool
-from sxpat.utils.collections import MultiDict
+from sxpat.utils.collections import InheritanceMapping
+from sxpat.utils.decorators import make_utility_class
 
 
 __all__ = [
@@ -26,34 +28,32 @@ _G_CLSS = {c.__name__: c for c in get_all_subclasses(Graph)}
 _N_CLSS = {c.__name__: c for c in get_all_leaves_subclasses(Node)}
 
 
-class GraphImporter(Generic[_Graph]):
+@make_utility_class
+class GraphImporter(Generic[T_Graph]):
     """Abstract class for importing a Graph from a string/file."""
 
-    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
-
     @classmethod
-    def from_string(cls, string: str) -> _Graph:
+    def from_string(cls, string: str) -> T_Graph:
         raise NotImplementedError(f'{cls.__name__}.from_string(...) is abstract.')
 
     @classmethod
-    def from_file(cls, filename: str) -> _Graph:
+    def from_file(cls, filename: str) -> T_Graph:
         with open(filename, 'r') as f:
             string = f.read()
         return cls.from_string(string)
 
 
-class GraphExporter(Generic[_Graph]):
+@make_utility_class
+class GraphExporter(Generic[T_Graph]):
     """Abstract class for exporting a Graph to a string/file."""
-
-    def __new__(cls) -> NoReturn: raise NotImplementedError(f'{cls.__qualname__} is a utility class and as such cannot be instantiated')
 
     @classmethod
     @abstractmethod
-    def to_string(cls, graph: _Graph) -> str:
+    def to_string(cls, graph: T_Graph) -> str:
         raise NotImplementedError(f'{cls.__name__}.to_string(...) is abstract.')
 
     @classmethod
-    def to_file(cls, graph: _Graph, filename: str) -> None:
+    def to_file(cls, graph: T_Graph, filename: str) -> None:
         string = cls.to_string(graph)
         with open(filename, 'w') as f:
             f.write(string)
@@ -61,74 +61,81 @@ class GraphExporter(Generic[_Graph]):
 
 class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     """
-        Allows for dumping/loading of a Graph to/from a GraphViz (aka Dot) string/file.
+        Allows for dumping/loading of a Graph to/from a GraphViz (aka. Dot) string/file.
 
         @authors: Marco Biasion
     """
 
     NODE_SYMBOL = bidict({
-        # inputs
+        # > variables
         BoolVariable: 'varB',
         IntVariable: 'varI',
-        # constants
+
+        # > constants
         BoolConstant: 'constB',
         IntConstant: 'constI',
-        # output
-        Copy: 'copy',
-        Target: 'target',
-        # placeholder
+
+        # > placeholder
         PlaceHolder: 'holder',
-        # bool operations
-        Not: 'not',
-        And: 'and',
-        Or: 'or',
-        Implies: 'impl',
-        # int operations
+
+        # > expressions
+        # bool to bool
+        Not: '¬a',
+        And: '⋀A',
+        Or: '⋁A',
+        Xor: 'a xor b',
+        Xnor: 'a xnor b',
+        Implies: 'a&rArr;b',
+        # int to int
+        Sum: '&sum;A',
+        AbsDiff: '|a-b|',
+        Mul: '&mul;A',
+        Div: 'a/b',
+        # bool to int
         ToInt: 'toInt',
-        Sum: 'sum',
-        UDiv: 'UDiv',
-        Mul: 'Mul',
-        AbsDiff: 'absdiff',
-        # comparison operations
-        Equals: '==',
-        NotEquals: '!=',
-        AtLeast: 'atleast',
-        AtMost: 'atmost',
-        LessThan: '<',
-        LessEqualThan: '<=',
-        GreaterThan: '>',
-        GreaterEqualThan: '>=',
-        # branching operations
-        Multiplexer: 'mux',
-        If: 'if',
+        # int to bool
+        Equals: 'a&equals;b',
+        NotEquals: 'a&ne;b',
+        LessThan: 'a&lt;b',
+        LessEqualThan: 'a&le;b',
+        GreaterThan: 'a&gt;b',
+        GreaterEqualThan: 'a&ge;b',
+        # identity
+        Identity: 'identity(a)',
+        # branch
+        Multiplexer: 'mux(a,p,q)',
+        If: 'if(c,a,b)',
+        # quantify
+        AtLeast: 'at_least(A,#)',
+        AtMost: 'at_most(A,#)',
+
+        # > solver nodes
+        # termination nodes
+        Target: 'target (&#8902;)',
+        Constraint: 'constraint (&#8902;)',
+        # global nodes
+        Min: 'minimize(a)',
+        Max: 'maximize(a)',
+        ForAll: '&forall;A',
     })
-    NODE_SHAPE = MultiDict({
-        # inputs
-        (BoolVariable, IntVariable): 'circle',
-        # constants
-        (BoolConstant, IntConstant): 'square',
-        # output
-        (Copy,): 'doublecircle',
-        # target
-        (Target,): 'star',
-        # placeholder
-        (PlaceHolder,): 'octagon',
-        # bool operations
-        (Not, And, Or, Implies): 'invhouse',
-        # int operations
-        (ToInt, Sum, AbsDiff, UDiv, Mul): 'invtrapezium',
-        # comparison operations
-        (Equals, NotEquals, AtLeast, AtMost, LessThan,
-         LessEqualThan, GreaterThan, GreaterEqualThan): 'invtriangle',
-        # branching operations
-        (Multiplexer, If): 'diamond',
+    NODE_SHAPE = InheritanceMapping({
+        # > variables
+        Variable: 'circle',
+        # > constants
+        Constant: 'square',
+        # > placeholder
+        PlaceHolder: 'Mcircle',
+        # > expressions
+        Expression: 'invhouse',
+        # > solver nodes
+        Objective: 'doubleoctagon',
     })
     NODE_COLOR: Mapping[Type[Graph], Callable[[Graph, Node], Optional[str]]] = {
-        Graph: lambda g, n: 'red' if n.in_subgraph else 'white',
-        IOGraph: lambda g, n: 'red' if n.in_subgraph else 'white',
-        CGraph: lambda g, n: 'red' if n.in_subgraph else 'white',
-        SGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if n.in_subgraph else 'white',
-        PGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if n.in_subgraph else 'white',
+        Graph: lambda g, n: 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
+        IOGraph: lambda g, n: 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
+        CGraph: lambda g, n: 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
+        SGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
+        PGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
     }
 
     GRAPH_PATTERN = re.compile(r'strict digraph _(\w+) {(?:\n\s*node \[.*\];)?((?:\n\s*\w+ \[.*\];)+)(?:\n\s*\w+ -> \w+;)+((?:\n\s*\/\/ \w+.*)*)\n}')
@@ -141,11 +148,11 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         string = rf'{cls.NODE_SYMBOL[type(node)]}\n{node.name}'
 
         # extra informations
-        if node.weight is not None:
+        if isinstance(node, Extras) and node.weight is not None:
             string += rf'\nw={node.weight}'
-        if node.in_subgraph:
+        if isinstance(node, Extras) and node.in_subgraph:
             string += rf'\nsub'
-        if isinstance(node, OperationNode):
+        if isinstance(node, Operation):
             string += rf'\ni={",".join(node.operands)}'
         if isinstance(node, Valued):
             string += rf'\nv={node.value}'
@@ -201,13 +208,13 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     def to_string(cls, graph: Graph) -> str:
         # base data
         node_lines = [
-            f'{node.name} [label="{cls._get_label(node)}", shape={cls.NODE_SHAPE[type(node)]}, fillcolor={cls.NODE_COLOR[type(graph)](graph, node)}];'
+            f'"{node.name}" [label="{cls._get_label(node)}", shape={cls.NODE_SHAPE[type(node)]}, fillcolor={cls.NODE_COLOR[type(graph)](graph, node)}];'
             for node in graph.nodes
         ]
         edge_lines = [
-            f'{src_name} -> {dst.name};'
+            f'"{src_name}" -> "{dst.name}";'
             for dst in graph.nodes
-            if isinstance(dst, OperationNode)
+            if isinstance(dst, Operation)
             for src_name in dst.operands
         ]
 
@@ -363,7 +370,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         @authors: Marco Biasion
     """
 
-    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, OperationNode, Valued]], str]] = {
+    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, Valued, Operation]], str]] = {
         # variables
         # BoolVariable: lambda n: None,
         # IntVariable: lambda n: None,
@@ -371,16 +378,20 @@ class VerilogExporter(GraphExporter[IOGraph]):
         BoolConstant: lambda n: f'{int(n.value)}',
         # IntConstant: lambda n: f'{n.value}',
         # output
-        Copy: lambda n: n.operand,
+        Identity: lambda n: n.operand,
         # Target: lambda n: None,
         # bool-bool operations
         Not: lambda n: f'(~{n.operand})',
         And: lambda n: f'({" & ".join(n.operands)})',
         Or: lambda n: f'({" | ".join(n.operands)})',
+        Xor: lambda n : f'({" ^ ".join(n.operands)})',
+        Xnor: lambda n : f'(~({n.left} ^ {n.right}))',
         Implies: lambda n: f'(~{n.left} | {n.right})',
         # int-int operations
         Sum: lambda n: f'({" + ".join(n.operands)})',
         AbsDiff: lambda n: f'(({n.left} > {n.right}) ? ({n.left} - {n.right}) : ({n.right} - {n.left}))',
+        Mul: lambda n: f'({" * ".join(n.operands)})',
+        Div: lambda n: f'({n.left} / {n.right})',
         # bool-int operations
         # ToInt: lambda n: None,
         # int-bool operations
@@ -394,17 +405,17 @@ class VerilogExporter(GraphExporter[IOGraph]):
         # AtMost: lambda n: None,
         # branching operations
         Multiplexer: lambda n: f'({n.parameter_usage} ? ({n.parameter_assertion} ? {n.origin} : ~{n.origin}) : {n.parameter_assertion})',
-        If: lambda n: f'({n.contition} ? {n.if_true} : {n.if_false})',
+        If: lambda n: f'({n.condition} ? {n.if_true} : {n.if_false})',
     }
 
     @dc.dataclass(frozen=True, eq=False)
-    class VerilogInfo:
-        graph_name: str
-        model_number: int
+    class Info:
+        graph_name: str = 'graph'
+        model_number: int = -1
 
     @classmethod
-    def to_string(cls, graph: IOGraph, info: VerilogInfo = None) -> str:
-        info = info or cls.VerilogInfo('graph', -1)
+    def to_string(cls, graph: IOGraph, info: Info = None) -> str:
+        info = info or cls.Info()
 
         return '\n'.join(filter(bool, (
             f'/* model {info.model_number} */' if info.model_number >= 0 else None,
@@ -421,3 +432,9 @@ class VerilogExporter(GraphExporter[IOGraph]):
             ),
             'endmodule',
         )))
+
+    @classmethod
+    def to_file(cls, graph: T_Graph, filename: str, info: Info = None) -> None:
+        string = cls.to_string(graph, info)
+        with open(filename, 'w') as f:
+            f.write(string)

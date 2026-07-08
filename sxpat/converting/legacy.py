@@ -1,7 +1,7 @@
 from sxpat.annotatedGraph import AnnotatedGraph
 
 from sxpat.graph import IOGraph, SGraph
-from sxpat.graph import BoolVariable, BoolConstant, And, Not, Copy
+from sxpat.graph.node import BoolVariable, BoolConstant, And, Not, Identity
 from sxpat.utils.functions import str_to_bool
 
 
@@ -21,12 +21,12 @@ def _nodes_from_inner_legacy(inner_graph):
         if label.startswith('in'):  # input
             nodes.append(BoolVariable(name, weight, in_subgraph))
         elif label.startswith('out'):  # output
-            nodes.append(Copy(name, weight, in_subgraph, operands))
+            nodes.append(Identity(name, operands, weight, in_subgraph))
         elif label in ('and', 'not'):  # and/not
             cls = {'not': Not, 'and': And}[label]
-            nodes.append(cls(name, weight, in_subgraph, operands))
+            nodes.append(cls(name, operands, weight, in_subgraph))
         elif label in ('FALSE', 'TRUE'):  # constant
-            nodes.append(BoolConstant(name, weight, in_subgraph, str_to_bool(label)))
+            nodes.append(BoolConstant(name, str_to_bool(label), weight, in_subgraph))
         else:
             raise RuntimeError(f'Unable to parse node {name} from AnnotatedGraph ({value})')
 
