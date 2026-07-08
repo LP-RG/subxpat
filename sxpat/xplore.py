@@ -213,12 +213,12 @@ def explore_grid(specs_obj: Specifications):
         print(f'subgraph_extraction_time = {_time}')
         # logging
         if specs_obj.debug:
-            from sxpat.newag import z3log_annotatedgraph_substitute
+            from sxpat.newag import export_annotated_graph
             # construct path
             _path = path_join(specs_obj.path.run.graphviz, f'{extract_name(specs_obj.current_benchmark)}_subgraph.gv')
             _p_path = os.path.relpath(_path, specs_obj.path.run.base_folder)
             # export graph
-            z3log_annotatedgraph_substitute.export_annotated_graph(_MA_current_sgraph, _path)
+            export_annotated_graph(_MA_current_sgraph, _path)
             specs_obj.stats_storage.stage(subgraph_dot=_p_path)
             print(f'subgraph exported at {_path}')
 
