@@ -30,11 +30,7 @@ py_dep: py_init
 	$(IN_ENV) python3 -m pip install --upgrade pip
 	$(IN_ENV) pip install --upgrade -r requirements.txt
 
-local_dep:
-	@echo "\n[[ generating local files ]]"
-	mkdir -p input/ver/ && cp -r input/ver.bak/* input/ver/
-
-setup: py_init py_dep local_dep
+setup: py_init py_dep
 
 rm_data:
 	@echo "\n[[   deleting all final and intermediary data   ]]\n[[ YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION ]]"
@@ -53,4 +49,6 @@ rm_pyenv:
 	@echo "\n[[ removing the virtual python environment ]]"
 	rm -rf $(ENV_NAME)
 
-clean: rm_pyenv rm_cache rm_temp
+clean: rm_cache rm_temp
+
+clean-all: rm_pyenv rm_data clean

@@ -1,33 +1,43 @@
 import sys
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Type, TypeVar, Union, overload
 
-import re
 import math
 import itertools as it
-from sxpat.utils.utils import pprint
 
 from sxpat.graph import *
-from sxpat.graph.Node import Constraint
+from sxpat.graph.node import *
+from sxpat.utils.print import pprint
 
 
 __all__ = [
-    # digest/update graph
-    'unpack_ToInt', 'prune_unused', 'set_bool_constants', 'set_prefix',
+    # digest (to be moved to own sub/module)
+    'unpack_ToInt',
+    # optimization
+    'crystallise',
+    'prune_unused', 'prune_unused_keepio',
+    # assignments
+    'set_bool_constants',
+    # non behavioural changes
+    'set_prefix', 'set_prefix_new',
     # compute graph accessories
     'get_nodes_type', 'get_nodes_bitwidth',
 
-    # expand constraints
-    'prevent_combination',
+    'get_unique_code',
+
+    # others
+    # (this could be in questions? or a new module? maybe called constraints::? or maybe something else)
+    'prevent_assignment',
 ]
+
 
 _N = TypeVar('_N', bound=Node)
 
 
-def unpack_ToInt(graph: _Graph) -> _Graph:
+def unpack_ToInt(graph: T_Graph) -> T_Graph:
     """
         Given a graph, returns a new graph with all ToInt nodes unpacked to a more primitive set of nodes.
 
-        @authors: Marco Biasion 
+        @authors: Marco Biasion
     """
 
     toint_nodes = tuple(
@@ -79,29 +89,46 @@ def unpack_ToInt(graph: _Graph) -> _Graph:
     return graph.copy(nodes)
 
 
-def prune_unused(graph: _Graph) -> _Graph:
+def prune_unused(graph: T_Graph, reserved_names: Iterable[str]) -> T_Graph:
     """
-        Given a graph, returns a new graph without any dangling nodes (recursive).
-        Nodes counted as correct terminations are nodes of class `Copy` (or of subclasses) or of class Bool/IntVariable.
+        Given a graph, returns a new graph without any dangling nodes (recursively).  
+        `reserved_names` represents the nodes that root the graph and that must be kept even if not used.
 
         @authors: Marco Biasion
     """
 
-    # TODO:MARCO: do we want to keep also the variables (probably yes)
-    # termination_nodes = [node.name for node in graph.nodes if isinstance(node, (Copy, ))]
-    termination_nodes = [node.name for node in graph.nodes if isinstance(node, (Copy, BoolVariable, IntVariable))]
+    # convert to stack
+    valid_terminations = list(reserved_names)
 
-    # find reachable nodes from the terminations
+    # find reachable nodes from the reserved ones
     visited_nodes = set()
-    while len(termination_nodes) > 0:
-        node_name = termination_nodes.pop()
+    while valid_terminations:
+        node_name = valid_terminations.pop()
         visited_nodes.add(node_name)
-        termination_nodes.extend(_n.name for _n in graph.predecessors(node_name))
+        valid_terminations.extend(_n.name for _n in graph.predecessors(node_name))
 
-    # filter out non visited nodes
-    nodes = (node for node in graph.nodes if node.name in visited_nodes)
-
+    # keep only visited nodes
+    nodes = (graph[name] for name in visited_nodes)
     return graph.copy(nodes)
+
+
+def prune_unused_keepio(graph: T_IOGraph, reserved_names: Iterable[str] = tuple()) -> T_IOGraph:
+    """
+        Given a graph, returns a new graph without any dangling nodes (recursively).  
+        By default all inputs and outputs root the graph and will be kept,
+        optionally `reserved_names` can be used to select more nodes.
+
+        @authors: Marco Biasion
+    """
+
+    return prune_unused(
+        graph,
+        it.chain(
+            graph.inputs_names,
+            graph.outputs_names,
+            reserved_names,
+        )
+    )
 
 
 def get_nodes_type(graphs: Iterable[Graph],
@@ -122,17 +149,18 @@ def get_nodes_type(graphs: Iterable[Graph],
             if node.name in type_of: continue
 
             # direct cases
-            if isinstance(node, boolean_nodes): type_of[node.name] = bool
-            elif isinstance(node, integer_nodes): type_of[node.name] = int
+            elif isinstance(node, BoolResType): type_of[node.name] = bool
+            elif isinstance(node, IntResType): type_of[node.name] = int
 
             # dynamic cases
-            elif isinstance(node, untyped_nodes):
+            elif isinstance(node, DynamicResType):
                 last_pred = graph.predecessors(node)[-1]
                 type_of[node.name] = type_of[last_pred.name]
 
             # special cases
-            elif isinstance(node, contact_nodes): continue
-            else: raise TypeError('The node has an invalid type')
+            elif isinstance(node, PlaceHolder): continue
+            elif isinstance(node, Objective): continue
+            else: raise TypeError(f'Node {node.name} has an invalid type ({type(node)}).')
 
     return type_of
 
@@ -151,20 +179,26 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
     """
 
     bitwidth_of = dict(initial_mapping)
+    graphs = tuple(graphs)
 
     def manage_node(node: Node):
+        # skippable
+        if isinstance(node, (Target, Constraint)): return
+
         # deferred case (all predecessors of a node should have the same bitwidth)
-        if nodes_types[node.name] is not int:
-            if isinstance(node, OperationNode):
+        elif nodes_types[node.name] is not int:
+            if isinstance(node, Operation):
                 max_bitwidth = max(bitwidth_of.get(n.name, 0) for n in graph.predecessors(node))
                 for n in graph.predecessors(node):
                     bitwidth_of[n.name] = max_bitwidth
 
-        # trivial case
+        # trivial cases
+        elif isinstance(node, IntConstant) and node.name not in bitwidth_of:
+            bitwidth_of[node.name] = max(1, math.ceil(math.log(node.value + 1, 2)))
         elif isinstance(node, ToInt) and node.name not in bitwidth_of:
             bitwidth_of[node.name] = len(node.operands)
 
-        # dynamic case
+        # dynamic case (the bitwidth of the current node must be larger or equal to that of the largest predecessor/successor)
         else:
             max_bitwidth = max(
                 bitwidth_of.get(n.name, 0)
@@ -192,7 +226,7 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
         return get_nodes_bitwidth(graphs, nodes_types, bitwidth_of)
 
 
-def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missing: bool = False) -> _Graph:
+def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missing: bool = False) -> T_Graph:
     """
         Takes a graph and a mapping from names to bool in input
         and returns a new graph with the nodes corresponding to the given names replaced with the wanted constant.
@@ -211,32 +245,41 @@ def set_bool_constants(graph: _Graph, constants: Mapping[str, bool], skip_missin
         if isinstance(graph[name], PlaceHolder): continue
 
         node = graph[name]
-        new_nodes[node.name] = BoolConstant(node.name, node.weight, node.in_subgraph, value)
+
+        new_nodes[node.name] = BoolConstant(node.name, value, node.weight, node.in_subgraph)
 
     return graph.copy(new_nodes.values())
 
 
-def set_prefix(graph: _Graph, prefix: str) -> _Graph:
+def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
     """
+        # DEPRECATED
+        # Use `set_prefix_new` instead
+
         Given a graph and the wanted prefix, returns a new graph with all operation nodes updated with the prefix.
 
         @authors: Marco Biasion
     """
 
-    to_be_updated = frozenset(n.name for n in it.chain(graph.operations, graph.constants))
-    update_name: Callable[[str], str] = lambda name: f'{prefix}{name}' if name in to_be_updated else name
+    to_be_updated = frozenset(n.name for n in it.chain(graph.expressions, graph.constants))
+    updated_names: Mapping[str, str] = {
+        n.name: f'{prefix}{n.name}' if n.name in to_be_updated else n.name
+        for n in graph.nodes
+    }
 
-    nodes = []
+    nodes: List[AnyNode] = []
     for node in graph.nodes:
-        if isinstance(node, OperationNode):
-            operands = (update_name(name) for name in node.operands)
-            nodes.append(node.copy(name=update_name(node.name), operands=operands))
+        if isinstance(node, Operation):
+            operands = (updated_names[name] for name in node.operands)
+            nodes.append(node.copy(name=updated_names[node.name], operands=operands))
         else:
-            nodes.append(node.copy(name=update_name(node.name)))
+            nodes.append(node.copy(name=updated_names[node.name]))
 
-    outputs_names = (f'{prefix}{name}' for name in graph.outputs_names)
+    extras = dict()
+    if isinstance(graph, IOGraph):
+        extras['outputs_names'] = (f'{prefix}{name}' for name in graph.outputs_names)
 
-    return graph.copy(nodes, outputs_names=outputs_names)
+    return graph.copy(nodes, **extras)
 
 def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterable[str]] = None) -> T_Graph:
     """
@@ -274,47 +317,81 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
 
     return graph.copy(nodes, **extras)
 
-def prevent_combination(c_graph: CGraph,
-                        assignments: Mapping[str, bool],
-                        assignment_id: Optional[Any] = None) -> CGraph:
+def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterable[str]] = None) -> T_Graph:
     """
-        Takes a constraints graph and expands it to prevent the given assignment.  
-        It will allow any change, but at least one change is required.
-
-        @note: *TODO: can be expanded to manage also integers (be careful of bitwidth)*  
-        @note: *TODO: can be changed to return new CGraph containing only the assignment prevention logic, instead of returning an updated copy*
+        Given a graph and the wanted prefix, returns a new graph with all nodes names updated with the prefix.  
+        If `preserve_names` is given, the nodes matching those names will not be renamed.
 
         @authors: Marco Biasion
     """
 
-    # get initial nodes
-    nodes = list(c_graph.nodes)
+    if preserve_names is None: preserve_names = frozenset()
+    else: preserve_names = frozenset(preserve_names)
 
-    # add constants (duplicates will be removed internally by the graph)
-    const = ['ccF', 'ccT']  # False/0, True:1
-    nodes.append(BoolConstant(f'ccT', value=True))
-    nodes.append(BoolConstant(f'ccF', value=False))
+    # compute new names
+    new_name_of: Mapping[str, str] = {
+        n.name: n.name if n.name in preserve_names else f'{prefix}{n.name}'
+        for n in graph.nodes
+    }
 
-    # add placeholders (duplicates will be removed internally by the graph)
-    nodes.extend(PlaceHolder(name) for name in assignments)
+    # create updated nodes
+    nodes: List[AnyNode] = []
+    for node in graph.nodes:
+        if isinstance(node, Operation):
+            operands = (new_name_of[name] for name in node.operands)
+            nodes.append(node.copy(name=new_name_of[node.name], operands=operands))
+        else:
+            nodes.append(node.copy(name=new_name_of[node.name]))
 
-    # add NotEquals nodes (duplicates will be removed internally by the graph)
-    old_assignment = tuple(
-        NotEquals(f'{name}_neq_{value}', operands=(name, const[value]))
+    # compute extras
+    extras = dict()
+    if isinstance(graph, IOGraph):
+        extras['inputs_names'] = (new_name_of[name] for name in graph.inputs_names)
+        extras['outputs_names'] = (new_name_of[name] for name in graph.outputs_names)
+    if isinstance(graph, PGraph):
+        extras['parameters_names'] = (new_name_of[name] for name in graph.parameters_names)
+
+    return graph.copy(nodes, **extras)
+
+
+def prevent_assignment(assignments: Mapping[str, bool],
+                       assignment_id: Union[str, int]) -> CGraph:
+    """
+        Returns a CGraph with constraints preventing the given assignment.
+
+        @authors: Marco Biasion
+    """
+
+    # placeholders
+    placeholders = [PlaceHolder(name) for name in assignments]
+
+    #
+    prass_name: Mapping[bool, Callable[[str], str]] = {
+        True: lambda name: f'prass_{assignment_id}_not_{name}',
+        False: lambda name: name,
+    }
+
+    # create required negations
+    negations = [
+        Not(prass_name[True](name), operands=[name])
         for (name, value) in assignments.items()
-    )
-    nodes.extend(old_assignment)
+        if value is True
+    ]
 
-    # add Or aggregate
-    if assignment_id is None:
-        assignment_id = max(it.chain((
-            int(m.group(1))
-            for n in c_graph.nodes
-            if (m := re.match(r'prevent_assignment_(\d+)', n.name))
-        ), (0,)))
-    nodes.append(Or(f'prevent_assignment_{assignment_id}', operands=old_assignment))
+    # create aggregation (and relative constraint)
+    prevention = [
+        prevent := Or(
+            f'prass_{assignment_id}_prevent',
+            operands=[prass_name[value](name) for (name, value) in assignments.items()]
+        ),
+        Constraint(f'prass_{assignment_id}_prevent_constr', operands=[prevent])
+    ]
 
-    return CGraph(nodes)
+    return CGraph(it.chain(
+        placeholders,
+        negations,
+        prevention,
+    ))
 
 
 class crystallise:
@@ -334,9 +411,9 @@ class crystallise:
     T_all_or_nothing = TypeVar(
         'T_all_or_nothing',
         Not,
-        Sum, AbsDiff, Mul, UDiv, ToInt,
+        Sum, AbsDiff, Mul, Div, ToInt,
         Equals, NotEquals, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan,
-        Copy,
+        Identity,
     )
 
     @classmethod
@@ -362,7 +439,9 @@ class crystallise:
             Sum: cls._all_or_nothing_node,
             AbsDiff: cls._all_or_nothing_node,
             Mul: cls._all_or_nothing_node,
-            UDiv: cls._all_or_nothing_node,
+            Div: cls._all_or_nothing_node,
+            RightShift: cls._all_or_nothing_node,
+            LeftShift: cls._all_or_nothing_node,
             # bool to int
             ToInt: cls._all_or_nothing_node,
             # int to bool
@@ -373,7 +452,7 @@ class crystallise:
             GreaterThan: cls._all_or_nothing_node,
             GreaterEqualThan: cls._all_or_nothing_node,
             # identity
-            Copy: cls._all_or_nothing_node,
+            Identity: cls._all_or_nothing_node,
             # branch
             Multiplexer: cls._multiplexer,
             If: cls._if,
@@ -390,13 +469,12 @@ class crystallise:
             # select crystalliser
             try:
                 crystallise = _crystalliser_for[type(node)]
-            except KeyError:
-                pprint.error(f'No crystalliser for {type(node)} is implemented, defaulting to "as is".')
-                print(f'No crystalliser for {type(node)} is implemented, defaulting to "as is".', file=sys.stderr)
-                crystallise = cls._as_is
+            except KeyError as err:
+                pprint.error(f'No crystalliser for {type(node)} is implemented')
+                raise err
 
             # get operands
-            if isinstance(node, OperationNode):
+            if isinstance(node, Operation):
                 operands = []
                 for operand_name in node.operands:
                     operand = new_nodes.get(operand_name, graph[operand_name])
@@ -434,8 +512,8 @@ class crystallise:
     @staticmethod
     def as_other(cls: Type[_N], node: Node,
                  /, *,
-                 operand: Node = ...,
-                 operands: Sequence[Node] = ...,
+                 operand: AnyNode = ...,
+                 operands: Sequence[AnyNode] = ...,
                  value: Union[bool, int] = ...
                  ) -> _N:
         override = dict()
@@ -445,7 +523,7 @@ class crystallise:
         return node_from_node(cls, node, override)
 
     @staticmethod
-    def _find_non_placeholder(name: str, graphs: Iterable[Graph]) -> Union[None, Node, OperationNode, Valued]:
+    def _find_non_placeholder(name: str, graphs: Iterable[Graph]) -> Union[None, Node, Operation, Valued]:
         for graph in graphs:
             if name in graph:
                 node = graph[name]
@@ -488,7 +566,7 @@ class crystallise:
         # a & 1 : a
         # a | 0 : a
         elif len(nc_operands) == 1:
-            return cls.as_other(Copy, node, operand=nc_operands[0])
+            return cls.as_other(Identity, node, operand=nc_operands[0])
 
         # multiple non-constant operands left
         # a & b & 1 : a & b
@@ -498,7 +576,7 @@ class crystallise:
             else: return cls.as_other(type(node), node, operands=nc_operands)
 
     @classmethod
-    def _xor(cls, node: Xor, operands: Sequence[Node], _) -> Union[Xor, BoolConstant, Copy, Not]:
+    def _xor(cls, node: Xor, operands: Sequence[Node], _) -> Union[Xor, BoolConstant, Identity, Not]:
         """@authors: Marco Biasion"""
 
         op_a, op_b = operands
@@ -524,12 +602,12 @@ class crystallise:
             # z ^ 0 :  z
             # z ^ 1 : !z
             if const_op.value is False:
-                return cls.as_other(Copy, node, operand=var_op)
+                return cls.as_other(Identity, node, operand=var_op)
             else:
                 return cls.as_other(Not, node, operand=var_op)
 
     @classmethod
-    def _xnor(cls, node: Implies, operands: Sequence[Node], _) -> Union[Xnor, BoolConstant, Copy, Not]:
+    def _xnor(cls, node: Implies, operands: Sequence[Node], _) -> Union[Xnor, BoolConstant, Identity, Not]:
 
         op_a, op_b = operands
 
@@ -556,10 +634,10 @@ class crystallise:
             if const_op.value is False:
                 return cls.as_other(Not, node, operand=var_op)
             else:
-                return cls.as_other(Copy, node, operand=var_op)
+                return cls.as_other(Identity, node, operand=var_op)
 
     @classmethod
-    def _implies(cls, node: Implies, operands: Sequence[Node], _) -> Union[Implies, BoolConstant, Not, Copy]:
+    def _implies(cls, node: Implies, operands: Sequence[Node], _) -> Union[Implies, BoolConstant, Not, Identity]:
         """@authors: Lorenzo Spada, Marco Biasion"""
 
         op_a, op_b = operands
@@ -595,7 +673,7 @@ class crystallise:
 
             # 1 => b : b
             else:
-                return cls.as_other(Copy, node, operand=op_b)
+                return cls.as_other(Identity, node, operand=op_b)
 
         # no operand is constant
         # a => b
@@ -625,8 +703,10 @@ class crystallise:
                 Sum: lambda ops: sum(op.value for op in ops),  # possible todo: if an operand is const0, gets discarded. if any group of operands sum to 0, they get discarded, not work if unsigned.
                 AbsDiff: lambda ops: abs(ops[0].value - ops[1].value),  # possible todo: if one is 0, becomes identity of other
                 Mul: lambda ops: math.prod(op.value for op in ops),
-                UDiv: lambda ops: ops[0].value // ops[1].value,
+                Div: lambda ops: ops[0].value // ops[1].value,
                 ToInt: lambda ops: sum(op.value * (2 ** i) for (i, op) in enumerate(ops)),
+                RightShift: lambda ops: ops[0].value // (2 ** node.value),
+                LeftShift: lambda ops: ops[0].value * (2 ** node.value),
                 # bool to int
                 Equals: lambda ops: ops[0].value == ops[1].value,
                 NotEquals: lambda ops: ops[0].value != ops[1].value,
@@ -635,7 +715,7 @@ class crystallise:
                 GreaterThan: lambda ops: ops[0].value > ops[1].value,
                 GreaterEqualThan: lambda ops: ops[0].value >= ops[1].value,  # possible todo:if unsigned and right=0, becomes true
                 # identity
-                Copy: lambda ops: ops[0].value,
+                Identity: lambda ops: ops[0].value,
             }[type(node)]
 
             return cls.as_constant(node, operation(operands))
@@ -654,7 +734,7 @@ class crystallise:
             return node
 
     @classmethod
-    def _multiplexer(cls, node: Multiplexer, operands: Sequence[Node], _) -> Union[Multiplexer, BoolConstant, Copy, Not, Implies]:
+    def _multiplexer(cls, node: Multiplexer, operands: Sequence[Node], _) -> Union[Multiplexer, BoolConstant, Identity, Not, Implies]:
         """@authors: Marco Biasion, Lorenzo Spada"""
 
         a, b, c = operands
@@ -693,7 +773,7 @@ class crystallise:
                 (0, 0): lambda: cls.as_constant(node, False),
                 (0, 1): lambda: cls.as_constant(node, True),
                 (1, 0): lambda: cls.as_other(Not, node, operand=a),
-                (1, 1): lambda: cls.as_other(Copy, node, operand=a),
+                (1, 1): lambda: cls.as_other(Identity, node, operand=a),
             }[(b.value, c.value)]()
 
         # 0 (b,0) :  b
@@ -702,7 +782,7 @@ class crystallise:
         # 1 (b,1) :  1
         elif a_const and c_const:
             return {  # (a, c)
-                (0, 0): lambda: cls.as_other(Copy, node, operand=b),
+                (0, 0): lambda: cls.as_other(Identity, node, operand=b),
                 (0, 1): lambda: cls.as_other(Not, node, operand=b),
                 (1, 0): lambda: cls.as_constant(node, False),
                 (1, 1): lambda: cls.as_constant(node, True),
@@ -714,10 +794,10 @@ class crystallise:
         # 1 (1,c) :  c
         elif a_const and b_const:
             return {  # (a, b)
-                (0, 0): lambda: cls.as_other(Copy, node, operand=c),
+                (0, 0): lambda: cls.as_other(Identity, node, operand=c),
                 (0, 1): lambda: cls.as_other(Not, node, operand=c),
-                (1, 0): lambda: cls.as_other(Copy, node, operand=c),
-                (1, 1): lambda: cls.as_other(Copy, node, operand=c),
+                (1, 0): lambda: cls.as_other(Identity, node, operand=c),
+                (1, 1): lambda: cls.as_other(Identity, node, operand=c),
             }[(a.value, b.value)]()
 
         # - 2 variables
@@ -733,7 +813,7 @@ class crystallise:
         # a (1,c) : a xnor c
         elif b_const:
             return {  # b
-                0: lambda: cls.as_other(Copy, node, operand=c),
+                0: lambda: cls.as_other(Identity, node, operand=c),
                 1: lambda: cls.as_other(Xnor, node, operands=(a, c)),
             }[b.value]()
 
@@ -742,7 +822,7 @@ class crystallise:
         elif a_const:
             return {  # a
                 0: lambda: cls.as_other(Xor, node, operands=(b, c)),
-                1: lambda: cls.as_other(Copy, node, operand=c),
+                1: lambda: cls.as_other(Identity, node, operand=c),
             }[a.value]()
 
         # - 3 variables
@@ -765,7 +845,7 @@ class crystallise:
 
             # (0) ?,c : c
             else:
-                return cls.as_other(Copy, node, operand=c)
+                return cls.as_other(Identity, node, operand=c)
 
         # condition is constant true
         # (1) b,? : b
@@ -776,7 +856,7 @@ class crystallise:
 
             # (1) b,? : b
             else:
-                return cls.as_other(Copy, node, operand=b)
+                return cls.as_other(Identity, node, operand=b)
 
         # branches are constant and equal
         # (?) k,k : k
@@ -856,10 +936,10 @@ def node_is_false(node: Union[Node, BoolConstant]) -> bool:
 def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N:
     # get common fields
     kwargs = {'name': node.name}
-    if hasattr(cls, 'weight') and hasattr(node, 'weight'):
+    if issubclass(cls, Extras) and isinstance(node, Extras):
         kwargs['weight'] = node.weight
         kwargs['in_subgraph'] = node.in_subgraph
-    if issubclass(cls, OperationNode) and isinstance(node, OperationNode):
+    if issubclass(cls, Operation) and isinstance(node, Operation):
         kwargs['operands'] = node.operands
     if issubclass(cls, Valued) and isinstance(node, Valued):
         kwargs['value'] = node.value
@@ -869,3 +949,43 @@ def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N
 
     # create new node
     return cls(**kwargs)
+
+
+class get_unique_code:
+    """
+        Returns a unique alphabetical code made of upper and lower case letters.
+
+        The first 2704 calls use a two-letter format (AA..zz).
+        After that, the code grows to three letters, then four, and so on.
+    """
+
+    _chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    _size = 2
+
+    def __new__(cls):
+        if not hasattr(cls, '_idx'): cls._idx = -1
+        cls._idx += 1
+        return cls.prefix_for_index(cls._idx)
+
+    @classmethod
+    def prefix_for_index(cls, idx: int) -> str:
+        if idx < 0:
+            raise ValueError('idx must be non-negative')
+
+        base = len(cls._chars)
+        size = cls._size
+        span = base ** size
+
+        # Keep the historical AA..zz sequence for the first two-letter block,
+        # then extend to longer codes instead of overflowing the alphabet.
+        while idx >= span:
+            idx -= span
+            size += 1
+            span = base ** size
+
+        digits = []
+        for _ in range(size):
+            idx, rem = divmod(idx, base)
+            digits.append(cls._chars[rem])
+
+        return ''.join(reversed(digits))
