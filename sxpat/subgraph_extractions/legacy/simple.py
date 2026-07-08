@@ -12,7 +12,7 @@ from z3 import (
     sat, is_true
 )
 
-from sxpat.config.config import WEIGHT
+from sxpat.constants.misc import WEIGHT
 from sxpat.graph.graph import IOGraph
 from sxpat.specifications import Specifications
 

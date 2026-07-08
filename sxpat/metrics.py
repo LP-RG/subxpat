@@ -4,7 +4,6 @@ import re
 import subprocess
 import functools as ft
 
-from .config import config as sxpatconfig
 from sxpat.utils.names import extract_name
 from sxpat.utils.decorators import make_utility_class
 from sxpat.specifications import Paths
@@ -117,10 +116,10 @@ class MetricsEstimator:
         )
 
         # > execute commands
-        yosys_result = subprocess.run([sxpatconfig.YOSYS, '-QT'],
+        yosys_result = subprocess.run(['yosys', '-QT'],
                                       input=yosys_command, text=True,
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        sta_result = subprocess.run([sxpatconfig.OPENSTA, '-no_splash'],
+        sta_result = subprocess.run(['sta', '-no_splash'],
                                     input=sta_command, text=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 

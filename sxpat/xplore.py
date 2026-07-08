@@ -14,9 +14,9 @@ from sxpat.newag import load_circuit_from_verilog
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
 from sxpat.graph import IOGraph
 
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
 
-from sxpat.config.config import UNKNOWN, SAT
+from sxpat.constants.misc import UNKNOWN, SAT
 
 from sxpat.utils.filesystem import FS
 from sxpat.utils.names import extract_name
@@ -293,6 +293,7 @@ def explore_grid(specs_obj: Specifications):
             question = [_MA_exact_graph, param_circ, *param_circ_constr, *base_question]
             #
             models = []
+            status = UNKNOWN
             for i in range(specs_obj.wanted_models):
                 specs_obj.sub_iteration = f'ca{lpp}_cb{ppo}_m{i}'
 
@@ -303,10 +304,10 @@ def explore_grid(specs_obj: Specifications):
                 status, model = solve(question, specs_obj)
 
                 # terminate if status is not sat, otherwise store the model
-                if status != 'sat': break
+                if status != SAT: break
                 models.append(model)
             #
-            if len(models) > 0: status = 'sat'
+            if len(models) > 0: status = SAT
             # logging
             _cell_time = Timer.now() - _cell_time
             specs_obj.stats_storage.stage(
@@ -316,7 +317,7 @@ def explore_grid(specs_obj: Specifications):
             )
 
             # skip if no model found
-            if len(models) == 0:
+            if status == SAT:
                 # if UNKNOWN, store cell as dominant (to skip dominated subgrid)
                 if status == UNKNOWN: dominant_cells.append((lpp, ppo))
 
@@ -440,7 +441,7 @@ def error_evaluation(reference_circuit: IOGraph, current_circuit: IOGraph, specs
     status, model = Z3DirectBitVecSolver.solve((reference_circuit, p_graph, c_graph), specs_obj)
 
     #
-    assert status == 'sat'
+    assert status == SAT
     assert len(model) == 1
 
     # return the only value (the absolute distance between the two circuits)
