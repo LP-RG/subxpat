@@ -2332,6 +2332,8 @@ class AnnotatedGraph(Graph):
 
                 # =============================
 
+        # COMPONENT START: Signal Propagation Constraints (SP)
+        # i)
         # Define input edges
         for source in input_edges:
             edge_in_holder = []
@@ -2344,6 +2346,7 @@ class AnnotatedGraph(Graph):
 
             partition_input_edges.append(Or(edge_in_holder))
 
+        # ii)
         # Define gate edges and data structures containing the edge weights
         edge_w = {}
         edge_constraint = {}
@@ -2367,6 +2370,7 @@ class AnnotatedGraph(Graph):
                 edge_constraint[source] = Or(edge_out_holder)
             partition_output_edges.append(Or(edge_out_holder))
 
+        # iii)
         # Define output edges
         for output_id in output_edges:
             predecessor = output_edges[output_id][
@@ -2379,6 +2383,7 @@ class AnnotatedGraph(Graph):
             if predecessor not in edge_constraint:
                 edge_constraint[predecessor] = e_out
             partition_output_edges.append(e_out)
+        # COMPONENT END: Signal Propagation Constraints (SP)
 
         # Create graph of the cicuit without input and output nodes
         G = nx.DiGraph()
@@ -2409,6 +2414,7 @@ class AnnotatedGraph(Graph):
                 gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
             # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
 
+        # COMPONENT START: Convexity and Structural Constraints (CS)
         descendants = {}
         ancestors = {}
         for n in G:
@@ -2420,18 +2426,21 @@ class AnnotatedGraph(Graph):
         # Generate convexity constraints
         for source in gate_edges:
             for destination in gate_edges[source]:
+                # i)
                 if len(descendants[destination]) > 0:  # Constraints on output edges
                     not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
                     not_descendants.append(Not(gate_literals[destination]))
                     descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
                                                   And(not_descendants))
                     opt.add(descendat_condition)
+                # ii) 
                 if len(ancestors[source]) > 0:  # Constraints on input edges
                     not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
                     not_ancestors.append(Not(gate_literals[source]))
                     ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
                                                  And(not_ancestors))
                     opt.add(ancestor_condition)
+        # COMPONENT END: Convexity and Structural Constraints (CS)
 
         # Set input nodes to False
         for input_node_id in input_literals:
@@ -2441,19 +2450,27 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        # i)
         # Add constraints on the number of input/output edges
         if imax is not None:
             opt.add(Sum(partition_input_edges) <= imax)
         if omax is not None:
             opt.add(Sum(partition_output_edges) <= omax)
 
+        # COMPONENT START: Feasibility and Filtering Constraints (FF)
+        # i)
         feasibility_constraints = []
         for s in edge_w:
             if gate_weight[s] <= feasibility_treshold and gate_weight[s] != -1:
                 print(s, "is feasible", gate_weight[s])
                 feasibility_constraints.append(edge_constraint[s])
-        opt.add(Sum(feasibility_constraints) >= 1)
 
+        # ii-Strategy A)
+        opt.add(Sum(feasibility_constraints) >= 1)
+        # COMPONENT END: Feasibility and Filtering Constraints (FF)
+
+        # ii)
         # Generate function to maximize
         for gate_id in gate_literals:
             max_func.append(gate_literals[gate_id])
@@ -2461,6 +2478,7 @@ class AnnotatedGraph(Graph):
 
         opt.maximize(Sum(max_func))
 
+        # iii)
         # =========================== Skipping the nodes that are not labeled ================================
         skipped_nodes = []
         for node in self.graph.nodes:
@@ -2479,7 +2497,9 @@ class AnnotatedGraph(Graph):
         opt.add(skipped_nodes_constraints)
 
         # ====================================================================================================
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
+        # COMPONENT START: Penalty-based Soft Constraints (PS)
         # =========================== Coming up with a penalty for each subgraph =============================
         penalty = Int('penalty')
 
@@ -2487,18 +2507,24 @@ class AnnotatedGraph(Graph):
         penalty_coefficient = 1
         for s in edge_w:
             if gate_weight[s] > feasibility_treshold:
+        # i)
                 output_individual_penalty.append(If(gate_literals[s],
                                                     penalty_coefficient * (gate_weight[s] - feasibility_treshold),
                                                     0))
         opt.add(penalty == Sum(output_individual_penalty))
+        # ii-Strategy A)
         opt.add_soft(Sum(output_individual_penalty) <= 2 * feasibility_treshold, weight=1)
 
         # ========================================================
+        # COMPONENT END: Penalty-based Soft Constraints (PS)
 
         # opt.add(Sum(max_func) > 1)
         # ======================== Check for multiple subgraphs =======================================
+
+        # COMPONENT START: Multi-Partition Iteration Engine (MPE)
         all_partitions = {}
         count = specs_obj.num_subgraphs
+        # i)
         while count > 0:
             node_partition = []
             pprint.info1(f'Attempt {count}: ', end='')
@@ -2518,10 +2544,14 @@ class AnnotatedGraph(Graph):
 
             else:
                 count = 0
+        
 
+            # COMPONENT START: Optimization and Selection Constraints (OS)
+            # iv)
             # Check partition convexity
             if not is_selection_convex(G, node_partition):
                 raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+            # COMPONENT END: Optimization and Selection Constraints (OS)
 
             # ========================================================================
             if c == sat:
@@ -2531,8 +2561,13 @@ class AnnotatedGraph(Graph):
                 print(f'{current_penalty}, {node_partition}')
                 all_partitions[count] = (current_penalty, node_partition)
             count -= 1
+
+        # COMPONENT END: Multi-Partition Iteration Engine (MPE)
         # ================================================================
         # =======================Pick the Subgraph with the lowest penalty ==============================
+
+        # COMPONENT START: Multi-Partition Iteration Engine (MPE)
+        # ii-Strategy A)
         if all_partitions:
             sorted_partitions = dict(
                 sorted(
@@ -2545,7 +2580,8 @@ class AnnotatedGraph(Graph):
                 print(f'{sorted_partitions[par] = }')
             penalty, node_partition = next(iter(sorted_partitions.values()))
             print(f'{penalty, node_partition}')
-
+        # COMPONENT END: Multi-Partition Iteration Engine (MPE)
+        
         # ================================================================
 
         return [self.gate_dict[idx] for idx in node_partition]
