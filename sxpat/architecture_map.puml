@@ -18,7 +18,6 @@ title
     <i>Architectural Traceability Diagram</i>: Component Library to Algorithm Mapping
 end title
 
-
 package "Component Library" #D9D7B6 {
     [Signal Propagation Constraints] as SP
     [Convexity and Structural Constraints] as CS
@@ -53,8 +52,6 @@ package "Algorithms" {
         [Algorithm 100] as A100
     }
 }
-
-[Component Library] -[hidden]down-> [Algorithms]
 
 ' (Mapping)
 ' mapping dependencies for 'Signal Propagation Constraints'
