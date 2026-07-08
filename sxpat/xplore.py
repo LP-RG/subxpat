@@ -317,7 +317,7 @@ def explore_grid(specs_obj: Specifications):
             )
 
             # skip if no model found
-            if status == SAT:
+            if status != SAT:
                 # if UNKNOWN, store cell as dominant (to skip dominated subgrid)
                 if status == UNKNOWN: dominant_cells.append((lpp, ppo))
 
