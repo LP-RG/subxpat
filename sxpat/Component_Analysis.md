@@ -305,10 +305,10 @@
             Logic: __Implies(And(Not(src), dest), And(Not(ancestors)))__
 
         Optimization and Selection Constraints:
-        i) Gate Count Maximization:
+        ii) Gate Count Maximization:
             Purpose: Shifts the optimization goal from maximizing total weighted utility to maximizing the total number of logic gates (density) within the partition.
             Logic: __opt.maximize(Sum(max_func))__
-        ii) Mandatory Inactivity (skipped_nodes):
+        iii) Mandatory Inactivity (skipped_nodes):
             Purpose: Explicitly excludes nodes marked with *WEIGHT == -1*, ensuring they are treated as inactive and are not included in the final node_partition.
             Logic: __node_literal == False__
         iv) Structural Integrity Audit (Local Graph Context)

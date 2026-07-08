@@ -1158,7 +1158,7 @@ class AnnotatedGraph(Graph):
         # COMPONENT END: Sensitivity Budget Constraints (SB)
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
-        # i)
+        # ii)
         # Generate function to maximize
         for gate_id in gate_literals:
             max_func.append(gate_literals[gate_id])
@@ -1166,7 +1166,7 @@ class AnnotatedGraph(Graph):
         # Add function to maximize to the solver
         opt.maximize(Sum(max_func))
 
-        # ii)
+        # iii)
         # =========================== Skipping the nodes that are not labeled ================================
         skipped_nodes = []
         for node in self.graph.nodes:
