@@ -3,7 +3,7 @@ skinparam componentStyle uml2
 left to right direction
 
 skinparam nodesep 50
-skinparam ranksep 400
+skinparam Ranksep 400
 skinparam titleFontSize 25
 
 <style>
@@ -53,6 +53,8 @@ package "Algorithms" {
         [Algorithm 100] as A100
     }
 }
+
+[Component Library] -[hidden]down-> [Algorithms]
 
 ' (Mapping)
 ' mapping dependencies for 'Signal Propagation Constraints'
