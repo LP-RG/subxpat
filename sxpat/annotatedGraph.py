@@ -1773,6 +1773,8 @@ class AnnotatedGraph(Graph):
         :return: an annotated graph in which the extracted subgraph is colored
         """
 
+        # COMPONENT START: Symbolic Topology Management (STM)
+        # i) Architecture Initialization
         # loose bound but since it's logarithmic it's still ok
         NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates))
 
@@ -1794,6 +1796,7 @@ class AnnotatedGraph(Graph):
         nodes = {}
         edges = []
 
+        # ii) Graph Data Ingestion
         for in_idx in self.input_dict:
             node_label = self.input_dict[in_idx]
             weight = self.graph.nodes[node_label][WEIGHT]
@@ -1840,6 +1843,7 @@ class AnnotatedGraph(Graph):
             opt.add(Edge.target(edge) == nodes[des])
             edges.append(edge)
 
+        # iii) Symbolic Cut & Flow Analysis
         unique_outgoing_edges = []
         unique_incoming_edges = []
 
@@ -1868,6 +1872,7 @@ class AnnotatedGraph(Graph):
         # max_nodes = [  for edge in edges]
         # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), NUM_BITS) for node in nodes.values()]
 
+        # iv) Node-Level Structural Integrity
         descendants = {}
         ancestors = {}
         for node in nodes:
@@ -1895,9 +1900,11 @@ class AnnotatedGraph(Graph):
                     )
                     opt.add(ancestor_condition)
 
+        # iii) Symbolic Cut & Flow Analysis
         opt.add(Sum(unique_incoming_edges) <= imax)
         opt.add(Sum(unique_outgoing_edges) <= omax)
 
+        # v) Formal Feasibility Filter
         feasibility_constraints = [
             Implies(
                 And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),
@@ -1908,6 +1915,7 @@ class AnnotatedGraph(Graph):
 
         opt.add(And(feasibility_constraints))
 
+        # vi) Optimization & Maximization Objective
         h = opt.maximize(Sum(max_nodes))
 
         # inputs = Int('inputs')
@@ -1951,11 +1959,14 @@ class AnnotatedGraph(Graph):
                         node_partition.append(str(t))
                         n_nodes += 1
 
+        # vii)  Structural Integrity Audit (Global Graph Context)
         # Check partition convexity
         if not is_selection_convex(self.graph, node_partition):
             raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
         node_partition_idx = [int(re.search('g(\d+)', node).group(1)) for node in node_partition]
+        # COMPONENT END: Symbolic Topology Management (STM)
+
         return [self.gate_dict[idx] for idx in node_partition_idx]
 
     def get_null_subgraph(self) -> nx.DiGraph:
