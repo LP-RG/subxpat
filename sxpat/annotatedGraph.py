@@ -1020,6 +1020,8 @@ class AnnotatedGraph(Graph):
 
                 # =============================
 
+        # COMPONENT START: Signal Propagation Constraints (SP)
+        # i)
         # Define input edges
         for source in input_edges:
             edge_in_holder = []
@@ -1032,6 +1034,7 @@ class AnnotatedGraph(Graph):
 
             partition_input_edges.append(Or(edge_in_holder))
 
+        # ii)
         # Define gate edges and data structures containing the edge weights
         edge_w = {}
         edge_constraint = {}
@@ -1055,6 +1058,7 @@ class AnnotatedGraph(Graph):
                 edge_constraint[source] = Or(edge_out_holder)
             partition_output_edges.append(Or(edge_out_holder))
 
+        # iii)
         # Define output edges
         for output_id in output_edges:
             predecessor = output_edges[output_id][
@@ -1067,6 +1071,7 @@ class AnnotatedGraph(Graph):
             if predecessor not in edge_constraint:
                 edge_constraint[predecessor] = e_out
             partition_output_edges.append(e_out)
+        # COMPONENT END: Signal Propagation Constraints (SP)
 
         # Create graph of the cicuit without input and output nodes
         G = nx.DiGraph()
@@ -1086,6 +1091,7 @@ class AnnotatedGraph(Graph):
                 G.add_node(source)
         # ===================================
 
+        # COMPONENT START: Sensitivity Budget Constraints (SB)
         # Generate structure with gate weights
         gate_weight = {}
         for gate_idx in G.nodes:
@@ -1098,11 +1104,14 @@ class AnnotatedGraph(Graph):
         for gate_id in gate_weight:
             max_weight = max(max_weight, gate_weight[gate_id])
 
+        # ii)
         # Update gate weights so that gate_weight = max_weight - max_weight
         for gate_id in gate_weight:
             gate_weight[gate_id] = max_weight - gate_weight[
                 gate_id] + 1  # + 1 must be removed, I'm leaving it just for the initial debugging phase
+        # COMPONENT START: Sensitivity Budget Constraints (SB)
 
+        # COMPONENT START: Convexity and Structural Constraints (CS)
         descendants = {}
         ancestors = {}
         for n in G:
@@ -1114,18 +1123,21 @@ class AnnotatedGraph(Graph):
         # Generate convexity constraints
         for source in gate_edges:
             for destination in gate_edges[source]:
+                # i)
                 if len(descendants[destination]) > 0:  # Constraints on output edges
                     not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
                     not_descendants.append(Not(gate_literals[destination]))
                     descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
                                                   And(not_descendants))
                     opt.add(descendat_condition)
+                # ii)
                 if len(ancestors[source]) > 0:  # Constraints on input edges
                     not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
                     not_ancestors.append(Not(gate_literals[source]))
                     ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
                                                  And(not_ancestors))
                     opt.add(ancestor_condition)
+        # COMPONENT END: Convexity and Structural Constraints (CS)
 
         # Set input nodes to False
         for input_node_id in input_literals:
@@ -1135,12 +1147,18 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
+        # COMPONENT START: Sensitivity Budget Constraints (SB)
+        # i)
         sensitivity_constraints = []
         for s in edge_w:
             sensitivity_constraints.append(edge_constraint[s] * edge_w[s])
 
         opt.add(Sum(sensitivity_constraints) <= sensitivity_t)
         # print(f'{sensitivity_constraints = }')
+        # COMPONENT END: Sensitivity Budget Constraints (SB)
+
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        # i)
         # Generate function to maximize
         for gate_id in gate_literals:
             max_func.append(gate_literals[gate_id])
@@ -1148,6 +1166,7 @@ class AnnotatedGraph(Graph):
         # Add function to maximize to the solver
         opt.maximize(Sum(max_func))
 
+        # ii)
         # =========================== Skipping the nodes that are not labeled ================================
         skipped_nodes = []
         for node in self.graph.nodes:
@@ -1177,9 +1196,11 @@ class AnnotatedGraph(Graph):
                     gate_id = int(str(t)[2:])
                     node_partition.append(gate_id)  # Gates inside the partition
 
+        # iv)
         # Check partition convexity
         if not is_selection_convex(G, node_partition):
             raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
         return [self.gate_dict[idx] for idx in node_partition]
 
