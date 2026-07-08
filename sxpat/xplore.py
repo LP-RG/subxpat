@@ -44,14 +44,14 @@ from sxpat.labelling.labelling import Labelling
 
 
 def explore_grid(specs_obj: Specifications):
-
     # initial setup
     # store circuits
     FS.copy(specs_obj.exact_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'origin.v'))
     specs_obj.exact_benchmark = tmp
     FS.copy(specs_obj.current_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'current.v'))
     specs_obj.current_benchmark = tmp
-    # constant metrics
+    # load exact circuit and compute its metrics
+    exact_graph = load_circuit_from_verilog(specs_obj.exact_benchmark, specs_obj.path.run)
     exact_circuit_metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, specs_obj.exact_benchmark, specs_obj.path.run.temporary)
 
     #
@@ -71,6 +71,8 @@ def explore_grid(specs_obj: Specifications):
         origin_circuit_power=exact_circuit_metrics.power,
         origin_circuit_delay=exact_circuit_metrics.delay,
     )
+
+    #
     previous_graphs: List[SGraph] = list()
     obtained_wce_exact = 0
     specs_obj.iteration = 0
@@ -176,9 +178,7 @@ def explore_grid(specs_obj: Specifications):
 
         # import the graph
         _time = Timer.now()
-        _MA_current_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
-        _MA_exact_graph = load_circuit_from_verilog(specs_obj.exact_benchmark, specs_obj.path.run)
-
+        current_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
         _time = Timer.now() - _time
         # logging
         specs_obj.stats_storage.stage(annotated_graphs_initialization_time=_time)
@@ -189,11 +189,11 @@ def explore_grid(specs_obj: Specifications):
             print('started labelling')
             _time = Timer.now()
 
-            weights = label_graph(_MA_current_graph, specs_obj)
-            for (i, n) in enumerate(_MA_current_graph.outputs_names):
+            weights = label_graph(current_graph, specs_obj)
+            for (i, n) in enumerate(current_graph.outputs_names):
                 weights[n] = 2 ** i
 
-            _MA_current_graph = iograph_with_weights(_MA_current_graph, weights)
+            current_graph = iograph_with_weights(current_graph, weights)
             _time = Timer.now() - _time
 
             # logging
@@ -202,18 +202,18 @@ def explore_grid(specs_obj: Specifications):
 
         # extract subgraph
         _time = Timer.now()
-        subgraph_nodes = extract_subgraph(_MA_current_graph, specs_obj)
+        subgraph_nodes = extract_subgraph(current_graph, specs_obj)
         subgraph_is_available = len(subgraph_nodes) > 0
-        _MA_current_sgraph = iograph_to_sgraph(_MA_current_graph, subgraph_nodes)
+        current_graph = iograph_to_sgraph(current_graph, subgraph_nodes)
         _time = Timer.now() - _time
-        previous_graphs.append(_MA_current_sgraph)
+        previous_graphs.append(current_graph)
 
         # logging
         specs_obj.stats_storage.stage(
             subgraph_extraction_time=_time,
-            subgraph_nodes_count=len(_MA_current_sgraph.subgraph_nodes),
-            subgraph_inputs_count=len(_MA_current_sgraph.subgraph_inputs),
-            subgraph_outputs_count=len(_MA_current_sgraph.subgraph_outputs),
+            subgraph_nodes_count=len(current_graph.subgraph_nodes),
+            subgraph_inputs_count=len(current_graph.subgraph_inputs),
+            subgraph_outputs_count=len(current_graph.subgraph_outputs),
         )
         print(f'subgraph_extraction_time = {_time}')
         # logging
@@ -223,7 +223,7 @@ def explore_grid(specs_obj: Specifications):
             _path = path_join(specs_obj.path.run.graphviz, f'{extract_name(specs_obj.current_benchmark)}_subgraph.gv')
             _p_path = os.path.relpath(_path, specs_obj.path.run.base_folder)
             # export graph
-            export_annotated_graph(_MA_current_sgraph, _path)
+            export_annotated_graph(current_graph, _path)
             specs_obj.stats_storage.stage(subgraph_dot=_p_path)
             print(f'subgraph exported at {_path}')
 
@@ -255,7 +255,7 @@ def explore_grid(specs_obj: Specifications):
             _cell_time = Timer.now()
             print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
 
-            if lpp > len(_MA_current_sgraph.subgraph_inputs):
+            if lpp > len(current_graph.subgraph_inputs):
                 pprint.info3('SKIPPED (lpp > #subgraph_inputs)')
                 continue
 
@@ -276,12 +276,12 @@ def explore_grid(specs_obj: Specifications):
 
             # define template (and relative constraints)
             _time = Timer.now()
-            param_circ, *param_circ_constr = get_templater(specs_obj).define(_MA_current_sgraph, specs_obj)
+            param_circ, *param_circ_constr = get_templater(specs_obj).define(current_graph, specs_obj)
             _time_define = Timer.now() - _time
             # define question
             _time = Timer.now()
             base_question = exists_parameters.not_above_threshold_forall_inputs(
-                _MA_current_sgraph, param_circ,
+                current_graph, param_circ,
                 AbsoluteDifferenceOfInteger, specs_obj.et,
             )
             _time_define += Timer.now() - _time
@@ -290,7 +290,7 @@ def explore_grid(specs_obj: Specifications):
 
             # prepare solver/question
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
-            question = [_MA_exact_graph, param_circ, *param_circ_constr, *base_question]
+            question = [exact_graph, param_circ, *param_circ_constr, *base_question]
             #
             models = []
             status = UNKNOWN
@@ -368,8 +368,8 @@ def explore_grid(specs_obj: Specifications):
                     print(f'erreval_annotated_graph_loading_time = {_time}')
 
                     # compute errors relative to origin and previous
-                    candidate_data.error_to_origin = _error_evaluation(_MA_exact_graph, cur_graph, specs_obj)
-                    candidate_data.error_to_previous = _error_evaluation(_MA_current_sgraph, cur_graph, specs_obj)
+                    candidate_data.error_to_origin = _error_evaluation(exact_graph, cur_graph, specs_obj)
+                    candidate_data.error_to_previous = _error_evaluation(current_graph, cur_graph, specs_obj)
 
                     #
                     if candidate_data.error_to_origin > specs_obj.et:
