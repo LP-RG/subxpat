@@ -29,6 +29,7 @@ __all__ = [
     'find_subgraph_feasible_hard_datatype_bitvec',
     'find_subgraph_feasible_hard_datatype_bitvec_mintreshold',
     'slash_to_kill',
+    'find_subgraph_output_nodes_ascendant',
 ]
 
 
@@ -264,6 +265,91 @@ def _solve_and_extract(optimizer, max_nodes, h, circuit: IOGraph) -> List[str]:
 
     return node_partition
 
+def _declare_ancestor_datatypes():
+    Node = Datatype("Node")
+    Node.declare(
+        "mk_node",
+        ("id", BitVecSort(32)),
+        ("in_subgraph", BoolSort()),
+    )
+    Node = Node.create()
+
+    Edge = Datatype("Edge")
+    Edge.declare(
+        "mk_edge",
+        ("source", Node),
+        ("target", Node),
+    )
+    Edge = Edge.create()
+
+    return Node, Edge
+
+def _setup_output_ancestor_problem(
+    circuit: IOGraph,
+    specs: Specifications,
+):
+    graph = circuit._inner
+
+    optimizer = Optimize()
+
+    Node, Edge = _declare_ancestor_datatypes()
+
+    output_name = circuit.outputs_names[specs.out_node]
+
+    if output_name not in graph:
+        return None
+
+    ancestors_output = sorted(nx.ancestors(graph, output_name))
+
+    available_nodes = {
+        n for n in ancestors_output
+        if n.startswith("g")
+    }
+
+    z3_nodes = {}
+    constraints = []
+
+    ids = itertools.count()
+
+    all_nodes = (
+        list(circuit.inputs_names)
+        + [n.name for n in circuit.nodes]
+        + list(circuit.outputs_names)
+        + [n.name for n in circuit.constants]
+    )
+
+    for name, idx in zip(all_nodes, ids):
+        z3_nodes[name] = node = Node.mk_node(
+            BitVecVal(idx, 32),
+            Bool(name)
+        )
+
+        if (
+            name in circuit.inputs_names
+            or name in circuit.outputs_names
+            or name in [n.name for n in circuit.constants]
+            or name not in available_nodes
+        ):
+            constraints.append(
+                Node.in_subgraph(node) == BoolVal(False)
+            )
+
+    optimizer.add(constraints)
+
+    z3_edges = [
+        Edge.mk_edge(z3_nodes[src], z3_nodes[dst])
+        for src, dst in graph.edges()
+    ]
+
+    return (
+        optimizer,
+        Node,
+        Edge,
+        z3_nodes,
+        z3_edges,
+        graph,
+        ancestors_output,
+    )
 
 def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
     optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = _setup_problem(circuit, specs)
@@ -371,3 +457,105 @@ def slash_to_kill(
     optimizer.add(ULE(feasibility_sum, BitVecVal(specs.et, bit_width)))
 
     return _solve_and_extract(optimizer, max_nodes, h, circuit)
+
+def find_subgraph_output_nodes_ascendant(
+    circuit: IOGraph,
+    specs: Specifications,
+) -> List[str]:
+
+    graph = circuit._inner
+
+    output_name = circuit.outputs_names[specs.out_node]
+
+    if output_name not in graph:
+        return []
+
+    constants = {n.name for n in circuit.constants}
+
+    ancestors_output = sorted(nx.ancestors(graph, output_name))
+
+    gate_ancestors = [
+        n
+        for n in ancestors_output
+        if n.startswith("g")
+    ]
+
+    if (
+        len(gate_ancestors) == 1
+        and gate_ancestors[0] in constants
+    ):
+        specs.out_node += 1
+        specs.persistance_counter = 0
+        if specs.out_node >= specs.outputs:
+            return []
+
+        output_name = circuit.outputs_names[specs.out_node]
+        ancestors_output = sorted(nx.ancestors(graph, output_name))
+        gate_ancestors = [
+            n
+            for n in ancestors_output
+            if n.startswith("g")
+        ]
+
+    print(circuit.outputs_names)
+    print(specs.out_node, gate_ancestors)
+    setup = _setup_output_ancestor_problem(
+        circuit,
+        specs,
+    )
+
+    if setup is None:
+        return []
+
+    (
+        optimizer,
+        Node,
+        Edge,
+        z3_nodes,
+        z3_edges,
+        graph,
+        ancestors_output,
+    ) = setup
+
+    z3_subinputs, z3_suboutputs = _add_boundary_edges(
+        graph,
+        Node,
+        z3_nodes,
+        32,
+    )
+
+    _add_convexity(
+        optimizer,
+        graph,
+        Node,
+        z3_nodes,
+    )
+
+    optimizer.add(Sum(z3_subinputs) <= specs.imax)
+    optimizer.add(Sum(z3_suboutputs) <= specs.omax)
+
+    max_nodes = [
+        If(
+            Node.in_subgraph(n),
+            BitVecVal(1, 32),
+            BitVecVal(0, 32),
+        )
+        for n in z3_nodes.values()
+    ]
+
+    h = optimizer.maximize(Sum(max_nodes))
+
+    node_partition = _solve_and_extract(
+        optimizer,
+        max_nodes,
+        h,
+        circuit,
+    )
+
+    if specs.persistance_counter == specs.persistance:
+        specs.out_node += 1
+        specs.persistance_counter = 0
+    else:
+        specs.persistance_counter += 1
+
+    return node_partition

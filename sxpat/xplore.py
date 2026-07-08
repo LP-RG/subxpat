@@ -231,9 +231,9 @@ def explore_grid(specs_obj: Specifications):
             continue
 
         # guard: skip if the subraph is equal to the previous one
-        # note:  does not apply for extraction mode 6
+        # note:  does not apply for extraction mode 6 and 0
         if (
-            specs_obj.extraction_mode != 6
+            specs_obj.extraction_mode != 6 and specs_obj.extraction_mode != 0
             and len(previous_graphs) >= 2
             and nx.is_isomorphic(previous_graphs[-2], previous_graphs[-1], node_match=node_matcher)
         ):
@@ -535,16 +535,17 @@ def print_current_model(
 
 def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
     return {
-        # 1: find_subgraph,
-        # 2: find_subgraph_sensitivity,
-        # 3: find_subgraph_sensitivity_no_io_constraints,
-        # 4: find_subgraph_feasible,
-        # 5: find_subgraph_feasible_hard,
+        0: find_subgraph_output_nodes_ascendant,
+        1: find_subgraph,
+        2: find_subgraph_sensitivity,
+        3: find_subgraph_sensitivity_no_io_constraints,
+        4: find_subgraph_feasible,
+        5: find_subgraph_feasible_hard,
         55: find_subgraph_feasible_hard_datatype_bitvec,
         6: find_subgraph_feasible_hard_datatype_bitvec_mintreshold,
         100: slash_to_kill,
-        # 11: find_subgraph_feasible_soft,
-        # 12: find_subgraph_feasible_soft_outputs,
+        11: find_subgraph_feasible_soft,
+        12: find_subgraph_feasible_soft_outputs,
     }[specs_obj.extraction_mode](circuit, specs_obj)
 
 

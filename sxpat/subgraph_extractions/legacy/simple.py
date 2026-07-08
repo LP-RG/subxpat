@@ -17,6 +17,7 @@ from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.config.config import WEIGHT
 from sxpat.graph.graph import IOGraph
 from sxpat.specifications import Specifications
+from sxpat.newag import z3log_graph_substitute
 
 from sxpat.utils.graph import is_selection_convex
 
@@ -250,7 +251,7 @@ def _extract_gates_weights(
     id_to_gate: Mapping[int, str],
 ) -> Dict[int, int]:
     return {
-        _id: graph.nodes[id_to_gate[_id]][WEIGHT]
+        _id: next(iter(graph.nodes[id_to_gate[_id]].values())).weight
         for _id in gates_graph.nodes
     }
 
@@ -307,24 +308,18 @@ def _solve_and_verify(
     return node_partition
 
 
-def find_subgraph(circuit: AnnotatedGraph, _circuit:IOGraph, specs: Specifications) -> List[str]:
+def find_subgraph(circuit:IOGraph, specs: Specifications) -> List[str]:
     """
     Extract a subgraph, maximising the number of nodes in the subgraph (1).  
         (1) does this only if all weights are equal.
 
     :return: the sequence of nodes composing the subgraph
     """
-
+    raise NotImplementedError("Not implemented yet talk with Marco or Lorenzo")
     # prepare
-    graph: nx.DiGraph = _circuit._inner
-    _nodes_ids = {
-        i: g.name
-        for i, g in enumerate(_circuit.nodes)
-    }
-    # TODO:HERE LORENZO MARCO
-    # constants_ids: Container[int] = circuit.constant_dict.keys()
-    # constants_ids: Container[int] = frozenset(c.name for c in _circuit.constants)
-    g_gates: Mapping[int, str] = circuit.gate_dict
+    graph: nx.DiGraph = circuit._inner
+    input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
+    constants_ids: Container[int] = constant_dict.keys()
 
     # literals
     (input_literals, gate_literals, output_literals) = literals = _encode_literals(graph, constants_ids)
@@ -341,7 +336,7 @@ def find_subgraph(circuit: AnnotatedGraph, _circuit:IOGraph, specs: Specificatio
     G = _generate_gates_graph(graph, constants_ids)
 
     # extract weights
-    gates_weight = _extract_gates_weights(graph, G, g_gates)
+    gates_weight = _extract_gates_weights(graph, G, gate_dict)
     # find max weight
     max_weight = max(gates_weight.values())
     # update weights with their complement (max_weight - gates_weight)
@@ -375,21 +370,23 @@ def find_subgraph(circuit: AnnotatedGraph, _circuit:IOGraph, specs: Specificatio
 
     # solve, verify and extract partition
     _partition = _solve_and_verify(opt, G)
-    return [g_gates[_i] for _i in _partition]
+    return [gate_dict[_i] for _i in _partition]
 
 
-def find_subgraph_sensitivity(circuit: AnnotatedGraph, _circuit: IOGraph, specs: Specifications) -> List[str]:
+def find_subgraph_sensitivity(circuit: IOGraph, specs: Specifications) -> List[str]:
     """
     Extract a subgraph, enforcing the sum of the weights of subgraph ouputs to be upper bounded by the `sensitivity`.
 
     :return: the sequence of nodes composing the subgraph
     """
+    raise NotImplementedError("Not implemented yet talk with Marco or Lorenzo")
 
     # prepare
+    assert specs.sensitivity is not None, "must pass --sensitivity"
     sensitivity_threshold = specs.sensitivity
-    graph: nx.DiGraph = _circuit._inner
-    constants_ids: Container[int] = circuit.constant_dict.keys()
-    g_gates: Mapping[int, str] = circuit.gate_dict
+    graph: nx.DiGraph = circuit._inner
+    input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
+    constants_ids: Container[int] = constant_dict.keys()
 
     # literals
     (input_literals, gate_literals, output_literals) = literals = _encode_literals(graph, constants_ids)
@@ -406,7 +403,7 @@ def find_subgraph_sensitivity(circuit: AnnotatedGraph, _circuit: IOGraph, specs:
     G = _generate_gates_graph(graph, constants_ids)
 
     # extract weights
-    gates_weight = _extract_gates_weights(graph, G, g_gates)
+    gates_weight = _extract_gates_weights(graph, G, gate_dict)
     # find max weight
     max_weight = max(gates_weight.values())
     # update weights with their complement (max_weight - gates_weight)
@@ -425,6 +422,7 @@ def find_subgraph_sensitivity(circuit: AnnotatedGraph, _circuit: IOGraph, specs:
         _edge * gates_weight[_id]  # TODO:marco: should this be If(_edge, ..., 0) ?
         for (_id, _edge) in z3_suboutput_edges.items()
     ]
+    print(_weighted_subout_edges, sensitivity_threshold)
     opt.add(Sum(_weighted_subout_edges) <= sensitivity_threshold)
 
     # generate function to maximize
@@ -446,11 +444,11 @@ def find_subgraph_sensitivity(circuit: AnnotatedGraph, _circuit: IOGraph, specs:
 
     # solve, verify and extract partition
     _partition = _solve_and_verify(opt, G)
-    return [g_gates[_i] for _i in _partition]
+    return [gate_dict[_i] for _i in _partition]
 
 
 def find_subgraph_sensitivity_no_io_constraints(
-    circuit: AnnotatedGraph,
+    circuit: IOGraph,
     specs: Specifications,
 ) -> List[str]:
     """
@@ -468,7 +466,7 @@ def find_subgraph_sensitivity_no_io_constraints(
 
 
 def _find_subgraph_feasible(
-    circuit: AnnotatedGraph,
+    circuit: IOGraph,
     specs: Specifications,
     required_feasible_outputs: Optional[int] = None,
 ) -> List[str]:
@@ -479,12 +477,13 @@ def _find_subgraph_feasible(
         `None` means that all subgraph outputs must be fasible
     :return: the sequence of nodes composing the subgraph
     """
+    raise NotImplementedError("Not implemented yet talk with Marco or Lorenzo")
 
     # prepare
     feasibility_threshold = specs.et
-    graph: nx.DiGraph = circuit.graph
-    constants_ids: Container[int] = circuit.constant_dict.keys()
-    g_gates: Mapping[int, str] = circuit.gate_dict
+    graph: nx.DiGraph = circuit._inner
+    input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
+    constants_ids: Container[int] = constant_dict.keys()
 
     # literals
     (input_literals, gate_literals, output_literals) = literals = _encode_literals(graph, constants_ids)
@@ -501,7 +500,7 @@ def _find_subgraph_feasible(
     G = _generate_gates_graph(graph, constants_ids)
 
     # extract weights
-    gates_weight = _extract_gates_weights(graph, G, g_gates)
+    gates_weight = _extract_gates_weights(graph, G, gate_dict)
 
     # convexity constraints
     opt.add(_encode_convexity_constraints(gate_literals, gate_edges, G))
@@ -540,11 +539,11 @@ def _find_subgraph_feasible(
 
     # solve, verify and extract partition
     _partition = _solve_and_verify(opt, G)
-    return [g_gates[_i] for _i in _partition]
+    return [gate_dict[_i] for _i in _partition]
 
 
 def find_subgraph_feasible(
-    circuit: AnnotatedGraph,
+    circuit: IOGraph,
     specs: Specifications,
 ) -> List[str]:
     """
@@ -557,7 +556,7 @@ def find_subgraph_feasible(
 
 
 def find_subgraph_feasible_hard(
-    circuit: AnnotatedGraph,
+    circuit: IOGraph,
     specs: Specifications,
 ) -> List[str]:
     """
@@ -570,20 +569,21 @@ def find_subgraph_feasible_hard(
 
 
 def find_subgraph_feasible_soft(
-    circuit: AnnotatedGraph,
+    circuit: IOGraph,
     specs: Specifications,
 ) -> List[str]:
     """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
     """
+    raise NotImplementedError("Not implemented yet talk with Marco or Lorenzo")
 
     # prepare
     feasibility_threshold = specs.et
     count = specs.num_subgraphs
-    graph: nx.DiGraph = circuit.graph
-    constants_ids: Container[int] = circuit.constant_dict.keys()
-    g_gates: Mapping[int, str] = circuit.gate_dict
+    graph: nx.DiGraph = circuit._inner
+    input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
+    constants_ids: Container[int] = constant_dict.keys()
 
     # literals
     (input_literals, gate_literals, output_literals) = literals = _encode_literals(graph, constants_ids)
@@ -600,7 +600,7 @@ def find_subgraph_feasible_soft(
     G = _generate_gates_graph(graph, constants_ids)
 
     # extract weights
-    gates_weight = _extract_gates_weights(graph, G, g_gates)
+    gates_weight = _extract_gates_weights(graph, G, gate_dict)
 
     # convexity constraints
     opt.add(_encode_convexity_constraints(gate_literals, gate_edges, G))
@@ -697,26 +697,27 @@ def find_subgraph_feasible_soft(
         penalty, node_partition = next(iter(sorted_partitions.values()))
         print(f'{penalty, node_partition}')
 
-    return [g_gates[_i] for _i in node_partition]
+    return [gate_dict[_i] for _i in node_partition]
 
 
 def find_subgraph_feasible_soft_outputs(
-    circuit: AnnotatedGraph,
+    circuit: IOGraph,
     specs: Specifications,
 ) -> Tuple[List[str], Dict]:
     """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
     """
+    raise NotImplementedError("Not implemented yet talk with Marco or Lorenzo")
 
     # prepare
     feasibility_threshold = specs.et
     count = specs.num_subgraphs
     imax = specs.imax
     omax = specs.omax
-    graph: nx.DiGraph = circuit.graph
-    constants_ids: Container[int] = circuit.constant_dict.keys()
-    g_gates: Mapping[int, str] = circuit.gate_dict
+    graph: nx.DiGraph = circuit._inner
+    input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
+    constants_ids: Container[int] = constant_dict.keys()
 
     # literals
     (input_literals, gate_literals, output_literals) = literals = _encode_literals(graph, constants_ids)
@@ -733,7 +734,7 @@ def find_subgraph_feasible_soft_outputs(
     G = _generate_gates_graph(graph, constants_ids)
 
     # extract weights
-    gates_weight = _extract_gates_weights(graph, G, g_gates)
+    gates_weight = _extract_gates_weights(graph, G, gate_dict)
 
     # convexity constraints
     opt.add(_encode_convexity_constraints(gate_literals, gate_edges, G))
@@ -777,8 +778,8 @@ def find_subgraph_feasible_soft_outputs(
             continue
         e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
 
-        if graph.nodes[g_gates[predecessor]][WEIGHT] > feasibility_threshold:
-            this_output_penalty = graph.nodes[g_gates[predecessor]][WEIGHT] - feasibility_threshold
+        if graph.nodes[gate_dict[predecessor]][WEIGHT] > feasibility_threshold:
+            this_output_penalty = graph.nodes[gate_dict[predecessor]][WEIGHT] - feasibility_threshold
             partition_output_edges_penalty.append(e_out * this_output_penalty)
 
     penalty_output = Int('penalty_output')
@@ -857,6 +858,6 @@ def find_subgraph_feasible_soft_outputs(
     # ================================================================
 
     return (
-        [g_gates[_i] for _i in node_partition],
+        [gate_dict[_i] for _i in node_partition],
         sorted_partitions
     )

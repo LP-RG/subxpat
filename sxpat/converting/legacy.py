@@ -88,7 +88,7 @@ def iograph_from_digraph(clean_digraph: nx.DiGraph) -> IOGraph:
             raise RuntimeError(f'Unable to parse node {node} from DiGraph (attributes={attrs})')
 
     # construct graph
-    return IOGraph(nodes, inputs_names, outputs_names)
+    return IOGraph(nodes, sorted(inputs_names, key= lambda x : int(x[2:])), sorted(outputs_names, key= lambda x : int(x[3:])))
 
 
 def iograph_with_weights(graph: IOGraph, weights: Mapping[str, int]) -> IOGraph:
