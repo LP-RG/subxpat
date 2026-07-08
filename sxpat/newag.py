@@ -68,7 +68,6 @@ class export_annotated_graph:
         '}}',
     ))
 
-    @classmethod
     def __new__(cls, circuit: SGraph, path: str):
         inputs = frozenset(circuit.inputs_names)
         outputs = frozenset(circuit.outputs_names)

@@ -12,12 +12,9 @@ from z3 import (
     sat, is_true
 )
 
-from sxpat.annotatedGraph import AnnotatedGraph
-
 from sxpat.config.config import WEIGHT
 from sxpat.graph.graph import IOGraph
 from sxpat.specifications import Specifications
-# from sxpat.newag import z3log_graph_substitute
 
 from sxpat.utils.graph import is_selection_convex
 
@@ -308,7 +305,7 @@ def _solve_and_verify(
     return node_partition
 
 
-def find_subgraph(circuit:IOGraph, specs: Specifications) -> List[str]:
+def find_subgraph(circuit: IOGraph, specs: Specifications) -> List[str]:
     """
     Extract a subgraph, maximising the number of nodes in the subgraph (1).  
         (1) does this only if all weights are equal.
@@ -318,7 +315,7 @@ def find_subgraph(circuit:IOGraph, specs: Specifications) -> List[str]:
     raise NotImplementedError("Not implemented yet talk with Marco or Lorenzo")
     # prepare
     graph: nx.DiGraph = circuit._inner
-    input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
+    # input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
     constants_ids: Container[int] = constant_dict.keys()
 
     # literals
@@ -385,7 +382,7 @@ def find_subgraph_sensitivity(circuit: IOGraph, specs: Specifications) -> List[s
     assert specs.sensitivity is not None, "must pass --sensitivity"
     sensitivity_threshold = specs.sensitivity
     graph: nx.DiGraph = circuit._inner
-    input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
+    # input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
     constants_ids: Container[int] = constant_dict.keys()
 
     # literals
@@ -482,7 +479,7 @@ def _find_subgraph_feasible(
     # prepare
     feasibility_threshold = specs.et
     graph: nx.DiGraph = circuit._inner
-    input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
+    # input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
     constants_ids: Container[int] = constant_dict.keys()
 
     # literals
@@ -582,7 +579,7 @@ def find_subgraph_feasible_soft(
     feasibility_threshold = specs.et
     count = specs.num_subgraphs
     graph: nx.DiGraph = circuit._inner
-    input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
+    # input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
     constants_ids: Container[int] = constant_dict.keys()
 
     # literals
@@ -716,7 +713,7 @@ def find_subgraph_feasible_soft_outputs(
     imax = specs.imax
     omax = specs.omax
     graph: nx.DiGraph = circuit._inner
-    input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
+    # input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
     constants_ids: Container[int] = constant_dict.keys()
 
     # literals

@@ -16,8 +16,6 @@ from z3 import (
     sat, is_true
 )
 
-from sxpat.annotatedGraph import AnnotatedGraph
-
 from sxpat.config.config import WEIGHT
 from sxpat.graph.graph import IOGraph
 from sxpat.specifications import Specifications

@@ -8,6 +8,8 @@ import networkx as nx
 import os
 from os.path import join as path_join
 
+from sxpat.graph.graph import SGraph
+from sxpat.graph.node import Extras, Node
 from sxpat.newag import load_circuit_from_verilog
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
 from sxpat.graph import IOGraph
@@ -68,7 +70,7 @@ def explore_grid(specs_obj: Specifications):
         origin_circuit_power=exact_circuit_metrics.power,
         origin_circuit_delay=exact_circuit_metrics.delay,
     )
-    previous_graphs = []
+    previous_graphs: List[SGraph] = list()
     obtained_wce_exact = 0
     specs_obj.iteration = 0
     persistence = 0
@@ -203,7 +205,8 @@ def explore_grid(specs_obj: Specifications):
         subgraph_is_available = len(subgraph_nodes) > 0
         _MA_current_sgraph = iograph_to_sgraph(_MA_current_graph, subgraph_nodes)
         _time = Timer.now() - _time
-        previous_graphs.append(_MA_current_sgraph._inner)
+        previous_graphs.append(_MA_current_sgraph)
+        input('asdasd')
 
         # logging
         specs_obj.stats_storage.stage(
@@ -237,7 +240,7 @@ def explore_grid(specs_obj: Specifications):
         if (
             specs_obj.extraction_mode != 6 and specs_obj.extraction_mode != 0
             and len(previous_graphs) >= 2
-            and nx.is_isomorphic(previous_graphs[-2], previous_graphs[-1], node_match=node_matcher)
+            and are_circuits_equal(previous_graphs[-2], previous_graphs[-1])
         ):
             prev_actual_error = 0
             # logging
@@ -592,12 +595,18 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     return weights
 
 
-def node_matcher(n1: dict, n2: dict) -> bool:
-    """Return if two node data dicts represent the same semantic node"""
-    return (
-        n1.get('label') == n2.get('label')
-        and n1.get('subgraph', 0) == n2.get('subgraph', 0)
-    )
+def are_circuits_equal(g1: SGraph, g2: SGraph) -> bool:
+    class _Node(Node, Extras): ...
+
+    def node_matcher(_n1: dict, _n2: dict) -> bool:
+        n1: _Node = _n1[SGraph.K]
+        n2: _Node = _n2[SGraph.K]
+        return (
+            type(n1) == type(n2)
+            and n1.in_subgraph == n2.in_subgraph
+        )
+
+    return nx.is_isomorphic(g1._inner, g2._inner, node_match=node_matcher)
 
 
 @dc.dataclass
