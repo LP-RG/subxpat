@@ -17,7 +17,7 @@ from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.config.config import WEIGHT
 from sxpat.graph.graph import IOGraph
 from sxpat.specifications import Specifications
-from sxpat.newag import z3log_graph_substitute
+# from sxpat.newag import z3log_graph_substitute
 
 from sxpat.utils.graph import is_selection_convex
 

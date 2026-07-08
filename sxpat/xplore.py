@@ -37,6 +37,8 @@ from sxpat.solvers import Z3DirectBitVecSolver
 from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
 
+from sxpat.labelling.labelling import Labelling
+
 
 def explore_grid(specs_obj: Specifications):
 
@@ -552,11 +554,7 @@ def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
 def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     """This function adds the labels inplace to the given graph"""
 
-    # imports
-    from sxpat.labelling.labelling import Labelling
-    from sxpat.labelling.qbf_labelling import label_node
     from sxpat.graph.node import BoolVariable
-    import time
 
     # settings
     if specs_obj.partial_labeling:
@@ -565,7 +563,6 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     else:
         partial_cutoff = 2**len(circuit.outputs_names)
 
-    # WIP: update parameters
     reference: IOGraph = circuit
     to_be_labelled: IOGraph = circuit
 
@@ -578,53 +575,21 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
                     nodes_to_label.add(ancestor)
     nodes_to_label = sorted(nodes_to_label)
 
-    # WIP
+    # TODO: MARCO
     folder = 'labelling_scripts'
     os.makedirs(folder, exist_ok=True)
 
-    # testing qbf
-    _time = time.perf_counter()
-    solver_weights = dict()
-    for n in nodes_to_label:
-        solver_weights[n] = label_node(reference, to_be_labelled, n, specs_obj)
-    print('qbf labelling time: ', time.perf_counter() - _time)
-
-    # testing new labelling without functions
-    _time = time.perf_counter()
-    labeller = Labelling(
-        reference, to_be_labelled, folder,
-        minimize=specs_obj.min_labeling,
-        use_functions=False,
-    )
-    new_weights = labeller.label_graph(
-        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
-        parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
-    )
-    print('new labelling time: ', time.perf_counter() - _time)
-
-    # testing new labelling with functions
-    _time = time.perf_counter()
-    func_weights = dict()
     labeller = Labelling(
         reference, to_be_labelled, folder,
         minimize=specs_obj.min_labeling,
         use_functions=True,
     )
-    func_weights = labeller.label_graph(
+    weights = labeller.label_graph(
         partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
         parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
     )
-    print('func labelling time:', time.perf_counter() - _time)
 
-    # show differences, if any
-    for k in nodes_to_label:
-        _w0 = solver_weights[k]
-        _w1 = new_weights[k]
-        _w2 = func_weights[k]
-        diff = (_w0 != _w1 or _w1 != _w2)
-        if diff: print(f'different {_w0: <4}: {_w1: >3} / {_w2: >3} <---------')
-
-    return new_weights
+    return weights
 
 
 def node_matcher(n1: dict, n2: dict) -> bool:
