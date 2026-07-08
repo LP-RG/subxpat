@@ -14,11 +14,14 @@ def extract(graph: nx.DiGraph, specs: Specifications) -> Sequence[str]:
     # show graph
     export(graph, before_path)
     print(f'please open file "{before_path}" to view the graph.')
-
+    
+    # COMPONENT START: Interactive & Diagnostic Tools (IDT)
+    # i) Interactive Selection Loop
     while True:
         # parse selected nodes
         selected_nodes = input('what nodes should be in the subgraph? write the names separated by spaces\n').split()
 
+        # ii) Validation & Topological Guardrail
         # check nodes existance
         if not all(n in graph.nodes for n in selected_nodes):
             print('some of the selected nodes are not present in the graph')
@@ -29,6 +32,7 @@ def extract(graph: nx.DiGraph, specs: Specifications) -> Sequence[str]:
             print('the selected nodes do not form a convex subgraph')
             continue
 
+        # iii) Visualization & Feedback Loop
         # show resulting subgraph
         export(graph, after_path, selected_nodes)
         print(f'please open file "{after_path}" to view the selection.')
@@ -40,6 +44,7 @@ def extract(graph: nx.DiGraph, specs: Specifications) -> Sequence[str]:
         if choice == 'N': continue
 
         return selected_nodes
+    # COMPONENT END: Interactive & Diagnostic Tools (IDT)
 
 
 def export(graph: nx.DiGraph, path: str, colored: Iterable[str] = ()):
