@@ -571,22 +571,10 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     reference: IOGraph = circuit
     to_be_labelled: IOGraph = circuit
 
-    # select nodes to label (all non-input ancestors of outputs under the cutoff)
-    nodes_to_label = set()
-    for (i, output) in enumerate(to_be_labelled.outputs_names):
-        if 2**i <= partial_cutoff:
-            for ancestor in nx.ancestors(to_be_labelled._inner, output):
-                if not isinstance(to_be_labelled[ancestor], BoolVariable):
-                    nodes_to_label.add(ancestor)
-    nodes_to_label = sorted(nodes_to_label)
-
-    # create folder
-    folder = os.path.join(specs_obj.path.run.solver_scripts, f'labelling_{specs_obj.iteration}')
-    os.makedirs(folder, exist_ok=True)
-
     #
     labeller = Labelling(
-        reference, to_be_labelled, folder,
+        reference, to_be_labelled, 
+        specs_obj,
         minimize=specs_obj.min_labeling,
         use_functions=True,
     )

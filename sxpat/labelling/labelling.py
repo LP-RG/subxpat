@@ -11,6 +11,7 @@ from multiprocessing.pool import ThreadPool
 
 from sxpat.graph import IOGraph
 from sxpat.graph.node import BoolConstant, Node, And, Not, BoolVariable
+from sxpat.specifications import Specifications
 
 
 class Labelling:
@@ -29,8 +30,6 @@ class Labelling:
         '__base_script', '__cached_weights', '__lock',
     ]
 
-    __id: ClassVar[int] = -1
-
     REFERENCE_PREFIX: ClassVar = 'r_'
     LABELLING_PREFIX: ClassVar = 'l_'
     NODES_TO_Z3PY: ClassVar = {
@@ -42,14 +41,13 @@ class Labelling:
     def __init__(
         self,
         reference: IOGraph, to_be_labelled: IOGraph,
-        scripts_folder: str,
+        specs: Specifications,
         *,
         minimize: bool,
         use_functions: bool = True,
     ):
         # prepare folder
-        type(self).__id += 1
-        self._base_path = path_join(scripts_folder, f'labelling{self.__id}')
+        self._base_path = path_join(specs.path.run.solver_scripts, f'labelling{specs.iteration}')
         os.makedirs(self._base_path, exist_ok=True)
 
         #
