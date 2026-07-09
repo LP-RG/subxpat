@@ -79,8 +79,6 @@ class Labelling:
     #iterating through all the zones
 
     def label_all_zones(self, node_to_label:str, input1_zone, input2_zone, beta):
-
-
         zone_weights={}
         for zone in self.zone_generator(input1_zone, input2_zone, beta):
             weight = self.label_node(node_to_label, zone)
