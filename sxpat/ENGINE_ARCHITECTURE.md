@@ -146,7 +146,7 @@
     Components Utilized:
         + Signal Propagation Constraints
         + Convexity and Structural Constraints
-        + Optimization and Selection Constraints (i, ii, iv)
+        + Optimization and Selection Constraints (ii, iii, iv)
         + Sensitivity Budget Constraints (i, ii)
 
 - __Algorithm 4: find_subgraph_feasible__

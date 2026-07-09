@@ -530,52 +530,29 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of input/output edges
-        if imax is not None:
-            opt.add(Sum(partition_input_edges) <= imax)
-        if omax is not None:
-            opt.add(Sum(partition_output_edges) <= omax)
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_io_limits(
+        opt, 
+        specs_obj.imax, 
+        specs_obj.omax, 
+        partition_input_edges, 
+        partition_output_edges
+        )
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
-        # Generate function to maximize
-        for gate_id in gate_literals:
-            max_func.append(gate_literals[gate_id] * gate_weight[gate_id])
-
-        # Add function to maximize to the solver
-        opt.maximize(Sum(max_func))
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_maximization(opt, gate_literals, gate_weight)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
         # =========================== Skipping the nodes that are not labeled ================================
-        skipped_nodes = []
-        for node in self.graph.nodes:
-            if self.graph.nodes[node][WEIGHT] == -1:
-                if node.startswith('g'):
-                    node_literal = f'{node[0:1]}_{node[1:]}'
-                elif node.startswith('in'):
-                    node_literal = f'{node[0:2]}_{node[2:]}'
-                elif node.startswith('out'):
-                    node_literal = f'{node[0:3]}_{node[3:]}'
-                else:
-                    print(f'Node is neither input, output, nor gate')
-                    raise
-                skipped_nodes.append(Bool(node_literal))
-        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
-        opt.add(skipped_nodes_constraints)
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.exclude_skipped_nodes(opt, self.graph)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
         # ====================================================================================================
 
-        node_partition = []
-        if opt.check() == sat:
-            m = opt.model()
-            for t in m.decls():
-                if 'g' not in str(t):  # Look only the literals associate to the gates
-                    continue
-                if is_true(m[t]):
-                    gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
-
-        # Check partition convexity
-        if not is_selection_convex(G, node_partition):
-            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
-
-        return [self.gate_dict[idx] for idx in node_partition]
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        subgraph_nodes = ComponentManager.check_convexity(opt, self.graph, self.gate_dict)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
     def find_subgraph_sensitivity(self, specs_obj: Specifications) -> List[str]:
         """
@@ -729,11 +706,15 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of input/output edges
-        if imax is not None:
-            opt.add(Sum(partition_input_edges) <= imax)
-        if omax is not None:
-            opt.add(Sum(partition_output_edges) <= omax)
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_io_limits(
+        opt, 
+        specs_obj.imax, 
+        specs_obj.omax, 
+        partition_input_edges, 
+        partition_output_edges
+        )
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
         sensitivity_constraints = []
         for s in edge_w:
@@ -741,45 +722,19 @@ class AnnotatedGraph(Graph):
 
         opt.add(Sum(sensitivity_constraints) <= sensitivity_t)
 
-        # Generate function to maximize
-        for gate_id in gate_literals:
-            max_func.append(gate_literals[gate_id])
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_maximization(opt, gate_literals)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
-        # Add function to maximize to the solver
-        opt.maximize(Sum(max_func))
         # =========================== Skipping the nodes that are not labeled ================================
-        skipped_nodes = []
-        for node in self.graph.nodes:
-            if self.graph.nodes[node][WEIGHT] == -1:
-                if node.startswith('g'):
-                    node_literal = f'{node[0:1]}_{node[1:]}'
-                elif node.startswith('in'):
-                    node_literal = f'{node[0:2]}_{node[2:]}'
-                elif node.startswith('out'):
-                    node_literal = f'{node[0:3]}_{node[3:]}'
-                else:
-                    print(f'Node is neither input, output, nor gate')
-                    raise
-                skipped_nodes.append(Bool(node_literal))
-        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
-        opt.add(skipped_nodes_constraints)
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.exclude_skipped_nodes(opt, self.graph)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
         # ====================================================================================================
-        node_partition = []
-        if opt.check() == sat:
-            # print(opt.model())
-            m = opt.model()
-            for t in m.decls():
-                if 'g' not in str(t):  # Look only the literals associate to the gates
-                    continue
-                if is_true(m[t]):
-                    gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
-
-        # Check partition convexity
-        if not is_selection_convex(G, node_partition):
-            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
-
-        return [self.gate_dict[idx] for idx in node_partition]
+        
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        subgraph_nodes = ComponentManager.check_convexity(opt, self.graph, self.gate_dict)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
     def find_subgraph_sensitivity_no_io_constraints(self, specs_obj: Specifications) -> List[str]:
         """
@@ -936,47 +891,20 @@ class AnnotatedGraph(Graph):
 
         opt.add(Sum(sensitivity_constraints) <= sensitivity_t)
         # print(f'{sensitivity_constraints = }')
-        # Generate function to maximize
-        for gate_id in gate_literals:
-            max_func.append(gate_literals[gate_id])
-        # print(f'{max_func = }')
-        # Add function to maximize to the solver
-        opt.maximize(Sum(max_func))
+
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_maximization(opt, gate_literals)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
         # =========================== Skipping the nodes that are not labeled ================================
-        skipped_nodes = []
-        for node in self.graph.nodes:
-            if self.graph.nodes[node][WEIGHT] == -1:
-                if node.startswith('g'):
-                    node_literal = f'{node[0:1]}_{node[1:]}'
-                elif node.startswith('in'):
-                    node_literal = f'{node[0:2]}_{node[2:]}'
-                elif node.startswith('out'):
-                    node_literal = f'{node[0:3]}_{node[3:]}'
-                else:
-                    print(f'Node is neither input, output, nor gate')
-                    raise
-                skipped_nodes.append(Bool(node_literal))
-        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
-        opt.add(skipped_nodes_constraints)
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.exclude_skipped_nodes(opt, self.graph)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
         # ====================================================================================================
 
-        node_partition = []
-        if opt.check() == sat:
-            # print(opt.model())
-            m = opt.model()
-            for t in m.decls():
-                if 'g' not in str(t):  # Look only the literals associate to the gates
-                    continue
-                if is_true(m[t]):
-                    gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
-
-        # Check partition convexity
-        if not is_selection_convex(G, node_partition):
-            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
-
-        return [self.gate_dict[idx] for idx in node_partition]
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        subgraph_nodes = ComponentManager.check_convexity(opt, self.graph, self.gate_dict)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
     def find_subgraph_feasible(self, specs_obj: Specifications) -> List[str]:
         """
@@ -1125,11 +1053,15 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of input/output edges
-        if imax is not None:
-            opt.add(Sum(partition_input_edges) <= imax)
-        if omax is not None:
-            opt.add(Sum(partition_output_edges) <= omax)
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_io_limits(
+        opt, 
+        specs_obj.imax, 
+        specs_obj.omax, 
+        partition_input_edges, 
+        partition_output_edges
+        )
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
         feasibility_constraints = []
         for s in edge_w:
@@ -1140,45 +1072,19 @@ class AnnotatedGraph(Graph):
 
         opt.add(Sum(feasibility_constraints) >= 1)
 
-        # Generate function to maximize
-        for gate_id in gate_literals:
-            max_func.append(gate_literals[gate_id])
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_maximization(opt, gate_literals)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
-        # Add function to maximize to the solver
-        opt.maximize(Sum(max_func))
         # =========================== Skipping the nodes that are not labeled ================================
-        skipped_nodes = []
-        for node in self.graph.nodes:
-            if self.graph.nodes[node][WEIGHT] == -1:
-                if node.startswith('g'):
-                    node_literal = f'{node[0:1]}_{node[1:]}'
-                elif node.startswith('in'):
-                    node_literal = f'{node[0:2]}_{node[2:]}'
-                elif node.startswith('out'):
-                    node_literal = f'{node[0:3]}_{node[3:]}'
-                else:
-                    print(f'Node is neither input, output, nor gate')
-                    raise
-                skipped_nodes.append(Bool(node_literal))
-        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
-        opt.add(skipped_nodes_constraints)
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.exclude_skipped_nodes(opt, self.graph)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
         # ====================================================================================================
-        node_partition = []
-        if opt.check() == sat:
-            # print(opt.model())
-            m = opt.model()
-            for t in m.decls():
-                if 'g' not in str(t):  # Look only the literals associate to the gates
-                    continue
-                if is_true(m[t]):
-                    gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
-
-        # Check partition convexity
-        if not is_selection_convex(G, node_partition):
-            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
-
-        return [self.gate_dict[idx] for idx in node_partition]
+        
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        subgraph_nodes = ComponentManager.check_convexity(opt, self.graph, self.gate_dict)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
     def find_subgraph_feasible_hard(self, specs_obj: Specifications) -> List[str]:
         """
@@ -1327,11 +1233,15 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of input/output edges
-        if imax is not None:
-            opt.add(Sum(partition_input_edges) <= imax)
-        if omax is not None:
-            opt.add(Sum(partition_output_edges) <= omax)
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_io_limits(
+        opt, 
+        specs_obj.imax, 
+        specs_obj.omax, 
+        partition_input_edges, 
+        partition_output_edges
+        )
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
         feasibility_constraints = []
         for s in edge_w:
@@ -1342,47 +1252,19 @@ class AnnotatedGraph(Graph):
 
         opt.add(Sum(feasibility_constraints) == Sum(partition_output_edges))
 
-        # Generate function to maximize
-        for gate_id in gate_literals:
-            max_func.append(gate_literals[gate_id])
-
-        # Add function to maximize to the solver
-        opt.maximize(Sum(max_func))
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_maximization(opt, gate_literals)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
         # =========================== Skipping the nodes that are not labeled ================================
-        skipped_nodes = []
-        for node in self.graph.nodes:
-            if self.graph.nodes[node][WEIGHT] == -1:
-                if node.startswith('g'):
-                    node_literal = f'{node[0:1]}_{node[1:]}'
-                elif node.startswith('in'):
-                    node_literal = f'{node[0:2]}_{node[2:]}'
-                elif node.startswith('out'):
-                    node_literal = f'{node[0:3]}_{node[3:]}'
-                else:
-                    print(f'Node is neither input, output, nor gate')
-                    raise
-                skipped_nodes.append(Bool(node_literal))
-        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
-        opt.add(skipped_nodes_constraints)
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.exclude_skipped_nodes(opt, self.graph)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
         # ====================================================================================================
 
-        node_partition = []
-        if opt.check() == sat:
-            # print(opt.model())
-            m = opt.model()
-            for t in m.decls():
-                if 'g' not in str(t):  # Look only the literals associate to the gates
-                    continue
-                if is_true(m[t]):
-                    gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
-
-        # Check partition convexity
-        if not is_selection_convex(self.graph, node_partition):
-            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
-
-        return [self.gate_dict[idx] for idx in node_partition]
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        subgraph_nodes = ComponentManager.check_convexity(opt, self.graph, self.gate_dict)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
     def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(self, specs_obj: Specifications) -> List[str]:
         """
@@ -1967,11 +1849,15 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of input/output edges
-        if imax is not None:
-            opt.add(Sum(partition_input_edges) <= imax)
-        if omax is not None:
-            opt.add(Sum(partition_output_edges) <= omax)
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_io_limits(
+        opt, 
+        specs_obj.imax, 
+        specs_obj.omax, 
+        partition_input_edges, 
+        partition_output_edges
+        )
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
         feasibility_constraints = []
         for s in edge_w:
@@ -1980,30 +1866,14 @@ class AnnotatedGraph(Graph):
                 feasibility_constraints.append(edge_constraint[s])
         opt.add(Sum(feasibility_constraints) >= 1)
 
-        # Generate function to maximize
-        for gate_id in gate_literals:
-            max_func.append(gate_literals[gate_id])
-        # Add function to maximize to the solver
-
-        opt.maximize(Sum(max_func))
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_maximization(opt, gate_literals)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
         # =========================== Skipping the nodes that are not labeled ================================
-        skipped_nodes = []
-        for node in self.graph.nodes:
-            if self.graph.nodes[node][WEIGHT] == -1:
-                if node.startswith('g'):
-                    node_literal = f'{node[0:1]}_{node[1:]}'
-                elif node.startswith('in'):
-                    node_literal = f'{node[0:2]}_{node[2:]}'
-                elif node.startswith('out'):
-                    node_literal = f'{node[0:3]}_{node[3:]}'
-                else:
-                    print(f'Node is neither input, output, nor gate')
-                    raise
-                skipped_nodes.append(Bool(node_literal))
-        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
-        opt.add(skipped_nodes_constraints)
-
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.exclude_skipped_nodes(opt, self.graph)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
         # ====================================================================================================
 
         # =========================== Coming up with a penalty for each subgraph =============================
@@ -2045,9 +1915,9 @@ class AnnotatedGraph(Graph):
             else:
                 count = 0
 
-            # Check partition convexity
-            if not is_selection_convex(G, node_partition):
-                raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+            # COMPONENT START: Optimization and Selection Constraints (OS)
+            ComponentManager.validate_selection_convexity(G, node_partition)
+            # COMPONENT END: Optimization and Selection Constraints (OS)
 
             # ========================================================================
             if c == sat:
@@ -2214,11 +2084,15 @@ class AnnotatedGraph(Graph):
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        # Add constraints on the number of input/output edges
-        if imax is not None:
-            opt.add(Sum(partition_input_edges) <= imax)
-        if omax is not None:
-            opt.add(Sum(partition_output_edges) <= omax)
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_io_limits(
+        opt, 
+        specs_obj.imax, 
+        specs_obj.omax, 
+        partition_input_edges, 
+        partition_output_edges
+        )
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
         feasibility_constraints = []
         for s in edge_w:
@@ -2227,30 +2101,14 @@ class AnnotatedGraph(Graph):
                 feasibility_constraints.append(edge_constraint[s])
         opt.add(Sum(feasibility_constraints) >= 1)
 
-        # Generate function to maximize
-        for gate_id in gate_literals:
-            max_func.append(gate_literals[gate_id])
-        # Add function to maximize to the solver
-
-        opt.maximize(Sum(max_func))
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.add_maximization(opt, gate_literals)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
 
         # =========================== Skipping the nodes that are not labeled ================================
-        skipped_nodes = []
-        for node in self.graph.nodes:
-            if self.graph.nodes[node][WEIGHT] == -1:
-                if node.startswith('g'):
-                    node_literal = f'{node[0:1]}_{node[1:]}'
-                elif node.startswith('in'):
-                    node_literal = f'{node[0:2]}_{node[2:]}'
-                elif node.startswith('out'):
-                    node_literal = f'{node[0:3]}_{node[3:]}'
-                else:
-                    print(f'Node is neither input, output, nor gate')
-                    raise
-                skipped_nodes.append(Bool(node_literal))
-        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
-        opt.add(skipped_nodes_constraints)
-
+        # COMPONENT START: Optimization and Selection Constraints (OS)
+        ComponentManager.exclude_skipped_nodes(opt, self.graph)
+        # COMPONENT END: Optimization and Selection Constraints (OS)
         # ====================================================================================================
 
         # =========================== Coming up with a penalty for each subgraph =============================
@@ -2300,9 +2158,9 @@ class AnnotatedGraph(Graph):
             else:
                 count = 0
 
-            # Check partition convexity
-            if not is_selection_convex(G, node_partition):
-                raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+            # COMPONENT START: Optimization and Selection Constraints (OS)
+            ComponentManager.validate_selection_convexity(G, node_partition)
+            # COMPONENT END: Optimization and Selection Constraints (OS)
 
             # ========================================================================
             if c == sat:
