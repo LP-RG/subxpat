@@ -4,6 +4,10 @@ def main():
     from instrumentations.import_timer import ImportTimer
     import_timer = ImportTimer.instrument()
 
+    # misc
+    from sxpat.utils.timer import Timer
+    start_time = Timer.now()
+
     # > parse arguments and prepare specifications
     from sxpat.specifications import Specifications
     specs_obj = Specifications.parse_args()
@@ -12,7 +16,7 @@ def main():
 
     # > create wanted directories
     from sxpat.utils.filesystem import FS
-    for dir in specs_obj.path.run.folders: FS.mkdir(dir)
+    for _dir in specs_obj.path.run.folders: FS.mkdir(_dir)
 
     # > prepare storage
     from sxpat.utils.storage import LiveStorage, AppendStorage
@@ -21,22 +25,31 @@ def main():
 
     # > run system
     from sxpat.xplore import explore_grid, print_results
-    from sxpat.utils.timer import Timer
     #
-    with specs_obj.stats_storage, specs_obj.details_storage:
+    try:
         specs_obj.details_storage.add(specs_obj.constant_fields)
 
-        #
-        _t = Timer.now()
+        # run the exploration
         results = explore_grid(specs_obj)
-        _t = Timer.now() - _t
-        specs_obj.details_storage.add(total_time=_t)
-
         # print results for each relevance of metrics
         print_results(results)
 
-        # misc
+        # if no exception
+        specs_obj.details_storage.add(exception='')
+
+    except BaseException as ex:
+        # if exception
+        specs_obj.details_storage.add(exception=repr(ex))
+        raise ex
+
+    finally:
+        # timings
+        specs_obj.details_storage.add(total_time=Timer.now() - start_time)
         specs_obj.details_storage.add(import_time=import_timer.time)
+
+        # gracefully close storages
+        specs_obj.stats_storage.save()
+        specs_obj.details_storage.close()
 
     # > remove temporary files
     if not specs_obj.debug: FS.rmdir(specs_obj.path.run.temporary, True)
@@ -49,5 +62,6 @@ def main():
         archive_files(archive_path, specs_obj.path.run.base_folder)
         # delete raw files
         if not specs_obj.debug: FS.rmdir(specs_obj.path.run.base_folder, recursive=True)
+
 
 if __name__ == '__main__': main()

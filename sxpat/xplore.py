@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable, Iterator, List, Literal, Tuple, Union
+from typing import Dict, Iterable, Iterator, List, Literal, Optional, Tuple, Union
 import dataclasses as dc
 
 import functools as ft
@@ -8,15 +8,17 @@ import networkx as nx
 import os
 from os.path import join as path_join
 
-from sxpat.annotatedGraph import AnnotatedGraph
-from sxpat.graph import IOGraph
+from sxpat.graph.graph import SGraph, IOGraph
+from sxpat.graph.node import Extras, Node
+from sxpat.newag import load_circuit_from_verilog
+from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
 
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, DistanceType
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
 
-from sxpat.config.config import UNKNOWN, SAT, WEIGHT
+from sxpat.constants.misc import UNKNOWN, SAT
 
 from sxpat.utils.filesystem import FS
-from sxpat.utils.name import NameData
+from sxpat.utils.names import extract_name
 from sxpat.utils.timer import Timer
 from sxpat.utils.print import pprint
 
@@ -28,30 +30,49 @@ from sxpat.definitions.distances import *
 from sxpat.definitions.questions import exists_parameters
 from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
 
+from sxpat.subgraph_extractions.legacy import *
+from sxpat.subgraph_extractions.manual import extract
+
 from sxpat.solvers import get_specialized as get_solver
 from sxpat.solvers import Z3DirectBitVecSolver
 
 from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
-from sxpat.converting.legacy import iograph_from_legacy, sgraph_from_legacy
+
+from sxpat.labelling.labelling import Labelling
 
 
 def explore_grid(specs_obj: Specifications):
-
     # initial setup
     # store circuits
     FS.copy(specs_obj.exact_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'origin.v'))
     specs_obj.exact_benchmark = tmp
     FS.copy(specs_obj.current_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'current.v'))
     specs_obj.current_benchmark = tmp
-    # setup caches
-    AnnotatedGraph.set_loading_cache_size(specs_obj.wanted_models + 2)
-    # constant metrics
+    # load exact circuit and compute its metrics
+    exact_graph = load_circuit_from_verilog(specs_obj.exact_benchmark, specs_obj.path.run)
     exact_circuit_metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, specs_obj.exact_benchmark, specs_obj.path.run.temporary)
 
     #
-    all_generated_circuits_data = list()
-    previous_subgraphs = []
+    all_generated_circuits_data = [
+        ExpandedCircuitData(
+            'origin.v',
+            path_join(specs_obj.path.run.verilog, f'origin.v'),
+            exact_circuit_metrics.area,
+            exact_circuit_metrics.power,
+            exact_circuit_metrics.delay,
+            0,
+            0
+        )
+    ]
+    specs_obj.details_storage.add(
+        origin_circuit_area=exact_circuit_metrics.area,
+        origin_circuit_power=exact_circuit_metrics.power,
+        origin_circuit_delay=exact_circuit_metrics.delay,
+    )
+
+    #
+    previous_graphs: List[SGraph] = list()
     obtained_wce_exact = 0
     specs_obj.iteration = 0
     persistence = 0
@@ -156,8 +177,7 @@ def explore_grid(specs_obj: Specifications):
 
         # import the graph
         _time = Timer.now()
-        current_graph = AnnotatedGraph(specs_obj.current_benchmark, specs_obj.path.run)
-        exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, specs_obj.path.run)
+        current_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
         _time = Timer.now() - _time
         # logging
         specs_obj.stats_storage.stage(annotated_graphs_initialization_time=_time)
@@ -167,29 +187,44 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.requires_labeling:
             print('started labelling')
             _time = Timer.now()
-            label_graph(specs_obj.current_benchmark, current_graph, specs_obj)
+
+            weights = label_graph(current_graph, specs_obj)
+            for (i, n) in enumerate(current_graph.outputs_names):
+                weights[n] = 2 ** i
+
+            current_graph = iograph_with_weights(current_graph, weights)
             _time = Timer.now() - _time
+
             # logging
             specs_obj.stats_storage.stage(labelling_time=_time)
             print(f'labelling_time = {_time}')
 
         # extract subgraph
         _time = Timer.now()
-        subgraph_is_available = current_graph.extract_subgraph(specs_obj)
+        subgraph_nodes = extract_subgraph(current_graph, specs_obj)
+        subgraph_is_available = len(subgraph_nodes) > 0
+        current_graph = iograph_to_sgraph(current_graph, subgraph_nodes)
         _time = Timer.now() - _time
-        previous_subgraphs.append(current_graph.subgraph)
+        previous_graphs.append(current_graph)
+
         # logging
         specs_obj.stats_storage.stage(
             subgraph_extraction_time=_time,
-            subgraph_nodes_count=current_graph.subgraph_num_gates,
-            subgraph_inputs_count=current_graph.subgraph_num_inputs,
-            subgraph_outputs_count=current_graph.subgraph_num_outputs,
+            subgraph_nodes_count=len(current_graph.subgraph_nodes),
+            subgraph_inputs_count=len(current_graph.subgraph_inputs),
+            subgraph_outputs_count=len(current_graph.subgraph_outputs),
         )
         print(f'subgraph_extraction_time = {_time}')
         # logging
-        if specs_obj.debug: 
-            current_graph.export_annotated_graph()
-            print(f'subgraph exported at {current_graph.subgraph_out_path}')
+        if specs_obj.debug:
+            from sxpat.newag import export_annotated_graph
+            # construct path
+            _path = path_join(specs_obj.path.run.graphviz, f'{extract_name(specs_obj.current_benchmark)}_subgraph.gv')
+            _p_path = os.path.relpath(_path, specs_obj.path.run.base_folder)
+            # export graph
+            export_annotated_graph(current_graph, _path)
+            specs_obj.stats_storage.stage(subgraph_dot=_p_path)
+            print(f'subgraph exported at {_path}')
 
         # guard: skip if no subgraph was found
         if not subgraph_is_available:
@@ -200,11 +235,11 @@ def explore_grid(specs_obj: Specifications):
             continue
 
         # guard: skip if the subraph is equal to the previous one
-        # note:  does not apply for extraction mode 6
+        # note:  does not apply for extraction mode 6 and 0
         if (
-            specs_obj.extraction_mode != 6
-            and len(previous_subgraphs) >= 2
-            and nx.is_isomorphic(previous_subgraphs[-2], previous_subgraphs[-1], node_match=node_matcher)
+            specs_obj.extraction_mode != 6 and specs_obj.extraction_mode != 0
+            and len(previous_graphs) >= 2
+            and are_circuits_equal(previous_graphs[-2], previous_graphs[-1])
         ):
             prev_actual_error = 0
             # logging
@@ -212,18 +247,14 @@ def explore_grid(specs_obj: Specifications):
             specs_obj.stats_storage.commit()
             continue
 
-        # convert from legacy graphs to refactored circuits
-        exact_circ = iograph_from_legacy(exact_graph)
-        current_circ = sgraph_from_legacy(current_graph)
-
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
         for lpp, ppo in CellIterator.factory(specs_obj):
             _cell_time = Timer.now()
             print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
-            
-            if lpp > len(current_circ.subgraph_inputs): 
+
+            if lpp > len(current_graph.subgraph_inputs):
                 pprint.info3('SKIPPED (lpp > #subgraph_inputs)')
                 continue
 
@@ -244,12 +275,12 @@ def explore_grid(specs_obj: Specifications):
 
             # define template (and relative constraints)
             _time = Timer.now()
-            param_circ, *param_circ_constr = get_templater(specs_obj).define(current_circ, specs_obj)
+            param_circ, *param_circ_constr = get_templater(specs_obj).define(current_graph, specs_obj)
             _time_define = Timer.now() - _time
             # define question
             _time = Timer.now()
             base_question = exists_parameters.not_above_threshold_forall_inputs(
-                current_circ, param_circ,
+                current_graph, param_circ,
                 AbsoluteDifferenceOfInteger, specs_obj.et,
             )
             _time_define += Timer.now() - _time
@@ -258,9 +289,10 @@ def explore_grid(specs_obj: Specifications):
 
             # prepare solver/question
             solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
-            question = [exact_circ, param_circ, *param_circ_constr, *base_question]
+            question = [exact_graph, param_circ, *param_circ_constr, *base_question]
             #
             models = []
+            status = UNKNOWN
             for i in range(specs_obj.wanted_models):
                 specs_obj.sub_iteration = f'ca{lpp}_cb{ppo}_m{i}'
 
@@ -271,10 +303,10 @@ def explore_grid(specs_obj: Specifications):
                 status, model = solve(question, specs_obj)
 
                 # terminate if status is not sat, otherwise store the model
-                if status != 'sat': break
+                if status != SAT: break
                 models.append(model)
             #
-            if len(models) > 0: status = 'sat'
+            if len(models) > 0: status = SAT
             # logging
             _cell_time = Timer.now() - _cell_time
             specs_obj.stats_storage.stage(
@@ -284,7 +316,7 @@ def explore_grid(specs_obj: Specifications):
             )
 
             # skip if no model found
-            if len(models) == 0:
+            if status != SAT:
                 # if UNKNOWN, store cell as dominant (to skip dominated subgrid)
                 if status == UNKNOWN: dominant_cells.append((lpp, ppo))
 
@@ -297,7 +329,6 @@ def explore_grid(specs_obj: Specifications):
                 pprint.success(f'{status.upper()} ({len(models)} models found)', f'{_cell_time:.2f}s')
 
                 #
-                base_path = path_join(specs_obj.path.run.verilog, f'gen_iter{specs_obj.iteration}_model{{model_number}}.v')
                 cur_model_results: List[ExpandedCircuitData] = list()
                 #
                 for model_number, model in enumerate(models):
@@ -305,7 +336,8 @@ def explore_grid(specs_obj: Specifications):
                     a_graph = set_bool_constants(param_circ, model, skip_missing=True)
 
                     # export approximate graph as verilog
-                    verilog_path = base_path.format(model_number=model_number)
+                    circuit_id = f'gen_iter{specs_obj.iteration}_model{model_number}'
+                    verilog_path = path_join(specs_obj.path.run.verilog, f'{circuit_id}.v')
                     VerilogExporter.to_file(
                         a_graph, verilog_path,
                         VerilogExporter.Info(model_number=model_number),
@@ -314,6 +346,7 @@ def explore_grid(specs_obj: Specifications):
                     # compute circuit metrics
                     _metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, verilog_path, specs_obj.path.run.temporary)
                     cur_model_results.append(ExpandedCircuitData(
+                        circuit_id,
                         verilog_path,
                         _metrics.area,
                         _metrics.power,
@@ -327,16 +360,15 @@ def explore_grid(specs_obj: Specifications):
                 for candidate_data in cur_model_results:
                     #
                     _time = Timer.now()
-                    current = AnnotatedGraph(candidate_data.path, specs_obj.path.run)
-                    cur_graph = iograph_from_legacy(current)
+                    cur_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
                     _time = Timer.now() - _time
                     # logging
                     specs_obj.stats_storage.stage(erroreval_annotated_graphs_initialization_time=_time)
                     print(f'erreval_annotated_graph_loading_time = {_time}')
 
                     # compute errors relative to origin and previous
-                    candidate_data.error_to_origin = _error_evaluation(exact_circ, cur_graph, specs_obj)
-                    candidate_data.error_to_previous = _error_evaluation(current_circ, cur_graph, specs_obj)
+                    candidate_data.error_to_origin = _error_evaluation(exact_graph, cur_graph, specs_obj)
+                    candidate_data.error_to_previous = _error_evaluation(current_graph, cur_graph, specs_obj)
 
                     #
                     if candidate_data.error_to_origin > specs_obj.et:
@@ -345,7 +377,7 @@ def explore_grid(specs_obj: Specifications):
                         specs_obj.stats_storage.stage(ERROR='error_verification_failed')
                         specs_obj.stats_storage.commit()
                         #
-                        raise Exception(f'ErrorEval Verification FAILED! with wce = {candidate_data.error_to_origin}')
+                        raise Exception(f'ErrorEval Verification FAILED with wce = {candidate_data.error_to_origin} for circuit {candidate_data.path}')
 
                 # logging
                 specs_obj.stats_storage.stage(verification_time=verification_timer.total)
@@ -408,7 +440,7 @@ def error_evaluation(reference_circuit: IOGraph, current_circuit: IOGraph, specs
     status, model = Z3DirectBitVecSolver.solve((reference_circuit, p_graph, c_graph), specs_obj)
 
     #
-    assert status == 'sat'
+    assert status == SAT
     assert len(model) == 1
 
     # return the only value (the absolute distance between the two circuits)
@@ -464,7 +496,7 @@ def update_context(specs_obj: Specifications, lpp: int, ppo: int):
 
 def print_current_model(
         sorted_models_data: List[ExpandedCircuitData],
-        origin_circuit_data: MetricsEstimator.Metrics = None,
+        origin_circuit_data: Optional[MetricsEstimator.Metrics] = None,
         normalize: bool = False
 ) -> None:
     # imports
@@ -483,6 +515,7 @@ def print_current_model(
         if normalize:
             sorted_models_data = [
                 ExpandedCircuitData(
+                    '',
                     model_data.path,
                     model_data.area / origin_area,
                     model_data.power / origin_power,
@@ -495,7 +528,7 @@ def print_current_model(
     # aggregate table data
     data.extend(
         (
-            NameData.from_filename(model_data.path).total_id,
+            model_data.id,
             model_data.area, model_data.power, model_data.delay,
             model_data.error_to_origin
         )
@@ -505,46 +538,67 @@ def print_current_model(
     pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
 
-def label_graph(circuit_verilog_path: str, graph: AnnotatedGraph, specs_obj: Specifications) -> None:
+def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
+    return {
+        0: find_subgraph_output_nodes_ascendant,
+        1: find_subgraph,
+        2: find_subgraph_sensitivity,
+        3: find_subgraph_sensitivity_no_io_constraints,
+        4: find_subgraph_feasible,
+        42: extract,
+        5: find_subgraph_feasible_hard,
+        55: find_subgraph_feasible_hard_datatype_bitvec,
+        6: find_subgraph_feasible_hard_datatype_bitvec_mintreshold,
+        100: slash_to_kill,
+        11: find_subgraph_feasible_soft,
+        12: find_subgraph_feasible_soft_outputs,
+    }[specs_obj.extraction_mode](circuit, specs_obj)
+
+
+def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     """This function adds the labels inplace to the given graph"""
 
-    # imports
-    from sxpat.labeling import labeling_explicit
+    reference: IOGraph = circuit
+    to_be_labelled: IOGraph = circuit
 
-    # compute weights
-    ET_COEFFICIENT = 1
-    weights, _ = labeling_explicit(
-        circuit_verilog_path, circuit_verilog_path, specs_obj.path.run,
-        min_labeling=specs_obj.min_labeling,
-        partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
-        parallel=specs_obj.parallel
+    #
+    labeller = Labelling(
+        reference, to_be_labelled, 
+        specs_obj,
+        minimize=specs_obj.min_labeling,
+        use_functions=True,
+    )
+    weights = labeller.label_graph(
+        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
+        parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
     )
 
-    # apply weights to graph
-    inner_graph: nx.DiGraph = graph.graph
-    for (node_name, node_data) in inner_graph.nodes.items():
-        node_data[WEIGHT] = weights.get(node_name, -1)
-        # TODO: get output's weights in the correct way
-        if node_name[:3] == 'out':
-            node_data[WEIGHT] = 2**int(node_name[3:])
+    return weights
 
 
-def node_matcher(n1: dict, n2: dict) -> bool:
-    """Return if two node data dicts represent the same semantic node"""
-    return (
-        n1.get('label') == n2.get('label')
-        and n1.get('subgraph', 0) == n2.get('subgraph', 0)
-    )
+def are_circuits_equal(g1: SGraph, g2: SGraph) -> bool:
+    class _Node(Node, Extras): ...
+
+    def node_matcher(_n1: dict, _n2: dict) -> bool:
+        n1: _Node = _n1[SGraph.K]
+        n2: _Node = _n2[SGraph.K]
+        return (
+            type(n1) == type(n2)
+            and n1.in_subgraph == n2.in_subgraph
+        )
+
+    return nx.is_isomorphic(g1._inner, g2._inner, node_match=node_matcher)
 
 
 @dc.dataclass
 class ExpandedCircuitData:
+    id: str
     path: str
     area: float
     power: float
     delay: float
-    error_to_origin: int = None
-    error_to_previous: int = None
+    error_to_origin: Optional[int] = None
+    error_to_previous: Optional[int] = None
 
 
 @dc.dataclass(frozen=True)
@@ -586,7 +640,7 @@ def print_results(sel: ResultCircuitsSelection):
     ))
 
 
-def model_compare(a: ExpandedCircuitData, b: ExpandedCircuitData) -> Union[Literal[-1] | Literal[0] | Literal[+1]]:
+def model_compare(a: ExpandedCircuitData, b: ExpandedCircuitData) -> Union[Literal[-1], Literal[0], Literal[+1]]:
     if a.area < b.area: return -1
     elif a.area > b.area: return +1
     elif a.error_to_origin < b.error_to_origin: return -1

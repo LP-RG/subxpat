@@ -89,6 +89,8 @@ class Encoder:
             Sum: self.process_Sum,
             AbsDiff: self.process_AbsDiff,
             Mul: self.process_Mul,
+            RightShift: self.process_RightShift,
+            LeftShift: self.process_LeftShift,
             # comparison operations
             Equals: self.process_Equals,  # Needs testing
             NotEquals: self.process_NotEquals,  # Needs testing
@@ -378,6 +380,28 @@ class Encoder:
 
             mapping[n.name] = num
 
+    def process_RightShift(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        assert len(operands) == 1, f"LeftShift node must have only 1 operand it had {len(operands)}: {operands}"
+
+        if n.value >= len(mapping[operands[0]]):
+            mapping[n.name] = [self.id_gen.get_const_false()]
+
+        else:
+            mapping[n.name] = [mapping[operands[0]][i] for i in range(n.value, len(mapping[operands[0]]))]
+
+    def process_LeftShift(
+        self,
+        n: Node, operands: list, accs: list, param: list,
+        mapping: Dict[str, List[str]],
+    ):
+        assert len(operands) == 1, f"RightShift node must have only 1 operand it had {len(operands)}: {operands}"
+
+        mapping[n.name] = [self.id_gen.get_const_false() for i in range(n.value)] + mapping[operands[0]]
+
     def process_AbsDiff(
         self,
         n: Node, operands: list, accs: list, param: list,
@@ -627,3 +651,24 @@ class QbfSolver(Solver):
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         status, model = cls._solve(graphs, specifications, list(forall_target.operands))
         return (status, model)
+
+    @classmethod
+    def solve_optimize(cls, graphs: _Graphs,
+                       specifications: Specifications,
+                       optimize_target: Union[Min, Max],
+                       ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+        """
+            Solve an optimization (not forall quantified) problem.
+        """
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, None)
+
+    @classmethod
+    def solve_optimize_forall(cls, graphs: _Graphs,
+                              specifications: Specifications,
+                              optimize_target: Union[Min, Max],
+                              forall_target: ForAll,
+                              ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+        """
+            Solve an optimization and forall quantified problem.
+        """
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)

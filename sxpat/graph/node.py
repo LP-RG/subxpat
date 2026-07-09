@@ -36,7 +36,7 @@ __all__ = [
     # bool to bool
     'Not', 'And', 'Or', 'Xor', 'Xnor', 'Implies',
     # int to int
-    'Sum', 'AbsDiff', 'Mul', 'Div',
+    'Sum', 'AbsDiff', 'Mul', 'Div', 'LeftShift', 'RightShift',
     # bool to int
     'ToInt',
     # int to bool
@@ -444,6 +444,20 @@ class Div(Extras, Limited2Operation, IntResType, Expression, Node):
     """
         Integer division ( `a / b` ) expression.  
         This node must have two operands.
+    """
+
+@dc.dataclass(frozen=True)
+class LeftShift(Extras, Valued[int], Limited1Operation, IntResType, Expression, Node):
+    """
+        LeftShift-bit operation ( `a << b` ) expression.
+        This node must have one operand ( `a` ), `b` is passed, as a constant.
+    """
+
+@dc.dataclass(frozen=True)
+class RightShift(Extras, Valued[int], Limited1Operation, IntResType, Expression, Node):
+    """
+        RightShift-bit operation ( `a >> b` ) expression.
+        This node must have one operand ( `a` ), `b` is passed, as a constant.
     """
 
 

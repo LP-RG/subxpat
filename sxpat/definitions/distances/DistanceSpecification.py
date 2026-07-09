@@ -7,7 +7,7 @@ from sxpat.graph import error as g_error
 from sxpat.utils.collections import first
 from sxpat.utils.decorators import make_utility_class
 import itertools as it
-from sxpat.converting.utils import get_rolling_code, set_prefix_new
+from sxpat.converting.utils import get_unique_code, set_prefix_new
 
 
 @make_utility_class
@@ -72,7 +72,7 @@ class DistanceSpecification(metaclass=ABCMeta):
         else: raise ValueError(f'Illegal call with `wanted_b` without `wanted_a`.')
 
         # > assign rolling prefix
-        prefix = get_rolling_code() + '_'
+        prefix = get_unique_code() + '_'
         dist_func = set_prefix_new(dist_func, prefix, it.chain(wanted_a, wanted_b))
         root_name = prefix + root_name
 
