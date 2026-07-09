@@ -1,4 +1,4 @@
-from typing import ClassVar, Mapping
+from typing import ClassVar, Mapping, Dict, List, Tuple
 
 import itertools as it
 
@@ -38,12 +38,26 @@ class Labelling:
         self._specs = specs
 
     #splitting the input space into zones
-    def zone_generator(self, input1_interval, input2_interval, beta:int):
+    def zone_generator(self, input1_interval:Tuple[int, int], input2_interval:Tuple[int, int], beta:int)-> List[Dict[str, Tuple[int, int]]]:
+        # MARCO:REVIEW:
+        #   - to add a docstring (similar to what you did in pyret) you can use a string at the beginning of the function (e.g., "some description blabla")
+        #   - a more extensive usage of type annotations would be better, that allows other people (or future you) to more easily understand and use your functions
+        #     - you can take a look at other functions, or at the documentation for python (https://docs.python.org/3/library/typing.html)
+        #     - you could also improve the understandability of your code by using custom classes (e.g., for the zone), I suggest looking at dataclasses (https://docs.python.org/3/library/dataclasses.html)
+        #   - a few more comments in the code would be helpful
+        
+        #defines the lower and upper bounds of whole input space
         l_bound1, u_bound1 = input1_interval
         l_bound2, u_bound2 = input2_interval
-        all_zones=[]
-        num_steps = 256 // beta
 
+        #spilting of the input space
+        num_steps = 256 // beta
+        
+        #cration of intervals of inputs
+        all_zones=[]
+        
+
+        #iterating the whole input space and creating a grid
         for start1 in range(l_bound1, u_bound1+1, num_steps):
             end1 = min(start1 + beta - 1, u_bound1)
 
@@ -56,10 +70,10 @@ class Labelling:
                 })
         return all_zones
 
-    def label_node(self, node_to_label: str, zone_intervals:dict = None) -> int:
-
-        if zone_intervals == None:
-            zone_intervals = {}
+    def label_node(self, node_to_label: str, zone_intervals:Dict[str, int] = {}) -> int:
+        # MARCO:REVIEW:
+        #   - if you want to simplify the default value for zone_intervals, you can directly replace the None with the empty dictionary in the signature
+        #     there are situations where your approach is needed, but for most situations the simpler alternative is better
 
         # define question
         question = [
@@ -78,8 +92,11 @@ class Labelling:
 
     #iterating through all the zones
 
-    def label_all_zones(self, node_to_label:str, input1_zone, input2_zone, beta):
+    def label_all_zones(self, node_to_label:str, input1_zone:Tuple[int, int], input2_zone:Tuple[int,int], beta:int) -> Dict[str, Dict[Tuple[int, int], int]]:
+       
         zone_weights={}
+
+        #for every zone the node is labelled with a weight 
         for zone in self.zone_generator(input1_zone, input2_zone, beta):
             weight = self.label_node(node_to_label, zone)
 
@@ -90,7 +107,7 @@ class Labelling:
     def label_graph(self) -> Mapping[str, int]:
         raise NotImplementedError('To be done later')
 
-    def _define_question(self, node_to_label: str, zone_intervals: dict):
+    def _define_question(self, node_to_label: str, zone_intervals: Dict[str, Tuple[int, int]]):
         # > guards
         if node_to_label not in self.to_be_labelled:
             raise ValueError(f'Node {node_to_label} not found in circuit')
@@ -99,7 +116,7 @@ class Labelling:
         # define target node
         not_node = Not(f'not_{node_to_label}', operands=[node_to_label])
         # update successors of target node
-        updated_nodes: dict[str, Node] = dict()
+        updated_nodes: Dict[str, Node] = dict()
         for succ in self.to_be_labelled.successors(node_to_label):
             new_operands = iterable_replace(succ.operands, node_to_label, not_node.name)
             updated_nodes[succ.name] = succ.copy(operands=new_operands)
@@ -137,6 +154,10 @@ class Labelling:
                 Constraint.of(gt),
             ])
 
+        # MARCO:REVIEW:
+        #   - the code is correct, I have left a few comments next to where it is relevant
+        #   - a suggestion I give you is to implement this logic (the logic of creating all nodes for the zone constraints) in a new function (this will help in the future, so it is not required that you do it now)
+
         #zone constraint
 
         in_zone=[]
@@ -147,8 +168,10 @@ class Labelling:
 
             in_zone.extend([input_one_value, input_two_value])
             
-            active_conditions=[]
+        
 
+            # MARCO:COMMENT: as the core logic for the two zones is the same, it may be beneficial to generalize a bit the implementation, such that you can then generate both constraints with the same code
+            # MARCO:COMMENT: if you want to implement the approach of a custom type (as described in the review of zone_generator), the implementation might slightly change
             if "input_1" in zone_intervals:
                 int1_min_bound, int1_max_bound = zone_intervals["input_1"]
 
@@ -161,7 +184,8 @@ class Labelling:
                 final_input1_condition = And("input1_in_zone", operands=(ge_input1, le_input1))
 
                 in_zone.extend([min_bound_const, max_bound_const, ge_input1, le_input1, final_input1_condition])
-                active_conditions.append(final_input1_condition)
+             
+
             if "input_2" in zone_intervals:
                 int2_min_bound, int2_max_bound = zone_intervals["input_2"]
 
@@ -174,13 +198,14 @@ class Labelling:
                 final_input2_condition = And("input2_in_zone", operands=(ge_input2, le_input2))
 
                 in_zone.extend([min_bound_const, max_bound_const, ge_input2, le_input2, final_input2_condition])
-                active_conditions.append(final_input2_condition)
+               
 
-            if len(active_conditions) > 1:
+            # MARCO:COMMENT: as the "square" zones are always defined by two ranges (one for each input), you can simplify a bit your implementation by removing a few checks (both here and above)
                 final_condition = And("final_in_zone_condition", operands=(final_input1_condition, final_input2_condition))
                 in_zone.append(final_condition)
                 in_zone_constraints.append(Constraint.of(final_condition))
-            in_zone_constraints.append(Constraint.of(active_conditions[0]))
+            # MARCO:COMMENT: is this statement redundant, in the situation where the execution entered in the previous `if`?
+          
         
 
 
