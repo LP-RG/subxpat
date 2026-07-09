@@ -37,11 +37,11 @@ class Labelling:
         self._minimise = specs.min_labeling
         self._specs = specs
 
-    def label_node(self, node_to_label: str) -> int:
+    def label_node(self, node_to_label: str, zone_intervals:dict) -> int:
         # define question
         question = [
             self.reference,
-            *self._define_question(node_to_label)
+            *self._define_question(node_to_label, zone_intervals)
         ]
 
         # run solver
@@ -54,7 +54,7 @@ class Labelling:
     def label_graph(self) -> Mapping[str, int]:
         raise NotImplementedError('To be done later')
 
-    def _define_question(self, node_to_label: str):
+    def _define_question(self, node_to_label: str, zone_intervals: dict):
         # > guards
         if node_to_label not in self.to_be_labelled:
             raise ValueError(f'Node {node_to_label} not found in circuit')
@@ -100,13 +100,65 @@ class Labelling:
                 gt := GreaterThan('GT_0', operands=[abs_diff.name, zero.name]),
                 Constraint.of(gt),
             ])
+
+        #zone constraint
+
+        in_zone=[]
+        in_zone_constraints =[]
+        if zone_intervals:
+            input_one_value = ToInt('input_one_value', operands=self.to_be_labelled.inputs_names[:len(self.to_be_labelled.inputs_names)//2])
+            input_two_value = ToInt('input_two_value', operands=self.to_be_labelled.inputs_names[len(self.to_be_labelled.inputs_names)//2:])
+
+            in_zone.extend([input_one_value, input_two_value])
+            
+            active_conditions=[]
+
+            if "input_1" in zone_intervals:
+                int1_min_bound, int1_max_bound = zone_intervals["input_1"]
+
+                min_bound_const = IntConstant('int1_min_bound', value = int1_min_bound)
+                max_bound_const = IntConstant('int1_max_bound', value = int1_max_bound)
+
+                ge_input1 = GreaterEqualThan("greater_or_equal_then_bound1", operands=(input_one_value.name, min_bound_const.name))
+                le_input1 = LessEqualThan("less_or_equal_then_bound1", operands=(input_one_value.name, max_bound_const.name))
+
+                final_input1_condition = And("input1_in_zone", operands=(ge_input1, le_input1))
+
+                in_zone.extend([min_bound_const, max_bound_const, ge_input1, le_input1, final_input1_condition])
+                active_conditions.append(final_input1_condition)
+            if "input_2" in zone_intervals:
+                int2_min_bound, int2_max_bound = zone_intervals["input_2"]
+
+                min_bound_const = IntConstant('int2_min_bound', value = int2_min_bound)
+                max_bound_const = IntConstant('int2_max_bound', value = int2_max_bound)
+
+                ge_input2 = GreaterEqualThan("greater_or_equal_then_bound2", operands=(input_two_value.name, min_bound_const.name))
+                le_input2 = LessEqualThan("less_or_equal_then_bound2", operands=(input_two_value.name, max_bound_const.name))
+
+                final_input2_condition = And("input2_in_zone", operands=(ge_input2, le_input2))
+
+                in_zone.extend([min_bound_const, max_bound_const, ge_input2, le_input2, final_input2_condition])
+                active_conditions.append(final_input2_condition)
+
+            if len(active_conditions) > 1:
+                final_condition = And("final_in_zone_condition", operands=(final_input1_condition, final_input2_condition))
+                in_zone.append(final_condition)
+                in_zone_constraints.append(Constraint.of(final_condition))
+            in_zone_constraints.append(Constraint.of(active_conditions[0]))
+        
+
+
+
         # construct structure
         constraint_graph = CGraph(
             it.chain(
                 (PlaceHolder(name) for name in it.chain(
                     self.reference.outputs_names,
                     broken_circuit.outputs_names,
+                    self.to_be_labelled.inputs_names
                 )),
+                in_zone,
+                in_zone_constraints,
                 new_nodes,
                 [Target.of(abs_diff)]
             )
