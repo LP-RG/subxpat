@@ -37,11 +37,11 @@ class Labelling:
         self._minimise = specs.min_labeling
         self._specs = specs
 
-    def label_node(self, node_to_label: str, zone_intervals:dict) -> int:
+    def label_node(self, node_to_label: str) -> int:
         # define question
         question = [
             self.reference,
-            *self._define_question(node_to_label, zone_intervals)
+            *self._define_question(node_to_label, {"input_1": (0,33), "input_2": (0,55)})
         ]
 
         # run solver
