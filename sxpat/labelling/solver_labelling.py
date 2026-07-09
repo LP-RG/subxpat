@@ -38,9 +38,6 @@ class Labelling:
         self._specs = specs
 
     #splitting the input space into zones
-
-    
-    
     def zone_generator(self, input1_interval, input2_interval, beta:int):
         l_bound1, u_bound1 = input1_interval
         l_bound2, u_bound2 = input2_interval
@@ -72,11 +69,9 @@ class Labelling:
 
         # run solver
         status, model = Z3DirectIntSolver.solve(question, self._specs)
-        # if status == 'unsat':
-        #     print(f"Warning: Zone {zone_intervals} is UNSAT for node {node_to_label}. Skipping.")
-        #     return None
-        if status != 'sat':
-            return None
+      
+        assert status == 'sat'
+     
 
         # extract node weight
         return model['weight']
