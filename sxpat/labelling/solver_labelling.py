@@ -39,6 +39,13 @@ class Labelling:
 
     #splitting the input space into zones
     def zone_generator(self, input1_interval, input2_interval, beta:int):
+        # MARCO:REVIEW:
+        #   - to add a docstring (similar to what you did in pyret) you can use a string at the beginning of the function (e.g., "some description blabla")
+        #   - a more extensive usage of type annotations would be better, that allows other people (or future you) to more easily understand and use your functions
+        #     - you can take a look at other functions, or at the documentation for python (https://docs.python.org/3/library/typing.html)
+        #     - you could also improve the understandability of your code by using custom classes (e.g., for the zone), I suggest looking at dataclasses (https://docs.python.org/3/library/dataclasses.html)
+        #   - a few more comments in the code would be helpful
+        
         l_bound1, u_bound1 = input1_interval
         l_bound2, u_bound2 = input2_interval
         all_zones=[]
@@ -57,6 +64,9 @@ class Labelling:
         return all_zones
 
     def label_node(self, node_to_label: str, zone_intervals:dict = None) -> int:
+        # MARCO:REVIEW:
+        #   - if you want to simplify the default value for zone_intervals, you can directly replace the None with the empty dictionary in the signature
+        #     there are situations where your approach is needed, but for most situations the simpler alternative is better
 
         if zone_intervals == None:
             zone_intervals = {}
@@ -79,7 +89,9 @@ class Labelling:
     #iterating through all the zones
 
     def label_all_zones(self, node_to_label:str, input1_zone, input2_zone, beta):
-
+        # MARCO:REVIEW:
+        #   - see review of zone_generator for how to use a docstring
+        #   - see review of zone_generator for type annotations
 
         zone_weights={}
         for zone in self.zone_generator(input1_zone, input2_zone, beta):
@@ -139,6 +151,10 @@ class Labelling:
                 Constraint.of(gt),
             ])
 
+        # MARCO:REVIEW:
+        #   - the code is correct, I have left a few comments next to where it is relevant
+        #   - a suggestion I give you is to implement this logic (the logic of creating all nodes for the zone constraints) in a new function (this will help in the future, so it is not required that you do it now)
+
         #zone constraint
 
         in_zone=[]
@@ -151,6 +167,8 @@ class Labelling:
             
             active_conditions=[]
 
+            # MARCO:COMMENT: as the core logic for the two zones is the same, it may be beneficial to generalize a bit the implementation, such that you can then generate both constraints with the same code
+            # MARCO:COMMENT: if you want to implement the approach of a custom type (as described in the review of zone_generator), the implementation might slightly change
             if "input_1" in zone_intervals:
                 int1_min_bound, int1_max_bound = zone_intervals["input_1"]
 
@@ -164,6 +182,7 @@ class Labelling:
 
                 in_zone.extend([min_bound_const, max_bound_const, ge_input1, le_input1, final_input1_condition])
                 active_conditions.append(final_input1_condition)
+
             if "input_2" in zone_intervals:
                 int2_min_bound, int2_max_bound = zone_intervals["input_2"]
 
@@ -178,10 +197,12 @@ class Labelling:
                 in_zone.extend([min_bound_const, max_bound_const, ge_input2, le_input2, final_input2_condition])
                 active_conditions.append(final_input2_condition)
 
+            # MARCO:COMMENT: as the "square" zones are always defined by two ranges (one for each input), you can simplify a bit your implementation by removing a few checks (both here and above)
             if len(active_conditions) > 1:
                 final_condition = And("final_in_zone_condition", operands=(final_input1_condition, final_input2_condition))
                 in_zone.append(final_condition)
                 in_zone_constraints.append(Constraint.of(final_condition))
+            # MARCO:COMMENT: is this statement redundant, in the situation where the execution entered in the previous `if`?
             in_zone_constraints.append(Constraint.of(active_conditions[0]))
         
 
