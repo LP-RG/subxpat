@@ -3,6 +3,7 @@ from Component_Library.signal_propagation_constraints_with_penalty import Penalt
 from Component_Library.signal_propagation_constraints import SignalPropagationConstraints
 from Component_Library.convexity_and_structural_constraints import ConvexityConstraints
 from Component_Library.optimization_and_selection_constraints import OptimizationConstraints 
+from Component_Library.sensitivity_budget_constraints import SensitivityBudgetConstraints 
 
 class ComponentManager:
     @staticmethod
@@ -48,3 +49,11 @@ class ComponentManager:
     @staticmethod
     def validate_selection_convexity(G, node_partition):
         OptimizationConstraints.validate_selection_convexity(G, node_partition)
+
+    @staticmethod
+    def add_sensitivity_budget(opt, edge_w, edge_constraint, sensitivity_t):
+        SensitivityBudgetConstraints.add_budget_constraints(opt, edge_w, edge_constraint, sensitivity_t)
+
+    @staticmethod
+    def prepare_gate_weights(G, tmp_graph, gate_dict, weight_key):
+        return SensitivityBudgetConstraints.prepare_gate_weights(G, tmp_graph, gate_dict, weight_key)
