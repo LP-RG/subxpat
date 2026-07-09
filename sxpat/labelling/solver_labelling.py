@@ -37,19 +37,64 @@ class Labelling:
         self._minimise = specs.min_labeling
         self._specs = specs
 
-    def label_node(self, node_to_label: str) -> int:
+    #splitting the input space into zones
+
+    
+    
+    def zone_generator(self, input1_interval, input2_interval, beta:int):
+        l_bound1, u_bound1 = input1_interval
+        l_bound2, u_bound2 = input2_interval
+        all_zones=[]
+        num_steps = 256 // beta
+
+        for start1 in range(l_bound1, u_bound1+1, num_steps):
+            end1 = min(start1 + beta - 1, u_bound1)
+
+            for start2 in range(l_bound2, u_bound2+1, num_steps):
+                end2= min(start2 + beta - 1, u_bound2)
+
+                all_zones.append({
+                    "input_1": (start1, end1),
+                    "input_2": (start2, end2)
+                })
+        return all_zones
+
+    def label_node(self, node_to_label: str, zone_intervals:dict = None) -> int:
+
+        if zone_intervals == None:
+            zone_intervals = {}
+
         # define question
         question = [
             self.reference,
-            *self._define_question(node_to_label, {"input_1": (0,33), "input_2": (0,55)})
+            *self._define_question(node_to_label, zone_intervals)
         ]
 
         # run solver
         status, model = Z3DirectIntSolver.solve(question, self._specs)
-        assert status == 'sat'
+        # if status == 'unsat':
+        #     print(f"Warning: Zone {zone_intervals} is UNSAT for node {node_to_label}. Skipping.")
+        #     return None
+        if status != 'sat':
+            return None
 
         # extract node weight
         return model['weight']
+
+    #iterating through all the zones
+
+    def label_all_zones(self, node_to_label:str, beta):
+
+        input1_zone = (0,15)
+        input2_zone = (0,15)
+
+        zone_weights={}
+        for zone in self.zone_generator(input1_zone, input2_zone, beta):
+            weight = self.label_node(node_to_label, zone)
+
+            if weight is not None:
+                zone_weights[str(zone)] = weight
+        return zone_weights
 
     def label_graph(self) -> Mapping[str, int]:
         raise NotImplementedError('To be done later')
