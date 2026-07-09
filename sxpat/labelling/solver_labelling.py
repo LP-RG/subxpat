@@ -86,7 +86,7 @@ class Labelling:
             weight = self.label_node(node_to_label, zone)
 
             if weight is not None:
-                zone_weights[str(zone)] = weight
+                zone_weights[(zone["input_1"], zone["input_2"])] = weight
         return zone_weights
 
     def label_graph(self) -> Mapping[str, int]:
