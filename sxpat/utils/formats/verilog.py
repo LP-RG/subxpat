@@ -42,7 +42,7 @@ class synthesize_verilog_to_notand_gate_level:
         write_verilog -noattr {output_path};
     """
 
-    MODULE_PATTERN: ClassVar = re.compile(r'^\s*module\s+\w+\s*\((.+)\)', re.MULTILINE)
+    MODULE_PATTERN: ClassVar = re.compile(r'^\s*module\s+\w+\s*\(([\w,\\\s\[\]]+?)\);', re.MULTILINE)
     SPACES_PATTERN: ClassVar = re.compile(r'\s+')
 
     INPUT_PATTERN: ClassVar = re.compile(r'^input (.+?)\s*$')
