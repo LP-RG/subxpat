@@ -13,9 +13,9 @@ def new_labelling(circuit: IOGraph, specs: Specifications):
 
     # run the labelling for a few nodes
     weights = dict()
-    weights['g0'] = labeller.label_node('g0')
-    weights['g1'] = labeller.label_node('g1')
-    weights['g2'] = labeller.label_node('g2')
+    weights['g0'] = labeller.label_all_zones('g0', 32)
+    weights['g1'] = labeller.label_all_zones('g1', 32)
+    weights['g2'] = labeller.label_all_zones('g2', 32)
 
     return weights
 
