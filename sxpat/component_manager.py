@@ -4,6 +4,8 @@ from Component_Library.signal_propagation_constraints import SignalPropagationCo
 from Component_Library.convexity_and_structural_constraints import ConvexityConstraints
 from Component_Library.optimization_and_selection_constraints import OptimizationConstraints 
 from Component_Library.sensitivity_budget_constraints import SensitivityBudgetConstraints 
+from Component_Library.feasibility_and_filtering_constraints import FeasibilityConstraints
+from Component_Library.penalty_based_soft_constraints import PenaltyConstraints
 
 class ComponentManager:
     @staticmethod
@@ -57,3 +59,21 @@ class ComponentManager:
     @staticmethod
     def prepare_gate_weights(G, tmp_graph, gate_dict, weight_key):
         return SensitivityBudgetConstraints.prepare_gate_weights(G, tmp_graph, gate_dict, weight_key)
+    
+    @staticmethod
+    def get_feasibility(edge_w, gate_weight, feasibility_treshold, edge_constraint):
+        return FeasibilityConstraints.get_feasibility_constraints(edge_w, gate_weight, feasibility_treshold, edge_constraint)
+    
+    @staticmethod
+    def add_feasibility_logic(opt, feasibility_constraints, partition_output_edges=None, mode='at_least_one'):
+        FeasibilityConstraints.get_feasibility_logic(opt, feasibility_constraints, partition_output_edges, mode)
+
+    @staticmethod
+    def get_penalty_terms(edge_w, gate_weight, feasibility_treshold, gate_literals, penalty_coefficient=1):
+        return PenaltyConstraints.get_penalty_terms(
+            edge_w, gate_weight, feasibility_treshold, gate_literals, penalty_coefficient
+        )
+    
+    @staticmethod
+    def apply_penalty(opt, penalty_var, penalty_list, soft_limit, weight=1):
+        PenaltyConstraints.apply_penalty_constraints(opt, penalty_var, penalty_list, soft_limit, weight)

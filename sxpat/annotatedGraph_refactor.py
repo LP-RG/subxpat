@@ -501,7 +501,9 @@ class AnnotatedGraph(Graph):
                 G.add_node(source)
         # ===================================
 
+        # COMPONENT START: Sensitivity Budget Constraints (SB)
         gate_weight = ComponentManager.prepare_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
+        # COMPONENT END: Sensitivity Budget Constraints (SB)
 
         # COMPONENT START: Convexity and Structural Constraints (CS)
         ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
@@ -538,6 +540,8 @@ class AnnotatedGraph(Graph):
         # COMPONENT START: Optimization and Selection Constraints (OS)
         subgraph_nodes = ComponentManager.check_convexity(opt, self.graph, self.gate_dict)
         # COMPONENT END: Optimization and Selection Constraints (OS)
+
+        return subgraph_nodes
 
     def find_subgraph_sensitivity(self, specs_obj: Specifications) -> List[str]:
         """
@@ -662,7 +666,9 @@ class AnnotatedGraph(Graph):
                 G.add_node(source)
         # ===================================
 
+        # COMPONENT START: Sensitivity Budget Constraints (SB)
         gate_weight = ComponentManager.prepare_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
+        # COMPONENT END: Sensitivity Budget Constraints (SB)
 
         # COMPONENT START: Convexity and Structural Constraints (CS)
         ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
@@ -703,6 +709,8 @@ class AnnotatedGraph(Graph):
         # COMPONENT START: Optimization and Selection Constraints (OS)
         subgraph_nodes = ComponentManager.check_convexity(opt, self.graph, self.gate_dict)
         # COMPONENT END: Optimization and Selection Constraints (OS)
+
+        return subgraph_nodes
 
     def find_subgraph_sensitivity_no_io_constraints(self, specs_obj: Specifications) -> List[str]:
         """
@@ -857,6 +865,8 @@ class AnnotatedGraph(Graph):
         # COMPONENT START: Optimization and Selection Constraints (OS)
         subgraph_nodes = ComponentManager.check_convexity(opt, self.graph, self.gate_dict)
         # COMPONENT END: Optimization and Selection Constraints (OS)
+
+        return subgraph_nodes
 
     def find_subgraph_feasible(self, specs_obj: Specifications) -> List[str]:
         """
@@ -1015,14 +1025,15 @@ class AnnotatedGraph(Graph):
         )
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
-        feasibility_constraints = []
-        for s in edge_w:
+        # COMPONENT START: Feasibility and Filtering Constraints (FF)
+        feasibility_constraints = ComponentManager.get_feasibility(
+            edge_w, gate_weight, feasibility_treshold, edge_constraint, strict=True
+        )
+        # COMPONENT END: Feasibility and Filtering Constraints (FF)
 
-            if gate_weight[s] <= feasibility_treshold:
-                # print(s, "is feasible", gate_weight[s])
-                feasibility_constraints.append(edge_constraint[s])
-
-        opt.add(Sum(feasibility_constraints) >= 1)
+        # COMPONENT START: Feasibility and Filtering Constraints (FF)
+        ComponentManager.add_feasibility_logic(opt, feasibility_constraints, mode='at_least_one')
+        # COMPONENT END: Feasibility and Filtering Constraints (FF)
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.add_maximization(opt, gate_literals)
@@ -1195,14 +1206,19 @@ class AnnotatedGraph(Graph):
         )
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
-        feasibility_constraints = []
-        for s in edge_w:
+        # COMPONENT START: Feasibility and Filtering Constraints (FF)
+        feasibility_constraints = ComponentManager.get_feasibility(
+            edge_w, gate_weight, feasibility_treshold, edge_constraint, strict=True
+        )
+        # COMPONENT END: Feasibility and Filtering Constraints (FF)
 
-            if gate_weight[s] <= feasibility_treshold:
-                # print(s, "is feasible", gate_weight[s])
-                feasibility_constraints.append(edge_constraint[s])
-
-        opt.add(Sum(feasibility_constraints) == Sum(partition_output_edges))
+        # COMPONENT START: Feasibility and Filtering Constraints (FF)
+        ComponentManager.add_feasibility_logic(
+            opt, feasibility_constraints, 
+            partition_output_edges=partition_output_edges, 
+            mode='match_outputs'
+        )
+        # COMPONENT END: Feasibility and Filtering Constraints (FF)
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.add_maximization(opt, gate_literals)
@@ -1811,12 +1827,15 @@ class AnnotatedGraph(Graph):
         )
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
-        feasibility_constraints = []
-        for s in edge_w:
-            if gate_weight[s] <= feasibility_treshold and gate_weight[s] != -1:
-                print(s, "is feasible", gate_weight[s])
-                feasibility_constraints.append(edge_constraint[s])
-        opt.add(Sum(feasibility_constraints) >= 1)
+        # COMPONENT START: Feasibility and Filtering Constraints (FF)
+        feasibility_constraints = ComponentManager.get_feasibility(
+            edge_w, gate_weight, feasibility_treshold, edge_constraint, strict=True
+        )
+        # COMPONENT END: Feasibility and Filtering Constraints (FF)
+
+        # COMPONENT START: Feasibility and Filtering Constraints (FF)
+        ComponentManager.add_feasibility_logic(opt, feasibility_constraints, mode='at_least_one')
+        # COMPONENT END: Feasibility and Filtering Constraints (FF)
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.add_maximization(opt, gate_literals)
@@ -1829,17 +1848,23 @@ class AnnotatedGraph(Graph):
         # ====================================================================================================
 
         # =========================== Coming up with a penalty for each subgraph =============================
+        # COMPONENT START: Penalty-based Soft Constraints (PS)
         penalty = Int('penalty')
 
-        output_individual_penalty = []
-        penalty_coefficient = 1
-        for s in edge_w:
-            if gate_weight[s] > feasibility_treshold:
-                output_individual_penalty.append(If(gate_literals[s],
-                                                    penalty_coefficient * (gate_weight[s] - feasibility_treshold),
-                                                    0))
-        opt.add(penalty == Sum(output_individual_penalty))
-        opt.add_soft(Sum(output_individual_penalty) <= 2 * feasibility_treshold, weight=1)
+        output_individual_penalty = ComponentManager.get_penalty_terms(
+            edge_w, gate_weight, feasibility_treshold, gate_literals
+        )
+        # COMPONENT END: Penalty-based Soft Constraints (PS)
+
+        # COMPONENT START: Penalty-based Soft Constraints (PS)
+        ComponentManager.apply_penalty(
+            opt, 
+            penalty, 
+            output_individual_penalty, 
+            2 * feasibility_treshold, 
+            weight=1
+        )
+        # COMPONENT END: Penalty-based Soft Constraints (PS)
 
         # ========================================================
 
@@ -2046,12 +2071,15 @@ class AnnotatedGraph(Graph):
         )
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
-        feasibility_constraints = []
-        for s in edge_w:
-            if gate_weight[s] <= feasibility_treshold and gate_weight[s] != -1:
-                # print(s, "is feasible", gate_weight[s])
-                feasibility_constraints.append(edge_constraint[s])
-        opt.add(Sum(feasibility_constraints) >= 1)
+        # COMPONENT START: Feasibility and Filtering Constraints (FF)
+        feasibility_constraints = ComponentManager.get_feasibility(
+            edge_w, gate_weight, feasibility_treshold, edge_constraint, strict=True
+        )
+        # COMPONENT END: Feasibility and Filtering Constraints (FF)
+
+        # COMPONENT START: Feasibility and Filtering Constraints (FF)
+        ComponentManager.add_feasibility_logic(opt, feasibility_constraints, mode='at_least_one')
+        # COMPONENT END: Feasibility and Filtering Constraints (FF)
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.add_maximization(opt, gate_literals)
@@ -2064,22 +2092,31 @@ class AnnotatedGraph(Graph):
         # ====================================================================================================
 
         # =========================== Coming up with a penalty for each subgraph =============================
+        # COMPONENT START: Penalty-based Soft Constraints (PS)
         penalty_output = Int('penalty_output')
         penalty_gate = Int('penalty_gate')
 
-        output_individual_penalty = []
-        penalty_coefficient = 1
-        for s in edge_w:
-            if gate_weight[s] > feasibility_treshold:
-                output_individual_penalty.append(If(gate_literals[s],
-                                                    penalty_coefficient * (gate_weight[s] - feasibility_treshold),
-                                                    0))
+        output_individual_penalty = ComponentManager.get_penalty_terms(
+            edge_w, gate_weight, feasibility_treshold, gate_literals
+        )
+        # COMPONENT END: Penalty-based Soft Constraints (PS)
 
-        opt.add(penalty_output == Sum(partition_output_edges_penalty))
-        # Why IntVal(1)? => Because sometimes the Sum results into an integer "Python number (e.g., int)", but we need a "Z3 number (e.g., ArithRef)"
-        opt.add_soft(IntVal(1) * Sum(partition_output_edges_penalty) <= omax * feasibility_treshold, weight=100)
-        opt.add(penalty_gate == Sum(output_individual_penalty))
-        opt.add_soft(IntVal(1) * Sum(output_individual_penalty) <= omax * feasibility_treshold, weight=1)
+        # COMPONENT START: Penalty-based Soft Constraints (PS)
+        ComponentManager.apply_penalty(
+            opt, 
+            penalty_output, 
+            partition_output_edges_penalty, 
+            omax * feasibility_treshold, 
+            weight=100
+        )
+        ComponentManager.apply_penalty(
+            opt, 
+            penalty_gate, 
+            output_individual_penalty, 
+            omax * feasibility_treshold, 
+            weight=1
+        )
+        # COMPONENT END: Penalty-based Soft Constraints (PS)
 
         # ========================================================
         # ======================== Check for multiple subgraphs =======================================
