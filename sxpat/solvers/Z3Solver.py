@@ -1,4 +1,4 @@
-from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, overload
+from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, List, overload
 from typing_extensions import override
 from abc import abstractmethod
 
@@ -148,6 +148,20 @@ class Z3Encoder:
         )))
 
     @classmethod
+    def inject_solver(cls, 
+                      destination: IO[str],
+                      global_task: Union[ForAll, Min, Max, None],
+                      solver_construct: Mapping[Type[Union[ForAll, Min, Max, None]], str],
+                      constraint_assertion: Mapping[Type[Union[ForAll, Min, Max, None]], Callable[[str, str, Sequence[str]], Sequence[str]]],
+                      solver_add_parameters: List[str]) -> None: 
+        destination.write('\n'.join((
+            f'# define solver',
+            f'solver = {solver_construct[type(global_task)]}',
+            *constraint_assertion[type(global_task)]('solver', global_task, solver_add_parameters),
+            *('',) * 2,
+        )))
+
+    @classmethod
     def inject_solve_and_result_writing(cls, destination: IO[str],
                                         name_graphs: Solver._Graphs,
                                         value_graphs: Solver._Graphs,
@@ -254,6 +268,72 @@ class Z3FuncEncoder(Z3Encoder):
         if isinstance(graph, IOGraph): extra['outputs_names'] = (updated_names[name] for name in graph.outputs_names)
 
         return graph.copy(nodes, **extra)
+    
+    @classmethod
+    def inject_gates_functions(cls, 
+                               graphs: Solver._Graphs,
+                               destination: IO[str], 
+                               inputs_names: Sequence[str],
+                               type_mapping: Mapping[Type[Union[int, bool]], Callable[[Sequence[Any]], str]], 
+                               nodes_types: Mapping[str, type],
+                               accessories: Callable[[Node], Sequence[Any]]) -> None:
+        function_string = f'{{name}} = Function(\'{{name}}\', {", ".join(("BoolSort()",) * len(inputs_names))}, {{sort}})'
+        destination.write('\n'.join((
+            '# nodes (circuits and constraints)',
+            *(
+                function_string.format(name=node.name, sort=type_mapping[nodes_types[node.name]](accessories(node)))
+                for graph in graphs
+                for node in graph.expressions
+            ),
+            *('',) * 2,
+        )))
+        # print("begin - understanding expressions content (graphs)")
+        # for graph in graphs:
+        #     for node in graph.expressions:
+        #         print(str(node))
+        # print("end - understanding expressions content (graphs)")
+
+    @classmethod
+    def inject_nodes_behavior(cls,
+                              call_graphs: Tuple,
+                              destination: IO[str],
+                              node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Sequence[str], Sequence[Any]], str]],
+                              accessories: Callable[[Node], Sequence[Any]]) -> None:
+        destination.write('\n'.join((
+            '# behaviour',
+            'behaviour = And(',
+            *(
+                f'    {node.name} == {node_mapping[type(node)](node, node.operands, accessories(node))},'
+                for call_graph in call_graphs
+                for node in call_graph.expressions
+            ),
+            ')',
+            *('',) * 2,
+        )))
+        # print("begin - understanding expressions content (call_graphs)")
+        # for graph in call_graphs:
+        #     for node in graph.expressions:
+        #         print(str(node))
+        # print("end - understanding expressions content (call_graphs)")
+
+    @classmethod
+    def inject_nodes_usage(cls,
+                           call_c_graphs: Tuple,
+                           destination: IO[str]) -> None:
+        destination.write('\n'.join((
+            '# usage',
+            'usage = And(', *(
+                f'    {constraint_node.operand},'
+                for call_graph in call_c_graphs
+                for constraint_node in call_graph.constraints
+            ), ')',
+            *('',) * 2,
+        )))
+        # print("begin - understanding expressions content (call_c_graphs)")
+        # for graph in call_c_graphs:
+        #     for node in graph.expressions:
+        #         print(str(node))
+        # print("end - understanding expressions content (call_c_graphs)")
 
     @classmethod
     def encode(cls, graphs: Solver._Graphs,
@@ -297,48 +377,16 @@ class Z3FuncEncoder(Z3Encoder):
         cls.inject_constants(destination, graphs, accessories)
 
         # gates functions
-        function_string = f'{{name}} = Function(\'{{name}}\', {", ".join(("BoolSort()",) * len(inputs_names))}, {{sort}})'
-        destination.write('\n'.join((
-            '# nodes (circuits and constraints)',
-            *(
-                function_string.format(name=node.name, sort=type_mapping[nodes_types[node.name]](accessories(node)))
-                for graph in graphs
-                for node in graph.expressions
-            ),
-            *('',) * 2,
-        )))
+        cls.inject_gates_functions(graphs, destination, inputs_names, type_mapping, nodes_types, accessories)
 
         # nodes behavior
-        destination.write('\n'.join((
-            '# behaviour',
-            'behaviour = And(',
-            *(
-                f'    {node.name} == {node_mapping[type(node)](node, node.operands, accessories(node))},'
-                for call_graph in call_graphs
-                for node in call_graph.expressions
-            ),
-            ')',
-            *('',) * 2,
-        )))
+        cls.inject_nodes_behavior(call_graphs, destination, node_mapping, accessories)
 
         # nodes usage
-        destination.write('\n'.join((
-            '# usage',
-            'usage = And(', *(
-                f'    {constraint_node.operand},'
-                for call_graph in call_c_graphs
-                for constraint_node in call_graph.constraints
-            ), ')',
-            *('',) * 2,
-        )))
+        cls.inject_nodes_usage(call_c_graphs, destination)
 
         # solver
-        destination.write('\n'.join((
-            f'# define solver',
-            f'solver = {solver_construct[type(global_task)]}',
-            *constraint_assertion[type(global_task)]('solver', global_task, ['behaviour', 'usage']),
-            *('',) * 2,
-        )))
+        cls.inject_solver(destination, global_task, solver_construct, constraint_assertion, ['behaviour', 'usage'])
 
         # results
         cls.inject_solve_and_result_writing(destination, graphs, call_graphs)
@@ -350,6 +398,48 @@ class Z3DirectEncoder(Z3Encoder):
 
         @authors: Marco Biasion
     """
+
+    @classmethod
+    def inject_nodes_behavior(cls,
+                              graphs: Solver._Graphs,
+                              destination: IO[str],
+                              node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Sequence[str], Sequence[Any]], str]],
+                              accessories: Callable[[Node], Sequence[Any]]) -> None:
+        destination.write('\n'.join((
+            '# behaviour',
+            *(
+                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
+                for graph in graphs
+                for node in graph.expressions
+            ),
+            *('',) * 2,
+        )))
+        # print("begin - understanding expressions content (graphs)")
+        # for graph in graphs:
+        #     for node in graph.expressions:
+        #         print(str(node))
+        # print("end - understanding expressions content (graphs)")
+
+    @classmethod
+    def inject_nodes_usage(cls,
+                           graphs: Solver._Graphs,
+                           destination: IO[str]) -> Node:
+        destination.write('\n'.join((
+            '# usage',
+            'usage = And(', *(
+                f'    {constraint_node.operand},'
+                for graph in graphs
+                if isinstance(graph, CGraph)
+                for constraint_node in graph.constraints
+            ), ')',
+            *('',) * 2,
+        )))
+        # print("begin - understanding constraints content (graphs)")
+        # for graph in graphs:
+        #     if isinstance(graph, CGraph):
+        #         for node in graph.constraints:
+        #             print(str(node))
+        # print("end - understanding constraints content (graphs)")
 
     @classmethod
     def encode(cls, graphs: Solver._Graphs,
@@ -374,35 +464,13 @@ class Z3DirectEncoder(Z3Encoder):
         cls.inject_constants(destination, graphs, accessories)
 
         # nodes behavior
-        destination.write('\n'.join((
-            '# behaviour',
-            *(
-                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
-                for graph in graphs
-                for node in graph.expressions
-            ),
-            *('',) * 2,
-        )))
+        cls.inject_nodes_behavior(graphs, destination, node_mapping, accessories)
 
         # nodes usage
-        destination.write('\n'.join((
-            '# usage',
-            'usage = And(', *(
-                f'    {constraint_node.operand},'
-                for graph in graphs
-                if isinstance(graph, CGraph)
-                for constraint_node in graph.constraints
-            ), ')',
-            *('',) * 2,
-        )))
+        cls.inject_nodes_usage(graphs, destination)
 
         # solver
-        destination.write('\n'.join((
-            f'# define solver',
-            f'solver = {solver_construct[type(global_task)]}',
-            *constraint_assertion[type(global_task)]('solver', global_task, ['usage']),
-            *('',) * 2,
-        )))
+        cls.inject_solver(destination, global_task, solver_construct, constraint_assertion, ['usage'])
 
         # results
         cls.inject_solve_and_result_writing(destination, graphs, graphs)
