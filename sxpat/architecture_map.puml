@@ -3,7 +3,7 @@ skinparam componentStyle uml2
 left to right direction
 
 skinparam nodesep 50
-skinparam Ranksep 400
+skinparam Ranksep 1000
 skinparam titleFontSize 25
 
 <style>
@@ -55,60 +55,60 @@ package "Algorithms" {
 
 ' (Mapping)
 ' mapping dependencies for 'Signal Propagation Constraints'
-SP --> A1 
-SP --> A2
-SP --> A3
-SP --> A4
-SP --> A5
-SP --> A11
-SP --> A12
+A1 --> SP
+A2 --> SP
+A3 --> SP
+A4 --> SP
+A5 --> SP
+A11 --> SP
+A12 --> SP
 
 ' mapping dependencies for 'Convexity and Structural Constraints'
-CS --> A1 
-CS --> A2
-CS --> A3
-CS --> A4
-CS --> A5
-CS --> A11
-CS --> A12
+A1 --> CS
+A2 --> CS
+A3 --> CS
+A4 --> CS
+A5 --> CS
+A11 --> CS
+A12 --> CS
 
 ' mapping dependencies for 'Optimization and Selection Constraints'
-OS --> A1 
-OS --> A2
-OS --> A3
-OS --> A4
-OS --> A5
-OS --> A11
-OS --> A12
+A1 --> OS
+A2 --> OS
+A3 --> OS
+A4 --> OS
+A5 --> OS
+A11 --> OS
+A12 --> OS
 
 ' mapping dependencies for 'Sensitivity Budget Constraints'
-SB --> A1
-SB --> A2
-SB --> A3
+A1 --> SB
+A2 --> SB
+A3 --> SB
 
 ' mapping dependencies for 'Feasibility and Filtering Constraints'
-FF --> A4
-FF --> A5 
-FF --> A11 
-FF --> A12 
+A4 --> FF
+A5 --> FF
+A11 --> FF
+A12 --> FF
 
 ' mapping dependencies for 'Penalty-based Soft Constraints'
-PS --> A11
-PS --> A12
+A11 --> PS
+A12 --> PS
 
 ' mapping dependencies for 'Multi-Partition Iteration Engine'
-MPE --> A11
-MPE --> A12
+A11 --> MPE
+A12 --> MPE
 
 ' mapping dependencies for 'Search Space Calibration & State Management'
-SSCSM --> A6
+A6 --> SSCSM
 
 ' mapping dependencies for 'Symbolic Topology Management'
-STM --> A55
-STM --> A100
+A55 --> STM
+A100 --> STM
 A6 --> A55
 
 ' mapping dependencies for 'Interactive & Diagnostic Tools'
-IDT --> A42
+A42 --> IDT
 
 @enduml
