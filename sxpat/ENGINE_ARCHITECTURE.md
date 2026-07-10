@@ -126,91 +126,91 @@
     Description: Identifies and extracts a maximally weighted convex subgraph from the circuit. It formulates the extraction as a constraint satisfaction and optimization problem, using SMT solvers to ensure convexity, boundary constraints (*imax, omax*), and weighted gate inclusion.
 
     Components Utilized:
-        + Signal Propagation Constraints
-        + Convexity and Structural Constraints
-        + Optimization and Selection Constraints (i, ii, iii, iv)
-        + Sensitivity Budget Constraints (ii)
+    + Signal Propagation Constraints
+    + Convexity and Structural Constraints
+    + Optimization and Selection Constraints (i, ii, iii, iv)
+    + Sensitivity Budget Constraints (ii)
 
 - __Algorithm 2: find_subgraph_sensitivity__
     Description: Extracts a functional subgraph by optimizing for maximum gate inclusion while strictly enforcing a global sensitivity budget (*sensitivity_t*). Unlike standard extraction, this algorithm weights the edges based on gate importance and uses an SMT solver to ensure the total cumulative sensitivity of the partitioned sub-circuit remains within the specified threshold, maintaining structural integrity through convexity constraints.
 
     Components Utilized:
-        + Signal Propagation Constraints
-        + Convexity and Structural Constraints
-        + Optimization and Selection Constraints (i, ii, iii, iv)
-        + Sensitivity Budget Constraints (i, ii)
+    + Signal Propagation Constraints
+    + Convexity and Structural Constraints
+    + Optimization and Selection Constraints (i, ii, iii, iv)
+    + Sensitivity Budget Constraints (i, ii)
 
 - __Algorithm 3: find_subgraph_sensitivity_no_io_constraints__
     Description: A specialized subgraph extraction algorithm that focuses exclusively on satisfying the global sensitivity budget (*sensitivity_t*) while maintaining structural convexity. By removing specific constraints on the number of input/output edges (*imax, omax*), this algorithm provides more flexibility in partition sizing, prioritizing the preservation of critical logic blocks within the sensitivity threshold.
 
     Components Utilized:
-        + Signal Propagation Constraints
-        + Convexity and Structural Constraints
-        + Optimization and Selection Constraints (ii, iii, iv)
-        + Sensitivity Budget Constraints (i, ii)
+    + Signal Propagation Constraints
+    + Convexity and Structural Constraints
+    + Optimization and Selection Constraints (ii, iii, iv)
+    + Sensitivity Budget Constraints (i, ii)
 
 - __Algorithm 4: find_subgraph_feasible__
     Description: Extracts a subgraph by filtering components based on a specific feasibility threshold (*et*). The algorithm evaluates node weights against this threshold to select valid gates, ensuring that the resulting partition is both structurally convex and compliant with connectivity constraints (*imax, omax*). It focuses on including only those logic blocks that meet the defined performance or feasibility criteria.
 
     Components Utilized:
-        + Signal Propagation Constraints
-        + Convexity and Structural Constraints
-        + Feasibility and Filtering Constraints (i, ii-Strategy A)
-        + Optimization and Selection Constraints (i, ii, iii, iv)
+    + Signal Propagation Constraints
+    + Convexity and Structural Constraints
+    + Feasibility and Filtering Constraints (i, ii-Strategy A)
+    + Optimization and Selection Constraints (i, ii, iii, iv)
 
 - __Algorithm 5: find_subgraph_feasible_hard__
     Description: A strict variant of the feasibility-based extraction algorithm. It enforces a "hard" constraint where the sum of selected feasible edge constraints must exactly equal the sum of the subgraph's output edges (*Sum(feasibility_constraints) == Sum(partition_output_edges)*). This ensures that every exit point of the partition is rigorously validated against the feasibility threshold (*et*), guaranteeing that only high-integrity logic blocks are extracted.
 
     Components Utilized:
-        + Signal Propagation Constraints
-        + Convexity and Structural Constraints
-        + Feasibility and Filtering Constraints (i, ii-Strategy B)
-        + Optimization and Selection Constraints (i, ii, iii, iv)
+    + Signal Propagation Constraints
+    + Convexity and Structural Constraints
+    + Feasibility and Filtering Constraints (i, ii-Strategy B)
+    + Optimization and Selection Constraints (i, ii, iii, iv)
 
 - __Algorithm 55: find_subgraph_feasible_hard_limited_inputs_datatype_bitvec__
     Description: A high-precision extraction algorithm that integrates symbolic topological modeling with strict interface bandwidth constraints. By utilizing Datatype and BitVec for binary node and edge representation, it enforces rigid input/output limits (*imax / omax*) and filters interface edges through a strict feasibility threshold condition. The algorithm ensures robust gate density optimization within predefined structural and interface constraints, with all logic natively integrated into the symbolic topology.
 
     Components Utilized:
-        + Symbolic Topology Management(i, ii, iii, iv, v, vi, vii)
+    + Symbolic Topology Management(i, ii, iii, iv, v, vi, vii)
 
 - __Algorithm 6: find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold__
     Description: A meta-algorithm that automates the selection of an optimal feasibility threshold (*et*). It performs a linear partition of the graph's weight distribution into eight representative intervals and iteratively executes *Algorithm 55* across these intervals to identify the most suitable threshold. By dynamically calibrating the feasibility constraint, this algorithm ensures successful subgraph extraction even when the initial threshold is overly restrictive, effectively acting as an automated wrapper for *Algorithm 55*.
 
     Components Utilized:
-        + Search Space Calibration & State Management(i, ii, iii)
-        + Symbolic Topology Management (relies on Algorithm 55)
+    + Search Space Calibration & State Management(i, ii, iii)
+    + Symbolic Topology Management (relies on Algorithm 55)
 
 - __Algorithm 100: slash_to_kill__
     Description: A high-precision subgraph extraction algorithm that leverages Z3 custom Datatypes and BitVector logic to model circuit nodes and edges. It implements a rigorous constraint satisfaction approach where "cutting" edges (slashing) is evaluated against a bit-width constrained feasibility threshold. By encoding topology into symbolic structures, it enforces strict structural integrity, including mandatory child-inclusion rules for parent gates and exhaustive convexity validation, making it suitable for complex, constraint-heavy logic pruning.
 
     Components Utilized:
-        + Symbolic Topology Management(i, ii, iii, iv, vi, vii, ix, x)
+    + Symbolic Topology Management(i, ii, iii, iv, vi, vii, ix, x)
 
 - __Algorithm 11: find_subgraph_feasible_soft__
     Description: A flexible subgraph extraction algorithm that implements a "soft" feasibility model. Instead of strictly rejecting nodes exceeding the feasibility threshold (*et*), it calculates a penalty cost for these violations and uses *opt.add_soft* to minimize the overall penalty while maximizing the subgraph size. The algorithm employs a multi-pass iteration engine to explore and rank multiple potential partitions, ultimately selecting the one that best balances size and penalty.
 
     Components Utilized:
-        + Signal Propagation Constraints
-        + Convexity and Structural Constraints
-        + Feasibility and Filtering Constraints (i, ii-Strategy A)
-        + Optimization and Selection Constraints (i, ii, iii, iv)
-        + Penalty-based Soft Constraints (i, ii-Strategy A)
-        + Multi-Partition Iteration Engine (i, ii-Strategy A)
+    + Signal Propagation Constraints
+    + Convexity and Structural Constraints
+    + Feasibility and Filtering Constraints (i, ii-Strategy A)
+    + Optimization and Selection Constraints (i, ii, iii, iv)
+    + Penalty-based Soft Constraints (i, ii-Strategy A)
+    + Multi-Partition Iteration Engine (i, ii-Strategy A)
 
 - __Algorithm 12: find_subgraph_feasible_soft_outputs__
     Description: An advanced subgraph extraction algorithm that refines the "soft" feasibility approach by introducing dual-penalty metrics: one for internal gate violations and one specifically for output-edge feasibility violations. It balances subgraph size against these combined output and gate penalties, using a multi-pass optimization to rank candidate partitions based on size and penalty minimization. This approach is ideal for circuits where output signal integrity is as critical as internal gate feasibility.
 
     Components Utilized:
-        + Signal Propagation Constraints
-        + Convexity and Structural Constraints
-        + Feasibility and Filtering Constraints (i, ii-Strategy A)
-        + Optimization and Selection Constraints (i, ii, iii, iv)
-        + Penalty-based Soft Constraints (i, ii-Strategy B)
-        + Multi-Partition Iteration Engine (i, ii-Strategy B)
+    + Signal Propagation Constraints
+    + Convexity and Structural Constraints
+    + Feasibility and Filtering Constraints (i, ii-Strategy A)
+    + Optimization and Selection Constraints (i, ii, iii, iv)
+    + Penalty-based Soft Constraints (i, ii-Strategy B)
+    + Multi-Partition Iteration Engine (i, ii-Strategy B)
     
 - __Algorithm 42: extract__
     Description: An interactive diagnostic utility that allows users to manually define a subgraph through a command-line interface. The tool visualizes the original graph via *Graphviz*, validates the user's manual selection for node existence and convexity compliance, and provides a confirmation preview before finalizing the extraction. It serves as a verification tool for manually validating subgraph selections against structural rules.
     
     Components Utilized:
-        + Interactive & Diagnostic Tools(i, ii, iii)
+    + Interactive & Diagnostic Tools(i, ii, iii)
     
