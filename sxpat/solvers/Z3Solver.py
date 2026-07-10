@@ -500,6 +500,9 @@ class Z3HybridEncoder(Z3DirectEncoder, Z3FuncEncoder):
 
         @authors: Ilia Zeller
     """
+    functional_final_error = {AbsDiff, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan}
+    functional_gates = {And, Not}
+    functional_bool_operations = {And, Not, Or, Xor, Xnor, Implies}
 
     @classmethod
     def encode(cls, graphs: Solver._Graphs,
@@ -515,7 +518,7 @@ class Z3HybridEncoder(Z3DirectEncoder, Z3FuncEncoder):
         (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
 
         # types of functionally represented nodes
-        func_nodes_types = {AbsDiff, GreaterThan}
+        func_nodes_types = cls.functional_final_error
 
         # create call graphs (graphs where each node name has been replaced with the relative function call)
         inputs_string = ','.join(inputs_names)
@@ -533,7 +536,7 @@ class Z3HybridEncoder(Z3DirectEncoder, Z3FuncEncoder):
             for graph in graphs
         )
         # update global_task if present (mainly useful for operands)
-        if global_task:
+        if global_task and func_nodes_types == cls.functional_final_error:
             global_task = cls.nodes_as_function_calls([global_task], inputs_string, non_gates_names)[0]
 
         # gather constraints graphs
@@ -552,17 +555,27 @@ class Z3HybridEncoder(Z3DirectEncoder, Z3FuncEncoder):
         Z3FuncEncoder.inject_gates_functions(graphs, destination, inputs_names, type_mapping, nodes_types, accessories, func_nodes_types)
 
         # nodes behavior
-        Z3DirectEncoder.inject_nodes_behavior(graphs, destination, node_mapping, accessories, func_nodes_types)
-        Z3FuncEncoder.inject_nodes_behavior(call_graphs_clean, destination, node_mapping, accessories, func_nodes_types)
+        if func_nodes_types == cls.functional_final_error:
+            Z3DirectEncoder.inject_nodes_behavior(call_graphs_clean, destination, node_mapping, accessories, func_nodes_types)
+            Z3FuncEncoder.inject_nodes_behavior(call_graphs_clean, destination, node_mapping, accessories, func_nodes_types)
+        else:
+            Z3FuncEncoder.inject_nodes_behavior(call_graphs_clean, destination, node_mapping, accessories, func_nodes_types)
+            Z3DirectEncoder.inject_nodes_behavior(call_graphs_clean, destination, node_mapping, accessories, func_nodes_types)
 
         # nodes usage
-        Z3FuncEncoder.inject_nodes_usage(call_c_graphs, destination)
+        if func_nodes_types == cls.functional_final_error:
+            Z3FuncEncoder.inject_nodes_usage(call_c_graphs, destination)
+        else:
+            Z3DirectEncoder.inject_nodes_usage(graphs, destination)
 
         # solver
         cls.inject_solver(destination, global_task, solver_construct, constraint_assertion, ['behaviour', 'usage'])
 
         # results
-        cls.inject_solve_and_result_writing(destination, graphs, call_graphs)
+        if func_nodes_types == cls.functional_final_error:
+            cls.inject_solve_and_result_writing(destination, graphs, call_graphs)
+        else:
+            cls.inject_solve_and_result_writing(destination, graphs, graphs)
 
 
 # Node to Z3 expression
