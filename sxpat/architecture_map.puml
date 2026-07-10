@@ -32,22 +32,22 @@ package "Component Library" #D9D7B6 {
 }
 
 package "Algorithms" {
-    node "Connectivity-based" {
+    package "Connectivity-based" #D9D7B6{
         [Algorithm 1] as A1
         [Algorithm 4] as A4
         [Algorithm 11] as A11
         [Algorithm 12] as A12
     }
-    node "Sensitivity-based" {
+    package "Sensitivity-based" #D9D7B6{
         [Algorithm 2] as A2
         [Algorithm 3] as A3
     }
-    node "Formal/Hard Feasibility" {
+    package "Formal/Hard Feasibility" #D9D7B6{
         [Algorithm 5] as A5
         [Algorithm 6] as A6
         [Algorithm 55] as A55
     }
-    node "Heuristic" {
+    package "Heuristic" #D9D7B6{
         [Algorithm 42] as A42
         [Algorithm 100] as A100
     }
