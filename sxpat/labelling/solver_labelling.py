@@ -1,4 +1,5 @@
 from typing import ClassVar, Mapping, Dict, List, Tuple
+from dataclasses import dataclass, fields
 
 import itertools as it
 
@@ -12,6 +13,20 @@ from sxpat.utils.collections import iterable_replace
 
 
 __all__ = ['Labelling']
+
+@dataclass
+class Interval:
+    l_bound: int
+    u_bound: int
+
+
+@dataclass
+class Zone:
+    input_1 : Interval
+    input_2 : Interval
+    
+    # def to_range(self) -> Tuple[int, int]:
+    #     return (self.l_bound, self.u_bound)
 
 
 class Labelling:
@@ -37,8 +52,12 @@ class Labelling:
         self._minimise = specs.min_labeling
         self._specs = specs
 
+
+
+
+
     #splitting the input space into zones
-    def zone_generator(self, input1_interval:Tuple[int, int], input2_interval:Tuple[int, int], beta:int)-> List[Dict[str, Tuple[int, int]]]:
+    def zone_generator(self, input1_interval:Tuple[int, int], input2_interval:Tuple[int, int], beta:int)-> List[Zone]:
         # MARCO:REVIEW:
         #   - to add a docstring (similar to what you did in pyret) you can use a string at the beginning of the function (e.g., "some description blabla")
         #   - a more extensive usage of type annotations would be better, that allows other people (or future you) to more easily understand and use your functions
@@ -64,10 +83,9 @@ class Labelling:
             for start2 in range(l_bound2, u_bound2+1, num_steps):
                 end2= min(start2 + beta - 1, u_bound2)
 
-                all_zones.append({
-                    "input_1": (start1, end1),
-                    "input_2": (start2, end2)
-                })
+                all_zones.append(
+                    Zone(Interval(start1, end1), Interval(start2, end2))
+                )
         return all_zones
 
     def label_node(self, node_to_label: str, zone_intervals:Dict[str, int] = {}) -> int:
@@ -101,7 +119,7 @@ class Labelling:
             weight = self.label_node(node_to_label, zone)
 
             if weight is not None:
-                zone_weights[(zone["input_1"], zone["input_2"])] = weight
+               zone_weights[str(zone)] = weight
         return zone_weights
 
     def label_graph(self) -> Mapping[str, int]:
@@ -169,41 +187,51 @@ class Labelling:
             in_zone.extend([input_one_value, input_two_value])
             
         
+            for field_obj in fields(zone_intervals):
+
+                field = getattr(zone_intervals, field_obj.name)
+
+                int_min_bound = field.l_bound
+                int_max_bound = field.u_bound
+
+                min_bound_const = IntConstant(f'{field_obj.name}_min_bound', value = int_min_bound)
+                max_bound_const = IntConstant(f'{field_obj.name}_max_bound', value = int_max_bound)
+
+                if field_obj.name == "input_1":
+                    input_one_value = ToInt('input_one_value', operands=self.to_be_labelled.inputs_names[:len(self.to_be_labelled.inputs_names)//2])
+                    in_zone.append(input_one_value)
+
+                    ge_input = GreaterEqualThan(f"greater_or_equal_then_bound_{field_obj.name}", operands=(input_one_value.name, min_bound_const.name))
+                    le_input = LessEqualThan(f"less_or_equal_then_bound{field_obj.name}", operands=(input_one_value.name, max_bound_const.name))
+
+                    final_input1_condition = And(f"{field_obj.name}_in_zone", operands=(ge_input, le_input))
+
+                    in_zone.extend([min_bound_const, max_bound_const, ge_input, le_input, final_input1_condition])
+               
+                if field_obj.name == "input_2":
+                    input_two_value = ToInt('input_two_value', operands=self.to_be_labelled.inputs_names[len(self.to_be_labelled.inputs_names)//2:])
+                    in_zone.append(input_two_value)
+
+                    ge_input = GreaterEqualThan(f"greater_or_equal_then_bound_{field_obj.name}", operands=(input_two_value.name, min_bound_const.name))
+                    le_input = LessEqualThan(f"less_or_equal_then_bound{field_obj.name}", operands=(input_two_value.name, max_bound_const.name))
+                    
+                    final_input2_condition = And(f"{field_obj.name}_in_zone", operands=(ge_input, le_input))
+
+                    in_zone.extend([min_bound_const, max_bound_const, ge_input, le_input, final_input1_condition, final_input2_condition])
+
+                
+
 
             # MARCO:COMMENT: as the core logic for the two zones is the same, it may be beneficial to generalize a bit the implementation, such that you can then generate both constraints with the same code
             # MARCO:COMMENT: if you want to implement the approach of a custom type (as described in the review of zone_generator), the implementation might slightly change
-            if "input_1" in zone_intervals:
-                int1_min_bound, int1_max_bound = zone_intervals["input_1"]
 
-                min_bound_const = IntConstant('int1_min_bound', value = int1_min_bound)
-                max_bound_const = IntConstant('int1_max_bound', value = int1_max_bound)
-
-                ge_input1 = GreaterEqualThan("greater_or_equal_then_bound1", operands=(input_one_value.name, min_bound_const.name))
-                le_input1 = LessEqualThan("less_or_equal_then_bound1", operands=(input_one_value.name, max_bound_const.name))
-
-                final_input1_condition = And("input1_in_zone", operands=(ge_input1, le_input1))
-
-                in_zone.extend([min_bound_const, max_bound_const, ge_input1, le_input1, final_input1_condition])
-             
-
-            if "input_2" in zone_intervals:
-                int2_min_bound, int2_max_bound = zone_intervals["input_2"]
-
-                min_bound_const = IntConstant('int2_min_bound', value = int2_min_bound)
-                max_bound_const = IntConstant('int2_max_bound', value = int2_max_bound)
-
-                ge_input2 = GreaterEqualThan("greater_or_equal_then_bound2", operands=(input_two_value.name, min_bound_const.name))
-                le_input2 = LessEqualThan("less_or_equal_then_bound2", operands=(input_two_value.name, max_bound_const.name))
-
-                final_input2_condition = And("input2_in_zone", operands=(ge_input2, le_input2))
-
-                in_zone.extend([min_bound_const, max_bound_const, ge_input2, le_input2, final_input2_condition])
+            
                
 
             # MARCO:COMMENT: as the "square" zones are always defined by two ranges (one for each input), you can simplify a bit your implementation by removing a few checks (both here and above)
-                final_condition = And("final_in_zone_condition", operands=(final_input1_condition, final_input2_condition))
-                in_zone.append(final_condition)
-                in_zone_constraints.append(Constraint.of(final_condition))
+            final_condition = And("final_in_zone_condition", operands=(final_input1_condition, final_input2_condition))
+            in_zone.append(final_condition)
+            in_zone_constraints.append(Constraint.of(final_condition))
             # MARCO:COMMENT: is this statement redundant, in the situation where the execution entered in the previous `if`?
           
         
