@@ -28,9 +28,12 @@ from sxpat.definitions.questions import exists_parameters
 from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
 
 from sxpat.solvers import get_specialized as get_solver
-from sxpat.solvers import Z3DirectBitVecSolver
 from sxpat.solvers import Z3FuncIntSolver
 from sxpat.solvers import Z3DirectIntSolver
+from sxpat.solvers import Z3HybridIntSolver
+from sxpat.solvers import Z3FuncBitVecSolver
+from sxpat.solvers import Z3DirectBitVecSolver
+from sxpat.solvers import Z3HybridBitVecSolver
 
 from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
@@ -185,9 +188,9 @@ def explore_grid(specs_obj: Specifications):
             print(list(current_graph.gate_dict.keys()))
             _time = Timer.now()
             z3labelling(iograph_from_legacy(current_graph), specs_obj)
-            w0 = label_graph(current_graph, specs_obj)
-            w1 = label_graph_new(iograph_from_legacy(current_graph), specs_obj)
-            print(len(w0), len(w1))
+            # w0 = label_graph(current_graph, specs_obj)
+            # w1 = label_graph_new(iograph_from_legacy(current_graph), specs_obj)
+            # print(len(w0), len(w1))
             _time = Timer.now() - _time
             # logging
             specs_obj.stats_storage.stage(labelling_time=_time)
@@ -441,13 +444,15 @@ def error_evaluation(reference_circuit: IOGraph, current_circuit: IOGraph, specs
 def z3labelling(circuit: IOGraph, specs_obj: Specifications):
     from sxpat.question_labelling import Labeling
 
-    to_be_labelled, constraints = Labeling.define(circuit, ['g0'], specs_obj.min_labeling)
-    status, result = Z3FuncIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
-    # Z3DirectIntSolver.solve_exists((circuit, to_be_labelled, constraints), specs_obj)
-    # Z3FuncIntSolver.solve_exists((circuit, to_be_labelled, AbsoluteDifferenceOfInteger.define(circuit, to_be_labelled)[0]), specs_obj)
+    to_be_labelled, constraints = Labeling.define(circuit, ['g0'], specs_obj.min_labeling) #params: circuit, node to label, how to label
+    # status, result = Z3FuncIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+    # status, result = Z3DirectIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+    # status, result = Z3HybridIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+    # status, result = Z3FuncBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+    # status, result = Z3DirectBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+    status, result = Z3HybridBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
 
     print(status, result)
-    input('pausami')
     
 
 class CellIterator:
