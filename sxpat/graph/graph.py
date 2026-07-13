@@ -1,7 +1,7 @@
 from __future__ import annotations
 import operator as op
 from typing_extensions import Self
-from typing import AbstractSet, Any, Iterable, Mapping, Optional, Sequence, TypeVar, Union, Final, final
+from typing import AbstractSet, Any, Iterable, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Dict
 from types import MappingProxyType
 
 import networkx as nx
@@ -153,13 +153,13 @@ class Graph:
 class IOGraph(Graph):
     """Graph with inputs and outputs."""
 
-    EXTRAS: Sequence[str] = ('inputs_names', 'outputs_names')
+    EXTRAS: Sequence[str] = (*Graph.EXTRAS, 'inputs_names', 'outputs_names')
 
     def __init__(self, nodes: Iterable[AnyNode],
                  inputs_names: Sequence[str], outputs_names: Sequence[str]
                  ) -> None:
         # construct base
-        super().__init__(nodes)
+        super().__init__(nodes,)
 
         # freeze local instances
         self.inputs_names = tuple(inputs_names)
