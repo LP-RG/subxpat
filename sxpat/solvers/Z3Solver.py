@@ -582,20 +582,18 @@ class Z3Solver(Solver):
     @classmethod
     def _run_script(cls, script_path: str) -> str:
         """
-            Given the file path, run the python script and return the standard output.
+        Run the given python script and return its standard output.
         """
 
         # run
         process = subprocess.run(
             ['python3', script_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True, text=True,
+            check=True,
         )
-        if process.returncode != 0:
-            raise RuntimeError(f'Solver execution FAILED. Failed to run file {script_path}')
 
         # return decoded output
-        return process.stdout.decode()
+        return process.stdout
 
     @classmethod
     def _decode_output(cls, raw_result: str) -> Tuple[str, Optional[Dict[str, Union[bool, int]]]]:

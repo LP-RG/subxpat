@@ -112,7 +112,8 @@ class Labelling:
                         # run
                         strings.append('solver.check()\n')
                         strings.append('model = solver.model()\n')
-                        strings.append('print(opt_objective.value())\n')  # .value() is equivalent to the correct alternative between .upper() and .lower()
+                        # .value() is equivalent to the correct alternative between .upper() and .lower()
+                        strings.append('print(opt_objective.value())\n')
                     else:
                         strings.append('solver = Optimize()\n\n')
                         # error
@@ -125,7 +126,8 @@ class Labelling:
                         # run
                         strings.append('solver.check()\n')
                         strings.append('model = solver.model()\n')
-                        strings.append('print(opt_objective.value())\n')  # .value() is equivalent to the correct alternative between .upper() and .lower()
+                        # .value() is equivalent to the correct alternative between .upper() and .lower()
+                        strings.append('print(opt_objective.value())\n')
 
                     self.__base_script = ''.join(strings)
 
@@ -137,8 +139,11 @@ class Labelling:
         script_path = self._get_script_path(target_node)
         with open(script_path, 'w') as f: f.write(script)
         # run script
-        result = subprocess.run(['python3', script_path], capture_output=True, text=True)
-        if result.returncode != 0: raise RuntimeError(f'Unable to run labelling script {script_path}')
+        result = subprocess.run(
+            ['python3', script_path],
+            capture_output=True, text=True,
+            check=True,
+        )
 
         # parse result
         self.__cached_weights[target_node] = _w = int(result.stdout)
