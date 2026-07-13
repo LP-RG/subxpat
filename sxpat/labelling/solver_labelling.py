@@ -14,19 +14,17 @@ from sxpat.utils.collections import iterable_replace
 
 __all__ = ['Labelling']
 
+#Interval data class
 @dataclass
 class Interval:
     l_bound: int
     u_bound: int
 
-
+#zone data class
 @dataclass
 class Zone:
     input_1 : Interval
     input_2 : Interval
-    
-    # def to_range(self) -> Tuple[int, int]:
-    #     return (self.l_bound, self.u_bound)
 
 
 class Labelling:
@@ -56,8 +54,14 @@ class Labelling:
 
 
 
-    #splitting the input space into zones
+  
     def zone_generator(self, input1_interval:Tuple[int, int], input2_interval:Tuple[int, int], beta:int)-> List[Zone]:
+        """
+           Splits the total input space into a grid of smaller zones.
+           The density and number of generated zones depend on the beta step size.
+           It outputs A list containing the generated zone dataclasses mapping out the grid.
+        """
+    
         # MARCO:REVIEW:
         #   - to add a docstring (similar to what you did in pyret) you can use a string at the beginning of the function (e.g., "some description blabla")
         #   - a more extensive usage of type annotations would be better, that allows other people (or future you) to more easily understand and use your functions
@@ -88,7 +92,10 @@ class Labelling:
                 )
         return all_zones
 
-    def label_node(self, node_to_label: str, zone_intervals:Dict[str, int] = {}) -> int:
+    def label_node(self, node_to_label: str, zone_intervals:Zone = None) -> int:
+        """
+        Evaluates a specific node within an input zone to calculate its weight.
+        """
         # MARCO:REVIEW:
         #   - if you want to simplify the default value for zone_intervals, you can directly replace the None with the empty dictionary in the signature
         #     there are situations where your approach is needed, but for most situations the simpler alternative is better
@@ -110,8 +117,14 @@ class Labelling:
 
     #iterating through all the zones
 
-    def label_all_zones(self, node_to_label:str, input1_zone:Tuple[int, int], input2_zone:Tuple[int,int], beta:int) -> Dict[str, Dict[Tuple[int, int], int]]:
-       
+    def label_all_zones(self, node_to_label:str, input1_zone:Tuple[int, int], input2_zone:Tuple[int,int], beta:int) -> Dict[str, int]:
+        """
+        Iterates over the entire partitioned input space to calculate the error weight of a node in every zone.
+
+        Generates a grid of input zones based on the beta step size and evaluates the target 
+        node within each specific boundary using the Z3 solver. Zones that return a valid 
+        weight are recorded.
+        """
         zone_weights={}
 
         #for every zone the node is labelled with a weight 
@@ -125,7 +138,7 @@ class Labelling:
     def label_graph(self) -> Mapping[str, int]:
         raise NotImplementedError('To be done later')
 
-    def _define_question(self, node_to_label: str, zone_intervals: Dict[str, Tuple[int, int]]):
+    def _define_question(self, node_to_label: str, zone_intervals: Zone):
         # > guards
         if node_to_label not in self.to_be_labelled:
             raise ValueError(f'Node {node_to_label} not found in circuit')
@@ -180,16 +193,20 @@ class Labelling:
 
         in_zone=[]
         in_zone_constraints =[]
+        final_zone_conditions=[]
         if zone_intervals:
-            input_one_value = ToInt('input_one_value', operands=self.to_be_labelled.inputs_names[:len(self.to_be_labelled.inputs_names)//2])
-            input_two_value = ToInt('input_two_value', operands=self.to_be_labelled.inputs_names[len(self.to_be_labelled.inputs_names)//2:])
 
-            in_zone.extend([input_one_value, input_two_value])
-            
+            input_nodes = {
+                "input_1": ToInt('input_one_value', operands=self.to_be_labelled.inputs_names[:len(self.to_be_labelled.inputs_names)//2]),
+                "input_2": ToInt('input_two_value', operands=self.to_be_labelled.inputs_names[len(self.to_be_labelled.inputs_names)//2:])
+            }
+            in_zone.extend(input_nodes.values())
         
             for field_obj in fields(zone_intervals):
 
                 field = getattr(zone_intervals, field_obj.name)
+
+                curr_input_node = input_nodes[field_obj.name]
 
                 int_min_bound = field.l_bound
                 int_max_bound = field.u_bound
@@ -197,30 +214,14 @@ class Labelling:
                 min_bound_const = IntConstant(f'{field_obj.name}_min_bound', value = int_min_bound)
                 max_bound_const = IntConstant(f'{field_obj.name}_max_bound', value = int_max_bound)
 
-                if field_obj.name == "input_1":
-                    input_one_value = ToInt('input_one_value', operands=self.to_be_labelled.inputs_names[:len(self.to_be_labelled.inputs_names)//2])
-                    in_zone.append(input_one_value)
+                ge_input = GreaterEqualThan(f"greater_or_equal_then_bound_{field_obj.name}", operands=(curr_input_node.name, min_bound_const.name))
+                le_input = LessEqualThan(f"less_or_equal_then_bound{field_obj.name}", operands=(curr_input_node.name, max_bound_const.name))
 
-                    ge_input = GreaterEqualThan(f"greater_or_equal_then_bound_{field_obj.name}", operands=(input_one_value.name, min_bound_const.name))
-                    le_input = LessEqualThan(f"less_or_equal_then_bound{field_obj.name}", operands=(input_one_value.name, max_bound_const.name))
+                final_input_condition = And(f"{field_obj.name}_in_zone", operands=(ge_input, le_input))
 
-                    final_input1_condition = And(f"{field_obj.name}_in_zone", operands=(ge_input, le_input))
+                in_zone.extend([min_bound_const, max_bound_const, ge_input, le_input, final_input_condition])
 
-                    in_zone.extend([min_bound_const, max_bound_const, ge_input, le_input, final_input1_condition])
-               
-                if field_obj.name == "input_2":
-                    input_two_value = ToInt('input_two_value', operands=self.to_be_labelled.inputs_names[len(self.to_be_labelled.inputs_names)//2:])
-                    in_zone.append(input_two_value)
-
-                    ge_input = GreaterEqualThan(f"greater_or_equal_then_bound_{field_obj.name}", operands=(input_two_value.name, min_bound_const.name))
-                    le_input = LessEqualThan(f"less_or_equal_then_bound{field_obj.name}", operands=(input_two_value.name, max_bound_const.name))
-                    
-                    final_input2_condition = And(f"{field_obj.name}_in_zone", operands=(ge_input, le_input))
-
-                    in_zone.extend([min_bound_const, max_bound_const, ge_input, le_input, final_input1_condition, final_input2_condition])
-
-                
-
+                final_zone_conditions.append(final_input_condition)
 
             # MARCO:COMMENT: as the core logic for the two zones is the same, it may be beneficial to generalize a bit the implementation, such that you can then generate both constraints with the same code
             # MARCO:COMMENT: if you want to implement the approach of a custom type (as described in the review of zone_generator), the implementation might slightly change
@@ -229,7 +230,7 @@ class Labelling:
                
 
             # MARCO:COMMENT: as the "square" zones are always defined by two ranges (one for each input), you can simplify a bit your implementation by removing a few checks (both here and above)
-            final_condition = And("final_in_zone_condition", operands=(final_input1_condition, final_input2_condition))
+            final_condition = And("final_in_zone_condition", operands=(final_zone_conditions[0].name, final_zone_conditions[1].name))
             in_zone.append(final_condition)
             in_zone_constraints.append(Constraint.of(final_condition))
             # MARCO:COMMENT: is this statement redundant, in the situation where the execution entered in the previous `if`?
