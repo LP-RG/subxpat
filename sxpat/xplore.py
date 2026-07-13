@@ -447,10 +447,10 @@ def z3labelling(circuit: IOGraph, specs_obj: Specifications):
     to_be_labelled, constraints = Labeling.define(circuit, ['g0'], specs_obj.min_labeling) #params: circuit, node to label, how to label
     # status, result = Z3FuncIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
     # status, result = Z3DirectIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
-    # status, result = Z3HybridIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+    status, result = Z3HybridIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
     # status, result = Z3FuncBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
     # status, result = Z3DirectBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
-    status, result = Z3HybridBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+    # status, result = Z3HybridBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
 
     print(status, result)
     
