@@ -1,9 +1,10 @@
-from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union, overload
+from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, overload
 from typing_extensions import override
 from abc import abstractmethod
 
 import itertools as it
 import subprocess
+from os.path import join as path_join
 
 from sxpat.specifications import Specifications
 from sxpat.utils.functions import str_to_int_or_bool
@@ -14,8 +15,6 @@ from .Solver import Solver
 from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.graph import *
 from sxpat.graph.node import *
-
-import sxpat.config.config as sxpat_cfg
 
 
 __all__ = [
@@ -569,8 +568,7 @@ class Z3Solver(Solver):
                   global_task: Union[ForAll, Min, Max, None],
                   ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
 
-        # TODO:#15: how do we generate a name here
-        script_path = f'output/z3/{specifications.exact_benchmark}_iter{specifications.iteration}.py'
+        script_path = path_join(specifications.path.run.solver_scripts, f'iter{specifications.iteration}_{specifications.sub_iteration}.py')
 
         # encode
         with open(script_path, 'w') as f: cls.encoder.encode(graphs, f, global_task)
@@ -589,7 +587,7 @@ class Z3Solver(Solver):
 
         # run
         process = subprocess.run(
-            [sxpat_cfg.PYTHON3, script_path],
+            ['python3', script_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
