@@ -234,7 +234,7 @@ class Specifications:
         _base = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
         self.run_id = FS.get_unique_name(
             int_to_strbase(self.timestamp, _base)
-            .rjust(8, _base[0])  # with padding, the naming order is safe for another ~6.5k years (as of 2026)
+            .rjust(8, _base[0])  # with padding, the naming order is safe for another ~6.5k years (as of 2026AD)
             + '_',
             id_size=4,
         )
