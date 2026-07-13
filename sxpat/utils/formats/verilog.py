@@ -1,8 +1,9 @@
+from typing import ClassVar, Dict, Iterable, List, Mapping, Sequence, Tuple
+
 import re
-from shutil import move
+from sxpat.utils.filesystem import FS
 from os.path import join as path_join
 from subprocess import run, PIPE, DEVNULL
-from typing import ClassVar, Dict, Iterable, List, Mapping, Sequence, Tuple
 
 
 __all__ = [
@@ -263,4 +264,4 @@ class convert_verilog_to_dot:
             if _process.returncode != 0: raise YosysError(yosys_command, _process.stderr)
 
         # move .dot to .gv
-        move(tmp_dot_path, output_gv_path)
+        FS.move(tmp_dot_path, output_gv_path, overwrite=True)
