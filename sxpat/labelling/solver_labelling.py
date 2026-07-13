@@ -51,9 +51,6 @@ class Labelling:
         self._specs = specs
 
 
-
-
-
   
     def zone_generator(self, input1_interval:Tuple[int, int], input2_interval:Tuple[int, int], beta:int)-> List[Zone]:
         """
@@ -234,9 +231,6 @@ class Labelling:
             in_zone.append(final_condition)
             in_zone_constraints.append(Constraint.of(final_condition))
             # MARCO:COMMENT: is this statement redundant, in the situation where the execution entered in the previous `if`?
-          
-        
-
 
 
         # construct structure
