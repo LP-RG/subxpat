@@ -1,14 +1,12 @@
 import os
 
 from sxpat.specifications import Specifications, SlashType
-from sxpat.annotatedGraph import AnnotatedGraph
 from sxpat.graph.graph import IOGraph
 
 from sxpat.solvers.Z3Solver import Z3DirectBitVecSolver, Z3DirectIntSolver, Z3FuncBitVecSolver, Z3FuncIntSolver
 from sxpat.solvers.QbfSolver import QbfSolver
 
 from sxpat.converting import VerilogExporter
-from sxpat.converting.legacy import iograph_from_legacy
 
 from sxpat.utils.timer import Timer
 

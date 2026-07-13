@@ -4,10 +4,9 @@ import re
 import subprocess
 import functools as ft
 
-from .config import config as sxpatconfig
+from sxpat.utils.names import extract_name
 from sxpat.utils.decorators import make_utility_class
 from sxpat.specifications import Paths
-from Z3Log_patched.utils import get_pure_name
 
 
 __all__ = ['MetricsEstimator']
@@ -93,7 +92,7 @@ class MetricsEstimator:
         temporary_path: str,
     ) -> Metrics:
         # compute names and paths
-        circuit_name = get_pure_name(circuit_in_verilog_path)
+        circuit_name = extract_name(circuit_in_verilog_path)
         metrics_verilog_path = f'{temporary_path}/{circuit_name}_for_metrics.v'
         module_name = cls._extract_module_name(circuit_in_verilog_path)
 
@@ -117,10 +116,10 @@ class MetricsEstimator:
         )
 
         # > execute commands
-        yosys_result = subprocess.run([sxpatconfig.YOSYS, '-QT'],
+        yosys_result = subprocess.run(['yosys', '-QT'],
                                       input=yosys_command, text=True,
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        sta_result = subprocess.run([sxpatconfig.OPENSTA, '-no_splash'],
+        sta_result = subprocess.run(['sta', '-no_splash'],
                                     input=sta_command, text=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 

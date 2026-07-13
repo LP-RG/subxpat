@@ -405,6 +405,8 @@ class crystallise:
             AbsDiff: cls._all_or_nothing_node,
             Mul: cls._all_or_nothing_node,
             Div: cls._all_or_nothing_node,
+            RightShift: cls._all_or_nothing_node,
+            LeftShift: cls._all_or_nothing_node,
             # bool to int
             ToInt: cls._all_or_nothing_node,
             # int to bool
@@ -432,10 +434,9 @@ class crystallise:
             # select crystalliser
             try:
                 crystallise = _crystalliser_for[type(node)]
-            except KeyError:
-                pprint.error(f'No crystalliser for {type(node)} is implemented, defaulting to "as is".')
-                print(f'No crystalliser for {type(node)} is implemented, defaulting to "as is".', file=sys.stderr)
-                crystallise = cls._as_is
+            except KeyError as err:
+                pprint.error(f'No crystalliser for {type(node)} is implemented')
+                raise err
 
             # get operands
             if isinstance(node, Operation):
@@ -669,6 +670,8 @@ class crystallise:
                 Mul: lambda ops: math.prod(op.value for op in ops),
                 Div: lambda ops: ops[0].value // ops[1].value,
                 ToInt: lambda ops: sum(op.value * (2 ** i) for (i, op) in enumerate(ops)),
+                RightShift: lambda ops: ops[0].value // (2 ** node.value),
+                LeftShift: lambda ops: ops[0].value * (2 ** node.value),
                 # bool to int
                 Equals: lambda ops: ops[0].value == ops[1].value,
                 NotEquals: lambda ops: ops[0].value != ops[1].value,

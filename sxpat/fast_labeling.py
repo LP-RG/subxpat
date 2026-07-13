@@ -3,11 +3,10 @@ from sxpat.graph.graph import IOGraph
 from sxpat.graph.node import BoolConstant, BoolVariable
 from sxpat.specifications import Specifications, LabelingType, LabelingRelativeTo
 from sxpat.definitions.templates.Labeling import Labeling
-# from sxpat.definitions.templates.LabelingConstants import LabelingConstants
 from sxpat.solvers.QbfSolver import QbfSolver
 from sxpat.utils.timer import Timer
-from sxpat.z3solver_wrapper import Z3solver
 from typing import Callable
+from sxpat.labelling.labelling import Labelling
 
 def calc_label(exact_graph: IOGraph, current_graph: IOGraph, cur_node, specs_obj: Specifications):
     define_template = Labeling.define
@@ -33,10 +32,10 @@ def calc_double_label(exact_graph: IOGraph, current_graph: IOGraph, cur_node, sp
 #     true = model['weight']
 #     return f'{false} {true}'
 
-def calc_label_legacy(z3solver: Z3solver, cur_node):
-    return z3solver.label_gate(cur_node)
+def calc_label_legacy(labeller: Labelling, cur_node):
+    return labeller.label_node(cur_node)
 
-def fast_labeling(exact_graph: IOGraph, current_graph: IOGraph, et, specs_obj: Specifications, skip_at_output=True, threshold_for_max_imprecision=10, skip_input=True, weights = {}, upper_bound = {}, z3solver = None):
+def fast_labeling(exact_graph: IOGraph, current_graph: IOGraph, et, specs_obj: Specifications, skip_at_output=True, threshold_for_max_imprecision=10, skip_input=True, weights = {}, upper_bound = {}, labeller = None):
     """
 if skip_at_output is true then the nodes at the output will have automatically their weights set to the value of the output
 threshold_for_max_imprecision set the weight of the node that you must have compared to et to skip the parents that only have the current node

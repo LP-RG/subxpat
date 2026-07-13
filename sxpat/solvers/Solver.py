@@ -7,7 +7,7 @@ from sxpat.graph.node import ForAll, Max, Min, PlaceHolder, GlobalTask, GreaterT
 from sxpat.specifications import Specifications
 from sxpat.utils.decorators import make_utility_class
 
-from sxpat.config import SolverConstants as SC
+from sxpat.constants import SolverConstants as SC
 from sxpat.utils.print import pprint
 
 
@@ -124,7 +124,7 @@ class Solver(metaclass=ABCMeta):
             '[WARNING] using default (iterative) implementation'
             f' for {cls.__qualname__}.solve_forall(...)'
         )
-        cls._solve_forall(graphs, specifications, forall_target)
+        return cls._solve_forall(graphs, specifications, forall_target)
 
     @classmethod
     def solve_optimize(cls, graphs: _Graphs,
