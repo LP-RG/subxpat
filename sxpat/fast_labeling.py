@@ -92,10 +92,10 @@ the value, set to 0 to never use
             value = 2 ** int(current_graph.successors(cur_node)[0].name[3:])
         
         else:
-            if z3solver is None:
+            if labeller is None:
                 value = calc_label(exact_graph, current_graph, cur_node, specs_obj)
             else:
-                value = calc_label_legacy(z3solver, cur_node)
+                value = calc_label_legacy(labeller, cur_node)
             # value = allweights[cur_node]
             # tot_time += alltimes[cur_node]
         
