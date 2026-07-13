@@ -4,7 +4,6 @@ from __future__ import (
 from typing import (
     Callable,
     Generator,
-    Generic,
     Iterable,
     Iterator,
     Literal,
@@ -13,7 +12,6 @@ from typing import (
     Optional,
     Tuple,
     Type,
-    TypeVar,
     Union,
     overload,
 )
@@ -43,13 +41,10 @@ __all__ = [
 
 
 NOTHING = object()
-K = TypeVar('K')
-V = TypeVar('V')
-T = TypeVar('T')
 
 
 @overload
-def mapping_inv(mapping: Mapping[K, V], value: V) -> K:
+def mapping_inv[K, V](mapping: Mapping[K, V], value: V) -> K:
     """
         Given a mapping, returns the key associated to the first occurrance of the value.
         If the value never occurs in the mapping, raises an exception.
@@ -57,14 +52,14 @@ def mapping_inv(mapping: Mapping[K, V], value: V) -> K:
 
 
 @overload
-def mapping_inv(mapping: Mapping[K, V], value: V, default: T) -> Union[K, T]:
+def mapping_inv[K, V, T](mapping: Mapping[K, V], value: V, default: T) -> Union[K, T]:
     """
         Given a mapping, returns the key associated to the first occurrance of the value.
         If the value never occurs in the mapping, returns the given default.
     """
 
 
-def mapping_inv(mapping: Mapping[K, V], value: V, default=NOTHING) -> Union[K, T]:
+def mapping_inv[K, V, T](mapping: Mapping[K, V], value: V, default: T = NOTHING) -> Union[K, T]:
     """
         @note: if we move to an invertible mapping (eg. `bidict`) this will not be needed anymore
 
@@ -76,7 +71,7 @@ def mapping_inv(mapping: Mapping[K, V], value: V, default=NOTHING) -> Union[K, T
     return key
 
 
-def iterable_replace(iterable: Iterable[T], to_be_replace: T, replacement: T) -> Iterator[T]:
+def iterable_replace[T](iterable: Iterable[T], to_be_replace: T, replacement: T) -> Iterator[T]:
     """
         Given an iterable, a value to be replaced, and a value to replace it with,
         returns an iterator with all occurrences of `to_be_replaced` replaced with `replacement`.
@@ -90,7 +85,7 @@ def iterable_replace(iterable: Iterable[T], to_be_replace: T, replacement: T) ->
             yield value
 
 
-def iterable_replace_index(iterable: Iterable[T], index: int, value: T) -> Iterator[T]:
+def iterable_replace_index[T](iterable: Iterable[T], index: int, value: T) -> Iterator[T]:
     """
         Given an iterable, and a value to be replaced at a certain index, 
         returns an iterator with the value at the index replaced with the given one.  
@@ -105,24 +100,24 @@ def iterable_replace_index(iterable: Iterable[T], index: int, value: T) -> Itera
     yield from iterable  # yield the remaining from the iterable (restarts at index + 1)
 
 
-def flat(iterable:
-         Iterable[  # this abomination is to allow type hinting, recursive types don't really work (eg. R = Union[T, Iterable['R']) (maybe with newer python versions?)
-             Union[T, Iterable[
-                 Union[T, Iterable[
-                     Union[T, Iterable[
-                         Union[T, Iterable[
-                             Union[T, Iterable[
-                                 Union[T, Iterable[
-                                     Union[T, Iterable[
-                                         Union[T, Iterable[
-                                             T]]]]]]]]]]]]]]]]]
-         ) -> Iterator[T]:
+def flat[T](iterable:
+            Iterable[  # this abomination is to allow type hinting, recursive types don't really work (eg. R = Union[T, Iterable['R']) (maybe with newer python versions?)
+                Union[T, Iterable[
+                    Union[T, Iterable[
+                        Union[T, Iterable[
+                            Union[T, Iterable[
+                                Union[T, Iterable[
+                                    Union[T, Iterable[
+                                        Union[T, Iterable[
+                                            Union[T, Iterable[
+                                                T]]]]]]]]]]]]]]]]]
+            ) -> Iterator[T]:
     for i in iterable:
         if isinstance(i, Iterable): yield from flat(i)
         else: yield i
 
 
-def pairwise(iterable: Iterable[T]) -> Generator[Tuple[T, T]]:
+def pairwise[T](iterable: Iterable[T]) -> Generator[Tuple[T, T]]:
     """
         example: `pairwise((1,2,3,4))` -> `(1,2) (2,3) (3,4)`.  
         credits: https://docs.python.org/3.12/library/itertools.html#itertools.pairwise
@@ -144,7 +139,7 @@ def unzip(iterable: Iterable) -> Iterable:
     return zip(*iterable)
 
 
-class MultiDict(UserDict, Generic[K, V]):
+class MultiDict[K, V](UserDict):
     """
         A dictionary-like mapping that allows multiple keys to be associated with the same value.
 
@@ -161,7 +156,7 @@ class MultiDict(UserDict, Generic[K, V]):
         for k in key: self.data[k] = value
 
 
-class InheritanceMapping(MutableMapping[Type, V]):
+class InheritanceMapping[V](MutableMapping[Type, V]):
     """
         A dictionary-like mapping from a type to a value, implicitly mapping all subclasses to the same value.
 
@@ -227,7 +222,7 @@ class MatchingElementError(LookupError): """Matching element not found."""
 
 
 @overload
-def first(predicate: Callable[[T], bool], iterable: Iterable[T]) -> T:
+def first[T](predicate: Callable[[T], bool], iterable: Iterable[T]) -> T:
     """
         Returns the first element in the iterable matching the predicate.  
         `MatchingElementError` is raised if no element matches.
@@ -235,14 +230,14 @@ def first(predicate: Callable[[T], bool], iterable: Iterable[T]) -> T:
 
 
 @overload
-def first(predicate: Callable[[T], bool], iterable: Iterable[T], default: V) -> Union[T, V]:
+def first[T, V](predicate: Callable[[T], bool], iterable: Iterable[T], default: V) -> Union[T, V]:
     """
         Returns the first element in the iterable matching the predicate.  
         `default` is returned if no element matches.
     """
 
 
-def first(predicate: Callable[[T], bool], iterable: Iterable[T], default=NOTHING) -> Union[T, V]:
+def first[T, V](predicate: Callable[[T], bool], iterable: Iterable[T], default: V = NOTHING) -> Union[T, V]:
     """@authors: Marco Biasion"""
 
     element = next(filter(predicate, iterable), default)

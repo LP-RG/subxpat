@@ -3,7 +3,7 @@ from typing import Iterable
 import networkx as nx
 
 
-def is_selection_convex(graph: nx.DiGraph, selected_nodes: Iterable[str]) -> bool:
+def is_selection_convex(graph: nx.DiGraph, selected_nodes: Iterable) -> bool:
     """
         Given a DiGraph and the nodes in the selection, returns if the selection is convex or not.
 
