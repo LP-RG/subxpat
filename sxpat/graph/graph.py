@@ -1,7 +1,5 @@
-from __future__ import annotations
 import operator as op
-from typing_extensions import Self
-from typing import AbstractSet, Any, Iterable, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Dict
+from typing import AbstractSet, Any, Iterable, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Self
 from types import MappingProxyType
 
 import networkx as nx
@@ -14,7 +12,7 @@ from .node import (
     BoolVariable, PlaceHolder,
     Target, Constraint,
     #
-    AnyNode, AnyConstant, AnyOperation, AnyExpression, AnyGlobalObjective,
+    AnyNode, AnyConstant, AnyExpression, AnyGlobalObjective,
     AnyNonEndPoint, AnyNonEntryPoint, Variable,
 )
 from .error import UndefinedNodeError
