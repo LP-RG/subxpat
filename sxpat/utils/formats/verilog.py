@@ -40,7 +40,7 @@ class synthesize_verilog_to_notand_gate_level:
         opt;
         opt_clean -purge;
         write_verilog -noattr {output_path};
-    """
+    """.replace(';\n        ', '; ').strip()
 
     MODULE_PATTERN: ClassVar = re.compile(r'^\s*module\s+\w+\s*\(([\w,\\\s\[\]]+?)\);', re.MULTILINE)
     SPACES_PATTERN: ClassVar = re.compile(r'\s+')
@@ -49,7 +49,7 @@ class synthesize_verilog_to_notand_gate_level:
     OUTPUT_PATTERN: ClassVar = re.compile(r'^output (.+?)\s*$')
     RANGE_PATTERN: ClassVar = re.compile(r'\[(\d+):(\d+)\]')
     VECTOR_PATTERN: ClassVar = re.compile(r'(?:\[\d+:\d+\]\s*)?(.*)')
-    PARTIAL_RELABEL_PATTERN: ClassVar = r'({key})([,;)\s\r\n$])'
+    PARTIAL_RELABEL_PATTERN: ClassVar = r'({key})([,;)\s]|$)'
 
     def __new__(cls, input_path: str, output_path: str):
         # compose command
@@ -244,11 +244,11 @@ class convert_verilog_to_dot:
     """
 
     YOSYS_COMMAND: ClassVar = """
-        read_verilog {input_verilog_path}
-        opt
-        clean
-        show -prefix {output_dot_path} -format dot
-    """
+        read_verilog {input_verilog_path};
+        opt;
+        clean;
+        show -prefix {output_dot_path} -format dot;
+    """.replace(';\n        ', '; ').strip()
 
     def __new__(cls, input_verilog_path: str, output_gv_path: str, temporary_path: str):
         # prepare
@@ -256,10 +256,11 @@ class convert_verilog_to_dot:
         yosys_command = cls.YOSYS_COMMAND.format(input_verilog_path=input_verilog_path, output_dot_path=tmp_dot_path[:-4])
 
         # run
-        with open(path_join(temporary_path, 'yosys_convert_verilog_to_dot.log'), 'w') as f:
+        log_path = path_join(temporary_path, 'yosys_convert_verilog_to_dot.log')
+        with open(log_path, 'w') as f:
             # run yosys command (dump log to temporary file)
-            _process = run(['yosys', '-p', yosys_command], stdout=f, stderr=f)
-            assert _process.returncode == 0
+            _process = run(['yosys', '-p', yosys_command], stdout=DEVNULL, stderr=PIPE, text=True)
+            if _process.returncode != 0: raise YosysError(yosys_command, _process.stderr)
 
         # move .dot to .gv
         move(tmp_dot_path, output_gv_path)
