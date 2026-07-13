@@ -19,13 +19,13 @@ __all__ = ['Labelling']
 #   doing so will allow you to use it as key in dictionaries (and some other data structures)
 #   i left a comment with the text "TAG:A" later in the code, take also a look there
 #Interval data class
-@dataclass
+@dataclass(frozen=True)
 class Interval:
     l_bound: int
     u_bound: int
 
 #zone data class
-@dataclass
+@dataclass(frozen=True)
 class Zone:
     input_1 : Interval
     input_2 : Interval
@@ -134,7 +134,7 @@ class Labelling:
 
             if weight is not None:
                 # MARCO:COMMENT: (TAG:A) if you implemented the other TAG:A, here you can use zone_weights[zone] = weight
-                zone_weights[str(zone)] = weight
+                zone_weights[zone] = weight
 
         return zone_weights
 
