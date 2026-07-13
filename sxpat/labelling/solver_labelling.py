@@ -14,6 +14,10 @@ from sxpat.utils.collections import iterable_replace
 
 __all__ = ['Labelling']
 
+# MARCO:COMMENT: (TAG:A)
+#   here you can make the dataclasses "frozen", meaning that it cannot be changed after creation
+#   doing so will allow you to use it as key in dictionaries (and some other data structures)
+#   i left a comment with the text "TAG:A" later in the code, take also a look there
 #Interval data class
 @dataclass
 class Interval:
@@ -129,7 +133,9 @@ class Labelling:
             weight = self.label_node(node_to_label, zone)
 
             if weight is not None:
-               zone_weights[str(zone)] = weight
+                # MARCO:COMMENT: (TAG:A) if you implemented the other TAG:A, here you can use zone_weights[zone] = weight
+                zone_weights[str(zone)] = weight
+
         return zone_weights
 
     def label_graph(self) -> Mapping[str, int]:
