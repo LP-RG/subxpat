@@ -16,26 +16,13 @@ __all__ = ['FS']
 @make_utility_class
 class FS:
     """
-        Utility class for filesystem operations.
+    Utility class for filesystem operations.  
+    All methods are more expensive compared to their os/shutil counterpart; this is because we do cleaning/normalization and more checks.
 
-        :authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
-    from tempfile import gettempdir as get_tempdir
-
-    @classmethod
-    def exists(
-        cls, path: str,
-    ) -> bool:
-        """
-        Returns if something exists at the given path.
-
-        :param path: the path to check.
-        """
-
-        path = _os.path.normpath(path)
-
-        return _os.path.exists(path)
+    # > FILES
 
     @classmethod
     def mkfile(
@@ -65,8 +52,8 @@ class FS:
         id_size: int = 5,
     ) -> str:
         """
-        Create the file, with a unique id inserted in the name.
-        The unique id is in the format `###`, where `###` is a number (000, 001, ..., 999).
+        Create the file, with the name made unique using an inserted code.  
+        The code is in the format `###`, where `###` is a number (000, 001, ..., 999).
 
         :param fileprefix: the base name of the file to create.
         :param filesuffix: the name suffix of the file to create.
@@ -111,6 +98,26 @@ class FS:
         raise FileExistsError(_errno.EEXIST, 'No usable unique file name found')
 
     @classmethod
+    def rmfile(
+        cls, filepath: str,
+    ) -> None:
+        """
+        Remove the file (or symlink).
+        Does nothing if the file does not exist.
+
+        :param filepath: the path to the file.
+
+        :raises IsADirectoryError: if the path is a directory.
+        """
+
+        filepath = _os.path.normpath(filepath)
+
+        if _os.path.exists(filepath):
+            _os.remove(filepath)
+
+    # > DIRECTORIES
+
+    @classmethod
     def mkdir(
         cls, dirname: str,
         directory: str = '',
@@ -135,8 +142,8 @@ class FS:
         id_size: int = 5,
     ) -> str:
         """
-        Create the directory (recursively), postfixed with a unique id.
-        The unique id is in the format `###`, where `###` is a number (000, 001, ..., 999).
+        Create the directory (recursively), with the name made unique by suffixing it with a code.
+        The code is in the format `###`, where `###` is a number (000, 001, ..., 999).
 
         :param dirname: the base name of the directory to create.
         :param directory: the parent directory in which to create the new directory (defaults to the working directory).
@@ -182,10 +189,11 @@ class FS:
         recursive: bool = False,
     ) -> None:
         """
-        Remove the directory (recursively if wanted).
+        Remove the directory.
         Does nothing if the directory does not exist.
 
         :param dirpath: the path to the directory.
+        :param recursive: if the directory should be removed even if it has content.
 
         :raises NotADirectoryError: if the path does not represent a directory.
         """
@@ -203,7 +211,7 @@ class FS:
         cls, dirpath: str,
     ) -> None:
         """
-        Empties an existing directory.
+        Empty an existing directory.
 
         :param dirpath: the path to the directory.
 
@@ -224,9 +232,10 @@ class FS:
         cls, dirpath: str,
     ) -> Iterable[str]:
         """
-        Returns an iterable of paths corresponding to the contents of the given directory.
+        Get all contents of a directory.
 
         :param dirpath: the path to the directory.
+        :return: iterable of paths of the contents (prefixed with the input path).
 
         :raises FileNotFoundError: if the directory does not exists.
         :raises NotADirectoryError: if the path does not represent a directory.
@@ -277,6 +286,101 @@ class FS:
         else:
             yield path
 
+    # > MISC
+
+    @classmethod
+    def exists(
+        cls, path: str,
+    ) -> bool:
+        """
+        Check if something exists.
+
+        :param path: the path to check.
+        """
+
+        path = _os.path.normpath(path)
+
+        return _os.path.exists(path)
+
+    @classmethod
+    def join(
+        cls, path: str, *paths: str,
+    ) -> str:
+        """
+        Join two or more path components.
+
+        :param path: the first path component.
+        :param paths: the other paths components.
+
+        :raises ValueError: if any component in `paths` is an absolute path.
+        :raises ValueError: if no component is given in `paths`.
+        """
+
+        if len(paths) == 0:
+            raise ValueError('no components given')
+        if any(p.startswith('/') for p in paths):
+            raise ValueError('invalid absolute path as component')
+
+        path = _os.path.normpath(path)
+        paths = tuple(_os.path.normpath(p) for p in paths)
+
+        return _os.path.normpath(_os.path.join(path, *paths))
+
+    @classmethod
+    def copy(
+        cls, src_path: str, dst_path: str,
+        overwrite: bool = False,
+    ) -> None:
+        """
+        Recursively copy a file or a directory from `src_path` to `dst_path`.
+
+        :param src_path: the path to copy from.
+        :param dst_path: the path to copy to.
+        :param overwrite: if the destination or destinations (in case of a directory) 
+            should be overwritten if they already exists.
+
+        :raises FileExistsError: if `dst_path` already exists and `overwrite` is false.
+        """
+
+        src_path = _os.path.normpath(src_path)
+        dst_path = _os.path.normpath(dst_path)
+
+        if not overwrite and _os.path.exists(dst_path):
+            raise FileExistsError(_errno.EEXIST, f'{dst_path} already exists')
+
+        if _os.path.isdir(src_path):
+            _shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
+        else:
+            _shutil.copyfile(src_path, dst_path, follow_symlinks=True)
+            _shutil.copy
+
+    @classmethod
+    def move(
+        cls, src_path: str, dst_path: str,
+        overwrite: bool = False,
+    ) -> None:
+        """
+        Recursively move a file or a directory from `src_path` to `dst_path`.  
+        `dst_path` will be the new path of the entity (different from the standard `mv` behaviour, which may place the entity inside an already existing folder).
+
+        :param src_path: the path to move from.
+        :param dst_path: the path to move to.
+        :param overwrite: if the destination should be overwritten if it already exists.
+
+        :raises FileExistsError: if `dst_path` already exists and `overwrite` is false.
+        """
+
+        src_path = _os.path.normpath(src_path)
+        dst_path = _os.path.normpath(dst_path)
+
+        if not overwrite and _os.path.exists(dst_path):
+            raise FileExistsError(_errno.EEXIST, f'{dst_path} already exists')
+
+        _shutil.rmtree(dst_path, ignore_errors=True)
+        _shutil.move(src_path, dst_path)
+
+    from tempfile import gettempdir as get_tempdir
+
     @classmethod
     def get_unique_name(
         cls,
@@ -314,32 +418,7 @@ class FS:
                 )
             case _: raise
 
-    @classmethod
-    def copy(
-        cls, src_path: str, dst_path: str,
-        overwrite: bool = False,
-    ) -> None:
-        """
-        Copies a file or an entire directory from source to destination.  
-
-        :param src_path: the path to copy from.
-        :param dst_path: the path to copy to.
-        :param overwrite: if the destination or destinations (in case of a directory) 
-            should be overwritten if they already exists.
-
-        :raises FileExistsError: if `dst_path` already exists and `overwrite` is false.
-        """
-
-        src_path = _os.path.normpath(src_path)
-        dst_path = _os.path.normpath(dst_path)
-
-        if not overwrite and _os.path.exists(dst_path):
-            raise FileExistsError(_errno.EEXIST, f'{dst_path} already exists')
-
-        if _os.path.isdir(src_path):
-            _shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
-        else:
-            _shutil.copyfile(src_path, dst_path, follow_symlinks=True)
+    # > helpers
 
     @classmethod
     def _get_codes_iter(
