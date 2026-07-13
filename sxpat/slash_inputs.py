@@ -1,5 +1,6 @@
 import os
 
+from sxpat.newag import load_circuit_from_verilog
 from sxpat.specifications import Specifications, SlashType
 from sxpat.graph.graph import IOGraph
 
@@ -96,8 +97,7 @@ def exploration(exact: IOGraph, specs_obj: Specifications, exact_benchmark: str)
 
 def remove_inputs(specs_obj: Specifications, exact_benchmark: str) -> str:
 
-    annotated = AnnotatedGraph(specs_obj.exact_benchmark, specs_obj.path.run)
-    exact = iograph_from_legacy(annotated)
+    exact = load_circuit_from_verilog(specs_obj.exact_benchmark, specs_obj.path.run)
 
     start = Timer.now()
     selected_nodes, constant = exploration(exact, specs_obj, exact_benchmark)

@@ -96,6 +96,7 @@ def explore_grid(specs_obj: Specifications):
     while (obtained_wce_exact <= specs_obj.max_error):
         specs_obj.iteration += 1
         specs_obj.stats_storage.stage(iteration=specs_obj.iteration)
+        current_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
 
         # compute error threshold for the iteration
         if not specs_obj.subxpat:
@@ -105,10 +106,8 @@ def explore_grid(specs_obj: Specifications):
         elif specs_obj.error_partitioning is ErrorPartitioningType.MAX:
             specs_obj.et = specs_obj.max_error
             stop = False
-            current_graph = AnnotatedGraph(specs_obj.current_benchmark, specs_obj.path.run) 
-            current_circ = iograph_from_legacy(current_graph)
             for previous_graph in previous_graphs:
-                if current_circ == previous_graph:
+                if current_graph == previous_graph:
                     stop = True
                     break
             
@@ -119,7 +118,7 @@ def explore_grid(specs_obj: Specifications):
                 print('current graph is equivalent to previous iteration, stopping')
                 break
             else:
-                previous_graphs.append(current_circ)
+                previous_graphs.append(current_graph)
 
 
         elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
@@ -189,12 +188,10 @@ def explore_grid(specs_obj: Specifications):
             else:
                 start = Timer.now()
                 specs_obj.current_benchmark = remove_inputs(specs_obj, exact_benchmark)
+                print("current", specs_obj.current_benchmark)
                 tot = Timer.now() - start
                 specs_obj.slash = SlashType.NONE
-                exact_graph = AnnotatedGraph(specs_obj.exact_benchmark, specs_obj.path.run)
-                exact_circ = iograph_from_legacy(exact_graph)
-                current = iograph_from_legacy(AnnotatedGraph(specs_obj.current_benchmark, specs_obj.path.run))
-                obtained_wce_exact = error_evaluation(exact_circ, current, specs_obj)
+                obtained_wce_exact = error_evaluation(exact_graph, current_graph, specs_obj)
                 metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, specs_obj.current_benchmark, True)
                 print(f"slash_error = {obtained_wce_exact}")
                 print(f"slash_area = {metrics.area}")
@@ -235,7 +232,6 @@ def explore_grid(specs_obj: Specifications):
 
         # import the graph
         _time = Timer.now()
-        current_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
         _time = Timer.now() - _time
         # logging
         specs_obj.stats_storage.stage(annotated_graphs_initialization_time=_time)
@@ -289,19 +285,6 @@ def explore_grid(specs_obj: Specifications):
             prev_actual_error = 0
             # logging
             pprint.warning(f'No subgraph available.')
-            specs_obj.stats_storage.commit()
-            continue
-
-        # guard: skip if the subraph is equal to the previous one
-        # note:  does not apply for extraction mode 6 and 0
-        if (
-            specs_obj.extraction_mode != 6 and specs_obj.extraction_mode != 0
-            and len(previous_graphs) >= 2
-            and are_circuits_equal(previous_graphs[-2], previous_graphs[-1])
-        ):
-            prev_actual_error = 0
-            # logging
-            pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
             specs_obj.stats_storage.commit()
             continue
 
