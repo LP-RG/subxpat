@@ -1,5 +1,6 @@
 import operator as op
-from typing import AbstractSet, Any, Iterable, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Self
+from typing import AbstractSet, Any, Iterable, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Dict
+from typing_extensions import Self, TypeAlias
 from types import MappingProxyType
 
 import networkx as nx
@@ -33,9 +34,14 @@ class Graph:
     """Generic graph."""
 
     K = object()
-    EXTRAS: Sequence[str] = ()
+    EXTRAS: Sequence[str] = ('zone_weights',)
 
-    def __init__(self, nodes: Iterable[AnyNode]) -> None:
+    zone_weights = None
+
+    #zone_weights is a nested dictionary with the key of the first dictionary 
+    #being the gate and the key of the nested dictionary being the zones
+
+    def __init__(self, nodes: Iterable[AnyNode], zone_weights: Dict[str, Dict[Any, int]] = {}) -> None:
         """
             Creates a new graph from the given nodes.
 
@@ -154,10 +160,11 @@ class IOGraph(Graph):
     EXTRAS: Sequence[str] = (*Graph.EXTRAS, 'inputs_names', 'outputs_names')
 
     def __init__(self, nodes: Iterable[AnyNode],
-                 inputs_names: Sequence[str], outputs_names: Sequence[str]
+                 inputs_names: Sequence[str], outputs_names: Sequence[str],
+                 zone_weights: Dict[str, Dict[Any, int]] = None
                  ) -> None:
         # construct base
-        super().__init__(nodes,)
+        super().__init__(nodes, zone_weights=zone_weights)
 
         # freeze local instances
         self.inputs_names = tuple(inputs_names)
@@ -260,9 +267,10 @@ class PGraph(SGraph):
     def __init__(self, nodes: Iterable[AnyNode],
                  inputs_names: Sequence[str], outputs_names: Sequence[str],
                  parameters_names: Sequence[str],
+                 zone_weights: Dict[str, Dict[Any, int]] = None
                  ) -> None:
 
-        super().__init__(nodes, inputs_names, outputs_names)
+        super().__init__(nodes, inputs_names, outputs_names, zone_weights=zone_weights)
 
         # freeze local instances
         self.parameters_names = tuple(parameters_names)
