@@ -614,7 +614,7 @@ def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> 
         labeller = Labelling(
             reference, to_be_labelled, 
             specs_obj,
-            minimize=specs_obj.labeling == LabelingType.MIN,
+            minimise=specs_obj.labeling == LabelingType.MIN,
             use_functions=True,
         )
         weights = fast_labeling(exact, current, specs_obj.et, specs_obj, skip_at_output=not relativeToOrigin, labeller=labeller)

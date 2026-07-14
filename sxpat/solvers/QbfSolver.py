@@ -607,7 +607,10 @@ class QbfSolver(Solver):
             #
             encoder.write_custom(f'{id_gen.get_sat_problem()} = and({", ".join(mapping[x][0] for x in in_the_output)})\n')
 
-        result = subprocess.run([specifications.path.tools.cqesto, script_path], capture_output=True, text=True)
+        result = subprocess.run(
+            [specifications.path.tools.cqesto, script_path], 
+            capture_output=True, text=True,
+        )
 
         if result.returncode == 10:
             answer_vars = {
