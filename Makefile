@@ -43,7 +43,7 @@ rm_cache:
 
 rm_temp:
 	@echo "\n[[ removing generated temporary files ]]"
-	rm -f yosys_graph.log .history_sta
+	rm -f .history_sta
 
 rm_pyenv:
 	@echo "\n[[ removing the virtual python environment ]]"
