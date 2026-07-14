@@ -640,7 +640,9 @@ class QbfSolver(Solver):
     @classmethod
     def solve_exists(cls,
                      graphs: _Graphs,
-                     specifications: Specifications) -> Tuple[str, Optional[Mapping[str, Any]]]:
+                     specifications: Specifications,
+                     **kwargs,
+                     ) -> Tuple[str, Optional[Mapping[str, Any]]]:
         status, model = cls._solve(graphs, specifications, [])
         return (status, model)
 
@@ -648,6 +650,7 @@ class QbfSolver(Solver):
     def solve_forall(cls, graphs: _Graphs,
                      specifications: Specifications,
                      forall_target: ForAll,
+                     **kwargs,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         status, model = cls._solve(graphs, specifications, list(forall_target.operands))
         return (status, model)

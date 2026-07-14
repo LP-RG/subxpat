@@ -60,6 +60,7 @@ class Solver(metaclass=ABCMeta):
               specifications: Specifications,
               *,
               _global_targets: GlobalTasks = None,
+              **kwargs,
               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve the required problem defined by the given graphs.
@@ -83,29 +84,34 @@ class Solver(metaclass=ABCMeta):
             return cls.solve_optimize_forall(
                 graphs, specifications,
                 _global_targets.optimize, _global_targets.forall,
+                **kwargs,
             )
         elif _global_targets.optimize is not None and _global_targets.forall is None:
             # solve an optimization (not forall quantified) problem
             return cls.solve_optimize(
                 graphs, specifications,
                 _global_targets.optimize,
+                **kwargs,
             )
         elif _global_targets.optimize is None and _global_targets.forall is not None:
             # solve a forall quantified (and non optimization) problem
             return cls.solve_forall(
                 graphs, specifications,
                 _global_targets.forall,
+                **kwargs,
             )
         else:
             # solve a non optimization and not forall quantified problem.
             return cls.solve_exists(
                 graphs, specifications,
+                **kwargs,
             )
 
     @classmethod
     @abstractmethod
     def solve_exists(cls, graphs: _Graphs,
                      specifications: Specifications,
+                     **kwargs,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve a non optimization and not forall quantified problem.
@@ -116,6 +122,7 @@ class Solver(metaclass=ABCMeta):
     def solve_forall(cls, graphs: _Graphs,
                      specifications: Specifications,
                      forall_target: ForAll,
+                     **kwargs,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve a forall quantified (non optimization) problem.
@@ -124,12 +131,13 @@ class Solver(metaclass=ABCMeta):
             '[WARNING] using default (iterative) implementation'
             f' for {cls.__qualname__}.solve_forall(...)'
         )
-        cls._solve_forall(graphs, specifications, forall_target)
+        cls._solve_forall(graphs, specifications, forall_target, **kwargs)
 
     @classmethod
     def solve_optimize(cls, graphs: _Graphs,
                        specifications: Specifications,
                        optimize_target: Union[Min, Max],
+                       **kwargs,
                        ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve an optimization (not forall quantified) problem.
@@ -138,13 +146,14 @@ class Solver(metaclass=ABCMeta):
             '[WARNING] using default (iterative) implementation'
             f' for {cls.__qualname__}.solve_optimize(...)'
         )
-        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, None)
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, None, **kwargs)
 
     @classmethod
     def solve_optimize_forall(cls, graphs: _Graphs,
                               specifications: Specifications,
                               optimize_target: Union[Min, Max],
                               forall_target: ForAll,
+                              **kwargs,
                               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve an optimization and forall quantified problem.
@@ -153,13 +162,14 @@ class Solver(metaclass=ABCMeta):
             '[WARNING] using default (iterative) implementation'
             f' for {cls.__qualname__}.solve_optimize_forall(...)'
         )
-        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target, **kwargs)
 
     @classmethod
     @abstractmethod
     def _solve_forall(cls, graphs: _Graphs,
                       specifications: Specifications,
                       forall_target: ForAll,
+                      **kwargs,
                       ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         # TODO: here we can implement the custom forall approach as for the initial implementations of XPAT (in year ~2021)
         raise NotImplementedError(f'{cls.__qualname__}._solve_forall(...) is work in progress')
@@ -170,6 +180,7 @@ class Solver(metaclass=ABCMeta):
                                          specifications: Specifications,
                                          optimize_target: Union[Min, Max],
                                          forall_target: Optional[ForAll],
+                                         **kwargs,
                                          ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
             Solve an optimization (optionally forall quantified) problem iteratively without requiring solver specific features.
@@ -207,7 +218,7 @@ class Solver(metaclass=ABCMeta):
 
             # solve
             _global_targets = GlobalTasks(forall=forall_target)
-            status, model = cls.solve(_graphs, specifications, _global_targets=_global_targets)
+            status, model = cls.solve(_graphs, specifications, _global_targets=_global_targets, **kwargs)
 
             # break if termination condition is reached
             if status == 'unknown': return ('unknown', None)

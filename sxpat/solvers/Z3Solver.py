@@ -1,3 +1,4 @@
+import re
 from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, List, overload
 from typing_extensions import override
 from abc import abstractmethod
@@ -149,6 +150,20 @@ class Z3Encoder:
         )))
 
     @classmethod
+    def inject_nodes_usage(cls,
+                           constraint_graphs: Sequence[CGraph],
+                           destination: IO[str],) -> None:
+        destination.write('\n'.join((
+            '# usage',
+            'usage = And(', *(
+                f'    {constraint_node.operand},'
+                for constraint_graph in constraint_graphs
+                for constraint_node in constraint_graph.constraints
+            ), ')',
+            *('',) * 2,
+        )))
+
+    @classmethod
     def inject_solver(cls, 
                       destination: IO[str],
                       global_task: Union[ForAll, Min, Max, None],
@@ -204,12 +219,6 @@ class Z3FuncEncoder(Z3Encoder):
                         seen_names.add(name)
                         yield name
 
-    @staticmethod
-    def name_to_type(nodes: Iterable[Node], node_name: str) -> Type:
-        for node in nodes:
-            if node.name == node_name:
-                return type(node)
-
     @classmethod
     @overload
     def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str]
@@ -230,13 +239,13 @@ class Z3FuncEncoder(Z3Encoder):
        """
 
     @classmethod
-    def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str], allowed_types: set = None,
-                                *, get_mapping: bool = False):
+    def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str], 
+                                functional_nodes_names: set = None, *, get_mapping: bool = False):
         """@authors: Marco Biasion"""
 
         # copute updated names
         updated_names: Mapping[str, str] = {
-            name: name if (name in non_gates_names or (allowed_types and not(cls.name_to_type(nodes, name) in allowed_types))) else f'{name}({inputs_string})'
+            name: name if (name in non_gates_names or (functional_nodes_names and not(name in functional_nodes_names))) else f'{name}({inputs_string})'
             for name in cls._all_names(nodes)
         }
 
@@ -258,7 +267,7 @@ class Z3FuncEncoder(Z3Encoder):
     def graph_as_function_calls(cls, graph: Union[IOGraph, PGraph, CGraph],
                                 inputs_string: str,
                                 non_gates_names: Container[str],
-                                allowed_types: set = None):
+                                functional_nodes_names: set = None):
         """
             Given a graph in input, returns a new graph with all nodes updated
             to have their name being the equivalent z3 uninterpreted function call.
@@ -268,7 +277,7 @@ class Z3FuncEncoder(Z3Encoder):
 
         nodes, updated_names = cls.nodes_as_function_calls(
             graph.nodes, inputs_string, non_gates_names,
-            allowed_types, get_mapping=True
+            functional_nodes_names, get_mapping=True
         )
 
         # update extras (if needed)
@@ -285,7 +294,7 @@ class Z3FuncEncoder(Z3Encoder):
                                type_mapping: Mapping[Type[Union[int, bool]], Callable[[Sequence[Any]], str]], 
                                nodes_types: Mapping[str, type],
                                accessories: Callable[[Node], Sequence[Any]],
-                               allowed_types: set = None) -> None:
+                               functional_nodes_names: set = None) -> None:
         function_string = f'{{name}} = Function(\'{{name}}\', {", ".join(("BoolSort()",) * len(inputs_names))}, {{sort}})'
         destination.write('\n'.join((
             '# nodes (circuits and constraints)',
@@ -293,7 +302,7 @@ class Z3FuncEncoder(Z3Encoder):
                 function_string.format(name=node.name, sort=type_mapping[nodes_types[node.name]](accessories(node)))
                 for graph in graphs
                 for node in graph.expressions
-                if (not allowed_types) or (type(node) in allowed_types)
+                if (not functional_nodes_names) or (node.name in functional_nodes_names)
             ),
             *('',) * 2,
         )))
@@ -316,25 +325,10 @@ class Z3FuncEncoder(Z3Encoder):
         )))
 
     @classmethod
-    def inject_nodes_usage(cls,
-                           call_c_graphs: Tuple,
-                           destination: IO[str],
-                           allowed_types: set = None) -> None:
-        destination.write('\n'.join((
-            '# usage',
-            'usage = And(', *(
-                f'    {constraint_node.operand},'
-                for call_graph in call_c_graphs
-                for constraint_node in call_graph.constraints
-                if (not allowed_types) or (type(node) in allowed_types)
-            ), ')',
-            *('',) * 2,
-        )))
-
-    @classmethod
     def encode(cls, graphs: Solver._Graphs,
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
+               **_,
                ) -> None:
 
         # initial computations
@@ -416,26 +410,10 @@ class Z3DirectEncoder(Z3Encoder):
         )))
 
     @classmethod
-    def inject_nodes_usage(cls,
-                           graphs: Solver._Graphs,
-                           destination: IO[str],
-                           unallowed_types: set = None) -> Node:
-        destination.write('\n'.join((
-            '# usage',
-            'usage = And(', *(
-                f'    {constraint_node.operand},'
-                for graph in graphs
-                if isinstance(graph, CGraph)
-                for constraint_node in graph.constraints
-                if (not unallowed_types) or not(type(node) in unallowed_types)
-            ), ')',
-            *('',) * 2,
-        )))
-
-    @classmethod
     def encode(cls, graphs: Solver._Graphs,
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
+               **_,
                ) -> None:
 
         # initial computations
@@ -463,7 +441,8 @@ class Z3DirectEncoder(Z3Encoder):
         cls.inject_nodes_behavior(nodes, destination, node_mapping, accessories)
 
         # nodes usage
-        cls.inject_nodes_usage(graphs, destination)
+        c_graphs = tuple(graph for graph in graphs if isinstance(graph, CGraph))
+        cls.inject_nodes_usage(c_graphs, destination)
 
         # solver
         cls.inject_solver(destination, global_task, solver_construct, constraint_assertion, ['usage'])
@@ -471,16 +450,16 @@ class Z3DirectEncoder(Z3Encoder):
         # results
         cls.inject_solve_and_result_writing(destination, graphs, graphs)
 
-class Z3HybridEncoder(Z3DirectEncoder, Z3FuncEncoder):
+class Z3HybridEncoder(Z3Encoder):
     """
         Z3 encoder using the hybrid approach between the direct and the functional ones.
 
         @authors: Ilia Zeller
     """
-    functional_final_error = {AbsDiff, LessThan, LessEqualThan, GreaterThan, GreaterEqualThan}
-    functional_gates = {And, Not}
-    functional_bool_operations = {And, Not, Or, Xor, Xnor, Implies}
-    functional_binary_to_int = {Sum, If}
+    
+    @classmethod
+    def node_name(cls, node: AnyExpression) -> str:
+        return (re.split("\(", node.name))[0]
 
     @classmethod
     def inject_nodes_behavior(cls,
@@ -488,7 +467,7 @@ class Z3HybridEncoder(Z3DirectEncoder, Z3FuncEncoder):
                               destination: IO[str], 
                               node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Sequence[str], Sequence[Any]], str]], 
                               accessories: Callable[[Node], Sequence[Any]], 
-                              functional_nodes_types: set) -> None:
+                              functional_nodes_names: set) -> None:
         """
             Wrapper that splits up (in order) the nodes needing the method coming from Z3DirectEncoder
             and the nodes needing the method coming from Z3FuncEncoder.
@@ -496,18 +475,18 @@ class Z3HybridEncoder(Z3DirectEncoder, Z3FuncEncoder):
         nodes = []
         for graph in graphs:
             for node in graph.expressions:
-                if type(node) in functional_nodes_types and (len(nodes) == 0 or type(nodes[-1]) in functional_nodes_types):
+                if cls.node_name(node) in functional_nodes_names and (len(nodes) == 0 or cls.node_name(nodes[-1]) in functional_nodes_names):
                     nodes.append(node)
-                elif not(type(node) in functional_nodes_types) and (len(nodes) == 0 or not(type(nodes[-1]) in functional_nodes_types)):
+                elif not(cls.node_name(node) in functional_nodes_names) and (len(nodes) == 0 or not(cls.node_name(nodes[-1]) in functional_nodes_names)):
                     nodes.append(node)
-                elif type(nodes[-1]) in functional_nodes_types:
+                elif cls.node_name(nodes[-1]) in functional_nodes_names:
                     Z3FuncEncoder.inject_nodes_behavior(nodes, destination, node_mapping, accessories)
                     nodes = [node]
                 else:
                     Z3DirectEncoder.inject_nodes_behavior(nodes, destination, node_mapping, accessories)
                     nodes = [node]
         if len(nodes) > 0:
-            if type(nodes[-1]) in functional_nodes_types:
+            if cls.node_name(nodes[-1]) in functional_nodes_names:
                 Z3FuncEncoder.inject_nodes_behavior(nodes, destination, node_mapping, accessories)
             else:
                 Z3DirectEncoder.inject_nodes_behavior(nodes, destination, node_mapping, accessories)
@@ -516,6 +495,9 @@ class Z3HybridEncoder(Z3DirectEncoder, Z3FuncEncoder):
     def encode(cls, graphs: Solver._Graphs,
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
+               *, 
+               functional_nodes_names: set,
+               **_,
                ) -> None:
 
         # initial computations
@@ -525,9 +507,6 @@ class Z3HybridEncoder(Z3DirectEncoder, Z3FuncEncoder):
         constraint_assertion = cls.constraints_assertion
         (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
 
-        # types of functionally represented nodes
-        functional_nodes_types = cls.functional_final_error
-
         # create call graphs (graphs where each node name has been replaced with the relative function call)
         inputs_string = ','.join(inputs_names)
         non_gates_names = frozenset(it.chain(
@@ -536,16 +515,16 @@ class Z3HybridEncoder(Z3DirectEncoder, Z3FuncEncoder):
             (t.name for g in graphs if isinstance(g, CGraph) for t in g.targets),
         ))
         call_graphs = tuple(
-            cls.graph_as_function_calls(graph, inputs_string, non_gates_names)
+            Z3FuncEncoder.graph_as_function_calls(graph, inputs_string, non_gates_names)
             for graph in graphs
         )
-        call_graphs_clean = tuple(
-            cls.graph_as_function_calls(graph, inputs_string, non_gates_names, functional_nodes_types)
+        hybrid_graphs = tuple(
+            Z3FuncEncoder.graph_as_function_calls(graph, inputs_string, non_gates_names, functional_nodes_names)
             for graph in graphs
         )
         # update global_task if present (mainly useful for operands)
-        if global_task and functional_nodes_types >= cls.functional_final_error:
-            global_task = cls.nodes_as_function_calls([global_task], inputs_string, non_gates_names)[0]
+        if global_task:
+            global_task = Z3FuncEncoder.nodes_as_function_calls([global_task], inputs_string, non_gates_names, functional_nodes_names)[0]
 
         # gather constraints graphs
         call_c_graphs = tuple(graph for graph in call_graphs if isinstance(graph, CGraph))
@@ -560,25 +539,20 @@ class Z3HybridEncoder(Z3DirectEncoder, Z3FuncEncoder):
         cls.inject_constants(destination, graphs, accessories)
 
         # gates functions
-        Z3FuncEncoder.inject_gates_functions(graphs, destination, inputs_names, type_mapping, nodes_types, accessories, functional_nodes_types)
+        Z3FuncEncoder.inject_gates_functions(graphs, destination, inputs_names, type_mapping, nodes_types, accessories, functional_nodes_names)
 
         # nodes behavior
-        cls.inject_nodes_behavior(call_graphs_clean, destination, node_mapping, accessories, functional_nodes_types)
+        cls.inject_nodes_behavior(hybrid_graphs, destination, node_mapping, accessories, functional_nodes_names)
 
         # nodes usage
-        if functional_nodes_types >= cls.functional_final_error:
-            Z3FuncEncoder.inject_nodes_usage(call_c_graphs, destination)
-        else:
-            Z3DirectEncoder.inject_nodes_usage(graphs, destination)
+        hybrid_c_graphs = tuple(graph for graph in hybrid_graphs if isinstance(graph, CGraph))
+        cls.inject_nodes_usage(hybrid_c_graphs, destination)
 
         # solver
         cls.inject_solver(destination, global_task, solver_construct, constraint_assertion, ['behaviour', 'usage'])
 
         # results
-        if functional_nodes_types >= cls.functional_final_error:
-            cls.inject_solve_and_result_writing(destination, graphs, call_graphs)
-        else:
-            cls.inject_solve_and_result_writing(destination, graphs, graphs)
+        cls.inject_solve_and_result_writing(destination, graphs, hybrid_graphs)
 
 
 # Node to Z3 expression
@@ -719,24 +693,27 @@ class Z3Solver(Solver):
     @override
     def solve_exists(cls, graphs: Solver._Graphs,
                      specifications: Specifications,
+                     **kwargs,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._z3_solve(graphs, specifications, None)
+        return cls._z3_solve(graphs, specifications, None, **kwargs)
 
     @classmethod
     @override
     def solve_forall(cls, graphs: Solver._Graphs,
                      specifications: Specifications,
                      forall_task: ForAll,
+                     **kwargs,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._z3_solve(graphs, specifications, forall_task)
+        return cls._z3_solve(graphs, specifications, forall_task, **kwargs)
 
     @classmethod
     @override
     def solve_optimize(cls, graphs: Solver._Graphs,
                        specifications: Specifications,
                        optimize_task: Union[Min, Max],
+                       **kwargs,
                        ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._z3_solve(graphs, specifications, optimize_task)
+        return cls._z3_solve(graphs, specifications, optimize_task, **kwargs)
 
     @classmethod
     @override
@@ -744,21 +721,23 @@ class Z3Solver(Solver):
                               specifications: Specifications,
                               optimize_target: Union[Min, Max],
                               forall_target: ForAll,
+                              **kwargs,
                               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         # NOTE: the override here is used to remove unnecessary warning,
         #       as the default iterative approach is the correct one for this solver
-        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target, **kwargs)
 
     @classmethod
     def _z3_solve(cls, graphs: Solver._Graphs,
                   specifications: Specifications,
                   global_task: Union[ForAll, Min, Max, None],
+                  **kwargs,
                   ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
 
         script_path = path_join(specifications.path.run.solver_scripts, f'iter{specifications.iteration}_{specifications.sub_iteration}.py')
 
         # encode
-        with open(script_path, 'w') as f: cls.encoder.encode(graphs, f, global_task)
+        with open(script_path, 'w') as f: cls.encoder.encode(graphs, f, global_task, **kwargs)
 
         # run
         raw_result = cls._run_script(script_path)
