@@ -1,8 +1,11 @@
 from typing import ClassVar, Dict, Iterable, List, Mapping, Sequence, Tuple
 
 import re
+from textwrap import dedent
+
 from sxpat.utils.filesystem import FS
 from os.path import join as path_join
+
 from subprocess import run, PIPE, DEVNULL
 
 
@@ -17,7 +20,7 @@ class synthesize_verilog_to_notand_gate_level:
     :authors: Morteza Rezaalipour, Marco Biasion
     """
 
-    YOSYS_COMMAND: ClassVar = """
+    YOSYS_COMMAND: ClassVar = dedent("""
         read_verilog {input_path};
         synth -flatten;
         opt;
@@ -29,7 +32,7 @@ class synthesize_verilog_to_notand_gate_level:
         opt;
         opt_clean -purge;
         write_verilog -noattr {output_path};
-    """.replace('\n        ', ' ').strip()
+    """).replace('\n', ' ').strip()
 
     MODULE_PATTERN: ClassVar = re.compile(r'^\s*module\s+\w+\s*\(([\w,\\\s\[\]]+?)\);', re.MULTILINE)
     SPACES_PATTERN: ClassVar = re.compile(r'\s+')
@@ -237,12 +240,12 @@ class convert_verilog_to_dot:
     :authors: Morteza Rezaalipour, Marco Biasion
     """
 
-    YOSYS_COMMAND: ClassVar = """
+    YOSYS_COMMAND: ClassVar = dedent("""
         read_verilog {input_verilog_path};
         opt;
         clean;
         show -prefix {output_dot_path} -format dot;
-    """.replace('\n        ', ' ').strip()
+    """).replace('\n', ' ').strip()
 
     def __new__(cls, input_verilog_path: str, output_gv_path: str, temporary_path: str):
         # prepare

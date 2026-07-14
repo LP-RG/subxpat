@@ -565,7 +565,7 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     labeller = Labelling(
         reference, to_be_labelled, 
         specs_obj,
-        minimize=specs_obj.min_labeling,
+        minimise=specs_obj.min_labeling,
         use_functions=True,
     )
     weights = labeller.label_graph(

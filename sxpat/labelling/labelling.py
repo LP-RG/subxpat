@@ -1,12 +1,14 @@
-from typing import ClassVar, Dict, List, Optional, Union
+from typing import ClassVar, Dict, Optional, Union
 
 import os
 from os.path import join as path_join
-import subprocess
+
 import networkx as nx
-from threading import Lock
-from itertools import chain
 from collections import deque
+from sxpat.utils.string import partial_format, dedent
+
+import subprocess
+from threading import Lock
 from multiprocessing.pool import ThreadPool
 
 from sxpat.graph import IOGraph
@@ -16,14 +18,14 @@ from sxpat.specifications import Specifications
 
 class Labelling:
     """
-        @author: Lorenzo Spada, Marco Biasion
+    :authors: Lorenzo Spada, Marco Biasion
     """
 
     __slots__ = [
         #
         'reference', 'to_be_labelled',
         #
-        '_minimize', '_use_func',
+        '_minimise', '_use_func',
         #
         '_base_path',
         #
@@ -38,12 +40,39 @@ class Labelling:
         BoolConstant: 'BoolVal',
     }
 
+    SCRIPT_TEMPLATE: ClassVar = dedent("""\
+        from z3 import *
+
+        # inputs
+        {input_variables_definition}
+        # numeric constants
+        {constants_definition}
+
+        # reference circuit
+        {reference_circuit}
+
+        # circuit to be labelled
+        {to_be_labelled_circuit}
+
+        # solver
+        solver = Optimize()
+        # error definition
+        {error_definition}
+        # objective definition
+        {objective_definition}
+
+        # execution and extraction
+        solver.check()
+        model = solver.model()
+        print(opt_objective.value())
+    """)
+
     def __init__(
         self,
         reference: IOGraph, to_be_labelled: IOGraph,
         specs: Specifications,
         *,
-        minimize: bool,
+        minimise: bool,
         use_functions: bool = True,
     ):
         # prepare folder
@@ -54,18 +83,18 @@ class Labelling:
         self.reference = reference
         self.to_be_labelled = to_be_labelled
         #
-        self._minimize = minimize
+        self._minimise = minimise
         self._use_func = use_functions
 
         #
-        self.__base_script = None
+        self.__base_script: Optional[str] = None
         self.__cached_weights = dict()
         self.__lock = Lock()
 
     def label_node(self, target_node: str) -> int:
         """
-            Compute the weight of the `target_node` inside the `to_be_labelled` circuit,
-            in relation to the `reference` circuit.
+        Compute the weight of the `target_node` inside the `to_be_labelled` circuit,
+        in relation to the `reference` circuit.
         """
 
         if target_node in self.__cached_weights:
@@ -77,63 +106,57 @@ class Labelling:
                     strings = list()
                     num_outputs = len(self.to_be_labelled.outputs_names)
 
-                    # setup
-                    strings.append('from z3 import *\n\n')
+                    #
+                    inputs_str = '\n'.join(
+                        f'{inp} = Bool(\'{inp}\')'
+                        for inp in self.reference.inputs_names
+                    )
+                    #
+                    constants_str = '\n'.join([
+                        f'constf = BitVecVal(0, {num_outputs})'
+                    ] + [
+                        f'const{i} = BitVecVal({2**i}, {num_outputs})'
+                        for i in range(num_outputs)
+                    ])
 
-                    # consts/vars
-                    strings.append('# variables (inputs, parameters)\n')
-                    for inp in self.reference.inputs_names:
-                        strings.append(f'{inp} = Bool(\'{inp}\')\n')
-                    strings.append('# numeric constants\n')
-                    strings.append(f'constf = BitVecVal(0, {num_outputs})\n')
-                    for i in range(num_outputs):
-                        strings.append(f'const{i} = BitVecVal({2**i}, {num_outputs})\n')
-                    strings.append('\n')
-
-                    # reference circuit
-                    strings.append(self._circuit_to_z3str(self.reference))
-                    strings.append('\n')
-
-                    # circuit to label
-                    strings.append('{to_be_labelled_z3str}')
-                    strings.append('\n')
-
-                    # solver
                     if self._use_func:
-                        strings.append('solver = Optimize()\n\n')
-                        # error
-                        strings.append(f'error = Function("error", BitVecSort({num_outputs}), BitVecSort({num_outputs}), BitVecSort({num_outputs}))\n')
-                        strings.append('solver.add(error(r_out, l_out) == If(UGE(r_out, l_out), r_out - l_out, l_out - r_out))\n')
-                        if self._minimize:
-                            strings.append(f'solver.add(UGT(error(r_out, l_out), BitVecVal(0, {num_outputs})))\n')
-                            strings.append('opt_objective = solver.minimize(error(r_out, l_out))\n\n')
+                        #
+                        error_str = f'error = Function("error", BitVecSort({num_outputs}), BitVecSort({num_outputs}), BitVecSort({num_outputs}))\n'
+                        #
+                        if self._minimise:
+                            objective_str = dedent(f"""
+                                solver.add(UGT(error(r_out, l_out), BitVecVal(0, {num_outputs})))
+                                opt_objective = solver.minimize(error(r_out, l_out))
+                            """)
                         else:
-                            strings.append('opt_objective = solver.maximize(error(r_out, l_out))\n\n')
-                        # run
-                        strings.append('solver.check()\n')
-                        strings.append('model = solver.model()\n')
-                        # .value() is equivalent to the correct alternative between .upper() and .lower()
-                        strings.append('print(opt_objective.value())\n')
+                            objective_str = 'opt_objective = solver.maximize(error(r_out, l_out))'
                     else:
-                        strings.append('solver = Optimize()\n\n')
-                        # error
-                        strings.append('error = If(UGE(r_out, l_out), r_out - l_out, l_out - r_out)\n')
-                        if self._minimize:
-                            strings.append(f'solver.add(UGT(error, BitVecVal(0, {num_outputs})))\n')
-                            strings.append('opt_objective = solver.minimize(error)\n\n')
+                        #
+                        error_str = 'error = If(UGE(r_out, l_out), r_out - l_out, l_out - r_out)'
+                        #
+                        if self._minimise:
+                            objective_str = dedent(f"""
+                                solver.add(UGT(error, BitVecVal(0, {num_outputs})))
+                                opt_objective = solver.minimize(error)
+                            """)
                         else:
-                            strings.append('opt_objective = solver.maximize(error)\n\n')
-                        # run
-                        strings.append('solver.check()\n')
-                        strings.append('model = solver.model()\n')
-                        # .value() is equivalent to the correct alternative between .upper() and .lower()
-                        strings.append('print(opt_objective.value())\n')
+                            objective_str = 'opt_objective = solver.maximize(error)'
 
-                    self.__base_script = ''.join(strings)
+                    self.__base_script = partial_format(
+                        self.SCRIPT_TEMPLATE,
+                        #
+                        input_variables_definition=inputs_str,
+                        constants_definition=constants_str,
+                        #
+                        reference_circuit=self._circuit_to_z3str(self.reference),
+                        #
+                        error_definition=error_str,
+                        objective_definition=objective_str,
+                    )
 
         # complete script
-        to_be_labelled_z3str = self._circuit_to_z3str(self.to_be_labelled, target_node)
-        script = self.__base_script.format(to_be_labelled_z3str=to_be_labelled_z3str)
+        _circuit_z3str = self._circuit_to_z3str(self.to_be_labelled, target_node)
+        script = self.__base_script.format(to_be_labelled_circuit=_circuit_z3str)
 
         # save script
         script_path = self._get_script_path(target_node)
