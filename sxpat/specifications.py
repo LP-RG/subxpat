@@ -219,6 +219,7 @@ class Specifications:
     # error
     max_error: int
     et: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
+    no_error_eval: bool
     error_partitioning: ErrorPartitioningType
 
     # files and folders
@@ -446,6 +447,11 @@ class Specifications:
                                         action=EnumChoicesAction,
                                         default=ErrorPartitioningType.MAX,
                                         help='The error partitioning algorithm to use (default: asc)')
+        
+        _no_et = _error_group.add_argument('--no-error-eval',
+                                        action='store_true',
+                                        default=False,
+                                        help='if not to run error eval')
 
         # > files and folders stuff
         _faf_group = parser.add_argument_group('Files and folders')

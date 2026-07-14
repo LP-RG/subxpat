@@ -475,6 +475,8 @@ def explore_grid(specs_obj: Specifications):
 
 
 def error_evaluation(reference_circuit: IOGraph, current_circuit: IOGraph, specs_obj: Specifications) -> int:
+    if specs_obj.no_error_eval:
+        return specs_obj.max_error
     # define error evaluation question
     p_graph, c_graph = MaxDistanceEvaluation.define(current_circuit)
     # solve error evaluation question
