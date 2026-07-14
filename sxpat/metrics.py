@@ -1,11 +1,14 @@
 from typing import Literal, NamedTuple, overload
 
 import re
-import subprocess
 import functools as ft
 
+import subprocess
+
+from sxpat.utils.filesystem import FS
 from sxpat.utils.names import extract_name
 from sxpat.utils.decorators import make_utility_class
+
 from sxpat.specifications import Paths
 
 
@@ -158,7 +161,7 @@ class MetricsEstimator:
         cls,
         verilog_path: str,
     ) -> str:
-        with open(verilog_path, 'r') as f: verilog_str = f.read()
+        verilog_str = FS.readfile(verilog_path)
 
         if m := cls.MODULE_NAME_PATTERN.search(verilog_str): return m.group(1)
         else: raise RuntimeError(f'No module name found in {verilog_path}')

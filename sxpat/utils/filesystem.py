@@ -1,4 +1,4 @@
-from typing import Iterable, Iterator, Literal, final
+from typing import Iterable, Iterator, Literal, Optional, final, overload
 
 import os as _os
 import sys as _sys
@@ -40,8 +40,10 @@ class FS:
         :raises NotADirectoryError: if `directory` does not represent a directory.
         """
 
+        # normalize and prepare
         path = _os.path.normpath(_os.path.join(directory, filename))
 
+        #
         _os.close(_os.open(path, _os.O_CREAT, 0o666))
 
     @classmethod
@@ -66,7 +68,7 @@ class FS:
         :raises NotADirectoryError: if `directory` does not represent a directory.
         """
 
-        # normalize and prepare filepath
+        # normalize and prepare
         filepath = _os.path.join(
             _os.path.normpath(directory),
             _os.path.normpath(fileprefix),
@@ -110,10 +112,96 @@ class FS:
         :raises IsADirectoryError: if the path is a directory.
         """
 
+        # normalize
         filepath = _os.path.normpath(filepath)
 
+        #
         if _os.path.exists(filepath):
             _os.remove(filepath)
+
+    @classmethod
+    def writefile(
+        cls, filepath: str,
+        content: Optional[bytes | str] = None,
+        overwrite: bool = False,
+        *,
+        lines: Optional[Iterable[str | bytes]] = None,
+    ) -> None:
+        """
+        Write to a file.
+
+        :param filepath: the path to the file.
+        :param content: the content to write to the file.
+        :param overwrite: if the file should should be overwritten if it already exists.
+        :param lines: alternative to `content`; the content but line by line (line terminators included).
+
+        :raises FileNotFoundError: if the path is invalid.
+        :raises FileExistsError: if the file already exists and `overwrite` is false.
+        :raises TypeError: if none or both of `content` and `lines` are used.
+        """
+
+        # guards
+        if (content is None) and (lines is None):
+            raise TypeError("one of these arguments must be used: 'content', 'lines'")
+        if (content is not None) and (lines is not None):
+            raise TypeError("only one of these arguments can be used at a time: 'content', 'lines'")
+
+        # normalize
+        filepath = _os.path.normpath(filepath)
+
+        # prepare
+        if content is None:
+            _lines = iter(lines)  # type: ignore
+        else:
+            _lines = iter([content])
+        #
+        if overwrite:
+            flag = 'w'
+        else:
+            flag = 'x'
+        #
+        _first = next(_lines)
+        if isinstance(_first, bytes):
+            flag += 'b'
+
+        #
+        with open(filepath, flag) as f:
+            f.write(_first)
+            f.writelines(_lines)
+
+    @overload
+    @classmethod
+    def readfile(cls, filepath: str) -> str: ...
+    @overload
+    @classmethod
+    def readfile(cls, filepath: str, binary: Literal[True]) -> bytes: ...
+
+    @classmethod
+    def readfile(
+        cls, filepath: str,
+        binary: bool = False,
+    ) -> str | bytes:
+        """
+        Read from a file.
+
+        :param filepath: the path to the file.
+        :param binary: if the file should be read as bytes.
+
+        :raises FileNotFoundError: if the file does not exists.
+        """
+
+        # normalize
+        filepath = _os.path.normpath(filepath)
+
+        # prepare
+        if binary:
+            flags = 'rb'
+        else:
+            flags = 'r'
+
+        #
+        with open(filepath, flags) as f:
+            return f.read()
 
     # > DIRECTORIES
 
@@ -130,8 +218,10 @@ class FS:
         :param directory: the parent directory in which to create the new directory (defaults to the working directory).
         """
 
-        dirpath = _os.path.join(_os.path.normpath(directory), dirname)
+        # normalize and prepare
+        dirpath = _os.path.normpath(_os.path.join(directory, dirname))
 
+        #
         _os.makedirs(dirpath, exist_ok=True)
 
     @classmethod
@@ -155,7 +245,7 @@ class FS:
         :raises NotADirectoryError: if `directory` does not represent a directory.
         """
 
-        # normalize and prepare dirpath
+        # normalize and prepare
         dirpath = _os.path.join(
             _os.path.normpath(directory),
             _os.path.normpath(dirname),
@@ -198,8 +288,10 @@ class FS:
         :raises NotADirectoryError: if the path does not represent a directory.
         """
 
+        # normalize
         dirpath = _os.path.normpath(dirpath)
 
+        #
         if _os.path.exists(dirpath):
             if recursive:
                 _shutil.rmtree(dirpath)
@@ -219,8 +311,10 @@ class FS:
         :raises NotADirectoryError: if the path does not represent a directory.
         """
 
+        # normalize
         dirpath = _os.path.normpath(dirpath)
 
+        #
         for _path in cls.listdir(dirpath):
             if _os.path.isfile(_path) or _os.path.islink(_path):
                 _os.remove(_path)
@@ -230,20 +324,22 @@ class FS:
     @classmethod
     def listdir(
         cls, dirpath: str,
-    ) -> Iterable[str]:
+    ) -> Iterator[str]:
         """
         Get all contents of a directory.
 
         :param dirpath: the path to the directory.
-        :return: iterable of paths of the contents (prefixed with the input path).
+        :return: iterator of paths of the contents (prefixed with the input path).
 
         :raises FileNotFoundError: if the directory does not exists.
         :raises NotADirectoryError: if the path does not represent a directory.
         """
 
+        # normalize
         dirpath = _os.path.normpath(dirpath)
 
-        return (
+        #
+        yield from (
             _os.path.join(dirpath, file)
             for file in _os.listdir(dirpath)
         )
@@ -258,8 +354,10 @@ class FS:
         :param dirpath: the path to the directory to walk through.
         """
 
+        # normalize
         path = _os.path.normpath(dirpath)
 
+        #
         yield from (
             _os.path.join(dirpath, filename)
             for dirpath, _, filenames in _os.walk(path)
@@ -279,8 +377,10 @@ class FS:
         :param path: the path to the entity to walk through.
         """
 
+        # normalize
         path = _os.path.normpath(path)
 
+        #
         if _os.path.isdir(path):
             yield from cls.walkdir(path)
         else:
@@ -298,8 +398,10 @@ class FS:
         :param path: the path to check.
         """
 
+        # normalize
         path = _os.path.normpath(path)
 
+        #
         return _os.path.exists(path)
 
     @classmethod
@@ -316,14 +418,17 @@ class FS:
         :raises ValueError: if no component is given in `paths`.
         """
 
+        # guard
         if len(paths) == 0:
             raise ValueError('no components given')
         if any(p.startswith('/') for p in paths):
             raise ValueError('invalid absolute path as component')
 
+        # normalize
         path = _os.path.normpath(path)
         paths = tuple(_os.path.normpath(p) for p in paths)
 
+        #
         return _os.path.normpath(_os.path.join(path, *paths))
 
     @classmethod
@@ -342,12 +447,15 @@ class FS:
         :raises FileExistsError: if `dst_path` already exists and `overwrite` is false.
         """
 
-        src_path = _os.path.normpath(src_path)
-        dst_path = _os.path.normpath(dst_path)
-
+        # guard
         if not overwrite and _os.path.exists(dst_path):
             raise FileExistsError(_errno.EEXIST, f'{dst_path} already exists')
 
+        # normalize
+        src_path = _os.path.normpath(src_path)
+        dst_path = _os.path.normpath(dst_path)
+
+        #
         if _os.path.isdir(src_path):
             _shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
         else:
@@ -370,11 +478,13 @@ class FS:
         :raises FileExistsError: if `dst_path` already exists and `overwrite` is false.
         """
 
-        src_path = _os.path.normpath(src_path)
-        dst_path = _os.path.normpath(dst_path)
-
+        # guard
         if not overwrite and _os.path.exists(dst_path):
             raise FileExistsError(_errno.EEXIST, f'{dst_path} already exists')
+
+        # normalize
+        src_path = _os.path.normpath(src_path)
+        dst_path = _os.path.normpath(dst_path)
 
         _shutil.rmtree(dst_path, ignore_errors=True)
         _shutil.move(src_path, dst_path)
@@ -403,6 +513,7 @@ class FS:
         :param entity: if the generated entity should be a file or a directory.
         """
 
+        #
         match entity:
             case 'directory':
                 return cls.mkdir_unique(

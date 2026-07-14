@@ -2,6 +2,7 @@ from typing import ClassVar, Dict, Optional, Union
 
 import os
 from os.path import join as path_join
+from sxpat.utils.filesystem import FS
 
 import networkx as nx
 from collections import deque
@@ -160,7 +161,7 @@ class Labelling:
 
         # save script
         script_path = self._get_script_path(target_node)
-        with open(script_path, 'w') as f: f.write(script)
+        FS.writefile(script_path, script)
         # run script
         result = subprocess.run(
             ['python3', script_path],

@@ -1,10 +1,10 @@
-from typing import ClassVar, Dict, Mapping, TypeVar
+from typing import ClassVar
 
-from sxpat.graph.graph import IOGraph, SGraph
-from sxpat.graph.node import And, BoolConstant, Constant, Extras, Node, Not
+from sxpat.graph.graph import SGraph
+from sxpat.graph.node import And, BoolConstant, Extras, Node, Not
 from sxpat.specifications import Paths
 
-import re
+from sxpat.utils.filesystem import FS
 from os.path import join as path_join
 
 from sxpat.utils.names import extract_name
@@ -83,7 +83,9 @@ class export_annotated_graph:
 
         def _node_tostr(n: _Node):
             name = n.name
-            fillcolor_str = 3 if name in subgraph_inputs else 2 if name in subgraph_outputs else 1 if isinstance(n, Extras) and n.in_subgraph else ''
+            fillcolor_str = 3 if name in subgraph_inputs else \
+                2 if name in subgraph_outputs else \
+                1 if isinstance(n, Extras) and n.in_subgraph else ''
             if fillcolor_str != '': fillcolor_str = f', fillcolor={fillcolor_str}'
             weight_str = f'\\n{n.weight}' if Extras.has_weight(n) else ''
 
@@ -110,10 +112,9 @@ class export_annotated_graph:
             else:
                 return rf'{sname} -> {dname} [fillcolor={ec}];'
 
-        with open(path, 'w') as f:
-            f.write(
-                cls.DOT_BASE.format(
-                    nodes='\n'.join(_node_tostr(_n) for _n in circuit.nodes),  # type: ignore
-                    edges='\n'.join(_edge_tostr(circuit[_s], circuit[_d]) for (_s, _d) in circuit._inner.edges()),  # type: ignore
-                )
-            )
+        _s = cls.DOT_BASE.format(
+            nodes='\n'.join(_node_tostr(_n) for _n in circuit.nodes),  # type: ignore
+            edges='\n'.join(_edge_tostr(circuit[_s], circuit[_d])  # type: ignore
+                            for (_s, _d) in circuit._inner.edges()),  # type: ignore
+        )
+        FS.writefile(path, _s, overwrite=True)

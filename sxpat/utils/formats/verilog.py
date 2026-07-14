@@ -77,8 +77,7 @@ class synthesize_verilog_to_notand_gate_level:
         new_labels = cls._create_new_labels(port_list, input_dict, output_dict)
         lines = cls._relabel_variables(verilog.split('\n'), new_labels)
 
-        with open(output_path, 'w') as _f:
-            _f.writelines(f'{l}\n' for l in lines)
+        FS.writefile(output_path, lines=(f'{l}\n' for l in lines), overwrite=True)
 
     @classmethod
     def _extract_inputs_outputs(cls, verilog_lines: List[str], port_list: Iterable[str]):
