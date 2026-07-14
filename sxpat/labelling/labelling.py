@@ -116,6 +116,7 @@ class Labelling:
                     if self._use_func:
                         #
                         error_str = f'error = Function("error", BitVecSort({num_outputs}), BitVecSort({num_outputs}), BitVecSort({num_outputs}))\n'
+                        error_str += f'solver.add(error(r_out, l_out) == If(UGE(r_out, l_out), r_out - l_out, l_out - r_out))\n'
                         #
                         if self._minimise:
                             objective_str = dedent(f"""
