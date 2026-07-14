@@ -1,6 +1,5 @@
-from typing import ClassVar, Dict, Optional, Union
+from typing import Any, ClassVar, Optional, Union
 
-import os
 from os.path import join as path_join
 from sxpat.utils.filesystem import FS
 
@@ -40,6 +39,7 @@ class Labelling:
         Not: 'Not',
         BoolConstant: 'BoolVal',
     }
+    __TOT_OBJ = object()
 
     SCRIPT_TEMPLATE: ClassVar = dedent("""\
         from z3 import *
@@ -78,7 +78,7 @@ class Labelling:
     ):
         # prepare folder
         self._base_path = path_join(specs.path.run.solver_scripts, f'labelling{specs.iteration}')
-        os.makedirs(self._base_path, exist_ok=True)
+        FS.mkdir(self._base_path)
 
         #
         self.reference = reference
@@ -89,22 +89,15 @@ class Labelling:
 
         #
         self.__base_script: Optional[str] = None
-        self.__cached_weights = dict()
+        self.__cached_weights: dict[Any, int] = dict()
         self.__lock = Lock()
 
-    def label_node(self, target_node: str) -> int:
-        """
-        Compute the weight of the `target_node` inside the `to_be_labelled` circuit,
-        in relation to the `reference` circuit.
-        """
-
-        if target_node in self.__cached_weights:
-            return self.__cached_weights[target_node]
-
+    @property
+    def base_script(self) -> str:
+        # create if missing (thread-safe)
         if self.__base_script is None:
             with self.__lock:
                 if self.__base_script is None:
-                    strings = list()
                     num_outputs = len(self.to_be_labelled.outputs_names)
 
                     #
@@ -155,9 +148,28 @@ class Labelling:
                         objective_definition=objective_str,
                     )
 
+        return self.__base_script
+
+    def label(self) -> int:
+        """
+        Compote the weight between the two circuits.
+        """
+
+        _w = self.label_node(self.__TOT_OBJ)  # type: ignore
+        return _w
+
+    def label_node(self, target_node: str) -> int:
+        """
+        Compute the weight of the `target_node` inside the `to_be_labelled` circuit,
+        in relation to the `reference` circuit.
+        """
+
+        if target_node in self.__cached_weights:
+            return self.__cached_weights[target_node]
+
         # complete script
         _circuit_z3str = self._circuit_to_z3str(self.to_be_labelled, target_node)
-        script = self.__base_script.format(to_be_labelled_circuit=_circuit_z3str)
+        script = self.base_script.format(to_be_labelled_circuit=_circuit_z3str)
 
         # save script
         script_path = self._get_script_path(target_node)
@@ -177,7 +189,7 @@ class Labelling:
         self, *,
         partial_cutoff: Optional[int] = None,
         parallelism: int = 1,
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """
             Compute the weights for the entire graph.  
 
@@ -195,7 +207,7 @@ class Labelling:
                         nodes_to_label.append(ancestor)
 
         # label nodes
-        weights: Dict[str, int] = dict()
+        weights: dict[str, int] = dict()
         if not parallelism or parallelism <= 1:
             for n in nodes_to_label:
                 weights[n] = self.label_node(n)
