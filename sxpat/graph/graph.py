@@ -47,6 +47,7 @@ class Graph:
 
             @authors: Marco Biasion
         """
+        zone_weights = dict(zone_weights)
 
         nodes = tuple(nodes)
 
