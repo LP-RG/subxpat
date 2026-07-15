@@ -79,5 +79,7 @@ class Labeling:
                 [Target.of(abs_diff),]
             )
         )
+
+        functional_nodes_names: set = {"weight"}
        
-        return (template_graph, constraint_graph)
+        return (template_graph, constraint_graph, functional_nodes_names)

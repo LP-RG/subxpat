@@ -34,6 +34,7 @@ from sxpat.solvers import Z3HybridIntSolver
 from sxpat.solvers import Z3FuncBitVecSolver
 from sxpat.solvers import Z3DirectBitVecSolver
 from sxpat.solvers import Z3HybridBitVecSolver
+from sxpat.solvers import QbfSolver
 
 from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
@@ -186,16 +187,17 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.requires_labeling:
             print('started labelling')
             print(list(current_graph.gate_dict.keys()))
-            _time = Timer.now()
-            z3labelling(iograph_from_legacy(current_graph), specs_obj)
+            # _time = Timer.now()
+            test_solvers(iograph_from_legacy(current_graph), specs_obj)
+            # z3labelling(iograph_from_legacy(current_graph), specs_obj)
             # w0 = label_graph(current_graph, specs_obj)
             # w1 = label_graph_new(iograph_from_legacy(current_graph), specs_obj)
             # print(len(w0), len(w1))
-            _time = Timer.now() - _time
+            # _time = Timer.now() - _time
             # logging
-            specs_obj.stats_storage.stage(labelling_time=_time)
-            print(f'labelling_time = {_time}')
-            input('PAUSED: enter to continue')
+            # specs_obj.stats_storage.stage(labelling_time=_time)
+            # print(f'labelling_time = {_time}')
+            # input('PAUSED: enter to continue')
 
         # extract subgraph
         _time = Timer.now()
@@ -444,23 +446,15 @@ def error_evaluation(reference_circuit: IOGraph, current_circuit: IOGraph, specs
 def z3labelling(circuit: IOGraph, specs_obj: Specifications):
     from sxpat.question_labelling import Labeling
 
-    to_be_labelled, constraints = Labeling.define(circuit, ['g0'], specs_obj.min_labeling) #params: circuit, node to label, how to label
-    # status, result = Z3FuncIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
-    # status, result = Z3DirectIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
-    bit_to_int = {"if_cur_int_0", "if_cur_int_1", "if_cur_int_2", "if_cur_int_3", "cur_int", "if_tem_int_0", "if_tem_int_1", "if_tem_int_2", "if_tem_int_3", "tem_int"}
-    bool_op = {"g0", "g1", "g2", "g3", "g4", "g5", "g6", "g7", "g8", "g9", "g10", "g11", "g12", "g13", "g14", "g15", 
-               "g16", "g17", "g18", "g19", "g20", "g21", "g22", "g23", "g24", "g25", "g26", "g27", "g28", "g29", "g30", 
-               "g31", "g32", "g33", "g34", "g35", "g36", 
-               "a_g0", "a_g1", "a_g2", "a_g3", "a_g4", "a_g5", "a_g6", "a_g7", "a_g8", "a_g9", "a_g10", "a_g11", "a_g12", "a_g13", 
-               "a_g14", "a_g15", "a_g16", "a_g17", "a_g18", "a_g19", "a_g20", "a_g21", "a_g22", "a_g23", "a_g24", "a_g25", "a_g26", 
-               "a_g27", "a_g28", "a_g29", "a_g30", "a_g31", "a_g32", "a_g33", "a_g34", "a_g35", "a_g36", 
-               "not_g0"}
-    final_error = {"weight", "GT_0"}
-    gates = bool_op
-    status, result = Z3HybridIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj, functional_nodes_names=final_error)
+    to_be_labelled, constraints, f_names = Labeling.define(circuit, ['g0'], specs_obj.min_labeling)
+
+    status, result = Z3FuncIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+    status, result = Z3DirectIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+    status, result = Z3HybridIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj, functional_nodes_names=f_names)
+
     # status, result = Z3FuncBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
     # status, result = Z3DirectBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
-    # status, result = Z3HybridBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj, functional_nodes_names=final_error)
+    # status, result = Z3HybridBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj, functional_nodes_names=bit_to_int)
 
     print(status, result)
     
@@ -555,35 +549,35 @@ def print_current_model(
     pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
 
-def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> Dict[str, int]:
-    """This function adds the labels inplace to the given graph"""
+# def label_graph(graph: AnnotatedGraph, specs_obj: Specifications) -> Dict[str, int]:
+#     """This function adds the labels inplace to the given graph"""
 
-    # imports
-    from sxpat.labeling import labeling_explicit
-    import time
+#     # imports
+#     from sxpat.labeling import labeling_explicit
+#     import time
 
-    # settings
-    ET_COEFFICIENT = 1
+#     # settings
+#     ET_COEFFICIENT = 1
 
-    # compute weights
-    _time = time.perf_counter()
-    weights, _ = labeling_explicit(
-        graph, graph, specs_obj.path.run,
-        min_labeling=specs_obj.min_labeling,
-        partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
-        parallel=specs_obj.parallel,
-    )
-    print('current labelling time:', time.perf_counter() - _time)
+#     # compute weights
+#     _time = time.perf_counter()
+#     weights, _ = labeling_explicit(
+#         graph, graph, specs_obj.path.run,
+#         min_labeling=specs_obj.min_labeling,
+#         partial_labeling=specs_obj.partial_labeling, partial_cutoff=specs_obj.et * ET_COEFFICIENT,
+#         parallel=specs_obj.parallel,
+#     )
+#     print('current labelling time:', time.perf_counter() - _time)
 
-    # apply weights to graph
-    inner_graph: nx.DiGraph = graph.graph
-    for (node_name, node_data) in inner_graph.nodes.items():
-        node_data[WEIGHT] = weights.get(node_name, -1)
-        # TODO: get output's weights in the correct way
-        if node_name[:3] == 'out':
-            node_data[WEIGHT] = 2**int(node_name[3:])
+#     # apply weights to graph
+#     inner_graph: nx.DiGraph = graph.graph
+#     for (node_name, node_data) in inner_graph.nodes.items():
+#         node_data[WEIGHT] = weights.get(node_name, -1)
+#         # TODO: get output's weights in the correct way
+#         if node_name[:3] == 'out':
+#             node_data[WEIGHT] = 2**int(node_name[3:])
 
-    return weights
+#     return weights
 
 
 def label_graph_new(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
@@ -722,3 +716,105 @@ def model_compare(a: ExpandedCircuitData, b: ExpandedCircuitData) -> Union[Liter
     elif a.error_to_origin < b.error_to_origin: return -1
     elif a.error_to_origin > b.error_to_origin: return +1
     else: return 0
+
+
+def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
+    """
+        @authors: Ilia Zeller
+    """
+    from sxpat.question_labelling import Labeling
+    from sxpat.labelling.labelling import Labelling
+    from sxpat.graph.node import BoolVariable
+
+    # init parameters for legacy solver
+    reference: IOGraph = circuit
+    to_be_labelled: IOGraph = circuit
+    folder = os.path.join(specs_obj.path.run.base_folder, 'new_labelling')
+    os.makedirs(folder, exist_ok=True)
+
+    # Select nodes to label (all non-input ancestors of outputs under the cutoff)
+    partial_cutoff = 2**len(circuit.outputs_names)
+    nodes_to_label = set()
+    for (i, output) in enumerate(to_be_labelled.outputs_names):
+        if 2**i <= partial_cutoff:
+            for ancestor in nx.ancestors(to_be_labelled._inner, output):
+                if not isinstance(to_be_labelled[ancestor], BoolVariable):
+                    nodes_to_label.add(ancestor)
+    nodes_to_label = sorted(nodes_to_label)
+
+    # Legacy solver
+    _time = Timer.now()
+
+    labeller = Labelling(
+        reference, to_be_labelled, folder,
+        minimize=specs_obj.min_labeling,
+        use_functions=True,
+    )
+    legacy_weights = labeller.label_graph(
+        nodes_to_label=nodes_to_label,
+        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
+        parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
+    )
+
+    _time = Timer.now() - _time
+    specs_obj.stats_storage.stage(legacy_labelling_time=_time)
+    print(f'legacy_labelling_time = {_time}')
+
+    # Z3 Functional solver
+    _time = Timer.now()
+
+    functional_weights: Dict[str, int] = dict()
+    for node_name in nodes_to_label:
+        to_be_labelled, constraints, f_names = Labeling.define(circuit, [node_name], specs_obj.min_labeling)
+        status, result = Z3FuncIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+        functional_weights[node_name] = result['weight']
+
+    _time = Timer.now() - _time
+    specs_obj.stats_storage.stage(Z3_functional_labelling_time=_time)
+    print(f'Z3_functional_labelling_time = {_time}')
+
+    # Z3 Direct solver
+    _time = Timer.now()
+
+    direct_weights: Dict[str, int] = dict()
+    for node_name in nodes_to_label:
+        to_be_labelled, constraints, f_names = Labeling.define(circuit, [node_name], specs_obj.min_labeling)
+        status, result = Z3DirectIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+        direct_weights[node_name] = result['weight']
+
+    _time = Timer.now() - _time
+    specs_obj.stats_storage.stage(Z3_direct_labelling_time=_time)
+    print(f'Z3_direct_labelling_time = {_time}')
+
+    # Z3 Hybrid solver
+    _time = Timer.now()
+
+    hybrid_weights: Dict[str, int] = dict()
+    for node_name in nodes_to_label:
+        to_be_labelled, constraints, f_names = Labeling.define(circuit, [node_name], specs_obj.min_labeling)
+        status, result = Z3HybridIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj, functional_nodes_names=f_names)
+        hybrid_weights[node_name] = result['weight']
+
+    _time = Timer.now() - _time
+    specs_obj.stats_storage.stage(Z3_hybrid_labelling_time=_time)
+    print(f'Z3_hybrid_labelling_time = {_time}')
+
+    # Qbf solver
+    _time = Timer.now()
+
+    qbf_weights: Dict[str, int] = dict()
+    for node_name in nodes_to_label:
+        to_be_labelled, constraints, f_names = Labeling.define(circuit, [node_name], specs_obj.min_labeling)
+        status, result = QbfSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+        qbf_weights[node_name] = result['weight']
+    
+    _time = Timer.now() - _time
+    specs_obj.stats_storage.stage(Qbf_labelling_time=_time)
+    print(f'Qbf_labelling_time = {_time}')
+
+    assert (
+        legacy_weights == functional_weights
+        and legacy_weights == direct_weights
+        and legacy_weights == hybrid_weights
+        and legacy_weights == qbf_weights
+    )

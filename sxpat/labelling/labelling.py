@@ -152,6 +152,7 @@ class Labelling:
 
     def label_graph(
         self, *,
+        nodes_to_label,
         partial_cutoff: Optional[int] = None,
         parallelism: int = 1,
     ) -> Dict[str, int]:
@@ -163,22 +164,24 @@ class Labelling:
         """
 
         # select nodes to label (all non-input ancestors of outputs under the cutoff)
-        if partial_cutoff is None: partial_cutoff = 2**len(self.to_be_labelled.outputs_names)
-        nodes_to_label = []
-        for (i, output) in enumerate(self.to_be_labelled.outputs_names):
-            if 2**i <= partial_cutoff:
-                for ancestor in nx.ancestors(self.to_be_labelled._inner, output):
-                    if not isinstance(self.to_be_labelled[ancestor], BoolVariable):
-                        nodes_to_label.append(ancestor)
+        # if partial_cutoff is None: partial_cutoff = 2**len(self.to_be_labelled.outputs_names)
+        # nodes_to_label = []
+        # for (i, output) in enumerate(self.to_be_labelled.outputs_names):
+        #     if 2**i <= partial_cutoff:
+        #         for ancestor in nx.ancestors(self.to_be_labelled._inner, output):
+        #             if not isinstance(self.to_be_labelled[ancestor], BoolVariable):
+        #                 nodes_to_label.append(ancestor)
 
         # label nodes
         weights: Dict[str, int] = dict()
-        if not parallelism or parallelism <= 1:
-            for n in nodes_to_label:
-                weights[n] = self.label_node(n)
-        else:
-            with ThreadPool(parallelism) as pool:
-                weights.update(pool.map(lambda n: (n, self.label_node(n)), nodes_to_label))
+        for n in nodes_to_label:
+            weights[n] = self.label_node(n)
+        # if not parallelism or parallelism <= 1:
+        #     for n in nodes_to_label:
+        #         weights[n] = self.label_node(n)
+        # else:
+        #     with ThreadPool(parallelism) as pool:
+        #         weights.update(pool.map(lambda n: (n, self.label_node(n)), nodes_to_label))
 
         return weights
 

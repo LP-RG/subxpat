@@ -153,6 +153,9 @@ class Z3Encoder:
     def inject_nodes_usage(cls,
                            constraint_graphs: Sequence[CGraph],
                            destination: IO[str],) -> None:
+        """
+            @authors: Ilia Zeller
+        """
         destination.write('\n'.join((
             '# usage',
             'usage = And(', *(
@@ -170,6 +173,9 @@ class Z3Encoder:
                       solver_construct: Mapping[Type[Union[ForAll, Min, Max, None]], str],
                       constraint_assertion: Mapping[Type[Union[ForAll, Min, Max, None]], Callable[[str, str, Sequence[str]], Sequence[str]]],
                       solver_add_parameters: List[str]) -> None: 
+        """
+            @authors: Ilia Zeller
+        """
         destination.write('\n'.join((
             f'# define solver',
             f'solver = {solver_construct[type(global_task)]}',
@@ -295,6 +301,9 @@ class Z3FuncEncoder(Z3Encoder):
                                nodes_types: Mapping[str, type],
                                accessories: Callable[[Node], Sequence[Any]],
                                functional_nodes_names: set = None) -> None:
+        """
+            @authors: Ilia Zeller
+        """
         function_string = f'{{name}} = Function(\'{{name}}\', {", ".join(("BoolSort()",) * len(inputs_names))}, {{sort}})'
         destination.write('\n'.join((
             '# nodes (circuits and constraints)',
@@ -313,6 +322,9 @@ class Z3FuncEncoder(Z3Encoder):
                               destination: IO[str],
                               node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Sequence[str], Sequence[Any]], str]],
                               accessories: Callable[[Node], Sequence[Any]]) -> None:
+        """
+            @authors: Ilia Zeller
+        """
         destination.write('\n'.join((
             '# behaviour',
             'behaviour = And(',
@@ -400,6 +412,9 @@ class Z3DirectEncoder(Z3Encoder):
                               destination: IO[str],
                               node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Sequence[str], Sequence[Any]], str]],
                               accessories: Callable[[Node], Sequence[Any]]) -> None:
+        """
+            @authors: Ilia Zeller
+        """
         destination.write('\n'.join((
             '# behaviour',
             *(
@@ -514,10 +529,7 @@ class Z3HybridEncoder(Z3Encoder):
             (n.name for g in graphs for n in g.constants),
             (t.name for g in graphs if isinstance(g, CGraph) for t in g.targets),
         ))
-        call_graphs = tuple(
-            Z3FuncEncoder.graph_as_function_calls(graph, inputs_string, non_gates_names)
-            for graph in graphs
-        )
+        # turn fully direct graphs into hybrid ones (= functional/call + direct)
         hybrid_graphs = tuple(
             Z3FuncEncoder.graph_as_function_calls(graph, inputs_string, non_gates_names, functional_nodes_names)
             for graph in graphs
@@ -525,9 +537,6 @@ class Z3HybridEncoder(Z3Encoder):
         # update global_task if present (mainly useful for operands)
         if global_task:
             global_task = Z3FuncEncoder.nodes_as_function_calls([global_task], inputs_string, non_gates_names, functional_nodes_names)[0]
-
-        # gather constraints graphs
-        call_c_graphs = tuple(graph for graph in call_graphs if isinstance(graph, CGraph))
 
         # initialization
         cls.inject_initialization(destination)
@@ -545,8 +554,8 @@ class Z3HybridEncoder(Z3Encoder):
         cls.inject_nodes_behavior(hybrid_graphs, destination, node_mapping, accessories, functional_nodes_names)
 
         # nodes usage
-        hybrid_c_graphs = tuple(graph for graph in hybrid_graphs if isinstance(graph, CGraph))
-        cls.inject_nodes_usage(hybrid_c_graphs, destination)
+        hybrid_constraints_graphs = tuple(graph for graph in hybrid_graphs if isinstance(graph, CGraph))
+        cls.inject_nodes_usage(hybrid_constraints_graphs, destination)
 
         # solver
         cls.inject_solver(destination, global_task, solver_construct, constraint_assertion, ['behaviour', 'usage'])
