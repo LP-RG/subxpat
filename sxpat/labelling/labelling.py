@@ -153,10 +153,10 @@ class Labelling:
 
     def label(self) -> int:
         """
-        Compote the weight between the two circuits.
+        Compute the weight between the two circuits.
         """
 
-        _w = self.label_node(self.__TOT_OBJ)  # type: ignore
+        _w = self.label_node(self.__TOT_OBJ)  # pyright: ignore[reportArgumentType]
         return _w
 
     def label_node(self, target_node: str) -> int:
@@ -192,10 +192,10 @@ class Labelling:
         parallelism: int = 1,
     ) -> dict[str, int]:
         """
-            Compute the weights for the entire graph.  
+        Compute the weights for the entire graph.  
 
-            :param partial_cutoff: optionally, a threshold for outputs under which their ancestors will be labelled.
-            :param parallel: if the labelling should be parallelized, and how much
+        :param partial_cutoff: optionally, a threshold for outputs under which their ancestors will be labelled.
+        :param parallel: if the labelling should be parallelized, and how much
         """
 
         # select nodes to label (all non-input ancestors of outputs under the cutoff)

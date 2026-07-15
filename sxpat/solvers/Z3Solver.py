@@ -1,5 +1,4 @@
-from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, overload
-from typing_extensions import override
+from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, overload, override
 from abc import abstractmethod
 
 import itertools as it
@@ -26,9 +25,9 @@ __all__ = [
 @make_utility_class
 class Z3Encoder:
     """
-        Base class for Z3 encoders, including some common functions.
+    Base class for Z3 encoders, including some common functions.
 
-        @authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
     node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Sequence[str], Sequence[Any]], str]]
@@ -98,7 +97,10 @@ class Z3Encoder:
         elif len(found_inputs_names) >= 2: raise ValueError('The inputs of the IOGraphs given to the Solver module did not match.')
 
         # extract graphs parameters (multiple PGraphs can define their own parameters)
-        parameters_names = tuple(it.chain.from_iterable(graph.parameters_names for graph in graphs if isinstance(graph, PGraph)))
+        parameters_names = tuple(it.chain.from_iterable(
+            graph.parameters_names
+            for graph in graphs if isinstance(graph, PGraph)
+        ))
 
         return (graphs, found_inputs_names.pop(), parameters_names, nodes_types, accessories,)
 
@@ -169,9 +171,9 @@ class Z3Encoder:
 
 class Z3FuncEncoder(Z3Encoder):
     """
-        Z3 encoder using the uninterpreted functions approach.
+    Z3 encoder using the uninterpreted functions approach.
 
-        @authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
     @staticmethod
@@ -192,9 +194,9 @@ class Z3FuncEncoder(Z3Encoder):
     def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str]
                                 ) -> Sequence[Node]:
         """
-           Given a sequence of nodes in input, returns a new sequence with all nodes updated
-           to have their name being the equivalent z3 uninterpreted function call.
-       """
+        Given a sequence of nodes in input, returns a new sequence with all nodes updated
+        to have their name being the equivalent z3 uninterpreted function call.
+        """
 
     @classmethod
     @overload
@@ -202,14 +204,16 @@ class Z3FuncEncoder(Z3Encoder):
                                 *, get_mapping: Literal[True]
                                 ) -> Tuple[Sequence[Node], Mapping[str, str]]:
         """
-           Given a sequence of nodes in input, returns a new sequence with all nodes updated
-           to have their name being the equivalent z3 uninterpreted function call, and the names mapping.
-       """
+        Given a sequence of nodes in input, returns a new sequence with all nodes updated
+        to have their name being the equivalent z3 uninterpreted function call, and the names mapping.
+        """
 
     @classmethod
     def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str],
                                 *, get_mapping: bool = False):
-        """@authors: Marco Biasion"""
+        """
+        :authors: Marco Biasion
+        """
 
         # copute updated names
         updated_names: Mapping[str, str] = {
@@ -236,10 +240,10 @@ class Z3FuncEncoder(Z3Encoder):
                                 inputs_string: str,
                                 non_gates_names: Container[str]):
         """
-            Given a graph in input, returns a new graph with all nodes updated
-            to have their name being the equivalent z3 uninterpreted function call.
+        Given a graph in input, returns a new graph with all nodes updated
+        to have their name being the equivalent z3 uninterpreted function call.
 
-            @authors: Marco Biasion
+        :authors: Marco Biasion
         """
 
         nodes, updated_names = cls.nodes_as_function_calls(
@@ -344,9 +348,9 @@ class Z3FuncEncoder(Z3Encoder):
 
 class Z3DirectEncoder(Z3Encoder):
     """
-        Z3 encoder using the direct definition approach.
+    Z3 encoder using the direct definition approach.
 
-        @authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
     @classmethod
@@ -521,12 +525,12 @@ class Z3DirectBitVecEncoder(Z3DirectEncoder):
 
 class Z3Solver(Solver):
     """
-        Base class for solving using z3, implements all logic but the encoding.
+    Base class for solving using z3, implements all logic but the encoding.
 
-        @authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
-    encoder: Z3Encoder
+    encoder: Type[Z3Encoder]
 
     @classmethod
     @override
@@ -539,17 +543,17 @@ class Z3Solver(Solver):
     @override
     def solve_forall(cls, graphs: Solver._Graphs,
                      specifications: Specifications,
-                     forall_task: ForAll,
+                     forall_target: ForAll,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._z3_solve(graphs, specifications, forall_task)
+        return cls._z3_solve(graphs, specifications, forall_target)
 
     @classmethod
     @override
     def solve_optimize(cls, graphs: Solver._Graphs,
                        specifications: Specifications,
-                       optimize_task: Union[Min, Max],
+                       optimize_target: Union[Min, Max],
                        ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._z3_solve(graphs, specifications, optimize_task)
+        return cls._z3_solve(graphs, specifications, optimize_target)
 
     @classmethod
     @override
@@ -568,10 +572,12 @@ class Z3Solver(Solver):
                   global_task: Union[ForAll, Min, Max, None],
                   ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
 
-        script_path = path_join(specifications.path.run.solver_scripts, f'iter{specifications.iteration}_{specifications.sub_iteration}.py')
+        script_path = path_join(specifications.path.run.solver_scripts,
+                                f'iter{specifications.iteration}_{specifications.sub_iteration}.py')
 
         # encode
-        with open(script_path, 'w') as f: cls.encoder.encode(graphs, f, global_task)
+        with open(script_path, 'w') as f:
+            cls.encoder.encode(graphs, f, global_task)
 
         # run
         raw_result = cls._run_script(script_path)
@@ -598,7 +604,7 @@ class Z3Solver(Solver):
     @classmethod
     def _decode_output(cls, raw_result: str) -> Tuple[str, Optional[Dict[str, Union[bool, int]]]]:
         """
-            Given the raw result, returns the contained status and model.
+        Given the raw result, returns the contained status and model.
         """
 
         # documentation: the result is not saved to a json for multiple models and so on.
