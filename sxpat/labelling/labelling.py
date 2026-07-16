@@ -217,6 +217,23 @@ class Labelling:
                 weights.update(pool.map(lambda n: (n, self.label_node(n)), nodes_to_label))
 
         return weights
+    
+    def label_graph_for_testing(
+        self, *,
+        nodes_to_label: set,
+    ) -> dict[str, int]:
+        """
+        Compute the weights for the entire graph.
+
+        THIS METHOD ONLY USED FOR SOLVERS TESTING
+        """
+
+        # label nodes
+        weights: dict[str, int] = dict()
+        for n in nodes_to_label:
+            weights[n] = self.label_node(n)
+
+        return weights
 
     def _get_script_path(self, id: str) -> str:
         return path_join(self._base_path, f'{id}.py')

@@ -192,7 +192,6 @@ def explore_grid(specs_obj: Specifications):
         # label graph
         if specs_obj.requires_labeling:
             print('started labelling')
-            print(list(current_graph.gate_dict.keys())) # TODO:ILIA: fix
             # _time = Timer.now()
             weights = test_solvers(current_graph, specs_obj)
             for (i, n) in enumerate(current_graph.outputs_names):
@@ -775,10 +774,8 @@ def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
         minimise=specs_obj.min_labeling,
         use_functions=True,
     )
-    legacy_weights = labeller.label_graph(
+    legacy_weights = labeller.label_graph_for_testing(
         nodes_to_label=nodes_to_label,
-        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
-        parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
     )
 
     _time = Timer.now() - _time
@@ -843,3 +840,4 @@ def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
         and legacy_weights == hybrid_weights
         and legacy_weights == qbf_weights
     )
+    return legacy_weights
