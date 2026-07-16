@@ -1,8 +1,8 @@
 """
-    :author: Lorenzo Spada
+:authors: Lorenzo Spada
 """
 
-from typing import IO, Any, Callable, Iterable, Mapping, Optional, Sequence, Tuple, TypeVar, Union, Dict, List, Protocol
+from typing import IO, Any, Iterable, Mapping, Optional, Sequence, Tuple, TypeVar, Union, Dict, List, Protocol
 from typing_extensions import TypeAlias, Self
 
 import copy
@@ -563,7 +563,12 @@ class QbfSolver(Solver):
 
         mapping = {}
         forall.sort()
-        variables = [node.name for graph in graphs for node in graph.nodes if isinstance(node, BoolVariable) and node.name not in forall]
+        variables = [
+            node.name
+            for graph in graphs
+            for node in graph.nodes
+            if isinstance(node, BoolVariable) and node.name not in forall
+        ]
         variables = list(set(variables))
         variables.sort()
 
@@ -607,7 +612,10 @@ class QbfSolver(Solver):
             #
             encoder.write_custom(f'{id_gen.get_sat_problem()} = and({", ".join(mapping[x][0] for x in in_the_output)})\n')
 
-        result = subprocess.run([specifications.path.tools.cqesto, script_path], capture_output=True, text=True)
+        result = subprocess.run(
+            [specifications.path.tools.cqesto, script_path],
+            capture_output=True, text=True,
+        )
 
         if result.returncode == 10:
             answer_vars = {
