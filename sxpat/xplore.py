@@ -569,7 +569,7 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
         use_functions=True,
     )
     weights = labeller.label_graph(
-        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else None,
+        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else -1,
         parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
     )
 

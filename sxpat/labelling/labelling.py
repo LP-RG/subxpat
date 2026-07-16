@@ -9,7 +9,7 @@ from sxpat.utils.string import partial_format, dedent
 
 import subprocess
 from threading import Lock
-from multiprocessing.pool import ThreadPool
+from concurrent.futures import ThreadPoolExecutor
 
 from sxpat.graph import IOGraph
 from sxpat.graph.node import BoolConstant, Node, And, Not, BoolVariable
@@ -188,7 +188,7 @@ class Labelling:
 
     def label_graph(
         self, *,
-        partial_cutoff: Optional[int] = None,
+        partial_cutoff: int = -1,
         parallelism: int = 1,
     ) -> dict[str, int]:
         """
@@ -199,13 +199,17 @@ class Labelling:
         """
 
         # select nodes to label (all non-input ancestors of outputs under the cutoff)
-        if partial_cutoff is None: partial_cutoff = 2**len(self.to_be_labelled.outputs_names)
-        nodes_to_label = []
+        nodes_to_label: set[str] = set()
+        if partial_cutoff <= 0:
+            partial_cutoff = 2 ** len(self.to_be_labelled.outputs_names)
         for (i, output) in enumerate(self.to_be_labelled.outputs_names):
-            if 2**i <= partial_cutoff:
-                for ancestor in nx.ancestors(self.to_be_labelled._inner, output):
-                    if not isinstance(self.to_be_labelled[ancestor], BoolVariable):
-                        nodes_to_label.append(ancestor)
+            # break if output is too large (next ones will be larger)
+            if (1 << i) > partial_cutoff:
+                break
+            # get all non-input ancestors
+            for ancestor in nx.ancestors(self.to_be_labelled._inner, output):
+                if not isinstance(self.to_be_labelled[ancestor], BoolVariable):
+                    nodes_to_label.add(ancestor)
 
         # label nodes
         weights: dict[str, int] = dict()
@@ -213,7 +217,7 @@ class Labelling:
             for n in nodes_to_label:
                 weights[n] = self.label_node(n)
         else:
-            with ThreadPool(parallelism) as pool:
+            with ThreadPoolExecutor() as pool:
                 weights.update(pool.map(lambda n: (n, self.label_node(n)), nodes_to_label))
 
         return weights
