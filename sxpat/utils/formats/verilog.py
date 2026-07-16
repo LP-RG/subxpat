@@ -1,26 +1,18 @@
-import re
-from shutil import move
-from os.path import join as path_join
-from subprocess import run, PIPE, DEVNULL
 from typing import ClassVar, Dict, Iterable, List, Mapping, Sequence, Tuple
+
+import re
+from textwrap import dedent
+
+from sxpat.utils.filesystem import FS
+from os.path import join as path_join
+
+from subprocess import run, PIPE, DEVNULL
 
 
 __all__ = [
     'synthesize_verilog_to_notand_gate_level',
     'convert_verilog_to_dot',
-    'YosysError',
 ]
-
-
-class YosysError(Exception):
-    """Yosys command failure error."""
-
-    __slots__ = ['command', 'stderr']
-
-    def __init__(self, command: str, stderr: str, *args):
-        super().__init__(command, stderr, *args)
-        self.command = command
-        self.stderr = stderr
 
 
 class synthesize_verilog_to_notand_gate_level:
@@ -28,7 +20,7 @@ class synthesize_verilog_to_notand_gate_level:
     :authors: Morteza Rezaalipour, Marco Biasion
     """
 
-    YOSYS_COMMAND: ClassVar = """
+    YOSYS_COMMAND: ClassVar = dedent("""
         read_verilog {input_path};
         synth -flatten;
         opt;
@@ -40,7 +32,7 @@ class synthesize_verilog_to_notand_gate_level:
         opt;
         opt_clean -purge;
         write_verilog -noattr {output_path};
-    """
+    """).replace('\n', ' ').strip()
 
     MODULE_PATTERN: ClassVar = re.compile(r'^\s*module\s+\w+\s*\(([\w,\\\s\[\]]+?)\);', re.MULTILINE)
     SPACES_PATTERN: ClassVar = re.compile(r'\s+')
@@ -49,15 +41,18 @@ class synthesize_verilog_to_notand_gate_level:
     OUTPUT_PATTERN: ClassVar = re.compile(r'^output (.+?)\s*$')
     RANGE_PATTERN: ClassVar = re.compile(r'\[(\d+):(\d+)\]')
     VECTOR_PATTERN: ClassVar = re.compile(r'(?:\[\d+:\d+\]\s*)?(.*)')
-    PARTIAL_RELABEL_PATTERN: ClassVar = r'({key})([,;)\s\r\n$])'
+    PARTIAL_RELABEL_PATTERN: ClassVar = r'({key})([,;)\s]|$)'
 
     def __new__(cls, input_path: str, output_path: str):
-        # compose command
+        # prepare
         yosys_command = cls.YOSYS_COMMAND.format(input_path=input_path, output_path=output_path)
 
-        # run process
-        _process = run(['yosys', '-p', yosys_command], stdout=DEVNULL, stderr=PIPE, text=True)
-        if _process.returncode: raise YosysError(yosys_command, _process.stderr)
+        # run command
+        run(
+            ['yosys'], input=yosys_command,
+            stdout=DEVNULL, stderr=PIPE, text=True,
+            check=True,
+        )
 
         # post-processing
         cls._rename_variables(output_path, output_path)
@@ -82,8 +77,7 @@ class synthesize_verilog_to_notand_gate_level:
         new_labels = cls._create_new_labels(port_list, input_dict, output_dict)
         lines = cls._relabel_variables(verilog.split('\n'), new_labels)
 
-        with open(output_path, 'w') as _f:
-            _f.writelines(f'{l}\n' for l in lines)
+        FS.writefile(output_path, lines=(f'{l}\n' for l in lines), overwrite=True)
 
     @classmethod
     def _extract_inputs_outputs(cls, verilog_lines: List[str], port_list: Iterable[str]):
@@ -150,12 +144,14 @@ class synthesize_verilog_to_notand_gate_level:
 
         for port_idx in input_dict:
             port = port_list[port_idx]
-            if input_dict[port_idx][0] != port: raise RuntimeError(f'Input `{input_dict[port_idx][0]}` does not match port {port}')
+            if input_dict[port_idx][0] != port:
+                raise RuntimeError(f'Input `{input_dict[port_idx][0]}` does not match port {port}')
             new_labels[port] = f'in{port_idx}'
 
         for (out_idx, port_idx) in enumerate(output_dict):
             port = port_list[port_idx]
-            if output_dict[port_idx][0] != port: raise RuntimeError(f'Output `{input_dict[port_idx][0]}` does not match port {port}')
+            if output_dict[port_idx][0] != port:
+                raise RuntimeError(f'Output `{input_dict[port_idx][0]}` does not match port {port}')
             new_labels[port_list[port_idx]] = f'out{out_idx}'
 
         return new_labels
@@ -243,23 +239,24 @@ class convert_verilog_to_dot:
     :authors: Morteza Rezaalipour, Marco Biasion
     """
 
-    YOSYS_COMMAND: ClassVar = """
-        read_verilog {input_verilog_path}
-        opt
-        clean
-        show -prefix {output_dot_path} -format dot
-    """
+    YOSYS_COMMAND: ClassVar = dedent("""
+        read_verilog {input_verilog_path};
+        opt;
+        clean;
+        show -prefix {output_dot_path} -format dot;
+    """).replace('\n', ' ').strip()
 
     def __new__(cls, input_verilog_path: str, output_gv_path: str, temporary_path: str):
         # prepare
         tmp_dot_path = path_join(temporary_path, 'cvtgv_to_fd.dot')
         yosys_command = cls.YOSYS_COMMAND.format(input_verilog_path=input_verilog_path, output_dot_path=tmp_dot_path[:-4])
 
-        # run
-        with open(path_join(temporary_path, 'yosys_convert_verilog_to_dot.log'), 'w') as f:
-            # run yosys command (dump log to temporary file)
-            _process = run(['yosys', '-p', yosys_command], stdout=f, stderr=f)
-            assert _process.returncode == 0
+        # run command
+        run(
+            ['yosys'], input=yosys_command,
+            stdout=DEVNULL, stderr=PIPE, text=True,
+            check=True,
+        )
 
         # move .dot to .gv
-        move(tmp_dot_path, output_gv_path)
+        FS.move(tmp_dot_path, output_gv_path, overwrite=True)

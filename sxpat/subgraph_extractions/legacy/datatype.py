@@ -18,6 +18,7 @@ from z3 import (
 
 from sxpat.constants.misc import WEIGHT
 from sxpat.graph.graph import IOGraph
+from sxpat.graph.node import BoolConstant, Identity, BoolVariable
 from sxpat.specifications import Specifications
 
 from sxpat.utils.graph import is_selection_convex
@@ -138,7 +139,7 @@ def _setup_problem(circuit: IOGraph, specs: Specifications):
 
     bit_width = max(
         len(circuit.outputs) + math.ceil(math.log2(len(circuit.nodes))),
-        math.ceil(math.log2(feasibility_threshold)) + 1
+        math.ceil(math.log2(max(1, feasibility_threshold))) + 1
     )
 
     optimizer = Optimize()
@@ -394,8 +395,8 @@ def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
     # prepare
     feasibility_threshold = specs.et
     graph: nx.DiGraph = circuit._inner
-    min_weight = min([getattr(node, "weight") for node in circuit.nodes if getattr(node, "weight", None) is not None])
-    
+    weights = [getattr(node, "weight") for node in circuit.nodes if getattr(node, "weight", None) is not None and not isinstance(node, BoolConstant) and not isinstance(node, Identity) and not isinstance(node, BoolVariable)] # TODO: find better way to get needed weights
+    min_weight = min(weights) if len(weights) else 0
     specs.et = min_weight
     subgraph_nodes = find_subgraph_feasible_hard_datatype_bitvec(circuit, specs)
 
