@@ -177,6 +177,9 @@ class Specifications:
     sensitivity: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
     slash_to_kill: bool
     error_for_slash: int
+    persistance: int
+    persistance_counter: int = dc.field(init=False, default=0, metadata={'writable': True})  # rw
+    out_node: int = dc.field(init=False, default=0, metadata={'writable': True})  # rw
 
     # exploration (1)
     subxpat: bool
@@ -212,7 +215,7 @@ class Specifications:
     debug: bool
     timeout: float
     parallel: bool
-    timestamp: str = dc.field(init=False, default_factory=time.time_ns)
+    timestamp: int = dc.field(init=False, default_factory=lambda: int(time.time()))
     run_id: str = dc.field(init=False)
 
     # storage
@@ -220,16 +223,23 @@ class Specifications:
     details_storage: AppendStorage = dc.field(init=False, default=None, metadata={'writable': True})  # writable once
 
     def __post_init__(self, path_output: str, path_cell_library: str, path_cqesto: str):
-        # computed constants
+        # > computed constants
+        # output size
         benchmark_name = os.path.basename(self.exact_benchmark)
         match = re.search(r'_o(\d+)', benchmark_name)
         if match is None:
             raise ValueError(f'Unable to parse the number of outputs from benchmark name {benchmark_name!r}.')
         self.outputs = int(match.group(1))
+        # run id
+        _base = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        self.run_id = FS.get_unique_name(
+            int_to_strbase(self.timestamp, _base)
+            .rjust(8, _base[0])  # with padding, the naming order is safe for another ~6.5k years (as of 2026AD)
+            + '_',
+            id_size=4,
+        )
 
-        self.run_id = FS.get_unique_dirname(prefix=f'{int_to_strbase(self.timestamp)}_')
-
-        # construct instance
+        # construct path object
         self.path = Paths(
             path_output, self.run_id,
             path_cell_library,
@@ -315,7 +325,7 @@ class Specifications:
 
         _ex_mode = _subex_group.add_argument('--extraction-mode', '--mode',
                                              type=int,
-                                             choices=[1, 2, 3, 4, 5, 55, 6, 11, 12, 42],
+                                             choices=[0, 1, 2, 3, 4, 5, 55, 6, 100, 11, 12, 42],
                                              default=55,
                                              help='Subgraph extraction algorithm to use (default: 55)')
 
@@ -332,6 +342,10 @@ class Specifications:
         _msens = _subex_group.add_argument('--max-sensitivity',
                                            type=int,
                                            help='Maximum partitioning sensitivity')
+
+        _persistance = _subex_group.add_argument('--persistance',
+                                                 type=int,
+                                                 help='max-persistance for subgraph extraction 0')
 
         _msub_size = _subex_group.add_argument('--min-subgraph-size',
                                                type=int,

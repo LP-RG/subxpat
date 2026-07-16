@@ -1,0 +1,13 @@
+{
+    "exclude": [
+        // default
+        "**/__pycache__",
+        "**/.*",
+        ".git",
+        ".venv",
+        // custom
+        "experiments",
+        "output",
+        "labelling_scripts"
+    ]
+}

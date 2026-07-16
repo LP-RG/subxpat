@@ -18,11 +18,8 @@
 /*.sh
 
 #> generated
-/venv
 /.venv
 **/__pycache__
-**/yosys_graph.log
-**/yosys_log.txt
 .history_sta
 # input
 /input/*

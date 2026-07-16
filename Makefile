@@ -1,6 +1,6 @@
 # settings
 
-PY := python3
+PY := python3.14
 ENV_NAME := .venv
 DELETION_DELAY ?= 10
 
@@ -33,9 +33,9 @@ py_dep: py_init
 setup: py_init py_dep
 
 rm_data:
-	@echo "\n[[   deleting all final and intermediary data   ]]\n[[ YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION ]]"
+	@echo "\n[[ deleting all final and intermediary data (output/) ]]\n[[ !! YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION !! ]]"
 	@sleep $(DELETION_DELAY)
-	rm -rf output/ test/
+	rm -rf output/
 
 rm_cache:
 	@echo "\n[[ removing all pycache folders ]]"
@@ -43,7 +43,7 @@ rm_cache:
 
 rm_temp:
 	@echo "\n[[ removing generated temporary files ]]"
-	rm -f yosys_graph.log .history_sta
+	rm -f .history_sta
 
 rm_pyenv:
 	@echo "\n[[ removing the virtual python environment ]]"

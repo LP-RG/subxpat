@@ -1,8 +1,7 @@
-import re
-from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, List, overload
-from typing_extensions import override
+from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, overload, override
 from abc import abstractmethod
 
+import re
 import itertools as it
 import subprocess
 from os.path import join as path_join
@@ -17,8 +16,6 @@ from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.graph import *
 from sxpat.graph.node import *
 
-import sxpat.config.config as sxpat_cfg
-
 
 __all__ = [
     'Z3FuncIntSolver', 'Z3FuncBitVecSolver',
@@ -30,9 +27,9 @@ __all__ = [
 @make_utility_class
 class Z3Encoder:
     """
-        Base class for Z3 encoders, including some common functions.
+    Base class for Z3 encoders, including some common functions.
 
-        @authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
     node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Sequence[str], Sequence[Any]], str]]
@@ -102,7 +99,10 @@ class Z3Encoder:
         elif len(found_inputs_names) >= 2: raise ValueError('The inputs of the IOGraphs given to the Solver module did not match.')
 
         # extract graphs parameters (multiple PGraphs can define their own parameters)
-        parameters_names = tuple(it.chain.from_iterable(graph.parameters_names for graph in graphs if isinstance(graph, PGraph)))
+        parameters_names = tuple(it.chain.from_iterable(
+            graph.parameters_names
+            for graph in graphs if isinstance(graph, PGraph)
+        ))
 
         return (graphs, found_inputs_names.pop(), parameters_names, nodes_types, accessories,)
 
@@ -207,9 +207,9 @@ class Z3Encoder:
 
 class Z3FuncEncoder(Z3Encoder):
     """
-        Z3 encoder using the uninterpreted functions approach.
+    Z3 encoder using the uninterpreted functions approach.
 
-        @authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
     @staticmethod
@@ -230,9 +230,9 @@ class Z3FuncEncoder(Z3Encoder):
     def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str]
                                 ) -> Sequence[Node]:
         """
-           Given a sequence of nodes in input, returns a new sequence with all nodes updated
-           to have their name being the equivalent z3 uninterpreted function call.
-       """
+        Given a sequence of nodes in input, returns a new sequence with all nodes updated
+        to have their name being the equivalent z3 uninterpreted function call.
+        """
 
     @classmethod
     @overload
@@ -240,14 +240,16 @@ class Z3FuncEncoder(Z3Encoder):
                                 *, get_mapping: Literal[True]
                                 ) -> Tuple[Sequence[Node], Mapping[str, str]]:
         """
-           Given a sequence of nodes in input, returns a new sequence with all nodes updated
-           to have their name being the equivalent z3 uninterpreted function call, and the names mapping.
-       """
+        Given a sequence of nodes in input, returns a new sequence with all nodes updated
+        to have their name being the equivalent z3 uninterpreted function call, and the names mapping.
+        """
 
     @classmethod
-    def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str], 
+    def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str],
                                 functional_nodes_names: set = None, *, get_mapping: bool = False):
-        """@authors: Marco Biasion"""
+        """
+        :authors: Marco Biasion
+        """
 
         # copute updated names
         updated_names: Mapping[str, str] = {
@@ -275,10 +277,10 @@ class Z3FuncEncoder(Z3Encoder):
                                 non_gates_names: Container[str],
                                 functional_nodes_names: set = None):
         """
-            Given a graph in input, returns a new graph with all nodes updated
-            to have their name being the equivalent z3 uninterpreted function call.
+        Given a graph in input, returns a new graph with all nodes updated
+        to have their name being the equivalent z3 uninterpreted function call.
 
-            @authors: Marco Biasion
+        :authors: Marco Biasion
         """
 
         nodes, updated_names = cls.nodes_as_function_calls(
@@ -401,9 +403,9 @@ class Z3FuncEncoder(Z3Encoder):
 
 class Z3DirectEncoder(Z3Encoder):
     """
-        Z3 encoder using the direct definition approach.
+    Z3 encoder using the direct definition approach.
 
-        @authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
     @classmethod
@@ -474,7 +476,7 @@ class Z3HybridEncoder(Z3Encoder):
     
     @classmethod
     def node_name(cls, node: AnyExpression) -> str:
-        return (re.split("\(", node.name))[0]
+        return (re.split(r"\(", node.name))[0]
 
     @classmethod
     def inject_nodes_behavior(cls,
@@ -691,12 +693,12 @@ class Z3HybridBitVecEncoder(Z3HybridEncoder):
 
 class Z3Solver(Solver):
     """
-        Base class for solving using z3, implements all logic but the encoding.
+    Base class for solving using z3, implements all logic but the encoding.
 
-        @authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
-    encoder: Z3Encoder
+    encoder: Type[Z3Encoder]
 
     @classmethod
     @override
@@ -710,19 +712,19 @@ class Z3Solver(Solver):
     @override
     def solve_forall(cls, graphs: Solver._Graphs,
                      specifications: Specifications,
-                     forall_task: ForAll,
+                     forall_target: ForAll,
                      **kwargs,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._z3_solve(graphs, specifications, forall_task, **kwargs)
+        return cls._z3_solve(graphs, specifications, forall_target)
 
     @classmethod
     @override
     def solve_optimize(cls, graphs: Solver._Graphs,
                        specifications: Specifications,
-                       optimize_task: Union[Min, Max],
+                       optimize_target: Union[Min, Max],
                        **kwargs,
                        ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._z3_solve(graphs, specifications, optimize_task, **kwargs)
+        return cls._z3_solve(graphs, specifications, optimize_target)
 
     @classmethod
     @override
@@ -743,10 +745,12 @@ class Z3Solver(Solver):
                   **kwargs,
                   ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
 
-        script_path = path_join(specifications.path.run.solver_scripts, f'iter{specifications.iteration}_{specifications.sub_iteration}.py')
+        script_path = path_join(specifications.path.run.solver_scripts,
+                                f'iter{specifications.iteration}_{specifications.sub_iteration}.py')
 
         # encode
-        with open(script_path, 'w') as f: cls.encoder.encode(graphs, f, global_task, **kwargs)
+        with open(script_path, 'w') as f:
+            cls.encoder.encode(graphs, f, global_task, **kwargs)
 
         # run
         raw_result = cls._run_script(script_path)
@@ -757,25 +761,23 @@ class Z3Solver(Solver):
     @classmethod
     def _run_script(cls, script_path: str) -> str:
         """
-            Given the file path, run the python script and return the standard output.
+        Run the given python script and return its standard output.
         """
 
         # run
         process = subprocess.run(
-            [sxpat_cfg.PYTHON3, script_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            ['python3', script_path],
+            capture_output=True, text=True,
+            check=True,
         )
-        if process.returncode != 0:
-            raise RuntimeError(f'Solver execution FAILED. Failed to run file {script_path}')
 
         # return decoded output
-        return process.stdout.decode()
+        return process.stdout
 
     @classmethod
     def _decode_output(cls, raw_result: str) -> Tuple[str, Optional[Dict[str, Union[bool, int]]]]:
         """
-            Given the raw result, returns the contained status and model.
+        Given the raw result, returns the contained status and model.
         """
 
         # documentation: the result is not saved to a json for multiple models and so on.

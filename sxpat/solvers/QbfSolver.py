@@ -1,8 +1,8 @@
 """
-    :author: Lorenzo Spada
+:authors: Lorenzo Spada
 """
 
-from typing import IO, Any, Callable, Iterable, Mapping, Optional, Sequence, Tuple, TypeVar, Union, Dict, List, Protocol
+from typing import IO, Any, Iterable, Mapping, Optional, Sequence, Tuple, TypeVar, Union, Dict, List, Protocol
 from typing_extensions import TypeAlias, Self
 
 import copy
@@ -389,7 +389,7 @@ class Encoder:
 
         if n.value >= len(mapping[operands[0]]):
             mapping[n.name] = [self.id_gen.get_const_false()]
-        
+
         else:
             mapping[n.name] = [mapping[operands[0]][i] for i in range(n.value, len(mapping[operands[0]]))]
 
@@ -563,7 +563,12 @@ class QbfSolver(Solver):
 
         mapping = {}
         forall.sort()
-        variables = [node.name for graph in graphs for node in graph.nodes if isinstance(node, BoolVariable) and node.name not in forall]
+        variables = [
+            node.name
+            for graph in graphs
+            for node in graph.nodes
+            if isinstance(node, BoolVariable) and node.name not in forall
+        ]
         variables = list(set(variables))
         variables.sort()
 
@@ -607,7 +612,10 @@ class QbfSolver(Solver):
             #
             encoder.write_custom(f'{id_gen.get_sat_problem()} = and({", ".join(mapping[x][0] for x in in_the_output)})\n')
 
-        result = subprocess.run([specifications.path.tools.cqesto, script_path], capture_output=True, text=True)
+        result = subprocess.run(
+            [specifications.path.tools.cqesto, script_path],
+            capture_output=True, text=True,
+        )
 
         if result.returncode == 10:
             answer_vars = {
@@ -654,3 +662,24 @@ class QbfSolver(Solver):
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         status, model = cls._solve(graphs, specifications, list(forall_target.operands))
         return (status, model)
+
+    @classmethod
+    def solve_optimize(cls, graphs: _Graphs,
+                       specifications: Specifications,
+                       optimize_target: Union[Min, Max],
+                       ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+        """
+            Solve an optimization (not forall quantified) problem.
+        """
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, None)
+
+    @classmethod
+    def solve_optimize_forall(cls, graphs: _Graphs,
+                              specifications: Specifications,
+                              optimize_target: Union[Min, Max],
+                              forall_target: ForAll,
+                              ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+        """
+            Solve an optimization and forall quantified problem.
+        """
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)

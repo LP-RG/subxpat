@@ -7,7 +7,7 @@ from sxpat.graph.node import ForAll, Max, Min, PlaceHolder, GlobalTask, GreaterT
 from sxpat.specifications import Specifications
 from sxpat.utils.decorators import make_utility_class
 
-from sxpat.config import SolverConstants as SC
+from sxpat.constants import SolverConstants as SC
 from sxpat.utils.print import pprint
 
 
@@ -25,31 +25,31 @@ class GlobalTasks(NamedTuple):
 @make_utility_class
 class Solver(metaclass=ABCMeta):
     """
-        Guide: inheriting from `Solver`.
+    Guide: inheriting from `Solver`.
 
-        The `Solver` super class has the following public methods:
-        - `.solve(...)`: entry point to the solver. Will delegate the computation to one of the following methods.  
-          This method is already implemented and is **final**.
-        - `.solve_exists(...)`: solve non optimization and not forall quantified problems.  
-           **Must** be overloaded when inheriting.
-        - `solve_forall(...)`: solve forall quantified problems.  
-          **Can** be overloaded but a default solver independent implementation is given.
-        - `.solve_optimize(...)`: solve optimization problems.  
-          **Can** be overloaded but a default solver independent implementation is given.
-        - `.solve_optimize_forall(...)`: solve optimizations and forall quantified problems.  
-          **Can** be overloaded but a default solver independent implementation is given.
+    The `Solver` super class has the following public methods:
+    - `.solve(...)`: entry point to the solver. Will delegate the computation to one of the following methods.  
+        This method is already implemented and is **final**.
+    - `.solve_exists(...)`: solve non optimization and not forall quantified problems.  
+        **Must** be overloaded when inheriting.
+    - `solve_forall(...)`: solve forall quantified problems.  
+        **Can** be overloaded but a default solver independent implementation is given.
+    - `.solve_optimize(...)`: solve optimization problems.  
+        **Can** be overloaded but a default solver independent implementation is given.
+    - `.solve_optimize_forall(...)`: solve optimizations and forall quantified problems.  
+        **Can** be overloaded but a default solver independent implementation is given.
 
-        As stated in the list, the only method strictly required to be overloaded is `.solve_exists(...)`,
-        as all others have a default implementation.
+    As stated in the list, the only method strictly required to be overloaded is `.solve_exists(...)`,
+    as all others have a default implementation.
 
-        To improve the performance of the solver being implemented,
-        the other methods can be overloaded using solver specific features.
+    To improve the performance of the solver being implemented,
+    the other methods can be overloaded using solver specific features.
 
-        Note that non overloaded methods will print a warning when used,
-        to suppress this warning simply overload the method in your subclass
-        using the internal call to the `protected` function.
+    Note that non overloaded methods will print a warning when used,
+    to suppress this warning simply overload the method in your subclass
+    using the internal call to the `protected` function.
 
-        @authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
     _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, PGraph, CGraph]])
@@ -59,20 +59,20 @@ class Solver(metaclass=ABCMeta):
     def solve(cls, graphs: _Graphs,
               specifications: Specifications,
               *,
-              _global_targets: GlobalTasks = None,
+              _global_targets: Optional[GlobalTasks] = None,
               **kwargs,
               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
-            Solve the required problem defined by the given graphs.
+        Solve the required problem defined by the given graphs.
 
-            The supported graphs are:
-            - IOGraph (and subclasses): for input variables (and local behaviour)
-            - PGraph (and subclasses): for parameter variables (and local behaviour)
-            - CGraph (and subclasses): for applicable constraints
+        The supported graphs are:
+        - IOGraph (and subclasses): for input variables (and local behaviour)
+        - PGraph (and subclasses): for parameter variables (and local behaviour)
+        - CGraph (and subclasses): for applicable constraints
 
-            Returns the status of the resolution (`sat`, `unsat`, `unknown`) and the model evaluated from the `Target` nodes if `sat`.
+        Returns the status of the resolution (`sat`, `unsat`, `unknown`) and the model evaluated from the `Target` nodes if `sat`.
 
-            @authors: Marco Biasion
+        :authors: Marco Biasion
         """
 
         # compute global targets if not already given
@@ -114,7 +114,7 @@ class Solver(metaclass=ABCMeta):
                      **kwargs,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
-            Solve a non optimization and not forall quantified problem.
+        Solve a non optimization and not forall quantified problem.
         """
         raise NotImplementedError(f'{cls.__qualname__}.solve_exists(...) is not implemented')
 
@@ -125,13 +125,13 @@ class Solver(metaclass=ABCMeta):
                      **kwargs,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
-            Solve a forall quantified (non optimization) problem.
+        Solve a forall quantified (non optimization) problem.
         """
         pprint.warning(
             '[WARNING] using default (iterative) implementation'
             f' for {cls.__qualname__}.solve_forall(...)'
         )
-        cls._solve_forall(graphs, specifications, forall_target, **kwargs)
+        return cls._solve_forall(graphs, specifications, forall_target, **kwargs)
 
     @classmethod
     def solve_optimize(cls, graphs: _Graphs,
@@ -140,7 +140,7 @@ class Solver(metaclass=ABCMeta):
                        **kwargs,
                        ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
-            Solve an optimization (not forall quantified) problem.
+        Solve an optimization (not forall quantified) problem.
         """
         pprint.warning(
             '[WARNING] using default (iterative) implementation'
@@ -156,7 +156,7 @@ class Solver(metaclass=ABCMeta):
                               **kwargs,
                               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
-            Solve an optimization and forall quantified problem.
+        Solve an optimization and forall quantified problem.
         """
         pprint.warning(
             '[WARNING] using default (iterative) implementation'
@@ -183,9 +183,9 @@ class Solver(metaclass=ABCMeta):
                                          **kwargs,
                                          ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
-            Solve an optimization (optionally forall quantified) problem iteratively without requiring solver specific features.
+        Solve an optimization (optionally forall quantified) problem iteratively without requiring solver specific features.
 
-            @authors: Marco Biasion
+        :authors: Marco Biasion
         """
 
         # define common extra nodes
@@ -236,13 +236,13 @@ class Solver(metaclass=ABCMeta):
     @final
     def _pop_global_tasks(cls, graphs: _Graphs) -> Tuple[GlobalTasks, _Graphs]:
         """
-            Pops all `GlobalTask` nodes from the graphs.
+        Pops all `GlobalTask` nodes from the graphs.
 
-            Returns
-             - `ForAll` and `Min`/`Max` nodes from the given graphs, if present.
-             - Sequence of graphs where `CGraphs` are updated/dropped based on their `GlobalTask` content (partial/only).
+        Returns
+            - `ForAll` and `Min`/`Max` nodes from the given graphs, if present.
+            - Sequence of graphs where `CGraphs` are updated/dropped based on their `GlobalTask` content (partial/only).
 
-            @authors: Marco Biasion
+        :authors: Marco Biasion
         """
 
         _graphs = []
