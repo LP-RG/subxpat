@@ -1,9 +1,11 @@
+from textwrap import dedent
 import subprocess
-import networkx as nx
+
+import numpy as np
 import aigverse as aig
 import aigverse.adapters.networkx as aig_nx
-import numpy as np
-from typing import Dict
+import networkx as nx
+
 
 # generates circuit digraph
 def gen_circuit_digraph(benchmark_name):
@@ -11,20 +13,22 @@ def gen_circuit_digraph(benchmark_name):
     aiger_path = f'{"aiger/aig_files"}/{benchmark_name}.{"aig"}'
 
     # synthesize to gate level
-    yosys_command = f"""
-    read_verilog {verilog_path};
-    synth -flatten;
-    opt;
-    opt_clean -purge;
-    abc -g NAND;
-    opt;
-    opt_clean -purge;
-    splitnets -ports;
-    opt;
-    opt_clean -purge;
-    aigmap;
-    write_aiger {aiger_path};
-    """
+    yosys_command = dedent(f"""
+        read_verilog {verilog_path};
+
+        # flattening
+        synth -flatten;
+        opt -purge;       # needed if already flat
+        splitnets -ports; # needed if original
+
+        # normalize
+        abc -g NAND; # some alternatives we could discuss are: "abc -g NAND,AND", "aigmap"
+        opt -purge;
+
+        #
+        aigmap;
+        write_aiger {aiger_path};
+    """)
 
     process = subprocess.run(['yosys', '-p', yosys_command], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     if process.stderr.decode():
@@ -34,20 +38,22 @@ def gen_circuit_digraph(benchmark_name):
     # generate ASCII version of aiger file (just for file ispection)
     ascii_aiger_path = f'{"aiger/ascii_aig_files"}/{benchmark_name}.{"aig"}'
 
-    yosys_command_ascii = f"""
-    read_verilog {verilog_path};
-    synth -flatten;
-    opt;
-    opt_clean -purge;
-    abc -g NAND;
-    opt;
-    opt_clean -purge;
-    splitnets -ports;
-    opt;
-    opt_clean -purge;
-    aigmap;
-    write_aiger -ascii {ascii_aiger_path};
-    """
+    yosys_command_ascii = dedent(f"""
+        read_verilog {verilog_path};
+
+        # flattening
+        synth -flatten;
+        opt -purge;       # needed if already flat
+        splitnets -ports; # needed if original
+
+        # normalize
+        abc -g NAND; # some alternatives we could discuss are: "abc -g NAND,AND", "aigmap"
+        opt -purge;
+
+        #
+        aigmap;
+        write_aiger -ascii {ascii_aiger_path};
+    """)
 
     process = subprocess.run(['yosys', '-p', yosys_command_ascii], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     if process.stderr.decode():
@@ -55,7 +61,7 @@ def gen_circuit_digraph(benchmark_name):
         raise Exception(f'ERROR!!! yosys cannot do its pass on file {verilog_path}\n{process.stderr.decode()}')
     
     # generate DiGraph
-    aig_obj = aig.read_aiger_into_aig(aiger_path)
+    aig_obj = aig.io.read_aiger_into_aig(aiger_path)
     circuit_digraph = aig_nx.to_networkx(aig_obj)
     return circuit_digraph
 
@@ -151,9 +157,9 @@ class MyAnnotatedGraph():
         # 2. AnnotatedGraph fields
         self.__subgraph_candidates = []
         self.__subgraph = None
-        self.__subgraph_input_dict: Dict[int, str] = None
-        self.__subgraph_output_dict: Dict[int, str] = None
-        self.__subgraph_gate_dict: Dict[int, str] = None
+        self.__subgraph_input_dict: dict[int, str] = None
+        self.__subgraph_output_dict: dict[int, str] = None
+        self.__subgraph_gate_dict: dict[int, str] = None
         self.__subgraph_fanin_dict = None
         self.__subgraph_fanout_dict = None
         self.__graph_intact_gate_dict = None
@@ -237,7 +243,7 @@ class MyAnnotatedGraph():
                 output_dict[idx] = n
         return input_dict, output_dict
     
-    def sort_dict(self, this_dict: Dict) -> Dict:
+    def sort_dict(self, this_dict: dict) -> dict:
         sorted_dict = {}
         this_dict_ids = list(this_dict.keys())
         this_dict_ids.sort()
