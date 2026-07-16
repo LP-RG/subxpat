@@ -9,6 +9,7 @@
 /test
 /experiments
 /output
+/benchmarks
 # data
 /results
 /*.csv
