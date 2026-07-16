@@ -362,20 +362,36 @@ def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
     ]
     h = optimizer.maximize(Sum(max_nodes))
 
-    # feasibility (edge-wise)
-    optimizer.add(And([
-        Implies(
-            And(
-                Node.in_subgraph(Edge.source(e)),
-                Not(Node.in_subgraph(Edge.target(e)))
-            ),
+
+    #setting up zone weight constraints
+    zone_constraints = []
+
+    #iterating through gates of the graph
+    for source, target in graph.edges():
+
+        #looking up weights of a specific node
+        source_zones = circuit.zone_weights.get(source, {})
+
+        #check that for every zone of the node, the corrosponding weight is less then or equal to its corrosponding zone et
+        zone_conditions = [
             ULE(
-                Node.weight(Edge.source(e)),
-                BitVecVal(specs.et, bit_width)
+                BitVecVal(weight, bit_width),
+                BitVecVal(specs.et[zone], bit_width)
             )
-        )
-        for e in z3_edges
-    ]))
+            for zone, weight in source_zones.items()
+        ]
+
+        #if the edge is an exit point then the zone condition must apply
+        zone_constraints.append(Implies(
+            And(
+                Node.in_subgraph(z3_nodes[source]),
+                Not(Node.in_subgraph(z3_nodes[target]))
+            ),
+            And(zone_conditions)
+        ))
+
+    # feasibility (edge-wise)
+    optimizer.add(And(zone_constraints))
 
     # imax / omax
     if specs.imax is not None:
