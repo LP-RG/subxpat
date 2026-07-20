@@ -654,6 +654,8 @@ class AnnotatedGraph(Graph):
         subgraph_nodes = ComponentManager.check_convexity(opt, self.graph, self.gate_dict)
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
+        return subgraph_nodes
+
     def find_subgraph_feasible_hard(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
