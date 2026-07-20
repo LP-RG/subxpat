@@ -1306,109 +1306,22 @@ class AnnotatedGraph(Graph):
 
         tmp_graph = self.graph.copy(as_view=False)
 
-        input_literals = {}  # literals associated to the input nodes
-        gate_literals = {}  # literals associated to the gates in the circuit
-        output_literals = {}  # literals associated to the output nodes
-
-        # Data structures containing the edges
-        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
-        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
-        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
-
         # Optimizer
         opt = Optimize()
 
-        # Function to maximize
-        max_func = []
+        # COMPONENT START: Model Initialization
+        G, input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
+            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict, opt)
+        # COMPONENT END: Model Initialization
 
-        # List of all the partition edges
-        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
-        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
-        partition_output_edges_penalty = []
-
-        # Generate all literals
-        for e in tmp_graph.edges:
-            if 'in' in e[0]:  # Generate literal for each input node
-                in_id = int(e[0][2:])
-                if in_id not in input_literals:
-                    input_literals[in_id] = Bool("in_%s" % str(in_id))
-            if 'g' in e[0]:  # Generate literal for each gate in the circuit
-                g_id = int(e[0][1:])
-                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
-                    gate_literals[g_id] = Bool("g_%s" % str(g_id))
-
-            if 'out' in e[1]:  # Generate literal for each output node
-                out_id = int(e[1][3:])
-                if out_id not in output_literals:
-                    output_literals[out_id] = Bool("out_%s" % str(out_id))
-
-        # Generate structures holding edge information
-        for e in tmp_graph.edges:
-            if 'in' in e[0]:  # Populate input_edges structure
-                in_id = int(e[0][2:])
-
-                if in_id not in input_edges:
-                    input_edges[in_id] = []
-                # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
-                # Morteza added ==============
-                try:
-                    input_edges[in_id].append(int(e[1][1:]))
-                except:
-                    if re.search('g(\d+)', e[1]):
-                        my_id = int(re.search('g(\d+)', e[1]).group(1))
-                        input_edges[in_id].append(my_id)
-                # =============================
-
-            if 'g' in e[0] and 'g' in e[1]:  # Populate gate_edges structure
-                ns_id = int(e[0][1:])
-                nd_id = int(e[1][1:])
-
-                if ns_id in self.constant_dict:
-                    print("ERROR: Constants should only be connected to output nodes")
-                    raise
-                if ns_id not in gate_edges:
-                    gate_edges[ns_id] = []
-                # try:
-                gate_edges[ns_id].append(nd_id)
-
-            if 'out' in e[1]:  # Populate output_edges structure
-                out_id = int(e[1][3:])
-                if out_id not in output_edges:
-                    output_edges[out_id] = []
-                # output_edges[out_id].append(int(e[0][1:]))
-                # Morteza added ==============
-                try:
-                    output_edges[out_id].append(int(e[0][1:]))
-                except:
-                    my_id = int(re.search('(\d+)', e[0]).group(1))
-                    output_edges[out_id].append(my_id)
-
-                # =============================
-
+        # COMPONENT START: Signal Propagation Constraints (SP)
         partition_input_edges, partition_output_edges, partition_output_edges_penalty, edge_w, edge_constraint = \
             ComponentManager.get_signal_propagation_with_penalty(
                 input_edges, gate_edges, output_edges,
                 input_literals, gate_literals, output_literals,
                 tmp_graph, self.__gate_dict, WEIGHT, feasibility_treshold
             )
-
-        # Create graph of the cicuit without input and output nodes
-        G = nx.DiGraph()
-        # print(f'{tmp_graph.edges = }')
-        for e in tmp_graph.edges:
-            if 'g' in str(e[0]) and 'g' in str(e[1]):
-                source = int(e[0][1:])
-                destination = int(e[1][1:])
-
-                G.add_edge(source, destination)
-        # Morteza added =====================
-        for e in tmp_graph.edges:
-            if 'g' in str(e[0]):
-                source = int(e[0][1:])
-                if source in self.constant_dict:
-                    continue
-                G.add_node(source)
-        # ===================================
+        # COMPONENT START: Signal Propagation Constraints (SP)
 
         # Generate structure with gate weights
         # for n in self.graph.nodes:
@@ -1424,14 +1337,6 @@ class AnnotatedGraph(Graph):
         # COMPONENT START: Convexity and Structural Constraints (CS)
         ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
         # COMPONENT END: Convexity and Structural Constraints (CS)
-
-        # Set input nodes to False
-        for input_node_id in input_literals:
-            opt.add(input_literals[input_node_id] == False)
-
-        # Set output nodes to False
-        for output_node_id in output_literals:
-            opt.add(output_literals[output_node_id] == False)
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.add_io_limits(
@@ -1489,65 +1394,23 @@ class AnnotatedGraph(Graph):
             weight=1
         )
         # COMPONENT END: Penalty-based Soft Constraints (PS)
+        # ====================================================================================================
 
-        # ========================================================
-        # ======================== Check for multiple subgraphs =======================================
-        all_partitions = {}
-        count = specs_obj.num_subgraphs
-        while count > 0:
-            node_partition = []
-            pprint.info1(f'Attempt {specs_obj.num_subgraphs - count + 1}: ', end='')
-            c = opt.check()
-            if c == sat:
-                # print(opt.model())
-                m = opt.model()
-                # print(f'{m = }')
-                for t in m.decls():
-                    if 'penalty_output' in str(t):
-                        # print(f'{t} = {m[t]}')
-                        penalty_output = m[t].as_long()
-                        pass
-                    if 'penalty_gate' in str(t):
-                        # print(f'{t} = {m[t]}')
-                        penalty_gate = m[t].as_long()
-                    if 'g' not in str(t):  # Look only the literals associate to the gates
-                        continue
-                    if is_true(m[t]):
-                        gate_id = int(str(t)[2:])
-                        node_partition.append(gate_id)  # Gates inside the partition
+        # ======================== Check for multiple subgraphs ==============================================
+        # COMPONENT START: Multi-Partition Iteration Engine (MPE)
+        all_partitions = ComponentManager.extract_multiple_subgraphs(
+            opt, G, specs_obj, mode='multi'
+        )
+        # COMPONENT END: Multi-Partition Iteration Engine (MPE)
+        # ====================================================================================================
 
-            else:
-                count = 0
-
-            # COMPONENT START: Optimization and Selection Constraints (OS)
-            ComponentManager.validate_selection_convexity(G, node_partition)
-            # COMPONENT END: Optimization and Selection Constraints (OS)
-
-            # ========================================================================
-            if c == sat:
-                block_clause = [d() == True if m[d] else d() == False for d in m.decls() if 'g_' in d.name()]
-                opt.add(Not(And(block_clause)))
-
-                all_partitions[count] = (penalty_output, penalty_gate, node_partition)
-            count -= 1
-        # ================================================================
-        # =======================Pick the Subgraph with the lowest penalty ==============================2
-        sorted_partitions = {}
-        if all_partitions:
-            sorted_partitions = dict(
-                sorted(
-                    all_partitions.items(),
-                    key=lambda item: (-len(item[1][2]), item[1][0], item[1][1])
-                )
-            )
-
-            for par in sorted_partitions:
-                print(f'{sorted_partitions[par] = }')
-
-            first_key = next(iter(sorted_partitions))
-            penalty_output, penalty_gate, node_partition = sorted_partitions.pop(first_key)
-
-        # ================================================================
+        # =======================Pick the Subgraph with the lowest penalty ===================================
+        # COMPONENT START: Multi-Partition Iteration Engine (MPE)
+        penalty_output, penalty_gate, node_partition, sorted_partitions = ComponentManager.select_best_partition(
+            all_partitions, mode='multi'
+        )
+        # COMPONENT END: Multi-Partition Iteration Engine (MPE)
+        # ====================================================================================================
         self.subgraph_candidates = sorted_partitions
 
         return [self.gate_dict[idx] for idx in node_partition]

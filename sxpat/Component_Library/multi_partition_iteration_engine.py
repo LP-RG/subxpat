@@ -94,7 +94,7 @@ class MultiPartitionIterationEngine:
 
             first_key = next(iter(sorted_partitions))
             penalty_output, penalty_gate, node_partition = sorted_partitions.pop(first_key)
-            return penalty_output, penalty_gate, node_partition
+            return penalty_output, penalty_gate, node_partition, sorted_partitions
         
         else:  # mode == 'single'
             sorted_partitions = dict(
