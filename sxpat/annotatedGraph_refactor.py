@@ -387,94 +387,16 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-        imax = specs_obj.imax
-        omax = specs_obj.omax
-        # pprint.info2( f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
-        # Todo:
-        # 1) First, the number of outputs or outgoing edges of the subgraph
-        # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
-        # print(f'Extracting subgraph...')
-
+        
         tmp_graph: nx.DiGraph = self.graph.copy(as_view=False)
-        # print(f'{tmp_graph.nodes = }')
-        # Data structures containing the literals
-        input_literals = {}  # literals associated to the input nodes
-        gate_literals = {}  # literals associated to the gates in the circuit
-        output_literals = {}  # literals associated to the output nodes
-
-        # Data structures containing the edges
-        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
-        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
-        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
 
         # Optimizer
         opt = Optimize()
 
-        # Function to maximize
-        max_func = []
-
-        # List of all the partition edges
-        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
-        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
-
-        # Generate all literals
-        for e in tmp_graph.edges:
-            if 'in' in e[0]:  # Generate literal for each input node
-                in_id = int(e[0][2:])
-                if in_id not in input_literals:
-                    input_literals[in_id] = Bool("in_%s" % str(in_id))
-            if 'g' in e[0]:  # Generate literal for each gate in the circuit
-                g_id = int(e[0][1:])
-                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
-                    gate_literals[g_id] = Bool("g_%s" % str(g_id))
-
-            if 'out' in e[1]:  # Generate literal for each output node
-                out_id = int(e[1][3:])
-                if out_id not in output_literals:
-                    output_literals[out_id] = Bool("out_%s" % str(out_id))
-
-        # Generate structures holding edge information
-        for e in tmp_graph.edges:
-            if 'in' in e[0]:  # Populate input_edges structure
-                in_id = int(e[0][2:])
-
-                if in_id not in input_edges:
-                    input_edges[in_id] = []
-                # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
-                # Morteza added ==============
-                try:
-                    input_edges[in_id].append(int(e[1][1:]))
-                except:
-                    if re.search('g(\d+)', e[1]):
-                        my_id = int(re.search('g(\d+)', e[1]).group(1))
-                        input_edges[in_id].append(my_id)
-                # =============================
-
-            if 'g' in e[0] and 'g' in e[1]:  # Populate gate_edges structure
-                ns_id = int(e[0][1:])
-                nd_id = int(e[1][1:])
-
-                if ns_id in self.constant_dict:
-                    print("ERROR: Constants should only be connected to output nodes")
-                    raise
-                if ns_id not in gate_edges:
-                    gate_edges[ns_id] = []
-                # try:
-                gate_edges[ns_id].append(nd_id)
-
-            if 'out' in e[1]:  # Populate output_edges structure
-                out_id = int(e[1][3:])
-                if out_id not in output_edges:
-                    output_edges[out_id] = []
-                # output_edges[out_id].append(int(e[0][1:]))
-                # Morteza added ==============
-                try:
-                    output_edges[out_id].append(int(e[0][1:]))
-                except:
-                    my_id = int(re.search('(\d+)', e[0]).group(1))
-                    output_edges[out_id].append(my_id)
-
-                # =============================
+        # COMPONENT START: Model Initialization
+        G, input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
+            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict, opt)
+        # COMPONENT END: Model Initialization
 
         # COMPONENT START: Signal Propagation Constraints (SP)
         partition_input_edges, partition_output_edges = ComponentManager.get_signal_propagation_minimal(
@@ -483,24 +405,6 @@ class AnnotatedGraph(Graph):
         )
         # COMPONENT END: Signal Propagation Constraints (SP)
 
-        # Create graph of the cicuit without input and output nodes
-        G = nx.DiGraph()
-        # print(f'{tmp_graph.edges = }')
-        for e in tmp_graph.edges:
-            if 'g' in str(e[0]) and 'g' in str(e[1]):
-                source = int(e[0][1:])
-                destination = int(e[1][1:])
-
-                G.add_edge(source, destination)
-        # Morteza added =====================
-        for e in tmp_graph.edges:
-            if 'g' in str(e[0]):
-                source = int(e[0][1:])
-                if source in self.constant_dict:
-                    continue
-                G.add_node(source)
-        # ===================================
-
         # COMPONENT START: Sensitivity Budget Constraints (SB)
         gate_weight = ComponentManager.prepare_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
         # COMPONENT END: Sensitivity Budget Constraints (SB)
@@ -508,14 +412,6 @@ class AnnotatedGraph(Graph):
         # COMPONENT START: Convexity and Structural Constraints (CS)
         ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
         # COMPONENT END: Convexity and Structural Constraints (CS)
-
-        # Set input nodes to False
-        for input_node_id in input_literals:
-            opt.add(input_literals[input_node_id] == False)
-
-        # Set output nodes to False
-        for output_node_id in output_literals:
-            opt.add(output_literals[output_node_id] == False)
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.add_io_limits(

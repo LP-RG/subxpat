@@ -6,6 +6,7 @@ from Component_Library.optimization_and_selection_constraints import Optimizatio
 from Component_Library.sensitivity_budget_constraints import SensitivityBudgetConstraints 
 from Component_Library.feasibility_and_filtering_constraints import FeasibilityConstraints
 from Component_Library.penalty_based_soft_constraints import PenaltyConstraints
+from Component_Library.model_initialization import ModelInitialization
 
 class ComponentManager:
     @staticmethod
@@ -77,3 +78,7 @@ class ComponentManager:
     @staticmethod
     def apply_penalty(opt, penalty_var, penalty_list, soft_limit, weight=1):
         PenaltyConstraints.apply_penalty_constraints(opt, penalty_var, penalty_list, soft_limit, weight)
+
+    @staticmethod
+    def prepare_circuit_model(tmp_graph, constant_dict, opt):
+        return ModelInitialization.prepare_circuit_model(tmp_graph, constant_dict, opt)

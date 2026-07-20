@@ -12,8 +12,9 @@ class SignalPropagationConstraintsMinimal:
     def define_constraints(input_edges, gate_edges, output_edges, 
                            input_literals, gate_literals, output_literals):
         
-        partition_input_edges = []
-        partition_output_edges = []
+        # List of all the partition edges
+        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
 
         # Define input edges
         for source in input_edges:

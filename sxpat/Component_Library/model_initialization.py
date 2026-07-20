@@ -10,13 +10,15 @@ class ModelInitialization:
         Initialize literals, edge structures, the DiGraph gate graph
         and set boundaries to False in the Z3 solver.
         """
-        input_literals = {}
-        gate_literals = {}
-        output_literals = {}
+        # Data structures containing the literals
+        input_literals = {}  # literals associated to the input nodes
+        gate_literals = {}  # literals associated to the gates in the circuit
+        output_literals = {}  # literals associated to the output nodes
 
-        input_edges = {}
-        gate_edges = {}
-        output_edges = {}
+        # Data structures containing the edges
+        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
+        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
 
         # Generate all literals
         for e in tmp_graph.edges:
