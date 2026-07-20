@@ -9,7 +9,7 @@ from sxpat.utils.string import partial_format, dedent
 
 import subprocess
 from threading import Lock
-from concurrent.futures import ThreadPoolExecutor
+from sxpat.utils.futures import ThreadPoolExecutor
 
 from sxpat.graph import IOGraph
 from sxpat.graph.node import BoolConstant, Node, And, Not, BoolVariable
