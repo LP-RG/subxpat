@@ -7,6 +7,7 @@ from Component_Library.sensitivity_budget_constraints import SensitivityBudgetCo
 from Component_Library.feasibility_and_filtering_constraints import FeasibilityConstraints
 from Component_Library.penalty_based_soft_constraints import PenaltyConstraints
 from Component_Library.model_initialization import ModelInitialization
+from Component_Library.multi_partition_iteration_engine import MultiPartitionIterationEngine
 
 class ComponentManager:
     @staticmethod
@@ -82,3 +83,13 @@ class ComponentManager:
     @staticmethod
     def prepare_circuit_model(tmp_graph, constant_dict, opt):
         return ModelInitialization.prepare_circuit_model(tmp_graph, constant_dict, opt)
+    
+    @staticmethod
+    def extract_multiple_subgraphs(opt, G, specs_obj, mode='multi', penalty=None):
+        return MultiPartitionIterationEngine.extract_multiple_subgraphs(
+            opt, G, specs_obj, mode=mode, penalty=penalty
+        )
+    
+    @staticmethod
+    def select_best_partition(all_partitions, mode='multi'):
+        return MultiPartitionIterationEngine.select_best_partition(all_partitions, mode=mode)
