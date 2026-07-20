@@ -104,3 +104,19 @@ class ModelInitialization:
             opt.add(output_literals[output_node_id] == False)
 
         return G, input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges
+    
+    @staticmethod
+    def extract_gate_weights(G, tmp_graph, gate_dict, weight_key):
+        """
+        Extract weights for each gate in the circuit graph.
+        """
+        # Generate structure with gate weights
+        # for n in self.graph.nodes:
+        #     print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
+        # print(f'{self.gate_dict = }')
+        gate_weight = {}
+        for gate_idx in G.nodes:
+            if gate_idx not in gate_weight:
+                gate_weight[gate_idx] = tmp_graph.nodes[gate_dict[gate_idx]][weight_key]
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+        return gate_weight

@@ -605,16 +605,9 @@ class AnnotatedGraph(Graph):
         )
         # COMPONENT END: Signal Propagation Constraints (SP)
 
-        # Generate structure with gate weights
-        # for n in self.graph.nodes:
-        #     print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
-        # print(f'{self.gate_dict = }')
-        gate_weight = {}
-        for gate_idx in G.nodes:
-
-            if gate_idx not in gate_weight:
-                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
-            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+        # COMPONENT START: Model Initialization
+        gate_weight = ComponentManager.extract_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
+        # COMPONENT END: Model Initialization
 
         # COMPONENT START: Convexity and Structural Constraints (CS)
         ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
@@ -688,16 +681,9 @@ class AnnotatedGraph(Graph):
         )
         # COMPONENT END: Signal Propagation Constraints (SP)
 
-        # Generate structure with gate weights
-        # for n in self.graph.nodes:
-        #     print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
-        # print(f'{self.gate_dict = }')
-        gate_weight = {}
-        for gate_idx in G.nodes:
-
-            if gate_idx not in gate_weight:
-                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
-            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+        # COMPONENT START: Model Initialization
+        gate_weight = ComponentManager.extract_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
+        # COMPONENT END: Model Initialization
 
         # COMPONENT START: Convexity and Structural Constraints (CS)
         ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
@@ -1214,16 +1200,9 @@ class AnnotatedGraph(Graph):
         )
         # COMPONENT END: Signal Propagation Constraints (SP)
 
-        # Generate structure with gate weights
-        # for n in self.graph.nodes:
-        #     print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
-        # print(f'{self.gate_dict = }')
-        gate_weight = {}
-        for gate_idx in G.nodes:
-
-            if gate_idx not in gate_weight:
-                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
-            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+        # COMPONENT START: Model Initialization
+        gate_weight = ComponentManager.extract_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
+        # COMPONENT END: Model Initialization
 
         # COMPONENT START: Convexity and Structural Constraints (CS)
         ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
@@ -1323,16 +1302,9 @@ class AnnotatedGraph(Graph):
             )
         # COMPONENT START: Signal Propagation Constraints (SP)
 
-        # Generate structure with gate weights
-        # for n in self.graph.nodes:
-        #     print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
-        # print(f'{self.gate_dict = }')
-        gate_weight = {}
-        for gate_idx in G.nodes:
-
-            if gate_idx not in gate_weight:
-                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
-            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+        # COMPONENT START: Model Initialization
+        gate_weight = ComponentManager.extract_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
+        # COMPONENT END: Model Initialization
 
         # COMPONENT START: Convexity and Structural Constraints (CS)
         ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
