@@ -1,9 +1,8 @@
-from __future__ import annotations
+import itertools
 from typing import Dict, Iterable, Iterator, List, Literal, Optional, Tuple, Union
 import dataclasses as dc
 
 import functools as ft
-import math
 import networkx as nx
 import os
 from os.path import join as path_join
@@ -19,6 +18,7 @@ from sxpat.specifications import Specifications, TemplateType, ErrorPartitioning
 from sxpat.constants.misc import UNKNOWN, SAT
 
 from sxpat.utils.filesystem import FS
+from sxpat.utils.iterators import while_predicate
 from sxpat.utils.names import extract_name
 from sxpat.utils.timer import Timer
 from sxpat.utils.print import pprint
@@ -88,17 +88,15 @@ def explore_grid(specs_obj: Specifications):
         raise NotImplementedError('invalid error iteration')
 
     #
-    while (obtained_wce_exact < specs_obj.max_error):
-        specs_obj.iteration += 1
-        specs_obj.stats_storage.stage(iteration=specs_obj.iteration)
-
-        # compute error threshold for the iteration
-        try:
-            specs_obj.et = next(erriter)
-        except StopIteration:
-            pprint.warning('The error space is exhausted!')
-            break
-
+    for (
+        specs_obj.iteration,
+        specs_obj.et,
+        *_,
+    ) in zip(
+        itertools.count(1),  # iteration id
+        erriter,  # error threshold for the iteration
+        while_predicate(lambda: obtained_wce_exact < specs_obj.max_error),  # normal continuation
+    ):
         # slash to kill
         if specs_obj.slash_to_kill:
             # first iteration: apply slash
@@ -122,6 +120,7 @@ def explore_grid(specs_obj: Specifications):
 
         # logging
         specs_obj.stats_storage.stage(
+            iteration=specs_obj.iteration,
             error_threshold=specs_obj.et,
             circuit_to_approximate=os.path.relpath(specs_obj.current_benchmark, specs_obj.path.run.base_folder),
         )
