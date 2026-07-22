@@ -584,31 +584,20 @@ class Z3Solver(Solver):
     @classmethod
     def _run_script(cls, script_path: str) -> str:
         """
-        Given the file path, run the python script and return the standard output.
+            Given the file path, run the python script and return the standard output.
         """
-        try:
-            # run
-            process = subprocess.run(
-                [sxpat_cfg.PYTHON3, script_path],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            if process.returncode != 0:
-                print("\n--- ERROR ---")
-                print(process.stderr)
-                print("----------------------------------\n")
-                raise RuntimeError(f'Solver execution FAILED. Failed to run file {script_path}')
-            
-            # return decoded output
-            return process.stdout
-            
-        except Exception as e:
-            print(f"\n--- EXCEPTION ---")
-            import traceback
-            traceback.print_exc()
-            print("---------------------------------------\n")
-            raise e
+
+        # run
+        process = subprocess.run(
+            ['.venv/bin/python', script_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if process.returncode != 0:
+            raise RuntimeError(f'Solver execution FAILED. Failed to run file {script_path}')
+
+        # return decoded output
+        return process.stdout.decode()
 
     @classmethod
     def _decode_output(cls, raw_result: str) -> Tuple[str, Optional[Dict[str, Union[bool, int]]]]:
