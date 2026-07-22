@@ -176,8 +176,10 @@ class BitvectorTopologyManagement:
 
         res = opt.check()
 
+        print(f"DEBUG: Solver status is {res}")
         node_partition = []
         if res == sat:
+            print("DEBUG: Entered the SAT block!")
             n_nodes = 0
             m = opt.model()
             model_maximized = m.eval(Sum(max_nodes), model_completion=True).as_long()
@@ -202,6 +204,8 @@ class BitvectorTopologyManagement:
                     if is_true(m[t]):
                         node_partition.append(str(t))
                         n_nodes += 1
+        else: 
+            print(f"DEBUG: The solver did NOT return SAT, but rather: {res}")
 
         # Check partition convexity
         if not is_selection_convex(graph, node_partition):
