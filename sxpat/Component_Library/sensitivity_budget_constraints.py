@@ -1,5 +1,5 @@
 from z3 import Sum, And, Not
-from config.config import WEIGHT
+from sxpat.config.config import WEIGHT
 
 class SensitivityBudgetConstraints:
     @staticmethod
