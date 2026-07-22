@@ -589,7 +589,7 @@ class Z3Solver(Solver):
 
         # run
         process = subprocess.run(
-            ['.venv/bin/python', script_path],
+            [sxpat_cfg.PYTHON3, script_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
