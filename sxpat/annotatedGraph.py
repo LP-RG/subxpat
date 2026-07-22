@@ -28,7 +28,7 @@ from .config.config import (
     LABEL, SHAPE, STRICT, DIGRAPH, NODE, STYLE, FILLED, FILLCOLOR,
 )
 
-from component_manager import ComponentManager
+from sxpat.component_manager import ComponentManager
 
 
 class AnnotatedGraph(Graph):
