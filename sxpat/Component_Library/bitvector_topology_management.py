@@ -197,6 +197,7 @@ class BitvectorTopologyManagement:
             for t in m.decls():
                 # print(f'{type(t) = }')
                 # print(f'{t = }')
+                print(f"Variable found in pattern: {str(t)}")
                 if str(t).startswith('g'):  # Look only the literals associate to the gates
                     if is_true(m[t]):
                         node_partition.append(str(t))
