@@ -8,6 +8,7 @@ from Component_Library.feasibility_and_filtering_constraints import FeasibilityC
 from Component_Library.penalty_based_soft_constraints import PenaltyConstraints
 from Component_Library.model_initialization import ModelInitialization
 from Component_Library.multi_partition_iteration_engine import MultiPartitionIterationEngine
+from Component_Library.bitvector_topology_management import BitvectorTopologyManagement
 
 class ComponentManager:
     @staticmethod
@@ -93,3 +94,41 @@ class ComponentManager:
     @staticmethod
     def select_best_partition(all_partitions, mode='multi'):
         return MultiPartitionIterationEngine.select_best_partition(all_partitions, mode=mode)
+    
+    @staticmethod
+    def datatype_model_initialization(graph, weight_key, input_dict, gate_dict, output_dict, constant_dict, opt, num_outputs, num_gates):
+        return BitvectorTopologyManagement.datatype_model_initialization(
+            graph, weight_key, input_dict, gate_dict, output_dict, constant_dict, opt, num_outputs, num_gates
+        )
+    
+    @staticmethod
+    def datatype_signal_propagation_constraints(graph, nodes, Node, NUM_BITS):
+        return BitvectorTopologyManagement.datatype_signal_propagation_constraints(
+            graph, nodes, Node, NUM_BITS
+        )
+    
+    @staticmethod
+    def datatype_convexity_and_structural_constraints(graph, nodes, Node, opt):
+        BitvectorTopologyManagement.datatype_convexity_and_structural_constraints(
+            graph, nodes, Node, opt
+        )
+
+    @staticmethod
+    def datatype_optimization_and_selection_constraints(
+        opt, max_nodes, graph, gate_dict, imax=None, omax=None, 
+        unique_incoming_edges=None, unique_outgoing_edges=None, apply_io_limits=False
+    ):
+        return BitvectorTopologyManagement.datatype_optimization_and_selection_constraints(
+            opt, max_nodes, graph, gate_dict, imax, omax, 
+            unique_incoming_edges, unique_outgoing_edges, apply_io_limits
+        )
+    
+    @staticmethod
+    def datatype_feasibility_and_filtering_constraints(edges, Node, Edge, NUM_BITS, feasibility_threshold, sum_mode=False):
+        return BitvectorTopologyManagement.datatype_feasibility_and_filtering_constraints(
+            edges, Node, Edge, NUM_BITS, feasibility_threshold, sum_mode
+        )
+    
+    @staticmethod
+    def datatype_parent_child_constraints(graph, nodes, Node, opt):
+        BitvectorTopologyManagement.datatype_parent_child_constraints(graph, nodes, Node, opt)

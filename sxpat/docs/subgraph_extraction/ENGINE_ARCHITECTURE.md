@@ -171,7 +171,13 @@
     Description: A high-precision extraction algorithm that integrates symbolic topological modeling with strict interface bandwidth constraints. By utilizing Datatype and BitVec for binary node and edge representation, it enforces rigid input/output limits (*imax / omax*) and filters interface edges through a strict feasibility threshold condition. The algorithm ensures robust gate density optimization within predefined structural and interface constraints, with all logic natively integrated into the symbolic topology.
 
     Components Utilized:
-    + Symbolic Topology Management(i, ii, iii, iv, v, vi, vii)
+    Bitvector Topology Management(i, ii, iii, iv, v, vi, vii):
+    + Datatype Model Initialization
+    + Datatype Signal Propagation Constraints
+    + Datatype Convexity and Structural Constraints
+    + Datatype Feasibility and Filtering Constraints
+    + Datatype Optimization and Selection Constraints
+    + Datatype Parent-Child Connectivity Constraintsc
 
 - __Algorithm 6: find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold__
     Description: A meta-algorithm that automates the selection of an optimal feasibility threshold (*et*). It performs a linear partition of the graph's weight distribution into eight representative intervals and iteratively executes *Algorithm 55* across these intervals to identify the most suitable threshold. By dynamically calibrating the feasibility constraint, this algorithm ensures successful subgraph extraction even when the initial threshold is overly restrictive, effectively acting as an automated wrapper for *Algorithm 55*.

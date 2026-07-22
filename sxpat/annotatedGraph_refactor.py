@@ -735,190 +735,49 @@ class AnnotatedGraph(Graph):
         :return: an annotated graph in which the extracted subgraph is colored
         """
 
-        # loose bound but since it's logarithmic it's still ok
-        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates))
-
         omax = specs_obj.omax
         imax = specs_obj.imax
         feasibility_threshold = specs_obj.et
 
         opt = Optimize()
 
-        Node = Datatype('Node')
-        Node.declare('mk_node', ('id', BitVecSort(NUM_BITS)), ('weight', BitVecSort(NUM_BITS)), ('in_subgraph', BoolSort()))
-        Node = Node.create()
+        # COMPONENT START: Bitvector Topology Management====================================================
 
-        # Define a custom datatype for Edge
-        Edge = Datatype('Edge')
-        Edge.declare('mk_edge', ('source', Node), ('target', Node))
-        Edge = Edge.create()
+        # COMPONENT START: Datatype Model Initialization
+        Node, Edge, nodes, edges, NUM_BITS = ComponentManager.datatype_model_initialization(
+            self.graph, WEIGHT, self.input_dict, self.gate_dict, self.output_dict, self.constant_dict, opt, self.num_outputs, self.num_gates
+        )
+        # COMPONENT END: Datatype Model Initialization
 
-        nodes = {}
-        edges = []
+        # COMPONENT START: Datatype Signal Propagation Constraints
+        unique_incoming_edges, unique_outgoing_edges, max_nodes = ComponentManager.datatype_signal_propagation_constraints(
+            self.graph, nodes, Node, NUM_BITS
+        )
+        # COMPONENT END: Datatype Signal Propagation Constraints
 
-        for in_idx in self.input_dict:
-            node_label = self.input_dict[in_idx]
-            weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(in_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(in_idx, NUM_BITS))
+        # COMPONENT START: Datatype Convexity and Structural Constraints
+        ComponentManager.datatype_convexity_and_structural_constraints(
+            self.graph, nodes, Node, opt
+        )
+        # COMPONENT END: Datatype Convexity and Structural Constraints
 
-            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
-            opt.add(Node.in_subgraph(node) == BoolVal(False))
-            nodes[node_label] = node
+        # COMPONENT START: Datatype Feasibility and Filtering Constraints
+        opt.add(ComponentManager.datatype_feasibility_and_filtering_constraints(
+            edges, Node, Edge, NUM_BITS, feasibility_threshold, sum_mode=False
+        ))
+        # COMPONENT END: Datatype Feasibility and Filtering Constraints
 
-        for g_idx in self.gate_dict:
-            node_label = self.gate_dict[g_idx]
-            weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(g_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(g_idx, NUM_BITS))
-            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
-            if weight == -1:
-                opt.add(Node.in_subgraph(node) == BoolVal(False))
-            nodes[node_label] = node
-        #
-        for o_idx in self.output_dict:
-            node_label = self.output_dict[o_idx]
-            weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(o_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(o_idx, NUM_BITS))
+        # COMPONENT START: Datatype Optimization and Selection Constraints
+        return ComponentManager.datatype_optimization_and_selection_constraints(
+            opt, max_nodes, self.graph, self.gate_dict, 
+            imax=imax, omax=omax, 
+            unique_incoming_edges=unique_incoming_edges, 
+            unique_outgoing_edges=unique_outgoing_edges, 
+            apply_io_limits=True
+        )
+        # COMPONENT END: Datatype Optimization and Selection Constraints
 
-            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
-            opt.add(Node.in_subgraph(node) == BoolVal(False))
-            nodes[node_label] = node
-        #
-        for c_idx in self.constant_dict:
-            node_label = self.constant_dict[c_idx]
-            weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(c_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(c_idx, NUM_BITS))
-
-            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
-            opt.add(Node.in_subgraph(node) == BoolVal(False))
-            nodes[node_label] = node
-        #
-        for src, des in self.graph.edges:
-            edge = Edge.mk_edge(nodes[src], nodes[des])
-            opt.add(Edge.source(edge) == nodes[src])
-            opt.add(Edge.target(edge) == nodes[des])
-            edges.append(edge)
-
-        unique_outgoing_edges = []
-        unique_incoming_edges = []
-
-        for node_label in nodes:
-            node = nodes[node_label]
-            outgoing_conditions = []
-            incoming_conditions = []
-
-            for src, des in self.graph.edges(node_label):
-                if src == node_label:
-                    outgoing_conditions.append(And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des]))))
-                if src == node_label:
-                    incoming_conditions.append(And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])))
-
-            if outgoing_conditions:
-                unique_outgoing_edges.append(If(Or(outgoing_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
-            if incoming_conditions:
-                unique_incoming_edges.append(If(Or(incoming_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
-
-        # incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
-        #                   for edge in edges]
-        # outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
-        #                   for edge in edges]
-        max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)) for node in nodes.values()]
-
-        # max_nodes = [  for edge in edges]
-        # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), NUM_BITS) for node in nodes.values()]
-
-        descendants = {}
-        ancestors = {}
-        for node in nodes:
-            if node not in descendants:
-                descendants[node] = sorted(nx.descendants(self.graph, node))
-            if node not in ancestors:
-                ancestors[node] = sorted(nx.ancestors(self.graph, node))
-
-        for src in nodes:
-            for des in self.graph.successors(src):
-                if len(descendants[des]) > 0:
-                    not_descendants = [Not(Node.in_subgraph(nodes[l])) for l in descendants[des]]
-                    not_descendants.append(Not(Node.in_subgraph(nodes[des])))
-                    descendant_condition = Implies(
-                        And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des]))),
-                        And(not_descendants)
-                    )
-                    opt.add(descendant_condition)
-                if len(ancestors[src]) > 0:
-                    not_ancestors = [Not(Node.in_subgraph(nodes[l])) for l in ancestors[src]]
-                    not_ancestors.append(Not(Node.in_subgraph(nodes[src])))
-                    ancestor_condition = Implies(
-                        And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])),
-                        And(not_ancestors)
-                    )
-                    opt.add(ancestor_condition)
-
-        opt.add(Sum(unique_incoming_edges) <= imax)
-        opt.add(Sum(unique_outgoing_edges) <= omax)
-
-        feasibility_constraints = [
-            Implies(
-                And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),
-                Node.weight(Edge.source(edge)) <= BitVecVal(feasibility_threshold, NUM_BITS)
-            )
-            for edge in edges
-        ]
-
-        opt.add(And(feasibility_constraints))
-
-        h = opt.maximize(Sum(max_nodes))
-
-        # inputs = Int('inputs')
-        # outputs = Int('outputs')
-        # num_nodes = Int('num_nodes')
-        #
-        # num_nodes = BitVec('num_nodes', NUM_BITS)
-        # inputs = BitVec('inputs', NUM_BITS)
-        # outputs = BitVec('outputs', NUM_BITS)
-
-        # feasibility_constraints = [
-        #     Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, NUM_BITS)) for node in
-        #     nodes.values()
-        # ]
-
-        res = opt.check()
-
-        node_partition = []
-        if res == sat:
-            n_nodes = 0
-            m = opt.model()
-            model_maximized = m.eval(Sum(max_nodes), model_completion=True).as_long()
-            correct_maximum = h.upper().as_long()
-            
-            if correct_maximum != model_maximized:
-                pprint.info2("\nmodel isn't maximized, running another solver call")
-                opt.add(Sum(max_nodes) == correct_maximum)
-                start = time.perf_counter()
-                if opt.check() == sat:
-                    print(f'Subgraph_extraction_second_call_time = {time.perf_counter() - start}')
-                    m = opt.model()
-                else:
-                    raise Exception("Impossible, error in z3py")
-
-            # print(f'{m = }')
-            for t in m.decls():
-                # print(f'{type(t) = }')
-                # print(f'{t = }')
-                if str(t).startswith('g'):  # Look only the literals associate to the gates
-                    if is_true(m[t]):
-                        node_partition.append(str(t))
-                        n_nodes += 1
-
-        # Check partition convexity
-        if not is_selection_convex(self.graph, node_partition):
-            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
-
-        node_partition_idx = [int(re.search('g(\d+)', node).group(1)) for node in node_partition]
-        return [self.gate_dict[idx] for idx in node_partition_idx]
+        # COMPONENT END: Bitvector Topology Management======================================================
 
     def get_null_subgraph(self) -> nx.DiGraph:
         """Returns a graph with subgraph information for the null subgraph"""
@@ -973,205 +832,52 @@ class AnnotatedGraph(Graph):
         :return: an annotated graph in which the extracted subgraph is colored
         """
 
-        # loose bound but since it's logarithmic it's still ok
-        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates))
-
         omax = specs_obj.omax
         imax = specs_obj.imax
         feasibility_threshold = specs_obj.et
 
         opt = Optimize()
 
-        Node = Datatype('Node')
-        Node.declare('mk_node', ('id', BitVecSort(NUM_BITS)), ('weight', BitVecSort(NUM_BITS)), ('in_subgraph', BoolSort()))
-        Node = Node.create()
+        # COMPONENT START: Bitvector Topology Management====================================================
 
-        # Define a custom datatype for Edge
-        Edge = Datatype('Edge')
-        Edge.declare('mk_edge', ('source', Node), ('target', Node))
-        Edge = Edge.create()
+        # COMPONENT START: Datatype Model Initialization
+        Node, Edge, nodes, edges, NUM_BITS = ComponentManager.datatype_model_initialization(
+            self.graph, WEIGHT, self.input_dict, self.gate_dict, self.output_dict, self.constant_dict, opt, self.num_outputs, self.num_gates
+        )
+        # COMPONENT END: Datatype Model Initialization
 
-        nodes = {}
-        edges = []
+        # COMPONENT START: Datatype Signal Propagation Constraints
+        unique_incoming_edges, unique_outgoing_edges, max_nodes = ComponentManager.datatype_signal_propagation_constraints(
+            self.graph, nodes, Node, NUM_BITS
+        )
+        # COMPONENT END: Datatype Signal Propagation Constraints
 
-        for in_idx in self.input_dict:
-            node_label = self.input_dict[in_idx]
-            weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(in_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(in_idx, NUM_BITS))
+        # COMPONENT START: Datatype Convexity and Structural Constraints
+        ComponentManager.datatype_convexity_and_structural_constraints(
+            self.graph, nodes, Node, opt
+        )
+        # COMPONENT END: Datatype Convexity and Structural Constraints
 
-            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
-            opt.add(Node.in_subgraph(node) == BoolVal(False))
-            nodes[node_label] = node
+        # COMPONENT START: Datatype Parent-Child Connectivity Constraints
+        ComponentManager.datatype_parent_child_constraints(
+            self.graph, nodes, Node, opt
+        )
+        # COMPONENT END: Datatype Parent-Child Connectivity Constraints
 
-        for g_idx in self.gate_dict:
-            node_label = self.gate_dict[g_idx]
-            weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(g_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(g_idx, NUM_BITS))
-            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
-            if weight == -1:
-                opt.add(Node.in_subgraph(node) == BoolVal(False))
-            nodes[node_label] = node
-        #
-        for o_idx in self.output_dict:
-            node_label = self.output_dict[o_idx]
-            weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(o_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(o_idx, NUM_BITS))
+        # COMPONENT START: Datatype Feasibility and Filtering Constraints
+        opt.add(ComponentManager.datatype_feasibility_and_filtering_constraints(
+            edges, Node, Edge, NUM_BITS, feasibility_threshold, sum_mode=True
+        ))
+        # COMPONENT END: Datatype Feasibility and Filtering Constraints
 
-            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
-            opt.add(Node.in_subgraph(node) == BoolVal(False))
-            nodes[node_label] = node
-        #
-        for c_idx in self.constant_dict:
-            node_label = self.constant_dict[c_idx]
-            weight = self.graph.nodes[node_label][WEIGHT]
-            node = Node.mk_node(BitVecVal(c_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
-            opt.add(Node.id(node) == BitVecVal(c_idx, NUM_BITS))
+        # COMPONENT START: Datatype Optimization and Selection Constraints
+        return ComponentManager.datatype_optimization_and_selection_constraints(
+            opt, max_nodes, self.graph, self.gate_dict, 
+            apply_io_limits=False
+        )
+        # COMPONENT END: Datatype Optimization and Selection Constraints
 
-            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
-            opt.add(Node.in_subgraph(node) == BoolVal(False))
-            nodes[node_label] = node
-        #
-        for src, des in self.graph.edges:
-            edge = Edge.mk_edge(nodes[src], nodes[des])
-            opt.add(Edge.source(edge) == nodes[src])
-            opt.add(Edge.target(edge) == nodes[des])
-            edges.append(edge)
-
-        unique_outgoing_edges = []
-        unique_incoming_edges = []
-
-        for node_label in nodes:
-            node = nodes[node_label]
-            outgoing_conditions = []
-            incoming_conditions = []
-
-            for src, des in self.graph.edges(node_label):
-                if src == node_label:
-                    outgoing_conditions.append(And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des]))))
-                if src == node_label:
-                    incoming_conditions.append(And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])))
-
-            if outgoing_conditions:
-                unique_outgoing_edges.append(If(Or(outgoing_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
-            if incoming_conditions:
-                unique_incoming_edges.append(If(Or(incoming_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
-
-        # incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
-        #                   for edge in edges]
-        # outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
-        #                   for edge in edges]
-        max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)) for node in nodes.values()]
-
-        # max_nodes = [  for edge in edges]
-        # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), NUM_BITS) for node in nodes.values()]
-
-        descendants = {}
-        ancestors = {}
-        for node in nodes:
-            if node not in descendants:
-                descendants[node] = sorted(nx.descendants(self.graph, node))
-            if node not in ancestors:
-                ancestors[node] = sorted(nx.ancestors(self.graph, node))
-
-        for src in nodes:
-            for des in self.graph.successors(src):
-                if len(descendants[des]) > 0:
-                    not_descendants = [Not(Node.in_subgraph(nodes[l])) for l in descendants[des]]
-                    not_descendants.append(Not(Node.in_subgraph(nodes[des])))
-                    descendant_condition = Implies(
-                        And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des]))),
-                        And(not_descendants)
-                    )
-                    opt.add(descendant_condition)
-                if len(ancestors[src]) > 0:
-                    not_ancestors = [Not(Node.in_subgraph(nodes[l])) for l in ancestors[src]]
-                    not_ancestors.append(Not(Node.in_subgraph(nodes[src])))
-                    ancestor_condition = Implies(
-                        And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])),
-                        And(not_ancestors)
-                    )
-                    opt.add(ancestor_condition)
-
-        for parent in nodes:
-            children = list(self.graph.successors(parent))
-            if not children:
-                continue
-            in_subgraph_children = [Node.in_subgraph(nodes[child]) for child in children]
-
-            # If parent is in the subgraph and at least one child is in, then all children must be in
-            opt.add(
-                Implies(
-                    And(
-                        Node.in_subgraph(nodes[parent]),
-                        Or(in_subgraph_children)
-                    ),
-                    And(in_subgraph_children)
-                )
-            )
-
-        feasibility_sum = Sum([
-            If(
-                And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),
-                Node.weight(Edge.source(edge)),
-                BitVecVal(0, NUM_BITS)
-            )
-            for edge in edges
-        ])
-
-        opt.add(feasibility_sum <= BitVecVal(feasibility_threshold, NUM_BITS))
-
-        h = opt.maximize(Sum(max_nodes))
-
-        # inputs = Int('inputs')
-        # outputs = Int('outputs')
-        # num_nodes = Int('num_nodes')
-        #
-        # num_nodes = BitVec('num_nodes', NUM_BITS)
-        # inputs = BitVec('inputs', NUM_BITS)
-        # outputs = BitVec('outputs', NUM_BITS)
-
-        # feasibility_constraints = [
-        #     Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, NUM_BITS)) for node in
-        #     nodes.values()
-        # ]
-
-        res = opt.check()
-
-        node_partition = []
-        if res == sat:
-            n_nodes = 0
-            m = opt.model()
-            model_maximized = m.eval(Sum(max_nodes), model_completion=True).as_long()
-            correct_maximum = h.upper().as_long()
-            
-            if correct_maximum != model_maximized:
-                pprint.info2("\nmodel isn't maximized, running another solver call")
-                opt.add(Sum(max_nodes) == correct_maximum)
-                start = time.perf_counter()
-                if opt.check() == sat:
-                    print(f'Subgraph_extraction_second_call_time = {time.perf_counter() - start}')
-                    m = opt.model()
-                else:
-                    raise Exception("Impossible, error in z3py")
-
-            # print(f'{m = }')
-            for t in m.decls():
-                # print(f'{type(t) = }')
-                # print(f'{t = }')
-                if str(t).startswith('g'):  # Look only the literals associate to the gates
-                    if is_true(m[t]):
-                        node_partition.append(str(t))
-                        n_nodes += 1
-
-        # Check partition convexity
-        if not is_selection_convex(self.graph, node_partition):
-            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
-
-        node_partition_idx = [int(re.search('g(\d+)', node).group(1)) for node in node_partition]
-        return [self.gate_dict[idx] for idx in node_partition_idx]
+        # COMPONENT END: Bitvector Topology Management======================================================
 
     def find_subgraph_feasible_soft(self, specs_obj: Specifications) -> List[str]:
         """
@@ -1194,9 +900,9 @@ class AnnotatedGraph(Graph):
         # COMPONENT START: Signal Propagation Constraints (SP)
         partition_input_edges, partition_output_edges, edge_w, edge_constraint = \
         ComponentManager.get_signal_propagation(
-        input_edges, gate_edges, output_edges,
-        input_literals, gate_literals, output_literals,
-        tmp_graph, self.__gate_dict, WEIGHT
+            input_edges, gate_edges, output_edges,
+            input_literals, gate_literals, output_literals,
+            tmp_graph, self.__gate_dict, WEIGHT
         )
         # COMPONENT END: Signal Propagation Constraints (SP)
 
@@ -1210,11 +916,11 @@ class AnnotatedGraph(Graph):
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.add_io_limits(
-        opt, 
-        specs_obj.imax, 
-        specs_obj.omax, 
-        partition_input_edges, 
-        partition_output_edges
+            opt, 
+            specs_obj.imax, 
+            specs_obj.omax, 
+            partition_input_edges, 
+            partition_output_edges
         )
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
@@ -1269,7 +975,7 @@ class AnnotatedGraph(Graph):
         # =======================Pick the Subgraph with the lowest penalty ==================================
         # COMPONENT START: Multi-Partition Iteration Engine (MPE)
         penalty, node_partition = ComponentManager.select_best_partition(all_partitions, mode='single')
-        # COMPONENT START: Multi-Partition Iteration Engine (MPE)
+        # COMPONENT END: Multi-Partition Iteration Engine (MPE)
         # ===================================================================================================
 
         return [self.gate_dict[idx] for idx in node_partition]
@@ -1300,7 +1006,7 @@ class AnnotatedGraph(Graph):
                 input_literals, gate_literals, output_literals,
                 tmp_graph, self.__gate_dict, WEIGHT, feasibility_treshold
             )
-        # COMPONENT START: Signal Propagation Constraints (SP)
+        # COMPONENT END: Signal Propagation Constraints (SP)
 
         # COMPONENT START: Model Initialization
         gate_weight = ComponentManager.extract_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
@@ -1312,11 +1018,11 @@ class AnnotatedGraph(Graph):
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.add_io_limits(
-        opt, 
-        specs_obj.imax, 
-        specs_obj.omax, 
-        partition_input_edges, 
-        partition_output_edges
+            opt, 
+            specs_obj.imax, 
+            specs_obj.omax, 
+            partition_input_edges, 
+            partition_output_edges
         )
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
