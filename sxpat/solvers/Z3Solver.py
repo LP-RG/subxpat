@@ -715,7 +715,7 @@ class Z3Solver(Solver):
                      forall_target: ForAll,
                      **kwargs,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._z3_solve(graphs, specifications, forall_target)
+        return cls._z3_solve(graphs, specifications, forall_target, **kwargs)
 
     @classmethod
     @override
@@ -724,7 +724,7 @@ class Z3Solver(Solver):
                        optimize_target: Union[Min, Max],
                        **kwargs,
                        ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._z3_solve(graphs, specifications, optimize_target)
+        return cls._z3_solve(graphs, specifications, optimize_target, **kwargs)
 
     @classmethod
     @override

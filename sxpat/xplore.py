@@ -834,10 +834,20 @@ def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
     specs_obj.stats_storage.stage(Qbf_labelling_time=_time)
     print(f'Qbf_labelling_time = {_time}')
 
+    if (legacy_weights != functional_weights):
+        print(f'For benchmark {specs_obj.current_benchmark} legacy and functional weights are different\n Legacy weights\n {legacy_weights} \n Functional weights\n {functional_weights}')
+    if (legacy_weights != direct_weights):
+        print(f'For benchmark {specs_obj.current_benchmark} legacy and direct weights are different\n Legacy weights\n {legacy_weights} \n Direct weights\n {direct_weights}')
+    if (legacy_weights != hybrid_weights):
+        print(f'For benchmark {specs_obj.current_benchmark} legacy and hybrid weights are different\n Legacy weights\n {legacy_weights} \n Hybrid weights\n {hybrid_weights}')
+    if (legacy_weights != qbf_weights):
+        print(f'For benchmark {specs_obj.current_benchmark} legacy and qbf weights are different\n Legacy weights\n {legacy_weights} \n Qbf weights\n {qbf_weights}')
+
     assert (
         legacy_weights == functional_weights
         and legacy_weights == direct_weights
         and legacy_weights == hybrid_weights
         and legacy_weights == qbf_weights
     )
+    
     return legacy_weights
