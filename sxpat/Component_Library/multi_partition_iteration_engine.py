@@ -2,7 +2,6 @@ import networkx as nx
 import re
 from z3 import Bool, is_true, Not, And, sat
 import pprint
-from sxpat.component_manager import ComponentManager
 
 class MultiPartitionIterationEngine:
 
@@ -55,6 +54,7 @@ class MultiPartitionIterationEngine:
                 break
 
             # COMPONENT START: Optimization and Selection Constraints (OS)
+            from sxpat.component_manager import ComponentManager
             ComponentManager.validate_selection_convexity(G, node_partition)
             # COMPONENT END: Optimization and Selection Constraints (OS)
 
