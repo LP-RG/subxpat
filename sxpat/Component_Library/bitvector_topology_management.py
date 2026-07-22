@@ -77,7 +77,7 @@ class BitvectorTopologyManagement:
             opt.add(Edge.source(edge) == nodes[src])
             opt.add(Edge.target(edge) == nodes[des])
             edges.append(edge)
-
+        print("Model")
         return Node, Edge, nodes, edges, NUM_BITS
 
     @staticmethod
@@ -112,8 +112,9 @@ class BitvectorTopologyManagement:
 
         # max_nodes = [  for edge in edges]
         # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), NUM_BITS) for node in nodes.values()]
+        print("Signal")
 
-        return unique_incoming_edges, unique_outgoing_edges, max_nodes
+        return unique_incoming_edges, unique_outgoing_edges, max_nodes    
         
     @staticmethod
     def datatype_convexity_and_structural_constraints(graph, nodes, Node, opt):
@@ -146,6 +147,7 @@ class BitvectorTopologyManagement:
                         And(not_ancestors)
                     )
                     opt.add(ancestor_condition)
+        print("Convexity")
 
     @staticmethod
     def datatype_optimization_and_selection_constraints(opt, max_nodes, graph, gate_dict, imax=None, omax=None, 
