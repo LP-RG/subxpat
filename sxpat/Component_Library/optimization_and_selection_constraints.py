@@ -2,7 +2,7 @@ from z3 import Sum, Bool, Not, And
 from z3 import Bool, Optimize
 from sxpat.utils.graph import is_selection_convex
 from z3 import sat, is_true
-from config.config import WEIGHT
+from sxpat.config.config import WEIGHT
 
 class OptimizationConstraints:
     @staticmethod
