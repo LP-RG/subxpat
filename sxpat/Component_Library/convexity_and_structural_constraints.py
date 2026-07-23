@@ -1,4 +1,5 @@
 from z3 import And, Not, Implies
+import networkx as nx
 
 class ConvexityConstraints:
     @staticmethod
