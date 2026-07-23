@@ -611,9 +611,6 @@ class AnnotatedGraph(Graph):
 
         node_partition = []
         if opt.check() == sat:
-            print("NUMAR ASEPTIUNI:", len(opt.assertions()))
-            for i, assertion in enumerate(opt.assertions()):
-                print(f"{i}: {assertion}")
             m = opt.model()
             for t in m.decls():
                 if 'g' not in str(t):  # Look only the literals associate to the gates
