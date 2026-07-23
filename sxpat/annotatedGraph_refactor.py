@@ -508,7 +508,7 @@ class AnnotatedGraph(Graph):
         # ====================================================================================================
         
         # COMPONENT START: Optimization and Selection Constraints (OS)
-        subgraph_nodes = ComponentManager.check_convexity(opt, self.graph, self.gate_dict)
+        subgraph_nodes = ComponentManager.check_convexity(opt, G, self.gate_dict)
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
         return subgraph_nodes
