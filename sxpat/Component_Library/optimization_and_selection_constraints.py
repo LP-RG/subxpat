@@ -38,7 +38,7 @@ class OptimizationConstraints:
                     raise
                 skipped_nodes.append(Bool(node_literal))
         skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
-        opt.add(*skipped_nodes_constraints)
+        opt.add(skipped_nodes_constraints)
 
     @staticmethod
     def check_convexity(opt, G, gate_dict):
