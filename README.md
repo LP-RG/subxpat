@@ -66,9 +66,14 @@ To prepare the system for execution you will need to follow a few steps:
 
 ## Usage
 
-SubXPAT is used by running the following command:
+If the installation was done using the provided `Makefile`, SubXPAT can be run from the cloned repository with:
 ```bash
-python3 main.py exact-benchmark [options]
+./main exact-benchmark [options]
+```
+
+Otherwise make sure that the active python interpreter has all dependencies then use:
+```bash
+python3 main exact-benchmark [options]
 ```
 
 ### Arguments
