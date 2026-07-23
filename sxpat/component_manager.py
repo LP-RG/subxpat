@@ -86,6 +86,10 @@ class ComponentManager:
         return ModelInitialization.prepare_circuit_model(tmp_graph, constant_dict, opt)
     
     @staticmethod
+    def extract_gate_weights(G, tmp_graph, gate_dict, weight_key):
+        return ModelInitialization.extract_gate_weights(G, tmp_graph, gate_dict, weight_key)
+    
+    @staticmethod
     def extract_multiple_subgraphs(opt, G, specs_obj, mode='multi', penalty=None):
         return MultiPartitionIterationEngine.extract_multiple_subgraphs(
             opt, G, specs_obj, mode=mode, penalty=penalty
