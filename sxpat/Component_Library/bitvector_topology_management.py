@@ -77,7 +77,6 @@ class BitvectorTopologyManagement:
             opt.add(Edge.source(edge) == nodes[src])
             opt.add(Edge.target(edge) == nodes[des])
             edges.append(edge)
-        print("Model")
         return Node, Edge, nodes, edges, NUM_BITS
 
     @staticmethod
@@ -112,7 +111,6 @@ class BitvectorTopologyManagement:
 
         # max_nodes = [  for edge in edges]
         # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), NUM_BITS) for node in nodes.values()]
-        print("Signal")
 
         return unique_incoming_edges, unique_outgoing_edges, max_nodes    
         
@@ -147,7 +145,6 @@ class BitvectorTopologyManagement:
                         And(not_ancestors)
                     )
                     opt.add(ancestor_condition)
-        print("Convexity")
 
     @staticmethod
     def datatype_optimization_and_selection_constraints(opt, max_nodes, graph, gate_dict, imax=None, omax=None, 
@@ -178,10 +175,8 @@ class BitvectorTopologyManagement:
 
         res = opt.check()
 
-        print(f"DEBUG: Solver status is {res}")
         node_partition = []
         if res == sat:
-            print("DEBUG: Entered the SAT block!")
             n_nodes = 0
             m = opt.model()
             model_maximized = m.eval(Sum(max_nodes), model_completion=True).as_long()
@@ -201,13 +196,10 @@ class BitvectorTopologyManagement:
             for t in m.decls():
                 # print(f'{type(t) = }')
                 # print(f'{t = }')
-                print(f"Variable found in pattern: {str(t)}")
                 if str(t).startswith('g'):  # Look only the literals associate to the gates
                     if is_true(m[t]):
                         node_partition.append(str(t))
                         n_nodes += 1
-        else: 
-            print(f"DEBUG: The solver did NOT return SAT, but rather: {res}")
 
         # Check partition convexity
         if not is_selection_convex(graph, node_partition):
