@@ -29,3 +29,6 @@
 Laura/
 *.xlsx
 .DS_Store
+
+/logs
+/all_circuits_plots
