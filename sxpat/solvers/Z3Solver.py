@@ -594,8 +594,6 @@ class Z3Solver(Solver):
             stderr=subprocess.PIPE,
         )
         if process.returncode != 0:
-            print(f"STDOUT: {process.stdout.decode()}")
-            print(f"STDERR: {process.stderr.decode()}")
             raise RuntimeError(f'Solver execution FAILED. Failed to run file {script_path}')
 
         # return decoded output
