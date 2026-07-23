@@ -64,8 +64,8 @@ class ComponentManager:
         return SensitivityBudgetConstraints.prepare_gate_weights(G, tmp_graph, gate_dict, weight_key)
     
     @staticmethod
-    def get_feasibility(edge_w, gate_weight, feasibility_treshold, edge_constraint):
-        return FeasibilityConstraints.get_feasibility_constraints(edge_w, gate_weight, feasibility_treshold, edge_constraint)
+    def get_feasibility(edge_w, gate_weight, feasibility_treshold, edge_constraint, strict=True):
+        return FeasibilityConstraints.get_feasibility_constraints(edge_w, gate_weight, feasibility_treshold, edge_constraint, strict=strict)
     
     @staticmethod
     def add_feasibility_logic(opt, feasibility_constraints, partition_output_edges=None, mode='at_least_one'):
