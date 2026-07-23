@@ -5,7 +5,7 @@ from z3 import Bool
 class ModelInitialization:
     
     @staticmethod
-    def prepare_circuit_model(tmp_graph, constant_dict, opt):
+    def prepare_circuit_model(tmp_graph, constant_dict):
         """
         Initialize literals, edge structures, the DiGraph gate graph
         and set boundaries to False in the Z3 solver.
@@ -77,6 +77,13 @@ class ModelInitialization:
                     my_id = int(re.search('(\d+)', e[0]).group(1))
                     output_edges[out_id].append(my_id)
 
+        return input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges
+    
+    @staticmethod
+    def build_gate_graph(tmp_graph, constant_dict):
+        """
+        Create the directed graph G of the circuit without input and output nodes.
+        """
         # Create graph of the cicuit without input and output nodes
         G = nx.DiGraph()
         # print(f'{tmp_graph.edges = }')
@@ -94,7 +101,13 @@ class ModelInitialization:
                     continue
                 G.add_node(source)
         # ===================================
-
+        return G
+    
+    @staticmethod
+    def add_boundary_conditions(opt, input_literals, output_literals):
+        """
+        Set input and output nodes to False in the Z3 solver.
+        """
         # Set input nodes to False
         for input_node_id in input_literals:
             opt.add(input_literals[input_node_id] == False)
@@ -103,8 +116,6 @@ class ModelInitialization:
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
 
-        return G, input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges
-    
     @staticmethod
     def extract_gate_weights(G, tmp_graph, gate_dict, weight_key):
         """

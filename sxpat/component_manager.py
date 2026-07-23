@@ -82,8 +82,16 @@ class ComponentManager:
         PenaltyConstraints.apply_penalty_constraints(opt, penalty_var, penalty_list, soft_limit, weight)
 
     @staticmethod
-    def prepare_circuit_model(tmp_graph, constant_dict, opt):
-        return ModelInitialization.prepare_circuit_model(tmp_graph, constant_dict, opt)
+    def prepare_circuit_model(tmp_graph, constant_dict):
+        return ModelInitialization.prepare_circuit_model(tmp_graph, constant_dict)
+    
+    @staticmethod
+    def build_gate_graph(tmp_graph, constant_dict):
+        return ModelInitialization.build_gate_graph(tmp_graph, constant_dict)
+    
+    @staticmethod
+    def add_boundary_conditions(opt, input_literals, output_literals):
+        ModelInitialization.add_boundary_conditions(opt, input_literals, output_literals)
     
     @staticmethod
     def extract_gate_weights(G, tmp_graph, gate_dict, weight_key):
