@@ -398,8 +398,8 @@ class AnnotatedGraph(Graph):
         opt = Optimize()
 
         # COMPONENT START: Model Initialization
-        G, input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
-            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict, opt)
+        input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
+            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict)
         # COMPONENT END: Model Initialization
 
         # COMPONENT START: Signal Propagation Constraints (SP)
