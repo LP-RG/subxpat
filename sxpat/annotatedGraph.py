@@ -409,6 +409,10 @@ class AnnotatedGraph(Graph):
         )
         # COMPONENT END: Signal Propagation Constraints (SP)
 
+        # COMPONENT START: Model Initialization
+        G = ComponentManager.build_gate_graph(self.graph, self.constant_dict)
+        # COMPONENT END: Model Initialization
+
         # COMPONENT START: Sensitivity Budget Constraints (SB)
         gate_weight = ComponentManager.prepare_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
         # COMPONENT END: Sensitivity Budget Constraints (SB)
@@ -416,6 +420,10 @@ class AnnotatedGraph(Graph):
         # COMPONENT START: Convexity and Structural Constraints (CS)
         ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
         # COMPONENT END: Convexity and Structural Constraints (CS)
+
+        # COMPONENT START: Model Initialization
+        ComponentManager.add_boundary_conditions(opt, input_literals, output_literals)
+        # COMPONENT END: Model Initialization
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.add_io_limits(
@@ -506,7 +514,7 @@ class AnnotatedGraph(Graph):
         # COMPONENT END: Sensitivity Budget Constraints (SB)
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_maximization(opt, gate_literals, gate_weight)
+        ComponentManager.add_maximization(opt, gate_literals)
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
         # =========================== Skipping the nodes that are not labeled ================================
