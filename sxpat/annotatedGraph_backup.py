@@ -1663,7 +1663,7 @@ class AnnotatedGraph(Graph):
                     node_partition.append(gate_id)  # Gates inside the partition
 
         # Check partition convexity
-        if not is_selection_convex(self.graph, node_partition):
+        if not is_selection_convex(G, node_partition):
             raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
 
         return [self.gate_dict[idx] for idx in node_partition]
