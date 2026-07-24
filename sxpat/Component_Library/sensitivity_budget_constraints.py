@@ -25,3 +25,5 @@ class SensitivityBudgetConstraints:
         for gate_id in gate_weight:
             gate_weight[gate_id] = max_weight - gate_weight[
                 gate_id] + 1  # + 1 must be removed, I'm leaving it just for the initial debugging phase
+
+        return gate_weight
