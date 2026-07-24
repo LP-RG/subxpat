@@ -405,6 +405,8 @@ class AnnotatedGraph(Graph):
         # COMPONENT START: Model Initialization
         input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
             ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict)
+
+        print(f"[DEBUG] Model Init -> inputs: {len(input_literals)}, gates: {len(gate_literals)}, outputs: {len(output_literals)}")
         # COMPONENT END: Model Initialization
 
         # COMPONENT START: Signal Propagation Constraints (SP)
@@ -412,22 +414,27 @@ class AnnotatedGraph(Graph):
         input_edges, gate_edges, output_edges,
         input_literals, gate_literals, output_literals
         )
+        print(f"[DEBUG] SP -> part_in_edges: {len(partition_input_edges)}, part_out_edges: {len(partition_output_edges)}")
         # COMPONENT END: Signal Propagation Constraints (SP)
 
         # COMPONENT START: Model Initialization
         G = ComponentManager.build_gate_graph(tmp_graph, self.constant_dict)
+        print(f"[DEBUG] Gate Graph -> nodes: {G.number_of_nodes()}, edges: {G.number_of_edges()}")
         # COMPONENT END: Model Initialization
 
         # COMPONENT START: Sensitivity Budget Constraints (SB)
         gate_weight = ComponentManager.prepare_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
+        print(f"[DEBUG] Gate Weights -> count: {len(gate_weight)}")
         # COMPONENT END: Sensitivity Budget Constraints (SB)
 
         # COMPONENT START: Convexity and Structural Constraints (CS)
         ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
+        print(f"[DEBUG] After Convexity -> assertions: {len(opt.assertions())}")
         # COMPONENT END: Convexity and Structural Constraints (CS)
 
         # COMPONENT START: Model Initialization
         ComponentManager.add_boundary_conditions(opt, input_literals, output_literals)
+        print(f"[DEBUG] After Boundary -> assertions: {len(opt.assertions())}")
         # COMPONENT END: Model Initialization
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
@@ -438,20 +445,24 @@ class AnnotatedGraph(Graph):
         partition_input_edges, 
         partition_output_edges
         )
+        print(f"[DEBUG] After IO Limits -> assertions: {len(opt.assertions())}")
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.add_maximization(opt, gate_literals, gate_weight)
+        print(f"[DEBUG] After Maximization -> assertions: {len(opt.assertions())}")
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
         # =========================== Skipping the nodes that are not labeled ================================
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.exclude_skipped_nodes(opt, self.graph)
+        print(f"[DEBUG] After Skipped Nodes -> assertions: {len(opt.assertions())}")
         # COMPONENT END: Optimization and Selection Constraints (OS)
         # ====================================================================================================
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
         subgraph_nodes = ComponentManager.check_convexity(opt, G, self.gate_dict)
+        print(f"[DEBUG] Final Subgraph Nodes -> count: {len(subgraph_nodes)}")
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
         return subgraph_nodes
