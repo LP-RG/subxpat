@@ -11,13 +11,20 @@ class OptimizationConstraints:
             opt.add(Sum(partition_input_edges) <= imax)
         if omax is not None:
             opt.add(Sum(partition_output_edges) <= omax)
-
+            
     @staticmethod
-    def add_maximization(opt, gate_literals, gate_weight):
+    def add_maximization(opt, gate_literals, gate_weight=None):
         max_func = []
-        for gate_id in gate_literals:
-            max_func.append(gate_literals[gate_id] * gate_weight[gate_id])
+        # Generate function to maximize
+        if gate_weight is not None:
+            for gate_id in gate_literals:
+                max_func.append(gate_literals[gate_id] * gate_weight[gate_id])
+        else:
+            for gate_id in gate_literals:
+                max_func.append(gate_literals[gate_id])
+        # Add function to maximize to the solver
         opt.maximize(Sum(max_func))
+    
 
     @staticmethod
     def exclude_skipped_nodes(opt, graph):
@@ -39,7 +46,6 @@ class OptimizationConstraints:
 
     @staticmethod
     def check_convexity(opt, G, gate_dict):
-        print("NUMBER:", len(opt.assertions()))
         node_partition = []
         if opt.check() == sat:
             m = opt.model()
