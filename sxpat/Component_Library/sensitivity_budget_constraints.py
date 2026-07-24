@@ -13,7 +13,7 @@ class SensitivityBudgetConstraints:
         gate_weight = {}
         for gate_idx in G.nodes:
             if gate_idx not in gate_weight:
-                gate_weight[gate_idx] = tmp_graph.nodes[gate_dict[gate_idx]][WEIGHT]
+                gate_weight[gate_idx] = tmp_graph.nodes[gate_dict[gate_idx]][weight_key]
             # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
 
         # Find max weight

@@ -13,13 +13,10 @@ class OptimizationConstraints:
             opt.add(Sum(partition_output_edges) <= omax)
 
     @staticmethod
-    def add_maximization(opt, gate_literals, gate_weight=None):
-        # Generate function to maximize
-        if gate_weight is not None:
-            max_func = [gate_literals[gate_id] * gate_weight[gate_id] for gate_id in gate_literals]
-        else:
-            max_func = [gate_literals[gate_id] for gate_id in gate_literals]
-        # Add function to maximize to the solver
+    def add_maximization(opt, gate_literals, gate_weight):
+        max_func = []
+        for gate_id in gate_literals:
+            max_func.append(gate_literals[gate_id] * gate_weight[gate_id])
         opt.maximize(Sum(max_func))
 
     @staticmethod

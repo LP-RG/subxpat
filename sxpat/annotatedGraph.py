@@ -387,6 +387,8 @@ class AnnotatedGraph(Graph):
         :return: an annotated graph in which the extracted subgraph is colored
         """
 
+        imax = specs_obj.imax
+        omax = specs_obj.omax
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
@@ -396,6 +398,9 @@ class AnnotatedGraph(Graph):
 
         # Optimizer
         opt = Optimize()
+
+        # Function to maximize
+        max_func = []
 
         # COMPONENT START: Model Initialization
         input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
