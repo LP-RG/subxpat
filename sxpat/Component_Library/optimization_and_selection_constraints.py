@@ -42,6 +42,7 @@ class OptimizationConstraints:
 
     @staticmethod
     def check_convexity(opt, G, gate_dict):
+        print("NUMBER:", len(opt.assertions()))
         node_partition = []
         if opt.check() == sat:
             print("NUMAR ASEPTIUNI:", len(opt.assertions()))
