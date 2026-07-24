@@ -473,6 +473,7 @@ class AnnotatedGraph(Graph):
                     output_edges[out_id].append(my_id)
 
                 # =============================
+        print(f"[DEBUG] Model Init -> inputs: {len(input_literals)}, gates: {len(gate_literals)}, outputs: {len(output_literals)}")
 
         # Define input edges
         for source in input_edges:
@@ -510,6 +511,7 @@ class AnnotatedGraph(Graph):
             e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
 
             partition_output_edges.append(e_out)
+        print(f"[DEBUG] SP -> part_in_edges: {len(partition_input_edges)}, part_out_edges: {len(partition_output_edges)}")
 
         # Create graph of the cicuit without input and output nodes
         G = nx.DiGraph()
@@ -528,6 +530,7 @@ class AnnotatedGraph(Graph):
                     continue
                 G.add_node(source)
         # ===================================
+        print(f"[DEBUG] Gate Graph -> nodes: {G.number_of_nodes()}, edges: {G.number_of_edges()}")
 
         # Generate structure with gate weights
         gate_weight = {}
@@ -545,6 +548,7 @@ class AnnotatedGraph(Graph):
         for gate_id in gate_weight:
             gate_weight[gate_id] = max_weight - gate_weight[
                 gate_id] + 1  # + 1 must be removed, I'm leaving it just for the initial debugging phase
+        print(f"[DEBUG] Gate Weights -> count: {len(gate_weight)}")
 
         descendants = {}
         ancestors = {}
@@ -569,6 +573,7 @@ class AnnotatedGraph(Graph):
                     ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
                                                  And(not_ancestors))
                     opt.add(ancestor_condition)
+        print(f"[DEBUG] After Convexity -> assertions: {len(opt.assertions())}")
 
         # Set input nodes to False
         for input_node_id in input_literals:
@@ -577,12 +582,14 @@ class AnnotatedGraph(Graph):
         # Set output nodes to False
         for output_node_id in output_literals:
             opt.add(output_literals[output_node_id] == False)
+        print(f"[DEBUG] After Boundary -> assertions: {len(opt.assertions())}")
 
         # Add constraints on the number of input/output edges
         if imax is not None:
             opt.add(Sum(partition_input_edges) <= imax)
         if omax is not None:
             opt.add(Sum(partition_output_edges) <= omax)
+        print(f"[DEBUG] After IO Limits -> assertions: {len(opt.assertions())}")
 
         # Generate function to maximize
         for gate_id in gate_literals:
@@ -590,7 +597,7 @@ class AnnotatedGraph(Graph):
 
         # Add function to maximize to the solver
         opt.maximize(Sum(max_func))
-
+        print(f"[DEBUG] After Maximization -> assertions: {len(opt.assertions())}")
         # =========================== Skipping the nodes that are not labeled ================================
         skipped_nodes = []
         for node in self.graph.nodes:
@@ -607,6 +614,7 @@ class AnnotatedGraph(Graph):
                 skipped_nodes.append(Bool(node_literal))
         skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
         opt.add(skipped_nodes_constraints)
+        print(f"[DEBUG] After Skipped Nodes -> assertions: {len(opt.assertions())}")
         # ====================================================================================================
 
         node_partition = []
@@ -622,7 +630,7 @@ class AnnotatedGraph(Graph):
         # Check partition convexity
         if not is_selection_convex(G, node_partition):
             raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
-
+        print(f"[DEBUG] Final Subgraph Nodes -> count: {len([self.gate_dict[idx] for idx in node_partition])}")
         return [self.gate_dict[idx] for idx in node_partition]
 
     def find_subgraph_sensitivity(self, specs_obj: Specifications) -> List[str]:
