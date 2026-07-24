@@ -1,6 +1,7 @@
 # Mode 1: find_subgraph
 .venv/bin/python main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extraction-mode=1 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8
 
+ORIGINAL CODE:
 iteration 1: #ofNodes=8
 iteration 2: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
 iteration 3: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
@@ -13,9 +14,25 @@ iteration 9: #ofNodes=8
 iteration 10: #ofNodes=8
 + Result: Area zero found! Terminated.
 
+REFACTORED CODE:
+iteration 1: #ofNodes=8
+iteration 2: #ofNodes=8
+iteration 3: #ofNodes=8
+iteration 4: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 5: #ofNodes=8
+iteration 6: #ofNodes=8
+iteration 7: #ofNodes=8
+iteration 8: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 9: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 10: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
++ Result: "The error space is exhausted!"
+
+✅
+
 # Mode 2: find_subgraph_sensitivity
 .venv/bin/python main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extraction-mode=2 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8 --min-subgraph-size=1
 
+ORIGINAL CODE:
 iteration 1: #ofNodes=4
 iteration 2: #ofNodes=2
 iteration 3: #ofNodes=1
@@ -35,6 +52,25 @@ iteration 16: #ofNodes=1
 iteration 17: #ofNodes=1 ("The subgraph is equal to the previous one. Skipping iteration ...")
 iteration 18: #ofNodes=1 ("The subgraph is equal to the previous one. Skipping iteration ...")
 + Result: "The error space is exhausted!"
+
+REFACTORED CODE:
+iteration 1: #ofNodes=4
+iteration 2: #ofNodes=2
+iteration 3: #ofNodes=1
+iteration 4: #ofNodes=1
+iteration 5: #ofNodes=1 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 6: #ofNodes=3
+iteration 7: #ofNodes=4
+iteration 8: #ofNodes=4
+iteration 9: #ofNodes=4
+iteration 10: #ofNodes=4
+iteration 11: #ofNodes=3
+iteration 12: #ofNodes=3
+iteration 13: #ofNodes=3
+iteration 14: #ofNodes=2
+iteration 15: #ofNodes=4
+iteration 16: #ofNodes=2 
++ Results: "Area zero found! Terminated."
 
 # Mode 3: find_subgraph_sensitivity_no_io_constraints
 .venv/bin/python main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extraction-mode=3 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8 --min-subgraph-size=1

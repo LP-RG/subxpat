@@ -489,7 +489,7 @@ class AnnotatedGraph(Graph):
         # COMPONENT END: Signal Propagation Constraints (SP)
 
         # COMPONENT START: Model Initialization
-        G = ComponentManager.build_gate_graph(self.graph, self.constant_dict)
+        G = ComponentManager.build_gate_graph(tmp_graph, self.constant_dict)
         # COMPONENT END: Model Initialization
 
         # COMPONENT START: Sensitivity Budget Constraints (SB)
