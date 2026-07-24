@@ -609,6 +609,8 @@ class AnnotatedGraph(Graph):
         opt.add(skipped_nodes_constraints)
         # ====================================================================================================
 
+        print("NUMBER:", len(opt.assertions()))
+
         node_partition = []
         if opt.check() == sat:
             m = opt.model()
