@@ -30,5 +30,7 @@ Laura/
 *.xlsx
 .DS_Store
 
-/logs
+/logs*
 /all_circuits_plots
+/extras
+/output*

@@ -44,16 +44,21 @@ def main():
             continue
         data = pd.read_csv(path)
 
-        iterations = np.unique(np.array(data['iteration'].tolist()))
-        legacy_time = np.unique(np.array(data['legacy_labelling_time'].tolist()))
+        iterations = np.array(data['iteration'].unique().tolist())
+
+        legacy_time = np.array(data['legacy_labelling_time'].unique().tolist())
         all_circuits_legacy_times.append(legacy_time)
-        Z3_functional_time = np.unique(np.array(data['Z3_functional_labelling_time'].tolist()))
+
+        Z3_functional_time = np.array(data['Z3_functional_labelling_time'].unique().tolist())
         all_circuits_Z3_functional_times.append(Z3_functional_time)
-        Z3_direct_time = np.unique(np.array(data['Z3_direct_labelling_time'].tolist()))
+
+        Z3_direct_time = np.array(data['Z3_direct_labelling_time'].unique().tolist())
         all_circuits_Z3_direct_times.append(Z3_direct_time)
-        Z3_hybrid_time = np.unique(np.array(data['Z3_hybrid_labelling_time'].tolist()))
+
+        Z3_hybrid_time = np.array(data['Z3_hybrid_labelling_time'].unique().tolist())
         all_circuits_Z3_hybrid_times.append(Z3_hybrid_time)
-        Qbf_time = np.unique(np.array(data['Qbf_labelling_time'].tolist()))
+
+        Qbf_time = np.array(data['Qbf_labelling_time'].unique().tolist())
         all_circuits_Qbf_times.append(Qbf_time)
 
         xpoints = iterations
