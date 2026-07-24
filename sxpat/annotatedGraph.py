@@ -743,26 +743,9 @@ class AnnotatedGraph(Graph):
         # COMPONENT END: Optimization and Selection Constraints (OS)
         # ====================================================================================================
 
-<<<<<<< HEAD
-        node_partition = []
-        if opt.check() == sat:
-            # print(opt.model())
-            m = opt.model()
-            for t in m.decls():
-                if 'g' not in str(t):  # Look only the literals associate to the gates
-                    continue
-                if is_true(m[t]):
-                    gate_id = int(str(t)[2:])
-                    node_partition.append(gate_id)  # Gates inside the partition
-
-        # Check partition convexity
-        if not is_selection_convex(G, node_partition):
-            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
-=======
         # COMPONENT START: Optimization and Selection Constraints (OS)
         subgraph_nodes = ComponentManager.check_convexity(opt, G, self.gate_dict)
         # COMPONENT END: Optimization and Selection Constraints (OS)
->>>>>>> 0d4ccb90f1d75cfc47d2fa5479d3938b68ded345
 
         return subgraph_nodes
 
