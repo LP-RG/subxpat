@@ -273,7 +273,7 @@ class AnnotatedGraph(Graph):
             if specs_obj.requires_subgraph_extraction:
                 if specs_obj.extraction_mode == 1:
                     pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
-                    self.verify_refactoring(specs_obj, iterations=1)
+                    self.verify_refactoring_mode_1(specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 2:
@@ -286,6 +286,7 @@ class AnnotatedGraph(Graph):
 
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                         # specs_obj.sensitivity = iteration
+                        self.verify_refactoring_mode_2(specs_obj,iterations=1)
                         pprint.with_color(Fore.LIGHTBLUE_EX)(f"Sugraph iteration {iteration} ")
                         subgraph_nodes = self.find_subgraph_sensitivity(specs_obj)
 
@@ -457,7 +458,7 @@ class AnnotatedGraph(Graph):
 
         return subgraph_nodes
 
-    def verify_refactoring(self, specs_obj: Specifications, iterations: int = 1):
+    def verify_refactoring_mode_1(self, specs_obj: Specifications, iterations: int = 1):
         """
         Verifies whether the old and refactored implementations produce 
         the same results for subgraphs.
@@ -563,6 +564,42 @@ class AnnotatedGraph(Graph):
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
         return subgraph_nodes
+
+    def verify_refactoring_mode_2(self, specs_obj: Specifications, iterations: int = 1):
+            """
+            Verifies whether the old and refactored implementations produce 
+            the same results for subgraphs.
+            """
+            from sxpat.annotatedGraph_backup import AnnotatedGraph_backup
+    
+            for i in range(1, iterations + 1):
+                print(f"Verification Iteration {i}")
+            
+                # 1. Run the old (monolithic) version
+                old_nodes = AnnotatedGraph_backup.find_subgraph_sensitivity(self, specs_obj)
+            
+                # 2. Run the new (modularly refactored) version
+                new_nodes = self.find_subgraph_sensitivity(specs_obj)
+            
+                # Applying the logic from the sketch:
+                if len(old_nodes) != len(new_nodes):
+                    print(f"ERROR at iteration {i}: Different number of nodes! Old: {len(old_nodes)}, New: {len(new_nodes)}")
+                    print(f"DIVERGENCE at iteration {i}!") 
+                    print(f"Parameters: imax={specs_obj.imax}, omax={specs_obj.omax}") 
+                    print(f"Old nodes ({len(old_nodes)}): {old_nodes}") 
+                    print(f"New nodes ({len(new_nodes)}): {new_nodes}") 
+
+                    # You can use pdb to analyze the code in place 
+                    import pdb; pdb.set_trace() 
+                    raise RuntimeError("Refactoring verification failed: node count mismatch!")
+                
+                elif set(old_nodes) == set(new_nodes):
+                    print(f"Iteration {i}: OK - Subcircuits are identical.")
+                    continue
+                
+                else:
+                    print(f"Iteration {i}: Differences found in subgraph content (alternative path chosen).")
+                    break
 
     def find_subgraph_sensitivity_no_io_constraints(self, specs_obj: Specifications) -> List[str]:
         """
