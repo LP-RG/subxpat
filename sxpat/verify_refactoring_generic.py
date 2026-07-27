@@ -15,21 +15,21 @@ class RefactoringVerifier:
             print(f"Verification Iteration {i}")
 
             # Temporarily save and remove any stream/file (TextIOWrapper) from specs_obj
-            stream_attrs = {}
+            io_attrs = {}
             for k, v in list(specs_obj.__dict__.items()):
                 if isinstance(v, (io.TextIOWrapper, io.IOBase)):
-                    stream_attrs[k] = v
-                    setattr(specs_obj, k, None)
+                    io_attrs[k] = v
+                    del specs_obj.__dict__[k]
 
             # 1. Create clean copies
             specs_old = copy.deepcopy(specs_obj)
             specs_new = copy.deepcopy(specs_obj)
 
             # Restore streams to original object and copies
-            for k, v in stream_attrs.items():
-                setattr(specs_obj, k, v)
-                setattr(specs_old, k, v)
-                setattr(specs_new, k, v)
+            for k, v in io_attrs.items():
+                specs_obj.__dict__[k] = v
+                specs_old.__dict__[k] = v
+                specs_new.__dict__[k] = v
 
             old_nodes = old_finder(graph_instance, specs_old)
             new_nodes = new_finder(specs_new)
