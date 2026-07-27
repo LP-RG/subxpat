@@ -2,6 +2,7 @@ import networkx as nx
 import re
 from z3 import Bool, is_true, Not, And, sat
 import pprint
+from sxpat.utils.print import pprint
 
 class MultiPartitionIterationEngine:
 
