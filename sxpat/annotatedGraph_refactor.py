@@ -489,7 +489,7 @@ class AnnotatedGraph(Graph):
         # COMPONENT END: Signal Propagation Constraints (SP)
 
         # COMPONENT START: Model Initialization
-        G = ComponentManager.build_gate_graph(self.graph, self.constant_dict)
+        G = ComponentManager.build_gate_graph(tmp_graph, self.constant_dict)
         # COMPONENT END: Model Initialization
 
         # COMPONENT START: Sensitivity Budget Constraints (SB)
@@ -552,8 +552,8 @@ class AnnotatedGraph(Graph):
         opt = Optimize()
 
         # COMPONENT START: Model Initialization
-        G, input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
-            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict, opt)
+        input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
+            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict)
         # COMPONENT END: Model Initialization
 
         # COMPONENT START: Signal Propagation Constraints (SP)
@@ -561,9 +561,13 @@ class AnnotatedGraph(Graph):
         ComponentManager.get_signal_propagation(
         input_edges, gate_edges, output_edges,
         input_literals, gate_literals, output_literals,
-        tmp_graph, self.__gate_dict, WEIGHT
+        tmp_graph, self.gate_dict, WEIGHT
         )
         # COMPONENT END: Signal Propagation Constraints (SP)
+
+        # COMPONENT START: Model Initialization
+        G = ComponentManager.build_gate_graph(tmp_graph, self.constant_dict)
+        # COMPONENT END: Model Initialization
 
         # COMPONENT START: Sensitivity Budget Constraints (SB)
         gate_weight = ComponentManager.prepare_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
@@ -572,6 +576,10 @@ class AnnotatedGraph(Graph):
         # COMPONENT START: Convexity and Structural Constraints (CS)
         ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
         # COMPONENT END: Convexity and Structural Constraints (CS)
+
+        # COMPONENT START: Model Initialization
+        ComponentManager.add_boundary_conditions(opt, input_literals, output_literals)
+        # COMPONENT END: Model Initialization
 
         # COMPONENT START: Sensitivity Budget Constraints (SB)
         ComponentManager.add_sensitivity_budget(opt, edge_w, edge_constraint, sensitivity_t)
