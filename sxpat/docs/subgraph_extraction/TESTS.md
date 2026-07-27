@@ -300,5 +300,18 @@ iteration 10: #ofNodes=8
 iteration 11: #ofNodes=7 
 + Result: "Area zero found! Terminated."
 
+REFACTORED CODE:
+iteration 1: #ofNodes=8
+iteration 2: #ofNodes=7
+iteration 3: #ofNodes=8
+iteration 4: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 5: #ofNodes=8
+iteration 6: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 7: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 8: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 9: #ofNodes=8
+iteration 10: #ofNodes=8
+iteration 11: #ofNodes=7 
+
 # Mode 42: manual extraction
 .venv/bin/python main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extraction-mode=42 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8
