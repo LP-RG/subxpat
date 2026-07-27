@@ -620,8 +620,8 @@ class AnnotatedGraph(Graph):
         opt = Optimize()
 
         # COMPONENT START: Model Initialization
-        G, input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
-            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict, opt)
+        input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
+            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict)
         # COMPONENT END: Model Initialization
 
         # COMPONENT START: Signal Propagation Constraints (SP)
@@ -629,9 +629,13 @@ class AnnotatedGraph(Graph):
         ComponentManager.get_signal_propagation(
         input_edges, gate_edges, output_edges,
         input_literals, gate_literals, output_literals,
-        tmp_graph, self.__gate_dict, WEIGHT
+        tmp_graph, self.gate_dict, WEIGHT
         )
         # COMPONENT END: Signal Propagation Constraints (SP)
+
+        # COMPONENT START: Model Initialization
+        G = ComponentManager.build_gate_graph(tmp_graph, self.constant_dict)
+        # COMPONENT END: Model Initialization
 
         # COMPONENT START: Model Initialization
         gate_weight = ComponentManager.extract_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
@@ -641,13 +645,17 @@ class AnnotatedGraph(Graph):
         ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
         # COMPONENT END: Convexity and Structural Constraints (CS)
 
+        # COMPONENT START: Model Initialization
+        ComponentManager.add_boundary_conditions(opt, input_literals, output_literals)
+        # COMPONENT END: Model Initialization
+
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.add_io_limits(
-        opt, 
-        specs_obj.imax, 
-        specs_obj.omax, 
-        partition_input_edges, 
-        partition_output_edges
+            opt, 
+            specs_obj.imax, 
+            specs_obj.omax, 
+            partition_input_edges, 
+            partition_output_edges
         )
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
@@ -672,7 +680,7 @@ class AnnotatedGraph(Graph):
         # ====================================================================================================
         
         # COMPONENT START: Optimization and Selection Constraints (OS)
-        subgraph_nodes = ComponentManager.check_convexity(opt, self.graph, self.gate_dict)
+        subgraph_nodes = ComponentManager.check_convexity(opt, G, self.gate_dict)
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
         return subgraph_nodes
@@ -719,11 +727,11 @@ class AnnotatedGraph(Graph):
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
         ComponentManager.add_io_limits(
-        opt, 
-        specs_obj.imax, 
-        specs_obj.omax, 
-        partition_input_edges, 
-        partition_output_edges
+            opt, 
+            specs_obj.imax, 
+            specs_obj.omax, 
+            partition_input_edges, 
+            partition_output_edges
         )
         # COMPONENT END: Optimization and Selection Constraints (OS)
 

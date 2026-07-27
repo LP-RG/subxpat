@@ -91,6 +91,22 @@ iteration 12: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping i
 iteration 13: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
 + Result: "The error space is exhausted!"
 
+REFACTORED CODE:
+iteration 1: #ofNodes=5
+iteration 2: #ofNodes=1
+iteration 3: #ofNodes=1 (Aici a dat "The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 4: #ofNodes=1 (Aici a dat "The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 5: #ofNodes=5
+iteration 6: #ofNodes=11
+iteration 7: #ofNodes=5
+iteration 8: #ofNodes=5
+iteration 9: #ofNodes=6
+iteration 10: #ofNodes=6
+iteration 11: #ofNodes=6 (Aici a dat "The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 12: #ofNodes=6 (Aici a dat "The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 13: #ofNodes=11 
++ Result: "Area zero found! Terminated."
+
 # Mode 4: find_subgraph_feasible
 .venv/bin/python main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extraction-mode=4 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8
 

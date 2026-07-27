@@ -5,13 +5,13 @@ class FeasibilityConstraints:
     def get_feasibility_constraints(edge_w, gate_weight, feasibility_treshold, edge_constraint, strict=True):
         feasibility_constraints = []
         for s in edge_w:
-            weight = gate_weight.get(s)
-        
             if strict:
-                if weight != -1 and weight <= feasibility_treshold:
+                if gate_weight[s] <= feasibility_treshold:
+                    # print(s, "is feasible", gate_weight[s])
                     feasibility_constraints.append(edge_constraint[s])
             else:
-                if weight <= feasibility_treshold:
+                if gate_weight[s] <= feasibility_treshold and gate_weight[s] != -1:
+                    # print(s, "is feasible", gate_weight[s])
                     feasibility_constraints.append(edge_constraint[s])
         return feasibility_constraints
     
