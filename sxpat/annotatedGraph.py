@@ -462,7 +462,7 @@ class AnnotatedGraph(Graph):
         Verifies whether the old and refactored implementations produce 
         the same results for subgraphs.
         """
-        from annotatedGraph_backup import AnnotatedGraph_backup
+        from sxpat.annotatedGraph_backup import AnnotatedGraph_backup
 
         for i in range(1, iterations + 1):
             print(f"Verification Iteration {i}")
