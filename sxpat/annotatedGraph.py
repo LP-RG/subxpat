@@ -946,7 +946,7 @@ class AnnotatedGraph(Graph):
         ComponentManager.get_signal_propagation(
             input_edges, gate_edges, output_edges,
             input_literals, gate_literals, output_literals,
-            tmp_graph, self.__gate_dict, WEIGHT
+            tmp_graph, self.gate_dict, WEIGHT
         )
         # COMPONENT END: Signal Propagation Constraints (SP)
 
@@ -1056,7 +1056,7 @@ class AnnotatedGraph(Graph):
             ComponentManager.get_signal_propagation_with_penalty(
                 input_edges, gate_edges, output_edges,
                 input_literals, gate_literals, output_literals,
-                tmp_graph, self.__gate_dict, WEIGHT, feasibility_treshold
+                tmp_graph, self.gate_dict, WEIGHT, feasibility_treshold
             )
         # COMPONENT END: Signal Propagation Constraints (SP)
 
