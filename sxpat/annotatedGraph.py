@@ -314,18 +314,22 @@ class AnnotatedGraph(Graph):
 
                 elif specs_obj.extraction_mode == 4:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition")
+                    RefactoringVerifier.mode_4(self, specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph_feasible(specs_obj)  # Cristian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 5:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and hard feasibility constraints. Looking for largest partition")
+                    RefactoringVerifier.mode_5(self, specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph_feasible_hard(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 55:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and hard constraints, imax, omax, assumptions, and BitVec, DataType. Looking for largest partition")
+                    RefactoringVerifier.mode_55(self, specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 6:
                     pprint.info2(f"Partition with hard constraints, imax={specs_obj.imax}, omax={specs_obj.omax}, assumptions, and BitVec, DataType. Looking for largest partition for smallest possible threshold")
+                    RefactoringVerifier.mode_6(self, specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(specs_obj)
 
                 elif specs_obj.extraction_mode == 100:
@@ -334,6 +338,7 @@ class AnnotatedGraph(Graph):
 
                 elif specs_obj.extraction_mode == 11:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints. Looking for largest partition")
+                    RefactoringVerifier.mode_11(self, specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph_feasible_soft(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 12:
@@ -342,6 +347,7 @@ class AnnotatedGraph(Graph):
                         subgraph_nodes = self.form_subgraph_from_partition()
                     else:
                         pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints on subgraph outputs. Looking for largest partition")
+                        RefactoringVerifier.mode_12(self, specs_obj, iterations=1)
                         subgraph_nodes = self.find_subgraph_feasible_soft_outputs(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 42:

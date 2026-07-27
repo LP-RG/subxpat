@@ -3,7 +3,7 @@ from sxpat.annotatedGraph_backup import AnnotatedGraph_backup
 
 class RefactoringVerifier:
     @staticmethod
-    def verify_refactoring_generic(self, specs_obj: Specifications, old_finder, new_finder, iterations: int = 1):
+    def verify_refactoring_generic(graph_instance, specs_obj: Specifications, old_finder, new_finder, iterations: int = 1):
         """
         Verifies whether the old and refactored implementations produce 
         the same results for subgraphs.
@@ -13,7 +13,7 @@ class RefactoringVerifier:
             print(f"Verification Iteration {i}")
         
             # 1. Run the old (monolithic) version
-            old_nodes = old_finder(self, specs_obj)
+            old_nodes = old_finder(graph_instance, specs_obj)
         
             # 2. Run the new (modularly refactored) version
             new_nodes = new_finder(specs_obj)
@@ -61,5 +61,71 @@ class RefactoringVerifier:
             specs_obj,
             old_finder=AnnotatedGraph_backup.find_subgraph_sensitivity_no_io_constraints,
             new_finder=graph_instance.find_subgraph_sensitivity_no_io_constraints,
+            iterations=iterations
+        )
+
+    @classmethod
+    def mode_4(cls, graph_instance, specs_obj: Specifications, iterations: int = 1):
+        """Verifies refactoring for Mode 4 (Feasible)."""
+        cls.verify_refactoring_generic(
+            graph_instance,
+            specs_obj,
+            old_finder=AnnotatedGraph_backup.find_subgraph_feasible,
+            new_finder=graph_instance.find_subgraph_feasible,
+            iterations=iterations
+        )
+
+    @classmethod
+    def mode_5(cls, graph_instance, specs_obj: Specifications, iterations: int = 1):
+        """Verifies refactoring for Mode 4 (Feasible Hard)."""
+        cls.verify_refactoring_generic(
+            graph_instance,
+            specs_obj,
+            old_finder=AnnotatedGraph_backup.find_subgraph_feasible_hard,
+            new_finder=graph_instance.find_subgraph_feasible_hard,
+            iterations=iterations
+        )
+
+    @classmethod
+    def mode_55(cls, graph_instance, specs_obj: Specifications, iterations: int = 1):
+        """Verifies refactoring for Mode 55."""
+        cls.verify_refactoring_generic(
+            graph_instance,
+            specs_obj,
+            old_finder=AnnotatedGraph_backup.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec,
+            new_finder=graph_instance.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec,
+            iterations=iterations
+        )
+
+    @classmethod
+    def mode_6(cls, graph_instance, specs_obj: Specifications, iterations: int = 1):
+        """Verifies refactoring for Mode 6."""
+        cls.verify_refactoring_generic(
+            graph_instance,
+            specs_obj,
+            old_finder=AnnotatedGraph_backup.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold,
+            new_finder=graph_instance.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold,
+            iterations=iterations
+        )
+
+    @classmethod
+    def mode_11(cls, graph_instance, specs_obj: Specifications, iterations: int = 1):
+        """Verifies refactoring for Mode 11."""
+        cls.verify_refactoring_generic(
+            graph_instance,
+            specs_obj,
+            old_finder=AnnotatedGraph_backup.find_subgraph_feasible_soft,
+            new_finder=graph_instance.find_subgraph_feasible_soft,
+            iterations=iterations
+        )
+
+    @classmethod
+    def mode_12(cls, graph_instance, specs_obj: Specifications, iterations: int = 1):
+        """Verifies refactoring for Mode 11."""
+        cls.verify_refactoring_generic(
+            graph_instance,
+            specs_obj,
+            old_finder=AnnotatedGraph_backup.find_subgraph_feasible_soft_outputs,
+            new_finder=graph_instance.find_subgraph_feasible_soft_outputs,
             iterations=iterations
         )
