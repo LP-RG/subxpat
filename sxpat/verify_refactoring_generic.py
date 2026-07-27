@@ -1,6 +1,7 @@
 from .specifications import Specifications
 from sxpat.annotatedGraph_backup import AnnotatedGraph_backup
 import copy
+import io
 
 class RefactoringVerifier:
     @staticmethod
@@ -12,13 +13,25 @@ class RefactoringVerifier:
 
         for i in range(1, iterations + 1):
             print(f"Verification Iteration {i}")
-        
-            # 1. Run the old (monolithic) version
+
+            # Temporarily save and remove any stream/file (TextIOWrapper) from specs_obj
+            stream_attrs = {}
+            for k, v in list(specs_obj.__dict__.items()):
+                if isinstance(v, (io.TextIOWrapper, io.IOBase)):
+                    stream_attrs[k] = v
+                    setattr(specs_obj, k, None)
+
+            # 1. Create clean copies
             specs_old = copy.deepcopy(specs_obj)
-            old_nodes = old_finder(graph_instance, specs_old)
-        
-            # 2. Run the new (modularly refactored) version
             specs_new = copy.deepcopy(specs_obj)
+
+            # Restore streams to original object and copies
+            for k, v in stream_attrs.items():
+                setattr(specs_obj, k, v)
+                setattr(specs_old, k, v)
+                setattr(specs_new, k, v)
+
+            old_nodes = old_finder(graph_instance, specs_old)
             new_nodes = new_finder(specs_new)
         
             # Applying the logic from the sketch:
