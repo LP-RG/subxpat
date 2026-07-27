@@ -1,5 +1,6 @@
 from .specifications import Specifications
 from sxpat.annotatedGraph_backup import AnnotatedGraph_backup
+import copy
 
 class RefactoringVerifier:
     @staticmethod
@@ -13,10 +14,12 @@ class RefactoringVerifier:
             print(f"Verification Iteration {i}")
         
             # 1. Run the old (monolithic) version
-            old_nodes = old_finder(graph_instance, specs_obj)
+            specs_old = copy.deepcopy(specs_obj)
+            old_nodes = old_finder(graph_instance, specs_old)
         
             # 2. Run the new (modularly refactored) version
-            new_nodes = new_finder(specs_obj)
+            specs_new = copy.deepcopy(specs_obj)
+            new_nodes = new_finder(specs_new)
         
             # Applying the logic from the sketch:
             if len(old_nodes) != len(new_nodes):
