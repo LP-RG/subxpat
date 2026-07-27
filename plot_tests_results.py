@@ -3,13 +3,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
+import sys
 
-def scatter_circuits(circuits: Sequence[Any], color_str: str, label_str: str) -> None:
+def scatter_circuits(circuits: Sequence[Any], color_str: str, label_str: str, alpha_val: float) -> None:
     label = True
     for circuit in circuits:
         ypoints = circuit
         xpoints = [x for x in range(1, len(circuit) + 1)]
-        plt.scatter(xpoints, ypoints, color = color_str, label = f'{'' if label else '_'}{label_str}', marker = 'o')
+        plt.scatter(xpoints, ypoints, color = color_str, label = f'{'' if label else '_'}{label_str}', marker = 'o', alpha=alpha_val)
         label = False
 
 def plot_encoder_circuits(circuits: Sequence[Any], color_str: str, label_str: str) -> None:
@@ -18,7 +19,7 @@ def plot_encoder_circuits(circuits: Sequence[Any], color_str: str, label_str: st
     plt.xlabel('Iterations')
     plt.ylabel("Labelling time")
     
-    scatter_circuits(circuits, color_str, label_str)
+    scatter_circuits(circuits, color_str, label_str, 1.0)
 
     plt.legend(bbox_to_anchor=(1.1, 1), loc=1)
     plt.grid(linestyle = '--', linewidth = 0.5)
@@ -28,6 +29,11 @@ def plot_encoder_circuits(circuits: Sequence[Any], color_str: str, label_str: st
 
 def main():
 
+    argv = sys.argv[1:]
+    output_dir = "output"
+    if len(argv) > 0:
+        output_dir = argv[0]
+
     all_circuits_legacy_times : Sequence[Any] = list()
     all_circuits_Z3_functional_times : Sequence[Any] = list()
     all_circuits_Z3_direct_times : Sequence[Any] = list()
@@ -36,13 +42,18 @@ def main():
 
     os.makedirs("all_circuits_plots", exist_ok=True)
 
-    circuits = os.listdir("output")
+    circuits = os.listdir(output_dir)
     for circuit in circuits:
 
-        path = f'output/{circuit}/run_stats.csv'
-        if os.path.getsize(path) == 0:
+        path_details = f'{output_dir}/{circuit}/run_details.csv' #ensure computation for current circuit is done
+        if os.path.getsize(path_details) == 0:
             continue
-        data = pd.read_csv(path)
+        data = pd.read_csv(path_details)
+        exact_circuit_path : str = str(list(data)[1])
+        exact_circuit_name : str = (exact_circuit_path.split('/')[2]).split('.')[0]
+
+        path_stats = f'{output_dir}/{circuit}/run_stats.csv'
+        data = pd.read_csv(path_stats)
 
         iterations = np.array(data['iteration'].unique().tolist())
 
@@ -62,7 +73,7 @@ def main():
         all_circuits_Qbf_times.append(Qbf_time)
 
         xpoints = iterations
-        plt.title(f'Circuit {circuit}')
+        plt.title(f'Circuit {exact_circuit_name}')
         plt.xlabel('Iterations')
         plt.ylabel("Labelling time")
 
@@ -79,7 +90,8 @@ def main():
 
         plt.legend()
         plt.grid(linestyle = '--', linewidth = 0.5)
-        plt.savefig(f'output/{circuit}/times_plot.png')
+        plt.savefig(f'{output_dir}/{circuit}/times_plot.png')
+        plt.savefig(f'individual_circuits_plots/{exact_circuit_name}.png')
         plt.clf()
     
     plt.figure(dpi=1500) 
@@ -87,11 +99,11 @@ def main():
     plt.xlabel('Iterations')
     plt.ylabel("Labelling time")
     
-    scatter_circuits(all_circuits_legacy_times, 'b', 'Legacy encoder')
-    scatter_circuits(all_circuits_Z3_functional_times, 'r', 'Z3 functional encoder')
-    scatter_circuits(all_circuits_Z3_direct_times, 'g', 'Z3 direct encoder')
-    scatter_circuits(all_circuits_Z3_hybrid_times, 'c', 'Z3 hybrid encoder')
-    scatter_circuits(all_circuits_Qbf_times, 'm', 'Qbf encoder')
+    scatter_circuits(all_circuits_legacy_times, 'b', 'Legacy encoder', 0.5)
+    scatter_circuits(all_circuits_Z3_functional_times, 'r', 'Z3 functional encoder', 0.5)
+    scatter_circuits(all_circuits_Z3_direct_times, 'g', 'Z3 direct encoder', 0.5)
+    scatter_circuits(all_circuits_Z3_hybrid_times, 'c', 'Z3 hybrid encoder', 0.5)
+    scatter_circuits(all_circuits_Qbf_times, 'm', 'Qbf encoder', 0.5)
 
     plt.legend(bbox_to_anchor=(1.1, 1), loc=1)
     plt.grid(linestyle = '--', linewidth = 0.5)
