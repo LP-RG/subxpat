@@ -519,7 +519,7 @@ class AnnotatedGraph(Graph):
         # COMPONENT END: Sensitivity Budget Constraints (SB)
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_maximization(opt, gate_literals,gate_weight=None)
+        ComponentManager.add_maximization(opt, gate_literals, gate_weight=None)
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
         # =========================== Skipping the nodes that are not labeled ================================
@@ -586,7 +586,7 @@ class AnnotatedGraph(Graph):
         # COMPONENT END: Sensitivity Budget Constraints (SB)
 
         # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_maximization(opt, gate_literals)
+        ComponentManager.add_maximization(opt, gate_literals, gate_weight=None)
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
         # =========================== Skipping the nodes that are not labeled ================================
