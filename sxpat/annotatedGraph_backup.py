@@ -29,7 +29,7 @@ from .config.config import (
 )
 
 
-class AnnotatedGraph(Graph):
+class AnnotatedGraph_backup(Graph):
     __cached_loading_callable = None
 
     def __init__(self, circuit_verilog_path: str, run_paths: Paths.RunFiles, is_clean: bool = False) -> None:

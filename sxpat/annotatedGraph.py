@@ -273,6 +273,7 @@ class AnnotatedGraph(Graph):
             if specs_obj.requires_subgraph_extraction:
                 if specs_obj.extraction_mode == 1:
                     pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
+                    self.verify_refactoring(specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 2:
@@ -455,6 +456,35 @@ class AnnotatedGraph(Graph):
         # COMPONENT END: Optimization and Selection Constraints (OS)
 
         return subgraph_nodes
+
+    def verify_refactoring(self, specs_obj: Specifications, iterations: int = 1):
+        """
+        Verifies whether the old and refactored implementations produce 
+        the same results for subgraphs.
+        """
+        from annotatedGraph_backup import AnnotatedGraph_backup
+
+        for i in range(1, iterations + 1):
+            print(f"Verification Iteration {i}")
+        
+            # 1. Run the old (monolithic) version
+            old_nodes = AnnotatedGraph_backup.find_subgraph(self, specs_obj)
+        
+            # 2. Run the new (modularly refactored) version
+            new_nodes = self.find_subgraph(specs_obj)
+        
+            # Applying the logic from the sketch:
+            if len(old_nodes) != len(new_nodes):
+                print(f"ERROR at iteration {i}: Different number of nodes! Old: {len(old_nodes)}, New: {len(new_nodes)}")
+                raise RuntimeError("Refactoring verification failed: node count mismatch!")
+            
+            elif set(old_nodes) == set(new_nodes):
+                print(f"Iteration {i}: OK - Subcircuits are identical.")
+                continue
+            
+            else:
+                print(f"Iteration {i}: Differences found in subgraph content despite equal node count.")
+                raise RuntimeError("Refactoring verification failed: content mismatch!")
 
     def find_subgraph_sensitivity(self, specs_obj: Specifications) -> List[str]:
         """
