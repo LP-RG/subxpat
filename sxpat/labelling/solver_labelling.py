@@ -75,7 +75,7 @@ class Labelling:
         l_bound2, u_bound2 = input2_interval
 
         #spilting of the input space
-        num_steps = 256 // beta
+        num_steps = beta
         
         #cration of intervals of inputs
         all_zones=[]
@@ -109,8 +109,9 @@ class Labelling:
 
         # run solver
         status, model = Z3DirectIntSolver.solve(question, self._specs)
-      
-        assert status == 'sat'
+
+        if status == 'unsat':
+            return 0
      
 
         # extract node weight
@@ -138,7 +139,19 @@ class Labelling:
 
         return zone_weights
 
-    def label_graph(self) -> Mapping[str, int]:
+    # def label_graph(self, input1_zone:Tuple[int, int], input2_zone:Tuple[int, int], beta:int) -> Dict[str, Dict[Zone, int]]:
+
+    #     for node in self.to_be_labelled.nodes:
+    #         #get node weights dictionary
+    #         node_weights = self.label_all_zones(node.name, input1_zone, input2_zone, beta)
+
+    #         #store it in the nested dictionary
+    #         self.to_be_labelled.zone_weights[node.name] = node_weights
+
+    #     #optional but just in case is needed to print or save
+    #     return self.to_be_labelled.zone_weights
+
+    def label_graph(self) -> Dict[str, int]:
         raise NotImplementedError('To be done later')
 
     def _define_question(self, node_to_label: str, zone_intervals: Zone):
