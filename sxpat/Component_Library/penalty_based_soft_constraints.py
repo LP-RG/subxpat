@@ -1,4 +1,4 @@
-from z3 import If, Sum
+from z3 import If, IntVal, Sum
 
 class PenaltyConstraints:
     @staticmethod
@@ -17,4 +17,5 @@ class PenaltyConstraints:
     @staticmethod
     def apply_penalty_constraints(opt, penalty, output_individual_penalty, soft_limit, weight=1):
         opt.add(penalty == Sum(output_individual_penalty))
-        opt.add_soft(Sum(output_individual_penalty) <= soft_limit, weight=weight)
+        # Why IntVal(1)? => Because sometimes the Sum results into an integer "Python number (e.g., int)", but we need a "Z3 number (e.g., ArithRef)"
+        opt.add_soft(IntVal(1) * Sum(output_individual_penalty) <= soft_limit, weight=weight)
