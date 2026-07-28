@@ -81,7 +81,10 @@ class MultiPartitionIterationEngine:
         Sorts partitions and extracts the best one based on mode.
         """
         if not all_partitions:
-            return None, None, None
+            if mode == 'multi':
+                return None, None, [], {} 
+            else:
+                return None, []
 
         if mode == 'multi':
             sorted_partitions = dict(
