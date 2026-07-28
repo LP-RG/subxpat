@@ -1,4 +1,4 @@
-from z3 import If, IntVal, Sum
+from z3 import If, Sum
 
 class PenaltyConstraints:
     @staticmethod
@@ -6,7 +6,6 @@ class PenaltyConstraints:
         output_individual_penalty = []
         for s in edge_w:
             if gate_weight[s] > feasibility_treshold:
-                # Generăm termenul If pentru Z3
                 penalty_term = If(
                     gate_literals[s], 
                     penalty_coefficient * (gate_weight[s] - feasibility_treshold), 
@@ -16,6 +15,6 @@ class PenaltyConstraints:
         return output_individual_penalty
     
     @staticmethod
-    def apply_penalty_constraints(opt, penalty_var, penalty_list, soft_limit, weight=1):
-        opt.add(penalty_var == Sum(penalty_list))
-        opt.add_soft(IntVal(1) * Sum(penalty_list) <= soft_limit, weight=weight)
+    def apply_penalty_constraints(opt, penalty, output_individual_penalty, feasibility_treshold, weight=1):
+        opt.add(penalty == Sum(output_individual_penalty))
+        opt.add_soft(Sum(output_individual_penalty) <= 2 * feasibility_treshold, weight=weight)
