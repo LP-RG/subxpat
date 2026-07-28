@@ -15,6 +15,6 @@ class PenaltyConstraints:
         return output_individual_penalty
     
     @staticmethod
-    def apply_penalty_constraints(opt, penalty, output_individual_penalty, feasibility_treshold, weight=1):
+    def apply_penalty_constraints(opt, penalty, output_individual_penalty, soft_limit, weight=1):
         opt.add(penalty == Sum(output_individual_penalty))
-        opt.add_soft(Sum(output_individual_penalty) <= 2 * feasibility_treshold, weight=weight)
+        opt.add_soft(Sum(output_individual_penalty) <= soft_limit, weight=weight)
