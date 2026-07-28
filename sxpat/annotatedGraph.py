@@ -274,7 +274,7 @@ class AnnotatedGraph(Graph):
             if specs_obj.requires_subgraph_extraction:
                 if specs_obj.extraction_mode == 1:
                     pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
-                    # RefactoringVerifier.mode_1(self, specs_obj, iterations=1)
+                    RefactoringVerifier.mode_1(self, specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 2:

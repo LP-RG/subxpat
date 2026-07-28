@@ -5,7 +5,7 @@ import io
 
 class RefactoringVerifier:
     @staticmethod
-    def verify_refactoring_generic(graph_instance, specs_obj: Specifications, old_finder, new_finder, iterations: int = 1):
+    def verify_refactoring_generic(graph_instance, specs_factory, old_finder, new_finder, iterations: int = 1):
         """
         Verifies whether the old and refactored implementations produce 
         the same results for subgraphs.
@@ -14,22 +14,8 @@ class RefactoringVerifier:
         for i in range(1, iterations + 1):
             print(f"Verification Iteration {i}")
 
-            # Temporarily save and remove any stream/file (TextIOWrapper) from specs_obj
-            io_attrs = {}
-            for k, v in list(specs_obj.__dict__.items()):
-                if isinstance(v, (io.TextIOWrapper, io.IOBase)):
-                    io_attrs[k] = v
-                    del specs_obj.__dict__[k]
-
-            # 1. Create clean copies
-            specs_old = copy.deepcopy(specs_obj)
-            specs_new = copy.deepcopy(specs_obj)
-
-            # Restore streams to original object and copies
-            for k, v in io_attrs.items():
-                specs_obj.__dict__[k] = v
-                specs_old.__dict__[k] = v
-                specs_new.__dict__[k] = v
+            specs_old = specs_factory()
+            specs_new = specs_factory()
 
             old_nodes = old_finder(graph_instance, specs_old)
             new_nodes = new_finder(specs_new)
@@ -52,7 +38,7 @@ class RefactoringVerifier:
         """Verifies refactoring for Mode 1."""
         cls.verify_refactoring_generic(
             graph_instance,
-            specs_obj,
+            lambda: copy.copy(specs_obj),
             old_finder=AnnotatedGraph_backup.find_subgraph,
             new_finder=graph_instance.find_subgraph,
             iterations=iterations
@@ -63,7 +49,7 @@ class RefactoringVerifier:
         """Verifies refactoring for Mode 2 (Sensitivity)."""
         cls.verify_refactoring_generic(
             graph_instance,
-            specs_obj,
+            lambda: copy.copy(specs_obj),
             old_finder=AnnotatedGraph_backup.find_subgraph_sensitivity,
             new_finder=graph_instance.find_subgraph_sensitivity,
             iterations=iterations
@@ -74,7 +60,7 @@ class RefactoringVerifier:
         """Verifies refactoring for Mode 3 (Sensitivity without IO constraints)."""
         cls.verify_refactoring_generic(
             graph_instance,
-            specs_obj,
+            lambda: copy.copy(specs_obj),
             old_finder=AnnotatedGraph_backup.find_subgraph_sensitivity_no_io_constraints,
             new_finder=graph_instance.find_subgraph_sensitivity_no_io_constraints,
             iterations=iterations
@@ -85,7 +71,7 @@ class RefactoringVerifier:
         """Verifies refactoring for Mode 4 (Feasible)."""
         cls.verify_refactoring_generic(
             graph_instance,
-            specs_obj,
+            lambda: copy.copy(specs_obj),
             old_finder=AnnotatedGraph_backup.find_subgraph_feasible,
             new_finder=graph_instance.find_subgraph_feasible,
             iterations=iterations
@@ -96,7 +82,7 @@ class RefactoringVerifier:
         """Verifies refactoring for Mode 4 (Feasible Hard)."""
         cls.verify_refactoring_generic(
             graph_instance,
-            specs_obj,
+            lambda: copy.copy(specs_obj),
             old_finder=AnnotatedGraph_backup.find_subgraph_feasible_hard,
             new_finder=graph_instance.find_subgraph_feasible_hard,
             iterations=iterations
@@ -107,7 +93,7 @@ class RefactoringVerifier:
         """Verifies refactoring for Mode 55."""
         cls.verify_refactoring_generic(
             graph_instance,
-            specs_obj,
+            lambda: copy.copy(specs_obj),
             old_finder=AnnotatedGraph_backup.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec,
             new_finder=graph_instance.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec,
             iterations=iterations
@@ -118,7 +104,7 @@ class RefactoringVerifier:
         """Verifies refactoring for Mode 6."""
         cls.verify_refactoring_generic(
             graph_instance,
-            specs_obj,
+            lambda: copy.copy(specs_obj),
             old_finder=AnnotatedGraph_backup.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold,
             new_finder=graph_instance.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold,
             iterations=iterations
@@ -129,7 +115,7 @@ class RefactoringVerifier:
         """Verifies refactoring for Mode 11."""
         cls.verify_refactoring_generic(
             graph_instance,
-            specs_obj,
+            lambda: copy.copy(specs_obj),
             old_finder=AnnotatedGraph_backup.find_subgraph_feasible_soft,
             new_finder=graph_instance.find_subgraph_feasible_soft,
             iterations=iterations
@@ -140,7 +126,7 @@ class RefactoringVerifier:
         """Verifies refactoring for Mode 11."""
         cls.verify_refactoring_generic(
             graph_instance,
-            specs_obj,
+            lambda: copy.copy(specs_obj),
             old_finder=AnnotatedGraph_backup.find_subgraph_feasible_soft_outputs,
             new_finder=graph_instance.find_subgraph_feasible_soft_outputs,
             iterations=iterations
