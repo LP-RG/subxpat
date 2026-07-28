@@ -85,7 +85,7 @@
     iii) State Restoration:
         Purpose: Guarantees functional atomicity by reverting the specifications object to its original configuration after execution, effectively preventing side effects within the engine.
 
-- __Symbolic Topology Management__
+- __Bitvector Topology Management__
     Establishes the formal, typed environment for circuit representation and enforces topological soundness at the node level. This component maps physical circuit topology into a verifiable symbolic format for the solver.
 
     Core Mechanisms & Constraints:
@@ -177,20 +177,25 @@
     + Datatype Convexity and Structural Constraints
     + Datatype Feasibility and Filtering Constraints
     + Datatype Optimization and Selection Constraints
-    + Datatype Parent-Child Connectivity Constraintsc
 
 - __Algorithm 6: find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold__
     Description: A meta-algorithm that automates the selection of an optimal feasibility threshold (*et*). It performs a linear partition of the graph's weight distribution into eight representative intervals and iteratively executes *Algorithm 55* across these intervals to identify the most suitable threshold. By dynamically calibrating the feasibility constraint, this algorithm ensures successful subgraph extraction even when the initial threshold is overly restrictive, effectively acting as an automated wrapper for *Algorithm 55*.
 
     Components Utilized:
     + Search Space Calibration & State Management(i, ii, iii)
-    + Symbolic Topology Management (relies on Algorithm 55)
+    + Bitvector Topology Management (relies on Algorithm 55)
 
 - __Algorithm 100: slash_to_kill__
     Description: A high-precision subgraph extraction algorithm that leverages Z3 custom Datatypes and BitVector logic to model circuit nodes and edges. It implements a rigorous constraint satisfaction approach where "cutting" edges (slashing) is evaluated against a bit-width constrained feasibility threshold. By encoding topology into symbolic structures, it enforces strict structural integrity, including mandatory child-inclusion rules for parent gates and exhaustive convexity validation, making it suitable for complex, constraint-heavy logic pruning.
 
     Components Utilized:
-    + Symbolic Topology Management(i, ii, iii, iv, vi, vii, ix, x)
+    Bitvector Topology Management (i, ii, iii, iv, vi, vii, ix, x)
+    + Datatype Model Initialization
+    + Datatype Signal Propagation Constraints
+    + Datatype Convexity and Structural Constraints
+    + Datatype Feasibility and Filtering Constraints
+    + Datatype Optimization and Selection Constraints
+    + Datatype Parent-Child Connectivity Constraintsc
 
 - __Algorithm 11: find_subgraph_feasible_soft__
     Description: A flexible subgraph extraction algorithm that implements a "soft" feasibility model. Instead of strictly rejecting nodes exceeding the feasibility threshold (*et*), it calculates a penalty cost for these violations and uses *opt.add_soft* to minimize the overall penalty while maximizing the subgraph size. The algorithm employs a multi-pass iteration engine to explore and rank multiple potential partitions, ultimately selecting the one that best balances size and penalty.
