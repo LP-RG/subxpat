@@ -5,13 +5,17 @@ import pandas as pd
 import os
 import sys
 
-def scatter_circuits(circuits: Sequence[Any], color_str: str, label_str: str, alpha_val: float) -> None:
+def scatter_circuits(circuits: Sequence[Any], color_str: str, label_str: str, alpha_val: float, annotation: bool = False) -> None:
     label = True
     for circuit in circuits:
         ypoints = circuit
         xpoints = [x for x in range(1, len(circuit) + 1)]
         plt.scatter(xpoints, ypoints, color = color_str, label = f'{'' if label else '_'}{label_str}', marker = 'o', alpha=alpha_val)
         label = False
+        if annotation:
+            for i in range(len(xpoints)):
+                plt.annotate(f"y={round(ypoints[i], 1)}", (xpoints[i]+0.1, ypoints[i]), fontsize=5)
+
 
 def plot_encoder_circuits(circuits: Sequence[Any], color_str: str, label_str: str) -> None:
     plt.figure(dpi=1500) 
@@ -19,7 +23,7 @@ def plot_encoder_circuits(circuits: Sequence[Any], color_str: str, label_str: st
     plt.xlabel('Iterations')
     plt.ylabel("Labelling time")
     
-    scatter_circuits(circuits, color_str, label_str, 1.0)
+    scatter_circuits(circuits, color_str, label_str, 1.0, True)
 
     plt.legend(bbox_to_anchor=(1.1, 1), loc=1)
     plt.grid(linestyle = '--', linewidth = 0.5)
@@ -41,6 +45,7 @@ def main():
     all_circuits_Qbf_times : Sequence[Any] = list()
 
     os.makedirs("all_circuits_plots", exist_ok=True)
+    os.makedirs("individual_circuits_plots", exist_ok=True)
 
     circuits = os.listdir(output_dir)
     for circuit in circuits:
@@ -55,21 +60,21 @@ def main():
         path_stats = f'{output_dir}/{circuit}/run_stats.csv'
         data = pd.read_csv(path_stats)
 
-        iterations = np.array(data['iteration'].unique().tolist())
+        iterations = data['iteration'].unique()
 
-        legacy_time = np.array(data['legacy_labelling_time'].unique().tolist())
+        legacy_time = data['legacy_labelling_time'].unique()
         all_circuits_legacy_times.append(legacy_time)
 
-        Z3_functional_time = np.array(data['Z3_functional_labelling_time'].unique().tolist())
+        Z3_functional_time = data['Z3_functional_labelling_time'].unique()
         all_circuits_Z3_functional_times.append(Z3_functional_time)
 
-        Z3_direct_time = np.array(data['Z3_direct_labelling_time'].unique().tolist())
+        Z3_direct_time = data['Z3_direct_labelling_time'].unique()
         all_circuits_Z3_direct_times.append(Z3_direct_time)
 
-        Z3_hybrid_time = np.array(data['Z3_hybrid_labelling_time'].unique().tolist())
+        Z3_hybrid_time = data['Z3_hybrid_labelling_time'].unique()
         all_circuits_Z3_hybrid_times.append(Z3_hybrid_time)
 
-        Qbf_time = np.array(data['Qbf_labelling_time'].unique().tolist())
+        Qbf_time = data['Qbf_labelling_time'].unique()
         all_circuits_Qbf_times.append(Qbf_time)
 
         xpoints = iterations

@@ -31,7 +31,7 @@ Laura/
 .DS_Store
 
 /logs*
-/all_circuits_plots
-/individual_circuits_plots
+/all_circuits_plots*
+/individual_circuits_plots*
 /extras
 /output*

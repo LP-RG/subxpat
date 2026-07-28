@@ -12,7 +12,7 @@ def get_circuits() -> Sequence[str]:
     return [
             circuit 
             for circuit in circuits
-            if circuit.startswith("adder") and int(output_size.search(circuit)[1]) <= 16
+            if circuit.startswith("adder") and int(output_size.search(circuit)[1]) <= 9
            ]
 
 def start_execution(benchmark_circuit: str) -> None:

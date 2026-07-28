@@ -788,7 +788,8 @@ def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
     functional_weights: Dict[str, int] = dict()
     for node_name in nodes_to_label:
         to_be_labelled, constraints, f_names = Labeling.define(circuit, [node_name], specs_obj.min_labeling)
-        status, result = Z3FuncIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+        specs_obj.sub_iteration = f'func_iter{specs_obj.iteration}_labelling_{node_name}'
+        status, result = Z3FuncBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
         functional_weights[node_name] = result['weight']
 
     _time = Timer.now() - _time
@@ -801,7 +802,8 @@ def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
     direct_weights: Dict[str, int] = dict()
     for node_name in nodes_to_label:
         to_be_labelled, constraints, f_names = Labeling.define(circuit, [node_name], specs_obj.min_labeling)
-        status, result = Z3DirectIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+        specs_obj.sub_iteration = f'dire_iter{specs_obj.iteration}_labelling_{node_name}'
+        status, result = Z3DirectBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
         direct_weights[node_name] = result['weight']
 
     _time = Timer.now() - _time
@@ -814,7 +816,8 @@ def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
     hybrid_weights: Dict[str, int] = dict()
     for node_name in nodes_to_label:
         to_be_labelled, constraints, f_names = Labeling.define(circuit, [node_name], specs_obj.min_labeling)
-        status, result = Z3HybridIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj, functional_nodes_names=f_names)
+        specs_obj.sub_iteration = f'hybr_iter{specs_obj.iteration}_labelling_{node_name}'
+        status, result = Z3HybridBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj, functional_nodes_names=f_names)
         hybrid_weights[node_name] = result['weight']
 
     _time = Timer.now() - _time
@@ -827,6 +830,7 @@ def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
     qbf_weights: Dict[str, int] = dict()
     for node_name in nodes_to_label:
         to_be_labelled, constraints, f_names = Labeling.define(circuit, [node_name], specs_obj.min_labeling)
+        specs_obj.sub_iteration = f'qbf_iter{specs_obj.iteration}_labelling_{node_name}'
         status, result = QbfSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
         qbf_weights[node_name] = result['weight']
     
