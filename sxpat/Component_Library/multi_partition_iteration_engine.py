@@ -1,13 +1,19 @@
 import networkx as nx
 import re
-from z3 import Bool, is_true, Not, And, sat
+from z3 import is_true, Not, And, sat, Optimize, ArithRef
 import pprint
 from sxpat.utils.print import pprint
+from typing import List, Tuple, Optional, Any
 
 class MultiPartitionIterationEngine:
 
     @staticmethod
-    def extract_multiple_subgraphs(opt, G, specs_obj, mode='multi', penalty=None):
+    def extract_multiple_subgraphs(opt: Optimize, 
+        G: nx.DiGraph, 
+        specs_obj: Any, 
+        mode: str = 'multi', 
+        penalty: Optional[ArithRef] = None
+    ) -> List[Any]:
         """
         Extracts multiple subgraphs iteratively from the solver model based on mode.
         """
@@ -55,8 +61,8 @@ class MultiPartitionIterationEngine:
                 break
 
             # COMPONENT START: Optimization and Selection Constraints (OS)
-            from sxpat.component_manager import ComponentManager
-            ComponentManager.validate_selection_convexity(G, node_partition)
+            from sxpat.Component_Library.optimization_and_selection_constraints import OptimizationConstraints
+            OptimizationConstraints.validate_selection_convexity(G, node_partition)
             # COMPONENT END: Optimization and Selection Constraints (OS)
 
             if c == sat:
@@ -76,7 +82,7 @@ class MultiPartitionIterationEngine:
         return all_partitions
     
     @staticmethod
-    def select_best_partition(all_partitions, mode='multi'):
+    def select_best_partition(all_partitions: List[Any], mode: str = 'multi') -> Tuple:
         """
         Sorts partitions and extracts the best one based on mode.
         """

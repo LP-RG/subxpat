@@ -1,11 +1,21 @@
-from z3 import And, Not, Or
+from z3 import And, Not, Or, BoolRef
+from typing import Dict, List, Tuple
+import networkx as nx
 
 class SignalPropagationConstraints:
     
     @staticmethod
-    def define_structural_constraints(input_edges, gate_edges, output_edges,
-                                      input_literals, gate_literals, output_literals,
-                                      tmp_graph, gate_dict, WEIGHT):
+    def define_structural_constraints(
+            input_edges: Dict[int, List[int]],
+            gate_edges: Dict[int, List[int]],
+            output_edges: Dict[int, List[int]],
+            input_literals: Dict[int, BoolRef],
+            gate_literals: Dict[int, BoolRef],
+            output_literals: Dict[int, BoolRef],
+            tmp_graph: nx.DiGraph,
+            gate_dict: Dict[int, str],
+            WEIGHT: str,
+        ) -> Tuple[List[BoolRef], List[BoolRef], Dict[int, int], Dict[int, BoolRef]]:
         
         # List of all the partition edges
         partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])

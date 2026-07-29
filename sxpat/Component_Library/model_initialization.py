@@ -1,11 +1,20 @@
 import networkx as nx
 import re
-from z3 import Bool
+from z3 import Bool, Optimize, BoolRef
+from typing import Dict, List, Tuple
 
 class ModelInitialization:
     
     @staticmethod
-    def prepare_circuit_model(tmp_graph, constant_dict):
+    def prepare_circuit_model(tmp_graph: nx.DiGraph, constant_dict: Dict[int, str]
+        ) -> Tuple[
+            Dict[int, BoolRef],
+            Dict[int, BoolRef],
+            Dict[int, BoolRef],
+            Dict[int, List[int]],
+            Dict[int, List[int]],
+            Dict[int, List[int]],
+        ]:
         """
         Initialize literals, edge structures, the DiGraph gate graph
         and set boundaries to False in the Z3 solver.
@@ -80,7 +89,10 @@ class ModelInitialization:
         return input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges
     
     @staticmethod
-    def build_gate_graph(tmp_graph, constant_dict):
+    def build_gate_graph(
+            tmp_graph: nx.DiGraph,
+            constant_dict: Dict[int, str]
+        ) -> nx.DiGraph:
         """
         Create the directed graph G of the circuit without input and output nodes.
         """
@@ -104,7 +116,11 @@ class ModelInitialization:
         return G
     
     @staticmethod
-    def add_boundary_conditions(opt, input_literals, output_literals):
+    def add_boundary_conditions(
+            opt: Optimize,
+            input_literals: Dict[int, BoolRef],
+            output_literals: Dict[int, BoolRef],
+        ) -> None:
         """
         Set input and output nodes to False in the Z3 solver.
         """
@@ -117,7 +133,11 @@ class ModelInitialization:
             opt.add(output_literals[output_node_id] == False)
 
     @staticmethod
-    def extract_gate_weights(G, tmp_graph, gate_dict, weight_key):
+    def extract_gate_weights(G: nx.DiGraph, 
+        tmp_graph: nx.DiGraph, 
+        gate_dict: Dict[int, str], 
+        weight_key: str
+    ) -> Dict[int, int]:
         """
         Extract weights for each gate in the circuit graph.
         """

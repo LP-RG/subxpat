@@ -1,14 +1,29 @@
 import math
 import networkx as nx
-from z3 import Datatype, BitVecSort, BoolSort, BitVecVal, BoolVal, And, Not, Bool, If, Or, Implies, is_true, sat, Sum
+from z3 import (
+    Datatype, BitVecSort, BoolSort, BitVecVal, BoolVal, And, 
+    Not, Bool, If, Or, Implies, is_true, sat, Sum,
+    Optimize, ExprRef, DatatypeSortRef
+)
 import pprint
 import re
 from sxpat.utils.graph import is_selection_convex
+from typing import Dict, List, Tuple, Optional, Any
 
 class BitvectorTopologyManagement:
     
     @staticmethod
-    def datatype_model_initialization(graph, weight_key, input_dict, gate_dict, output_dict, constant_dict, opt, num_outputs, num_gates):
+    def datatype_model_initialization(
+            graph: nx.DiGraph, 
+            weight_key: str, 
+            input_dict: Dict[int, str], 
+            gate_dict: Dict[int, str], 
+            output_dict: Dict[int, str], 
+            constant_dict: Dict[int, str], 
+            opt: Optimize, 
+            num_outputs: int, 
+            num_gates: int
+        ) -> Tuple[DatatypeSortRef, DatatypeSortRef, Dict[int, Any], Dict[Tuple[int, int], Any], int]:        
         """
         i) Architecture Initialization & ii) Graph Data Ingestion using Z3 Datatype and BitVec.
         """
@@ -80,7 +95,12 @@ class BitvectorTopologyManagement:
         return Node, Edge, nodes, edges, NUM_BITS
 
     @staticmethod
-    def datatype_signal_propagation_constraints (graph, nodes, Node, NUM_BITS):
+    def datatype_signal_propagation_constraints (
+            graph: nx.DiGraph, 
+            nodes: Dict[int, Any], 
+            Node: DatatypeSortRef, 
+            NUM_BITS: int
+        ) -> Tuple[Any, Any, Any]:
         """
         iii) Symbolic Cut & Flow Analysis
         """
@@ -115,7 +135,12 @@ class BitvectorTopologyManagement:
         return unique_incoming_edges, unique_outgoing_edges, max_nodes    
         
     @staticmethod
-    def datatype_convexity_and_structural_constraints(graph, nodes, Node, opt):
+    def datatype_convexity_and_structural_constraints(
+            graph: nx.DiGraph, 
+            nodes: Dict[int, Any], 
+            Node: DatatypeSortRef, 
+            opt: Optimize
+        ) -> None:
         """
         iv) Node-Level Structural Integrity
         """
@@ -147,8 +172,16 @@ class BitvectorTopologyManagement:
                     opt.add(ancestor_condition)
 
     @staticmethod
-    def datatype_optimization_and_selection_constraints(opt, max_nodes, graph, gate_dict, imax=None, omax=None, 
-        unique_incoming_edges=None, unique_outgoing_edges=None, apply_io_limits=False):
+    def datatype_optimization_and_selection_constraints(opt: Optimize,
+            max_nodes: Any,
+            graph: nx.DiGraph,
+            gate_dict: Dict[int, str],
+            imax: Optional[int] = None,
+            omax: Optional[int] = None,
+            unique_incoming_edges: Optional[Any] = None,
+            unique_outgoing_edges: Optional[Any] = None,
+            apply_io_limits: bool = False,
+        ) -> List[str]:
         """
         vi) Optimization & Maximization Objective & vii)  Structural Integrity Audit (Global Graph Context)
         """
@@ -210,7 +243,15 @@ class BitvectorTopologyManagement:
         return [gate_dict[idx] for idx in node_partition_idx]
     
     @staticmethod
-    def datatype_feasibility_and_filtering_constraints(edges, Node, Edge, NUM_BITS, feasibility_threshold, sum_mode=False):
+    def datatype_feasibility_and_filtering_constraints(
+            edges: Dict[Tuple[int, int], Any],
+            Node: DatatypeSortRef,
+            Edge: DatatypeSortRef,
+            NUM_BITS: int,
+            feasibility_threshold: int,
+            sum_mode: bool = False,
+        ) -> ExprRef:
+
         if sum_mode:
             feasibility_sum = Sum([
                 If(
@@ -232,7 +273,13 @@ class BitvectorTopologyManagement:
             return And(feasibility_constraints)
         
     @staticmethod
-    def datatype_parent_child_constraints(graph, nodes, Node, opt):
+    def datatype_parent_child_constraints(
+            graph: nx.DiGraph, 
+            nodes: Dict[int, Any], 
+            Node: DatatypeSortRef, 
+            opt: Optimize
+        ) -> None:
+        
         for parent in nodes:
             children = list(graph.successors(parent))
             if not children:
