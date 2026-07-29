@@ -1,3 +1,16 @@
+# Part 0: Model Initialization
+    Establishes the foundational symbolic and topological environment. This component acts as the translation layer, converting the physical circuit representation (NetworkX graphs) into separated structural dictionaries and independent Z3 boolean variables, while isolating the internal logic from external constraints.
+
+    Core Mechanisms & Constraints:
+    i) Symbolic Literal and Edge Translation:
+        Purpose: Parses the original circuit graph to generate a verifiable symbolic model. It creates distinct Z3 Boolean literals for inputs, internal logic gates, and outputs (explicitly ignoring constants). Simultaneously, it constructs directional adjacency lists (input-to-gate, gate-to-gate, gate-to-output) to strictly track signal flow boundaries.
+    ii) Internal Graph Isolation:
+        Purpose: Creates a purified directed graph containing only internal logic gates, stripping away I/O nodes for focused subgraph extraction.
+    iii) Boundary Isolation Constraints:
+        Purpose: Forces all primary input and output literals to False in the solver, guaranteeing the algorithm extracts strictly internal partitions.
+    iv) Gate Weight Extraction:
+        Purpose: Maps physical weight attributes from the original graph directly to the isolated gates, priming the model for downstream cost optimization and filtering.
+
 # Part 1: Component Library
 - __Signal Propagation Constraints__
     Defines the logical entry and exit points for subgraphs and enforces signal flow validity. This component maps the physical topology of the circuit into a verifiable logical format.
@@ -74,6 +87,23 @@
             - Strategy A (Balanced Penalty Ranking): Sorts partitions based on cost and size to balance logical density against the feasibility threshold.
             - Strategy B (Multi-Attribute Hierarchical Ranking): Implements a comprehensive post-processing hierarchy to optimize for three distinct criteria: partition size (maximization), output interface cost (minimization), and internal gate cost (minimization).
 
+- __Bitvector Topology Management__
+    Establishes the formal, typed environment for circuit representation and enforces topological soundness at the node level. This component maps physical circuit topology into a verifiable symbolic format for the solver.
+
+    Core Mechanisms & Constraints:
+    i) Datatype Model Initialization:
+        Purpose: Establishes a formally typed BitVector/Datatype environment for topological mapping. Ingests the physical graph and binds node properties to symbolic objects.
+    ii) Datatype Signal Propagation Constraints:
+        Purpose: Enforces binary representation of entry/exit points (bandwidth). It evaluates the symbolic cut and signal flow dynamically across the edges.
+    iii) Datatype Convexity and Structural Constraints:
+        Purpose: Applies convexity checking against Datatype logic structures to prevent logic gaps (enforcing ancestor/descendant structural integrity).
+    iv) Datatype Optimization and Selection Constraints:
+        Purpose: Runs optimization across bitvector representations and fetches formal model structures, ensuring maximum logic density within defined IO bounds.
+    v) Datatype Feasibility and Filtering Constraints:
+        Purpose: Enforces feasibility thresholds symbolically against datatype models (supporting both discrete threshold filtering and global budget aggregation).
+    vi) Datatype Parent-Child Connectivity Constraints:
+        Purpose: Enforces strict logical integrity for signal paths (Child-Consistency) ensuring entire downstream logic is captured.
+    
 - __Search Space Calibration & State Management__
     Orchestrates the adaptive search process by normalizing the problem space and ensuring functional isolation of the solver's state.
 
@@ -85,29 +115,6 @@
     iii) State Restoration:
         Purpose: Guarantees functional atomicity by reverting the specifications object to its original configuration after execution, effectively preventing side effects within the engine.
 
-- __Bitvector Topology Management__
-    Establishes the formal, typed environment for circuit representation and enforces topological soundness at the node level. This component maps physical circuit topology into a verifiable symbolic format for the solver.
-
-    Core Mechanisms & Constraints:
-    i) Architecture Initialization:
-        Purpose: Establishes a formal, typed environment for the circuit. By declaring Node and Edge as symbolic datatypes, it enables the solver to perform attribute-based operations (ID, Weight, Subgraph-Membership) rather than managing raw lists of variables.
-    ii) Graph Data Ingestion:
-        Purpose: Maps the physical circuit topology into the solver's memory. This phase initializes every node by binding its unique identity, weight properties, and initial subgraph membership status to a symbolic object. Mechanism: Registers identity anchors and state bindings simultaneously to establish the node's formal symbolic state.
-    iii) Symbolic Cut & Flow Analysis:
-        Purpose: Detects boundary cuts dynamically. Instead of pre-calculating every edge, the solver evaluates the in_subgraph status of the source vs. target of every declared Edge object to identify entry/exit points and enforces bandwidth constraints.
-    iv) Node-Level Structural Integrity:
-        Purpose: Maintains topological consistency by enforcing convexity constraints (Descendant and Ancestor Consistency) to prevent floating logic or spontaneously generated fragments.
-    v) Formal Feasibility Filter:
-        Purpose: Enforces an absolute constraint where boundary edges are only permissible if the source gate meets the feasibility_threshold. This is a symbolic verification of the signal path's integrity at the partition boundary.
-    vi) Optimization & Maximization Objective:
-        Purpose: Guarantees the absolute maximum density of the subgraph. It employs a two-stage solver strategy: it finds the theoretical maximum (h.upper()) and, if the initial model falls short, forces a second pass to guarantee optimality.
-    vii) Structural Integrity Audit (Global Graph Context)
-        Purpose: Acts as the final safety auditor and translator. It ensures that the symbolic result from the solver is topologically sound (convex) and maps the internal Z3 identifiers back to the original graph's gate references.
-    ix) Structural Cohesion (Child-Consistency):
-        Purpose: Enforces strict logical integrity for signal paths. If a parent node is included in the subgraph and at least one child node is also selected, the solver is forced to include all children. This prevents the solver from selecting "partial" logic paths, ensuring that if a signal starts propagating through a gate, the entire downstream branch must be captured.
-    x) Global Feasibility Budgeting:
-        Purpose: Implements a cumulative constraint on the interface cost. Instead of filtering individual edges against the threshold (which is binary/permissive), this method aggregates the weight of all boundary-crossing edges into a single feasibility_sum. This budget-based approach allows for flexible partitioning where a single high-weight boundary edge might be permitted as long as the total "cut cost" remains below the defined feasibility_threshold.
-    
 - __Interactive & Diagnostic Tools__
     Provides a manual interface for circuit exploration and subgraph definition, enabling direct user intervention outside of the automated solver loop. This component bridges the gap between manual prototyping and the formal integrity requirements of the engine, ensuring that all user-selected subgraphs remain topologically valid and functional.
 
@@ -125,6 +132,9 @@
 - __Algorithm 1: find_subgraph__
     Description: Identifies and extracts a maximally weighted convex subgraph from the circuit. It formulates the extraction as a constraint satisfaction and optimization problem, using SMT solvers to ensure convexity, boundary constraints (*imax, omax*), and weighted gate inclusion.
 
+    Infrastructure:
+    + Model Initialization
+
     Components Utilized:
     + Signal Propagation Constraints
     + Convexity and Structural Constraints
@@ -133,6 +143,9 @@
 
 - __Algorithm 2: find_subgraph_sensitivity__
     Description: Extracts a functional subgraph by optimizing for maximum gate inclusion while strictly enforcing a global sensitivity budget (*sensitivity_t*). Unlike standard extraction, this algorithm weights the edges based on gate importance and uses an SMT solver to ensure the total cumulative sensitivity of the partitioned sub-circuit remains within the specified threshold, maintaining structural integrity through convexity constraints.
+
+    Infrastructure:
+    + Model Initialization
 
     Components Utilized:
     + Signal Propagation Constraints
@@ -143,6 +156,9 @@
 - __Algorithm 3: find_subgraph_sensitivity_no_io_constraints__
     Description: A specialized subgraph extraction algorithm that focuses exclusively on satisfying the global sensitivity budget (*sensitivity_t*) while maintaining structural convexity. By removing specific constraints on the number of input/output edges (*imax, omax*), this algorithm provides more flexibility in partition sizing, prioritizing the preservation of critical logic blocks within the sensitivity threshold.
 
+    Infrastructure:
+    + Model Initialization
+
     Components Utilized:
     + Signal Propagation Constraints
     + Convexity and Structural Constraints
@@ -152,6 +168,9 @@
 - __Algorithm 4: find_subgraph_feasible__
     Description: Extracts a subgraph by filtering components based on a specific feasibility threshold (*et*). The algorithm evaluates node weights against this threshold to select valid gates, ensuring that the resulting partition is both structurally convex and compliant with connectivity constraints (*imax, omax*). It focuses on including only those logic blocks that meet the defined performance or feasibility criteria.
 
+    Infrastructure:
+    + Model Initialization
+
     Components Utilized:
     + Signal Propagation Constraints
     + Convexity and Structural Constraints
@@ -160,6 +179,9 @@
 
 - __Algorithm 5: find_subgraph_feasible_hard__
     Description: A strict variant of the feasibility-based extraction algorithm. It enforces a "hard" constraint where the sum of selected feasible edge constraints must exactly equal the sum of the subgraph's output edges (*Sum(feasibility_constraints) == Sum(partition_output_edges)*). This ensures that every exit point of the partition is rigorously validated against the feasibility threshold (*et*), guaranteeing that only high-integrity logic blocks are extracted.
+
+    Infrastructure:
+    + Model Initialization
 
     Components Utilized:
     + Signal Propagation Constraints
@@ -171,7 +193,7 @@
     Description: A high-precision extraction algorithm that integrates symbolic topological modeling with strict interface bandwidth constraints. By utilizing Datatype and BitVec for binary node and edge representation, it enforces rigid input/output limits (*imax / omax*) and filters interface edges through a strict feasibility threshold condition. The algorithm ensures robust gate density optimization within predefined structural and interface constraints, with all logic natively integrated into the symbolic topology.
 
     Components Utilized:
-    Bitvector Topology Management(i, ii, iii, iv, v, vi, vii):
+    Bitvector Topology Management(i, ii, iii, iv, v):
     + Datatype Model Initialization
     + Datatype Signal Propagation Constraints
     + Datatype Convexity and Structural Constraints
@@ -189,16 +211,19 @@
     Description: A high-precision subgraph extraction algorithm that leverages Z3 custom Datatypes and BitVector logic to model circuit nodes and edges. It implements a rigorous constraint satisfaction approach where "cutting" edges (slashing) is evaluated against a bit-width constrained feasibility threshold. By encoding topology into symbolic structures, it enforces strict structural integrity, including mandatory child-inclusion rules for parent gates and exhaustive convexity validation, making it suitable for complex, constraint-heavy logic pruning.
 
     Components Utilized:
-    Bitvector Topology Management (i, ii, iii, iv, vi, vii, ix, x)
+    Bitvector Topology Management (i, ii, iii, iv, v, vi)
     + Datatype Model Initialization
     + Datatype Signal Propagation Constraints
     + Datatype Convexity and Structural Constraints
     + Datatype Feasibility and Filtering Constraints
     + Datatype Optimization and Selection Constraints
-    + Datatype Parent-Child Connectivity Constraintsc
+    + Datatype Parent-Child Connectivity Constraints
 
 - __Algorithm 11: find_subgraph_feasible_soft__
     Description: A flexible subgraph extraction algorithm that implements a "soft" feasibility model. Instead of strictly rejecting nodes exceeding the feasibility threshold (*et*), it calculates a penalty cost for these violations and uses *opt.add_soft* to minimize the overall penalty while maximizing the subgraph size. The algorithm employs a multi-pass iteration engine to explore and rank multiple potential partitions, ultimately selecting the one that best balances size and penalty.
+
+    Infrastructure:
+    + Model Initialization
 
     Components Utilized:
     + Signal Propagation Constraints
@@ -210,6 +235,9 @@
 
 - __Algorithm 12: find_subgraph_feasible_soft_outputs__
     Description: An advanced subgraph extraction algorithm that refines the "soft" feasibility approach by introducing dual-penalty metrics: one for internal gate violations and one specifically for output-edge feasibility violations. It balances subgraph size against these combined output and gate penalties, using a multi-pass optimization to rank candidate partitions based on size and penalty minimization. This approach is ideal for circuits where output signal integrity is as critical as internal gate feasibility.
+
+    Infrastructure:
+    + Model Initialization
 
     Components Utilized:
     + Signal Propagation Constraints
