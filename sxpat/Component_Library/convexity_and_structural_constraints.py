@@ -11,6 +11,10 @@ class ConvexityConstraints:
             gate_literals: Dict[int, BoolRef],
             gate_edges: Dict[int, List[int]],
         ) -> None:
+
+        """
+        Maintains logical soundness and topological continuity within subgraphs (convexity).
+        """
         
         descendants = {}
         ancestors = {}

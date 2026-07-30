@@ -16,6 +16,10 @@ class SignalPropagationConstraints:
             gate_dict: Dict[int, str],
             WEIGHT: str,
         ) -> Tuple[List[BoolRef], List[BoolRef], Dict[int, int], Dict[int, BoolRef]]:
+
+        """
+        Defines the structural constraints mapping the physical circuit topology into a symbolic logical format.
+        """
         
         # List of all the partition edges
         partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])

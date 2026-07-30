@@ -13,6 +13,10 @@ class PenaltyConstraints:
         gate_literals: Dict[int, BoolRef],
         penalty_coefficient: int = 1,
     ) -> List[Any]:
+
+        """
+        Calculates soft boundary constraint penalties.
+        """
         
         output_individual_penalty = []
         for s in edge_w:
@@ -33,6 +37,10 @@ class PenaltyConstraints:
         soft_limit: int,
         weight: int = 1,
     ) -> None:
+
+        """
+        Applies a flexible penalty constraint to balance modularity against feasibility deviations.
+        """
         
         opt.add(penalty == Sum(output_individual_penalty))
         # Why IntVal(1)? => Because sometimes the Sum results into an integer "Python number (e.g., int)", but we need a "Z3 number (e.g., ArithRef)"

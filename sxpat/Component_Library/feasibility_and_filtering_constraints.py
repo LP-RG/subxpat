@@ -12,6 +12,10 @@ class FeasibilityConstraints:
         edge_constraint: Dict[int, BoolRef],
         strict: bool = True,
     ) -> List[BoolRef]:
+
+        """
+        Identifies interface edges based on weight thresholds.
+        """
         
         feasibility_constraints = []
         for s in edge_w:
@@ -32,6 +36,10 @@ class FeasibilityConstraints:
         partition_output_edges: Optional[List[BoolRef]] = None,
         mode: str = "at_least_one",
     ) -> None:
+
+        """
+        Defines filtering rules for identifying "safe-to-cut" boundaries in the circuit.
+        """
         
         if mode == "at_least_one":
             opt.add(Sum(feasibility_constraints) >= 1)

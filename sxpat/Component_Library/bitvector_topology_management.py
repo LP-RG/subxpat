@@ -25,7 +25,7 @@ class BitvectorTopologyManagement:
             num_gates: int
         ) -> Tuple[DatatypeSortRef, DatatypeSortRef, Dict[int, Any], Dict[Tuple[int, int], Any], int]:        
         """
-        i) Architecture Initialization & ii) Graph Data Ingestion using Z3 Datatype and BitVec.
+        Establishes a formally typed BitVector/Datatype environment for topological mapping.
         """
         # loose bound but since it's logarithmic it's still ok
         NUM_BITS = num_outputs + math.ceil(math.log2(num_gates))
@@ -102,7 +102,7 @@ class BitvectorTopologyManagement:
             NUM_BITS: int
         ) -> Tuple[Any, Any, Any]:
         """
-        iii) Symbolic Cut & Flow Analysis
+        Enforces binary representation of entry/exit points (bandwidth).
         """
         unique_outgoing_edges = []
         unique_incoming_edges = []
@@ -142,7 +142,7 @@ class BitvectorTopologyManagement:
             opt: Optimize
         ) -> None:
         """
-        iv) Node-Level Structural Integrity
+        Applies convexity checking against Datatype logic structures to prevent logic gaps.
         """
         descendants = {}
         ancestors = {}
@@ -183,7 +183,7 @@ class BitvectorTopologyManagement:
             apply_io_limits: bool = False,
         ) -> List[str]:
         """
-        vi) Optimization & Maximization Objective & vii)  Structural Integrity Audit (Global Graph Context)
+        Runs optimization across bitvector representations and fetches formal model structures.
         """
         if apply_io_limits:
             if unique_incoming_edges is not None and imax is not None:
@@ -252,6 +252,10 @@ class BitvectorTopologyManagement:
             sum_mode: bool = False,
         ) -> ExprRef:
 
+        """
+        Enforces feasibility thresholds symbolically against datatype models.
+        """
+
         if sum_mode:
             feasibility_sum = Sum([
                 If(
@@ -279,6 +283,10 @@ class BitvectorTopologyManagement:
             Node: DatatypeSortRef, 
             opt: Optimize
         ) -> None:
+
+        """
+        Enforces strict logical integrity for signal paths (Child-Consistency) ensuring entire downstream logic is captured.
+        """
         
         for parent in nodes:
             children = list(graph.successors(parent))

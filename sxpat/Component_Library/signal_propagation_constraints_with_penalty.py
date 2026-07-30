@@ -19,6 +19,10 @@ class PenaltyPropagation:
         ) -> Tuple[
             List[BoolRef], List[BoolRef], List[Any], Dict[int, int], Dict[int, BoolRef]
         ]:
+
+        """
+        Defines signal propagation constraints with built-in penalty modeling for soft constraints.
+        """
         
         # List of all the partition edges
         partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])

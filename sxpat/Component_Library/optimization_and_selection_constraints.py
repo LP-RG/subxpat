@@ -16,6 +16,10 @@ class OptimizationConstraints:
         partition_input_edges: List[BoolRef],
         partition_output_edges: List[BoolRef],
     ) -> None:
+
+        """
+        Limits the interface bandwidth of the subgraph by enforcing boundary restrictions.
+        """
         
         if imax is not None:
             opt.add(Sum(partition_input_edges) <= imax)
@@ -28,6 +32,10 @@ class OptimizationConstraints:
         gate_literals: Dict[int, BoolRef],
         gate_weight: Optional[Dict[int, int]] = None,
     ) -> None:
+
+        """
+        Prioritizes the selection of high-value logic gates.
+        """
         
         max_func = []
         # Generate function to maximize
@@ -42,6 +50,10 @@ class OptimizationConstraints:
 
     @staticmethod
     def exclude_skipped_nodes(opt: Optimize, graph: nx.DiGraph) -> None:
+
+        """
+        Explicitly excludes designated nodes (Mandatory Inactivity) from the partition.
+        """
 
         skipped_nodes = []
         for node in graph.nodes:
@@ -64,6 +76,10 @@ class OptimizationConstraints:
     @staticmethod
     def validate_selection_convexity(G: nx.DiGraph, node_partition: List[int]) -> None:
 
+        """
+        Validates manual or pre-calculated node selection for topological convexity.
+        """
+
         if not is_selection_convex(G, node_partition):
             raise RuntimeError(
                 "the subgraph extraction resulted in a non-convex subgraph"
@@ -73,6 +89,10 @@ class OptimizationConstraints:
     def check_convexity(
         opt: Optimize, G: nx.DiGraph, gate_dict: Dict[int, str]
     ) -> List[str]:
+
+        """
+        Runs the optimizer and guarantees maximum density and structural integrity.
+        """
         
         node_partition = []
         if opt.check() == sat:

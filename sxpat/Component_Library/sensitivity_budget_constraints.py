@@ -11,12 +11,20 @@ class SensitivityBudgetConstraints:
         edge_constraint: Dict[int, BoolRef],
         sensitivity_t: int,
     ) -> None:
+
+        """
+        Imposes a strict budget on the total accumulated sensitivity.
+        """
         
         sensitivity_constraints = [edge_constraint[s] * edge_w[s] for s in edge_w]
         opt.add(Sum(sensitivity_constraints) <= sensitivity_t)
 
     @staticmethod
     def prepare_gate_weights(G, tmp_graph, gate_dict, weight_key):
+
+        """
+        Normalizes and prepares gate weights to favor inclusion of critical logic.
+        """
 
         # COMPONENT START: Model Initialization
         from sxpat.Component_Library.model_initialization import ModelInitialization
