@@ -33,11 +33,13 @@ class Z3Encoder:
         @authors: Marco Biasion
     """
 
+    # The Dictionaries (The Translators)
     node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Sequence[str], Sequence[Any]], str]]
     type_mapping: Mapping[Type[Union[int, bool]], Callable[[Sequence[Any]], str]]
     solver_construct: Mapping[Type[Union[ForAll, Min, Max, None]], str]
     node_accessories: Callable[[Sequence[Any]], Callable[[Node], Sequence[Any]]]
 
+    # It looks at what kind of problem you are solving (Normal, ForAll, Min, or Max) and writes the correct Z3 text.
     constraints_assertion: Mapping[Type[Union[ForAll, Min, Max, None]], Callable[[str, str, Sequence[str]], Sequence[str]]] = {
         type(None): lambda solver_name, task, assertions: [
             f'{solver_name}.add(',
@@ -105,6 +107,7 @@ class Z3Encoder:
         return (graphs, found_inputs_names.pop(), parameters_names, nodes_types, accessories,)
 
     @classmethod
+    # It literally just types from z3 import * at the very top of the text file.
     def inject_initialization(cls, destination: IO[str]) -> None:
         destination.write('\n'.join((
             'from z3 import *',
@@ -112,6 +115,8 @@ class Z3Encoder:
         )))
 
     @classmethod
+    # It scans your graph for anything marked as a Variable (like an input pixel). It looks up how to translate it using the node_mapping phrasebook, and writes it.
+    # Example: pixel_1 = Int('pixel_1')
     def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs,
                          accessories: Callable[[Node], Sequence[Any]]) -> None:
         variables = {  # ignore duplicates
@@ -130,6 +135,8 @@ class Z3Encoder:
         )))
 
     @classmethod
+    # Does the exact same thing as above, but for hardcoded Constant numbers
+    # Example: weight_1 = IntVal(5)
     def inject_constants(cls, destination: IO[str], graphs: Solver._Graphs,
                          accessories: Callable[[Node], Sequence[Any]]) -> None:
         constants = {  # ignore duplicates
@@ -148,6 +155,7 @@ class Z3Encoder:
         )))
 
     @classmethod
+    # This writes the very bottom of the script. It tells Z3 to actually run the math, print whether it was successful, and print the final answers.
     def inject_solve_and_result_writing(cls, destination: IO[str],
                                         name_graphs: Solver._Graphs,
                                         value_graphs: Solver._Graphs,
@@ -532,6 +540,7 @@ class Z3Solver(Solver):
 
     @classmethod
     @override
+    # "Does a valid subcircuit exist?"
     def solve_exists(cls, graphs: Solver._Graphs,
                      specifications: Specifications,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
@@ -539,6 +548,7 @@ class Z3Solver(Solver):
 
     @classmethod
     @override
+    # It tells Z3 to lock in a specific rule and mathematically prove it can never be violated, no matter what data flows through the wires.
     def solve_forall(cls, graphs: Solver._Graphs,
                      specifications: Specifications,
                      forall_task: ForAll,
@@ -547,6 +557,7 @@ class Z3Solver(Solver):
 
     @classmethod
     @override
+    # "Find me the subcircuit with the absolute smallest area,"
     def solve_optimize(cls, graphs: Solver._Graphs,
                        specifications: Specifications,
                        optimize_task: Union[Min, Max],
@@ -555,6 +566,7 @@ class Z3Solver(Solver):
 
     @classmethod
     @override
+    # It asks Z3 to find the absolute best physical design (like the smallest possible area), while simultaneously guaranteeing that the design works perfectly for all possible inputs.
     def solve_optimize_forall(cls, graphs: Solver._Graphs,
                               specifications: Specifications,
                               optimize_target: Union[Min, Max],
@@ -565,6 +577,9 @@ class Z3Solver(Solver):
         return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)
 
     @classmethod
+    # It generates a filename like iter1_0.py
+    # It calls cls.encoder.encode(...). This is where it uses the translation dictionaries to write all the Z3 text strings into that .py file.
+    # It runs the file and decodes the output.
     def _z3_solve(cls, graphs: Solver._Graphs,
                   specifications: Specifications,
                   global_task: Union[ForAll, Min, Max, None],
