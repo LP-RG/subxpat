@@ -18,6 +18,8 @@ from sxpat.graph.node import *
 
 import sxpat.config.config as sxpat_cfg
 
+from z3 import Datatype, StringSort, BoolSort
+import functools
 
 __all__ = [
     'Z3FuncIntSolver', 'Z3FuncBitVecSolver',
@@ -472,6 +474,44 @@ Z3_BITVEC_NODE_MAPPING = {
     GreaterThan: lambda n, operands, accs: f'UGT({operands[0]}, {operands[1]})',
     GreaterEqualThan: lambda n, operands, accs: f'UGE({operands[0]}, {operands[1]})',
 }
+Z3_DATATYPE_NODE_MAPPING = {
+    # variables
+    BoolVariable: lambda n, operands, accs: f'NodeSort.bool_var(\'{n.name}\')',
+    IntVariable: lambda n, operands, accs: f'NodeSort.int_var(\'{n.name}\')',
+    # constants
+    BoolConstant: lambda n, operands, accs: f'NodeSort.bool_var(\'{n.name}\', {n.value})',
+    IntConstant: lambda n, operands, accs: f'NodeSort.int_var(\'{n.name}\', {n.value})',
+    # output
+    Identity: lambda n, operands, accs: operands[0],
+    Target: lambda n, operands, accs: operands[0],
+    # placeholder
+    PlaceHolder: lambda n, operands, accs: n.name,
+    # boolean operations
+    Not: lambda n, operands, accs: f'NodeSort.not_node({operands[0]})',
+    And: lambda n, operands, accs: f'NodeSort.and_node({operands[0]}, {operands[1]})',
+    Or: lambda n, operands, accs: f'NodeSort.or_node({operands[0]}, {operands[1]})',
+    Xor: lambda n, operands, accs: f'NodeSort.or_node(NodeSort.and_node({operands[0]}, NodeSort.not_node({operands[1]})), NodeSort.and_node(NodeSort.not_node({operands[0]}), {operands[1]})',
+    Xnor: lambda n, operands, accs: f'NodeSort.not_node(NodeSort.or_node(NodeSort.and_node({operands[0]}, NodeSort.not_node({operands[1]})), NodeSort.and_node(NodeSort.not_node({operands[0]}), {operands[1]}))',
+    Implies: lambda n, operands, accs: f'NodeSort.or_node(NodeSort.not_node({operands[0]}), {operands[1]})',
+    # integer operations
+    Sum: lambda n, operands, accs: operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f'NodeSort.sum_node({a}, {b})', operands),
+    AbsDiff: lambda n, operands, accs: f'NodeSort.abs_diff_node({operands[0]}, {operands[1]})',
+    Mul: lambda n, operands, accs: operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f'NodeSort.mul_node({a}, {b})', operands),
+    Div: lambda n, operands, accs: operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f'NodeSort.div_node({a}, {b})', operands),
+    # comparison operations
+    Equals: lambda n, operands, accs: f'NodeSort.eq_node({operands[0]}, {operands[1]})',
+    NotEquals: lambda n, operands, accs: f'NodeSort.not_node(NodeSort.eq_node({operands[0]}, {operands[1]}))',
+    LessThan: lambda n, operands, accs: f'NodeSort.compare_node("<", {operands[0]}, {operands[1]})',
+    LessEqualThan: lambda n, operands, accs: f'NodeSort.compare_node("<=", {operands[0]}, {operands[1]})',
+    GreaterThan: lambda n, operands, accs: f'NodeSort.compare_node(">", {operands[0]}, {operands[1]})',
+    GreaterEqualThan: lambda n, operands, accs: f'NodeSort.compare_node(">=", {operands[0]}, {operands[1]})',
+    # quantifier operations
+    AtLeast: lambda n, operands, accs: f'NodeSort.at_least_node({n.value}, {operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f"NodeSort.and_node({a}, {b})", operands)})',
+    AtMost: lambda n, operands, accs: f'NodeSort.at_most_node({n.value}, {operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f'NodeSort.and_node({a}, {b})', operands)})',
+    # branching operations
+    Multiplexer: lambda n, operands, accs: f'NodeSort.if_node({operands[1]}, NodeSort.if_node({operands[2]}, {operands[0]}, NodeSort.not_node({operands[0]})), {operands[2]})',
+    If: lambda n, operands, accs: f'NodeSort.if_node({operands[0]}, {operands[1]}, {operands[2]})',
+}
 
 # bool/int to Z3 sorts
 Z3_INT_TYPE_MAPPING = {
@@ -530,7 +570,42 @@ class Z3DirectBitVecEncoder(Z3DirectEncoder):
     node_accessories = Z3_BITVEC_NODE_ACCESSORIES
 
 class Z3DataTypeEncoder(Z3Encoder): 
-    pass
+    node_mapping = Z3_DATATYPE_NODE_MAPPING
+    type_mapping = Z3_DATATYPE_TYPE_MAPPING
+    solver_construct = Z3_DATATYPE_SOLVER_CONSTRUCT
+    node_accessories = Z3_DATATYPE_NODE_ACCESSORIES
+
+    @classmethod
+    def inject_initialization(cls, destination: IO[str]) -> None:
+        # This calls the parent class to write "from z3 import *" at the top of the file
+        super().inject_initialization(destination)
+        
+        # Now, we literally type our Datatype rules into the generated text file
+        destination.write('\n'.join((
+            '# 1. Declare the new Universe / Sort',
+            'NodeSort = Datatype("NodeSort")',
+            '# 2. Define the Constructors',
+            'NodeSort.declare("and_node", ("left", NodeSort), ("right", NodeSort))',
+            'NodeSort.declare("or_node", ("left", NodeSort), ("right", NodeSort))',
+            'NodeSort.declare("not_node", ("child", NodeSort))',
+
+            'NodeSort.declare("bool_var", ("name", StringSort()), ("val", BoolSort()))',
+            'NodeSort.declare("int_var", ("name", StringSort()), ("val", IntSort()))',
+
+            'NodeSort.declare("sum_node", ("left", NodeSort), ("right", NodeSort))',
+            'NodeSort.declare("abs_diff_node", ("left", NodeSort), ("right", NodeSort))',
+            'NodeSort.declare("mul_node", ("left", NodeSort), ("right", NodeSort))',
+            'NodeSort.declare("div_node", ("left", NodeSort), ("right", NodeSort))',
+
+            'NodeSort.declare("compare_node", ("op", z3.StringSort()), ("left", NodeSort), ("right", NodeSort))',
+            'NodeSort.declare("at_least_node", ("threshold", z3.IntSort()), ("operands", NodeSort))',
+            'NodeSort.declare("at_most_node", ("threshold", z3.IntSort()), ("operands", NodeSort))',
+            'NodeSort.declare("if_node", ("cond", NodeSort), ("then_branch", NodeSort), ("else_branch", NodeSort))',
+
+            '# 3. Finalize',
+            'NodeSort = NodeSort.create()',
+            *('',) * 2,
+        )))
 
 
 class Z3Solver(Solver):
