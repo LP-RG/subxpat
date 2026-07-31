@@ -1,0 +1,51 @@
+@startuml SubXPAT_Solver_Architecture
+
+title Solver Class Hierarchy & New DataType Addition
+
+' Abstract Superclass
+abstract class Solver {
+}
+
+' Base Z3 Manager Class
+class Z3Solver {
+  + encoder: Z3Encoder
+}
+
+' Existing Leaf Solvers
+class Z3FuncIntSolver {
+  + encoder = Z3IntFuncEncoder
+}
+
+class Z3FuncBitVecSolver {
+  + encoder = Z3BitVecFuncEncoder
+}
+
+class Z3DirectIntSolver {
+  + encoder = Z3DirectIntEncoder
+}
+
+class Z3DirectBitVecSolver {
+  + encoder = Z3DirectBitVecEncoder
+}
+
+' UROP Addition:
+class Z3DataTypeSolver #LightGreen {
+  + encoder = Z3DataTypeEncoder
+}
+
+' Relationships
+Solver <|-- Z3Solver : " inherits"
+Z3Solver <|-- Z3FuncIntSolver : " inherits"
+Z3Solver <|-- Z3FuncBitVecSolver : " inherits"
+Z3Solver <|-- Z3DirectIntSolver : " inherits"
+Z3Solver <|-- Z3DirectBitVecSolver : " inherits"
+Z3Solver <|-- Z3DataTypeSolver : " inherits"
+
+note left of Z3DataTypeSolver
+  <b>UROP Addition:</b>
+  Leverages custom Z3 Datatypes
+  to optimize search space during
+  subgraph extraction.
+end note
+
+@enduml
