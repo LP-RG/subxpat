@@ -22,6 +22,7 @@ import sxpat.config.config as sxpat_cfg
 __all__ = [
     'Z3FuncIntSolver', 'Z3FuncBitVecSolver',
     'Z3DirectIntSolver', 'Z3DirectBitVecSolver',
+    'Z3DataTypeSolver',
 ]
 
 
