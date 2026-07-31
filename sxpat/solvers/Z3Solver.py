@@ -540,6 +540,12 @@ Z3_BITVEC_SOLVER_CONSTRUCT = {
     type(None): 'SolverFor(\'BV\')',
     ForAll: 'SolverFor(\'BV\')',
 }
+Z3_DATATYPE_SOLVER_CONSTRUCT = {
+    type(None): 'Solver()',
+    ForAll: 'Solver()',
+    Min: 'Optimize()',
+    Max: 'Optimize()',
+}
 
 # node accessories
 Z3_INT_NODE_ACCESSORIES = lambda d: lambda n: ()
