@@ -550,6 +550,7 @@ Z3_DATATYPE_SOLVER_CONSTRUCT = {
 # node accessories
 Z3_INT_NODE_ACCESSORIES = lambda d: lambda n: ()
 Z3_BITVEC_NODE_ACCESSORIES = lambda d: lambda n: (d[0].get(n.name, None),)
+Z3_DATATYPE_NODE_ACCESSORIES = lambda d: lambda n: ()
 
 
 class Z3IntFuncEncoder(Z3FuncEncoder):
