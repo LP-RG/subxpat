@@ -528,6 +528,9 @@ class Z3DirectBitVecEncoder(Z3DirectEncoder):
     solver_construct = Z3_BITVEC_SOLVER_CONSTRUCT
     node_accessories = Z3_BITVEC_NODE_ACCESSORIES
 
+class Z3DataTypeEncoder(Z3Encoder): 
+    pass
+
 
 class Z3Solver(Solver):
     """
@@ -667,3 +670,7 @@ class Z3DirectIntSolver(Z3Solver):
 
 class Z3DirectBitVecSolver(Z3Solver):
     encoder = Z3DirectBitVecEncoder
+
+
+class Z3DataTypeSolver(Z3Solver):
+    encoder = Z3DataTypeEncoder
