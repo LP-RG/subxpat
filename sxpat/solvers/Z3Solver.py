@@ -522,6 +522,10 @@ Z3_BITVEC_TYPE_MAPPING = {
     **Z3_INT_TYPE_MAPPING,
     int: lambda accs: f'BitVecSort({accs[0]})',
 }
+Z3_DATATYPE_TYPE_MAPPING = {
+    bool: lambda accs: 'NodeSort',
+    int: lambda accs: 'NodeSort',
+}
 
 # solver object creation
 Z3_INT_SOLVER_CONSTRUCT = {
