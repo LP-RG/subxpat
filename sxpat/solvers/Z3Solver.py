@@ -18,7 +18,7 @@ from sxpat.graph.node import *
 
 import sxpat.config.config as sxpat_cfg
 
-from z3 import Datatype, StringSort, BoolSort
+from z3 import Datatype, StringSort, BoolSort, IntSort
 import functools
 
 __all__ = [
