@@ -550,8 +550,8 @@ Z3_BITVEC_NODE_MAPPING = {
 }
 Z3_DATATYPE_NODE_MAPPING = {
     # variables
-    BoolVariable: lambda n, operands, accs: f'NodeSort.bool_var(StringVal(\'{n.name}\'))',
-    IntVariable: lambda n, operands, accs: f'NodeSort.int_var(StringVal(\'{n.name}\'))',
+    BoolVariable: lambda n, operands, accs: f'Const(\'{n.name}\', NodeSort)',
+    IntVariable: lambda n, operands, accs: f'Const(\'{n.name}\', NodeSort)',
     # constants
     BoolConstant: lambda n, operands, accs: f'NodeSort.bool_const(StringVal(\'{n.name}\'), {n.value})',
     IntConstant: lambda n, operands, accs: f'NodeSort.int_const(StringVal(\'{n.name}\'), {n.value})',
