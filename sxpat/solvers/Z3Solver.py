@@ -553,8 +553,8 @@ Z3_DATATYPE_NODE_MAPPING = {
     BoolVariable: lambda n, operands, accs: f'NodeSort.bool_var(\'{n.name}\')',
     IntVariable: lambda n, operands, accs: f'NodeSort.int_var(\'{n.name}\')',
     # constants
-    BoolConstant: lambda n, operands, accs: f'NodeSort.bool_var(\'{n.name}\', {n.value})',
-    IntConstant: lambda n, operands, accs: f'NodeSort.int_var(\'{n.name}\', {n.value})',
+    BoolConstant: lambda n, operands, accs: f'NodeSort.bool_const(\'{n.name}\', {n.value})',
+    IntConstant: lambda n, operands, accs: f'NodeSort.int_const(\'{n.name}\', {n.value})',
     # output
     Identity: lambda n, operands, accs: operands[0],
     Target: lambda n, operands, accs: operands[0],
@@ -674,8 +674,10 @@ class Z3DataTypeEncoder(Z3NodeSortEncoder):
             'NodeSort.declare("or_node", ("left", NodeSort), ("right", NodeSort))',
             'NodeSort.declare("not_node", ("child", NodeSort))',
 
-            'NodeSort.declare("bool_var", ("name", StringSort()), ("val", BoolSort()))',
-            'NodeSort.declare("int_var", ("name", StringSort()), ("val", IntSort()))',
+            'NodeSort.declare("bool_var", ("name", StringSort()))',
+            'NodeSort.declare("bool_const", ("name", StringSort()), ("val", BoolSort()))',
+            'NodeSort.declare("int_var", ("name", StringSort()))',
+            'NodeSort.declare("int_const", ("name", StringSort()), ("val", IntSort()))',
 
             'NodeSort.declare("sum_node", ("left", NodeSort), ("right", NodeSort))',
             'NodeSort.declare("abs_diff_node", ("left", NodeSort), ("right", NodeSort))',
