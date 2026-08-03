@@ -1,4 +1,4 @@
-@startuml
+@startuml Refactored_Architecture_Map
 skinparam componentStyle uml2
 skinparam titleFontSize 20
 left to right direction

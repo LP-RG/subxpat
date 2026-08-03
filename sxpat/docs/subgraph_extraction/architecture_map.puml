@@ -1,4 +1,4 @@
-@startuml
+@startuml Architecture_Map
 skinparam componentStyle uml2
 left to right direction
 
