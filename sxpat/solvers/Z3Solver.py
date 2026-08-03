@@ -473,7 +473,7 @@ class Z3NodeSortEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# usage ',
             'usage = And(', *(
-                f'    {constraint_node.operand},'
+                f'    {constraint_node.operand} == NodeSort.bool_const(StringVal("true"), True),'
                 for graph in graphs
                 if isinstance(graph, CGraph)
                 for constraint_node in graph.constraints
