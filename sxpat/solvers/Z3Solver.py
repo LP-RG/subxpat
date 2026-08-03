@@ -486,8 +486,8 @@ class Z3HybridEncoder(Z3Encoder):
                               accessories: Callable[[Node], Sequence[Any]], 
                               functional_nodes_names: set) -> None:
         """
-            Wrapper that splits up (in order) the nodes needing the method coming from Z3DirectEncoder
-            and the nodes needing the method coming from Z3FuncEncoder.
+            Wrapper method that splits up the nodes (in order!) into the ones needing the method coming from class 'Z3DirectEncoder'
+            and the ones needing the method coming from class 'Z3FuncEncoder'.
         """
         nodes = []
         for graph in graphs:
@@ -532,6 +532,8 @@ class Z3HybridEncoder(Z3Encoder):
             (t.name for g in graphs if isinstance(g, CGraph) for t in g.targets),
         ))
         # turn fully direct graphs into hybrid ones (= functional/call + direct)
+        # a hybrid graph is one where each node's name is set according to whether the node is a functional or a direct one, when it's
+        # functional the name is a function call, when it's direct the name is just the the node's name/identifier
         hybrid_graphs = tuple(
             Z3FuncEncoder.graph_as_function_calls(graph, inputs_string, non_gates_names, functional_nodes_names)
             for graph in graphs

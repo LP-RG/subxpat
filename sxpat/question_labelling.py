@@ -80,6 +80,7 @@ class Labeling:
             )
         )
 
+        # Set the names of all nodes which will be interpreted as functional nodes (only used in Z3HybridIntSolver/Z3HybridBitVecSolver)
         functional_nodes_names: set = {"weight"}
        
         return (template_graph, constraint_graph, functional_nodes_names)

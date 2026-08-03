@@ -455,19 +455,19 @@ def error_evaluation(reference_circuit: IOGraph, current_circuit: IOGraph, specs
     return next(iter(model.values()))
 
 
-def z3labelling(circuit: IOGraph, specs_obj: Specifications):
+def z3labelling(circuit: IOGraph, specs_obj: Specifications) -> None:
+    """
+        @authors: Ilia Zeller
+    """
     from sxpat.question_labelling import Labeling
 
-    to_be_labelled, constraints, f_names = Labeling.define(circuit, ['g0'], specs_obj.min_labeling)
+    to_be_labelled, constraints, func_names = Labeling.define(circuit, ['g0'], specs_obj.min_labeling)
 
     status, result = Z3FuncIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+    print(status, result)
     status, result = Z3DirectIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
-    status, result = Z3HybridIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj, functional_nodes_names=f_names)
-
-    # status, result = Z3FuncBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
-    # status, result = Z3DirectBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
-    # status, result = Z3HybridBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj, functional_nodes_names=bit_to_int)
-
+    print(status, result)
+    status, result = Z3HybridIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj, functional_nodes_names=func_names)
     print(status, result)
     
 
@@ -742,9 +742,12 @@ def model_compare(a: ExpandedCircuitData, b: ExpandedCircuitData) -> Union[Liter
     else: return 0
 
 
-def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
+def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> dict[str, int]:
     """
         @authors: Ilia Zeller
+
+        Method for testing the capabilities and efficiency of the various solvers availble.
+        Tested solvers: legacy (labeller), Z3 Functional, Z3 Direct, Z3 Hybrid, Qbf.
     """
     from sxpat.question_labelling import Labeling
     from sxpat.labelling.labelling import Labelling
@@ -789,7 +792,7 @@ def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
     for node_name in nodes_to_label:
         to_be_labelled, constraints, f_names = Labeling.define(circuit, [node_name], specs_obj.min_labeling)
         specs_obj.sub_iteration = f'func_iter{specs_obj.iteration}_labelling_{node_name}'
-        status, result = Z3FuncBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+        status, result = Z3FuncIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
         functional_weights[node_name] = result['weight']
 
     _time = Timer.now() - _time
@@ -803,7 +806,7 @@ def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
     for node_name in nodes_to_label:
         to_be_labelled, constraints, f_names = Labeling.define(circuit, [node_name], specs_obj.min_labeling)
         specs_obj.sub_iteration = f'dire_iter{specs_obj.iteration}_labelling_{node_name}'
-        status, result = Z3DirectBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
+        status, result = Z3DirectIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj)
         direct_weights[node_name] = result['weight']
 
     _time = Timer.now() - _time
@@ -817,7 +820,7 @@ def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
     for node_name in nodes_to_label:
         to_be_labelled, constraints, f_names = Labeling.define(circuit, [node_name], specs_obj.min_labeling)
         specs_obj.sub_iteration = f'hybr_iter{specs_obj.iteration}_labelling_{node_name}'
-        status, result = Z3HybridBitVecSolver.solve((circuit, to_be_labelled, constraints), specs_obj, functional_nodes_names=f_names)
+        status, result = Z3HybridIntSolver.solve((circuit, to_be_labelled, constraints), specs_obj, functional_nodes_names=f_names)
         hybrid_weights[node_name] = result['weight']
 
     _time = Timer.now() - _time
@@ -838,6 +841,7 @@ def test_solvers(circuit: IOGraph, specs_obj: Specifications) -> None:
     specs_obj.stats_storage.stage(Qbf_labelling_time=_time)
     print(f'Qbf_labelling_time = {_time}')
 
+    # Checking equality between solvers results
     if (legacy_weights != functional_weights):
         print(f'For benchmark {specs_obj.current_benchmark} legacy and functional weights are different\n Legacy weights\n {legacy_weights} \n Functional weights\n {functional_weights}')
     if (legacy_weights != direct_weights):

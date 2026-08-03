@@ -223,9 +223,10 @@ class Labelling:
         nodes_to_label: set,
     ) -> dict[str, int]:
         """
-        Compute the weights for the entire graph.
+            @authors: Ilia Zeller
 
-        THIS METHOD ONLY USED FOR SOLVERS TESTING
+            Compute the weights for the entire graph.
+            THIS METHOD IS ONLY USED FOR SOLVERS TESTING.
         """
 
         # label nodes
