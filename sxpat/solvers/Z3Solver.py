@@ -708,9 +708,9 @@ class Z3DataTypeEncoder(Z3NodeSortEncoder):
             'NodeSort.declare("not_node", ("child", NodeSort))',
 
             'NodeSort.declare("bool_var", ("name", StringSort()))',
-            'NodeSort.declare("bool_const", ("name", StringSort()), ("val", BoolSort()))',
+            'NodeSort.declare("bool_const", ("name", StringSort()), ("bool_val", BoolSort()))',
             'NodeSort.declare("int_var", ("name", StringSort()))',
-            'NodeSort.declare("int_const", ("name", StringSort()), ("val", IntSort()))',
+            'NodeSort.declare("int_const", ("name", StringSort()), ("int_val", IntSort()))',
 
             'NodeSort.declare("sum_node", ("left", NodeSort), ("right", NodeSort))',
             'NodeSort.declare("abs_diff_node", ("left", NodeSort), ("right", NodeSort))',
@@ -737,7 +737,7 @@ class Z3DataTypeEncoder(Z3NodeSortEncoder):
             '    If(eval_bool(n), 1, 0)))',
             
             'RecAddDefinition(eval_bool, [n],',
-            '    If(NodeSort.is_bool_const(n), NodeSort.val(n),',
+            '    If(NodeSort.is_bool_const(n), NodeSort.bool_val(n),',
             '    If(NodeSort.is_and_node(n), And(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
             '    If(NodeSort.is_or_node(n), Or(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
             '    If(NodeSort.is_not_node(n), Not(eval_bool(NodeSort.child(n))),',
@@ -747,7 +747,7 @@ class Z3DataTypeEncoder(Z3NodeSortEncoder):
             '    False))))))))',
             
             'RecAddDefinition(eval_int, [n],',
-            '    If(NodeSort.is_int_const(n), NodeSort.val(n),',
+            '    If(NodeSort.is_int_const(n), NodeSort.int_val(n),',
             '    If(NodeSort.is_sum_node(n), eval_int(NodeSort.left(n)) + eval_int(NodeSort.right(n)),',
             '    If(NodeSort.is_abs_diff_node(n), If(eval_int(NodeSort.left(n)) >= eval_int(NodeSort.right(n)), eval_int(NodeSort.left(n)) - eval_int(NodeSort.right(n)), eval_int(NodeSort.right(n)) - eval_int(NodeSort.left(n))),',
             '    If(NodeSort.is_if_node(n), If(eval_bool(NodeSort.cond(n)), eval_int(NodeSort.then_branch(n)), eval_int(NodeSort.else_branch(n))),',
