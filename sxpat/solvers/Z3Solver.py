@@ -550,11 +550,11 @@ Z3_BITVEC_NODE_MAPPING = {
 }
 Z3_DATATYPE_NODE_MAPPING = {
     # variables
-    BoolVariable: lambda n, operands, accs: f'NodeSort.bool_var(\'{n.name}\')',
-    IntVariable: lambda n, operands, accs: f'NodeSort.int_var(\'{n.name}\')',
+    BoolVariable: lambda n, operands, accs: f'NodeSort.bool_var(StringVal(\'{n.name}\'))',
+    IntVariable: lambda n, operands, accs: f'NodeSort.int_var(StringVal(\'{n.name}\'))',
     # constants
-    BoolConstant: lambda n, operands, accs: f'NodeSort.bool_const(\'{n.name}\', {n.value})',
-    IntConstant: lambda n, operands, accs: f'NodeSort.int_const(\'{n.name}\', {n.value})',
+    BoolConstant: lambda n, operands, accs: f'NodeSort.bool_const(StringVal(\'{n.name}\'), {n.value})',
+    IntConstant: lambda n, operands, accs: f'NodeSort.int_const(StringVal(\'{n.name}\'), {n.value})',
     # output
     Identity: lambda n, operands, accs: operands[0],
     Target: lambda n, operands, accs: operands[0],
@@ -575,10 +575,10 @@ Z3_DATATYPE_NODE_MAPPING = {
     # comparison operations
     Equals: lambda n, operands, accs: f'NodeSort.eq_node({operands[0]}, {operands[1]})',
     NotEquals: lambda n, operands, accs: f'NodeSort.not_node(NodeSort.eq_node({operands[0]}, {operands[1]}))',
-    LessThan: lambda n, operands, accs: f'NodeSort.compare_node("<", {operands[0]}, {operands[1]})',
-    LessEqualThan: lambda n, operands, accs: f'NodeSort.compare_node("<=", {operands[0]}, {operands[1]})',
-    GreaterThan: lambda n, operands, accs: f'NodeSort.compare_node(">", {operands[0]}, {operands[1]})',
-    GreaterEqualThan: lambda n, operands, accs: f'NodeSort.compare_node(">=", {operands[0]}, {operands[1]})',
+    LessThan: lambda n, operands, accs: f'NodeSort.compare_node(StringVal("<"), {operands[0]}, {operands[1]})',
+    LessEqualThan: lambda n, operands, accs: f'NodeSort.compare_node(StringVal("<="), {operands[0]}, {operands[1]})',
+    GreaterThan: lambda n, operands, accs: f'NodeSort.compare_node(StringVal(">"), {operands[0]}, {operands[1]})',
+    GreaterEqualThan: lambda n, operands, accs: f'NodeSort.compare_node(StringVal(">="), {operands[0]}, {operands[1]})',
     # quantifier operations
     AtLeast: lambda n, operands, accs: f'NodeSort.at_least_node({n.value}, {operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f"NodeSort.and_node({a}, {b})", operands)})',
     AtMost: lambda n, operands, accs: f'NodeSort.at_most_node({n.value}, {operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f"NodeSort.and_node({a}, {b})", operands)})',
@@ -684,9 +684,9 @@ class Z3DataTypeEncoder(Z3NodeSortEncoder):
             'NodeSort.declare("mul_node", ("left", NodeSort), ("right", NodeSort))',
             'NodeSort.declare("div_node", ("left", NodeSort), ("right", NodeSort))',
 
-            'NodeSort.declare("compare_node", ("op", z3.StringSort()), ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("at_least_node", ("threshold", z3.IntSort()), ("operands", NodeSort))',
-            'NodeSort.declare("at_most_node", ("threshold", z3.IntSort()), ("operands", NodeSort))',
+            'NodeSort.declare("compare_node", ("op", StringSort()), ("left", NodeSort), ("right", NodeSort))',
+            'NodeSort.declare("at_least_node", ("threshold", IntSort()), ("operands", NodeSort))',
+            'NodeSort.declare("at_most_node", ("threshold", IntSort()), ("operands", NodeSort))',
             'NodeSort.declare("if_node", ("cond", NodeSort), ("then_branch", NodeSort), ("else_branch", NodeSort))',
 
             '# 3. Finalize',
