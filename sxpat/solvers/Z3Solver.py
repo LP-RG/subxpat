@@ -581,7 +581,7 @@ Z3_DATATYPE_NODE_MAPPING = {
     GreaterEqualThan: lambda n, operands, accs: f'NodeSort.compare_node(">=", {operands[0]}, {operands[1]})',
     # quantifier operations
     AtLeast: lambda n, operands, accs: f'NodeSort.at_least_node({n.value}, {operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f"NodeSort.and_node({a}, {b})", operands)})',
-    AtMost: lambda n, operands, accs: f'NodeSort.at_most_node({n.value}, {operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f'NodeSort.and_node({a}, {b})', operands)})',
+    AtMost: lambda n, operands, accs: f'NodeSort.at_most_node({n.value}, {operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f"NodeSort.and_node({a}, {b})", operands)})',
     # branching operations
     Multiplexer: lambda n, operands, accs: f'NodeSort.if_node({operands[1]}, NodeSort.if_node({operands[2]}, {operands[0]}, NodeSort.not_node({operands[0]})), {operands[2]})',
     If: lambda n, operands, accs: f'NodeSort.if_node({operands[0]}, {operands[1]}, {operands[2]})',
