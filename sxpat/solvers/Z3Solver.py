@@ -562,8 +562,8 @@ Z3_DATATYPE_NODE_MAPPING = {
     PlaceHolder: lambda n, operands, accs: n.name,
     # boolean operations
     Not: lambda n, operands, accs: f'NodeSort.not_node({operands[0]})',
-    And: lambda n, operands, accs: f'NodeSort.and_node({operands[0]}, {operands[1]})',
-    Or: lambda n, operands, accs: f'NodeSort.or_node({operands[0]}, {operands[1]})',
+    And: lambda n, operands, accs: operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f'NodeSort.and_node({a}, {b})', operands),
+    Or: lambda n, operands, accs: operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f'NodeSort.or_node({a}, {b})', operands),
     Xor: lambda n, operands, accs: f'NodeSort.or_node(NodeSort.and_node({operands[0]}, NodeSort.not_node({operands[1]})), NodeSort.and_node(NodeSort.not_node({operands[0]}), {operands[1]})',
     Xnor: lambda n, operands, accs: f'NodeSort.not_node(NodeSort.or_node(NodeSort.and_node({operands[0]}, NodeSort.not_node({operands[1]})), NodeSort.and_node(NodeSort.not_node({operands[0]}), {operands[1]}))',
     Implies: lambda n, operands, accs: f'NodeSort.or_node(NodeSort.not_node({operands[0]}), {operands[1]})',
