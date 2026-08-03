@@ -660,6 +660,39 @@ class Z3DataTypeEncoder(Z3NodeSortEncoder):
     solver_construct = Z3_DATATYPE_SOLVER_CONSTRUCT
     node_accessories = Z3_DATATYPE_NODE_ACCESSORIES
 
+    constraints_assertion = {
+        type(None): lambda solver_name, task, assertions: [
+            f'{solver_name}.add(',
+            *(f'    {a},' for a in assertions),
+            f')',
+        ],
+        ForAll: lambda solver_name, forall, assertions: [
+            f'{solver_name}.add(',
+            f'    ForAll(',
+            f'        [{",".join(forall.operands)}],',
+            f'        Implies(',
+            f'            And([NodeSort.is_bool_const(v) for v in [{",".join(forall.operands)}]]),',
+            f'            And(',
+            *(f'                {a},' for a in assertions),
+            f'            )',
+            f'        )',
+            f'    )',
+            f')',
+        ],
+        Min: lambda solver_name, min, assertions: [
+            f'{solver_name}.add(',
+            *(f'    {a},' for a in assertions),
+            f')',
+            f'{solver_name}.minimize({min.operand})',
+        ],
+        Max: lambda solver_name, max, assertions: [
+            f'{solver_name}.add(',
+            *(f'    {a},' for a in assertions),
+            f')',
+            f'{solver_name}.maximize({max.operand})',
+        ],
+    }
+
     @classmethod
     def inject_initialization(cls, destination: IO[str]) -> None:
         # This calls the parent class to write "from z3 import *" at the top of the file
