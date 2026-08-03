@@ -418,6 +418,80 @@ class Z3DirectEncoder(Z3Encoder):
         # results
         cls.inject_solve_and_result_writing(destination, graphs, graphs)
 
+class Z3NodeSortEncoder(Z3Encoder):
+    """
+        Z3 encoder using the NodeSort approach.
+    """
+
+    @classmethod
+    def encode(cls, graphs: Solver._Graphs,
+               destination: IO[str],
+               global_task: Union[ForAll, Min, Max, None] = None,
+               ) -> None:
+
+        # initial computations
+        node_mapping = cls.node_mapping
+        type_mapping = cls.type_mapping
+        solver_construct = cls.solver_construct
+        constraint_assertion = cls.constraints_assertion
+        (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
+
+        # initialization
+        cls.inject_initialization(destination)
+
+        # variables
+        cls.inject_variables(destination, graphs, accessories)
+
+        # constants
+        cls.inject_constants(destination, graphs, accessories)
+
+        # nodes declaration
+        destination.write('\n'.join((
+            '# declare expression nodes as Datatype constants',
+            *(
+                f'{node.name} = Const(\'{node.name}\', {type_mapping[nodes_types[node.name]](accessories(node))})'
+                for graph in graphs
+                for node in graph.expressions
+            ),
+            *('',) * 2,
+        )))
+
+        # nodes behavior
+        destination.write('\n'.join((
+            '# behaviour ',
+            'behaviour = And(',
+            *(
+                f'    {node.name} == {node_mapping[type(node)](node, node.operands, accessories(node))},'
+                for graph in graphs
+                for node in graph.expressions
+            ), 
+            ')',
+            *('',) * 2,
+        )))
+
+        # nodes usage
+        destination.write('\n'.join((
+            '# usage ',
+            'usage = And(', *(
+                f'    {constraint_node.operand},'
+                for graph in graphs
+                if isinstance(graph, CGraph)
+                for constraint_node in graph.constraints
+            ), ')', 
+            *('',) * 2,
+        )))
+
+        # solver
+        destination.write('\n'.join((
+            f'# define solver',
+            f'solver = {solver_construct[type(global_task)]}',
+            *constraint_assertion[type(global_task)]('solver', global_task, ['behaviour', 'usage']),
+            *('',) * 2,
+        )))
+
+        # results
+        cls.inject_solve_and_result_writing(destination, graphs, graphs)
+
 
 # Node to Z3 expression
 Z3_INT_NODE_MAPPING = {
@@ -580,7 +654,7 @@ class Z3DirectBitVecEncoder(Z3DirectEncoder):
     solver_construct = Z3_BITVEC_SOLVER_CONSTRUCT
     node_accessories = Z3_BITVEC_NODE_ACCESSORIES
 
-class Z3DataTypeEncoder(Z3Encoder): 
+class Z3DataTypeEncoder(Z3NodeSortEncoder): 
     node_mapping = Z3_DATATYPE_NODE_MAPPING
     type_mapping = Z3_DATATYPE_TYPE_MAPPING
     solver_construct = Z3_DATATYPE_SOLVER_CONSTRUCT
