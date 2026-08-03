@@ -22,5 +22,6 @@ def get_specialized(specs: Specifications) -> Type[Solver]:
         EncodingType.Z3_FUNC_BITVECTOR: Z3FuncBitVecSolver,
         EncodingType.Z3_DIRECT_INTEGER: Z3DirectIntSolver,
         EncodingType.Z3_DIRECT_BITVECTOR: Z3DirectBitVecSolver,
+        EncodingType.Z3_DATATYPE: Z3DataTypeSolver,
         EncodingType.QBF: QbfSolver,
     }[specs.encoding]

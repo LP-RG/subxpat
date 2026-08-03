@@ -41,6 +41,7 @@ class EncodingType(enum.Enum):
     Z3_FUNC_BITVECTOR = 'z3bvec'
     Z3_DIRECT_INTEGER = 'z3dint'
     Z3_DIRECT_BITVECTOR = 'z3dbvec'
+    Z3_DATATYPE = 'z3datatype'
     QBF = 'qbf'
 
 
