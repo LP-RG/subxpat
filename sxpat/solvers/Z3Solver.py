@@ -691,6 +691,34 @@ class Z3DataTypeEncoder(Z3NodeSortEncoder):
 
             '# 3. Finalize',
             'NodeSort = NodeSort.create()',
+            
+            '# 4. Define Recursive Evaluators to compute actual logic',
+            'eval_bool = RecFunction("eval_bool", NodeSort, BoolSort())',
+            'eval_int = RecFunction("eval_int", NodeSort, IntSort())',
+            'count_trues = RecFunction("count_trues", NodeSort, IntSort())',
+            'n = Const("n", NodeSort)',
+
+            '# Helper for at_most / at_least nodes',
+            'RecAddDefinition(count_trues, [n],',
+            '    If(NodeSort.is_and_node(n), count_trues(NodeSort.left(n)) + count_trues(NodeSort.right(n)),',
+            '    If(eval_bool(n), 1, 0)))',
+            
+            'RecAddDefinition(eval_bool, [n],',
+            '    If(NodeSort.is_bool_const(n), NodeSort.val(n),',
+            '    If(NodeSort.is_and_node(n), And(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
+            '    If(NodeSort.is_or_node(n), Or(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
+            '    If(NodeSort.is_not_node(n), Not(eval_bool(NodeSort.child(n))),',
+            '    If(NodeSort.is_compare_node(n), If(NodeSort.op(n) == StringVal("<="), eval_int(NodeSort.left(n)) <= eval_int(NodeSort.right(n)), If(NodeSort.op(n) == StringVal("<"), eval_int(NodeSort.left(n)) < eval_int(NodeSort.right(n)), If(NodeSort.op(n) == StringVal(">="), eval_int(NodeSort.left(n)) >= eval_int(NodeSort.right(n)), If(NodeSort.op(n) == StringVal(">"), eval_int(NodeSort.left(n)) > eval_int(NodeSort.right(n)), eval_int(NodeSort.left(n)) == eval_int(NodeSort.right(n)))))),',
+            '    If(NodeSort.is_at_most_node(n), count_trues(NodeSort.operands(n)) <= NodeSort.threshold(n),',
+            '    If(NodeSort.is_at_least_node(n), count_trues(NodeSort.operands(n)) >= NodeSort.threshold(n),',
+            '    False))))))))',
+            
+            'RecAddDefinition(eval_int, [n],',
+            '    If(NodeSort.is_int_const(n), NodeSort.val(n),',
+            '    If(NodeSort.is_sum_node(n), eval_int(NodeSort.left(n)) + eval_int(NodeSort.right(n)),',
+            '    If(NodeSort.is_abs_diff_node(n), If(eval_int(NodeSort.left(n)) >= eval_int(NodeSort.right(n)), eval_int(NodeSort.left(n)) - eval_int(NodeSort.right(n)), eval_int(NodeSort.right(n)) - eval_int(NodeSort.left(n))),',
+            '    If(NodeSort.is_if_node(n), If(eval_bool(NodeSort.cond(n)), eval_int(NodeSort.then_branch(n)), eval_int(NodeSort.else_branch(n))),',
+            '    0)))))',
             *('',) * 2,
         )))
 
