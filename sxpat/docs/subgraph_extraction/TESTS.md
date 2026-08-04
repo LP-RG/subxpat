@@ -3,8 +3,8 @@
 
 ORIGINAL CODE:
 iteration 1: #ofNodes=8
-iteration 2: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 3: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 2: #ofNodes=8 
+iteration 3: #ofNodes=8 
 iteration 4: #ofNodes=8
 iteration 5: #ofNodes=8
 iteration 6: #ofNodes=8
@@ -18,13 +18,13 @@ REFACTORED CODE:
 iteration 1: #ofNodes=8
 iteration 2: #ofNodes=8
 iteration 3: #ofNodes=8
-iteration 4: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 4: #ofNodes=8 
 iteration 5: #ofNodes=8
 iteration 6: #ofNodes=8
 iteration 7: #ofNodes=8
-iteration 8: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 9: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 10: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 8: #ofNodes=8 
+iteration 9: #ofNodes=8 
+iteration 10: #ofNodes=8 
 + Result: "The error space is exhausted!"
 
 ✅
@@ -49,8 +49,8 @@ iteration 13: #ofNodes=4
 iteration 14: #ofNodes=4
 iteration 15: #ofNodes=4
 iteration 16: #ofNodes=1
-iteration 17: #ofNodes=1 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 18: #ofNodes=1 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 17: #ofNodes=1 
+iteration 18: #ofNodes=1 
 + Result: "The error space is exhausted!"
 
 REFACTORED CODE:
@@ -58,7 +58,7 @@ iteration 1: #ofNodes=4
 iteration 2: #ofNodes=2
 iteration 3: #ofNodes=1
 iteration 4: #ofNodes=1
-iteration 5: #ofNodes=1 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 5: #ofNodes=1 
 iteration 6: #ofNodes=3
 iteration 7: #ofNodes=4
 iteration 8: #ofNodes=4
@@ -78,32 +78,32 @@ iteration 16: #ofNodes=2
 ORIGINAL CODE:
 iteration 1: #ofNodes=5
 iteration 2: #ofNodes=1
-iteration 3: #ofNodes=1 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 4: #ofNodes=1 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 3: #ofNodes=1 
+iteration 4: #ofNodes=1 
 iteration 5: #ofNodes=5
 iteration 6: #ofNodes=2
 iteration 7: #ofNodes=5
 iteration 8: #ofNodes=2
 iteration 9: #ofNodes=8
 iteration 10: #ofNodes=8
-iteration 11: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 12: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 13: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 11: #ofNodes=8 
+iteration 12: #ofNodes=8 
+iteration 13: #ofNodes=8 
 + Result: "The error space is exhausted!"
 
 REFACTORED CODE:
 iteration 1: #ofNodes=5
 iteration 2: #ofNodes=1
-iteration 3: #ofNodes=1 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 4: #ofNodes=1 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 3: #ofNodes=1 
+iteration 4: #ofNodes=1 
 iteration 5: #ofNodes=5
 iteration 6: #ofNodes=11
 iteration 7: #ofNodes=5
 iteration 8: #ofNodes=5
 iteration 9: #ofNodes=6
 iteration 10: #ofNodes=6
-iteration 11: #ofNodes=6 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 12: #ofNodes=6 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 11: #ofNodes=6 
+iteration 12: #ofNodes=6 
 iteration 13: #ofNodes=11 
 + Result: "Area zero found! Terminated."
 
@@ -114,20 +114,20 @@ ORIGINAL CODE:
 iteration 1: #ofNodes=8
 iteration 2: #ofNodes=7
 iteration 3: #ofNodes=8
-iteration 4: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 5: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 4: #ofNodes=8 
+iteration 5: #ofNodes=8 
 iteration 6: #ofNodes=8
 iteration 7: #ofNodes=8
-iteration 8: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 9: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 10: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 8: #ofNodes=8 
+iteration 9: #ofNodes=8 
+iteration 10: #ofNodes=8 
 + Result: "The error space is exhausted!"
 
 REFACTORED CODE:
 iteration 1: #ofNodes=8
 iteration 2: #ofNodes=7
 iteration 3: #ofNodes=8
-iteration 4: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 4: #ofNodes=8 
 iteration 5: #ofNodes=8
 iteration 6: #ofNodes=8
 iteration 7: #ofNodes=8
@@ -135,8 +135,8 @@ iteration 8: #ofNodes=8
 iteration 9: #ofNodes=7
 iteration 10: #ofNodes=7
 iteration 11: #ofNodes=1
-iteration 12: #ofNodes=1 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 13: #ofNodes=1 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 12: #ofNodes=1 
+iteration 13: #ofNodes=1 
 + Result: "The error space is exhausted!"
 
 # Mode 5: find_subgraph_feasible_hard
@@ -146,17 +146,17 @@ ORIGINAL CODE:
 iteration 1: #ofNodes=7
 iteration 2: #ofNodes=4
 iteration 3: #ofNodes=4
-iteration 4: #ofNodes=4
+iteration 4: #ofNodes=4 
 iteration 5: #ofNodes=3
-iteration 6: #ofNodes=3 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 6: #ofNodes=3 
 iteration 7: #ofNodes=8
 iteration 8: #ofNodes=4
 iteration 9: #ofNodes=4
 iteration 10: #ofNodes=4
 iteration 11: #ofNodes=4
 iteration 12: #ofNodes=4
-iteration 13: #ofNodes=4 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 14: #ofNodes=4 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 13: #ofNodes=4 
+iteration 14: #ofNodes=4 
 iteration 15: #ofNodes=5
 iteration 16: #ofNodes=3
 iteration 17: ("subgraph not found")
@@ -168,15 +168,15 @@ iteration 2: #ofNodes=4
 iteration 3: #ofNodes=4
 iteration 4: #ofNodes=4
 iteration 5: #ofNodes=3
-iteration 6: #ofNodes=3 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 6: #ofNodes=3 
 iteration 7: #ofNodes=8
 iteration 8: #ofNodes=4
 iteration 9: #ofNodes=4
 iteration 10: #ofNodes=4
 iteration 11: #ofNodes=4
 iteration 12: #ofNodes=4
-iteration 13: #ofNodes=4 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 14: #ofNodes=4 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 13: #ofNodes=4 
+iteration 14: #ofNodes=4 
 iteration 15: #ofNodes=5
 iteration 16: #ofNodes=3
 iteration 17: ("subgraph not found")
@@ -194,7 +194,7 @@ iteration 3: #ofNodes=4
 iteration 4: #ofNodes=4
 iteration 5: #ofNodes=4
 iteration 6: #ofNodes=3
-iteration 7: #ofNodes=3 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 7: #ofNodes=3 
 iteration 8: #ofNodes=8
 iteration 9: #ofNodes=4
 iteration 10: #ofNodes=4
@@ -212,12 +212,12 @@ iteration 3: #ofNodes=4
 iteration 4: #ofNodes=4
 iteration 5: #ofNodes=4
 iteration 6: #ofNodes=4
-iteration 7: #ofNodes=4 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 7: #ofNodes=4 
 iteration 8: #ofNodes=8
 iteration 9: #ofNodes=4
-iteration 10: #ofNodes=4 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 11: #ofNodes=4 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 12: #ofNodes=4 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 10: #ofNodes=4 
+iteration 11: #ofNodes=4 
+iteration 12: #ofNodes=4 
 iteration 13: #ofNodes=8 
 + Result: "Area zero found! Terminated."
 
@@ -290,11 +290,11 @@ ORIGINAL CODE:
 iteration 1: #ofNodes=8
 iteration 2: #ofNodes=7
 iteration 3: #ofNodes=8
-iteration 4: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 4: #ofNodes=8 
 iteration 5: #ofNodes=8
-iteration 6: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 7: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 8: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 6: #ofNodes=8 
+iteration 7: #ofNodes=8 
+iteration 8: #ofNodes=8 
 iteration 9: #ofNodes=8
 iteration 10: #ofNodes=8
 iteration 11: #ofNodes=7 
@@ -304,13 +304,13 @@ REFACTORED CODE:
 iteration 1: #ofNodes=8
 iteration 2: #ofNodes=7
 iteration 3: #ofNodes=8
-iteration 4: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 5: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 4: #ofNodes=8 
+iteration 5: #ofNodes=8 
 iteration 6: #ofNodes=8
 iteration 7: #ofNodes=8
-iteration 8: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 9: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
-iteration 10: #ofNodes=8 ("The subgraph is equal to the previous one. Skipping iteration ...")
+iteration 8: #ofNodes=8 
+iteration 9: #ofNodes=8 
+iteration 10: #ofNodes=8 
 + Result: ("The error space is exhausted!")
 
 # Mode 42: manual extraction
