@@ -473,7 +473,7 @@ class Z3NodeSortEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# usage ',
             'usage = And(', *(
-                f'    {constraint_node.operand} == NodeSort.bool_const(StringVal("true"), True),'
+                f'    {constraint_node.operand} == NodeSort.bool_val(True),'
                 for graph in graphs
                 if isinstance(graph, CGraph)
                 for constraint_node in graph.constraints
@@ -553,38 +553,38 @@ Z3_DATATYPE_NODE_MAPPING = {
     BoolVariable: lambda n, operands, accs: f'Const(\'{n.name}\', NodeSort)',
     IntVariable: lambda n, operands, accs: f'Const(\'{n.name}\', NodeSort)',
     # constants
-    BoolConstant: lambda n, operands, accs: f'NodeSort.bool_const(StringVal(\'{n.name}\'), {str(n.value).lower()})',
-    IntConstant: lambda n, operands, accs: f'NodeSort.int_const(StringVal(\'{n.name}\'), {n.value})',
+    BoolConstant: lambda n, operands, accs: f'NodeSort.bool_val(BoolVal({n.value}))',
+    IntConstant: lambda n, operands, accs: f'NodeSort.int_val(IntVal({n.value}))',
     # output
     Identity: lambda n, operands, accs: operands[0],
     Target: lambda n, operands, accs: operands[0],
     # placeholder
     PlaceHolder: lambda n, operands, accs: n.name,
     # boolean operations
-    Not: lambda n, operands, accs: f'NodeSort.not_node({operands[0]})',
-    And: lambda n, operands, accs: operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f'NodeSort.and_node({a}, {b})', operands),
-    Or: lambda n, operands, accs: operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f'NodeSort.or_node({a}, {b})', operands),
-    Xor: lambda n, operands, accs: f'NodeSort.or_node(NodeSort.and_node({operands[0]}, NodeSort.not_node({operands[1]})), NodeSort.and_node(NodeSort.not_node({operands[0]}), {operands[1]}))',
-    Xnor: lambda n, operands, accs: f'NodeSort.not_node(NodeSort.or_node(NodeSort.and_node({operands[0]}, NodeSort.not_node({operands[1]})), NodeSort.and_node(NodeSort.not_node({operands[0]}), {operands[1]})))',
-    Implies: lambda n, operands, accs: f'NodeSort.or_node(NodeSort.not_node({operands[0]}), {operands[1]})',
+    Not: lambda n, operands, accs: f'NodeSort.bool_val(Not(NodeSort.bool({operands[0]})))',
+    And: lambda n, operands, accs: f'NodeSort.bool_val(And({", ".join(f"NodeSort.bool({op})" for op in operands)}))',
+    Or: lambda n, operands, accs: f'NodeSort.bool_val(Or({", ".join(f"NodeSort.bool({op})" for op in operands)}))',
+    Xor: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.bool({operands[0]}) != NodeSort.bool({operands[1]}))',
+    Xnor: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.bool({operands[0]}) == NodeSort.bool({operands[1]}))',
+    Implies: lambda n, operands, accs: f'NodeSort.bool_val(Implies(NodeSort.bool({operands[0]}), NodeSort.bool({operands[1]})))',
     # integer operations
-    Sum: lambda n, operands, accs: operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f'NodeSort.sum_node({a}, {b})', operands),
-    AbsDiff: lambda n, operands, accs: f'NodeSort.abs_diff_node({operands[0]}, {operands[1]})',
-    Mul: lambda n, operands, accs: operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f'NodeSort.mul_node({a}, {b})', operands),
-    Div: lambda n, operands, accs: operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f'NodeSort.div_node({a}, {b})', operands),
+    Sum: lambda n, operands, accs: f'NodeSort.int_val(Sum({", ".join(f"NodeSort.int({op})" for op in operands)}))',
+    AbsDiff: lambda n, operands, accs: f'NodeSort.int_val(If(NodeSort.int({operands[0]}) >= NodeSort.int({operands[1]}), NodeSort.int({operands[0]}) - NodeSort.int({operands[1]}), NodeSort.int({operands[1]}) - NodeSort.int({operands[0]})))',
+    Mul: lambda n, operands, accs: f'NodeSort.int_val({" * ".join(f"NodeSort.int({op})" for op in operands)})',
+    Div: lambda n, operands, accs: f'NodeSort.int_val(NodeSort.int({operands[0]}) / NodeSort.int({operands[1]}))',
     # comparison operations
-    Equals: lambda n, operands, accs: f'NodeSort.eq_node({operands[0]}, {operands[1]})',
-    NotEquals: lambda n, operands, accs: f'NodeSort.not_node(NodeSort.eq_node({operands[0]}, {operands[1]}))',
-    LessThan: lambda n, operands, accs: f'NodeSort.compare_node(StringVal("<"), {operands[0]}, {operands[1]})',
-    LessEqualThan: lambda n, operands, accs: f'NodeSort.compare_node(StringVal("<="), {operands[0]}, {operands[1]})',
-    GreaterThan: lambda n, operands, accs: f'NodeSort.compare_node(StringVal(">"), {operands[0]}, {operands[1]})',
-    GreaterEqualThan: lambda n, operands, accs: f'NodeSort.compare_node(StringVal(">="), {operands[0]}, {operands[1]})',
+    Equals: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.int({operands[0]}) == NodeSort.int({operands[1]}))',
+    NotEquals: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.int({operands[0]}) != NodeSort.int({operands[1]}))',
+    LessThan: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.int({operands[0]}) < NodeSort.int({operands[1]}))',
+    LessEqualThan: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.int({operands[0]}) <= NodeSort.int({operands[1]}))',
+    GreaterThan: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.int({operands[0]}) > NodeSort.int({operands[1]}))',
+    GreaterEqualThan: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.int({operands[0]}) >= NodeSort.int({operands[1]}))',
     # quantifier operations
-    AtLeast: lambda n, operands, accs: f'NodeSort.at_least_node({n.value}, {operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f"NodeSort.and_node({a}, {b})", operands)})',
-    AtMost: lambda n, operands, accs: f'NodeSort.at_most_node({n.value}, {operands[0] if len(operands) == 1 else functools.reduce(lambda a, b: f"NodeSort.and_node({a}, {b})", operands)})',
+    AtLeast: lambda n, operands, accs: f'NodeSort.bool_val(AtLeast({", ".join(f"NodeSort.bool({op})" for op in operands)}, {n.value}))',
+    AtMost: lambda n, operands, accs: f'NodeSort.bool_val(AtMost({", ".join(f"NodeSort.bool({op})" for op in operands)}, {n.value}))',
     # branching operations
-    Multiplexer: lambda n, operands, accs: f'NodeSort.if_node({operands[1]}, NodeSort.if_node({operands[2]}, {operands[0]}, NodeSort.not_node({operands[0]})), {operands[2]})',
-    If: lambda n, operands, accs: f'NodeSort.if_node({operands[0]}, {operands[1]}, {operands[2]})',
+    Multiplexer: lambda n, operands, accs: f'If(NodeSort.bool({operands[1]}), If(NodeSort.bool({operands[2]}), {operands[0]}, NodeSort.bool_val(Not(NodeSort.bool({operands[0]})))), {operands[2]})',
+    If: lambda n, operands, accs: f'If(NodeSort.bool({operands[0]}), {operands[1]}, {operands[2]})',
 }
 
 # bool/int to Z3 sorts
@@ -660,39 +660,6 @@ class Z3DataTypeEncoder(Z3NodeSortEncoder):
     solver_construct = Z3_DATATYPE_SOLVER_CONSTRUCT
     node_accessories = Z3_DATATYPE_NODE_ACCESSORIES
 
-    constraints_assertion = {
-        type(None): lambda solver_name, task, assertions: [
-            f'{solver_name}.add(',
-            *(f'    {a},' for a in assertions),
-            f')',
-        ],
-        ForAll: lambda solver_name, forall, assertions: [
-            f'{solver_name}.add(',
-            f'    ForAll(',
-            f'        [{",".join(forall.operands)}],',
-            f'        Implies(',
-            f'            And([NodeSort.is_bool_const(v) for v in [{",".join(forall.operands)}]]),',
-            f'            And(',
-            *(f'                {a},' for a in assertions),
-            f'            )',
-            f'        )',
-            f'    )',
-            f')',
-        ],
-        Min: lambda solver_name, min, assertions: [
-            f'{solver_name}.add(',
-            *(f'    {a},' for a in assertions),
-            f')',
-            f'{solver_name}.minimize({min.operand})',
-        ],
-        Max: lambda solver_name, max, assertions: [
-            f'{solver_name}.add(',
-            *(f'    {a},' for a in assertions),
-            f')',
-            f'{solver_name}.maximize({max.operand})',
-        ],
-    }
-
     @classmethod
     def inject_initialization(cls, destination: IO[str]) -> None:
         # This calls the parent class to write "from z3 import *" at the top of the file
@@ -703,25 +670,8 @@ class Z3DataTypeEncoder(Z3NodeSortEncoder):
             '# 1. Declare the new Universe / Sort',
             'NodeSort = Datatype("NodeSort")',
             '# 2. Define the Constructors',
-            'NodeSort.declare("and_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("or_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("not_node", ("child", NodeSort))',
-
-            'NodeSort.declare("bool_var", ("name", StringSort()))',
-            'NodeSort.declare("bool_const", ("name", StringSort()), ("bool_val", BoolSort()))',
-            'NodeSort.declare("int_var", ("name", StringSort()))',
-            'NodeSort.declare("int_const", ("name", StringSort()), ("int_val", IntSort()))',
-
-            'NodeSort.declare("sum_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("abs_diff_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("mul_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("div_node", ("left", NodeSort), ("right", NodeSort))',
-
-            'NodeSort.declare("compare_node", ("op", StringSort()), ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("at_least_node", ("threshold", IntSort()), ("operands", NodeSort))',
-            'NodeSort.declare("at_most_node", ("threshold", IntSort()), ("operands", NodeSort))',
-            'NodeSort.declare("if_node", ("cond", NodeSort), ("then_branch", NodeSort), ("else_branch", NodeSort))',
-
+            'NodeSort.declare("bool_val", ("bool", BoolSort()))',
+            'NodeSort.declare("int_val", ("int", IntSort()))',
             '# 3. Finalize',
             'NodeSort = NodeSort.create()',
             *('',) * 2,
