@@ -96,7 +96,55 @@ mode_3_data = {
     }
 }
 
+mode_4_data = {
+    "Error Space 4": {
+        "Original": [7, 2, 7, 3, 3, 3, 7],
+        "Refactored": [7, 2, 7, 3, 3, 8]
+    },
+    "Error Space 8": {
+        "Original": [7, 2, 7, 3, 3, 3, 7, 8, 7, 8, 5, 5, 5, 8, 8],
+        "Refactored": [7, 2, 7, 3, 3, 8, 8, 8, 8, 8] 
+    },
+    "Error Space 16": {
+        "Original": [8, 7, 8, 8, 8, 8, 8, 8, 8, 8],
+        "Refactored": [8, 7, 8, 8, 8, 8, 8, 8, 7, 7, 1, 1, 1]
+    },
+    "Error Space 32": {
+        "Original": [8, 8, 8, 8, 8, 8, 8, 7, 7],
+        "Refactored": [8, 8, 8, 8, 8, 8, 7]
+    },
+    "Error Space 64": {
+        "Original": [8, 8, 8, 8, 8, 8, 8, 8, 8, 8],
+        "Refactored": [8, 8, 8, 8, 7]
+    }
+}
+
+mode_5_data = {
+    "Error Space 4": {
+        "Original": [4, 2, 4, 3, 3, 4],
+        "Refactored": [4, 2, 4, 3, 3, 4]
+    },
+    "Error Space 8": {
+        "Original": [4, 2, 4, 3, 3, 4, 4, 4, 4, 8],
+        "Refactored": [4, 2, 4, 3, 3, 4, 4, 4, 4, 4, 4, 5] 
+    },
+    "Error Space 16": {
+        "Original": [7, 4, 4, 4, 3, 3, 8, 4, 4, 4, 4, 4, 4, 4, 5, 3],
+        "Refactored": [7, 4, 4, 4, 3, 3, 8, 4, 4, 4, 4, 4, 4, 4, 5, 3]
+    },
+    "Error Space 32": {
+        "Original": [8, 7, 8, 5, 4, 4, 4, 4, 4, 4, 4],
+        "Refactored": [8, 7, 8, 5, 4, 4, 4, 4, 4, 4, 4]
+    },
+    "Error Space 64": {
+        "Original": [8, 8, 7, 4, 1],
+        "Refactored": [8, 8, 7, 4, 1]
+    }
+}
+
 plot_extraction_results("Mode 1", mode_1_data)
 plot_extraction_results("Mode 2", mode_2_data)
 plot_extraction_results("Mode 3", mode_3_data)
+plot_extraction_results("Mode 4", mode_4_data)
+plot_extraction_results("Mode 5", mode_5_data)
 
