@@ -171,6 +171,30 @@ mode_55_data = {
     }
 }
 
+# benchmarks -> mul_i8_o8.v
+mode_6_data = {
+    "Error Space 4": {
+        "Original": [1, 3, 1, 1, 1, 2],
+        "Refactored": [1, 3, 2, 2, 2]
+    },
+    "Error Space 8": {
+        "Original": [1, 3, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1],
+        "Refactored": [1, 3, 2, 2, 2, 2, 2, 2, 1]
+    },
+    "Error Space 16": {
+        "Original": [2, 3, 2, 2, 1, 2, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1],
+        "Refactored": [2, 3, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2]
+    },
+    "Error Space 32": {
+        "Original": [2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 8],
+        "Refactored": [2, 3, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 6]
+    },
+    "Error Space 64": {
+        "Original": [3, 7, 1, 1, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 4, 4, 4],
+        "Refactored": [3, 7, 1, 1, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 4, 4, 4]
+    }
+}
+
 # benchmarks -> adder_i8_o5.v
 plot_extraction_results("Mode 1", mode_1_data)
 plot_extraction_results("Mode 2", mode_2_data)
@@ -179,4 +203,5 @@ plot_extraction_results("Mode 4", mode_4_data)
 plot_extraction_results("Mode 5", mode_5_data)
 # benchmarks -> mul_i8_o8.v
 plot_extraction_results("Mode 55", mode_55_data)
+plot_extraction_results("Mode 6", mode_6_data)
 
