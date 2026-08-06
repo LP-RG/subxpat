@@ -892,6 +892,13 @@ Tightest Error Space - 4
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=6 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=4 --imax=2 --omax=8 
 
 ORIGINAL CODE:
+Iteration 1: #ofNodes=1
+Iteration 2: #ofNodes=3
+Iteration 3: #ofNodes=1
+Iteration 4: #ofNodes=1
+Iteration 5: #ofNodes=1
+Iteration 6: #ofNodes=2
++ Result: "The error space is exhausted!"
 
 REFACTORED CODE:
 Iteration 1: #ofNodes=1
@@ -905,6 +912,19 @@ Strict Error Space - 8
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=6 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=8 --imax=2 --omax=8 
 
 ORIGINAL CODE:
+Iteration 1: #ofNodes=1
+Iteration 2: #ofNodes=3
+Iteration 3: #ofNodes=1
+Iteration 4: #ofNodes=1
+Iteration 5: #ofNodes=1
+Iteration 6: #ofNodes=2
+Iteration 7: #ofNodes=2
+Iteration 8: #ofNodes=2
+Iteration 9: #ofNodes=2
+Iteration 10: #ofNodes=2
+Iteration 11: #ofNodes=1
+Iteration 12: #ofNodes=1
++ Result: "The error space is exhausted!"
 
 REFACTORED CODE:
 Iteration 1: #ofNodes=1
@@ -922,6 +942,23 @@ Baseline Error Space - 16
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=6 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8
 
 ORIGINAL CODE:
+Iteration 1: #ofNodes=2
+Iteration 2: #ofNodes=3
+Iteration 3: #ofNodes=2
+Iteration 4: #ofNodes=2
+Iteration 5: #ofNodes=1
+Iteration 6: #ofNodes=2
+Iteration 7: #ofNodes=3
+Iteration 8: #ofNodes=3
+Iteration 9: #ofNodes=3
+Iteration 10: #ofNodes=3
+Iteration 11: #ofNodes=3
+Iteration 12: #ofNodes=3
+Iteration 13: #ofNodes=3
+Iteration 14: #ofNodes=1
+Iteration 15: #ofNodes=1
+Iteration 16: #ofNodes=1
++ Result: "The error space is exhausted!"
 
 REFACTORED CODE:
 Iteration 1: #ofNodes=2
@@ -943,6 +980,23 @@ Wide Error Space - 32
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=6 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=32 --imax=2 --omax=8 
 
 ORIGINAL CODE:
+Iteration 1: #ofNodes=2
+Iteration 2: #ofNodes=3
+Iteration 3: #ofNodes=2
+Iteration 4: #ofNodes=2
+Iteration 5: #ofNodes=2
+Iteration 6: #ofNodes=2
+Iteration 7: #ofNodes=2
+Iteration 8: #ofNodes=2
+Iteration 9: #ofNodes=2
+Iteration 10: #ofNodes=2
+Iteration 11: #ofNodes=2
+Iteration 12: #ofNodes=2
+Iteration 13: #ofNodes=2
+Iteration 14: #ofNodes=3
+Iteration 15: #ofNodes=1
+Iteration 16: #ofNodes=8
++ Result: "The error space is exhausted!"
 
 REFACTORED CODE:
 Iteration 1: #ofNodes=2
@@ -967,6 +1021,28 @@ Massive Error Space - 64
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=6 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=64 --imax=2 --omax=8 
 
 ORIGINAL CODE:
+Iteration 1: #ofNodes=3
+Iteration 2: #ofNodes=7
+Iteration 3: #ofNodes=1
+Iteration 4: #ofNodes=1
+Iteration 5: #ofNodes=4
+Iteration 6: #ofNodes=6
+Iteration 7: #ofNodes=6
+Iteration 8: #ofNodes=6
+Iteration 9: #ofNodes=6
+Iteration 10: #ofNodes=6
+Iteration 11: #ofNodes=6
+Iteration 12: #ofNodes=6
+Iteration 13: #ofNodes=6
+Iteration 14: #ofNodes=6
+Iteration 15: #ofNodes=6
+Iteration 16: #ofNodes=6
+Iteration 17: #ofNodes=6
+Iteration 18: #ofNodes=6
+Iteration 19: #ofNodes=4
+Iteration 20: #ofNodes=4
+Iteration 21: #ofNodes=4
++ Result: "The error space is exhausted!"
 
 REFACTORED CODE:
 Iteration 1: #ofNodes=3
