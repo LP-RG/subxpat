@@ -27,6 +27,7 @@ def plot_extraction_results(mode_name, data):
     plt.show()
     print(f"Plot saved successfully as {filename}!")
 
+# benchmarks -> adder_i8_o5.v
 mode_1_data = {
     "Error Space 4": {
         "Original": [8, 8, 8, 8],
@@ -141,6 +142,8 @@ mode_5_data = {
         "Refactored": [8, 8, 7, 4, 1]
     }
 }
+
+# benchmarks -> mul_i8_o8.v
 
 plot_extraction_results("Mode 1", mode_1_data)
 plot_extraction_results("Mode 2", mode_2_data)
