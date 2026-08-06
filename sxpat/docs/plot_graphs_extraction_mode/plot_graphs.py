@@ -51,6 +51,7 @@ mode_1_data = {
     }
 }
 
+# benchmarks -> adder_i8_o5.v
 mode_2_data = {
     "Error Space 4": {
         "Original": [4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -74,6 +75,7 @@ mode_2_data = {
     }
 }
 
+# benchmarks -> adder_i8_o5.v
 mode_3_data = {
     "Error Space 4": {
         "Original": [5, 1, 1, 1, 1, 1],
@@ -97,6 +99,7 @@ mode_3_data = {
     }
 }
 
+# benchmarks -> adder_i8_o5.v
 mode_4_data = {
     "Error Space 4": {
         "Original": [7, 2, 7, 3, 3, 3, 7],
@@ -120,6 +123,7 @@ mode_4_data = {
     }
 }
 
+# benchmarks -> adder_i8_o5.v
 mode_5_data = {
     "Error Space 4": {
         "Original": [4, 2, 4, 3, 3, 4],
@@ -167,9 +171,12 @@ mode_55_data = {
     }
 }
 
+# benchmarks -> adder_i8_o5.v
 plot_extraction_results("Mode 1", mode_1_data)
 plot_extraction_results("Mode 2", mode_2_data)
 plot_extraction_results("Mode 3", mode_3_data)
 plot_extraction_results("Mode 4", mode_4_data)
 plot_extraction_results("Mode 5", mode_5_data)
+# benchmarks -> mul_i8_o8.v
+plot_extraction_results("Mode 55", mode_55_data)
 
