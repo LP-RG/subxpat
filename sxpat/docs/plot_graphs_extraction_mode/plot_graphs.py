@@ -73,9 +73,30 @@ mode_2_data = {
     }
 }
 
-
+mode_3_data = {
+    "Error Space 4": {
+        "Original": [5, 1, 1, 1, 1, 1],
+        "Refactored": [5, 1, 1, 1, 1]
+    },
+    "Error Space 8": {
+        "Original": [5, 1, 1, 1, 1, 1, 1, 1, 1, 5, 11, 4],
+        "Refactored": [5, 1, 1, 1, 1, 1, 1, 1, 5, 11, 5] 
+    },
+    "Error Space 16": {
+        "Original": [5, 1, 1, 1, 5, 2, 5, 2, 8, 8, 8, 8, 8],
+        "Refactored": [5, 1, 1, 1, 5, 11, 5, 5, 6, 6, 6, 6, 11]
+    },
+    "Error Space 32": {
+        "Original": [5, 2, 2, 5, 2, 5, 1, 1, 1, 5, 2, 1],
+        "Refactored": [5, 2, 2, 5, 11, 4, 5, 4, 1, 1]
+    },
+    "Error Space 64": {
+        "Original": [5, 5, 11, 4, 5, 3, 1],
+        "Refactored": [5, 5, 11, 4, 5, 3, 1]
+    }
+}
 
 plot_extraction_results("Mode 1", mode_1_data)
 plot_extraction_results("Mode 2", mode_2_data)
-
+plot_extraction_results("Mode 3", mode_3_data)
 
