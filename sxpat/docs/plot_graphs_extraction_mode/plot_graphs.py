@@ -1,0 +1,81 @@
+import matplotlib.pyplot as plt
+import os
+
+def plot_extraction_results(mode_name, data):
+    fig, axes = plt.subplots(3, 2, figsize=(12, 10))
+    axes = axes.flatten()
+
+    for i, (err_name, runs) in enumerate(data.items()):
+        ax = axes[i]
+        for version, nodes in runs.items():
+            iterations = range(1, len(nodes) + 1)
+            ax.plot(iterations, nodes, marker='o', linestyle='-', label=version)
+        
+        ax.set_title(f"{mode_name} - {err_name}")
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("# of Nodes")
+        ax.grid(True, linestyle='--', alpha=0.6)
+        ax.legend()
+
+    if len(data) < len(axes):
+        fig.delaxes(axes[-1])
+
+    plt.tight_layout()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    filename = os.path.join(script_dir, f"extraction_comparison_{mode_name.lower().replace(' ', '_')}.png")
+    plt.savefig(filename, dpi=300)
+    plt.show()
+    print(f"Plot saved successfully as {filename}!")
+
+mode_1_data = {
+    "Error Space 4": {
+        "Original": [8, 8, 8, 8],
+        "Refactored": [8, 8, 8, 8]
+    },
+    "Error Space 8": {
+        "Original": [8, 8, 8, 8, 8, 8, 8, 8, 8, 8],
+        "Refactored": [8, 8, 8, 8, 8, 8, 8, 8, 8] 
+    },
+    "Error Space 16": {
+        "Original": [8, 8, 8, 8, 8, 8, 8, 8, 8, 8],
+        "Refactored": [8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
+    },
+    "Error Space 32": {
+        "Original": [8, 8, 8, 8, 8, 7, 1],
+        "Refactored": [8, 8, 14, 8, 7]
+    },
+    "Error Space 64": {
+        "Original": [8, 8, 8, 7, 7],
+        "Refactored": [8, 8, 8, 8, 8, 7]
+    }
+}
+
+mode_2_data = {
+    "Error Space 4": {
+        "Original": [4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        "Refactored": [4, 1, 1, 1, 1, 1, 1, 1]
+    },
+    "Error Space 8": {
+        "Original": [4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 4, 4],
+        "Refactored": [4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 3] 
+    },
+    "Error Space 16": {
+        "Original": [4, 2, 1, 1, 1, 1, 1, 1, 4, 4, 4, 8, 4, 4, 4, 1, 1, 1],
+        "Refactored": [4, 2, 1, 1, 1, 3, 4, 4, 4, 4, 3, 3, 3, 2, 4, 2]
+    },
+    "Error Space 32": {
+        "Original": [4, 1, 1, 4, 2, 4, 3, 4, 3, 1],
+        "Refactored": [4, 1, 1, 4, 2, 4, 3, 3, 1, 4, 2, 4]
+    },
+    "Error Space 64": {
+        "Original": [4, 1, 3, 4, 4, 4, 1, 1],
+        "Refactored": [4, 1, 3, 4, 4, 4, 4, 1]
+    }
+}
+
+
+
+plot_extraction_results("Mode 1", mode_1_data)
+plot_extraction_results("Mode 2", mode_2_data)
+
+
