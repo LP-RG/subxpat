@@ -363,6 +363,45 @@ def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
     ]
     h = optimizer.maximize(Sum(max_nodes))
 
+    # feasibility (edge-wise)
+    optimizer.add(And([
+        Implies(
+            And(
+                Node.in_subgraph(Edge.source(e)),
+                Not(Node.in_subgraph(Edge.target(e)))
+            ),
+            ULE(
+                Node.weight(Edge.source(e)),
+                BitVecVal(specs.et, bit_width)
+            )
+        )
+        for e in z3_edges
+    ]))
+
+    # imax / omax
+    if specs.imax is not None:
+        optimizer.add(Sum(z3_subinput_edges) <= specs.imax)
+    if specs.omax is not None:
+        optimizer.add(Sum(z3_suboutput_edges) <= specs.omax)
+
+    return _solve_and_extract(optimizer, max_nodes, h, circuit)
+
+
+def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
+    optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = _setup_problem(circuit, specs)
+
+    z3_subinput_edges, z3_suboutput_edges = _add_boundary_edges(graph, Node, z3_nodes, bit_width)
+
+    _add_convexity(optimizer, graph, Node, z3_nodes)
+
+    # maximize
+    z3_bitvec_1 = BitVecVal(1, bit_width)
+    max_nodes = [
+        If(Node.in_subgraph(n), z3_bitvec_1, BitVecVal(0, bit_width))
+        for n in z3_nodes.values()
+    ]
+    h = optimizer.maximize(Sum(max_nodes))
+
 
     #setting up zone weight constraints
     zone_constraints = []
@@ -373,11 +412,12 @@ def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
         #looking up weights of a specific node
         source_zones = circuit.zone_weights.get(source, {})
 
+
         #check that for every zone of the node, the corrosponding weight is less then or equal to its corrosponding zone et
         zone_conditions = [
             ULE(
                 BitVecVal(weight, bit_width),
-                BitVecVal(specs.et[zone], bit_width)
+                BitVecVal(specs.et[zone] if isinstance(specs.et, (dict, list)) else specs.et, bit_width)
             )
             for zone, weight in source_zones.items()
         ]
@@ -401,6 +441,8 @@ def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
         optimizer.add(Sum(z3_suboutput_edges) <= specs.omax)
 
     return _solve_and_extract(optimizer, max_nodes, h, circuit)
+
+
 
 
 def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
