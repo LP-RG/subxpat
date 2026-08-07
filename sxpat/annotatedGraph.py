@@ -28,8 +28,6 @@ from .config.config import (
     LABEL, SHAPE, STRICT, DIGRAPH, NODE, STYLE, FILLED, FILLCOLOR,
 )
 
-from sxpat.component_manager import ComponentManager
-from sxpat.verify_refactoring_generic import RefactoringVerifier
 
 class AnnotatedGraph(Graph):
     __cached_loading_callable = None
@@ -274,7 +272,6 @@ class AnnotatedGraph(Graph):
             if specs_obj.requires_subgraph_extraction:
                 if specs_obj.extraction_mode == 1:
                     pprint.info2(f"Partition with imax={specs_obj.imax} and omax={specs_obj.omax}. Looking for largest partition")
-                    # RefactoringVerifier.mode_1(self, specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 2:
@@ -287,7 +284,6 @@ class AnnotatedGraph(Graph):
 
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
                         # specs_obj.sensitivity = iteration
-                        # RefactoringVerifier.mode_2(self, specs_obj, iterations=1)
                         pprint.with_color(Fore.LIGHTBLUE_EX)(f"Sugraph iteration {iteration} ")
                         subgraph_nodes = self.find_subgraph_sensitivity(specs_obj)
 
@@ -303,7 +299,6 @@ class AnnotatedGraph(Graph):
                     n_outputs = len(self.output_dict)
 
                     while (cnt_nodes < specs_obj.min_subgraph_size and iteration < n_outputs + 1):
-                        # RefactoringVerifier.mode_3(self, specs_obj, iterations=1)
                         # specs_obj.sensitivity = iteration
                         pprint.info2(f"Sugraph iteration {iteration}")
                         subgraph_nodes = self.find_subgraph_sensitivity_no_io_constraints(specs_obj)
@@ -314,22 +309,18 @@ class AnnotatedGraph(Graph):
 
                 elif specs_obj.extraction_mode == 4:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and feasibility constraints. Looking for largest partition")
-                    # RefactoringVerifier.mode_4(self, specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph_feasible(specs_obj)  # Cristian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 5:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and hard feasibility constraints. Looking for largest partition")
-                    # RefactoringVerifier.mode_5(self, specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph_feasible_hard(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 55:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and hard constraints, imax, omax, assumptions, and BitVec, DataType. Looking for largest partition")
-                    # RefactoringVerifier.mode_55(self, specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 6:
                     pprint.info2(f"Partition with hard constraints, imax={specs_obj.imax}, omax={specs_obj.omax}, assumptions, and BitVec, DataType. Looking for largest partition for smallest possible threshold")
-                    # RefactoringVerifier.mode_6(self, specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph_feasible_hard_limited_inputs_datatype_bitvec_minthreshold(specs_obj)
 
                 elif specs_obj.extraction_mode == 100:
@@ -338,7 +329,6 @@ class AnnotatedGraph(Graph):
 
                 elif specs_obj.extraction_mode == 11:
                     pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints. Looking for largest partition")
-                    # RefactoringVerifier.mode_11(self, specs_obj, iterations=1)
                     subgraph_nodes = self.find_subgraph_feasible_soft(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 12:
@@ -347,7 +337,6 @@ class AnnotatedGraph(Graph):
                         subgraph_nodes = self.form_subgraph_from_partition()
                     else:
                         pprint.info2(f"Partition with omax={specs_obj.omax} and soft feasibility constraints on subgraph outputs. Looking for largest partition")
-                        # RefactoringVerifier.mode_12(self, specs_obj, iterations=1)
                         subgraph_nodes = self.find_subgraph_feasible_soft_outputs(specs_obj)  # Critian's subgraph extraction
 
                 elif specs_obj.extraction_mode == 42:
@@ -396,15 +385,25 @@ class AnnotatedGraph(Graph):
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-
         imax = specs_obj.imax
         omax = specs_obj.omax
+        # pprint.info2( f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         # print(f'Extracting subgraph...')
 
         tmp_graph: nx.DiGraph = self.graph.copy(as_view=False)
+        # print(f'{tmp_graph.nodes = }')
+        # Data structures containing the literals
+        input_literals = {}  # literals associated to the input nodes
+        gate_literals = {}  # literals associated to the gates in the circuit
+        output_literals = {}  # literals associated to the output nodes
+
+        # Data structures containing the edges
+        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
+        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
 
         # Optimizer
         opt = Optimize()
@@ -412,137 +411,482 @@ class AnnotatedGraph(Graph):
         # Function to maximize
         max_func = []
 
-        # COMPONENT START: Model Initialization
-        input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
-            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+        # List of all the partition edges
+        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
 
-        # COMPONENT START: Signal Propagation Constraints (SP)
-        partition_input_edges, partition_output_edges = ComponentManager.get_signal_propagation_minimal(
-        input_edges, gate_edges, output_edges,
-        input_literals, gate_literals, output_literals
-        )
-        # COMPONENT END: Signal Propagation Constraints (SP)
+        # Generate all literals
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Generate literal for each input node
+                in_id = int(e[0][2:])
+                if in_id not in input_literals:
+                    input_literals[in_id] = Bool("in_%s" % str(in_id))
+            if 'g' in e[0]:  # Generate literal for each gate in the circuit
+                g_id = int(e[0][1:])
+                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                    gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
-        # COMPONENT START: Model Initialization
-        G = ComponentManager.build_gate_graph(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+            if 'out' in e[1]:  # Generate literal for each output node
+                out_id = int(e[1][3:])
+                if out_id not in output_literals:
+                    output_literals[out_id] = Bool("out_%s" % str(out_id))
 
-        # COMPONENT START: Sensitivity Budget Constraints (SB)
-        gate_weight = ComponentManager.prepare_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
-        # COMPONENT END: Sensitivity Budget Constraints (SB)
+        # Generate structures holding edge information
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Populate input_edges structure
+                in_id = int(e[0][2:])
 
-        # COMPONENT START: Convexity and Structural Constraints (CS)
-        ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
-        # COMPONENT END: Convexity and Structural Constraints (CS)
+                if in_id not in input_edges:
+                    input_edges[in_id] = []
+                # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
+                # Morteza added ==============
+                try:
+                    input_edges[in_id].append(int(e[1][1:]))
+                except:
+                    if re.search('g(\d+)', e[1]):
+                        my_id = int(re.search('g(\d+)', e[1]).group(1))
+                        input_edges[in_id].append(my_id)
+                # =============================
 
-        # COMPONENT START: Model Initialization
-        ComponentManager.add_boundary_conditions(opt, input_literals, output_literals)
-        # COMPONENT END: Model Initialization
+            if 'g' in e[0] and 'g' in e[1]:  # Populate gate_edges structure
+                ns_id = int(e[0][1:])
+                nd_id = int(e[1][1:])
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_io_limits(
-        opt, 
-        specs_obj.imax, 
-        specs_obj.omax, 
-        partition_input_edges, 
-        partition_output_edges
-        )
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+                if ns_id in self.constant_dict:
+                    print("ERROR: Constants should only be connected to output nodes")
+                    raise
+                if ns_id not in gate_edges:
+                    gate_edges[ns_id] = []
+                # try:
+                gate_edges[ns_id].append(nd_id)
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_maximization(opt, gate_literals, gate_weight)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+            if 'out' in e[1]:  # Populate output_edges structure
+                out_id = int(e[1][3:])
+                if out_id not in output_edges:
+                    output_edges[out_id] = []
+                # output_edges[out_id].append(int(e[0][1:]))
+                # Morteza added ==============
+                try:
+                    output_edges[out_id].append(int(e[0][1:]))
+                except:
+                    my_id = int(re.search('(\d+)', e[0]).group(1))
+                    output_edges[out_id].append(my_id)
+
+                # =============================
+
+        # Define input edges
+        for source in input_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in input_edges[source]:
+                e_in = And(Not(input_literals[source]), gate_literals[destination])
+
+                edge_in_holder.append(e_in)
+
+            partition_input_edges.append(Or(edge_in_holder))
+
+        # Define gate edges
+        for source in gate_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in gate_edges[source]:
+                e_in = And(Not(gate_literals[source]), gate_literals[destination])
+                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+
+                edge_in_holder.append(e_in)
+                edge_out_holder.append(e_out)
+
+            partition_input_edges.append(Or(edge_in_holder))
+            partition_output_edges.append(Or(edge_out_holder))
+
+        # Define output edges
+        for output_id in output_edges:
+            predecessor = output_edges[output_id][
+                0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
+            if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
+                continue
+            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+
+            partition_output_edges.append(e_out)
+
+        # Create graph of the cicuit without input and output nodes
+        G = nx.DiGraph()
+        # print(f'{tmp_graph.edges = }')
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]) and 'g' in str(e[1]):
+                source = int(e[0][1:])
+                destination = int(e[1][1:])
+
+                G.add_edge(source, destination)
+        # Morteza added =====================
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]):
+                source = int(e[0][1:])
+                if source in self.constant_dict:
+                    continue
+                G.add_node(source)
+        # ===================================
+
+        # Generate structure with gate weights
+        gate_weight = {}
+        for gate_idx in G.nodes:
+            if gate_idx not in gate_weight:
+                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+
+        # Find max weight
+        max_weight = 0
+        for gate_id in gate_weight:
+            max_weight = max(max_weight, gate_weight[gate_id])
+
+        # Update gate weights so that gate_weight = max_weight - max_weight
+        for gate_id in gate_weight:
+            gate_weight[gate_id] = max_weight - gate_weight[
+                gate_id] + 1  # + 1 must be removed, I'm leaving it just for the initial debugging phase
+
+        descendants = {}
+        ancestors = {}
+        for n in G:
+            if n not in descendants:
+                descendants[n] = sorted(nx.descendants(G, n))
+            if n not in ancestors:
+                ancestors[n] = sorted(nx.ancestors(G, n))
+
+        # Generate convexity constraints
+        for source in gate_edges:
+            for destination in gate_edges[source]:
+                if len(descendants[destination]) > 0:  # Constraints on output edges
+                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants.append(Not(gate_literals[destination]))
+                    descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
+                                                  And(not_descendants))
+                    opt.add(descendat_condition)
+                if len(ancestors[source]) > 0:  # Constraints on input edges
+                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors.append(Not(gate_literals[source]))
+                    ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
+                                                 And(not_ancestors))
+                    opt.add(ancestor_condition)
+
+        # Set input nodes to False
+        for input_node_id in input_literals:
+            opt.add(input_literals[input_node_id] == False)
+
+        # Set output nodes to False
+        for output_node_id in output_literals:
+            opt.add(output_literals[output_node_id] == False)
+
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
+
+        # Generate function to maximize
+        for gate_id in gate_literals:
+            max_func.append(gate_literals[gate_id] * gate_weight[gate_id])
+
+        # Add function to maximize to the solver
+        opt.maximize(Sum(max_func))
 
         # =========================== Skipping the nodes that are not labeled ================================
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.exclude_skipped_nodes(opt, self.graph)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
+                else:
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
         # ====================================================================================================
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        subgraph_nodes = ComponentManager.check_convexity(opt, G, self.gate_dict)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+        node_partition = []
+        if opt.check() == sat:
+            m = opt.model()
+            for t in m.decls():
+                if 'g' not in str(t):  # Look only the literals associate to the gates
+                    continue
+                if is_true(m[t]):
+                    gate_id = int(str(t)[2:])
+                    node_partition.append(gate_id)  # Gates inside the partition
 
-        return subgraph_nodes
+        # Check partition convexity
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+        return [self.gate_dict[idx] for idx in node_partition]
 
     def find_subgraph_sensitivity(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-
+        imax = specs_obj.imax
+        omax = specs_obj.omax
         sensitivity_t = specs_obj.sensitivity
 
+        # pprint.info2( f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         # print(f'Extracting subgraph...')
 
         tmp_graph = self.graph.copy(as_view=False)
+        # print(f'{tmp_graph.nodes = }')
+        # Data structures containing the literals
+        input_literals = {}  # literals associated to the input nodes
+        gate_literals = {}  # literals associated to the gates in the circuit
+        output_literals = {}  # literals associated to the output nodes
+
+        # Data structures containing the edges
+        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
+        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
 
         # Optimizer
         opt = Optimize()
 
-        # COMPONENT START: Model Initialization
-        input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
-            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+        # Function to maximize
+        max_func = []
 
-        # COMPONENT START: Signal Propagation Constraints (SP)
-        partition_input_edges, partition_output_edges, edge_w, edge_constraint = \
-        ComponentManager.get_signal_propagation(
-        input_edges, gate_edges, output_edges,
-        input_literals, gate_literals, output_literals,
-        tmp_graph, self.gate_dict, WEIGHT
-        )
-        # COMPONENT END: Signal Propagation Constraints (SP)
+        # List of all the partition edges
+        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
 
-        # COMPONENT START: Model Initialization
-        G = ComponentManager.build_gate_graph(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+        # Generate all literals
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Generate literal for each input node
+                in_id = int(e[0][2:])
+                if in_id not in input_literals:
+                    input_literals[in_id] = Bool("in_%s" % str(in_id))
+            if 'g' in e[0]:  # Generate literal for each gate in the circuit
+                g_id = int(e[0][1:])
+                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                    gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
-        # COMPONENT START: Sensitivity Budget Constraints (SB)
-        gate_weight = ComponentManager.prepare_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
-        # COMPONENT END: Sensitivity Budget Constraints (SB)
+            if 'out' in e[1]:  # Generate literal for each output node
+                out_id = int(e[1][3:])
+                if out_id not in output_literals:
+                    output_literals[out_id] = Bool("out_%s" % str(out_id))
 
-        # COMPONENT START: Convexity and Structural Constraints (CS)
-        ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
-        # COMPONENT END: Convexity and Structural Constraints (CS)
+        # Generate structures holding edge information
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Populate input_edges structure
+                in_id = int(e[0][2:])
 
-        # COMPONENT START: Model Initialization
-        ComponentManager.add_boundary_conditions(opt, input_literals, output_literals)
-        # COMPONENT END: Model Initialization
+                if in_id not in input_edges:
+                    input_edges[in_id] = []
+                # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
+                # Morteza added ==============
+                try:
+                    input_edges[in_id].append(int(e[1][1:]))
+                except:
+                    if re.search('g(\d+)', e[1]):
+                        my_id = int(re.search('g(\d+)', e[1]).group(1))
+                        input_edges[in_id].append(my_id)
+                # =============================
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_io_limits(
-        opt, 
-        specs_obj.imax, 
-        specs_obj.omax, 
-        partition_input_edges, 
-        partition_output_edges
-        )
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+            if 'g' in e[0] and 'g' in e[1]:  # Populate gate_edges structure
+                ns_id = int(e[0][1:])
+                nd_id = int(e[1][1:])
 
-        # COMPONENT START: Sensitivity Budget Constraints (SB)
-        ComponentManager.add_sensitivity_budget(opt, edge_w, edge_constraint, sensitivity_t)
-        # COMPONENT END: Sensitivity Budget Constraints (SB)
+                if ns_id in self.constant_dict:
+                    print("ERROR: Constants should only be connected to output nodes")
+                    raise
+                if ns_id not in gate_edges:
+                    gate_edges[ns_id] = []
+                # try:
+                gate_edges[ns_id].append(nd_id)
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_maximization(opt, gate_literals, gate_weight=None)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+            if 'out' in e[1]:  # Populate output_edges structure
+                out_id = int(e[1][3:])
+                if out_id not in output_edges:
+                    output_edges[out_id] = []
+                # output_edges[out_id].append(int(e[0][1:]))
+                # Morteza added ==============
+                try:
+                    output_edges[out_id].append(int(e[0][1:]))
+                except:
+                    my_id = int(re.search('(\d+)', e[0]).group(1))
+                    output_edges[out_id].append(my_id)
 
+                # =============================
+
+        # Define input edges
+        for source in input_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in input_edges[source]:
+                e_in = And(Not(input_literals[source]), gate_literals[destination])
+
+                edge_in_holder.append(e_in)
+
+            partition_input_edges.append(Or(edge_in_holder))
+
+        # Define gate edges and data structures containing the edge weights
+        edge_w = {}
+        edge_constraint = {}
+
+        for source in gate_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in gate_edges[source]:
+                e_in = And(Not(gate_literals[source]), gate_literals[destination])
+                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+
+                edge_in_holder.append(e_in)
+                edge_out_holder.append(e_out)
+
+            partition_input_edges.append(Or(edge_in_holder))
+            if source not in edge_w:
+                edge_w[source] = tmp_graph.nodes[self.gate_dict[source]][WEIGHT]
+
+            if source not in edge_constraint:
+                edge_constraint[source] = Or(edge_out_holder)
+            partition_output_edges.append(Or(edge_out_holder))
+
+        # Define output edges
+        for output_id in output_edges:
+            predecessor = output_edges[output_id][
+                0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
+            if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
+                continue
+            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            if predecessor not in edge_w:
+                edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
+            if predecessor not in edge_constraint:
+                edge_constraint[predecessor] = e_out
+            partition_output_edges.append(e_out)
+
+        # Create graph of the cicuit without input and output nodes
+        G = nx.DiGraph()
+        # print(f'{tmp_graph.edges = }')
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]) and 'g' in str(e[1]):
+                source = int(e[0][1:])
+                destination = int(e[1][1:])
+
+                G.add_edge(source, destination)
+        # Morteza added =====================
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]):
+                source = int(e[0][1:])
+                if source in self.constant_dict:
+                    continue
+                G.add_node(source)
+        # ===================================
+
+        # Generate structure with gate weights
+        gate_weight = {}
+        for gate_idx in G.nodes:
+            if gate_idx not in gate_weight:
+                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+
+        # Find max weight
+        max_weight = 0
+        for gate_id in gate_weight:
+            max_weight = max(max_weight, gate_weight[gate_id])
+
+        # Update gate weights so that gate_weight = max_weight - max_weight
+        for gate_id in gate_weight:
+            gate_weight[gate_id] = max_weight - gate_weight[
+                gate_id] + 1  # + 1 must be removed, I'm leaving it just for the initial debugging phase
+
+        descendants = {}
+        ancestors = {}
+        for n in G:
+            if n not in descendants:
+                descendants[n] = sorted(nx.descendants(G, n))
+            if n not in ancestors:
+                ancestors[n] = sorted(nx.ancestors(G, n))
+
+        # Generate convexity constraints
+        for source in gate_edges:
+            for destination in gate_edges[source]:
+                if len(descendants[destination]) > 0:  # Constraints on output edges
+                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants.append(Not(gate_literals[destination]))
+                    descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
+                                                  And(not_descendants))
+                    opt.add(descendat_condition)
+                if len(ancestors[source]) > 0:  # Constraints on input edges
+                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors.append(Not(gate_literals[source]))
+                    ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
+                                                 And(not_ancestors))
+                    opt.add(ancestor_condition)
+
+        # Set input nodes to False
+        for input_node_id in input_literals:
+            opt.add(input_literals[input_node_id] == False)
+
+        # Set output nodes to False
+        for output_node_id in output_literals:
+            opt.add(output_literals[output_node_id] == False)
+
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
+
+        sensitivity_constraints = []
+        for s in edge_w:
+            sensitivity_constraints.append(edge_constraint[s] * edge_w[s])
+
+        opt.add(Sum(sensitivity_constraints) <= sensitivity_t)
+
+        # Generate function to maximize
+        for gate_id in gate_literals:
+            max_func.append(gate_literals[gate_id])
+
+        # Add function to maximize to the solver
+        opt.maximize(Sum(max_func))
         # =========================== Skipping the nodes that are not labeled ================================
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.exclude_skipped_nodes(opt, self.graph)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
+                else:
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
         # ====================================================================================================
-        
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        subgraph_nodes = ComponentManager.check_convexity(opt, G, self.gate_dict)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+        node_partition = []
+        if opt.check() == sat:
+            # print(opt.model())
+            m = opt.model()
+            for t in m.decls():
+                if 'g' not in str(t):  # Look only the literals associate to the gates
+                    continue
+                if is_true(m[t]):
+                    gate_id = int(str(t)[2:])
+                    node_partition.append(gate_id)  # Gates inside the partition
 
-        return subgraph_nodes
+        # Check partition convexity
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+        return [self.gate_dict[idx] for idx in node_partition]
 
     def find_subgraph_sensitivity_no_io_constraints(self, specs_obj: Specifications) -> List[str]:
         """
@@ -557,231 +901,772 @@ class AnnotatedGraph(Graph):
         # print(f'Extracting subgraph...')
 
         tmp_graph = self.graph.copy(as_view=False)
+        # print(f'{tmp_graph.nodes = }')
+        # Data structures containing the literals
+        input_literals = {}  # literals associated to the input nodes
+        gate_literals = {}  # literals associated to the gates in the circuit
+        output_literals = {}  # literals associated to the output nodes
+
+        # Data structures containing the edges
+        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
+        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
 
         # Optimizer
         opt = Optimize()
 
-        # COMPONENT START: Model Initialization
-        input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
-            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+        # Function to maximize
+        max_func = []
 
-        # COMPONENT START: Signal Propagation Constraints (SP)
-        partition_input_edges, partition_output_edges, edge_w, edge_constraint = \
-        ComponentManager.get_signal_propagation(
-        input_edges, gate_edges, output_edges,
-        input_literals, gate_literals, output_literals,
-        tmp_graph, self.gate_dict, WEIGHT
-        )
-        # COMPONENT END: Signal Propagation Constraints (SP)
+        # List of all the partition edges
+        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
 
-        # COMPONENT START: Model Initialization
-        G = ComponentManager.build_gate_graph(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+        # Generate all literals
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Generate literal for each input node
+                in_id = int(e[0][2:])
+                if in_id not in input_literals:
+                    input_literals[in_id] = Bool("in_%s" % str(in_id))
+            if 'g' in e[0]:  # Generate literal for each gate in the circuit
+                g_id = int(e[0][1:])
+                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                    gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
-        # COMPONENT START: Sensitivity Budget Constraints (SB)
-        gate_weight = ComponentManager.prepare_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
-        # COMPONENT END: Sensitivity Budget Constraints (SB)
+            if 'out' in e[1]:  # Generate literal for each output node
+                out_id = int(e[1][3:])
+                if out_id not in output_literals:
+                    output_literals[out_id] = Bool("out_%s" % str(out_id))
 
-        # COMPONENT START: Convexity and Structural Constraints (CS)
-        ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
-        # COMPONENT END: Convexity and Structural Constraints (CS)
+        # Generate structures holding edge information
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Populate input_edges structure
+                in_id = int(e[0][2:])
 
-        # COMPONENT START: Model Initialization
-        ComponentManager.add_boundary_conditions(opt, input_literals, output_literals)
-        # COMPONENT END: Model Initialization
+                if in_id not in input_edges:
+                    input_edges[in_id] = []
+                # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
+                # Morteza added ==============
+                try:
+                    input_edges[in_id].append(int(e[1][1:]))
+                except:
+                    if re.search('g(\d+)', e[1]):
+                        my_id = int(re.search('g(\d+)', e[1]).group(1))
+                        input_edges[in_id].append(my_id)
+                # =============================
 
-        # COMPONENT START: Sensitivity Budget Constraints (SB)
-        ComponentManager.add_sensitivity_budget(opt, edge_w, edge_constraint, sensitivity_t)
-        # COMPONENT END: Sensitivity Budget Constraints (SB)
+            if 'g' in e[0] and 'g' in e[1]:  # Populate gate_edges structure
+                ns_id = int(e[0][1:])
+                nd_id = int(e[1][1:])
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_maximization(opt, gate_literals, gate_weight=None)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+                if ns_id in self.constant_dict:
+                    print("ERROR: Constants should only be connected to output nodes")
+                    raise
+                if ns_id not in gate_edges:
+                    gate_edges[ns_id] = []
+                # try:
+                gate_edges[ns_id].append(nd_id)
+
+            if 'out' in e[1]:  # Populate output_edges structure
+                out_id = int(e[1][3:])
+                if out_id not in output_edges:
+                    output_edges[out_id] = []
+                # output_edges[out_id].append(int(e[0][1:]))
+                # Morteza added ==============
+                try:
+                    output_edges[out_id].append(int(e[0][1:]))
+                except:
+                    my_id = int(re.search('(\d+)', e[0]).group(1))
+                    output_edges[out_id].append(my_id)
+
+                # =============================
+
+        # Define input edges
+        for source in input_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in input_edges[source]:
+                e_in = And(Not(input_literals[source]), gate_literals[destination])
+
+                edge_in_holder.append(e_in)
+
+            partition_input_edges.append(Or(edge_in_holder))
+
+        # Define gate edges and data structures containing the edge weights
+        edge_w = {}
+        edge_constraint = {}
+
+        for source in gate_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in gate_edges[source]:
+                e_in = And(Not(gate_literals[source]), gate_literals[destination])
+                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+
+                edge_in_holder.append(e_in)
+                edge_out_holder.append(e_out)
+
+            partition_input_edges.append(Or(edge_in_holder))
+            if source not in edge_w:
+                edge_w[source] = tmp_graph.nodes[self.gate_dict[source]][WEIGHT]
+
+            if source not in edge_constraint:
+                edge_constraint[source] = Or(edge_out_holder)
+            partition_output_edges.append(Or(edge_out_holder))
+
+        # Define output edges
+        for output_id in output_edges:
+            predecessor = output_edges[output_id][
+                0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
+            if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
+                continue
+            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            if predecessor not in edge_w:
+                edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
+            if predecessor not in edge_constraint:
+                edge_constraint[predecessor] = e_out
+            partition_output_edges.append(e_out)
+
+        # Create graph of the cicuit without input and output nodes
+        G = nx.DiGraph()
+        # print(f'{tmp_graph.edges = }')
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]) and 'g' in str(e[1]):
+                source = int(e[0][1:])
+                destination = int(e[1][1:])
+
+                G.add_edge(source, destination)
+        # Morteza added =====================
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]):
+                source = int(e[0][1:])
+                if source in self.constant_dict:
+                    continue
+                G.add_node(source)
+        # ===================================
+
+        # Generate structure with gate weights
+        gate_weight = {}
+        for gate_idx in G.nodes:
+            if gate_idx not in gate_weight:
+                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+
+        # Find max weight
+        max_weight = 0
+        for gate_id in gate_weight:
+            max_weight = max(max_weight, gate_weight[gate_id])
+
+        # Update gate weights so that gate_weight = max_weight - max_weight
+        for gate_id in gate_weight:
+            gate_weight[gate_id] = max_weight - gate_weight[
+                gate_id] + 1  # + 1 must be removed, I'm leaving it just for the initial debugging phase
+
+        descendants = {}
+        ancestors = {}
+        for n in G:
+            if n not in descendants:
+                descendants[n] = sorted(nx.descendants(G, n))
+            if n not in ancestors:
+                ancestors[n] = sorted(nx.ancestors(G, n))
+
+        # Generate convexity constraints
+        for source in gate_edges:
+            for destination in gate_edges[source]:
+                if len(descendants[destination]) > 0:  # Constraints on output edges
+                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants.append(Not(gate_literals[destination]))
+                    descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
+                                                  And(not_descendants))
+                    opt.add(descendat_condition)
+                if len(ancestors[source]) > 0:  # Constraints on input edges
+                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors.append(Not(gate_literals[source]))
+                    ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
+                                                 And(not_ancestors))
+                    opt.add(ancestor_condition)
+
+        # Set input nodes to False
+        for input_node_id in input_literals:
+            opt.add(input_literals[input_node_id] == False)
+
+        # Set output nodes to False
+        for output_node_id in output_literals:
+            opt.add(output_literals[output_node_id] == False)
+
+        sensitivity_constraints = []
+        for s in edge_w:
+            sensitivity_constraints.append(edge_constraint[s] * edge_w[s])
+
+        opt.add(Sum(sensitivity_constraints) <= sensitivity_t)
+        # print(f'{sensitivity_constraints = }')
+        # Generate function to maximize
+        for gate_id in gate_literals:
+            max_func.append(gate_literals[gate_id])
+        # print(f'{max_func = }')
+        # Add function to maximize to the solver
+        opt.maximize(Sum(max_func))
 
         # =========================== Skipping the nodes that are not labeled ================================
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.exclude_skipped_nodes(opt, self.graph)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
+                else:
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
         # ====================================================================================================
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        subgraph_nodes = ComponentManager.check_convexity(opt, G, self.gate_dict)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+        node_partition = []
+        if opt.check() == sat:
+            # print(opt.model())
+            m = opt.model()
+            for t in m.decls():
+                if 'g' not in str(t):  # Look only the literals associate to the gates
+                    continue
+                if is_true(m[t]):
+                    gate_id = int(str(t)[2:])
+                    node_partition.append(gate_id)  # Gates inside the partition
 
-        return subgraph_nodes
+        # Check partition convexity
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+        return [self.gate_dict[idx] for idx in node_partition]
 
     def find_subgraph_feasible(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-        
+        imax = specs_obj.imax
+        omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
+        # print(f'{feasibility_treshold = }')
 
+        # pprint.info2(f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         # print(f'Extracting subgraph...')
 
         tmp_graph = self.graph.copy(as_view=False)
+        # print(f'{tmp_graph.nodes = }')
+        # Data structures containing the literals
+        input_literals = {}  # literals associated to the input nodes
+        gate_literals = {}  # literals associated to the gates in the circuit
+        output_literals = {}  # literals associated to the output nodes
+
+        # Data structures containing the edges
+        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
+        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
 
         # Optimizer
         opt = Optimize()
 
-        # COMPONENT START: Model Initialization
-        input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
-            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+        # Function to maximize
+        max_func = []
 
-        # COMPONENT START: Signal Propagation Constraints (SP)
-        partition_input_edges, partition_output_edges, edge_w, edge_constraint = \
-        ComponentManager.get_signal_propagation(
-        input_edges, gate_edges, output_edges,
-        input_literals, gate_literals, output_literals,
-        tmp_graph, self.gate_dict, WEIGHT
-        )
-        # COMPONENT END: Signal Propagation Constraints (SP)
+        # List of all the partition edges
+        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
 
-        # COMPONENT START: Model Initialization
-        G = ComponentManager.build_gate_graph(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+        # Generate all literals
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Generate literal for each input node
+                in_id = int(e[0][2:])
+                if in_id not in input_literals:
+                    input_literals[in_id] = Bool("in_%s" % str(in_id))
+            if 'g' in e[0]:  # Generate literal for each gate in the circuit
+                g_id = int(e[0][1:])
+                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                    gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
-        # COMPONENT START: Model Initialization
-        gate_weight = ComponentManager.extract_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
-        # COMPONENT END: Model Initialization
+            if 'out' in e[1]:  # Generate literal for each output node
+                out_id = int(e[1][3:])
+                if out_id not in output_literals:
+                    output_literals[out_id] = Bool("out_%s" % str(out_id))
 
-        # COMPONENT START: Convexity and Structural Constraints (CS)
-        ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
-        # COMPONENT END: Convexity and Structural Constraints (CS)
+        # Generate structures holding edge information
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Populate input_edges structure
+                in_id = int(e[0][2:])
 
-        # COMPONENT START: Model Initialization
-        ComponentManager.add_boundary_conditions(opt, input_literals, output_literals)
-        # COMPONENT END: Model Initialization
+                if in_id not in input_edges:
+                    input_edges[in_id] = []
+                # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
+                # Morteza added ==============
+                try:
+                    input_edges[in_id].append(int(e[1][1:]))
+                except:
+                    if re.search('g(\d+)', e[1]):
+                        my_id = int(re.search('g(\d+)', e[1]).group(1))
+                        input_edges[in_id].append(my_id)
+                # =============================
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_io_limits(
-            opt, 
-            specs_obj.imax, 
-            specs_obj.omax, 
-            partition_input_edges, 
-            partition_output_edges
-        )
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+            if 'g' in e[0] and 'g' in e[1]:  # Populate gate_edges structure
+                ns_id = int(e[0][1:])
+                nd_id = int(e[1][1:])
 
-        # COMPONENT START: Feasibility and Filtering Constraints (FF)
-        feasibility_constraints = ComponentManager.get_feasibility(
-            edge_w, gate_weight, feasibility_treshold, edge_constraint, strict=True
-        )
-        # COMPONENT END: Feasibility and Filtering Constraints (FF)
+                if ns_id in self.constant_dict:
+                    print("ERROR: Constants should only be connected to output nodes")
+                    raise
+                if ns_id not in gate_edges:
+                    gate_edges[ns_id] = []
+                # try:
+                gate_edges[ns_id].append(nd_id)
 
-        # COMPONENT START: Feasibility and Filtering Constraints (FF)
-        ComponentManager.add_feasibility_logic(opt, feasibility_constraints, mode='at_least_one')
-        # COMPONENT END: Feasibility and Filtering Constraints (FF)
+            if 'out' in e[1]:  # Populate output_edges structure
+                out_id = int(e[1][3:])
+                if out_id not in output_edges:
+                    output_edges[out_id] = []
+                # output_edges[out_id].append(int(e[0][1:]))
+                # Morteza added ==============
+                try:
+                    output_edges[out_id].append(int(e[0][1:]))
+                except:
+                    my_id = int(re.search('(\d+)', e[0]).group(1))
+                    output_edges[out_id].append(my_id)
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_maximization(opt, gate_literals, gate_weight=None)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+                # =============================
 
+        # Define input edges
+        for source in input_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in input_edges[source]:
+                e_in = And(Not(input_literals[source]), gate_literals[destination])
+
+                edge_in_holder.append(e_in)
+
+            partition_input_edges.append(Or(edge_in_holder))
+
+        # Define gate edges and data structures containing the edge weights
+        edge_w = {}
+        edge_constraint = {}
+
+        for source in gate_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in gate_edges[source]:
+                e_in = And(Not(gate_literals[source]), gate_literals[destination])
+                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+
+                edge_in_holder.append(e_in)
+                edge_out_holder.append(e_out)
+
+            partition_input_edges.append(Or(edge_in_holder))
+            if source not in edge_w:
+                edge_w[source] = tmp_graph.nodes[self.gate_dict[source]][WEIGHT]
+
+            if source not in edge_constraint:
+                edge_constraint[source] = Or(edge_out_holder)
+            partition_output_edges.append(Or(edge_out_holder))
+
+        # Define output edges
+        for output_id in output_edges:
+            predecessor = output_edges[output_id][
+                0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
+            if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
+                continue
+            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            if predecessor not in edge_w:
+                edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
+            if predecessor not in edge_constraint:
+                edge_constraint[predecessor] = e_out
+            partition_output_edges.append(e_out)
+
+        # Create graph of the cicuit without input and output nodes
+        G = nx.DiGraph()
+        # print(f'{tmp_graph.edges = }')
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]) and 'g' in str(e[1]):
+                source = int(e[0][1:])
+                destination = int(e[1][1:])
+
+                G.add_edge(source, destination)
+        # Morteza added =====================
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]):
+                source = int(e[0][1:])
+                if source in self.constant_dict:
+                    continue
+                G.add_node(source)
+        # ===================================
+
+        # Generate structure with gate weights
+        # for n in self.graph.nodes:
+        #     print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
+        # print(f'{self.gate_dict = }')
+        gate_weight = {}
+        for gate_idx in G.nodes:
+
+            if gate_idx not in gate_weight:
+                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+
+        descendants = {}
+        ancestors = {}
+        for n in G:
+            if n not in descendants:
+                descendants[n] = sorted(nx.descendants(G, n))
+            if n not in ancestors:
+                ancestors[n] = sorted(nx.ancestors(G, n))
+
+        # Generate convexity constraints
+        for source in gate_edges:
+            for destination in gate_edges[source]:
+                if len(descendants[destination]) > 0:  # Constraints on output edges
+                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants.append(Not(gate_literals[destination]))
+                    descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
+                                                  And(not_descendants))
+                    opt.add(descendat_condition)
+                if len(ancestors[source]) > 0:  # Constraints on input edges
+                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors.append(Not(gate_literals[source]))
+                    ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
+                                                 And(not_ancestors))
+                    opt.add(ancestor_condition)
+
+        # Set input nodes to False
+        for input_node_id in input_literals:
+            opt.add(input_literals[input_node_id] == False)
+
+        # Set output nodes to False
+        for output_node_id in output_literals:
+            opt.add(output_literals[output_node_id] == False)
+
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
+
+        feasibility_constraints = []
+        for s in edge_w:
+
+            if gate_weight[s] <= feasibility_treshold:
+                # print(s, "is feasible", gate_weight[s])
+                feasibility_constraints.append(edge_constraint[s])
+
+        opt.add(Sum(feasibility_constraints) >= 1)
+
+        # Generate function to maximize
+        for gate_id in gate_literals:
+            max_func.append(gate_literals[gate_id])
+
+        # Add function to maximize to the solver
+        opt.maximize(Sum(max_func))
         # =========================== Skipping the nodes that are not labeled ================================
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.exclude_skipped_nodes(opt, self.graph)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
+                else:
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
         # ====================================================================================================
-        
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        subgraph_nodes = ComponentManager.check_convexity(opt, G, self.gate_dict)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+        node_partition = []
+        if opt.check() == sat:
+            # print(opt.model())
+            m = opt.model()
+            for t in m.decls():
+                if 'g' not in str(t):  # Look only the literals associate to the gates
+                    continue
+                if is_true(m[t]):
+                    gate_id = int(str(t)[2:])
+                    node_partition.append(gate_id)  # Gates inside the partition
 
-        return subgraph_nodes
+        # Check partition convexity
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+        return [self.gate_dict[idx] for idx in node_partition]
 
     def find_subgraph_feasible_hard(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-
+        imax = specs_obj.imax
+        omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
+        # print(f'{feasibility_treshold = }')
 
+        # pprint.info2(f'finding a subgraph (imax={imax}, omax={omax}) for {self.name}... ')
         # Todo:
         # 1) First, the number of outputs or outgoing edges of the subgraph
         # Potential Fitness function = #of nodes/ (#ofInputs + #ofOutputs)
         # print(f'Extracting subgraph...')
 
         tmp_graph = self.graph.copy(as_view=False)
+        # print(f'{tmp_graph.nodes = }')
+        # Data structures containing the literals
+        input_literals = {}  # literals associated to the input nodes
+        gate_literals = {}  # literals associated to the gates in the circuit
+        output_literals = {}  # literals associated to the output nodes
+
+        # Data structures containing the edges
+        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
+        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
 
         # Optimizer
         opt = Optimize()
 
-        # COMPONENT START: Model Initialization
-        input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
-            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+        # Function to maximize
+        max_func = []
 
-        # COMPONENT START: Signal Propagation Constraints (SP)
-        partition_input_edges, partition_output_edges, edge_w, edge_constraint = \
-        ComponentManager.get_signal_propagation(
-        input_edges, gate_edges, output_edges,
-        input_literals, gate_literals, output_literals,
-        tmp_graph, self.gate_dict, WEIGHT
-        )
-        # COMPONENT END: Signal Propagation Constraints (SP)
+        # List of all the partition edges
+        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
 
-        # COMPONENT START: Model Initialization
-        G = ComponentManager.build_gate_graph(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+        # Generate all literals
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Generate literal for each input node
+                in_id = int(e[0][2:])
+                if in_id not in input_literals:
+                    input_literals[in_id] = Bool("in_%s" % str(in_id))
+            if 'g' in e[0]:  # Generate literal for each gate in the circuit
+                g_id = int(e[0][1:])
+                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                    gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
-        # COMPONENT START: Model Initialization
-        gate_weight = ComponentManager.extract_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
-        # COMPONENT END: Model Initialization
+            if 'out' in e[1]:  # Generate literal for each output node
+                out_id = int(e[1][3:])
+                if out_id not in output_literals:
+                    output_literals[out_id] = Bool("out_%s" % str(out_id))
 
-        # COMPONENT START: Convexity and Structural Constraints (CS)
-        ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
-        # COMPONENT END: Convexity and Structural Constraints (CS)
+        # Generate structures holding edge information
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Populate input_edges structure
+                in_id = int(e[0][2:])
 
-        # COMPONENT START: Model Initialization
-        ComponentManager.add_boundary_conditions(opt, input_literals, output_literals)
-        # COMPONENT END: Model Initialization
+                if in_id not in input_edges:
+                    input_edges[in_id] = []
+                # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
+                # Morteza added ==============
+                try:
+                    input_edges[in_id].append(int(e[1][1:]))
+                except:
+                    if re.search('g(\d+)', e[1]):
+                        my_id = int(re.search('g(\d+)', e[1]).group(1))
+                        input_edges[in_id].append(my_id)
+                # =============================
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_io_limits(
-            opt, 
-            specs_obj.imax, 
-            specs_obj.omax, 
-            partition_input_edges, 
-            partition_output_edges
-        )
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+            if 'g' in e[0] and 'g' in e[1]:  # Populate gate_edges structure
+                ns_id = int(e[0][1:])
+                nd_id = int(e[1][1:])
 
-        # COMPONENT START: Feasibility and Filtering Constraints (FF)
-        feasibility_constraints = ComponentManager.get_feasibility(
-            edge_w, gate_weight, feasibility_treshold, edge_constraint, strict=True
-        )
-        # COMPONENT END: Feasibility and Filtering Constraints (FF)
+                if ns_id in self.constant_dict:
+                    print("ERROR: Constants should only be connected to output nodes")
+                    raise
+                if ns_id not in gate_edges:
+                    gate_edges[ns_id] = []
+                # try:
+                gate_edges[ns_id].append(nd_id)
 
-        # COMPONENT START: Feasibility and Filtering Constraints (FF)
-        ComponentManager.add_feasibility_logic(
-            opt, feasibility_constraints, 
-            partition_output_edges=partition_output_edges, 
-            mode='match_outputs'
-        )
-        # COMPONENT END: Feasibility and Filtering Constraints (FF)
+            if 'out' in e[1]:  # Populate output_edges structure
+                out_id = int(e[1][3:])
+                if out_id not in output_edges:
+                    output_edges[out_id] = []
+                # output_edges[out_id].append(int(e[0][1:]))
+                # Morteza added ==============
+                try:
+                    output_edges[out_id].append(int(e[0][1:]))
+                except:
+                    my_id = int(re.search('(\d+)', e[0]).group(1))
+                    output_edges[out_id].append(my_id)
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_maximization(opt, gate_literals, gate_weight=None)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+                # =============================
+
+        # Define input edges
+        for source in input_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in input_edges[source]:
+                e_in = And(Not(input_literals[source]), gate_literals[destination])
+
+                edge_in_holder.append(e_in)
+
+            partition_input_edges.append(Or(edge_in_holder))
+
+        # Define gate edges and data structures containing the edge weights
+        edge_w = {}
+        edge_constraint = {}
+
+        for source in gate_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in gate_edges[source]:
+                e_in = And(Not(gate_literals[source]), gate_literals[destination])
+                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+
+                edge_in_holder.append(e_in)
+                edge_out_holder.append(e_out)
+
+            partition_input_edges.append(Or(edge_in_holder))
+            if source not in edge_w:
+                edge_w[source] = tmp_graph.nodes[self.gate_dict[source]][WEIGHT]
+
+            if source not in edge_constraint:
+                edge_constraint[source] = Or(edge_out_holder)
+            partition_output_edges.append(Or(edge_out_holder))
+
+        # Define output edges
+        for output_id in output_edges:
+            predecessor = output_edges[output_id][
+                0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
+            if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
+                continue
+            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            if predecessor not in edge_w:
+                edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
+            if predecessor not in edge_constraint:
+                edge_constraint[predecessor] = e_out
+            partition_output_edges.append(e_out)
+
+        # Create graph of the cicuit without input and output nodes
+        G = nx.DiGraph()
+        # print(f'{tmp_graph.edges = }')
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]) and 'g' in str(e[1]):
+                source = int(e[0][1:])
+                destination = int(e[1][1:])
+
+                G.add_edge(source, destination)
+        # Morteza added =====================
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]):
+                source = int(e[0][1:])
+                if source in self.constant_dict:
+                    continue
+                G.add_node(source)
+        # ===================================
+
+        # Generate structure with gate weights
+        # for n in self.graph.nodes:
+        #     print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
+        # print(f'{self.gate_dict = }')
+        gate_weight = {}
+        for gate_idx in G.nodes:
+
+            if gate_idx not in gate_weight:
+                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+
+        descendants = {}
+        ancestors = {}
+        for n in G:
+            if n not in descendants:
+                descendants[n] = sorted(nx.descendants(G, n))
+            if n not in ancestors:
+                ancestors[n] = sorted(nx.ancestors(G, n))
+
+        # Generate convexity constraints
+        for source in gate_edges:
+            for destination in gate_edges[source]:
+                if len(descendants[destination]) > 0:  # Constraints on output edges
+                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants.append(Not(gate_literals[destination]))
+                    descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
+                                                  And(not_descendants))
+                    opt.add(descendat_condition)
+                if len(ancestors[source]) > 0:  # Constraints on input edges
+                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors.append(Not(gate_literals[source]))
+                    ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
+                                                 And(not_ancestors))
+                    opt.add(ancestor_condition)
+
+        # Set input nodes to False
+        for input_node_id in input_literals:
+            opt.add(input_literals[input_node_id] == False)
+
+        # Set output nodes to False
+        for output_node_id in output_literals:
+            opt.add(output_literals[output_node_id] == False)
+
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
+
+        feasibility_constraints = []
+        for s in edge_w:
+
+            if gate_weight[s] <= feasibility_treshold:
+                # print(s, "is feasible", gate_weight[s])
+                feasibility_constraints.append(edge_constraint[s])
+
+        opt.add(Sum(feasibility_constraints) == Sum(partition_output_edges))
+
+        # Generate function to maximize
+        for gate_id in gate_literals:
+            max_func.append(gate_literals[gate_id])
+
+        # Add function to maximize to the solver
+        opt.maximize(Sum(max_func))
 
         # =========================== Skipping the nodes that are not labeled ================================
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.exclude_skipped_nodes(opt, self.graph)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
+                else:
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
         # ====================================================================================================
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        subgraph_nodes = ComponentManager.check_convexity(opt, G, self.gate_dict)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+        node_partition = []
+        if opt.check() == sat:
+            # print(opt.model())
+            m = opt.model()
+            for t in m.decls():
+                if 'g' not in str(t):  # Look only the literals associate to the gates
+                    continue
+                if is_true(m[t]):
+                    gate_id = int(str(t)[2:])
+                    node_partition.append(gate_id)  # Gates inside the partition
 
-        return subgraph_nodes
+        # Check partition convexity
+        if not is_selection_convex(G, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+        return [self.gate_dict[idx] for idx in node_partition]
 
     def find_subgraph_feasible_hard_limited_inputs_datatype_bitvec(self, specs_obj: Specifications) -> List[str]:
         """
@@ -789,49 +1674,190 @@ class AnnotatedGraph(Graph):
         :return: an annotated graph in which the extracted subgraph is colored
         """
 
+        # loose bound but since it's logarithmic it's still ok
+        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates))
+
         omax = specs_obj.omax
         imax = specs_obj.imax
         feasibility_threshold = specs_obj.et
 
         opt = Optimize()
 
-        # COMPONENT START: Bitvector Topology Management====================================================
+        Node = Datatype('Node')
+        Node.declare('mk_node', ('id', BitVecSort(NUM_BITS)), ('weight', BitVecSort(NUM_BITS)), ('in_subgraph', BoolSort()))
+        Node = Node.create()
 
-        # COMPONENT START: Datatype Model Initialization
-        Node, Edge, nodes, edges, NUM_BITS = ComponentManager.datatype_model_initialization(
-            self.graph, WEIGHT, self.input_dict, self.gate_dict, self.output_dict, self.constant_dict, opt, self.num_outputs, self.num_gates
-        )
-        # COMPONENT END: Datatype Model Initialization
+        # Define a custom datatype for Edge
+        Edge = Datatype('Edge')
+        Edge.declare('mk_edge', ('source', Node), ('target', Node))
+        Edge = Edge.create()
 
-        # COMPONENT START: Datatype Signal Propagation Constraints
-        unique_incoming_edges, unique_outgoing_edges, max_nodes = ComponentManager.datatype_signal_propagation_constraints(
-            self.graph, nodes, Node, NUM_BITS
-        )
-        # COMPONENT END: Datatype Signal Propagation Constraints
+        nodes = {}
+        edges = []
 
-        # COMPONENT START: Datatype Convexity and Structural Constraints
-        ComponentManager.datatype_convexity_and_structural_constraints(
-            self.graph, nodes, Node, opt
-        )
-        # COMPONENT END: Datatype Convexity and Structural Constraints
+        for in_idx in self.input_dict:
+            node_label = self.input_dict[in_idx]
+            weight = self.graph.nodes[node_label][WEIGHT]
+            node = Node.mk_node(BitVecVal(in_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(in_idx, NUM_BITS))
 
-        # COMPONENT START: Datatype Feasibility and Filtering Constraints
-        opt.add(ComponentManager.datatype_feasibility_and_filtering_constraints(
-            edges, Node, Edge, NUM_BITS, feasibility_threshold, sum_mode=False
-        ))
-        # COMPONENT END: Datatype Feasibility and Filtering Constraints
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
+            opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
 
-        # COMPONENT START: Datatype Optimization and Selection Constraints
-        return ComponentManager.datatype_optimization_and_selection_constraints(
-            opt, max_nodes, self.graph, self.gate_dict, 
-            imax=imax, omax=omax, 
-            unique_incoming_edges=unique_incoming_edges, 
-            unique_outgoing_edges=unique_outgoing_edges, 
-            apply_io_limits=True
-        )
-        # COMPONENT END: Datatype Optimization and Selection Constraints
+        for g_idx in self.gate_dict:
+            node_label = self.gate_dict[g_idx]
+            weight = self.graph.nodes[node_label][WEIGHT]
+            node = Node.mk_node(BitVecVal(g_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(g_idx, NUM_BITS))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
+            if weight == -1:
+                opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+        #
+        for o_idx in self.output_dict:
+            node_label = self.output_dict[o_idx]
+            weight = self.graph.nodes[node_label][WEIGHT]
+            node = Node.mk_node(BitVecVal(o_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(o_idx, NUM_BITS))
 
-        # COMPONENT END: Bitvector Topology Management======================================================
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
+            opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+        #
+        for c_idx in self.constant_dict:
+            node_label = self.constant_dict[c_idx]
+            weight = self.graph.nodes[node_label][WEIGHT]
+            node = Node.mk_node(BitVecVal(c_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(c_idx, NUM_BITS))
+
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
+            opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+        #
+        for src, des in self.graph.edges:
+            edge = Edge.mk_edge(nodes[src], nodes[des])
+            opt.add(Edge.source(edge) == nodes[src])
+            opt.add(Edge.target(edge) == nodes[des])
+            edges.append(edge)
+
+        unique_outgoing_edges = []
+        unique_incoming_edges = []
+
+        for node_label in nodes:
+            node = nodes[node_label]
+            outgoing_conditions = []
+            incoming_conditions = []
+
+            for src, des in self.graph.edges(node_label):
+                if src == node_label:
+                    outgoing_conditions.append(And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des]))))
+                if src == node_label:
+                    incoming_conditions.append(And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])))
+
+            if outgoing_conditions:
+                unique_outgoing_edges.append(If(Or(outgoing_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
+            if incoming_conditions:
+                unique_incoming_edges.append(If(Or(incoming_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
+
+        # incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
+        #                   for edge in edges]
+        # outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
+        #                   for edge in edges]
+        max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)) for node in nodes.values()]
+
+        # max_nodes = [  for edge in edges]
+        # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), NUM_BITS) for node in nodes.values()]
+
+        descendants = {}
+        ancestors = {}
+        for node in nodes:
+            if node not in descendants:
+                descendants[node] = sorted(nx.descendants(self.graph, node))
+            if node not in ancestors:
+                ancestors[node] = sorted(nx.ancestors(self.graph, node))
+
+        for src in nodes:
+            for des in self.graph.successors(src):
+                if len(descendants[des]) > 0:
+                    not_descendants = [Not(Node.in_subgraph(nodes[l])) for l in descendants[des]]
+                    not_descendants.append(Not(Node.in_subgraph(nodes[des])))
+                    descendant_condition = Implies(
+                        And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des]))),
+                        And(not_descendants)
+                    )
+                    opt.add(descendant_condition)
+                if len(ancestors[src]) > 0:
+                    not_ancestors = [Not(Node.in_subgraph(nodes[l])) for l in ancestors[src]]
+                    not_ancestors.append(Not(Node.in_subgraph(nodes[src])))
+                    ancestor_condition = Implies(
+                        And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])),
+                        And(not_ancestors)
+                    )
+                    opt.add(ancestor_condition)
+
+        opt.add(Sum(unique_incoming_edges) <= imax)
+        opt.add(Sum(unique_outgoing_edges) <= omax)
+
+        feasibility_constraints = [
+            Implies(
+                And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),
+                Node.weight(Edge.source(edge)) <= BitVecVal(feasibility_threshold, NUM_BITS)
+            )
+            for edge in edges
+        ]
+
+        opt.add(And(feasibility_constraints))
+
+        h = opt.maximize(Sum(max_nodes))
+
+        # inputs = Int('inputs')
+        # outputs = Int('outputs')
+        # num_nodes = Int('num_nodes')
+        #
+        # num_nodes = BitVec('num_nodes', NUM_BITS)
+        # inputs = BitVec('inputs', NUM_BITS)
+        # outputs = BitVec('outputs', NUM_BITS)
+
+        # feasibility_constraints = [
+        #     Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, NUM_BITS)) for node in
+        #     nodes.values()
+        # ]
+
+        res = opt.check()
+
+        node_partition = []
+        if res == sat:
+            n_nodes = 0
+            m = opt.model()
+            model_maximized = m.eval(Sum(max_nodes), model_completion=True).as_long()
+            correct_maximum = h.upper().as_long()
+            
+            if correct_maximum != model_maximized:
+                pprint.info2("\nmodel isn't maximized, running another solver call")
+                opt.add(Sum(max_nodes) == correct_maximum)
+                start = time.perf_counter()
+                if opt.check() == sat:
+                    print(f'Subgraph_extraction_second_call_time = {time.perf_counter() - start}')
+                    m = opt.model()
+                else:
+                    raise Exception("Impossible, error in z3py")
+
+            # print(f'{m = }')
+            for t in m.decls():
+                # print(f'{type(t) = }')
+                # print(f'{t = }')
+                if str(t).startswith('g'):  # Look only the literals associate to the gates
+                    if is_true(m[t]):
+                        node_partition.append(str(t))
+                        n_nodes += 1
+
+        # Check partition convexity
+        if not is_selection_convex(self.graph, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+        node_partition_idx = [int(re.search('g(\d+)', node).group(1)) for node in node_partition]
+        return [self.gate_dict[idx] for idx in node_partition_idx]
 
     def get_null_subgraph(self) -> nx.DiGraph:
         """Returns a graph with subgraph information for the null subgraph"""
@@ -886,159 +1912,510 @@ class AnnotatedGraph(Graph):
         :return: an annotated graph in which the extracted subgraph is colored
         """
 
+        # loose bound but since it's logarithmic it's still ok
+        NUM_BITS = self.num_outputs + math.ceil(math.log2(self.num_gates))
+
         omax = specs_obj.omax
         imax = specs_obj.imax
         feasibility_threshold = specs_obj.et
 
         opt = Optimize()
 
-        # COMPONENT START: Bitvector Topology Management====================================================
+        Node = Datatype('Node')
+        Node.declare('mk_node', ('id', BitVecSort(NUM_BITS)), ('weight', BitVecSort(NUM_BITS)), ('in_subgraph', BoolSort()))
+        Node = Node.create()
 
-        # COMPONENT START: Datatype Model Initialization
-        Node, Edge, nodes, edges, NUM_BITS = ComponentManager.datatype_model_initialization(
-            self.graph, WEIGHT, self.input_dict, self.gate_dict, self.output_dict, self.constant_dict, opt, self.num_outputs, self.num_gates
-        )
-        # COMPONENT END: Datatype Model Initialization
+        # Define a custom datatype for Edge
+        Edge = Datatype('Edge')
+        Edge.declare('mk_edge', ('source', Node), ('target', Node))
+        Edge = Edge.create()
 
-        # COMPONENT START: Datatype Signal Propagation Constraints
-        unique_incoming_edges, unique_outgoing_edges, max_nodes = ComponentManager.datatype_signal_propagation_constraints(
-            self.graph, nodes, Node, NUM_BITS
-        )
-        # COMPONENT END: Datatype Signal Propagation Constraints
+        nodes = {}
+        edges = []
 
-        # COMPONENT START: Datatype Convexity and Structural Constraints
-        ComponentManager.datatype_convexity_and_structural_constraints(
-            self.graph, nodes, Node, opt
-        )
-        # COMPONENT END: Datatype Convexity and Structural Constraints
+        for in_idx in self.input_dict:
+            node_label = self.input_dict[in_idx]
+            weight = self.graph.nodes[node_label][WEIGHT]
+            node = Node.mk_node(BitVecVal(in_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(in_idx, NUM_BITS))
 
-        # COMPONENT START: Datatype Parent-Child Connectivity Constraints
-        ComponentManager.datatype_parent_child_constraints(
-            self.graph, nodes, Node, opt
-        )
-        # COMPONENT END: Datatype Parent-Child Connectivity Constraints
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
+            opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
 
-        # COMPONENT START: Datatype Feasibility and Filtering Constraints
-        opt.add(ComponentManager.datatype_feasibility_and_filtering_constraints(
-            edges, Node, Edge, NUM_BITS, feasibility_threshold, sum_mode=True
-        ))
-        # COMPONENT END: Datatype Feasibility and Filtering Constraints
+        for g_idx in self.gate_dict:
+            node_label = self.gate_dict[g_idx]
+            weight = self.graph.nodes[node_label][WEIGHT]
+            node = Node.mk_node(BitVecVal(g_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(g_idx, NUM_BITS))
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
+            if weight == -1:
+                opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+        #
+        for o_idx in self.output_dict:
+            node_label = self.output_dict[o_idx]
+            weight = self.graph.nodes[node_label][WEIGHT]
+            node = Node.mk_node(BitVecVal(o_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(o_idx, NUM_BITS))
 
-        # COMPONENT START: Datatype Optimization and Selection Constraints
-        return ComponentManager.datatype_optimization_and_selection_constraints(
-            opt, max_nodes, self.graph, self.gate_dict, 
-            apply_io_limits=False
-        )
-        # COMPONENT END: Datatype Optimization and Selection Constraints
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
+            opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+        #
+        for c_idx in self.constant_dict:
+            node_label = self.constant_dict[c_idx]
+            weight = self.graph.nodes[node_label][WEIGHT]
+            node = Node.mk_node(BitVecVal(c_idx, NUM_BITS), BitVecVal(weight, NUM_BITS), Bool(f'{node_label}'))
+            opt.add(Node.id(node) == BitVecVal(c_idx, NUM_BITS))
 
-        # COMPONENT END: Bitvector Topology Management======================================================
+            opt.add(Node.weight(node) == BitVecVal(weight, NUM_BITS))
+            opt.add(Node.in_subgraph(node) == BoolVal(False))
+            nodes[node_label] = node
+        #
+        for src, des in self.graph.edges:
+            edge = Edge.mk_edge(nodes[src], nodes[des])
+            opt.add(Edge.source(edge) == nodes[src])
+            opt.add(Edge.target(edge) == nodes[des])
+            edges.append(edge)
+
+        unique_outgoing_edges = []
+        unique_incoming_edges = []
+
+        for node_label in nodes:
+            node = nodes[node_label]
+            outgoing_conditions = []
+            incoming_conditions = []
+
+            for src, des in self.graph.edges(node_label):
+                if src == node_label:
+                    outgoing_conditions.append(And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des]))))
+                if src == node_label:
+                    incoming_conditions.append(And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])))
+
+            if outgoing_conditions:
+                unique_outgoing_edges.append(If(Or(outgoing_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
+            if incoming_conditions:
+                unique_incoming_edges.append(If(Or(incoming_conditions), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)))
+
+        # incoming_edges = [If(And(Not(Node.in_subgraph(Edge.source(edge))), Node.in_subgraph(Edge.target(edge))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
+        #                   for edge in edges]
+        # outgoint_edges = [If(And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS))
+        #                   for edge in edges]
+        max_nodes = [If(Node.in_subgraph(node), BitVecVal(1, NUM_BITS), BitVecVal(0, NUM_BITS)) for node in nodes.values()]
+
+        # max_nodes = [  for edge in edges]
+        # max_nodes = [BitVecVal(ToInt(Node.in_subgraph(node)), NUM_BITS) for node in nodes.values()]
+
+        descendants = {}
+        ancestors = {}
+        for node in nodes:
+            if node not in descendants:
+                descendants[node] = sorted(nx.descendants(self.graph, node))
+            if node not in ancestors:
+                ancestors[node] = sorted(nx.ancestors(self.graph, node))
+
+        for src in nodes:
+            for des in self.graph.successors(src):
+                if len(descendants[des]) > 0:
+                    not_descendants = [Not(Node.in_subgraph(nodes[l])) for l in descendants[des]]
+                    not_descendants.append(Not(Node.in_subgraph(nodes[des])))
+                    descendant_condition = Implies(
+                        And(Node.in_subgraph(nodes[src]), Not(Node.in_subgraph(nodes[des]))),
+                        And(not_descendants)
+                    )
+                    opt.add(descendant_condition)
+                if len(ancestors[src]) > 0:
+                    not_ancestors = [Not(Node.in_subgraph(nodes[l])) for l in ancestors[src]]
+                    not_ancestors.append(Not(Node.in_subgraph(nodes[src])))
+                    ancestor_condition = Implies(
+                        And(Not(Node.in_subgraph(nodes[src])), Node.in_subgraph(nodes[des])),
+                        And(not_ancestors)
+                    )
+                    opt.add(ancestor_condition)
+
+        for parent in nodes:
+            children = list(self.graph.successors(parent))
+            if not children:
+                continue
+            in_subgraph_children = [Node.in_subgraph(nodes[child]) for child in children]
+
+            # If parent is in the subgraph and at least one child is in, then all children must be in
+            opt.add(
+                Implies(
+                    And(
+                        Node.in_subgraph(nodes[parent]),
+                        Or(in_subgraph_children)
+                    ),
+                    And(in_subgraph_children)
+                )
+            )
+
+        feasibility_sum = Sum([
+            If(
+                And(Node.in_subgraph(Edge.source(edge)), Not(Node.in_subgraph(Edge.target(edge)))),
+                Node.weight(Edge.source(edge)),
+                BitVecVal(0, NUM_BITS)
+            )
+            for edge in edges
+        ])
+
+        opt.add(feasibility_sum <= BitVecVal(feasibility_threshold, NUM_BITS))
+
+        h = opt.maximize(Sum(max_nodes))
+
+        # inputs = Int('inputs')
+        # outputs = Int('outputs')
+        # num_nodes = Int('num_nodes')
+        #
+        # num_nodes = BitVec('num_nodes', NUM_BITS)
+        # inputs = BitVec('inputs', NUM_BITS)
+        # outputs = BitVec('outputs', NUM_BITS)
+
+        # feasibility_constraints = [
+        #     Implies(Node.in_subgraph(node), Node.weight(node) <= BitVecVal(feasibility_threshold, NUM_BITS)) for node in
+        #     nodes.values()
+        # ]
+
+        res = opt.check()
+
+        node_partition = []
+        if res == sat:
+            n_nodes = 0
+            m = opt.model()
+            model_maximized = m.eval(Sum(max_nodes), model_completion=True).as_long()
+            correct_maximum = h.upper().as_long()
+            
+            if correct_maximum != model_maximized:
+                pprint.info2("\nmodel isn't maximized, running another solver call")
+                opt.add(Sum(max_nodes) == correct_maximum)
+                start = time.perf_counter()
+                if opt.check() == sat:
+                    print(f'Subgraph_extraction_second_call_time = {time.perf_counter() - start}')
+                    m = opt.model()
+                else:
+                    raise Exception("Impossible, error in z3py")
+
+            # print(f'{m = }')
+            for t in m.decls():
+                # print(f'{type(t) = }')
+                # print(f'{t = }')
+                if str(t).startswith('g'):  # Look only the literals associate to the gates
+                    if is_true(m[t]):
+                        node_partition.append(str(t))
+                        n_nodes += 1
+
+        # Check partition convexity
+        if not is_selection_convex(self.graph, node_partition):
+            raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+        node_partition_idx = [int(re.search('g(\d+)', node).group(1)) for node in node_partition]
+        return [self.gate_dict[idx] for idx in node_partition_idx]
 
     def find_subgraph_feasible_soft(self, specs_obj: Specifications) -> List[str]:
         """
         extracts a colored subgraph from the original non-partitioned graph object
         :return: an annotated graph in which the extracted subgraph is colored
         """
-
+        imax = specs_obj.imax
+        omax = specs_obj.omax
         feasibility_treshold = specs_obj.et
 
         tmp_graph = self.graph.copy(as_view=False)
 
+        input_literals = {}  # literals associated to the input nodes
+        gate_literals = {}  # literals associated to the gates in the circuit
+        output_literals = {}  # literals associated to the output nodes
+
+        # Data structures containing the edges
+        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
+        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+
         # Optimizer
         opt = Optimize()
 
-        # COMPONENT START: Model Initialization
-        input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
-            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
-        
-        # COMPONENT START: Signal Propagation Constraints (SP)
-        partition_input_edges, partition_output_edges, edge_w, edge_constraint = \
-        ComponentManager.get_signal_propagation(
-            input_edges, gate_edges, output_edges,
-            input_literals, gate_literals, output_literals,
-            tmp_graph, self.gate_dict, WEIGHT
-        )
-        # COMPONENT END: Signal Propagation Constraints (SP)
+        # Function to maximize
+        max_func = []
 
-        # COMPONENT START: Model Initialization
-        G = ComponentManager.build_gate_graph(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+        # List of all the partition edges
+        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
 
-        # COMPONENT START: Model Initialization
-        gate_weight = ComponentManager.extract_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
-        # COMPONENT END: Model Initialization
+        # Generate all literals
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Generate literal for each input node
+                in_id = int(e[0][2:])
+                if in_id not in input_literals:
+                    input_literals[in_id] = Bool("in_%s" % str(in_id))
+            if 'g' in e[0]:  # Generate literal for each gate in the circuit
+                g_id = int(e[0][1:])
+                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                    gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
-        # COMPONENT START: Convexity and Structural Constraints (CS)
-        ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
-        # COMPONENT END: Convexity and Structural Constraints (CS)
+            if 'out' in e[1]:  # Generate literal for each output node
+                out_id = int(e[1][3:])
+                if out_id not in output_literals:
+                    output_literals[out_id] = Bool("out_%s" % str(out_id))
 
-        # COMPONENT START: Model Initialization
-        ComponentManager.add_boundary_conditions(opt, input_literals, output_literals)
-        # COMPONENT END: Model Initialization
+        # Generate structures holding edge information
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Populate input_edges structure
+                in_id = int(e[0][2:])
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_io_limits(
-            opt, 
-            specs_obj.imax, 
-            specs_obj.omax, 
-            partition_input_edges, 
-            partition_output_edges
-        )
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+                if in_id not in input_edges:
+                    input_edges[in_id] = []
+                # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
+                # Morteza added ==============
+                try:
+                    input_edges[in_id].append(int(e[1][1:]))
+                except:
+                    if re.search('g(\d+)', e[1]):
+                        my_id = int(re.search('g(\d+)', e[1]).group(1))
+                        input_edges[in_id].append(my_id)
+                # =============================
 
-        # COMPONENT START: Feasibility and Filtering Constraints (FF)
-        feasibility_constraints = ComponentManager.get_feasibility(
-            edge_w, gate_weight, feasibility_treshold, edge_constraint, strict=False
-        )
-        # COMPONENT END: Feasibility and Filtering Constraints (FF)
+            if 'g' in e[0] and 'g' in e[1]:  # Populate gate_edges structure
+                ns_id = int(e[0][1:])
+                nd_id = int(e[1][1:])
 
-        # COMPONENT START: Feasibility and Filtering Constraints (FF)
-        ComponentManager.add_feasibility_logic(opt, feasibility_constraints, mode='at_least_one')
-        # COMPONENT END: Feasibility and Filtering Constraints (FF)
+                if ns_id in self.constant_dict:
+                    print("ERROR: Constants should only be connected to output nodes")
+                    raise
+                if ns_id not in gate_edges:
+                    gate_edges[ns_id] = []
+                # try:
+                gate_edges[ns_id].append(nd_id)
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_maximization(opt, gate_literals, gate_weight=None)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+            if 'out' in e[1]:  # Populate output_edges structure
+                out_id = int(e[1][3:])
+                if out_id not in output_edges:
+                    output_edges[out_id] = []
+                # output_edges[out_id].append(int(e[0][1:]))
+                # Morteza added ==============
+                try:
+                    output_edges[out_id].append(int(e[0][1:]))
+                except:
+                    my_id = int(re.search('(\d+)', e[0]).group(1))
+                    output_edges[out_id].append(my_id)
+
+                # =============================
+
+        # Define input edges
+        for source in input_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in input_edges[source]:
+                e_in = And(Not(input_literals[source]), gate_literals[destination])
+
+                edge_in_holder.append(e_in)
+
+            partition_input_edges.append(Or(edge_in_holder))
+
+        # Define gate edges and data structures containing the edge weights
+        edge_w = {}
+        edge_constraint = {}
+
+        for source in gate_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in gate_edges[source]:
+                e_in = And(Not(gate_literals[source]), gate_literals[destination])
+                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+
+                edge_in_holder.append(e_in)
+                edge_out_holder.append(e_out)
+
+            partition_input_edges.append(Or(edge_in_holder))
+            if source not in edge_w:
+                edge_w[source] = tmp_graph.nodes[self.gate_dict[source]][WEIGHT]
+
+            if source not in edge_constraint:
+                edge_constraint[source] = Or(edge_out_holder)
+            partition_output_edges.append(Or(edge_out_holder))
+
+        # Define output edges
+        for output_id in output_edges:
+            predecessor = output_edges[output_id][
+                0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
+            if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
+                continue
+            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            if predecessor not in edge_w:
+                edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
+            if predecessor not in edge_constraint:
+                edge_constraint[predecessor] = e_out
+            partition_output_edges.append(e_out)
+
+        # Create graph of the cicuit without input and output nodes
+        G = nx.DiGraph()
+        # print(f'{tmp_graph.edges = }')
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]) and 'g' in str(e[1]):
+                source = int(e[0][1:])
+                destination = int(e[1][1:])
+
+                G.add_edge(source, destination)
+        # Morteza added =====================
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]):
+                source = int(e[0][1:])
+                if source in self.constant_dict:
+                    continue
+                G.add_node(source)
+        # ===================================
+
+        # Generate structure with gate weights
+        # for n in self.graph.nodes:
+        #     print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
+        # print(f'{self.gate_dict = }')
+        gate_weight = {}
+        for gate_idx in G.nodes:
+
+            if gate_idx not in gate_weight:
+                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+
+        descendants = {}
+        ancestors = {}
+        for n in G:
+            if n not in descendants:
+                descendants[n] = sorted(nx.descendants(G, n))
+            if n not in ancestors:
+                ancestors[n] = sorted(nx.ancestors(G, n))
+
+        # Generate convexity constraints
+        for source in gate_edges:
+            for destination in gate_edges[source]:
+                if len(descendants[destination]) > 0:  # Constraints on output edges
+                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants.append(Not(gate_literals[destination]))
+                    descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
+                                                  And(not_descendants))
+                    opt.add(descendat_condition)
+                if len(ancestors[source]) > 0:  # Constraints on input edges
+                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors.append(Not(gate_literals[source]))
+                    ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
+                                                 And(not_ancestors))
+                    opt.add(ancestor_condition)
+
+        # Set input nodes to False
+        for input_node_id in input_literals:
+            opt.add(input_literals[input_node_id] == False)
+
+        # Set output nodes to False
+        for output_node_id in output_literals:
+            opt.add(output_literals[output_node_id] == False)
+
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
+
+        feasibility_constraints = []
+        for s in edge_w:
+            if gate_weight[s] <= feasibility_treshold and gate_weight[s] != -1:
+                print(s, "is feasible", gate_weight[s])
+                feasibility_constraints.append(edge_constraint[s])
+        opt.add(Sum(feasibility_constraints) >= 1)
+
+        # Generate function to maximize
+        for gate_id in gate_literals:
+            max_func.append(gate_literals[gate_id])
+        # Add function to maximize to the solver
+
+        opt.maximize(Sum(max_func))
 
         # =========================== Skipping the nodes that are not labeled ================================
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.exclude_skipped_nodes(opt, self.graph)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
+                else:
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
+
         # ====================================================================================================
 
         # =========================== Coming up with a penalty for each subgraph =============================
-        # COMPONENT START: Penalty-based Soft Constraints (PS)
         penalty = Int('penalty')
 
-        output_individual_penalty = ComponentManager.get_penalty_terms(
-            edge_w, gate_weight, feasibility_treshold, gate_literals
-        )
-        # COMPONENT END: Penalty-based Soft Constraints (PS)
+        output_individual_penalty = []
+        penalty_coefficient = 1
+        for s in edge_w:
+            if gate_weight[s] > feasibility_treshold:
+                output_individual_penalty.append(If(gate_literals[s],
+                                                    penalty_coefficient * (gate_weight[s] - feasibility_treshold),
+                                                    0))
+        opt.add(penalty == Sum(output_individual_penalty))
+        opt.add_soft(Sum(output_individual_penalty) <= 2 * feasibility_treshold, weight=1)
 
-        # COMPONENT START: Penalty-based Soft Constraints (PS)
-        ComponentManager.apply_penalty(
-            opt, 
-            penalty, 
-            output_individual_penalty, 
-            2 * feasibility_treshold, 
-            weight=1
-        )
-        # COMPONENT END: Penalty-based Soft Constraints (PS)
-        # ===================================================================================================
+        # ========================================================
 
-        # ======================== Check for multiple subgraphs =============================================
-        # COMPONENT START: Multi-Partition Iteration Engine (MPE)
-        all_partitions = ComponentManager.extract_multiple_subgraphs(
-            opt, G, specs_obj, mode='single', penalty=penalty
-        )
-        # COMPONENT END: Multi-Partition Iteration Engine (MPE)
-        # ===================================================================================================
+        # opt.add(Sum(max_func) > 1)
+        # ======================== Check for multiple subgraphs =======================================
+        all_partitions = {}
+        count = specs_obj.num_subgraphs
+        while count > 0:
+            node_partition = []
+            pprint.info1(f'Attempt {count}: ', end='')
+            c = opt.check()
+            if c == sat:
+                # print(opt.model())
+                m = opt.model()
+                # print(f'{m = }')
+                for t in m.decls():
+                    if 'penalty' in str(t):
+                        print(f'{t} = {m[t]}')
+                    if 'g' not in str(t):  # Look only the literals associate to the gates
+                        continue
+                    if is_true(m[t]):
+                        gate_id = int(str(t)[2:])
+                        node_partition.append(gate_id)  # Gates inside the partition
 
-        # =======================Pick the Subgraph with the lowest penalty ==================================
-        # COMPONENT START: Multi-Partition Iteration Engine (MPE)
-        penalty, node_partition = ComponentManager.select_best_partition(all_partitions, mode='single')
-        # COMPONENT END: Multi-Partition Iteration Engine (MPE)
-        # ===================================================================================================
+            else:
+                count = 0
+
+            # Check partition convexity
+            if not is_selection_convex(G, node_partition):
+                raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+            # ========================================================================
+            if c == sat:
+                block_clause = [d() == True if m[d] else d() == False for d in m.decls() if 'g' in d.name()]
+                opt.add(Not(And(block_clause)))
+                current_penalty = m[penalty].as_long()
+                print(f'{current_penalty}, {node_partition}')
+                all_partitions[count] = (current_penalty, node_partition)
+            count -= 1
+        # ================================================================
+        # =======================Pick the Subgraph with the lowest penalty ==============================
+        if all_partitions:
+            sorted_partitions = dict(
+                sorted(
+                    all_partitions.items(),
+                    key=lambda item: (-len(item[1][1]), item[1][0])
+                )
+            )
+
+            for par in sorted_partitions:
+                print(f'{sorted_partitions[par] = }')
+            penalty, node_partition = next(iter(sorted_partitions.values()))
+            print(f'{penalty, node_partition}')
+
+        # ================================================================
 
         return [self.gate_dict[idx] for idx in node_partition]
 
@@ -1053,112 +2430,324 @@ class AnnotatedGraph(Graph):
 
         tmp_graph = self.graph.copy(as_view=False)
 
+        input_literals = {}  # literals associated to the input nodes
+        gate_literals = {}  # literals associated to the gates in the circuit
+        output_literals = {}  # literals associated to the output nodes
+
+        # Data structures containing the edges
+        input_edges = {}  # key = input node id, value = array of id. Contains id of gates in the circuit connected with the input node (childs)
+        gate_edges = {}  # key = gate id, value = array of id. Contains the successors gate (childs)
+        output_edges = {}  # key = output node id, value = array of id. Contains id of gates in the circuit connected with the output node (parents)
+
         # Optimizer
         opt = Optimize()
 
-        # COMPONENT START: Model Initialization
-        input_literals, gate_literals, output_literals, input_edges, gate_edges, output_edges = \
-            ComponentManager.prepare_circuit_model(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+        # Function to maximize
+        max_func = []
 
-        # COMPONENT START: Signal Propagation Constraints (SP)
-        partition_input_edges, partition_output_edges, partition_output_edges_penalty, edge_w, edge_constraint = \
-            ComponentManager.get_signal_propagation_with_penalty(
-                input_edges, gate_edges, output_edges,
-                input_literals, gate_literals, output_literals,
-                tmp_graph, self.gate_dict, WEIGHT, feasibility_treshold
-            )
-        # COMPONENT END: Signal Propagation Constraints (SP)
+        # List of all the partition edges
+        partition_input_edges = []  # list of all the input edges ([S'D_1 + S'D_2 + ..., ...])
+        partition_output_edges = []  # list of all the output edges ([S_1D' + S_2D' + ..., ...])
+        partition_output_edges_penalty = []
 
-        # COMPONENT START: Model Initialization
-        G = ComponentManager.build_gate_graph(tmp_graph, self.constant_dict)
-        # COMPONENT END: Model Initialization
+        # Generate all literals
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Generate literal for each input node
+                in_id = int(e[0][2:])
+                if in_id not in input_literals:
+                    input_literals[in_id] = Bool("in_%s" % str(in_id))
+            if 'g' in e[0]:  # Generate literal for each gate in the circuit
+                g_id = int(e[0][1:])
+                if g_id not in gate_literals and g_id not in self.constant_dict:  # Not in constant_dict since we don't care about constants
+                    gate_literals[g_id] = Bool("g_%s" % str(g_id))
 
-        # COMPONENT START: Model Initialization
-        gate_weight = ComponentManager.extract_gate_weights(G, tmp_graph, self.gate_dict, WEIGHT)
-        # COMPONENT END: Model Initialization
+            if 'out' in e[1]:  # Generate literal for each output node
+                out_id = int(e[1][3:])
+                if out_id not in output_literals:
+                    output_literals[out_id] = Bool("out_%s" % str(out_id))
 
-        # COMPONENT START: Convexity and Structural Constraints (CS)
-        ComponentManager.add_convexity(opt, G, gate_literals, gate_edges)
-        # COMPONENT END: Convexity and Structural Constraints (CS)
+        # Generate structures holding edge information
+        for e in tmp_graph.edges:
+            if 'in' in e[0]:  # Populate input_edges structure
+                in_id = int(e[0][2:])
 
-        # COMPONENT START: Model Initialization
-        ComponentManager.add_boundary_conditions(opt, input_literals, output_literals)
-        # COMPONENT END: Model Initialization
+                if in_id not in input_edges:
+                    input_edges[in_id] = []
+                # input_edges[in_id].append(int(e[1][1:])) # this is a bug for a case where e = (in1, out1)
+                # Morteza added ==============
+                try:
+                    input_edges[in_id].append(int(e[1][1:]))
+                except:
+                    if re.search('g(\d+)', e[1]):
+                        my_id = int(re.search('g(\d+)', e[1]).group(1))
+                        input_edges[in_id].append(my_id)
+                # =============================
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_io_limits(
-            opt, 
-            specs_obj.imax, 
-            specs_obj.omax, 
-            partition_input_edges, 
-            partition_output_edges
-        )
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+            if 'g' in e[0] and 'g' in e[1]:  # Populate gate_edges structure
+                ns_id = int(e[0][1:])
+                nd_id = int(e[1][1:])
 
-        # COMPONENT START: Feasibility and Filtering Constraints (FF)
-        feasibility_constraints = ComponentManager.get_feasibility(
-            edge_w, gate_weight, feasibility_treshold, edge_constraint, strict=False
-        )
-        # COMPONENT END: Feasibility and Filtering Constraints (FF)
+                if ns_id in self.constant_dict:
+                    print("ERROR: Constants should only be connected to output nodes")
+                    raise
+                if ns_id not in gate_edges:
+                    gate_edges[ns_id] = []
+                # try:
+                gate_edges[ns_id].append(nd_id)
 
-        # COMPONENT START: Feasibility and Filtering Constraints (FF)
-        ComponentManager.add_feasibility_logic(opt, feasibility_constraints, mode='at_least_one')
-        # COMPONENT END: Feasibility and Filtering Constraints (FF)
+            if 'out' in e[1]:  # Populate output_edges structure
+                out_id = int(e[1][3:])
+                if out_id not in output_edges:
+                    output_edges[out_id] = []
+                # output_edges[out_id].append(int(e[0][1:]))
+                # Morteza added ==============
+                try:
+                    output_edges[out_id].append(int(e[0][1:]))
+                except:
+                    my_id = int(re.search('(\d+)', e[0]).group(1))
+                    output_edges[out_id].append(my_id)
 
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.add_maximization(opt, gate_literals, gate_weight=None)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+                # =============================
+
+        # Define input edges
+        for source in input_edges:
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in input_edges[source]:
+                e_in = And(Not(input_literals[source]), gate_literals[destination])
+
+                edge_in_holder.append(e_in)
+
+            partition_input_edges.append(Or(edge_in_holder))
+
+        # Define gate edges and data structures containing the edge weights
+        edge_w = {}
+        edge_constraint = {}
+
+        for source in gate_edges:
+            # print(f'{gate_literals[source] = }')
+            # print(f'{tmp_graph.nodes[self.gate_dict[source]][WEIGHT] = }')
+            edge_in_holder = []
+            edge_out_holder = []
+
+            for destination in gate_edges[source]:
+                e_in = And(Not(gate_literals[source]), gate_literals[destination])
+                e_out = And(gate_literals[source], Not(gate_literals[destination]))
+
+                edge_in_holder.append(e_in)
+                edge_out_holder.append(e_out)
+
+            partition_input_edges.append(Or(edge_in_holder))
+            if source not in edge_w:
+                edge_w[source] = tmp_graph.nodes[self.gate_dict[source]][WEIGHT]
+
+            if source not in edge_constraint:
+                edge_constraint[source] = Or(edge_out_holder)
+            partition_output_edges.append(Or(edge_out_holder))
+            if tmp_graph.nodes[self.gate_dict[source]][WEIGHT] > feasibility_treshold:
+                this_output_penalty = tmp_graph.nodes[self.gate_dict[source]][WEIGHT] - feasibility_treshold
+                partition_output_edges_penalty.append(Or(edge_out_holder) * this_output_penalty)
+            # else:
+            #     partition_output_edges_penalty.append(Or(edge_out_holder) * IntVal(0))
+
+        # Define output edges
+        for output_id in output_edges:
+            predecessor = output_edges[output_id][
+                0]  # Output nodes have only one predecessor  (it could be a gate or it could be an input)
+
+            if predecessor not in gate_literals:  # This handle cases where input and output are directly connected
+                continue
+            e_out = And(gate_literals[predecessor], Not(output_literals[output_id]))
+            if predecessor not in edge_w:
+                edge_w[predecessor] = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT]
+            if predecessor not in edge_constraint:
+                edge_constraint[predecessor] = e_out
+
+            partition_output_edges.append(e_out)
+
+            if tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT] > feasibility_treshold:
+                this_output_penalty = tmp_graph.nodes[self.gate_dict[predecessor]][WEIGHT] - feasibility_treshold
+                partition_output_edges_penalty.append(e_out * this_output_penalty)
+            # else:
+            #     partition_output_edges_penalty.append(e_out * IntVal(0))
+
+        # Create graph of the cicuit without input and output nodes
+        G = nx.DiGraph()
+        # print(f'{tmp_graph.edges = }')
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]) and 'g' in str(e[1]):
+                source = int(e[0][1:])
+                destination = int(e[1][1:])
+
+                G.add_edge(source, destination)
+        # Morteza added =====================
+        for e in tmp_graph.edges:
+            if 'g' in str(e[0]):
+                source = int(e[0][1:])
+                if source in self.constant_dict:
+                    continue
+                G.add_node(source)
+        # ===================================
+
+        # Generate structure with gate weights
+        # for n in self.graph.nodes:
+        #     print(f'{self.graph.nodes[n][WEIGHT] = }, {n =}')
+        # print(f'{self.gate_dict = }')
+        gate_weight = {}
+        for gate_idx in G.nodes:
+
+            if gate_idx not in gate_weight:
+                gate_weight[gate_idx] = tmp_graph.nodes[self.gate_dict[gate_idx]][WEIGHT]
+            # print("Gate", gate_idx, " value ", gate_weight[gate_idx])
+
+        descendants = {}
+        ancestors = {}
+        for n in G:
+            if n not in descendants:
+                descendants[n] = sorted(nx.descendants(G, n))
+            if n not in ancestors:
+                ancestors[n] = sorted(nx.ancestors(G, n))
+
+        # Generate convexity constraints
+        for source in gate_edges:
+            for destination in gate_edges[source]:
+                if len(descendants[destination]) > 0:  # Constraints on output edges
+                    not_descendants = [Not(gate_literals[l]) for l in descendants[destination]]
+                    not_descendants.append(Not(gate_literals[destination]))
+                    descendat_condition = Implies(And(gate_literals[source], Not(gate_literals[destination])),
+                                                  And(not_descendants))
+                    opt.add(descendat_condition)
+                if len(ancestors[source]) > 0:  # Constraints on input edges
+                    not_ancestors = [Not(gate_literals[l]) for l in ancestors[source]]
+                    not_ancestors.append(Not(gate_literals[source]))
+                    ancestor_condition = Implies(And(Not(gate_literals[source]), gate_literals[destination]),
+                                                 And(not_ancestors))
+                    opt.add(ancestor_condition)
+
+        # Set input nodes to False
+        for input_node_id in input_literals:
+            opt.add(input_literals[input_node_id] == False)
+
+        # Set output nodes to False
+        for output_node_id in output_literals:
+            opt.add(output_literals[output_node_id] == False)
+
+        # Add constraints on the number of input/output edges
+        if imax is not None:
+            opt.add(Sum(partition_input_edges) <= imax)
+        if omax is not None:
+            opt.add(Sum(partition_output_edges) <= omax)
+
+        feasibility_constraints = []
+        for s in edge_w:
+            if gate_weight[s] <= feasibility_treshold and gate_weight[s] != -1:
+                # print(s, "is feasible", gate_weight[s])
+                feasibility_constraints.append(edge_constraint[s])
+        opt.add(Sum(feasibility_constraints) >= 1)
+
+        # Generate function to maximize
+        for gate_id in gate_literals:
+            max_func.append(gate_literals[gate_id])
+        # Add function to maximize to the solver
+
+        opt.maximize(Sum(max_func))
 
         # =========================== Skipping the nodes that are not labeled ================================
-        # COMPONENT START: Optimization and Selection Constraints (OS)
-        ComponentManager.exclude_skipped_nodes(opt, self.graph)
-        # COMPONENT END: Optimization and Selection Constraints (OS)
+        skipped_nodes = []
+        for node in self.graph.nodes:
+            if self.graph.nodes[node][WEIGHT] == -1:
+                if node.startswith('g'):
+                    node_literal = f'{node[0:1]}_{node[1:]}'
+                elif node.startswith('in'):
+                    node_literal = f'{node[0:2]}_{node[2:]}'
+                elif node.startswith('out'):
+                    node_literal = f'{node[0:3]}_{node[3:]}'
+                else:
+                    print(f'Node is neither input, output, nor gate')
+                    raise
+                skipped_nodes.append(Bool(node_literal))
+        skipped_nodes_constraints = [node_literal == False for node_literal in skipped_nodes]
+        opt.add(skipped_nodes_constraints)
+
         # ====================================================================================================
 
         # =========================== Coming up with a penalty for each subgraph =============================
-        # COMPONENT START: Penalty-based Soft Constraints (PS)
         penalty_output = Int('penalty_output')
         penalty_gate = Int('penalty_gate')
 
-        output_individual_penalty = ComponentManager.get_penalty_terms(
-            edge_w, gate_weight, feasibility_treshold, gate_literals
-        )
-        # COMPONENT END: Penalty-based Soft Constraints (PS)
+        output_individual_penalty = []
+        penalty_coefficient = 1
+        for s in edge_w:
+            if gate_weight[s] > feasibility_treshold:
+                output_individual_penalty.append(If(gate_literals[s],
+                                                    penalty_coefficient * (gate_weight[s] - feasibility_treshold),
+                                                    0))
 
-        # COMPONENT START: Penalty-based Soft Constraints (PS)
-        ComponentManager.apply_penalty(
-            opt, 
-            penalty_output, 
-            partition_output_edges_penalty, 
-            omax * feasibility_treshold, 
-            weight=100
-        )
-        ComponentManager.apply_penalty(
-            opt, 
-            penalty_gate, 
-            output_individual_penalty, 
-            omax * feasibility_treshold, 
-            weight=1
-        )
-        # COMPONENT END: Penalty-based Soft Constraints (PS)
-        # ====================================================================================================
+        opt.add(penalty_output == Sum(partition_output_edges_penalty))
+        # Why IntVal(1)? => Because sometimes the Sum results into an integer "Python number (e.g., int)", but we need a "Z3 number (e.g., ArithRef)"
+        opt.add_soft(IntVal(1) * Sum(partition_output_edges_penalty) <= omax * feasibility_treshold, weight=100)
+        opt.add(penalty_gate == Sum(output_individual_penalty))
+        opt.add_soft(IntVal(1) * Sum(output_individual_penalty) <= omax * feasibility_treshold, weight=1)
 
-        # ======================== Check for multiple subgraphs ==============================================
-        # COMPONENT START: Multi-Partition Iteration Engine (MPE)
-        all_partitions = ComponentManager.extract_multiple_subgraphs(
-            opt, G, specs_obj, mode='multi'
-        )
-        # COMPONENT END: Multi-Partition Iteration Engine (MPE)
-        # ====================================================================================================
+        # ========================================================
+        # ======================== Check for multiple subgraphs =======================================
+        all_partitions = {}
+        count = specs_obj.num_subgraphs
+        while count > 0:
+            node_partition = []
+            pprint.info1(f'Attempt {specs_obj.num_subgraphs - count + 1}: ', end='')
+            c = opt.check()
+            if c == sat:
+                # print(opt.model())
+                m = opt.model()
+                # print(f'{m = }')
+                for t in m.decls():
+                    if 'penalty_output' in str(t):
+                        # print(f'{t} = {m[t]}')
+                        penalty_output = m[t].as_long()
+                        pass
+                    if 'penalty_gate' in str(t):
+                        # print(f'{t} = {m[t]}')
+                        penalty_gate = m[t].as_long()
+                    if 'g' not in str(t):  # Look only the literals associate to the gates
+                        continue
+                    if is_true(m[t]):
+                        gate_id = int(str(t)[2:])
+                        node_partition.append(gate_id)  # Gates inside the partition
 
-        # =======================Pick the Subgraph with the lowest penalty ===================================
-        # COMPONENT START: Multi-Partition Iteration Engine (MPE)
-        penalty_output, penalty_gate, node_partition, sorted_partitions = ComponentManager.select_best_partition(
-            all_partitions, mode='multi'
-        )
-        # COMPONENT END: Multi-Partition Iteration Engine (MPE)
-        # ====================================================================================================
+            else:
+                count = 0
+
+            # Check partition convexity
+            if not is_selection_convex(G, node_partition):
+                raise RuntimeError('the subgraph extraction resulted in a non-convex subgraph')
+
+            # ========================================================================
+            if c == sat:
+                block_clause = [d() == True if m[d] else d() == False for d in m.decls() if 'g_' in d.name()]
+                opt.add(Not(And(block_clause)))
+
+                all_partitions[count] = (penalty_output, penalty_gate, node_partition)
+            count -= 1
+        # ================================================================
+        # =======================Pick the Subgraph with the lowest penalty ==============================2
+        sorted_partitions = {}
+        if all_partitions:
+            sorted_partitions = dict(
+                sorted(
+                    all_partitions.items(),
+                    key=lambda item: (-len(item[1][2]), item[1][0], item[1][1])
+                )
+            )
+
+            for par in sorted_partitions:
+                print(f'{sorted_partitions[par] = }')
+
+            first_key = next(iter(sorted_partitions))
+            penalty_output, penalty_gate, node_partition = sorted_partitions.pop(first_key)
+
+        # ================================================================
         self.subgraph_candidates = sorted_partitions
 
         return [self.gate_dict[idx] for idx in node_partition]
@@ -1406,6 +2995,3 @@ class AnnotatedGraph(Graph):
                 idx += 1
                 self.color_subgraph_node(n, WHITE)
         return tmp_fanout_dict
-
-
-
