@@ -1,3 +1,5 @@
+import csv
+import re
 from typing import Any, ClassVar, Optional, Union
 
 from os.path import join as path_join
@@ -10,6 +12,7 @@ from sxpat.utils.string import partial_format, dedent
 import subprocess
 from threading import Lock
 from multiprocessing.pool import ThreadPool
+from sxpat.utils.timer import Timer
 
 from sxpat.graph import IOGraph
 from sxpat.graph.node import BoolConstant, Node, And, Not, BoolVariable
@@ -176,11 +179,26 @@ class Labelling:
         script_path = self._get_script_path(target_node)
         FS.writefile(script_path, script)
         # run script
+        print(f"SCRIPT PATH from legacy: {script_path}")
+        _time = Timer.now()
         result = subprocess.run(
             ['python3', script_path],
             capture_output=True, text=True,
             check=True,
         )
+        _time = Timer.now() - _time
+
+        iter_nr = re.compile(r'/labelling(\d+)')
+        node_name = re.compile(r'/g(\d+)')
+
+        data = [ {'iteration': int(iter_nr.search(script_path)[1]), 
+                'node': node_name.search(script_path)[1], 
+                'solver': 'legacy', 
+                'time': _time} ]
+        with open('./individual_nodes_times.csv', 'a', newline='') as csvfile:
+            fieldnames = ['iteration', 'node', 'solver', 'time']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writerows(data)
 
         # parse result
         self.__cached_weights[target_node] = _w = int(result.stdout)

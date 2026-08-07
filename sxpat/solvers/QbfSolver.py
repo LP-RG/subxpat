@@ -2,6 +2,8 @@
 :authors: Lorenzo Spada
 """
 
+import csv
+import re
 from typing import IO, Any, Iterable, Mapping, Optional, Sequence, Tuple, TypeVar, Union, Dict, List, Protocol
 from typing_extensions import TypeAlias, Self
 
@@ -12,6 +14,7 @@ from collections import deque
 from os.path import join as path_join
 
 from .Solver import Solver
+from sxpat.utils.timer import Timer
 
 from sxpat.graph.graph import *
 from sxpat.graph.node import *
@@ -572,6 +575,8 @@ class QbfSolver(Solver):
         variables = list(set(variables))
         variables.sort()
 
+        print(f"SCRIPT PATH from Qbf: {script_path}")
+        _time = Timer.now()
         with open(script_path, 'w') as f:
             id_gen = NodeIdGen()
             encoder = Encoder(id_gen, f)
@@ -611,6 +616,20 @@ class QbfSolver(Solver):
 
             #
             encoder.write_custom(f'{id_gen.get_sat_problem()} = and({", ".join(mapping[x][0] for x in in_the_output)})\n')
+    
+        _time = Timer.now() - _time
+
+        iter_nr = re.compile(r'_iter(\d+)')
+        node_name = re.compile(r'_g(\d+)')
+
+        data = [ {'iteration': int(iter_nr.search(script_path)[1]), 
+                'node': node_name.search(script_path)[1], 
+                'solver': 'qbf', 
+                'time': _time} ]
+        with open('./individual_nodes_times.csv', 'a', newline='') as csvfile:
+            fieldnames = ['iteration', 'node', 'solver', 'time']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writerows(data)
 
         result = subprocess.run(
             [specifications.path.tools.cqesto, script_path],

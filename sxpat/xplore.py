@@ -50,6 +50,7 @@ from sxpat.labelling.labelling import Labelling
 
 def explore_grid(specs_obj: Specifications):
     # initial setup
+    _time = Timer.now()
     # store circuits
     FS.copy(specs_obj.exact_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'origin.v'))
     specs_obj.exact_benchmark = tmp
@@ -95,12 +96,21 @@ def explore_grid(specs_obj: Specifications):
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
 
+    _time = Timer.now() - _time
+    with open('./costs.txt', 'a') as file:
+        file.write(f'Initialization time: {_time}\n')
+    print(f'COSTS REVIEW - Initialization time: {_time}')
+
     #
     while (obtained_wce_exact < specs_obj.max_error):
         specs_obj.iteration += 1
         specs_obj.stats_storage.stage(iteration=specs_obj.iteration)
+        with open('./costs.txt', 'a') as file:
+            file.write(f'Iteration: {specs_obj.iteration}\n')
+        print(f'COSTS REVIEW - Iteration: {specs_obj.iteration}')
 
         # compute error threshold for the iteration
+        _time = Timer.now()
         if not specs_obj.subxpat:
             if prev_actual_error == 0: break
             specs_obj.et = specs_obj.max_error
@@ -145,6 +155,11 @@ def explore_grid(specs_obj: Specifications):
         #
         if specs_obj.et > specs_obj.max_error or specs_obj.et <= 0: break
 
+        _time = Timer.now() - _time
+        with open('./costs.txt', 'a') as file:
+            file.write(f'Threshold computation time: {_time}\n')
+        print(f'COSTS REVIEW - Threshold computation time: {_time}')
+
         # slash to kill
         if specs_obj.slash_to_kill:
             # first iteration: apply slash
@@ -188,8 +203,12 @@ def explore_grid(specs_obj: Specifications):
         # logging
         specs_obj.stats_storage.stage(annotated_graphs_initialization_time=_time)
         print(f'annotated_graph_loading_time = {_time}')
+        with open('./costs.txt', 'a') as file:
+            file.write(f'Annotated graph loading time: {_time}\n')
+        print(f'COSTS REVIEW - Annotated graph loading time: {_time}')
 
         # label graph
+        _time = Timer.now()
         if specs_obj.requires_labeling:
             print('started labelling')
             # _time = Timer.now()
@@ -206,6 +225,11 @@ def explore_grid(specs_obj: Specifications):
             # specs_obj.stats_storage.stage(labelling_time=_time)
             # print(f'labelling_time = {_time}')
             # input('PAUSED: enter to continue')
+        
+        _time = Timer.now() - _time
+        with open('./costs.txt', 'a') as file:
+            file.write(f'Labeling time: {_time}\n')
+        print(f'COSTS REVIEW - Labeling time: {_time}')
 
         # extract subgraph
         _time = Timer.now()
@@ -223,6 +247,9 @@ def explore_grid(specs_obj: Specifications):
             subgraph_outputs_count=len(current_graph.subgraph_outputs),
         )
         print(f'subgraph_extraction_time = {_time}')
+        with open('./costs.txt', 'a') as file:
+            file.write(f'Subgraph extraction time: {_time}\n')
+        print(f'COSTS REVIEW - Subgraph extraction time: {_time}')
         # logging
         if specs_obj.debug:
             from sxpat.newag import export_annotated_graph
@@ -256,6 +283,7 @@ def explore_grid(specs_obj: Specifications):
             continue
 
         # explore the grid
+        _time_explore_grid = Timer.now()
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
         for lpp, ppo in CellIterator.factory(specs_obj):
@@ -425,6 +453,11 @@ def explore_grid(specs_obj: Specifications):
 
             # debug
             if specs_obj.debug: specs_obj.stats_storage.save()
+
+        _time_explore_grid = Timer.now() - _time_explore_grid
+        with open('./costs.txt', 'a') as file:
+            file.write(f'Explore grid time: {_time_explore_grid}\n')
+        print(f'COSTS REVIEW: Explore grid time: {_time_explore_grid}')
 
         if status == SAT and best_model_data.area == 0:
             pprint.info3('Area zero found!\nTerminated.')

@@ -1,3 +1,4 @@
+import csv
 from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, overload, override
 from abc import abstractmethod
 
@@ -11,6 +12,7 @@ from sxpat.utils.functions import str_to_int_or_bool
 from sxpat.utils.decorators import make_utility_class
 
 from .Solver import Solver
+from sxpat.utils.timer import Timer
 
 from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.graph import *
@@ -767,11 +769,30 @@ class Z3Solver(Solver):
         """
 
         # run
+        print(f"SCRIPT PATH from Z3: {script_path}")
+        _time = Timer.now()
         process = subprocess.run(
             ['python3', script_path],
             capture_output=True, text=True,
             check=True,
         )
+        _time = Timer.now() - _time
+
+        solver_type = re.compile(r'_(func|dire|hybr)')
+        st = solver_type.search(script_path)
+        if st:
+            st = solver_type.search(script_path)[1]
+            iter_nr = re.compile(r'iter(\d+)')
+            node_name = re.compile(r'_g(\d+)')
+
+            data = [ {'iteration': int(iter_nr.search(script_path)[1]), 
+                    'node': node_name.search(script_path)[1], 
+                    'solver': st, 
+                    'time': _time} ]
+            with open('./individual_nodes_times.csv', 'a', newline='') as csvfile:
+                fieldnames = ['iteration', 'node', 'solver', 'time']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writerows(data)
 
         # return decoded output
         return process.stdout

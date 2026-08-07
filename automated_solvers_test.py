@@ -1,3 +1,4 @@
+import csv
 from typing import Sequence
 from concurrent.futures import ThreadPoolExecutor
 import subprocess
@@ -12,10 +13,14 @@ def get_circuits() -> Sequence[str]:
     return [
             circuit 
             for circuit in circuits
-            if circuit.startswith("adder") and int(output_size.search(circuit)[1]) <= 9
+            if circuit.startswith("adder") and int(output_size.search(circuit)[1]) > 9 and int(output_size.search(circuit)[1]) < 20
            ]
 
 def start_execution(benchmark_circuit: str) -> None:
+    with open('./costs.txt', 'a') as file:
+        file.write(f'------------------------------------------\n')
+        file.write(f'Circuit: {benchmark_circuit.split('.')[0]}\n')
+        file.write(f'------------------------------------------\n')
     benchmark_path = f"benchmarks/v/{benchmark_circuit}"
     logs_path = f"logs/{benchmark_circuit.split('.')[0]}"
     os.makedirs(logs_path, exist_ok=True)
@@ -27,7 +32,13 @@ def start_execution(benchmark_circuit: str) -> None:
                             "--no-partial-labeling", "--debug"], stdout=out, stderr=err)
 
 def main():
+    with open('./individual_nodes_times.csv', 'w', newline='') as csvfile:
+        fieldnames = ['iteration', 'node', 'solver', 'time']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
     benchmark_circuits = get_circuits()
+    benchmark_circuits = ["adder_i8_o5.v"]
     processes = 8
     with ThreadPoolExecutor(processes) as pool:
         [*var] = pool.map(lambda x: (x, start_execution(x)), benchmark_circuits)
