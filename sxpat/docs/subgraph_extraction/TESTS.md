@@ -1075,6 +1075,13 @@ Tightest Error Space - 4
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=11 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=4 --imax=2 --omax=8 
 
 ORIGINAL CODE:
+Iteration 1: Subgraph not found (#ofNodes=0)
+Iteration 2: #ofNodes=4
+Iteration 3: #ofNodes=2
+Iteration 4: #ofNodes=2
+Iteration 5: #ofNodes=2
+Iteration 6: #ofNodes=3
++ Result: Approximate circuit found!
 
 REFACTORED CODE:
 Iteration 1: Subgraph not found (#ofNodes=0)
@@ -1089,6 +1096,20 @@ Strict Error Space - 8
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=11 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=8 --imax=2 --omax=8 
 
 ORIGINAL CODE:
+Iteration 1: Subgraph not found (#ofNodes=0)
+Iteration 2: #ofNodes=4
+Iteration 3: #ofNodes=2
+Iteration 4: #ofNodes=2
+Iteration 5: #ofNodes=2
+Iteration 6: #ofNodes=3
+Iteration 7: #ofNodes=8
+Iteration 8: #ofNodes=2
+Iteration 9: #ofNodes=3
+Iteration 10: #ofNodes=3 
+Iteration 11: #ofNodes=6
+Iteration 12: #ofNodes=5
+Iteration 13: #ofNodes=8
++ Result: Approximate circuit found!
 
 REFACTORED CODE:
 Iteration 1: Subgraph not found (#ofNodes=0)
@@ -1111,6 +1132,21 @@ Baseline Error Space - 16
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=11 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8
 
 ORIGINAL CODE:
+Iteration 1: #ofNodes=2
+Iteration 2: #ofNodes=7
+Iteration 3: #ofNodes=4
+Iteration 4: #ofNodes=4
+Iteration 5: #ofNodes=4
+Iteration 6: #ofNodes=4
+Iteration 7: #ofNodes=8
+Iteration 8: #ofNodes=8
+Iteration 9: #ofNodes=7
+Iteration 10: #ofNodes=8
+Iteration 11: #ofNodes=8
+Iteration 12: #ofNodes=8
+Iteration 13: #ofNodes=8
+Iteration 14: #ofNodes=8
++ Result: Approximate circuit found!
 
 REFACTORED CODE:
 Iteration 1: #ofNodes=2
@@ -1132,6 +1168,19 @@ Wide Error Space - 32
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=11 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=32 --imax=2 --omax=8 
 
 ORIGINAL CODE:
+Iteration 1: #ofNodes=5
+Iteration 2: #ofNodes=8
+Iteration 3: #ofNodes=8
+Iteration 4: #ofNodes=8
+Iteration 5: #ofNodes=8 
+Iteration 6: #ofNodes=8
+Iteration 7: #ofNodes=8
+Iteration 8: #ofNodes=8
+Iteration 9: #ofNodes=8
+Iteration 10: #ofNodes=8 
+Iteration 11: #ofNodes=8 
+Iteration 12: #ofNodes=8
++ Result: "The error space is exhausted!"
 
 REFACTORED CODE:
 Iteration 1: #ofNodes=5
@@ -1155,6 +1204,25 @@ Massive Error Space - 64
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=11 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=64 --imax=2 --omax=8 
 
 ORIGINAL CODE:
+Iteration 1: #ofNodes=8
+Iteration 2: #ofNodes=8
+Iteration 3: #ofNodes=14
+Iteration 4: #ofNodes=14
+Iteration 5: #ofNodes=14
+Iteration 6: #ofNodes=14
+Iteration 7: #ofNodes=8
+Iteration 8: #ofNodes=10
+Iteration 9: #ofNodes=8
+Iteration 10: #ofNodes=7
+Iteration 11: #ofNodes=7
+Iteration 12: #ofNodes=7
+Iteration 13: #ofNodes=6
+Iteration 14: #ofNodes=5
+Iteration 15: #ofNodes=6
+Iteration 16: #ofNodes=3
+Iteration 17: #ofNodes=3
+Iteration 18: #ofNodes=3
++ Result: "The error space is exhausted!"
 
 REFACTORED CODE:
 Iteration 1: #ofNodes=8
@@ -1175,8 +1243,6 @@ Iteration 15: #ofNodes=4
 Iteration 16: #ofNodes=3
 + Result: Approximate circuit found!
 
-❗❗❗ AttributeError: 'bool' object has no attribute 'as_ast' - original code ❗❗❗
-
 #====================================================================================================
 
 # Mode 12: find_subgraph_feasible_soft_outputs / subgraph candidates
@@ -1184,6 +1250,12 @@ Tightest Error Space - 4
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=12 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=4 --imax=2 --omax=8 
 
 ORIGINAL CODE:
+Iteration 1: Subgraph not found (#ofNodes=0)
+Iteration 2: #ofNodes=4
+Iteration 3: #ofNodes=2
+Iteration 4: #ofNodes=2
+Iteration 5: #ofNodes=8
++ Result: Approximate circuit found!
 
 REFACTORED CODE:
 Iteration 1: Subgraph not found (#ofNodes=0)
@@ -1197,6 +1269,17 @@ Strict Error Space - 8
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=12 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=8 --imax=2 --omax=8 
 
 ORIGINAL CODE:
+Iteration 1: Subgraph not found (#ofNodes=0)
+Iteration 2: #ofNodes=4
+Iteration 3: #ofNodes=2
+Iteration 4: #ofNodes=2
+Iteration 5: #ofNodes=8
+Iteration 6: #ofNodes=4
+Iteration 7: #ofNodes=6
+Iteration 8: #ofNodes=6
+Iteration 9: #ofNodes=6
+Iteration 10: #ofNodes=8
++ Result: Approximate circuit found!
 
 REFACTORED CODE:
 Iteration 1: Subgraph not found (#ofNodes=0)
@@ -1215,6 +1298,23 @@ Baseline Error Space - 16
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=12 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8
 
 ORIGINAL CODE:
+Iteration 1: #ofNodes=2
+Iteration 2: #ofNodes=7
+Iteration 3: #ofNodes=4
+Iteration 4: #ofNodes=4
+Iteration 5: #ofNodes=4
+Iteration 6: #ofNodes=4
+Iteration 7: #ofNodes=8
+Iteration 8: #ofNodes=6
+Iteration 9: #ofNodes=7
+Iteration 10: #ofNodes=8
+Iteration 11: #ofNodes=8
+Iteration 12: #ofNodes=7
+Iteration 13: #ofNodes=7
+Iteration 14: #ofNodes=8
+Iteration 15: #ofNodes=7
+Iteration 16: #ofNodes=8
++ Result: Approximate circuit found!
 
 REFACTORED CODE:
 Iteration 1: #ofNodes=2
@@ -1238,6 +1338,19 @@ Wide Error Space - 32
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=12 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=32 --imax=2 --omax=8 
 
 ORIGINAL CODE:
+Iteration 1: #ofNodes=5
+Iteration 2: #ofNodes=8
+Iteration 3: #ofNodes=8
+Iteration 4: #ofNodes=8
+Iteration 5: #ofNodes=8 
+Iteration 6: #ofNodes=8
+Iteration 7: #ofNodes=8
+Iteration 8: #ofNodes=8 
+Iteration 9: #ofNodes=8
+Iteration 10: #ofNodes=8
+Iteration 11: #ofNodes=8 
+Iteration 12: #ofNodes=8 
++ Result: "The error space is exhausted!"
 
 REFACTORED CODE:
 Iteration 1: #ofNodes=5
@@ -1258,6 +1371,24 @@ Massive Error Space - 64
 .venv/bin/python main.py benchmarks/v/mul_i8_o8.v --subxpat --encoding=z3int --extraction-mode=12 --max-labeling --max-lpp=8 --max-ppo=10 --max-error=64 --imax=2 --omax=8 
 
 ORIGINAL CODE:
+Iteration 1: #ofNodes=8
+Iteration 2: #ofNodes=8
+Iteration 3: #ofNodes=8
+Iteration 4: #ofNodes=8
+Iteration 5: #ofNodes=12
+Iteration 6: #ofNodes=14
+Iteration 7: #ofNodes=8
+Iteration 8: #ofNodes=8
+Iteration 9: #ofNodes=8
+Iteration 10: #ofNodes=7
+Iteration 11: #ofNodes=7
+Iteration 12: #ofNodes=4
+Iteration 13: #ofNodes=4
+Iteration 14: #ofNodes=4
+Iteration 15: #ofNodes=4
+Iteration 16: #ofNodes=4
+Iteration 17: #ofNodes=4
++ Result: Approximate circuit found!
 
 REFACTORED CODE:
 Iteration 1: #ofNodes=8
