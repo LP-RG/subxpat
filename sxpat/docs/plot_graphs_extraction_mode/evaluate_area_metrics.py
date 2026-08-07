@@ -3,18 +3,18 @@ import matplotlib.pyplot as plt
 # metrics: area->power->delay
 all_modes_data = {
     "Mode 1": {
-        'Error Space 4': {'x_post': [37.544], 'y_pre': [], 'color': 'blue'},
-        'Error Space 8': {'x_post': [39.8905], 'y_pre': [], 'color': 'green'},
-        'Error Space 16': {'x_post': [14.079], 'y_pre': [], 'color': 'yellow'},
-        'Error Space 32': {'x_post': [0], 'y_pre': [], 'color': 'orange'},
-        'Error Space 64': {'x_post': [0], 'y_pre': [], 'color': 'red'}
+        'Error Space 4': {'x_post': [37.544], 'y_pre': [37.544], 'color': 'blue'},
+        'Error Space 8': {'x_post': [39.8905], 'y_pre': [31.9124], 'color': 'green'},
+        'Error Space 16': {'x_post': [14.079], 'y_pre': [0], 'color': 'yellow'},
+        'Error Space 32': {'x_post': [0], 'y_pre': [0], 'color': 'orange'},
+        'Error Space 64': {'x_post': [0], 'y_pre': [0], 'color': 'red'}
     },
     "Mode 2": {
-        'Error Space 4': {'x_post': [37.544], 'y_pre': [], 'color': 'blue'},
-        'Error Space 8': {'x_post': [10.3246], 'y_pre': [], 'color': 'green'},
-        'Error Space 16': {'x_post': [0], 'y_pre': [], 'color': 'yellow'},
-        'Error Space 32': {'x_post': [0], 'y_pre': [], 'color': 'orange'},
-        'Error Space 64': {'x_post': [0], 'y_pre': [], 'color': 'red'}
+        'Error Space 4': {'x_post': [37.544], 'y_pre': [43.1756], 'color': 'blue'},
+        'Error Space 8': {'x_post': [10.3246], 'y_pre': [17.3641], 'color': 'green'},
+        'Error Space 16': {'x_post': [0], 'y_pre': [2.8158], 'color': 'yellow'},
+        'Error Space 32': {'x_post': [0], 'y_pre': [0], 'color': 'orange'},
+        'Error Space 64': {'x_post': [0], 'y_pre': [0], 'color': 'red'}
     },
     "Mode 3": {
         'Error Space 4': {'x_post': [47.8686], 'y_pre': [47.8686], 'color': 'blue'},
