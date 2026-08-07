@@ -1407,3 +1407,5 @@ class AnnotatedGraph(Graph):
                 self.color_subgraph_node(n, WHITE)
         return tmp_fanout_dict
 
+
+
