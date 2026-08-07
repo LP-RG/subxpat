@@ -24,11 +24,11 @@ all_modes_data = {
         'Error Space 64': {'x_post': [], 'y_pre': [], 'color': 'red'}
     },
     "Mode 4": {
-        'Error Space 4': {'x_post': [], 'y_pre': [], 'color': 'blue'},
-        'Error Space 8': {'x_post': [], 'y_pre': [], 'color': 'green'},
-        'Error Space 16': {'x_post': [], 'y_pre': [], 'color': 'yellow'},
-        'Error Space 32': {'x_post': [], 'y_pre': [], 'color': 'orange'},
-        'Error Space 64': {'x_post': [], 'y_pre': [], 'color': 'red'}
+        'Error Space 4': {'x_post': [31.4431], 'y_pre': [21.5878], 'color': 'blue'},
+        'Error Space 8': {'x_post': [31.4431], 'y_pre': [16.4255], 'color': 'green'},
+        'Error Space 16': {'x_post': [1.4079], 'y_pre': [0], 'color': 'yellow'},
+        'Error Space 32': {'x_post': [0], 'y_pre': [0], 'color': 'orange'},
+        'Error Space 64': {'x_post': [0], 'y_pre': [14.079], 'color': 'red'}
     },
     "Mode 5": {
         'Error Space 4': {'x_post': [], 'y_pre': [], 'color': 'blue'},
@@ -38,7 +38,7 @@ all_modes_data = {
         'Error Space 64': {'x_post': [], 'y_pre': [], 'color': 'red'}
     },
     "Mode 55": {
-        'Error Space 4': {'x_post': [163.786], 'y_pre': [], 'color': 'blue'},
+        'Error Space 4': {'x_post': [163.786], 'y_pre': [137.505], 'color': 'blue'},
         'Error Space 8': {'x_post': [126.242], 'y_pre': [129.527], 'color': 'green'},
         'Error Space 16': {'x_post': [94.7986], 'y_pre': [101.369], 'color': 'yellow'},
         'Error Space 32': {'x_post': [53.9695], 'y_pre': [107.939], 'color': 'orange'},
