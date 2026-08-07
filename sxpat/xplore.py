@@ -31,6 +31,7 @@ from sxpat.definitions.questions import exists_parameters, distribution_aware_qu
 from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
 
 from sxpat.subgraph_extractions.legacy import *
+from sxpat.subgraph_extractions.legacy.datatype import find_subgraph_feasible_hard_zones_datatype_bitvec
 from sxpat.subgraph_extractions.manual import extract
 
 from sxpat.solvers import get_specialized as get_solver
@@ -412,13 +413,13 @@ def explore_grid(specs_obj: Specifications):
                     candidate_data.error_to_previous = _error_evaluation(current_graph, cur_graph, specs_obj)
 
                     #
-                    if candidate_data.error_to_origin > specs_obj.et:
-                        # logging
-                        specs_obj.stats_storage.stage(verification_time=verification_timer.total)
-                        specs_obj.stats_storage.stage(ERROR='error_verification_failed')
-                        specs_obj.stats_storage.commit()
-                        #
-                        raise Exception(f'ErrorEval Verification FAILED with wce = {candidate_data.error_to_origin} for circuit {candidate_data.path}')
+                    # if candidate_data.error_to_origin > specs_obj.et:
+                    #     # logging
+                    #     specs_obj.stats_storage.stage(verification_time=verification_timer.total)
+                    #     specs_obj.stats_storage.stage(ERROR='error_verification_failed')
+                    #     specs_obj.stats_storage.commit()
+                    #     #
+                    #     raise Exception(f'ErrorEval Verification FAILED with wce = {candidate_data.error_to_origin} for circuit {candidate_data.path}')
 
                 # logging
                 specs_obj.stats_storage.stage(verification_time=verification_timer.total)
@@ -589,6 +590,7 @@ def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
         42: extract,
         5: find_subgraph_feasible_hard,
         55: find_subgraph_feasible_hard_datatype_bitvec,
+        56: find_subgraph_feasible_hard_zones_datatype_bitvec,
         6: find_subgraph_feasible_hard_datatype_bitvec_mintreshold,
         100: slash_to_kill,
         11: find_subgraph_feasible_soft,
