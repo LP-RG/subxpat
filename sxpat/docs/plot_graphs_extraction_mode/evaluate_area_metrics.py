@@ -17,11 +17,11 @@ all_modes_data = {
         'Error Space 64': {'x_post': [], 'y_pre': [], 'color': 'red'}
     },
     "Mode 3": {
-        'Error Space 4': {'x_post': [], 'y_pre': [], 'color': 'blue'},
-        'Error Space 8': {'x_post': [], 'y_pre': [], 'color': 'green'},
-        'Error Space 16': {'x_post': [], 'y_pre': [], 'color': 'yellow'},
-        'Error Space 32': {'x_post': [], 'y_pre': [], 'color': 'orange'},
-        'Error Space 64': {'x_post': [], 'y_pre': [], 'color': 'red'}
+        'Error Space 4': {'x_post': [47.8686], 'y_pre': [47.8686], 'color': 'blue'},
+        'Error Space 8': {'x_post': [17.8334], 'y_pre': [17.8334], 'color': 'green'},
+        'Error Space 16': {'x_post': [], 'y_pre': [6.5702], 'color': 'yellow'},
+        'Error Space 32': {'x_post': [0], 'y_pre': [0], 'color': 'orange'},
+        'Error Space 64': {'x_post': [0], 'y_pre': [0], 'color': 'red'}
     },
     "Mode 4": {
         'Error Space 4': {'x_post': [31.4431], 'y_pre': [21.5878], 'color': 'blue'},
@@ -31,11 +31,11 @@ all_modes_data = {
         'Error Space 64': {'x_post': [0], 'y_pre': [14.079], 'color': 'red'}
     },
     "Mode 5": {
-        'Error Space 4': {'x_post': [36.1361], 'y_pre': [], 'color': 'blue'},
-        'Error Space 8': {'x_post': [22.5264], 'y_pre': [], 'color': 'green'},
-        'Error Space 16': {'x_post': [1.4079], 'y_pre': [], 'color': 'yellow'},
-        'Error Space 32': {'x_post': [7.5088], 'y_pre': [], 'color': 'orange'},
-        'Error Space 64': {'x_post': [0], 'y_pre': [], 'color': 'red'}
+        'Error Space 4': {'x_post': [36.1361], 'y_pre': [36.1361], 'color': 'blue'},
+        'Error Space 8': {'x_post': [22.5264], 'y_pre': [10.7939], 'color': 'green'},
+        'Error Space 16': {'x_post': [1.4079], 'y_pre': [1.4079], 'color': 'yellow'},
+        'Error Space 32': {'x_post': [7.5088], 'y_pre': [7.5088], 'color': 'orange'},
+        'Error Space 64': {'x_post': [0], 'y_pre': [0], 'color': 'red'}
     },
     "Mode 55": {
         'Error Space 4': {'x_post': [163.786], 'y_pre': [137.505], 'color': 'blue'},
