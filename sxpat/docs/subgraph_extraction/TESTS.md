@@ -1403,6 +1403,7 @@ Iteration 9: #ofNodes=14
 Iteration 10: #ofNodes=14 
 Iteration 11: #ofNodes=14 
 Iteration 12: #ofNodes=14 
++ Result: "The error space is exhausted!"
 
 #====================================================================================================
 
