@@ -439,6 +439,18 @@ class Z3NodeSortEncoder(Z3Encoder):
         # initialization
         cls.inject_initialization(destination)
 
+        # Datatype rules
+        destination.write('\n'.join((
+                    '# 1. Declare the new Universe / Sort',
+                    'NodeSort = Datatype("NodeSort")',
+                    '# 2. Define the Constructors',
+                    'NodeSort.declare("bool_val", ("bool", BoolSort()))',
+                    'NodeSort.declare("int_val", ("int", IntSort()))',
+                    '# 3. Finalize',
+                    'NodeSort = NodeSort.create()',
+                    *('',) * 2,
+                )))
+
         # variables
         cls.inject_variables(destination, graphs, accessories)
 
@@ -641,29 +653,12 @@ class Z3DirectBitVecEncoder(Z3DirectEncoder):
     solver_construct = Z3_BITVEC_SOLVER_CONSTRUCT
     node_accessories = Z3_BITVEC_NODE_ACCESSORIES
 
+
 class Z3DataTypeEncoder(Z3NodeSortEncoder): 
     node_mapping = Z3_DATATYPE_NODE_MAPPING
     type_mapping = Z3_DATATYPE_TYPE_MAPPING
     solver_construct = Z3_DATATYPE_SOLVER_CONSTRUCT
     node_accessories = Z3_DATATYPE_NODE_ACCESSORIES
-
-    @classmethod
-    @override
-    def inject_initialization(cls, destination: IO[str]) -> None:
-        # This calls the parent class to write "from z3 import *" at the top of the file
-        super().inject_initialization(destination)
-        
-        # Now, we literally type our Datatype rules into the generated text file
-        destination.write('\n'.join((
-            '# 1. Declare the new Universe / Sort',
-            'NodeSort = Datatype("NodeSort")',
-            '# 2. Define the Constructors',
-            'NodeSort.declare("bool_val", ("bool", BoolSort()))',
-            'NodeSort.declare("int_val", ("int", IntSort()))',
-            '# 3. Finalize',
-            'NodeSort = NodeSort.create()',
-            *('',) * 2,
-        )))
 
 
 class Z3Solver(Solver):
