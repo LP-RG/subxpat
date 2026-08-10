@@ -1,6 +1,7 @@
 import itertools
 import math
 from typing import Dict, Iterable, List, Mapping, Tuple
+import json
 
 import re
 import networkx as nx
@@ -22,6 +23,8 @@ from sxpat.graph.node import BoolConstant, Identity, BoolVariable
 from sxpat.specifications import Specifications
 
 from sxpat.utils.graph import is_selection_convex
+
+ERROR_THRESHOLD_ARRAYS_PATH = 'input/error_threshold_arrays.json'
 
 
 __all__ = [
@@ -388,6 +391,27 @@ def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
 
 
 def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
+    print("> FUNCTION CALLED: Zone extractor is running! <")
+
+    # DEBUG: Check what attributes are on the circuit object
+    # print(f"Has zone_weights attribute? {hasattr(circuit, 'zone_weights')}")
+    # if hasattr(circuit, 'zone_weights'):
+    #     print(f"Number of nodes with zone weights: {len(circuit.zone_weights)}")
+    
+    # if not hasattr(circuit, 'zone_weights') or not circuit.zone_weights:
+    #     print("ERROR: zone_weights is missing or empty on this iteration's circuit graph!")
+    #     return []
+
+
+    try:
+        with open(ERROR_THRESHOLD_ARRAYS_PATH, 'r') as f:
+            error_threshold_arrays = json.load(f)
+            et_array = error_threshold_arrays[specs.threshold_array_idx]["values"]
+        if len(et_array) != (256 // specs.beta) ** 2:
+            raise ValueError(f"Error threshold array length {len(et_array)} does not match expected size {(256 // specs.beta) ** 2} for beta={specs.beta}.")
+    except Exception as e:
+        print(f"Failed to load error thresholds: {e}")
+
     optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = _setup_problem(circuit, specs)
 
     z3_subinput_edges, z3_suboutput_edges = _add_boundary_edges(graph, Node, z3_nodes, bit_width)
@@ -406,6 +430,9 @@ def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
     #setting up zone weight constraints
     zone_constraints = []
 
+    #calculate grid width
+    grid_width= 256//specs.beta
+
     #iterating through gates of the graph
     for source, target in graph.edges():
 
@@ -414,22 +441,33 @@ def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
 
 
         #check that for every zone of the node, the corrosponding weight is less then or equal to its corrosponding zone et
-        zone_conditions = [
-            ULE(
-                BitVecVal(weight, bit_width),
-                BitVecVal(specs.et[zone] if isinstance(specs.et, (dict, list)) else specs.et, bit_width)
-            )
-            for zone, weight in source_zones.items()
-        ]
+        zone_conditions=[]
+        
+        for zone, weight in source_zones.items():
 
-        #if the edge is an exit point then the zone condition must apply
-        zone_constraints.append(Implies(
-            And(
-                Node.in_subgraph(z3_nodes[source]),
-                Not(Node.in_subgraph(z3_nodes[target]))
-            ),
-            And(zone_conditions)
-        ))
+            row = zone.input_1.l_bound // specs.beta
+            col = zone.input_2.l_bound // specs.beta
+            num_idx = (row * grid_width) + col
+
+            limit = et_array[num_idx] if isinstance(et_array, list) else et_array
+
+
+            zone_conditions.append(
+                ULE(
+                    BitVecVal(weight, bit_width),
+                    BitVecVal(limit, bit_width)
+                )
+            )
+
+        if zone_conditions:
+            #if the edge is an exit point then the zone condition must apply
+            zone_constraints.append(Implies(
+                And(
+                    Node.in_subgraph(z3_nodes[source]),
+                    Not(Node.in_subgraph(z3_nodes[target]))
+                ),
+                And(zone_conditions)
+            ))
 
     # feasibility (edge-wise)
     optimizer.add(And(zone_constraints))
@@ -439,6 +477,8 @@ def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
         optimizer.add(Sum(z3_subinput_edges) <= specs.imax)
     if specs.omax is not None:
         optimizer.add(Sum(z3_suboutput_edges) <= specs.omax)
+
+    print(f">>> Total zone constraints added: {len(zone_constraints)}")
 
     return _solve_and_extract(optimizer, max_nodes, h, circuit)
 

@@ -40,7 +40,9 @@ from sxpat.solvers import Z3DirectBitVecSolver
 from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
 
+from sxpat.labelling.solver_labelling import Labelling as ZoneLabelling
 from sxpat.labelling.labelling import Labelling
+
 
 
 def explore_grid(specs_obj: Specifications):
@@ -230,7 +232,19 @@ def explore_grid(specs_obj: Specifications):
             for (i, n) in enumerate(current_graph.outputs_names):
                 weights[n] = 2 ** i
 
+            #printing the calculated flat weights
+            # print("\n--- EXTRACTED NODE WEIGHTS ---")
+            # for node_name, weight in weights.items():
+            #     print(f"Node: {node_name} | Weight: {weight}")
+            # print("------------------------------\n")
+
+            saved_zone_weights = getattr(current_graph, 'zone_weights', None)
+
             current_graph = iograph_with_weights(current_graph, weights)
+
+            if saved_zone_weights is not None:
+                current_graph.zone_weights = saved_zone_weights
+
             _time = Timer.now() - _time
 
             # logging
@@ -604,17 +618,65 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     reference: IOGraph = circuit
     to_be_labelled: IOGraph = circuit
 
-    #
-    labeller = Labelling(
-        reference, to_be_labelled, 
-        specs_obj,
-        minimise=specs_obj.min_labeling,
-        use_functions=True,
-    )
-    weights = labeller.label_graph(
-        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else -1,
-        parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
-    )
+    
+   #update
+    if specs_obj.zone_constraint:
+        print("> ZONE CONSTRAINT ACTIVE: Running multi-zone labelling...")
+
+        labeller = ZoneLabelling(
+                reference, to_be_labelled, 
+                specs= specs_obj,
+            )
+        
+        # total_input_bits = len(circuit.inputs_names)
+        # bits_input_1 = total_input_bits // 2
+        # bits_input_2 = total_input_bits - bits_input_1
+
+        #write an if statement later
+
+        # bits_input_1 = 8
+        # bits_input_2 = 8
+
+        total_input_bits = len(circuit.inputs_names)
+        bits_input_1 = total_input_bits // 2
+        bits_input_2 = total_input_bits - bits_input_1
+        
+        input1_zone = (0, (2 ** bits_input_1) - 1)
+        input2_zone = (0, (2 ** bits_input_2) - 1)
+
+        z_weights = {}
+        for node in circuit.nodes:
+            zone_dict = labeller.label_all_zones(
+                node.name, input1_zone, input2_zone, specs_obj.beta
+            )
+            
+            
+            print(f"\nNode: {node.name}")
+            for zone, weight in zone_dict.items():
+                print(f"  Zone {zone}: Weight {weight}")
+
+            z_weights[node.name] = zone_dict
+    
+        circuit.zone_weights = z_weights
+
+        weights = {}
+
+        for node in circuit.nodes:
+            weights[node.name] = 1
+
+        for (i, n) in enumerate(circuit.outputs_names):
+            weights[n] = 2 ** i
+    else:
+        labeller = Labelling(
+            reference, to_be_labelled, 
+            specs=specs_obj,
+            minimise=specs_obj.min_labeling,
+            use_functions=True,
+        )
+        weights = labeller.label_graph(
+            partial_cutoff=specs_obj.et if specs_obj.partial_labeling else -1,
+            parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
+        )
 
     return weights
 

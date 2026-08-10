@@ -113,6 +113,7 @@ class Labelling:
         if status == 'unsat':
             return 0
      
+        # assert status == 'sat'
 
         # extract node weight
         return model['weight']

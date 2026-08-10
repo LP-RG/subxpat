@@ -341,8 +341,7 @@ class Specifications:
                                        help='Metric used in subXPat execution, either absolute or relative error')
 
         _zone_constraint = parser.add_argument('--zone-constraint',
-                                       type=int,
-                                       default=None,
+                                       action='store_true',
                                        help='')#TODO HELP
 
         # > graph labeling
@@ -581,6 +580,7 @@ class Specifications:
             (_const_f, ConstantFalseType.PRODUCT): [(_template, [TemplateType.NON_SHARED])],
             #
             (_ex_mode, 55): [_imax, _omax],
+            (_ex_mode, 56): [_imax, _omax, _beta, _threshold_array_idx],
             (_slash, True): [_error_slash],
             (_ep, ErrorPartitioningType.ASCENDING): [_parition_divider],
             (_cnn_constraint, CnnErrorConstraintTypes.NINE): [_beta, _alpha, _baseet],
