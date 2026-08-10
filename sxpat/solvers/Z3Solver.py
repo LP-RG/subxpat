@@ -18,9 +18,6 @@ from sxpat.graph.node import *
 
 import sxpat.config.config as sxpat_cfg
 
-from z3 import Datatype, StringSort, BoolSort, IntSort
-import functools
-
 __all__ = [
     'Z3FuncIntSolver', 'Z3FuncBitVecSolver',
     'Z3DirectIntSolver', 'Z3DirectBitVecSolver',
