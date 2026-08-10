@@ -93,7 +93,6 @@ for mode_name, mode_data in all_modes_data.items():
     plt.grid(True, linestyle=':', alpha=0.7)
     plt.legend(loc='upper left', framealpha=1.0)
     
-    # Set the same axis limits for all graphs so they are easy to compare
     plt.xlim(-25, 175)
     plt.ylim(-25, 175)
 
