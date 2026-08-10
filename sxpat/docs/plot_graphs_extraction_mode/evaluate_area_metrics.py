@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import os
 
 # metrics: area->power->delay
 all_modes_data = {
@@ -83,7 +84,7 @@ for mode_name, mode_data in all_modes_data.items():
         )
 
     # Add the y = x break-even line
-    plt.plot([0, 200], [0, 200], 'k--', alpha=0.5, label='y = x (No Area Change)')
+    plt.plot([-25, 175], [-25,175], 'k--', alpha=0.5, label='y = x (No Area Change)')
 
     # Formatting
     plt.xlabel('Area POST R (Refactored)', fontsize=12, fontweight='bold')
@@ -93,8 +94,13 @@ for mode_name, mode_data in all_modes_data.items():
     plt.legend(loc='upper left', framealpha=1.0)
     
     # Set the same axis limits for all graphs so they are easy to compare
-    plt.xlim(0, 200)
-    plt.ylim(0, 200)
+    plt.xlim(-25, 175)
+    plt.ylim(-25, 175)
 
     plt.tight_layout()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    filename = os.path.join(script_dir, f"{mode_name}_area_plot.png")
+    plt.savefig(filename, dpi=300)
     plt.show()
+    print(f"Plot saved successfully as {filename}!")
+
