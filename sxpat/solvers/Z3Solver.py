@@ -447,37 +447,24 @@ class Z3NodeSortEncoder(Z3Encoder):
 
         # nodes declaration
         destination.write('\n'.join((
-            '# declare expression nodes as Datatype constants',
+            '# behaviour',
             *(
-                f'{node.name} = Const(\'{node.name}\', {type_mapping[nodes_types[node.name]](accessories(node))})'
+                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
                 for graph in graphs
                 for node in graph.expressions
             ),
             *('',) * 2,
         )))
 
-        # nodes behavior
-        destination.write('\n'.join((
-            '# behaviour ',
-            'behaviour = And(',
-            *(
-                f'    {node.name} == {node_mapping[type(node)](node, node.operands, accessories(node))},'
-                for graph in graphs
-                for node in graph.expressions
-            ), 
-            ')',
-            *('',) * 2,
-        )))
-
         # nodes usage
         destination.write('\n'.join((
-            '# usage ',
+            '# usage',
             'usage = And(', *(
                 f'    {constraint_node.operand} == NodeSort.bool_val(True),'
                 for graph in graphs
                 if isinstance(graph, CGraph)
                 for constraint_node in graph.constraints
-            ), ')', 
+            ), ')',
             *('',) * 2,
         )))
 
@@ -485,7 +472,7 @@ class Z3NodeSortEncoder(Z3Encoder):
         destination.write('\n'.join((
             f'# define solver',
             f'solver = {solver_construct[type(global_task)]}',
-            *constraint_assertion[type(global_task)]('solver', global_task, ['behaviour', 'usage']),
+            *constraint_assertion[type(global_task)]('solver', global_task, ['usage']),
             *('',) * 2,
         )))
 
