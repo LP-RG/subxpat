@@ -76,7 +76,7 @@ for mode, error_spaces in all_modes_data.items():
         pre = metrics['y_pre'][0]
         post = metrics['x_post'][0]
         
-        # Calculate % Reduction (Handling the 0->0 case)
+        # Calculate % Reduction (Handling the 0 -> 0 case)
         pct_red = ((pre - post) / pre * 100) if pre > 0 else 0
         
         rows.append({'Mode': mode, 'Error Space': es, '% Reduction': pct_red})
@@ -95,17 +95,18 @@ pivot = pivot.reindex(index=mode_order, columns=error_space_order)
 plt.figure(figsize=(10, 8))
 
 # Draw the heatmap
-# center=0 ensures that 0% is yellow, positive reductions are green, negative reductions (bloat) are red
+# center=0 ensures that 0% is yellow, positive reductions are green, negative reductions are red
 heatmap = sns.heatmap(pivot, cmap='RdYlGn', center=0, annot=True, fmt=".1f", 
-                      linewidths=.5, cbar_kws={'label': '% Area Reduction'})
+                      linewidths=.5)
+cbar = heatmap.collections[0].colorbar
+cbar.set_label('% Area Reduction', labelpad=15)
 
 # Formatting
 plt.title('Refactoring Efficiency: % Area Reduction by Mode', fontsize=16, fontweight='bold', pad=20)
-plt.xlabel('Error Space Tolerance', fontsize=12, fontweight='bold')
-plt.ylabel('Extraction Mode', fontsize=12, fontweight='bold')
+plt.xlabel('Error Space Tolerance', fontsize=12, fontweight='bold', labelpad=15)
+plt.ylabel('Extraction Mode', fontsize=12, fontweight='bold', labelpad=15)
 plt.tight_layout()
 
-# 3. Robust save logic for SSH execution
 script_dir = os.path.dirname(os.path.abspath(__file__))
 filename = os.path.join(script_dir, "efficiency_heatmap.png")
 plt.savefig(filename, dpi=300)
