@@ -2,23 +2,31 @@
 skinparam componentStyle uml2
 left to right direction
 
-skinparam nodesep 50
-skinparam Ranksep 1000
-skinparam titleFontSize 25
+' --- LAYOUT & SPACING FIXES ---
+skinparam nodesep 30
+skinparam Ranksep 550 
+skinparam Padding 10
+
+' --- STYLING & COLORS ---
+skinparam titleFontSize 22
+skinparam packageStyle rectangle
 
 <style>
-node {
-    LineColor black
-    LineThickness 3.0
-    BackgroundColor #D9D7B6
+component {
+    LineColor #4A4A4A
+    LineThickness 1.5
+    RoundCorner 10
+}
+arrow {
+    LineColor #666666
+    LineThickness 1.5
 }
 </style>
 
 title 
     <i>Architectural Traceability Diagram</i>: Component Library to Algorithm Mapping
 end title
-
-package "Component Library" #D9D7B6 {
+package "Component Library" as CL #D9D7B6 {
     [Signal Propagation Constraints] as SP
     [Convexity and Structural Constraints] as CS
     [Optimization and Selection Constraints] as OS
@@ -31,7 +39,7 @@ package "Component Library" #D9D7B6 {
     [Interactive & Diagnostic Tools] as IDT
 }
 
-package "Algorithms" {
+package "Algorithms" as ALG {
     package "Connectivity-based" #D9D7B6{
         [Algorithm 1] as A1
         [Algorithm 4] as A4
@@ -70,10 +78,10 @@ A3 --> CS
 A4 --> CS
 A5 --> CS
 A11 --> CS
-A12 --> CS
+A12 -right-> CS
 
 ' mapping dependencies for 'Optimization and Selection Constraints'
-A1 --> OS
+A1 -right-> OS
 A2 --> OS
 A3 --> OS
 A4 --> OS
@@ -82,7 +90,7 @@ A11 --> OS
 A12 --> OS
 
 ' mapping dependencies for 'Sensitivity Budget Constraints'
-A1 --> SB
+A1 -right-> SB
 A2 --> SB
 A3 --> SB
 
@@ -98,15 +106,15 @@ A12 --> PS
 
 ' mapping dependencies for 'Multi-Partition Iteration Engine'
 A11 --> MPE
-A12 --> MPE
+A12 -right-> MPE
 
 ' mapping dependencies for 'Search Space Calibration & State Management'
-A6 --> SSCSM
+A6 -right-> SSCSM
 
 ' mapping dependencies for 'Symbolic Topology Management'
 A55 --> STM
 A100 --> STM
-A6 --> A55
+A6 -right-> A55
 
 ' mapping dependencies for 'Interactive & Diagnostic Tools'
 A42 --> IDT
