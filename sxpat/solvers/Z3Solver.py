@@ -648,6 +648,7 @@ class Z3DataTypeEncoder(Z3NodeSortEncoder):
     node_accessories = Z3_DATATYPE_NODE_ACCESSORIES
 
     @classmethod
+    @override
     def inject_initialization(cls, destination: IO[str]) -> None:
         # This calls the parent class to write "from z3 import *" at the top of the file
         super().inject_initialization(destination)
