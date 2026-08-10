@@ -87,6 +87,17 @@
             - Strategy A (Balanced Penalty Ranking): Sorts partitions based on cost and size to balance logical density against the feasibility threshold.
             - Strategy B (Multi-Attribute Hierarchical Ranking): Implements a comprehensive post-processing hierarchy to optimize for three distinct criteria: partition size (maximization), output interface cost (minimization), and internal gate cost (minimization).
 
+- __Search Space Calibration & State Management__
+    Orchestrates the adaptive search process by normalizing the problem space and ensuring functional isolation of the solver's state.
+
+    Core Mechanisms & Constraints:
+    i) Weight Distribution Analysis:
+        Purpose: Dynamically calibrates the feasibility search space by analyzing the range of gate weights unique to the current circuit instance. It then discretizes the weight range into representative threshold levels, mapping them to actual gate weights to avoid testing invalid search parameters.
+    ii) Iterative Threshold Sweep:
+        Purpose: Implements a coarse-to-fine search by testing 8 discretized threshold levels (actual_partition). It attempts to extract a valid subgraph starting from the lowest threshold level, ensuring the most restrictive (and often most conservative/safe) feasible partition is found first.
+    iii) State Restoration:
+        Purpose: Guarantees functional atomicity by reverting the specifications object to its original configuration after execution, effectively preventing side effects within the engine.
+
 - __Bitvector Topology Management__
     Establishes the formal, typed environment for circuit representation and enforces topological soundness at the node level. This component maps physical circuit topology into a verifiable symbolic format for the solver.
 
@@ -103,30 +114,6 @@
         Purpose: Enforces feasibility thresholds symbolically against datatype models (supporting both discrete threshold filtering and global budget aggregation).
     vi) Datatype Parent-Child Connectivity Constraints:
         Purpose: Enforces strict logical integrity for signal paths (Child-Consistency) ensuring entire downstream logic is captured.
-    
-- __Search Space Calibration & State Management__
-    Orchestrates the adaptive search process by normalizing the problem space and ensuring functional isolation of the solver's state.
-
-    Core Mechanisms & Constraints:
-    i) Weight Distribution Analysis:
-        Purpose: Dynamically calibrates the feasibility search space by analyzing the range of gate weights unique to the current circuit instance. It then discretizes the weight range into representative threshold levels, mapping them to actual gate weights to avoid testing invalid search parameters.
-    ii) Iterative Threshold Sweep:
-        Purpose: Implements a coarse-to-fine search by testing 8 discretized threshold levels (actual_partition). It attempts to extract a valid subgraph starting from the lowest threshold level, ensuring the most restrictive (and often most conservative/safe) feasible partition is found first.
-    iii) State Restoration:
-        Purpose: Guarantees functional atomicity by reverting the specifications object to its original configuration after execution, effectively preventing side effects within the engine.
-
-- __Interactive & Diagnostic Tools__
-    Provides a manual interface for circuit exploration and subgraph definition, enabling direct user intervention outside of the automated solver loop. This component bridges the gap between manual prototyping and the formal integrity requirements of the engine, ensuring that all user-selected subgraphs remain topologically valid and functional.
-
-    Core Mechanisms & Constraints:
-    i) Interactive Selection Loop:
-        Purpose: Provides complete control to the user, bypassing the solver logic. This allows for manual prototyping, debugging, or creating specific subgraphs that the solver might struggle to find.
-    ii) Validation & Topological Guardrails:
-        Purpose: Ensures the manual selection adheres to the same structural integrity requirements as the automated methods, preventing the creation of disconnected or non-functional logic fragments.
-            - Logic (Existence): Validates node presence within the graph.
-            - Logic (Convexity): Enforces convex selection criteria.
-    iii) Visualization & Feedback Loop:
-        Purpose: Provides immediate visual verification. By exporting the graph state before and after selection to *.gv* files, it bridges the gap between the user's textual input and the logical structure of the circuit.
 
 # Part 2: Algorithm Catalog
 - __Algorithm 1: find_subgraph__
@@ -207,18 +194,6 @@
     + Search Space Calibration & State Management(i, ii, iii)
     + Bitvector Topology Management (relies on Algorithm 55)
 
-- __Algorithm 100: slash_to_kill__
-    Description: A high-precision subgraph extraction algorithm that leverages Z3 custom Datatypes and BitVector logic to model circuit nodes and edges. It implements a rigorous constraint satisfaction approach where "cutting" edges (slashing) is evaluated against a bit-width constrained feasibility threshold. By encoding topology into symbolic structures, it enforces strict structural integrity, including mandatory child-inclusion rules for parent gates and exhaustive convexity validation, making it suitable for complex, constraint-heavy logic pruning.
-
-    Components Utilized:
-    Bitvector Topology Management (i, ii, iii, iv, v, vi)
-    + Datatype Model Initialization
-    + Datatype Signal Propagation Constraints
-    + Datatype Convexity and Structural Constraints
-    + Datatype Feasibility and Filtering Constraints
-    + Datatype Optimization and Selection Constraints
-    + Datatype Parent-Child Connectivity Constraints
-
 - __Algorithm 11: find_subgraph_feasible_soft__
     Description: A flexible subgraph extraction algorithm that implements a "soft" feasibility model. Instead of strictly rejecting nodes exceeding the feasibility threshold (*et*), it calculates a penalty cost for these violations and uses *opt.add_soft* to minimize the overall penalty while maximizing the subgraph size. The algorithm employs a multi-pass iteration engine to explore and rank multiple potential partitions, ultimately selecting the one that best balances size and penalty.
 
@@ -246,10 +221,39 @@
     + Optimization and Selection Constraints (i, ii, iii, iv)
     + Penalty-based Soft Constraints (i, ii-Strategy B)
     + Multi-Partition Iteration Engine (i, ii-Strategy B)
-    
+
+
+
+
+#=================================================================================================================================
+# Standalone Utilities
+- __Interactive & Diagnostic Tools__
+    Provides a manual interface for circuit exploration and subgraph definition, enabling direct user intervention outside of the automated solver loop. This component bridges the gap between manual prototyping and the formal integrity requirements of the engine, ensuring that all user-selected subgraphs remain topologically valid and functional.
+
+    Core Mechanisms & Constraints:
+    i) Interactive Selection Loop:
+        Purpose: Provides complete control to the user, bypassing the solver logic. This allows for manual prototyping, debugging, or creating specific subgraphs that the solver might struggle to find.
+    ii) Validation & Topological Guardrails:
+        Purpose: Ensures the manual selection adheres to the same structural integrity requirements as the automated methods, preventing the creation of disconnected or non-functional logic fragments.
+            - Logic (Existence): Validates node presence within the graph.
+            - Logic (Convexity): Enforces convex selection criteria.
+    iii) Visualization & Feedback Loop:
+        Purpose: Provides immediate visual verification. By exporting the graph state before and after selection to *.gv* files, it bridges the gap between the user's textual input and the logical structure of the circuit.
+
 - __Algorithm 42: extract__
     Description: An interactive diagnostic utility that allows users to manually define a subgraph through a command-line interface. The tool visualizes the original graph via *Graphviz*, validates the user's manual selection for node existence and convexity compliance, and provides a confirmation preview before finalizing the extraction. It serves as a verification tool for manually validating subgraph selections against structural rules.
     
     Components Utilized:
     + Interactive & Diagnostic Tools(i, ii, iii)
-    
+
+- __Algorithm 100: slash_to_kill__
+    Description: A high-precision subgraph extraction algorithm that leverages Z3 custom Datatypes and BitVector logic to model circuit nodes and edges. It implements a rigorous constraint satisfaction approach where "cutting" edges (slashing) is evaluated against a bit-width constrained feasibility threshold. By encoding topology into symbolic structures, it enforces strict structural integrity, including mandatory child-inclusion rules for parent gates and exhaustive convexity validation, making it suitable for complex, constraint-heavy logic pruning.
+
+    Components Utilized:
+    Bitvector Topology Management (i, ii, iii, iv, v, vi)
+    + Datatype Model Initialization
+    + Datatype Signal Propagation Constraints
+    + Datatype Convexity and Structural Constraints
+    + Datatype Feasibility and Filtering Constraints
+    + Datatype Optimization and Selection Constraints
+    + Datatype Parent-Child Connectivity Constraints

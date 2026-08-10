@@ -7,34 +7,29 @@ title
 Refactored Architectural Plan (Target State)
 end title
 
-
-package "1. Execution Layer (Algorithms)" as L1 {
-    node "Connectivity-based" {
+package "1. Execution Layer (Algorithms)" {
+    package "Connectivity-based" #D9D7B6 {
         [Algorithm 1] as A1
         [Algorithm 4] as A4
         [Algorithm 11] as A11
         [Algorithm 12] as A12
     }
-    node "Sensitivity-based" {
+    package "Sensitivity-based" #D9D7B6 {
         [Algorithm 2] as A2
         [Algorithm 3] as A3
     }
-    node "Formal/Hard Feasibility" {
+    package "Formal/Hard Feasibility" #D9D7B6 {
         [Algorithm 5] as A5
         [Algorithm 6] as A6
         [Algorithm 55] as A55
     }
-    node "Heuristic" {
-        [Algorithm 42] as A42
-        [Algorithm 100] as A100
-    }
 }
 
-package "2. Orchestration Layer (Component Manager)" as L2 {
+package "2. Orchestration Layer (Component Manager)" #D9D7B6 {
     [Component Manager] as CM
 }
 
-package "3. Component Library (Refactored Services)" as L3 {
+package "3. Component Library (Refactored Services)" #D9D7B6 {
     [Signal Propagation Constraints] as SP
     [Convexity and Structural Constraints] as CS
     [Optimization and Selection Constraints] as OS
@@ -42,27 +37,22 @@ package "3. Component Library (Refactored Services)" as L3 {
     [Feasibility and Filtering Constraints] as FF
     [Penalty-based Soft Constraints] as PS
     [Multi-Partition Iteration Engine] as MPE
-    [Search Space Calibration & State Management] as SSCSM
-    [Symbolic Topology Management] as STM
-    [Interactive & Diagnostic Tools] as IDT
+    [Bitvector Topology Management] as BTM
 }
 
 ' All algorithms communicate through the Manager
-[Connectivity-based] --> CM
-[Sensitivity-based] --> CM
-[Formal/Hard Feasibility] --> CM
-[Heuristic] --> CM
+CM <-- [Connectivity-based] 
+CM <-- [Sensitivity-based] 
+CM <-- [Formal/Hard Feasibility] 
 
 ' Manager distributes to the refactored library
-CM --> SP
-CM --> CS
-CM --> OS
-CM --> SB
-CM --> FF
-CM --> PS
-CM --> MPE
-CM --> SSCSM
-CM --> STM
-CM --> IDT
+SP <-- CM
+CS <-- CM
+OS <-- CM
+SB <-- CM
+FF <-- CM
+PS <-- CM
+MPE <-- CM
+BTM <-- CM
 
 @enduml
