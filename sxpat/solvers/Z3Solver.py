@@ -807,3 +807,29 @@ class Z3DirectBitVecSolver(Z3Solver):
 
 class Z3DataTypeSolver(Z3Solver):
     encoder = Z3DataTypeEncoder
+
+    @classmethod
+    @override
+    def _decode_output(cls, raw_result: str) -> Tuple[str, Optional[Dict[str, Union[bool, int]]]]:
+        """
+            Overrides the base decoder to handle Datatype-specific output wrappers.
+        """
+        # split status and model
+        status, *raw_model = raw_result.splitlines()
+
+        # parse model
+        model = None
+        if status == 'sat':
+            model = {
+                (splt := pair.split(' '))[0]: str_to_int_or_bool(
+                    splt[1].replace('NodeSort.bool_val(', '')
+                           .replace('NodeSort.int_val(', '')
+                           .replace('bool_val(', '')
+                           .replace('int_val(', '')
+                           .replace(')', '')
+                )
+                for pair in raw_model
+            }
+
+        # return decoded result
+        return (status, model)
