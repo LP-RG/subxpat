@@ -69,7 +69,7 @@ all_modes_data = {
         }
 }
 
-# 1. Process data into a format Seaborn loves (Tidy DataFrame)
+# Process data 
 rows = []
 for mode, error_spaces in all_modes_data.items():
     for es, metrics in error_spaces.items():
@@ -83,7 +83,7 @@ for mode, error_spaces in all_modes_data.items():
 
 df = pd.DataFrame(rows)
 
-# 2. Create the Heatmap
+# Create the Heatmap
 error_space_order = ['Error Space 4', 'Error Space 8', 'Error Space 16', 'Error Space 32', 'Error Space 64']
 mode_order = ['Mode 1', 'Mode 2', 'Mode 3', 'Mode 4', 'Mode 5', 'Mode 6', 'Mode 11', 'Mode 12', 'Mode 55']
 
