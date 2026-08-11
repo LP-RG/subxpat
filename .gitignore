@@ -9,6 +9,7 @@
 /test
 /experiments
 /output
+/copy_outputs
 # data
 /results
 /*.csv
