@@ -420,6 +420,24 @@ class Z3NodeSortEncoder(Z3Encoder):
         Z3 encoder using the NodeSort approach.
     """
 
+    constraints_assertion: Mapping[Type[Union[ForAll, Min, Max, None]], Callable[[str, str, Sequence[str]], Sequence[str]]] = {
+        **Z3Encoder.constraints_assertion,
+        
+        ForAll: lambda solver_name, forall, assertions: [
+            f'{solver_name}.add(',
+            f'    ForAll(',
+            f'        [{",".join(forall.operands)}],',
+            f'        Implies(',
+            f'            And({", ".join(f"NodeSort.is_bool_val({op})" for op in forall.operands)}),',
+            f'            And(',
+            *(f'                {a},' for a in assertions),
+            f'            )',
+            f'        )',
+            f'    )',
+            f')',
+        ],
+    }
+
     @classmethod
     def encode(cls, graphs: Solver._Graphs,
                destination: IO[str],
@@ -736,7 +754,7 @@ class Z3Solver(Solver):
             [sxpat_cfg.PYTHON3, script_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=30
+            timeout=120
         )
         if process.returncode != 0:
             raise RuntimeError(f'Solver execution FAILED. Failed to run file {script_path}')
