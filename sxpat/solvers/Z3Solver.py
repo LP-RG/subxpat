@@ -639,7 +639,6 @@ Z3_DATATYPE_NODE_MAPPING = {
     LessThan: lambda n, operands, accs: f'NodeSort.and_node(NodeSort.le_node({operands[0]}, {operands[1]}), NodeSort.not_node(NodeSort.eq_node({operands[0]}, {operands[1]})))',
     GreaterThan: lambda n, operands, accs: f'NodeSort.not_node(NodeSort.le_node({operands[0]}, {operands[1]}))',
     GreaterEqualThan: lambda n, operands, accs: f'NodeSort.or_node(NodeSort.not_node(NodeSort.le_node({operands[0]}, {operands[1]})), NodeSort.eq_node({operands[0]}, {operands[1]}))',
-    # quantifier operations 
     AtLeast: lambda n, operands, accs: f'NodeSort.raw_bool_node(AtLeast({", ".join(f"eval_bool({op})" for op in operands)}, {n.value}))',
     AtMost: lambda n, operands, accs: f'NodeSort.raw_bool_node(AtMost({", ".join(f"eval_bool({op})" for op in operands)}, {n.value}))',
     # branching operations
@@ -881,6 +880,7 @@ class Z3DataTypeSolver(Z3Solver):
             for pair in raw_model:
                 splt = pair.split(' ')
                 var_name = splt[0]
+
                 
                 raw_val = splt[-1].replace(')', '').replace('(', '').replace(',', '').strip()
                 model[var_name] = str_to_int_or_bool(raw_val)
