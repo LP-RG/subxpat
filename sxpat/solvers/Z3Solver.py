@@ -443,7 +443,7 @@ class Z3NodeSortEncoder(Z3Encoder):
             '# 1. raw variables (for quantifier binding to prevent infinite loops)',
             *(f'{name}_val = Bool("{name}_val")' if isinstance(node, BoolVariable) else f'{name}_val = Int("{name}_val")' for (name, node) in variables.items()),
             '# 2. AST variables (embedded with values)',
-            *(f'{name} = NodeSort.bool_const("{name}", {name}_val)' if isinstance(node, BoolVariable) else f'{name} = NodeSort.int_const("{name}", {name}_val)' for (name, node) in variables.items()),
+            *(f'{name} = NodeSort.bool_const(StringVal("{name}"), {name}_val)' if isinstance(node, BoolVariable) else f'{name} = NodeSort.int_const(StringVal("{name}"), {name}_val)' for (name, node) in variables.items()),
             *('',) * 2,
         )))
 
