@@ -615,8 +615,8 @@ Z3_DATATYPE_NODE_MAPPING = {
     BoolVariable: lambda n, operands, accs: n.name,
     IntVariable: lambda n, operands, accs: n.name,
     # constants
-    BoolConstant: lambda n, operands, accs: f'NodeSort.bool_const("c_{n.value}", BoolVal({n.value}))',
-    IntConstant: lambda n, operands, accs: f'NodeSort.int_const("c_{n.value}", IntVal({n.value}))',
+    BoolConstant: lambda n, operands, accs: f'NodeSort.bool_const(StringVal("c_{n.value}"), BoolVal({n.value}))',
+    IntConstant: lambda n, operands, accs: f'NodeSort.int_const(StringVal("c_{n.value}"), IntVal({n.value}))',
     # output
     Identity: lambda n, operands, accs: operands[0],
     Target: lambda n, operands, accs: operands[0],
