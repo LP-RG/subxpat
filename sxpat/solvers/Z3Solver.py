@@ -489,6 +489,7 @@ class Z3NodeSortEncoder(Z3Encoder):
             '# AST Interpreters',
             'eval_bool = RecFunction("eval_bool", NodeSort, BoolSort())',
             'eval_int = RecFunction("eval_int", NodeSort, IntSort())',
+            'n = Const("n", NodeSort)',
             'RecAddDefinition(eval_bool, [n],',
             '    If(NodeSort.is_bool_const(n), NodeSort.bool_val(n),',
             '    If(NodeSort.is_raw_bool_node(n), NodeSort.raw_val(n),',
