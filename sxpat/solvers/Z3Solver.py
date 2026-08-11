@@ -17,6 +17,7 @@ from sxpat.graph import *
 from sxpat.graph.node import *
 
 import sxpat.config.config as sxpat_cfg
+import functools
 
 __all__ = [
     'Z3FuncIntSolver', 'Z3FuncBitVecSolver',
@@ -426,17 +427,25 @@ class Z3NodeSortEncoder(Z3Encoder):
         ForAll: lambda solver_name, forall, assertions: [
             f'{solver_name}.add(',
             f'    ForAll(',
-            f'        [{",".join(forall.operands)}],',
-            f'        Implies(',
-            f'            And({", ".join(f"NodeSort.is_bool_val({op})" for op in forall.operands)}),',
-            f'            And(',
-            *(f'                {a},' for a in assertions),
-            f'            )',
+            f'        [{",".join(f"{op}_val" for op in forall.operands)}],',
+            f'        And(',
+            *(f'            {a},' for a in assertions),
             f'        )',
             f'    )',
             f')',
         ],
     }
+    
+    @classmethod
+    def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs, accessories: Callable[[Node], Sequence[Any]]) -> None:
+        variables = { node.name: node for graph in graphs for node in graph.nodes if isinstance(node, Variable) }
+        destination.write('\n'.join((
+            '# 1. raw variables (for quantifier binding to prevent infinite loops)',
+            *(f'{name}_val = Bool("{name}_val")' if isinstance(node, BoolVariable) else f'{name}_val = Int("{name}_val")' for (name, node) in variables.items()),
+            '# 2. AST variables (embedded with values)',
+            *(f'{name} = NodeSort.bool_const("{name}", {name}_val)' if isinstance(node, BoolVariable) else f'{name} = NodeSort.int_const("{name}", {name}_val)' for (name, node) in variables.items()),
+            *('',) * 2,
+        )))
 
     @classmethod
     def encode(cls, graphs: Solver._Graphs,
@@ -459,10 +468,41 @@ class Z3NodeSortEncoder(Z3Encoder):
                     '# 1. Declare the new Universe / Sort',
                     'NodeSort = Datatype("NodeSort")',
                     '# 2. Define the Constructors',
-                    'NodeSort.declare("bool_val", ("bool", BoolSort()))',
-                    'NodeSort.declare("int_val", ("int", IntSort()))',
-                    '# 3. Finalize',
+                    'NodeSort.declare("bool_const", ("name", StringSort()), ("bool_val", BoolSort()))',
+                    'NodeSort.declare("int_const", ("name", StringSort()), ("int_val", IntSort()))',
+                    'NodeSort.declare("and_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("or_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("xor_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("not_node", ("child", NodeSort))',
+                    'NodeSort.declare("sum_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("mul_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("abs_diff_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("eq_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("le_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("if_node", ("cond", NodeSort), ("then_branch", NodeSort), ("else_branch", NodeSort))',
+                    '# 3. Finalize,'
                     'NodeSort = NodeSort.create()',
+                    '',
+                    '# AST Interpreters',
+                    'eval_bool = RecFunction("eval_bool", NodeSort, BoolSort())',
+                    'eval_int = RecFunction("eval_int", NodeSort, IntSort())',
+                    'RecAddDefinition(eval_bool, [n],',
+                    '    If(NodeSort.is_bool_const(n), NodeSort.bool_val(n),',
+                    '    If(NodeSort.is_and_node(n), And(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
+                    '    If(NodeSort.is_or_node(n), Or(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
+                    '    If(NodeSort.is_xor_node(n), Xor(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
+                    '    If(NodeSort.is_not_node(n), Not(eval_bool(NodeSort.child(n))),',
+                    '    If(NodeSort.is_eq_node(n), eval_int(NodeSort.left(n)) == eval_int(NodeSort.right(n)),',
+                    '    If(NodeSort.is_le_node(n), eval_int(NodeSort.left(n)) <= eval_int(NodeSort.right(n)),',
+                    '    False))))))))',
+                    '',
+                    'RecAddDefinition(eval_int, [n],',
+                    '    If(NodeSort.is_int_const(n), NodeSort.int_val(n),',
+                    '    If(NodeSort.is_sum_node(n), eval_int(NodeSort.left(n)) + eval_int(NodeSort.right(n)),',
+                    '    If(NodeSort.is_mul_node(n), eval_int(NodeSort.left(n)) * eval_int(NodeSort.right(n)),',
+                    '    If(NodeSort.is_abs_diff_node(n), If(eval_int(NodeSort.left(n)) >= eval_int(NodeSort.right(n)), eval_int(NodeSort.left(n)) - eval_int(NodeSort.right(n)), eval_int(NodeSort.right(n)) - eval_int(NodeSort.left(n))),',
+                    '    If(NodeSort.is_if_node(n), If(eval_bool(NodeSort.cond(n)), eval_int(NodeSort.then_branch(n)), eval_int(NodeSort.else_branch(n))),',
+                    '    0))))))',
                     *('',) * 2,
                 )))
 
@@ -487,7 +527,7 @@ class Z3NodeSortEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# usage',
             'usage = And(', *(
-                f'    {constraint_node.operand} == NodeSort.bool_val(True),'
+                f'    eval_bool({constraint_node.operand}),'
                 for graph in graphs
                 if isinstance(graph, CGraph)
                 for constraint_node in graph.constraints
@@ -564,41 +604,40 @@ Z3_BITVEC_NODE_MAPPING = {
 }
 Z3_DATATYPE_NODE_MAPPING = {
     # variables
-    BoolVariable: lambda n, operands, accs: f'Const(\'{n.name}\', NodeSort)',
-    IntVariable: lambda n, operands, accs: f'Const(\'{n.name}\', NodeSort)',
+    BoolVariable: lambda n, operands, accs: n.name,
+    IntVariable: lambda n, operands, accs: n.name,
     # constants
-    BoolConstant: lambda n, operands, accs: f'NodeSort.bool_val(BoolVal({n.value}))',
-    IntConstant: lambda n, operands, accs: f'NodeSort.int_val(IntVal({n.value}))',
+    BoolConstant: lambda n, operands, accs: f'NodeSort.bool_const("c_{n.value}", BoolVal({n.value}))',
+    IntConstant: lambda n, operands, accs: f'NodeSort.int_const("c_{n.value}", IntVal({n.value}))',
     # output
     Identity: lambda n, operands, accs: operands[0],
     Target: lambda n, operands, accs: operands[0],
     # placeholder
     PlaceHolder: lambda n, operands, accs: n.name,
     # boolean operations
-    Not: lambda n, operands, accs: f'NodeSort.bool_val(Not(NodeSort.bool({operands[0]})))',
-    And: lambda n, operands, accs: f'NodeSort.bool_val(And({", ".join(f"NodeSort.bool({op})" for op in operands)}))',
-    Or: lambda n, operands, accs: f'NodeSort.bool_val(Or({", ".join(f"NodeSort.bool({op})" for op in operands)}))',
-    Xor: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.bool({operands[0]}) != NodeSort.bool({operands[1]}))',
-    Xnor: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.bool({operands[0]}) == NodeSort.bool({operands[1]}))',
-    Implies: lambda n, operands, accs: f'NodeSort.bool_val(Implies(NodeSort.bool({operands[0]}), NodeSort.bool({operands[1]})))',
+    Not: lambda n, operands, accs: f'NodeSort.not_node({operands[0]})',
+    And: lambda n, operands, accs: functools.reduce(lambda l, r: f'NodeSort.and_node({l}, {r})', operands),
+    Or: lambda n, operands, accs: functools.reduce(lambda l, r: f'NodeSort.or_node({l}, {r})', operands),
+    Xor: lambda n, operands, accs: functools.reduce(lambda l, r: f'NodeSort.xor_node({l}, {r})', operands),
+    Implies: lambda n, operands, accs: f'NodeSort.implies_node({operands[0]}, {operands[1]})',
     # integer operations
-    Sum: lambda n, operands, accs: f'NodeSort.int_val(Sum({", ".join(f"NodeSort.int({op})" for op in operands)}))',
-    AbsDiff: lambda n, operands, accs: f'NodeSort.int_val(If(NodeSort.int({operands[0]}) >= NodeSort.int({operands[1]}), NodeSort.int({operands[0]}) - NodeSort.int({operands[1]}), NodeSort.int({operands[1]}) - NodeSort.int({operands[0]})))',
-    Mul: lambda n, operands, accs: f'NodeSort.int_val({" * ".join(f"NodeSort.int({op})" for op in operands)})',
-    Div: lambda n, operands, accs: f'NodeSort.int_val(NodeSort.int({operands[0]}) / NodeSort.int({operands[1]}))',
+    Sum: lambda n, operands, accs: functools.reduce(lambda l, r: f'NodeSort.sum_node({l}, {r})', operands),
+    AbsDiff: lambda n, operands, accs: f'NodeSort.abs_diff_node({operands[0]}, {operands[1]})',
+    Mul: lambda n, operands, accs: functools.reduce(lambda l, r: f'NodeSort.mul_node({l}, {r})', operands),
+    Div: lambda n, operands, accs: f'NodeSort.div_node({operands[0]}, {operands[1]})',
     # comparison operations
-    Equals: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.int({operands[0]}) == NodeSort.int({operands[1]}))',
-    NotEquals: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.int({operands[0]}) != NodeSort.int({operands[1]}))',
-    LessThan: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.int({operands[0]}) < NodeSort.int({operands[1]}))',
-    LessEqualThan: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.int({operands[0]}) <= NodeSort.int({operands[1]}))',
-    GreaterThan: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.int({operands[0]}) > NodeSort.int({operands[1]}))',
-    GreaterEqualThan: lambda n, operands, accs: f'NodeSort.bool_val(NodeSort.int({operands[0]}) >= NodeSort.int({operands[1]}))',
+    Equals: lambda n, operands, accs: f'NodeSort.eq_node({operands[0]}, {operands[1]})',
+    LessEqualThan: lambda n, operands, accs: f'NodeSort.le_node({operands[0]}, {operands[1]})',
+    NotEquals: lambda n, operands, accs: f'NodeSort.not_node(NodeSort.eq_node({operands[0]}, {operands[1]}))',
+    LessThan: lambda n, operands, accs: f'NodeSort.and_node(NodeSort.le_node({operands[0]}, {operands[1]}), NodeSort.not_node(NodeSort.eq_node({operands[0]}, {operands[1]})))',
+    GreaterThan: lambda n, operands, accs: f'NodeSort.not_node(NodeSort.le_node({operands[0]}, {operands[1]}))',
+    GreaterEqualThan: lambda n, operands, accs: f'NodeSort.or_node(NodeSort.not_node(NodeSort.le_node({operands[0]}, {operands[1]})), NodeSort.eq_node({operands[0]}, {operands[1]}))',
     # quantifier operations
-    AtLeast: lambda n, operands, accs: f'NodeSort.bool_val(AtLeast({", ".join(f"NodeSort.bool({op})" for op in operands)}, {n.value}))',
-    AtMost: lambda n, operands, accs: f'NodeSort.bool_val(AtMost({", ".join(f"NodeSort.bool({op})" for op in operands)}, {n.value}))',
+    AtLeast: lambda n, operands, accs: f'AtLeast({", ".join(operands)}, {n.value})',
+    AtMost: lambda n, operands, accs: f'AtMost({", ".join(operands)}, {n.value})',
     # branching operations
-    Multiplexer: lambda n, operands, accs: f'If(NodeSort.bool({operands[1]}), If(NodeSort.bool({operands[2]}), {operands[0]}, NodeSort.bool_val(Not(NodeSort.bool({operands[0]})))), {operands[2]})',
-    If: lambda n, operands, accs: f'If(NodeSort.bool({operands[0]}), {operands[1]}, {operands[2]})',
+    If: lambda n, operands, accs: f'NodeSort.if_node({operands[0]}, {operands[1]}, {operands[2]})',
+    Multiplexer: lambda n, operands, accs: f'NodeSort.if_node({operands[1]}, NodeSort.if_node({operands[2]}, {operands[0]}, NodeSort.not_node({operands[0]})), {operands[2]})',
 }
 
 # bool/int to Z3 sorts
@@ -834,10 +873,10 @@ class Z3DataTypeSolver(Z3Solver):
         if status == 'sat':
             model = {
                 (splt := pair.split(' '))[0]: str_to_int_or_bool(
-                    splt[1].replace('NodeSort.bool_val(', '')
-                           .replace('NodeSort.int_val(', '')
-                           .replace('bool_val(', '')
-                           .replace('int_val(', '')
+                    splt[1].replace('NodeSort.bool_const(', '')
+                           .replace('NodeSort.int_const(', '')
+                           .replace('bool_const(', '')
+                           .replace('int_const(', '')
                            .replace(')', '')
                 )
                 for pair in raw_model
