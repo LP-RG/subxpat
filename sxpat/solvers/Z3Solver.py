@@ -534,7 +534,7 @@ class Z3NodeSortEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# usage',
             'usage = And(', *(
-                f'    eval_bool({constraint_node.operand}),'
+                f'    simplify(eval_bool({constraint_node.operand})),'
                 for graph in graphs
                 if isinstance(graph, CGraph)
                 for constraint_node in graph.constraints
@@ -877,16 +877,13 @@ class Z3DataTypeSolver(Z3Solver):
         # parse model
         model = None
         if status == 'sat':
-            model = {
-                (splt := pair.split(' '))[0]: str_to_int_or_bool(
-                    splt[1].replace('NodeSort.bool_const(', '')
-                           .replace('NodeSort.int_const(', '')
-                           .replace('bool_const(', '')
-                           .replace('int_const(', '')
-                           .replace(')', '')
-                )
-                for pair in raw_model
-            }
+            model = {}
+            for pair in raw_model:
+                splt = pair.split(' ')
+                var_name = splt[0]
+                
+                raw_val = splt[-1].replace(')', '').replace('(', '').replace(',', '').strip()
+                model[var_name] = str_to_int_or_bool(raw_val)
 
         # return decoded result
         return (status, model)
