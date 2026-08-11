@@ -438,7 +438,12 @@ class Z3NodeSortEncoder(Z3Encoder):
     
     @classmethod
     def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs, accessories: Callable[[Node], Sequence[Any]]) -> None:
-        variables = { node.name: node for graph in graphs for node in graph.nodes if isinstance(node, Variable) }
+        variables = { 
+            node.name: node
+            for graph in graphs 
+            for node in graph.nodes
+            if isinstance(node, Variable)
+        }
         destination.write('\n'.join((
             '# 1. raw variables (for quantifier binding to prevent infinite loops)',
             *(f'{name}_val = Bool("{name}_val")' if isinstance(node, BoolVariable) else f'{name}_val = Int("{name}_val")' for (name, node) in variables.items()),
@@ -465,54 +470,46 @@ class Z3NodeSortEncoder(Z3Encoder):
 
         # Datatype rules
         destination.write('\n'.join((
-            '# 1. Declare the new Universe / Sort',
-            'NodeSort = Datatype("NodeSort")',
-            '# 2. Define the Constructors',
-            'NodeSort.declare("bool_const", ("name", StringSort()), ("bool_val", BoolSort()))',
-            'NodeSort.declare("int_const", ("name", StringSort()), ("int_val", IntSort()))',
-            'NodeSort.declare("raw_bool_node", ("raw_val", BoolSort()))',
-            'NodeSort.declare("and_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("or_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("xor_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("not_node", ("child", NodeSort))',
-            'NodeSort.declare("implies_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("sum_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("mul_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("div_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("abs_diff_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("eq_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("le_node", ("left", NodeSort), ("right", NodeSort))',
-            'NodeSort.declare("if_node", ("cond", NodeSort), ("then_branch", NodeSort), ("else_branch", NodeSort))',
-            '# 3. Finalize',
-            'NodeSort = NodeSort.create()',
-            '',
-            '# AST Interpreters',
-            'eval_bool = RecFunction("eval_bool", NodeSort, BoolSort())',
-            'eval_int = RecFunction("eval_int", NodeSort, IntSort())',
-            'n = Const("n", NodeSort)',
-            'RecAddDefinition(eval_bool, [n],',
-            '    If(NodeSort.is_bool_const(n), NodeSort.bool_val(n),',
-            '    If(NodeSort.is_raw_bool_node(n), NodeSort.raw_val(n),',
-            '    If(NodeSort.is_and_node(n), And(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
-            '    If(NodeSort.is_or_node(n), Or(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
-            '    If(NodeSort.is_xor_node(n), Xor(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
-            '    If(NodeSort.is_implies_node(n), Implies(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
-            '    If(NodeSort.is_not_node(n), Not(eval_bool(NodeSort.child(n))),',
-            '    If(NodeSort.is_eq_node(n), eval_int(NodeSort.left(n)) == eval_int(NodeSort.right(n)),',
-            '    If(NodeSort.is_le_node(n), eval_int(NodeSort.left(n)) <= eval_int(NodeSort.right(n)),',
-            '    If(NodeSort.is_if_node(n), If(eval_bool(NodeSort.cond(n)), eval_bool(NodeSort.then_branch(n)), eval_bool(NodeSort.else_branch(n))),',
-            '    False)))))))))))',
-            '',
-            'RecAddDefinition(eval_int, [n],',
-            '    If(NodeSort.is_int_const(n), NodeSort.int_val(n),',
-            '    If(NodeSort.is_sum_node(n), eval_int(NodeSort.left(n)) + eval_int(NodeSort.right(n)),',
-            '    If(NodeSort.is_mul_node(n), eval_int(NodeSort.left(n)) * eval_int(NodeSort.right(n)),',
-            '    If(NodeSort.is_div_node(n), eval_int(NodeSort.left(n)) / eval_int(NodeSort.right(n)),',
-            '    If(NodeSort.is_abs_diff_node(n), If(eval_int(NodeSort.left(n)) >= eval_int(NodeSort.right(n)), eval_int(NodeSort.left(n)) - eval_int(NodeSort.right(n)), eval_int(NodeSort.right(n)) - eval_int(NodeSort.left(n))),',
-            '    If(NodeSort.is_if_node(n), If(eval_bool(NodeSort.cond(n)), eval_int(NodeSort.then_branch(n)), eval_int(NodeSort.else_branch(n))),',
-            '    0)))))))',
-            *('',) * 2,
-        )))
+                    '# 1. Declare the new Universe / Sort',
+                    'NodeSort = Datatype("NodeSort")',
+                    '# 2. Define the Constructors',
+                    'NodeSort.declare("bool_const", ("name", StringSort()), ("bool_val", BoolSort()))',
+                    'NodeSort.declare("int_const", ("name", StringSort()), ("int_val", IntSort()))',
+                    'NodeSort.declare("and_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("or_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("xor_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("not_node", ("child", NodeSort))',
+                    'NodeSort.declare("sum_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("mul_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("abs_diff_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("eq_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("le_node", ("left", NodeSort), ("right", NodeSort))',
+                    'NodeSort.declare("if_node", ("cond", NodeSort), ("then_branch", NodeSort), ("else_branch", NodeSort))',
+                    '# 3. Finalize,'
+                    'NodeSort = NodeSort.create()',
+                    '',
+                    '# AST Interpreters',
+                    'eval_bool = RecFunction("eval_bool", NodeSort, BoolSort())',
+                    'eval_int = RecFunction("eval_int", NodeSort, IntSort())',
+                    'RecAddDefinition(eval_bool, [n],',
+                    '    If(NodeSort.is_bool_const(n), NodeSort.bool_val(n),',
+                    '    If(NodeSort.is_and_node(n), And(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
+                    '    If(NodeSort.is_or_node(n), Or(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
+                    '    If(NodeSort.is_xor_node(n), Xor(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
+                    '    If(NodeSort.is_not_node(n), Not(eval_bool(NodeSort.child(n))),',
+                    '    If(NodeSort.is_eq_node(n), eval_int(NodeSort.left(n)) == eval_int(NodeSort.right(n)),',
+                    '    If(NodeSort.is_le_node(n), eval_int(NodeSort.left(n)) <= eval_int(NodeSort.right(n)),',
+                    '    False))))))))',
+                    '',
+                    'RecAddDefinition(eval_int, [n],',
+                    '    If(NodeSort.is_int_const(n), NodeSort.int_val(n),',
+                    '    If(NodeSort.is_sum_node(n), eval_int(NodeSort.left(n)) + eval_int(NodeSort.right(n)),',
+                    '    If(NodeSort.is_mul_node(n), eval_int(NodeSort.left(n)) * eval_int(NodeSort.right(n)),',
+                    '    If(NodeSort.is_abs_diff_node(n), If(eval_int(NodeSort.left(n)) >= eval_int(NodeSort.right(n)), eval_int(NodeSort.left(n)) - eval_int(NodeSort.right(n)), eval_int(NodeSort.right(n)) - eval_int(NodeSort.left(n))),',
+                    '    If(NodeSort.is_if_node(n), If(eval_bool(NodeSort.cond(n)), eval_int(NodeSort.then_branch(n)), eval_int(NodeSort.else_branch(n))),',
+                    '    0))))))',
+                    *('',) * 2,
+                )))
 
         # variables
         cls.inject_variables(destination, graphs, accessories)
@@ -535,7 +532,7 @@ class Z3NodeSortEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# usage',
             'usage = And(', *(
-                f'    simplify(eval_bool({constraint_node.operand})),'
+                f'    eval_bool({constraint_node.operand}),'
                 for graph in graphs
                 if isinstance(graph, CGraph)
                 for constraint_node in graph.constraints
@@ -640,11 +637,13 @@ Z3_DATATYPE_NODE_MAPPING = {
     LessThan: lambda n, operands, accs: f'NodeSort.and_node(NodeSort.le_node({operands[0]}, {operands[1]}), NodeSort.not_node(NodeSort.eq_node({operands[0]}, {operands[1]})))',
     GreaterThan: lambda n, operands, accs: f'NodeSort.not_node(NodeSort.le_node({operands[0]}, {operands[1]}))',
     GreaterEqualThan: lambda n, operands, accs: f'NodeSort.or_node(NodeSort.not_node(NodeSort.le_node({operands[0]}, {operands[1]})), NodeSort.eq_node({operands[0]}, {operands[1]}))',
-    AtLeast: lambda n, operands, accs: f'NodeSort.raw_bool_node(AtLeast({", ".join(f"eval_bool({op})" for op in operands)}, {n.value}))',
-    AtMost: lambda n, operands, accs: f'NodeSort.raw_bool_node(AtMost({", ".join(f"eval_bool({op})" for op in operands)}, {n.value}))',
+    # quantifier operations
+    AtLeast: lambda n, operands, accs: f'AtLeast({", ".join(operands)}, {n.value})',
+    AtMost: lambda n, operands, accs: f'AtMost({", ".join(operands)}, {n.value})',
     # branching operations
     If: lambda n, operands, accs: f'NodeSort.if_node({operands[0]}, {operands[1]}, {operands[2]})',
-    Multiplexer: lambda n, operands, accs: f'NodeSort.if_node({operands[1]}, NodeSort.if_node({operands[2]}, {operands[0]}, NodeSort.not_node({operands[0]})), {operands[2]})',}
+    Multiplexer: lambda n, operands, accs: f'NodeSort.if_node({operands[1]}, NodeSort.if_node({operands[2]}, {operands[0]}, NodeSort.not_node({operands[0]})), {operands[2]})',
+}
 
 # bool/int to Z3 sorts
 Z3_INT_TYPE_MAPPING = {
@@ -877,14 +876,16 @@ class Z3DataTypeSolver(Z3Solver):
         # parse model
         model = None
         if status == 'sat':
-            model = {}
-            for pair in raw_model:
-                splt = pair.split(' ')
-                var_name = splt[0]
-
-                
-                raw_val = splt[-1].replace(')', '').replace('(', '').replace(',', '').strip()
-                model[var_name] = str_to_int_or_bool(raw_val)
+            model = {
+                (splt := pair.split(' '))[0]: str_to_int_or_bool(
+                    splt[1].replace('NodeSort.bool_const(', '')
+                           .replace('NodeSort.int_const(', '')
+                           .replace('bool_const(', '')
+                           .replace('int_const(', '')
+                           .replace(')', '')
+                )
+                for pair in raw_model
+            }
 
         # return decoded result
         return (status, model)
