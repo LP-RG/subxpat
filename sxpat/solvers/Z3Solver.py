@@ -423,60 +423,6 @@ class Z3NodeEdgeEncoder(Z3Encoder):
     """
 
     @classmethod
-    @override
-    def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs, accessories: Callable[[Node], Sequence[Any]]) -> None:
-        """
-            1. Declares standalone Z3 variables globally so logic functions (And, Or) succeed.
-            2. Builds the structural Node Datatypes wrapping those variables.
-        """
-        variables = {  # ignore duplicates
-            node.name: node
-            for graph in graphs
-            for node in graph.nodes
-            if isinstance(node, Variable)
-        }
-
-        # 1. Declare standalone global variables (e.g., in0 = Bool('in0'))
-        destination.write('\n'.join((
-            '# standard variables',
-            *(
-                f'{name} = {cls.node_mapping[type(node)](node, None, accessories(node))}'
-                for (name, node) in variables.items()
-            ),
-            *('',) * 2,
-        )))
-
-        # 2. Build the structural Node Datatypes wrapping those variables
-        destination.write('# --- Custom Node Datatypes (mk_node) ---\n')
-        destination.write('nodes = {}\n\n')
-        for name in variables:
-            destination.write(f"nodes['{name}'] = Node.mk_node(IntVal(0), IntVal(1), {name})\n")
-        
-        destination.write('\n')
-
-    @classmethod
-    def inject_edges(cls, destination: IO[str], graphs: Solver._Graphs) -> None:
-        """
-            Builds the Edge Datatypes connecting nodes using Edge.mk_edge.
-        """
-        destination.write('\n'.join((
-            '# --- Custom Edge Datatypes (mk_edge) ---',
-            'edges = []',
-            '',
-        )))
-        
-        edge_counter = 0
-        for graph in graphs:
-            for node in graph.nodes:
-                if isinstance(node, Operation) and hasattr(node, 'operands'):
-                    for op in node.operands:
-                        destination.write(f"edge_{edge_counter} = Edge.mk_edge(nodes['{op}'], nodes['{node.name}'])")
-                        destination.write(f"\nedges.append(edge_{edge_counter})\n")
-                        edge_counter += 1
-
-        destination.write('\n')
-
-    @classmethod
     def encode(cls, graphs: Solver._Graphs,
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
@@ -508,9 +454,6 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         # Variables / Nodes instantiation using Node.mk_node
         cls.inject_variables(destination, graphs, accessories)
 
-        # Edges instantiation using Edge.mk_edge
-        cls.inject_edges(destination, graphs)
-
         # Constants
         cls.inject_constants(destination, graphs, accessories)
 
@@ -524,6 +467,37 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             ),
             *('',) * 2,
         )))
+
+        destination.write('\n'.join((
+            '# --- Custom Node Datatypes Dictionary ---',
+            'nodes = {}',
+        )))
+        
+        all_names = set()
+        for graph in graphs:
+            for node in graph.nodes:
+                all_names.add(node.name)
+                if hasattr(node, 'operands'):
+                    all_names.update(node.operands)
+                    
+        for name in all_names:
+            destination.write(f"\nnodes['{name}'] = Node.mk_node(IntVal(0), IntVal(1), Bool('{name}'))")
+        destination.write('\n\n')
+
+        # 6. Build the Edges connecting the nodes
+        destination.write('\n'.join((
+            '# --- Custom Edge Datatypes List ---',
+            'edges = []',
+        )))
+        edge_counter = 0
+        for graph in graphs:
+            for node in graph.nodes:
+                if isinstance(node, Operation) and hasattr(node, 'operands'):
+                    for op in node.operands:
+                        destination.write(f"\nedge_{edge_counter} = Edge.mk_edge(nodes['{op}'], nodes['{node.name}'])")
+                        destination.write(f"\nedges.append(edge_{edge_counter})")
+                        edge_counter += 1
+        destination.write('\n\n')
 
         # Nodes usage
         destination.write('\n'.join((
