@@ -48,16 +48,19 @@ def verify_weights(base_log_dir="program_outputs"):
     failed_nodes = 0
     
     for node, beta_data in node_weights.items():
-        if 16 not in beta_data:
-            print(f"Node {node} is missing Beta 16 data.")
+        if beta == 16:
+                continue
+        
+        if beta not in beta_data:
+            print(f"Node {node} is missing Beta {beta} data. Skipping.")
             continue
-            
+
         b16_weights = beta_data[16]
         b16_val = min(b16_weights)
         
         for beta in betas:
             if beta == 16 or beta not in beta_data:
-                print(f"Missing {beta}")
+                print(f"Node {node} is missing Beta 16 data. Skipping.")
                 continue
                 
             current_beta_weights = beta_data[beta]
@@ -70,8 +73,6 @@ def verify_weights(base_log_dir="program_outputs"):
                 print(f"Beta 16 weight ({b16_weights}) is strictly greater than the minimum weight in Beta {beta} ({current_min}).")
                 all_passed = False
                 failed_nodes += 1
-
-                
     if all_passed:
         print(f"SUCCESS! Verified {len(node_weights)} nodes.")
     else:
