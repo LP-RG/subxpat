@@ -60,8 +60,8 @@ def verify_weights(base_log_dir="program_outputs"):
                 continue
 
             b_weights = beta_data[master_betas]
-            #b_val = min(b_weights)
-            b_val = max(b_weights)
+            b_val = min(b_weights)
+            # b_val = max(b_weights)
             
             for beta in betas:
                 if beta == master_beta or beta not in beta_data:
