@@ -416,7 +416,6 @@ class Z3DirectEncoder(Z3Encoder):
         # results
         cls.inject_solve_and_result_writing(destination, graphs, graphs)
 
-
 class Z3NodeEdgeEncoder(Z3Encoder):
     """
         Z3 encoder leveraging custom Datatypes (Node, Edge) for subgraph extraction,
@@ -427,20 +426,31 @@ class Z3NodeEdgeEncoder(Z3Encoder):
     @override
     def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs, accessories: Callable[[Node], Sequence[Any]]) -> None:
         """
-            Builds the structural Node Datatypes using Node.mk_node for all unique nodes.
+            1. Declares standalone Z3 variables globally so logic functions (And, Or) succeed.
+            2. Builds the structural Node Datatypes wrapping those variables.
         """
+        variables = {  # ignore duplicates
+            node.name: node
+            for graph in graphs
+            for node in graph.nodes
+            if isinstance(node, Variable)
+        }
+
+        # 1. Declare standalone global variables (e.g., in0 = Bool('in0'))
         destination.write('\n'.join((
-            '# --- Custom Node Datatypes (mk_node) ---',
-            'nodes = {}',
-            '',
+            '# standard variables',
+            *(
+                f'{name} = {cls.node_mapping[type(node)](node, None, accessories(node))}'
+                for (name, node) in variables.items()
+            ),
+            *('',) * 2,
         )))
-        
-        seen_nodes = set()
-        for graph in graphs:
-            for node in graph.nodes:
-                if node.name not in seen_nodes:
-                    seen_nodes.add(node.name)
-                    destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal(0), IntVal(1), Bool('{node.name}'))\n")
+
+        # 2. Build the structural Node Datatypes wrapping those variables
+        destination.write('# --- Custom Node Datatypes (mk_node) ---\n')
+        destination.write('nodes = {}\n\n')
+        for name in variables:
+            destination.write(f"nodes['{name}'] = Node.mk_node(IntVal(0), IntVal(1), {name})\n")
         
         destination.write('\n')
 
