@@ -522,7 +522,23 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                         weight = 1
                     destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
                     node_counter += 1
-        #
+
+        destination.write('\n# 4.5. Constraints & Internal Nodes\n')
+        for graph in graphs:
+            for node in graph.nodes:
+                if node.name not in seen_nodes:
+                    seen_nodes[node.name] = True
+                    weight = getattr(node, 'weight', 1)
+                    if weight is None: weight = 1
+                    destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
+                    node_counter += 1
+                if hasattr(node, 'operands'):
+                    for op in node.operands:
+                        if op not in seen_nodes:
+                            seen_nodes[op] = True
+                            destination.write(f"nodes['{op}'] = Node.mk_node(IntVal({node_counter}), IntVal(1), Bool('{op}_sel'))\n")
+                            node_counter += 1
+        
         destination.write('\n# 5. Edges\n')
         edge_counter = 0
         for graph in graphs:
