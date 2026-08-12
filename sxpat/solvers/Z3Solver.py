@@ -420,51 +420,48 @@ class Z3DirectEncoder(Z3Encoder):
 class Z3NodeEdgeEncoder(Z3Encoder):
     """
         Z3 encoder leveraging custom Datatypes (Node, Edge) for subgraph extraction,
-        following the direct mapping pattern
+        using Node.mk_node and Edge.mk_edge across all graph nodes and edges.
     """
 
     @classmethod
     @override
     def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs, accessories: Callable[[Node], Sequence[Any]]) -> None:
         """
-            1. Declares standard Z3 variables using base mapping so logic functions (And, Or) succeed.
-            2. Builds the structural Node and Edge Datatypes wrapping those native variables cleanly.
+            Builds the structural Node Datatypes using Node.mk_node for all unique nodes.
         """
-        variables = {  # ignore duplicates
-            node.name: node
-            for graph in graphs
-            for node in graph.nodes
-            if isinstance(node, Variable)
-        }
-
-        # 1. Declare standard Z3 variables as native Booleans/Ints so logic gates find them
         destination.write('\n'.join((
-            '# standard circuit variables',
-            *(
-                f'{name} = {Z3_INT_NODE_MAPPING[type(node)](node, None, accessories(node))}'
-                for (name, node) in variables.items()
-            ),
-            *('',) * 2,
+            '# --- Custom Node Datatypes (mk_node) ---',
+            'nodes = {}',
         )))
-
-        # 2. Build the structural Node Datatypes wrapping those native variables
-        destination.write('# --- Custom Node Datatypes (mk_node) ---\n')
-        destination.write('nodes = {}\n')
-        for name in variables:
-            destination.write(f"nodes['{name}'] = Node.mk_node(IntVal(0), IntVal(1), {name})\n")
         
-        # 3. Build the Edge Datatypes connecting them
-        destination.write('\n# --- Custom Edge Datatypes (mk_edge) ---\n')
-        destination.write('edges = []\n')
+        seen_nodes = set()
+        for graph in graphs:
+            for node in graph.nodes:
+                if node.name not in seen_nodes:
+                    seen_nodes.add(node.name)
+                    # Example: nodes['in0'] = Node.mk_node(IntVal(0), IntVal(1), Bool('in0'))
+                    destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal(0), IntVal(1), Bool('{node.name}'))\n")
+        
+        destination.write('\n')
+
+    @classmethod
+    def inject_edges(cls, destination: IO[str], graphs: Solver._Graphs) -> None:
+        """
+            Builds the Edge Datatypes connecting nodes using Edge.mk_edge.
+        """
+        destination.write('\n'.join((
+            '# --- Custom Edge Datatypes (mk_edge) ---',
+            'edges = []',
+        )))
+        
         edge_counter = 0
         for graph in graphs:
             for node in graph.nodes:
                 if isinstance(node, Operation) and hasattr(node, 'operands'):
                     for op in node.operands:
-                        if op in variables and node.name in variables:
-                            destination.write(f"edge_{edge_counter} = Edge.mk_edge(nodes['{op}'], nodes['{node.name}'])")
-                            destination.write(f"edges.append(edge_{edge_counter})\n")
-                            edge_counter += 1
+                        destination.write(f"edge_{edge_counter} = Edge.mk_edge(nodes['{op}'], nodes['{node.name}'])")
+                        destination.write(f"edges.append(edge_{edge_counter})\n")
+                        edge_counter += 1
 
         destination.write('\n')
 
@@ -474,16 +471,16 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                global_task: Union[ForAll, Min, Max, None] = None,
                ) -> None:
 
-        # initial computations
         node_mapping = cls.node_mapping
         type_mapping = cls.type_mapping
         solver_construct = cls.solver_construct
         constraint_assertion = cls.constraints_assertion
         (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
 
-        # initialization
+        # Initialization
         cls.inject_initialization(destination)
 
+        # Datatype declarations
         destination.write('\n'.join((
             '# --- Custom Datatypes for Subgraph Extraction ---',
             'Node = Datatype("Node")',
@@ -497,13 +494,16 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
-        # variables
+        # Variables / Nodes instantiation using Node.mk_node
         cls.inject_variables(destination, graphs, accessories)
 
-        # constants
+        # Edges instantiation using Edge.mk_edge
+        cls.inject_edges(destination, graphs)
+
+        # Constants
         cls.inject_constants(destination, graphs, accessories)
 
-        # nodes behavior
+        # Nodes behavior
         destination.write('\n'.join((
             '# behaviour',
             *(
@@ -514,7 +514,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
-        # nodes usage
+        # Nodes usage
         destination.write('\n'.join((
             '# usage',
             'usage = And(', *(
@@ -526,7 +526,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
-        # solver
+        # Solver
         destination.write('\n'.join((
             f'# define solver',
             f'solver = {solver_construct[type(global_task)]}',
@@ -534,7 +534,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
-        # results
+        # Results
         cls.inject_solve_and_result_writing(destination, graphs, graphs)
 
 # Node to Z3 expression
@@ -593,7 +593,10 @@ Z3_BITVEC_NODE_MAPPING = {
     GreaterEqualThan: lambda n, operands, accs: f'UGE({operands[0]}, {operands[1]})',
 }
 Z3_DATATYPE_NODE_MAPPING = {
-    **Z3_INT_NODE_MAPPING,
+    **Z3_INT_NODE_MAPPING, 
+    BoolVariable: lambda n, operands, accs: f'Node.in_subgraph(nodes[\'{n.name}\'])',
+    IntVariable: lambda n, operands, accs: f'Node.weight(nodes[\'{n.name}\'])',
+    Not: lambda n, operands, accs: f'Not(Node.in_subgraph(nodes[\'{operands[0]}\']))' if not operands[0].startswith('Node.') else f'Not({operands[0]})',
 }
 
 # bool/int to Z3 sorts
