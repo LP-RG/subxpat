@@ -477,6 +477,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         )))
 
         seen_nodes = set()
+        node_counter = 0
 
         destination.write('\n# 1. Inputs\n')
         for graph in graphs:
