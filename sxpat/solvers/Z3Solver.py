@@ -427,8 +427,8 @@ class Z3NodeEdgeEncoder(Z3Encoder):
     @override
     def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs, accessories: Callable[[Node], Sequence[Any]]) -> None:
         """
-            1. Declares standard Z3 variables so logic functions (And, Or) succeed.
-            2. Builds the structural Node and Edge Datatypes safely using those variables.
+            1. Declares standard Z3 variables using base mapping so logic functions (And, Or) succeed.
+            2. Builds the structural Node and Edge Datatypes wrapping those native variables cleanly.
         """
         variables = {  # ignore duplicates
             node.name: node
@@ -437,17 +437,17 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             if isinstance(node, Variable)
         }
 
-        # 1. Declare standard Z3 variables so logic gates find them as native Booleans
+        # 1. Declare standard Z3 variables as native Booleans/Ints so logic gates find them
         destination.write('\n'.join((
             '# standard circuit variables',
             *(
-                f'{name} = {cls.node_mapping[type(node)](node, None, accessories(node))}'
+                f'{name} = {Z3_INT_NODE_MAPPING[type(node)](node, None, accessories(node))}'
                 for (name, node) in variables.items()
             ),
             *('',) * 2,
         )))
 
-        # 2. Build the structural Node Datatypes wrapping those booleans cleanly
+        # 2. Build the structural Node Datatypes wrapping those native variables
         destination.write('# --- Custom Node Datatypes (mk_node) ---\n')
         destination.write('nodes = {}\n')
         for name in variables:
@@ -593,10 +593,7 @@ Z3_BITVEC_NODE_MAPPING = {
     GreaterEqualThan: lambda n, operands, accs: f'UGE({operands[0]}, {operands[1]})',
 }
 Z3_DATATYPE_NODE_MAPPING = {
-    **Z3_INT_NODE_MAPPING, 
-    BoolVariable: lambda n, operands, accs: f'Node.in_subgraph({n.name})',
-    IntVariable: lambda n, operands, accs: f'Node.weight({n.name})',
-    Not: lambda n, operands, accs: f'Not(Node.in_subgraph({operands[0]}))' if not operands[0].startswith('Node.') else f'Not({operands[0]})',
+    **Z3_INT_NODE_MAPPING,
 }
 
 # bool/int to Z3 sorts
