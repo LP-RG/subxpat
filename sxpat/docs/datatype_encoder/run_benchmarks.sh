@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the encodings
-ENCODINGS=("z3datatype" "z3int" "z3bvec")
+ENCODINGS=("z3datatype" "z3dbvec")
 
 # Define the error spaces
 ERRORS=(4 8 16 32 64)
