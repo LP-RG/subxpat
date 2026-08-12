@@ -425,56 +425,48 @@ class Z3NodeEdgeEncoder(Z3Encoder):
 
     @classmethod
     @override
-    def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs, accessories: Callable[[Node], Sequence[Any]], circuit_obj: Any = None) -> None:
+    def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs, accessories: Callable[[Node], Sequence[Any]]) -> None:
         """
-            Physically instantiates the graph topology (all 5 loops) so Z3 can optimize the search.
+            1. Declares standard Z3 variables so SubXPAT logic (And, Or, Not) works.
+            2. Instantiates the structural Node and Edge Datatypes for Z3 optimization.
         """
-        if circuit_obj is None:
-            # Fallback if no physical graph is provided
-            variables = { node.name: node for graph in graphs for node in graph.nodes if isinstance(node, Variable) }
-            destination.write('\n'.join((f"{name} = Const('{name}', Node)" for name in variables)))
-            return
+        variables = {  # ignore duplicates
+            node.name: node
+            for graph in graphs
+            for node in graph.nodes
+            if isinstance(node, Variable)
+        }
 
-        destination.write('# --- Graph Nodes (mk_node) ---\n')
-        destination.write('nodes = {}\n\n')
+        # 1. Declare standard Z3 variables for expression evaluation
+        destination.write('\n'.join((
+            '# standard circuit variables',
+            *(
+                f'{name} = {cls.node_mapping[type(node)](node, None, accessories(node))}'
+                for (name, node) in variables.items()
+            ),
+            *('',) * 2,
+        )))
+
+        # 2. Build the structural Node Datatypes wrapping those variables
+        destination.write('# --- Custom Node Datatypes (mk_node) ---\n')
+        destination.write('nodes = {}\n')
+        for name in variables:
+            destination.write(f"nodes['{name}'] = Node.mk_node(IntVal(0), IntVal(1), {name})\n")
         
-        # 1. LOOP 1: Inputs
-        destination.write('# Inputs\n')
-        for in_idx, node_label in circuit_obj.input_dict.items():
-            weight = circuit_obj.graph.nodes[node_label]['WEIGHT']
-            destination.write(f"nodes['{node_label}'] = Node.mk_node(IntVal({in_idx}), IntVal({weight}), Bool('{node_label}'))\n")
-            destination.write(f"{node_label} = nodes['{node_label}']\n")
-
-        # 2. LOOP 2: Gates
-        destination.write('\n# Gates\n')
-        for g_idx, node_label in circuit_obj.gate_dict.items():
-            weight = circuit_obj.graph.nodes[node_label]['WEIGHT']
-            destination.write(f"nodes['{node_label}'] = Node.mk_node(IntVal({g_idx}), IntVal({weight}), Bool('{node_label}'))\n")
-            destination.write(f"{node_label} = nodes['{node_label}']\n")
-
-        # 3. LOOP 3: Outputs
-        destination.write('\n# Outputs\n')
-        for o_idx, node_label in circuit_obj.output_dict.items():
-            weight = circuit_obj.graph.nodes[node_label]['WEIGHT']
-            destination.write(f"nodes['{node_label}'] = Node.mk_node(IntVal({o_idx}), IntVal({weight}), Bool('{node_label}'))\n")
-            destination.write(f"{node_label} = nodes['{node_label}']\n")
-
-        # 4. LOOP 4: Constants
-        destination.write('\n# Constants\n')
-        for c_idx, node_label in circuit_obj.constant_dict.items():
-            weight = circuit_obj.graph.nodes[node_label]['WEIGHT']
-            destination.write(f"nodes['{node_label}'] = Node.mk_node(IntVal({c_idx}), IntVal({weight}), Bool('{node_label}'))\n")
-            destination.write(f"{node_label} = nodes['{node_label}']\n")
-
-        # 5. LOOP 5: Edges
-        destination.write('\n# --- Graph Edges (mk_edge) ---\n')
+        # 3. Build the Edge Datatypes based on graph operations/connections
+        destination.write('\n# --- Custom Edge Datatypes (mk_edge) ---\n')
         destination.write('edges = []\n')
-        for i, (src, des) in enumerate(circuit_obj.graph.edges):
-            destination.write(f"edge_{i} = Edge.mk_edge(nodes['{src}'], nodes['{des}'])\n")
-            destination.write(f"edges.append(edge_{i})\n")
-        
-        destination.write('\n')
+        edge_counter = 0
+        for graph in graphs:
+            for node in graph.nodes:
+                if isinstance(node, Operation) and hasattr(node, 'operands'):
+                    for op in node.operands:
+                        if op in variables and node.name in variables:
+                            destination.write(f"edge_{edge_counter} = Edge.mk_edge(nodes['{op}'], nodes['{node.name}'])")
+                            destination.write(f"edges.append(edge_{edge_counter})\n")
+                            edge_counter += 1
 
+        destination.write('\n')
     @classmethod
     def encode(cls, graphs: Solver._Graphs,
                destination: IO[str],
