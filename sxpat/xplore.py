@@ -43,6 +43,8 @@ from sxpat.converting import VerilogExporter
 from sxpat.labelling.solver_labelling import Labelling as ZoneLabelling
 from sxpat.labelling.labelling import Labelling
 
+from plot_zones import save_zone_heatmaps
+
 
 
 def explore_grid(specs_obj: Specifications):
@@ -251,6 +253,7 @@ def explore_grid(specs_obj: Specifications):
             specs_obj.stats_storage.stage(labelling_time=_time)
             print(f'labelling_time = {_time}')
 
+        quit()
         # extract subgraph
         _time = Timer.now()
         subgraph_nodes = extract_subgraph(current_graph, specs_obj)
@@ -645,10 +648,15 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
         input2_zone = (0, (2 ** bits_input_2) - 1)
 
         z_weights = {}
+        node_times = []
         for node in circuit.nodes:
+            _time = Timer.now()
             zone_dict = labeller.label_all_zones(
                 node.name, input1_zone, input2_zone, specs_obj.beta
             )
+            _time = Timer.now() - _time
+
+            node_times.append(_time)
             
             
             print(f"\nNode: {node.name}")
@@ -656,8 +664,13 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
                 print(f"  Zone {zone}: Weight {weight}")
 
             z_weights[node.name] = zone_dict
+
+        avg_node_time = sum(node_times) / len(node_times) if node_times else 0
+        print(f'average_node_time = {avg_node_time}')
     
         circuit.zone_weights = z_weights
+
+        save_zone_heatmaps(z_weights, output_dir=f"zone_plots/beta_{specs_obj.beta}")
 
         weights = {}
 

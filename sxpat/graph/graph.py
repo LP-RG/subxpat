@@ -41,13 +41,13 @@ class Graph:
     #zone_weights is a nested dictionary with the key of the first dictionary 
     #being the gate and the key of the nested dictionary being the zones
 
-    def __init__(self, nodes: Iterable[AnyNode], zone_weights: Dict[str, Dict[Any, int]] = {}) -> None:
+    def __init__(self, nodes: Iterable[AnyNode], zone_weights: Dict[str, Dict[Any, int]] = None) -> None:
         """
             Creates a new graph from the given nodes.
 
             @authors: Marco Biasion
         """
-        zone_weights = dict(zone_weights)
+        self.zone_weights = dict(zone_weights) if zone_weights is not None else {}
 
         nodes = tuple(nodes)
 
