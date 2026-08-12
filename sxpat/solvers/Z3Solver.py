@@ -432,6 +432,8 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         type_mapping = cls.type_mapping
         solver_construct = cls.solver_construct
         constraint_assertion = cls.constraints_assertion
+        
+        # We need nodes_types here to prevent the Z3 Type Crash
         (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
 
         # Initialization
@@ -496,7 +498,14 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                         
         for node_id, name in enumerate(all_names):
             weight = node_weights[name]
-            destination.write(f"\nnodes['{name}'] = Node.mk_node(IntVal({node_id}), IntVal({weight}), {name})")
+            
+            node_type = nodes_types.get(name, bool)
+            if node_type == int:
+                in_subgraph_val = "BoolVal(False)" # Dummy value to prevent Z3 Sort mismatch
+            else:
+                in_subgraph_val = name # Native Boolean variable
+            
+            destination.write(f"\nnodes['{name}'] = Node.mk_node(IntVal({node_id}), IntVal({weight}), {in_subgraph_val})")
         destination.write('\n\n')
 
         # Build the Edges connecting the nodes
