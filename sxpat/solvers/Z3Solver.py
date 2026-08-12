@@ -452,6 +452,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# --- Custom Edge Datatypes (mk_edge) ---',
             'edges = []',
+            '',
         )))
         
         edge_counter = 0
