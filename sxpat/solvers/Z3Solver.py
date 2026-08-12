@@ -432,6 +432,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# --- Custom Node Datatypes (mk_node) ---',
             'nodes = {}',
+            '',
         )))
         
         seen_nodes = set()
@@ -439,7 +440,6 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             for node in graph.nodes:
                 if node.name not in seen_nodes:
                     seen_nodes.add(node.name)
-                    # Example: nodes['in0'] = Node.mk_node(IntVal(0), IntVal(1), Bool('in0'))
                     destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal(0), IntVal(1), Bool('{node.name}'))\n")
         
         destination.write('\n')
