@@ -461,7 +461,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                 if isinstance(node, Operation) and hasattr(node, 'operands'):
                     for op in node.operands:
                         destination.write(f"edge_{edge_counter} = Edge.mk_edge(nodes['{op}'], nodes['{node.name}'])")
-                        destination.write(f"edges.append(edge_{edge_counter})\n")
+                        destination.write(f"\nedges.append(edge_{edge_counter})\n")
                         edge_counter += 1
 
         destination.write('\n')
