@@ -416,41 +416,64 @@ class Z3DirectEncoder(Z3Encoder):
         # results
         cls.inject_solve_and_result_writing(destination, graphs, graphs)
 
-class Z3NodeSortEncoder(Z3Encoder):
+
+class Z3NodeEdgeEncoder(Z3Encoder):
     """
-        Z3 encoder using the NodeSort approach.
+        Z3 encoder leveraging custom Datatypes (Node, Edge) for subgraph extraction,
+        following the direct mapping pattern
     """
 
-    constraints_assertion: Mapping[Type[Union[ForAll, Min, Max, None]], Callable[[str, str, Sequence[str]], Sequence[str]]] = {
-        **Z3Encoder.constraints_assertion,
-        
-        ForAll: lambda solver_name, forall, assertions: [
-            f'{solver_name}.add(',
-            f'    ForAll(',
-            f'        [{",".join(f"{op}_val" for op in forall.operands)}],',
-            f'        And(',
-            *(f'            {a},' for a in assertions),
-            f'        )',
-            f'    )',
-            f')',
-        ],
-    }
-    
     @classmethod
-    def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs, accessories: Callable[[Node], Sequence[Any]]) -> None:
-        variables = { 
-            node.name: node
-            for graph in graphs 
-            for node in graph.nodes
-            if isinstance(node, Variable)
-        }
-        destination.write('\n'.join((
-            '# 1. raw variables (for quantifier binding to prevent infinite loops)',
-            *(f'{name}_val = Bool("{name}_val")' if isinstance(node, BoolVariable) else f'{name}_val = Int("{name}_val")' for (name, node) in variables.items()),
-            '# 2. AST variables (embedded with values)',
-            *(f'{name} = NodeSort.bool_const(StringVal("{name}"), {name}_val)' if isinstance(node, BoolVariable) else f'{name} = NodeSort.int_const(StringVal("{name}"), {name}_val)' for (name, node) in variables.items()),
-            *('',) * 2,
-        )))
+    @override
+    def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs, accessories: Callable[[Node], Sequence[Any]], circuit_obj: Any = None) -> None:
+        """
+            Physically instantiates the graph topology (all 5 loops) so Z3 can optimize the search.
+        """
+        if circuit_obj is None:
+            # Fallback if no physical graph is provided
+            variables = { node.name: node for graph in graphs for node in graph.nodes if isinstance(node, Variable) }
+            destination.write('\n'.join((f"{name} = Const('{name}', Node)" for name in variables)))
+            return
+
+        destination.write('# --- Graph Nodes (mk_node) ---\n')
+        destination.write('nodes = {}\n\n')
+        
+        # 1. LOOP 1: Inputs
+        destination.write('# Inputs\n')
+        for in_idx, node_label in circuit_obj.input_dict.items():
+            weight = circuit_obj.graph.nodes[node_label]['WEIGHT']
+            destination.write(f"nodes['{node_label}'] = Node.mk_node(IntVal({in_idx}), IntVal({weight}), Bool('{node_label}'))\n")
+            destination.write(f"{node_label} = nodes['{node_label}']\n")
+
+        # 2. LOOP 2: Gates
+        destination.write('\n# Gates\n')
+        for g_idx, node_label in circuit_obj.gate_dict.items():
+            weight = circuit_obj.graph.nodes[node_label]['WEIGHT']
+            destination.write(f"nodes['{node_label}'] = Node.mk_node(IntVal({g_idx}), IntVal({weight}), Bool('{node_label}'))\n")
+            destination.write(f"{node_label} = nodes['{node_label}']\n")
+
+        # 3. LOOP 3: Outputs
+        destination.write('\n# Outputs\n')
+        for o_idx, node_label in circuit_obj.output_dict.items():
+            weight = circuit_obj.graph.nodes[node_label]['WEIGHT']
+            destination.write(f"nodes['{node_label}'] = Node.mk_node(IntVal({o_idx}), IntVal({weight}), Bool('{node_label}'))\n")
+            destination.write(f"{node_label} = nodes['{node_label}']\n")
+
+        # 4. LOOP 4: Constants
+        destination.write('\n# Constants\n')
+        for c_idx, node_label in circuit_obj.constant_dict.items():
+            weight = circuit_obj.graph.nodes[node_label]['WEIGHT']
+            destination.write(f"nodes['{node_label}'] = Node.mk_node(IntVal({c_idx}), IntVal({weight}), Bool('{node_label}'))\n")
+            destination.write(f"{node_label} = nodes['{node_label}']\n")
+
+        # 5. LOOP 5: Edges
+        destination.write('\n# --- Graph Edges (mk_edge) ---\n')
+        destination.write('edges = []\n')
+        for i, (src, des) in enumerate(circuit_obj.graph.edges):
+            destination.write(f"edge_{i} = Edge.mk_edge(nodes['{src}'], nodes['{des}'])\n")
+            destination.write(f"edges.append(edge_{i})\n")
+        
+        destination.write('\n')
 
     @classmethod
     def encode(cls, graphs: Solver._Graphs,
@@ -468,48 +491,18 @@ class Z3NodeSortEncoder(Z3Encoder):
         # initialization
         cls.inject_initialization(destination)
 
-        # Datatype rules
         destination.write('\n'.join((
-                    '# 1. Declare the new Universe / Sort',
-                    'NodeSort = Datatype("NodeSort")',
-                    '# 2. Define the Constructors',
-                    'NodeSort.declare("bool_const", ("name", StringSort()), ("bool_val", BoolSort()))',
-                    'NodeSort.declare("int_const", ("name", StringSort()), ("int_val", IntSort()))',
-                    'NodeSort.declare("and_node", ("left", NodeSort), ("right", NodeSort))',
-                    'NodeSort.declare("or_node", ("left", NodeSort), ("right", NodeSort))',
-                    'NodeSort.declare("xor_node", ("left", NodeSort), ("right", NodeSort))',
-                    'NodeSort.declare("not_node", ("child", NodeSort))',
-                    'NodeSort.declare("sum_node", ("left", NodeSort), ("right", NodeSort))',
-                    'NodeSort.declare("mul_node", ("left", NodeSort), ("right", NodeSort))',
-                    'NodeSort.declare("abs_diff_node", ("left", NodeSort), ("right", NodeSort))',
-                    'NodeSort.declare("eq_node", ("left", NodeSort), ("right", NodeSort))',
-                    'NodeSort.declare("le_node", ("left", NodeSort), ("right", NodeSort))',
-                    'NodeSort.declare("if_node", ("cond", NodeSort), ("then_branch", NodeSort), ("else_branch", NodeSort))',
-                    '# 3. Finalize,'
-                    'NodeSort = NodeSort.create()',
-                    '',
-                    '# AST Interpreters',
-                    'eval_bool = RecFunction("eval_bool", NodeSort, BoolSort())',
-                    'eval_int = RecFunction("eval_int", NodeSort, IntSort())',
-                    'RecAddDefinition(eval_bool, [n],',
-                    '    If(NodeSort.is_bool_const(n), NodeSort.bool_val(n),',
-                    '    If(NodeSort.is_and_node(n), And(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
-                    '    If(NodeSort.is_or_node(n), Or(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
-                    '    If(NodeSort.is_xor_node(n), Xor(eval_bool(NodeSort.left(n)), eval_bool(NodeSort.right(n))),',
-                    '    If(NodeSort.is_not_node(n), Not(eval_bool(NodeSort.child(n))),',
-                    '    If(NodeSort.is_eq_node(n), eval_int(NodeSort.left(n)) == eval_int(NodeSort.right(n)),',
-                    '    If(NodeSort.is_le_node(n), eval_int(NodeSort.left(n)) <= eval_int(NodeSort.right(n)),',
-                    '    False))))))))',
-                    '',
-                    'RecAddDefinition(eval_int, [n],',
-                    '    If(NodeSort.is_int_const(n), NodeSort.int_val(n),',
-                    '    If(NodeSort.is_sum_node(n), eval_int(NodeSort.left(n)) + eval_int(NodeSort.right(n)),',
-                    '    If(NodeSort.is_mul_node(n), eval_int(NodeSort.left(n)) * eval_int(NodeSort.right(n)),',
-                    '    If(NodeSort.is_abs_diff_node(n), If(eval_int(NodeSort.left(n)) >= eval_int(NodeSort.right(n)), eval_int(NodeSort.left(n)) - eval_int(NodeSort.right(n)), eval_int(NodeSort.right(n)) - eval_int(NodeSort.left(n))),',
-                    '    If(NodeSort.is_if_node(n), If(eval_bool(NodeSort.cond(n)), eval_int(NodeSort.then_branch(n)), eval_int(NodeSort.else_branch(n))),',
-                    '    0))))))',
-                    *('',) * 2,
-                )))
+            '# --- Custom Datatypes for Subgraph Extraction ---',
+            'Node = Datatype("Node")',
+            'Node.declare("mk_node", ("id", IntSort()), ("weight", IntSort()), ("in_subgraph", BoolSort()))',
+            'Node = Node.create()',
+            '',
+            'Edge = Datatype("Edge")',
+            'Edge.declare("mk_edge", ("source", Node), ("target", Node))',
+            'Edge = Edge.create()',
+            '# ------------------------------------------------',
+            *('',) * 2,
+        )))
 
         # variables
         cls.inject_variables(destination, graphs, accessories)
@@ -517,7 +510,7 @@ class Z3NodeSortEncoder(Z3Encoder):
         # constants
         cls.inject_constants(destination, graphs, accessories)
 
-        # nodes declaration
+        # nodes behavior
         destination.write('\n'.join((
             '# behaviour',
             *(
@@ -532,7 +525,7 @@ class Z3NodeSortEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# usage',
             'usage = And(', *(
-                f'    eval_bool({constraint_node.operand}),'
+                f'    {constraint_node.operand},'
                 for graph in graphs
                 if isinstance(graph, CGraph)
                 for constraint_node in graph.constraints
@@ -550,7 +543,6 @@ class Z3NodeSortEncoder(Z3Encoder):
 
         # results
         cls.inject_solve_and_result_writing(destination, graphs, graphs)
-
 
 # Node to Z3 expression
 Z3_INT_NODE_MAPPING = {
@@ -608,41 +600,9 @@ Z3_BITVEC_NODE_MAPPING = {
     GreaterEqualThan: lambda n, operands, accs: f'UGE({operands[0]}, {operands[1]})',
 }
 Z3_DATATYPE_NODE_MAPPING = {
-    # variables
-    BoolVariable: lambda n, operands, accs: n.name,
-    IntVariable: lambda n, operands, accs: n.name,
-    # constants
-    BoolConstant: lambda n, operands, accs: f'NodeSort.bool_const(StringVal("c_{n.value}"), BoolVal({n.value}))',
-    IntConstant: lambda n, operands, accs: f'NodeSort.int_const(StringVal("c_{n.value}"), IntVal({n.value}))',
-    # output
-    Identity: lambda n, operands, accs: operands[0],
-    Target: lambda n, operands, accs: operands[0],
-    # placeholder
-    PlaceHolder: lambda n, operands, accs: n.name,
-    # boolean operations
-    Not: lambda n, operands, accs: f'NodeSort.not_node({operands[0]})',
-    And: lambda n, operands, accs: functools.reduce(lambda l, r: f'NodeSort.and_node({l}, {r})', operands),
-    Or: lambda n, operands, accs: functools.reduce(lambda l, r: f'NodeSort.or_node({l}, {r})', operands),
-    Xor: lambda n, operands, accs: functools.reduce(lambda l, r: f'NodeSort.xor_node({l}, {r})', operands),
-    Implies: lambda n, operands, accs: f'NodeSort.implies_node({operands[0]}, {operands[1]})',
-    # integer operations
-    Sum: lambda n, operands, accs: functools.reduce(lambda l, r: f'NodeSort.sum_node({l}, {r})', operands),
-    AbsDiff: lambda n, operands, accs: f'NodeSort.abs_diff_node({operands[0]}, {operands[1]})',
-    Mul: lambda n, operands, accs: functools.reduce(lambda l, r: f'NodeSort.mul_node({l}, {r})', operands),
-    Div: lambda n, operands, accs: f'NodeSort.div_node({operands[0]}, {operands[1]})',
-    # comparison operations
-    Equals: lambda n, operands, accs: f'NodeSort.eq_node({operands[0]}, {operands[1]})',
-    LessEqualThan: lambda n, operands, accs: f'NodeSort.le_node({operands[0]}, {operands[1]})',
-    NotEquals: lambda n, operands, accs: f'NodeSort.not_node(NodeSort.eq_node({operands[0]}, {operands[1]}))',
-    LessThan: lambda n, operands, accs: f'NodeSort.and_node(NodeSort.le_node({operands[0]}, {operands[1]}), NodeSort.not_node(NodeSort.eq_node({operands[0]}, {operands[1]})))',
-    GreaterThan: lambda n, operands, accs: f'NodeSort.not_node(NodeSort.le_node({operands[0]}, {operands[1]}))',
-    GreaterEqualThan: lambda n, operands, accs: f'NodeSort.or_node(NodeSort.not_node(NodeSort.le_node({operands[0]}, {operands[1]})), NodeSort.eq_node({operands[0]}, {operands[1]}))',
-    # quantifier operations
-    AtLeast: lambda n, operands, accs: f'AtLeast({", ".join(operands)}, {n.value})',
-    AtMost: lambda n, operands, accs: f'AtMost({", ".join(operands)}, {n.value})',
-    # branching operations
-    If: lambda n, operands, accs: f'NodeSort.if_node({operands[0]}, {operands[1]}, {operands[2]})',
-    Multiplexer: lambda n, operands, accs: f'NodeSort.if_node({operands[1]}, NodeSort.if_node({operands[2]}, {operands[0]}, NodeSort.not_node({operands[0]})), {operands[2]})',
+    **Z3_INT_NODE_MAPPING, 
+    BoolVariable: lambda n, operands, accs: f'Node.in_subgraph({n.name})',
+    IntVariable: lambda n, operands, accs: f'Node.weight({n.name})',
 }
 
 # bool/int to Z3 sorts
@@ -655,8 +615,8 @@ Z3_BITVEC_TYPE_MAPPING = {
     int: lambda accs: f'BitVecSort({accs[0]})',
 }
 Z3_DATATYPE_TYPE_MAPPING = {
-    bool: lambda accs: 'NodeSort',
-    int: lambda accs: 'NodeSort',
+    bool: lambda accs: 'Node',
+    int: lambda accs: 'Node',
 }
 
 # solver object creation
@@ -672,17 +632,10 @@ Z3_BITVEC_SOLVER_CONSTRUCT = {
     type(None): 'SolverFor(\'BV\')',
     ForAll: 'SolverFor(\'BV\')',
 }
-Z3_DATATYPE_SOLVER_CONSTRUCT = {
-    type(None): 'Solver()',
-    ForAll: 'Solver()',
-    Min: 'Optimize()',
-    Max: 'Optimize()',
-}
 
 # node accessories
 Z3_INT_NODE_ACCESSORIES = lambda d: lambda n: ()
 Z3_BITVEC_NODE_ACCESSORIES = lambda d: lambda n: (d[0].get(n.name, None),)
-Z3_DATATYPE_NODE_ACCESSORIES = lambda d: lambda n: ()
 
 
 class Z3IntFuncEncoder(Z3FuncEncoder):
@@ -713,11 +666,11 @@ class Z3DirectBitVecEncoder(Z3DirectEncoder):
     node_accessories = Z3_BITVEC_NODE_ACCESSORIES
 
 
-class Z3DataTypeEncoder(Z3NodeSortEncoder): 
+class Z3DataTypeEncoder(Z3NodeEdgeEncoder): 
     node_mapping = Z3_DATATYPE_NODE_MAPPING
     type_mapping = Z3_DATATYPE_TYPE_MAPPING
-    solver_construct = Z3_DATATYPE_SOLVER_CONSTRUCT
-    node_accessories = Z3_DATATYPE_NODE_ACCESSORIES
+    solver_construct = Z3_INT_SOLVER_CONSTRUCT
+    node_accessories = Z3_INT_NODE_ACCESSORIES
 
 
 class Z3Solver(Solver):
@@ -863,29 +816,3 @@ class Z3DirectBitVecSolver(Z3Solver):
 
 class Z3DataTypeSolver(Z3Solver):
     encoder = Z3DataTypeEncoder
-
-    @classmethod
-    @override
-    def _decode_output(cls, raw_result: str) -> Tuple[str, Optional[Dict[str, Union[bool, int]]]]:
-        """
-            Overrides the base decoder to handle Datatype-specific output wrappers.
-        """
-        # split status and model
-        status, *raw_model = raw_result.splitlines()
-
-        # parse model
-        model = None
-        if status == 'sat':
-            model = {
-                (splt := pair.split(' '))[0]: str_to_int_or_bool(
-                    splt[1].replace('NodeSort.bool_const(', '')
-                           .replace('NodeSort.int_const(', '')
-                           .replace('bool_const(', '')
-                           .replace('int_const(', '')
-                           .replace(')', '')
-                )
-                for pair in raw_model
-            }
-
-        # return decoded result
-        return (status, model)
