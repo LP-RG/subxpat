@@ -453,7 +453,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
-        # Variables / Nodes instantiation using Node.mk_node
+        # Variables
         cls.inject_variables(destination, graphs, accessories)
 
         # Constants
@@ -473,55 +473,57 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# --- Custom Node Datatypes Dictionary ---',
             'nodes = {}',
-        )))
-        
-        all_names = []
-        node_weights = {}
-        seen = set()
-        
-        for graph in graphs:
-            for node in graph.nodes:
-                if node.name not in seen:
-                    seen.add(node.name)
-                    all_names.append(node.name)
-                    
-                    # Fix the IntVal(None) bug by forcing a fallback to 1
-                    weight = getattr(node, 'weight', 1)
-                    node_weights[node.name] = weight if weight is not None else 1
-                
-                if hasattr(node, 'operands'):
-                    for op in node.operands:
-                        if op not in seen:
-                            seen.add(op)
-                            all_names.append(op)
-                            node_weights[op] = 1 
-                        
-        for node_id, name in enumerate(all_names):
-            weight = node_weights[name]
-            
-            node_type = nodes_types.get(name, bool)
-            if node_type == int:
-                in_subgraph_val = "BoolVal(False)" # Dummy value to prevent Z3 Sort mismatch
-            else:
-                in_subgraph_val = name # Native Boolean variable
-            
-            destination.write(f"\nnodes['{name}'] = Node.mk_node(IntVal({node_id}), IntVal({weight}), {in_subgraph_val})")
-        destination.write('\n\n')
-
-        # Build the Edges connecting the nodes
-        destination.write('\n'.join((
-            '# --- Custom Edge Datatypes List ---',
             'edges = []',
         )))
+
+        seen_nodes = set()
+
+        destination.write('\n# 1. Inputs\n')
+        for graph in graphs:
+            for node in graph.variables:
+                if node.name not in seen_nodes:
+                    seen_nodes.add(node.name)
+                    weight = getattr(node, 'weight', 1)
+                    destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
+                    node_counter += 1
+
+        destination.write('\n# 2. Gates\n')
+        for graph in graphs:
+            for node in graph.expressions:
+                if node.name not in seen_nodes:
+                    seen_nodes.add(node.name)
+                    weight = getattr(node, 'weight', 1)
+                    destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
+                    node_counter += 1
+        
+        destination.write('\n# 3. Outputs\n')
+        for graph in graphs:
+            for node in graph.targets:
+                if node.name not in seen_nodes:
+                    seen_nodes.add(node.name)
+                    weight = getattr(node, 'weight', 1)
+                    destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
+                    node_counter += 1
+        
+        destination.write('\n# 4. Constants\n')
+        for graph in graphs:
+            for node in graph.constants:
+                if node.name not in seen_nodes:
+                    seen_nodes.add(node.name)
+                    weight = getattr(node, 'weight', 1)
+                    destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
+                    node_counter += 1
+        #
+        destination.write('\n# 5. Edges\n')
         edge_counter = 0
         for graph in graphs:
             for node in graph.nodes:
                 if isinstance(node, Operation) and hasattr(node, 'operands'):
                     for op in node.operands:
-                        destination.write(f"\nedge_{edge_counter} = Edge.mk_edge(nodes['{op}'], nodes['{node.name}'])")
-                        destination.write(f"\nedges.append(edge_{edge_counter})")
+                        destination.write(f"edge_{edge_counter} = Edge.mk_edge(nodes['{op}'], nodes['{node.name}'])\n")
+                        destination.write(f"edges.append(edge_{edge_counter})\n")
                         edge_counter += 1
-        destination.write('\n\n')
+        destination.write('\n')
 
         # Nodes usage
         destination.write('\n'.join((
