@@ -468,6 +468,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
+        # Populate nodes dictionary safely with ALL referenced names
         destination.write('\n'.join((
             '# --- Custom Node Datatypes Dictionary ---',
             'nodes = {}',
@@ -484,7 +485,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             destination.write(f"\nnodes['{name}'] = Node.mk_node(IntVal(0), IntVal(1), Bool('{name}'))")
         destination.write('\n\n')
 
-        # 6. Build the Edges connecting the nodes
+        # Build the Edges connecting the nodes
         destination.write('\n'.join((
             '# --- Custom Edge Datatypes List ---',
             'edges = []',
@@ -579,6 +580,8 @@ Z3_BITVEC_NODE_MAPPING = {
 }
 Z3_DATATYPE_NODE_MAPPING = {
     **Z3_INT_NODE_MAPPING, 
+    BoolVariable: lambda n, operands, accs: f"Node.in_subgraph(nodes['{n.name}'])",
+    IntVariable: lambda n, operands, accs: f"Node.weight(nodes['{n.name}'])",
 }
 
 # bool/int to Z3 sorts
