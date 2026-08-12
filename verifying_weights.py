@@ -2,7 +2,7 @@ import os
 import re
 
 def verify_weights(base_log_dir="program_outputs"):
-    #betas you tested
+    #betas tested
     betas = [1, 2, 4, 8, 16]
     
     #all extracted weights
@@ -60,7 +60,8 @@ def verify_weights(base_log_dir="program_outputs"):
                 continue
 
             b_weights = beta_data[master_betas]
-            b_val = min(b_weights)
+            #b_val = min(b_weights)
+            b_val = max(b_weights)
             
             for beta in betas:
                 if beta == master_beta or beta not in beta_data:
@@ -71,7 +72,7 @@ def verify_weights(base_log_dir="program_outputs"):
                 current_min = min(current_beta_weights)
                 
                 # if there is no intersection between the Beta 16 weight and the current beta's weights => fail and its not <= then the min
-                if not b_weights.intersection(current_beta_weights) and b_val > current_min:
+                if not b_weights.intersection(current_beta_weights) and b_val < current_min:
                     print(f"[FAIL] Node {node} at Beta {beta}:")
                     print(f"Beta {master_beta} weight {b_weights} not found in {current_beta_weights}")
                     print(f"Beta {master_beta} weight ({b_weights}) is strictly greater than the minimum weight in Beta {beta} ({current_min}).")
