@@ -476,15 +476,17 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             'edges = []',
         )))
 
-        seen_nodes = set()
+        seen_nodes = {}  
         node_counter = 0
 
         destination.write('\n# 1. Inputs\n')
         for graph in graphs:
             for node in graph.variables:
                 if node.name not in seen_nodes:
-                    seen_nodes.add(node.name)
+                    seen_nodes[node.name] = True
                     weight = getattr(node, 'weight', 1)
+                    if weight is None:
+                        weight = 1
                     destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
                     node_counter += 1
 
@@ -492,8 +494,10 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         for graph in graphs:
             for node in graph.expressions:
                 if node.name not in seen_nodes:
-                    seen_nodes.add(node.name)
+                    seen_nodes[node.name] = True
                     weight = getattr(node, 'weight', 1)
+                    if weight is None:
+                        weight = 1
                     destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
                     node_counter += 1
         
@@ -501,8 +505,10 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         for graph in graphs:
             for node in graph.targets:
                 if node.name not in seen_nodes:
-                    seen_nodes.add(node.name)
+                    seen_nodes[node.name] = True
                     weight = getattr(node, 'weight', 1)
+                    if weight is None:
+                        weight = 1
                     destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
                     node_counter += 1
         
@@ -510,8 +516,10 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         for graph in graphs:
             for node in graph.constants:
                 if node.name not in seen_nodes:
-                    seen_nodes.add(node.name)
+                    seen_nodes[node.name] = True
                     weight = getattr(node, 'weight', 1)
+                    if weight is None:
+                        weight = 1
                     destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
                     node_counter += 1
         #
