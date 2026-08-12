@@ -468,21 +468,32 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
+        all_names = []
+        node_weights = {}
+        seen = set()
+
         # Populate nodes dictionary safely with ALL referenced names
-        destination.write('\n'.join((
-            '# --- Custom Node Datatypes Dictionary ---',
-            'nodes = {}',
-        )))
-        
-        all_names = set()
+        # Safely gather all unique names and their weights
         for graph in graphs:
             for node in graph.nodes:
-                all_names.add(node.name)
+                if node.name not in seen:
+                    seen.add(node.name)
+                    all_names.append(node.name)
+                    # Extract real weight if it exists, otherwise default to 1
+                    node_weights[node.name] = getattr(node, 'weight', 1)
+                
+                # Ensure implicit operands are also tracked
                 if hasattr(node, 'operands'):
-                    all_names.update(node.operands)
-                    
-        for name in all_names:
-            destination.write(f"\nnodes['{name}'] = Node.mk_node(IntVal(0), IntVal(1), Bool('{name}'))")
+                    for op in node.operands:
+                        if op not in seen:
+                            seen.add(op)
+                            all_names.append(op)
+                            node_weights[op] = 1 # Default weight for string operands
+                        
+        # Write them to the file with dynamic IDs (node_id) and Weights
+        for node_id, name in enumerate(all_names):
+            weight = node_weights[name]
+            destination.write(f"\nnodes['{name}'] = Node.mk_node(IntVal({node_id}), IntVal({weight}), Bool('{name}'))")
         destination.write('\n\n')
 
         # Build the Edges connecting the nodes
