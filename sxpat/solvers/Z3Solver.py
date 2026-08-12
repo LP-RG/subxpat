@@ -427,7 +427,8 @@ class Z3NodeEdgeEncoder(Z3Encoder):
     @override
     def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs, accessories: Callable[[Node], Sequence[Any]]) -> None:
         """
-            Instantiates every circuit variable as a custom Node Datatype.
+            1. Declares standard Z3 variables so logic functions (And, Or) succeed.
+            2. Builds the structural Node and Edge Datatypes safely using those variables.
         """
         variables = {  # ignore duplicates
             node.name: node
@@ -436,18 +437,24 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             if isinstance(node, Variable)
         }
 
-        # 1. Declare all variables as Node Datatype instances using mk_node
+        # 1. Declare standard Z3 variables so logic gates find them as native Booleans
         destination.write('\n'.join((
-            '# variables as custom Node datatypes',
+            '# standard circuit variables',
             *(
-                f"{name} = Node.mk_node(IntVal(0), IntVal(1), Bool('{name}_in_sub'))"
-                for name in variables
+                f'{name} = {cls.node_mapping[type(node)](node, None, accessories(node))}'
+                for (name, node) in variables.items()
             ),
             *('',) * 2,
         )))
 
-        # 2. Build the Edge Datatypes connecting them
-        destination.write('# --- Custom Edge Datatypes (mk_edge) ---\n')
+        # 2. Build the structural Node Datatypes wrapping those booleans cleanly
+        destination.write('# --- Custom Node Datatypes (mk_node) ---\n')
+        destination.write('nodes = {}\n')
+        for name in variables:
+            destination.write(f"nodes['{name}'] = Node.mk_node(IntVal(0), IntVal(1), {name})\n")
+        
+        # 3. Build the Edge Datatypes connecting them
+        destination.write('\n# --- Custom Edge Datatypes (mk_edge) ---\n')
         destination.write('edges = []\n')
         edge_counter = 0
         for graph in graphs:
@@ -455,7 +462,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                 if isinstance(node, Operation) and hasattr(node, 'operands'):
                     for op in node.operands:
                         if op in variables and node.name in variables:
-                            destination.write(f"edge_{edge_counter} = Edge.mk_edge({op}, {node.name})\n")
+                            destination.write(f"edge_{edge_counter} = Edge.mk_edge(nodes['{op}'], nodes['{node.name}'])")
                             destination.write(f"edges.append(edge_{edge_counter})\n")
                             edge_counter += 1
 
