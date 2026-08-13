@@ -432,6 +432,8 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         type_mapping = cls.type_mapping
         solver_construct = cls.solver_construct
         constraint_assertion = cls.constraints_assertion
+        
+        # We need nodes_types here to prevent the Z3 Type Crash
         (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
 
         # Initialization
@@ -451,12 +453,18 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
-        destination.write('\n'.join((
-            '# --- Custom Node Datatypes Dictionary ---',
-            'nodes = {}',
-            'edges = []',
-        )))
+        # Variables
+        cls.inject_variables(destination, graphs, accessories)
 
+        # Constants
+        cls.inject_constants(destination, graphs, accessories)
+
+        destination.write('\n'.join((
+                    '# --- Custom Node Datatypes Dictionary ---',
+                    'nodes = {}',
+                    'edges = []',
+                )))
+        
         seen_nodes = {}  
         node_counter = 0
 
@@ -530,12 +538,6 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                         destination.write(f"edges.append(edge_{edge_counter})\n")
                         edge_counter += 1
         destination.write('\n')
-
-        # Variables
-        cls.inject_variables(destination, graphs, accessories)
-
-        # Constants
-        cls.inject_constants(destination, graphs, accessories)
 
         # Nodes behavior
         destination.write('\n'.join((
