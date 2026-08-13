@@ -432,8 +432,6 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         type_mapping = cls.type_mapping
         solver_construct = cls.solver_construct
         constraint_assertion = cls.constraints_assertion
-        
-        # We need nodes_types here to prevent the Z3 Type Crash
         (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
 
         # Initialization
@@ -450,23 +448,6 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             'Edge.declare("mk_edge", ("source", Node), ("target", Node))',
             'Edge = Edge.create()',
             '# ------------------------------------------------',
-            *('',) * 2,
-        )))
-
-        # Variables
-        cls.inject_variables(destination, graphs, accessories)
-
-        # Constants
-        cls.inject_constants(destination, graphs, accessories)
-
-        # Nodes behavior
-        destination.write('\n'.join((
-            '# behaviour',
-            *(
-                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
-                for graph in graphs
-                for node in graph.expressions
-            ),
             *('',) * 2,
         )))
 
@@ -550,6 +531,23 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                         edge_counter += 1
         destination.write('\n')
 
+        # Variables
+        cls.inject_variables(destination, graphs, accessories)
+
+        # Constants
+        cls.inject_constants(destination, graphs, accessories)
+
+        # Nodes behavior
+        destination.write('\n'.join((
+            '# behaviour',
+            *(
+                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
+                for graph in graphs
+                for node in graph.expressions
+            ),
+            *('',) * 2,
+        )))
+
         # Nodes usage
         destination.write('\n'.join((
             '# usage',
@@ -630,6 +628,8 @@ Z3_BITVEC_NODE_MAPPING = {
 }
 Z3_DATATYPE_NODE_MAPPING = {
     **Z3_INT_NODE_MAPPING, 
+    BoolVariable: lambda n, operands, accs: f"Node.in_subgraph(nodes['{n.name}'])",
+    IntVariable:  lambda n, operands, accs: f"Node.weight(nodes['{n.name}'])",
 }
 
 # bool/int to Z3 sorts
