@@ -470,6 +470,27 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
+        # Nodes usage
+        destination.write('\n'.join((
+            '# usage',
+            'usage = And(', *(
+                f'    {constraint_node.operand},'
+                for graph in graphs
+                if isinstance(graph, CGraph)
+                for constraint_node in graph.constraints
+            ), ')',
+            *('',) * 2,
+        )))
+
+        # Solver
+        destination.write('\n'.join((
+            f'# define solver',
+            f'solver = {solver_construct[type(global_task)]}',
+            *constraint_assertion[type(global_task)]('solver', global_task, ['usage']),
+            *('',) * 2,
+        )))
+        
+
         destination.write('\n'.join((
             '# --- Custom Node Datatypes Dictionary ---',
             'nodes = {}',
@@ -549,26 +570,6 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                         destination.write(f"edges.append(edge_{edge_counter})\n")
                         edge_counter += 1
         destination.write('\n')
-
-        # Nodes usage
-        destination.write('\n'.join((
-            '# usage',
-            'usage = And(', *(
-                f'    {constraint_node.operand},'
-                for graph in graphs
-                if isinstance(graph, CGraph)
-                for constraint_node in graph.constraints
-            ), ')',
-            *('',) * 2,
-        )))
-
-        # Solver
-        destination.write('\n'.join((
-            f'# define solver',
-            f'solver = {solver_construct[type(global_task)]}',
-            *constraint_assertion[type(global_task)]('solver', global_task, ['usage']),
-            *('',) * 2,
-        )))
 
         # Results
         cls.inject_solve_and_result_writing(destination, graphs, graphs)
