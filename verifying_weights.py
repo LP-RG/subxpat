@@ -1,7 +1,8 @@
 import os
 import re
+import argparse
 
-def verify_weights(base_log_dir="program_outputs"):
+def verify_weights(base_log_dir):
     #betas tested
     betas = [1, 2, 4, 8, 16]
     
@@ -60,17 +61,40 @@ def verify_weights(base_log_dir="program_outputs"):
                 continue
 
             b_weights = beta_data[master_betas]
-            b_val = min(b_weights)
-            # b_val = max(b_weights)
+
+            if base_log_dir == "program_outputs_max_lab":
+            # b_val = min(b_weights)
+                b_val = max(b_weights)
             
-            for beta in betas:
-                if beta == master_beta or beta not in beta_data:
-                    print(f"Node {node} is missing Beta {master_beta} data. Skipping.")
-                    continue
+                for beta in betas:
+                    if beta == master_beta or beta not in beta_data:
+                        print(f"Node {node} is missing Beta {master_beta} data. Skipping.")
+                        continue
+                        
+                    current_beta_weights = beta_data[beta]
+                    #current_min = min(current_beta_weights)
+                    current_max = max(current_beta_weights)
                     
+                    # if there is no intersection between the Beta 16 weight and the current beta's weights => fail and its not <= then the min
+                    if not b_weights.intersection(current_beta_weights) and b_val < current_max:
+                        print(f"[FAIL] Node {node} at Beta {beta}:")
+                        print(f"Beta {master_beta} weight {b_weights} not found in {current_beta_weights}")
+                        print(f"Beta {master_beta} weight ({b_weights}) is strictly greater than the minimum weight in Beta {beta} ({current_max}).")
+                        all_passed = False
+                        failed_nodes += 1
+            if base_log_dir == "program_outputs":
+                b_val = min(b_weights)
+        
+                        
+                for beta in betas:
+                    if beta == master_beta or beta not in beta_data:
+                        print(f"Node {node} is missing Beta {master_beta} data. Skipping.")
+                        continue
+                                    
                 current_beta_weights = beta_data[beta]
                 current_min = min(current_beta_weights)
-                
+                                
+                                
                 # if there is no intersection between the Beta 16 weight and the current beta's weights => fail and its not <= then the min
                 if not b_weights.intersection(current_beta_weights) and b_val < current_min:
                     print(f"[FAIL] Node {node} at Beta {beta}:")
@@ -84,4 +108,15 @@ def verify_weights(base_log_dir="program_outputs"):
         print(f"VERIFICATION FAILED. Found {failed_nodes} where the property did not hold.")
 
 if __name__ == "__main__":
-    verify_weights()
+
+    parser = argparse.ArgumentParser(description="Verify extracted weights across different beta values.")
+    
+    parser.add_argument(
+        "log_dir", 
+        type=str, 
+        help="The base directory to check (e.g., program_outputs or program_outputs_max_lab)"
+    )
+    
+    args = parser.parse_args()
+    
+    verify_weights(args.log_dir)
