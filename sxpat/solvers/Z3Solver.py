@@ -630,8 +630,8 @@ Z3_BITVEC_NODE_MAPPING = {
 }
 Z3_DATATYPE_NODE_MAPPING = {
     **Z3_INT_NODE_MAPPING, 
-    BoolVariable: lambda n, operands, accs: f"Node.in_subgraph(nodes['{n.name}'])",
-    IntVariable:  lambda n, operands, accs: f"Node.weight(nodes['{n.name}'])",
+    #BoolVariable: lambda n, operands, accs: f"Node.in_subgraph(nodes['{n.name}'])",
+    #IntVariable:  lambda n, operands, accs: f"Node.weight(nodes['{n.name}'])",
 }
 
 # bool/int to Z3 sorts
