@@ -454,11 +454,21 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         )))
 
         # Variables
-        #cls.inject_variables(destination, graphs, accessories)
+        cls.inject_variables(destination, graphs, accessories)
 
         # Constants
-        #cls.inject_constants(destination, graphs, accessories)
+        cls.inject_constants(destination, graphs, accessories)
 
+        # Nodes behavior
+        destination.write('\n'.join((
+            '# behaviour',
+            *(
+                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
+                for graph in graphs
+                for node in graph.expressions
+            ),
+            *('',) * 2,
+        )))
 
         destination.write('\n'.join((
             '# --- Custom Node Datatypes Dictionary ---',
@@ -540,20 +550,6 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                         edge_counter += 1
         destination.write('\n')
 
-        # Constants
-        cls.inject_constants(destination, graphs, accessories)
-
-        # Nodes behavior
-        destination.write('\n'.join((
-            '# behaviour',
-            *(
-                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
-                for graph in graphs
-                for node in graph.expressions
-            ),
-            *('',) * 2,
-        )))
-
         # Nodes usage
         destination.write('\n'.join((
             '# usage',
@@ -634,8 +630,8 @@ Z3_BITVEC_NODE_MAPPING = {
 }
 Z3_DATATYPE_NODE_MAPPING = {
     **Z3_INT_NODE_MAPPING, 
-    BoolVariable: lambda n, operands, accs: f"Node.in_subgraph(nodes['{n.name}'])",
-    IntVariable:  lambda n, operands, accs: f"Node.weight(nodes['{n.name}'])",
+    #BoolVariable: lambda n, operands, accs: f"Node.in_subgraph(nodes['{n.name}'])",
+    #IntVariable:  lambda n, operands, accs: f"Node.weight(nodes['{n.name}'])",
 }
 
 # bool/int to Z3 sorts
@@ -648,8 +644,8 @@ Z3_BITVEC_TYPE_MAPPING = {
     int: lambda accs: f'BitVecSort({accs[0]})',
 }
 Z3_DATATYPE_TYPE_MAPPING = {
-    bool: lambda accs: 'BoolSort()',
-    int: lambda accs: 'IntSort()',
+    bool: lambda accs: 'Node',
+    int: lambda accs: 'Node',
 }
 
 # solver object creation
