@@ -453,12 +453,29 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
+        # Variables
+        cls.inject_variables(destination, graphs, accessories)
+
+        # Constants
+        cls.inject_constants(destination, graphs, accessories)
+
+        # Nodes behavior
         destination.write('\n'.join((
-                    '# --- Custom Node Datatypes Dictionary ---',
-                    'nodes = {}',
-                    'edges = []',
-                )))
-        
+            '# behaviour',
+            *(
+                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
+                for graph in graphs
+                for node in graph.expressions
+            ),
+            *('',) * 2,
+        )))
+
+        destination.write('\n'.join((
+            '# --- Custom Node Datatypes Dictionary ---',
+            'nodes = {}',
+            'edges = []',
+        )))
+
         seen_nodes = {}  
         node_counter = 0
 
@@ -532,23 +549,6 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                         destination.write(f"edges.append(edge_{edge_counter})\n")
                         edge_counter += 1
         destination.write('\n')
-
-        # Variables
-        cls.inject_variables(destination, graphs, accessories)
-
-        # Constants
-        cls.inject_constants(destination, graphs, accessories)
-
-        # Nodes behavior
-        destination.write('\n'.join((
-            '# behaviour',
-            *(
-                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
-                for graph in graphs
-                for node in graph.expressions
-            ),
-            *('',) * 2,
-        )))
 
         # Nodes usage
         destination.write('\n'.join((
