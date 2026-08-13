@@ -25,7 +25,6 @@ for mode in "${EXTRACTION_MODES[@]}"; do
     for err in "${ERRORS[@]}"; do
         echo "#=================================================="
         echo "Error Space - $err"
-        echo "#=================================================="
         
         for bench in "${BENCHMARKS[@]}"; do
             if [ ! -f "$bench" ]; then
@@ -33,6 +32,7 @@ for mode in "${EXTRACTION_MODES[@]}"; do
             fi
             
             for enc in "${ENCODINGS[@]}"; do
+                echo "#=================================================="
                 echo "Running: $bench | Encoding: $enc | Mode: $mode | Max Error: $err"
                 echo "#=================================================="
                 
@@ -47,9 +47,26 @@ for mode in "${EXTRACTION_MODES[@]}"; do
                 python3 -c "
 import re
 text = '''$output'''
-matches = re.findall(r'iteration\s+(\d+).*?#ofNodes\s*=\s*(\d+).*?subgraph_extraction_time\s*=\s*([0-9.]+)', text, re.DOTALL)
-for it, nodes, t in matches:
-    print(f'iteration {it}: #ofNodes={nodes} subgraph_extraction_time: {t}')
+curr_it = None
+curr_n = None
+
+for line in text.splitlines():
+    # Only match the true main header (e.g., 'iteration 1 with...')
+    m_it = re.match(r'^iteration\s+(\d+)\s+with', line)
+    if m_it:
+        curr_it = m_it.group(1)
+        curr_n = None  # Reset nodes for the new iteration
+        
+    m_n = re.search(r'#ofNodes\s*=\s*(\d+)', line)
+    if m_n:
+        curr_n = m_n.group(1)
+        
+    m_t = re.search(r'subgraph_extraction_time\s*=\s*([0-9.]+)', line)
+    if m_t and curr_it and curr_n:
+        print(f'iteration {curr_it}: #ofNodes={curr_n} subgraph_extraction_time: {m_t.group(1)}')
+        # Reset until the next true iteration header is found
+        curr_it = None
+        curr_n = None
 "
                 echo ""
             done
