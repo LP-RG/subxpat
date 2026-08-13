@@ -45,6 +45,11 @@ for bench in "${BENCHMARKS[@]}"; do
                     EXTRA_ARGS="--min-subgraph-size=1"
                 fi
 
+                CMD=".venv/bin/python main.py \"$bench\" --subxpat --encoding=\"$enc\" --extraction-mode=$mode --max-labeling --max-lpp=8 --max-ppo=10 --max-error=$err --imax=$IMAX --omax=$OMAX $EXTRA_ARGS"
+                echo "=================================================="
+                echo "Executing: $CMD"
+                echo "=================================================="
+
                 .venv/bin/python main.py "$bench" \
                     --subxpat \
                     --encoding="$enc" \
