@@ -1,0 +1,548 @@
+id: AFUJMRCM_0000
+directory: output/AFUJMRCM_0000
+[36mbenchmark output/AFUJMRCM_0000/verilog/current.v[39m
+[36miteration 1 with et 12, available error 10[39m
+annotated_graph_loading_time = 0.3137949999999998
+started labelling
+> ZONE CONSTRAINT ACTIVE: Running multi-zone labelling...
+
+Node: in0
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 15
+
+Node: in1
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 30
+
+Node: in2
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 60
+
+Node: in3
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 120
+
+Node: in4
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 15
+
+Node: g0
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 10
+
+Node: g1
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 59
+
+Node: g16
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 2
+
+Node: g2
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g17
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g3
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g18
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: in5
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 30
+
+Node: g4
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 2
+
+Node: g19
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 2
+
+Node: g34
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 2
+
+Node: g43
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 2
+
+Node: g5
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 62
+
+Node: g20
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 62
+
+Node: g21
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g35
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g36
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g44
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g49
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 2
+
+Node: g6
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 76
+
+Node: g22
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g23
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 56
+
+Node: g24
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g37
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g38
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 56
+
+Node: g39
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g45
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g50
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g51
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g56
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g58
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g7
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g25
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: in6
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 60
+
+Node: g10
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g11
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g28
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g29
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g40
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g41
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g42
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g47
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g48
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g54
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g61
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g8
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g26
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g55
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g62
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g63
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g69
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 56
+
+Node: g70
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g76
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 56
+
+Node: g77
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g82
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 60
+
+Node: g83
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g89
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g9
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 56
+
+Node: g27
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g57
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 56
+
+Node: g64
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 56
+
+Node: g65
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g71
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g72
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g78
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g79
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g80
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g84
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g85
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g86
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 56
+
+Node: g87
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g90
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g91
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g92
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 56
+
+Node: g93
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g95
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: g96
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g100
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g97
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g101
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g105
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g98
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 4
+
+Node: in7
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 120
+
+Node: g12
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g104
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g108
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g113
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g118
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g13
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g14
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g15
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g30
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g109
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g114
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g119
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 56
+
+Node: g123
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 56
+
+Node: g124
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g129
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g130
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g135
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g140
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 8
+
+Node: g31
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g103
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g107
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g32
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g33
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g46
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g52
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g53
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g59
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g60
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g66
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g67
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g68
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g73
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g74
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 128
+
+Node: g75
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g81
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 128
+
+Node: g88
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g94
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g99
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g102
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g106
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g110
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g111
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g112
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g115
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g116
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g117
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g120
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 96
+
+Node: g121
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g122
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g125
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g126
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g127
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g128
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g131
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g132
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g133
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g134
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g136
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g137
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g138
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g139
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g141
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g142
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 48
+
+Node: g143
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g144
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g145
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 128
+
+Node: g146
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g147
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g148
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g149
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 128
+
+Node: g150
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g151
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g152
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 16
+
+Node: g153
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g154
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 128
+
+Node: g155
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g156
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g157
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g158
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 128
+
+Node: g159
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g160
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 64
+
+Node: g161
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: g162
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 32
+
+Node: out0
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 0
+
+Node: out1
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 0
+
+Node: out2
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 0
+
+Node: out3
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 0
+
+Node: out4
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 0
+
+Node: out5
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 0
+
+Node: out6
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 0
+
+Node: out7
+  Zone Zone(input_1=Interval(l_bound=0, u_bound=15), input_2=Interval(l_bound=0, u_bound=15)): Weight 0
+average_node_time = 0.1438723798882681
+
+>>> Generating 179 node heatmaps in 'zone_plots_max_lab/beta_16/'...
+labelling_time = 36.776354000000005
