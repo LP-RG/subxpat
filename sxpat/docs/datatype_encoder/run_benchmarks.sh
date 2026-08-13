@@ -45,27 +45,27 @@ for mode in "${EXTRACTION_MODES[@]}"; do
                 output=$(eval "$CMD" 2>&1)
                 
                 python3 -c "
-                    import re
-                    text = '''$output'''
-                    lines = text.split('\n')
-                    curr_iter = None
-                    curr_nodes = None
+import re
+text = '''$output'''
+lines = text.split('\n')
+curr_iter = None
+curr_nodes = None
 
-                    for line in lines:
-                        it_m = re.search(r'iteration\s+(\d+)', line, re.IGNORECASE)
-                        if it_m:
-                            curr_iter = it_m.group(1)
-                            
-                        n_m = re.search(r'#ofNodes\s*=\s*(\d+)', line)
-                        if n_m:
-                            curr_nodes = n_m.group(1)
-                            
-                        t_m = re.search(r'subgraph_extraction_time\s*=\s*([0-9.]+)', line)
-                        if t_m and curr_iter and curr_nodes:
-                            print(f'iteration {curr_iter}: #ofNodes={curr_nodes} subgraph_extraction_time: {t_m.group(1)}')
-                            curr_iter = None
-                            curr_nodes = None
-                    "
+for line in lines:
+    it_m = re.search(r'iteration\s+(\d+)', line, re.IGNORECASE)
+    if it_m:
+        curr_iter = it_m.group(1)
+        
+    n_m = re.search(r'#ofNodes\s*=\s*(\d+)', line)
+    if n_m:
+        curr_nodes = n_m.group(1)
+        
+    t_m = re.search(r'subgraph_extraction_time\s*=\s*([0-9.]+)', line)
+    if t_m and curr_iter and curr_nodes:
+        print(f'iteration {curr_iter}: #ofNodes={curr_nodes} subgraph_extraction_time: {t_m.group(1)}')
+        curr_iter = None
+        curr_nodes = None
+"
                 echo ""
             done
         done
