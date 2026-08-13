@@ -36,13 +36,23 @@ for mode in "${EXTRACTION_MODES[@]}"; do
                 echo "Running: $bench | Encoding: $enc | Mode: $mode | Max Error: $err"
                 echo "#=================================================="
                 
-                CMD=".venv/bin/python main.py $bench --subxpat --encoding=$enc --extraction-mode=$mode --max-labeling --max-lpp=8 --max-ppo=10 --max-error=$err --imax=$IMAX --omax=$OMAX"                
+                CMD=".venv/bin/python main.py $bench --subxpat --encoding=$enc --extraction-mode=$mode --max-labeling --max-lpp=8 --max-ppo=10 --max-error=$err --imax=$IMAX --omax=$OMAX $EXTRA_ARGS"
                 echo "$CMD"
                 echo "#=================================================="
                 echo ""
                 
                 # Capture output and parse iterations to match your exact format
-                output=$(eval "$CMD" 2>&1)
+                output=$(.venv/bin/python main.py "$bench" \
+                    --subxpat \
+                    --encoding="$enc" \
+                    --extraction-mode=$mode \
+                    --max-labeling \
+                    --max-lpp=8 \
+                    --max-ppo=10 \
+                    --max-error=$err \
+                    --imax=$IMAX \
+                    --omax=$OMAX \
+                    $EXTRA_ARGS 2>&1)
                 
                 python3 -c "
 import re
@@ -51,8 +61,8 @@ curr_it = None
 curr_n = None
 
 for line in text.splitlines():
-    # Only match the true main header (e.g., 'iteration 1 with...')
-    m_it = re.match(r'^iteration\s+(\d+)\s+with', line)
+    # Use search instead of match to ignore invisible color codes at the start of the line
+    m_it = re.search(r'iteration\s+(\d+)\s+with', line)
     if m_it:
         curr_it = m_it.group(1)
         curr_n = None  # Reset nodes for the new iteration
