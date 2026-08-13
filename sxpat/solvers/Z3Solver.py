@@ -453,12 +453,6 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
-        # Variables
-        cls.inject_variables(destination, graphs, accessories)
-
-        # Constants
-        cls.inject_constants(destination, graphs, accessories)
-
         destination.write('\n'.join((
                     '# --- Custom Node Datatypes Dictionary ---',
                     'nodes = {}',
@@ -538,6 +532,12 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                         destination.write(f"edges.append(edge_{edge_counter})\n")
                         edge_counter += 1
         destination.write('\n')
+
+        # Variables
+        cls.inject_variables(destination, graphs, accessories)
+
+        # Constants
+        cls.inject_constants(destination, graphs, accessories)
 
         # Nodes behavior
         destination.write('\n'.join((
