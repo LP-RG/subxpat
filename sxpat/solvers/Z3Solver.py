@@ -432,24 +432,36 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         type_mapping = cls.type_mapping
         solver_construct = cls.solver_construct
         constraint_assertion = cls.constraints_assertion
-        
-        # We need nodes_types here to prevent the Z3 Type Crash
         (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
 
         # Initialization
         cls.inject_initialization(destination)
 
-        # Datatype declarations
+        # # --- collect all unique nodes (ONE pass) + structural edges --------
+        all_nodes = []
+        seen = set()
+        edges = []  # (source_name, target_name)
+        for graph in graphs:
+            for node in graph.nodes:
+                if node.name not in seen:
+                    seen.add(node.name)
+                    all_nodes.append(node)
+                if isinstance(node, Operation):
+                    for op_name in node.operands:
+                        edges.append((op_name, node.name))
+ 
+        num_bits = max(1, len(all_nodes).bit_length()) + 1  # loose bound
+ 
         destination.write('\n'.join((
-            '# --- Custom Datatypes for Subgraph Extraction ---',
+            '# --- Node / Edge Datatypes (BitVec-sized) ---',
             'Node = Datatype("Node")',
-            'Node.declare("mk_node", ("id", IntSort()), ("weight", IntSort()), ("in_subgraph", BoolSort()))',
+            f'Node.declare("mk_node", ("id", BitVecSort({num_bits})), ("weight", BitVecSort({num_bits})), ("in_subgraph", BoolSort()))',
             'Node = Node.create()',
             '',
             'Edge = Datatype("Edge")',
             'Edge.declare("mk_edge", ("source", Node), ("target", Node))',
             'Edge = Edge.create()',
-            '# ------------------------------------------------',
+            '# ---------------------------------------------',
             *('',) * 2,
         )))
 
@@ -459,7 +471,35 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         # Constants
         cls.inject_constants(destination, graphs, accessories)
 
-        # Nodes behavior
+        # --- nodes dict: selection bool IS the datatype field ---------------
+        destination.write('# --- nodes / edges dictionary ---\n')
+        destination.write('nodes = {}\n')
+        for idx, node in enumerate(all_nodes):
+            weight = getattr(node, 'weight', None)
+            weight = 1 if weight is None else weight
+ 
+            # I/O, constants, and solver-objective nodes are never "in the
+            # subgraph"; gates with weight == -1 (unlabeled) are forced out.
+            # -- mirrors the reference's fixed-False handling.
+            if isinstance(node, (Variable, Constant, Target, Constraint)):
+                sel_expr = 'BoolVal(False)'
+            elif weight == -1:
+                sel_expr = 'BoolVal(False)'
+            else:
+                sel_expr = f"Bool('{node.name}_sel')"
+ 
+            destination.write(
+                f"nodes['{node.name}'] = Node.mk_node(BitVecVal({idx}, {num_bits}), "
+                f"BitVecVal({weight}, {num_bits}), {sel_expr})\n"
+            )
+        destination.write('\n')
+ 
+        destination.write('edges = []\n')
+        for src_name, tgt_name in edges:
+            destination.write(f"edges.append(Edge.mk_edge(nodes['{src_name}'], nodes['{tgt_name}']))\n")
+        destination.write('\n')
+ 
+        # --- nodes behavior: circuit correctness, unchanged from Direct -----
         destination.write('\n'.join((
             '# behaviour',
             *(
@@ -469,108 +509,94 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             ),
             *('',) * 2,
         )))
-
+ 
+        # --- convexity structure, computed once in Python at encode-time ----
+        successors: Dict[str, list] = {}
+        predecessors: Dict[str, list] = {}
+        for src_name, tgt_name in edges:
+            successors.setdefault(src_name, []).append(tgt_name)
+            predecessors.setdefault(tgt_name, []).append(src_name)
+ 
+        _desc_cache: Dict[str, list] = {}
+        _anc_cache: Dict[str, list] = {}
+ 
+        def _descendants(name: str) -> list:
+            if name in _desc_cache:
+                return _desc_cache[name]
+            found, stack, out = set(), list(successors.get(name, [])), []
+            while stack:
+                n = stack.pop()
+                if n in found:
+                    continue
+                found.add(n)
+                out.append(n)
+                stack.extend(successors.get(n, []))
+            _desc_cache[name] = out
+            return out
+ 
+        def _ancestors(name: str) -> list:
+            if name in _anc_cache:
+                return _anc_cache[name]
+            found, stack, out = set(), list(predecessors.get(name, [])), []
+            while stack:
+                n = stack.pop()
+                if n in found:
+                    continue
+                found.add(n)
+                out.append(n)
+                stack.extend(predecessors.get(n, []))
+            _anc_cache[name] = out
+            return out
+ 
+        convexity_lines = []
+        for src_name, tgt_name in edges:
+            desc = _descendants(tgt_name)
+            if desc:
+                not_desc = ", ".join(f"Not(Node.in_subgraph(nodes['{l}']))" for l in desc + [tgt_name])
+                convexity_lines.append(
+                    f"    Implies(And(Node.in_subgraph(nodes['{src_name}']), "
+                    f"Not(Node.in_subgraph(nodes['{tgt_name}']))), And({not_desc})),"
+                )
+            anc = _ancestors(src_name)
+            if anc:
+                not_anc = ", ".join(f"Not(Node.in_subgraph(nodes['{l}']))" for l in anc + [src_name])
+                convexity_lines.append(
+                    f"    Implies(And(Not(Node.in_subgraph(nodes['{src_name}'])), "
+                    f"Node.in_subgraph(nodes['{tgt_name}'])), And({not_anc})),"
+                )
+ 
         destination.write('\n'.join((
-            '# --- Custom Node Datatypes Dictionary ---',
-            'nodes = {}',
-            'edges = []',
+            '# convexity (structural) constraints',
+            'convexity = And(',
+            *(convexity_lines or ['    True,']),
+            ')',
+            *('',) * 2,
         )))
-
-        seen_nodes = {}  
-        node_counter = 0
-
-        destination.write('\n# 1. Inputs\n')
-        for graph in graphs:
-            for node in graph.variables:
-                if node.name not in seen_nodes:
-                    seen_nodes[node.name] = True
-                    weight = getattr(node, 'weight', 1)
-                    if weight is None:
-                        weight = 1
-                    destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
-                    node_counter += 1
-
-        destination.write('\n# 2. Gates\n')
-        for graph in graphs:
-            for node in graph.expressions:
-                if node.name not in seen_nodes:
-                    seen_nodes[node.name] = True
-                    weight = getattr(node, 'weight', 1)
-                    if weight is None:
-                        weight = 1
-                    destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
-                    node_counter += 1
-        
-        destination.write('\n# 3. Outputs\n')
-        for graph in graphs:
-            for node in graph.targets:
-                if node.name not in seen_nodes:
-                    seen_nodes[node.name] = True
-                    weight = getattr(node, 'weight', 1)
-                    if weight is None:
-                        weight = 1
-                    destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
-                    node_counter += 1
-        
-        destination.write('\n# 4. Constants\n')
-        for graph in graphs:
-            for node in graph.constants:
-                if node.name not in seen_nodes:
-                    seen_nodes[node.name] = True
-                    weight = getattr(node, 'weight', 1)
-                    if weight is None:
-                        weight = 1
-                    destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
-                    node_counter += 1
-
-        destination.write('\n# 4.5. Constraints & Internal Nodes\n')
-        for graph in graphs:
-            for node in graph.nodes:
-                if node.name not in seen_nodes:
-                    seen_nodes[node.name] = True
-                    weight = getattr(node, 'weight', 1)
-                    if weight is None: weight = 1
-                    destination.write(f"nodes['{node.name}'] = Node.mk_node(IntVal({node_counter}), IntVal({weight}), Bool('{node.name}_sel'))\n")
-                    node_counter += 1
-                if hasattr(node, 'operands'):
-                    for op in node.operands:
-                        if op not in seen_nodes:
-                            seen_nodes[op] = True
-                            destination.write(f"nodes['{op}'] = Node.mk_node(IntVal({node_counter}), IntVal(1), Bool('{op}_sel'))\n")
-                            node_counter += 1
-        
-        destination.write('\n# 5. Edges\n')
-        edge_counter = 0
-        for graph in graphs:
-            for node in graph.nodes:
-                if isinstance(node, Operation) and hasattr(node, 'operands'):
-                    for op in node.operands:
-                        destination.write(f"edge_{edge_counter} = Edge.mk_edge(nodes['{op}'], nodes['{node.name}'])\n")
-                        destination.write(f"edges.append(edge_{edge_counter})\n")
-                        edge_counter += 1
-        destination.write('\n')
-
-        # Nodes usage
+ 
+        # --- usage: circuit correctness constraints + convexity -------------
         destination.write('\n'.join((
             '# usage',
-            'usage = And(', *(
+            'usage = And(',
+            '    convexity,',
+            *(
                 f'    {constraint_node.operand},'
                 for graph in graphs
                 if isinstance(graph, CGraph)
                 for constraint_node in graph.constraints
-            ), ')',
+            ),
+            ')',
             *('',) * 2,
         )))
-
-        # Solver
+ 
+        # --- solver + global task --------------------------------------------
         destination.write('\n'.join((
             f'# define solver',
             f'solver = {solver_construct[type(global_task)]}',
             *constraint_assertion[type(global_task)]('solver', global_task, ['usage']),
             *('',) * 2,
         )))
-
-        # Results
+ 
+        # results
         cls.inject_solve_and_result_writing(destination, graphs, graphs)
 
 # Node to Z3 expression
