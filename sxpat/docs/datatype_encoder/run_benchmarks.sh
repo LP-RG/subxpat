@@ -19,8 +19,10 @@ BENCHMARKS=(
 )
 
 # Common configuration parameters
-IMAX=4
+IMAX=6
 OMAX=4
+lpp=14
+ppo=10
 
 for mode in "${EXTRACTION_MODES[@]}"; do
     echo "# Mode $mode: "
@@ -39,7 +41,7 @@ for mode in "${EXTRACTION_MODES[@]}"; do
                 echo "Running: $bench | Encoding: $enc | Mode: $mode | Max Error: $err"
                 echo "#=================================================="
                 
-                CMD=".venv/bin/python main.py $bench --subxpat --encoding=$enc --extraction-mode=$mode --max-labeling --max-lpp=8 --max-ppo=10 --max-error=$err --imax=$IMAX --omax=$OMAX $EXTRA_ARGS"
+                CMD=".venv/bin/python main.py $bench --subxpat --encoding=$enc --extraction-mode=$mode --max-labeling --max-lpp=$lpp --max-ppo=$ppo --max-error=$err --imax=$IMAX --omax=$OMAX $EXTRA_ARGS"
                 echo "$CMD"
                 echo "#=================================================="
                 echo ""
@@ -50,37 +52,49 @@ for mode in "${EXTRACTION_MODES[@]}"; do
                     --encoding="$enc" \
                     --extraction-mode=$mode \
                     --max-labeling \
-                    --max-lpp=8 \
-                    --max-ppo=10 \
+                    --max-lpp=$lpp \
+                    --max-ppo=$ppo \
                     --max-error=$err \
                     --imax=$IMAX \
                     --omax=$OMAX \
                     $EXTRA_ARGS 2>&1)
                 
                 python3 -c "
+import sys
 import re
-text = '''$output'''
+
 curr_it = None
 curr_n = None
 
-for line in text.splitlines():
-    # Use search instead of match to ignore invisible color codes at the start of the line
+for line in sys.stdin:
+    # 1. Match the start of an iteration
     m_it = re.search(r'iteration\s+(\d+)\s+with', line)
     if m_it:
         curr_it = m_it.group(1)
-        curr_n = None  # Reset nodes for the new iteration
+        curr_n = None  
         
+    # 2. Match the number of nodes (if the solver found a valid subgraph)
     m_n = re.search(r'#ofNodes\s*=\s*(\d+)', line)
     if m_n:
         curr_n = m_n.group(1)
         
+    # 3. Catch explicitly failed extractions (UNSAT)
+    if re.search(r'subgraph not found|unsat', line, re.IGNORECASE):
+        curr_n = '0'
+        
+    # 4. Match the extraction time and print the final result
     m_t = re.search(r'subgraph_extraction_time\s*=\s*([0-9.]+)', line)
-    if m_t and curr_it and curr_n:
+    if m_t and curr_it:
+        # Safety net: If we reached the time printout but no nodes were found
+        if curr_n is None:
+            curr_n = '0'
+            
         print(f'iteration {curr_it}: #ofNodes={curr_n} subgraph_extraction_time: {m_t.group(1)}')
-        # Reset until the next true iteration header is found
+        
+        # Reset for the next iteration
         curr_it = None
         curr_n = None
-"
+" <<< "$output"
                 echo ""
             done
         done
