@@ -1104,7 +1104,6 @@ class Z3Solver(Solver):
             [sxpat_cfg.PYTHON3, script_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=120
         )
         if process.returncode != 0:
             raise RuntimeError(f'Solver execution FAILED. Failed to run file {script_path}')
