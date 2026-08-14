@@ -15,7 +15,7 @@ BENCHMARKS=(
     #"benchmarks/v/mul_i8_o8.v"
     "benchmarks/v/mul_i12_o12.v."
     "benchmarks/v/madd_i12_o8.v."
-    "benchmarks/v/adder_i60_o31.v"
+    "benchmarks/v/adder_i28_o15.v"
 )
 
 # Common configuration parameters
