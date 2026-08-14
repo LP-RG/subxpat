@@ -1,7 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from subprocess import run
 import os
-from subxpat.verifying_weights import verify_weights
+from verifying_weights import verify_weights
 
 # Destination for external command outputs and errors
 output_dir = 'program_outputs'
@@ -49,11 +49,6 @@ def worker_process(beta: int) -> int:
         run(cmd, stdout=out, stderr=err)
         
     print(f"Finished run for beta={beta}.")
-
-    if "--max-labeling" in cmd:
-        verify_weights(output_dir, False)
-    else:
-        verify_weights(output_dir, True)
 
     return beta
 
