@@ -1,9 +1,12 @@
 from concurrent.futures import ThreadPoolExecutor
 from subprocess import run
 import os
+from subxpat.verifying_weights import verify_weights
 
 # Destination for external command outputs and errors
 output_dir = 'program_outputs'
+
+USE_MAX_LABELING = False
 
 def worker_process(beta: int) -> int:
     """
@@ -36,12 +39,22 @@ def worker_process(beta: int) -> int:
             "--cnn-constraint", "explicit",
             "--threshold-array-idx", "1", 
             "--beta", str(beta),
-            "--zone-constraint"
+            "--zone-constraint",
+          
         ]
+
+        if USE_MAX_LABELING:
+            cmd.append("--max-labeling")
     
         run(cmd, stdout=out, stderr=err)
         
     print(f"Finished run for beta={beta}.")
+
+    if "--max-labeling" in cmd:
+        verify_weights(output_dir, False)
+    else:
+        verify_weights(output_dir, True)
+
     return beta
 
 if __name__ == "__main__":
@@ -55,3 +68,9 @@ if __name__ == "__main__":
         result = list(pool.map(worker_process, tasks))
 
     print(f"\nAll beta runs completed successfully: {result}")
+
+    print("\nStarting global weight verification...")
+    if USE_MAX_LABELING:
+        verify_weights(output_dir, False)
+    else:
+        verify_weights(output_dir, True)
