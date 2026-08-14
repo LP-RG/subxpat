@@ -470,23 +470,35 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         # why the 'isinstance(Min, Max)' if statement? this triggers only when 
         # optimizing. we don't want to overhead Phase 2 with graph structure generation.
         if isinstance(global_task, (Min, Max)):
-
-            # gather all nodes and edges
+            # gather all nodes, edges, and hidden constraint operands
             all_nodes = []
             unique_nodes = {}
             edges = []
+            
+            ghost_operands = [] # tracks internal variables missing from graph.nodes
+
+            # gather all nodes and edges
             for graph in graphs:
                 for node in graph.nodes:
                     if node.name not in unique_nodes:
                         unique_nodes[node.name] = node
                         all_nodes.append(node)
-                    if isinstance(node, Operation):
+            
+            # build edges and catch hidden constraint operands
+            for graph in graphs:
+                for node in graph.nodes:
+                    if hasattr(node, 'operands'):
                         for op_name in node.operands:
                             edges.append((op_name, node.name))
+                            # if the operand wasn't caught, register it as a ghost
+                            if op_name not in unique_nodes and op_name not in ghost_operands:
+                                ghost_operands.append(op_name)
 
             # calculate how many bits we need for the node ID 
+            total_node_count = len(all_nodes) + len(ghost_operands)
+            # calculate how many bits we need for the node ID 
             # (e.g., 8 nodes = 4 bits)
-            num_bits = max(1, len(all_nodes).bit_length()) + 1
+            num_bits = max(1, total_node_count.bit_length()) + 1
     
             # Declare Datatypes
             destination.write('\n'.join((
@@ -505,16 +517,17 @@ class Z3NodeEdgeEncoder(Z3Encoder):
 
             # create the nodes 
             destination.write('# --- Nodes Dictionary ---\n')
-            for idx, node in enumerate(all_nodes):
+            node_idx = 0  # use a manual counter so we can continue it for ghosts
+            for node in all_nodes:
                 weight = getattr(node, 'weight', None)
                 weight = 1 if weight is None else weight
     
-                # The crucial fix: Use a dummy variable (_sel) for the constructor.
-                # This prevents Z3 from flattening the Datatype to the circuit variable.
+                # fix: use a dummy variable (_sel) for the constructor
+                # this prevents Z3 from flattening the Datatype to the circuit variable
                 sel_expr = f"Bool('{node.name}_sel')"
                 
                 destination.write(
-                    f"nodes['{node.name}'] = Node.mk_node(BitVecVal({idx}, {num_bits}), "
+                    f"nodes['{node.name}'] = Node.mk_node(BitVecVal({node_idx}, {num_bits}), "
                     f"BitVecVal({weight}, {num_bits}), {sel_expr})\n"
                 )
 
@@ -524,6 +537,17 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                 else:
                     # link the circuit boolean variable to the Datatype accessor for usage constraints
                     destination.write(f"solver.add({node.name} == Node.in_subgraph(nodes['{node.name}']))\n")
+                
+                node_idx += 1 # Increment the ID
+
+            # create the ghost nodes
+            if ghost_operands:
+                destination.write('\n# --- Internal Constraints & Operands Nodes ---\n')
+                for op_name in ghost_operands:
+                    sel_expr = f"Bool('{op_name}_sel')"
+                    destination.write(f"nodes['{op_name}'] = Node.mk_node(BitVecVal({node_idx}, {num_bits}), BitVecVal(1, {num_bits}), {sel_expr})\n")
+                    destination.write(f"solver.add(Node.in_subgraph(nodes['{op_name}']) == BoolVal(False))\n")
+                    node_idx += 1 # increment the ID
 
             # create the edges 
             destination.write('\n# --- Edges List ---\n')
