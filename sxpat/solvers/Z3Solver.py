@@ -596,7 +596,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         destination.write('\n'.join((
             f'# define solver',
             f'solver = {solver_construct[type(global_task)]}',
-            *constraint_assertion[type(global_task)]('solver', global_task, ['behaviour', 'usage']),
+            *constraint_assertion[type(global_task)]('solver', global_task, ['usage']),
             *('',) * 2,
         )))
 
