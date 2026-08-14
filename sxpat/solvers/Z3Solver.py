@@ -428,6 +428,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                global_task: Union[ForAll, Min, Max, None] = None,
                ) -> None:
 
+        # here we define how to translate a Python node into a Z3 string.
         node_mapping = cls.node_mapping
         type_mapping = cls.type_mapping
         solver_construct = cls.solver_construct
@@ -437,16 +438,19 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         # initialization
         cls.inject_initialization(destination)
 
-        # variables
+        # variables - writes the input variables (e.g., in0 = Bool('in0'))
         cls.inject_variables(destination, graphs, accessories)
 
-        # constants
+        # constants - writes the circuit constants (if any exist)
         cls.inject_constants(destination, graphs, accessories)
 
         # =====================================================================
         # PHASE 2: VERIFICATION (Circuit Logic)
         # it only runs when I check the error (For All/None); we turn this off at Extraction!
         # =====================================================================
+        # why the 'not isinstance(Min, Max)' if statement? Because in Phase 1 
+        # (when we cut the graph), we do not want to simulate current. If we did, 
+        # Z3 would choke trying to solve logic equations instead of cutting edges.
         if not isinstance(global_task, (Min, Max)):
             # nodes behavior
             destination.write('\n'.join((
@@ -463,19 +467,25 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         # PHASE 1: EXTRACTION (Datatypes + Convexity)
         # runs only on Extraction (Min/Max); no unnecessary overhead in Phase 2!
         # =====================================================================
+        # why the 'isinstance(Min, Max)' if statement? this triggers only when 
+        # optimizing. we don't want to overhead Phase 2 with graph structure generation.
         if isinstance(global_task, (Min, Max)):
+
+            # gather all nodes and edges
             all_nodes = []
-            seen = set()
+            unique_nodes = {}
             edges = []
             for graph in graphs:
                 for node in graph.nodes:
-                    if node.name not in seen:
-                        seen.add(node.name)
+                    if node.name not in unique_nodes:
+                        unique_nodes[node.name] = node
                         all_nodes.append(node)
                     if isinstance(node, Operation):
                         for op_name in node.operands:
                             edges.append((op_name, node.name))
-    
+
+            # calculate how many bits we need for the node ID 
+            # (e.g., 8 nodes = 4 bits)
             num_bits = max(1, len(all_nodes).bit_length()) + 1
     
             # Declare Datatypes
@@ -493,12 +503,13 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                 *('',) * 2,
             )))
 
+            # create the nodes 
             destination.write('# --- Nodes Dictionary ---\n')
             for idx, node in enumerate(all_nodes):
                 weight = getattr(node, 'weight', None)
                 weight = 1 if weight is None else weight
     
-                # The crucial fix: Use a DUMMY variable (_sel) for the constructor.
+                # The crucial fix: Use a dummy variable (_sel) for the constructor.
                 # This prevents Z3 from flattening the Datatype to the circuit variable.
                 sel_expr = f"Bool('{node.name}_sel')"
                 
@@ -507,18 +518,19 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                     f"BitVecVal({weight}, {num_bits}), {sel_expr})\n"
                 )
 
-                # Fix fixed nodes (I/O, constants, unlabeled) explicitly via the Datatype accessor
+                # fix fixed nodes (I/O, constants, unlabeled) explicitly via the Datatype accessor
                 if isinstance(node, (Variable, Constant, Target, Constraint)) or weight == -1:
                     destination.write(f"solver.add(Node.in_subgraph(nodes['{node.name}']) == BoolVal(False))\n")
                 else:
-                    # Link the circuit boolean variable to the Datatype accessor for usage constraints
+                    # link the circuit boolean variable to the Datatype accessor for usage constraints
                     destination.write(f"solver.add({node.name} == Node.in_subgraph(nodes['{node.name}']))\n")
 
+            # create the edges 
             destination.write('\n# --- Edges List ---\n')
             for src_name, tgt_name in edges:
                 destination.write(f"edges.append(Edge.mk_edge(nodes['{src_name}'], nodes['{tgt_name}']))\n")
     
-            # --- Convexity Structure (Computed in Python) ---
+            # convexity structure
             successors: Dict[str, list] = {}
             predecessors: Dict[str, list] = {}
             for src_name, tgt_name in edges:
@@ -527,7 +539,8 @@ class Z3NodeEdgeEncoder(Z3Encoder):
     
             _desc_cache: Dict[str, list] = {}
             _anc_cache: Dict[str, list] = {}
-    
+
+            # helper functions to recursively find all children (descendants) and parents (ancestors)
             def _descendants(name: str) -> list:
                 if name in _desc_cache: return _desc_cache[name]
                 found, stack, out = set(), list(successors.get(name, [])), []
@@ -551,7 +564,8 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                     stack.extend(predecessors.get(n, []))
                 _anc_cache[name] = out
                 return out
-    
+
+            # creating the logic strings
             convexity_lines = []
             for src_name, tgt_name in edges:
                 desc = _descendants(tgt_name)
@@ -576,7 +590,7 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                 'convexity = And(',
                 *(convexity_lines or ['    True,']),
                 ')',
-                'solver.add(convexity)',
+                'solver.add(convexity)', # add convexity directly to the solver.
                 *('',) * 2,
             )))
 
