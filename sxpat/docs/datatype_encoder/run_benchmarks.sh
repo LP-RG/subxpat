@@ -19,8 +19,8 @@ BENCHMARKS=(
 )
 
 # Common configuration parameters
-IMAX=2
-OMAX=8
+IMAX=4
+OMAX=4
 
 for mode in "${EXTRACTION_MODES[@]}"; do
     echo "# Mode $mode: "
