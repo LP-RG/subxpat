@@ -1,0 +1,87 @@
+id: AFUJRXUY_0000
+directory: output/AFUJRXUY_0000
+[36mbenchmark output/AFUJRXUY_0000/verilog/current.v[39m
+[36miteration 1 with et 12, available error 10[39m
+annotated_graph_loading_time = 0.2820949999999991
+started labelling
+> ZONE CONSTRAINT ACTIVE: Running multi-zone labelling...
+average_node_time = 2.0862728826815644
+labelling_time = 373.449789
+> FUNCTION CALLED: Zone extractor is running! <
+>>> Total zone constraints added: 256
+===VERIFICATION ===
+
+Exit Edge Detected: g113 -> g118
+  [PASS] Zone 0 | Weight: 16 <= Limit: 21
+  [PASS] Zone 1 | Weight: 16 <= Limit: 21
+  [PASS] Zone 2 | Weight: 16 <= Limit: 21
+  [PASS] Zone 3 | Weight: 16 <= Limit: 21
+  [PASS] Zone 4 | Weight: 16 <= Limit: 21
+  [PASS] Zone 5 | Weight: 16 <= Limit: 21
+  [PASS] Zone 6 | Weight: 16 <= Limit: 21
+  [PASS] Zone 7 | Weight: 16 <= Limit: 21
+  [PASS] Zone 8 | Weight: 16 <= Limit: 21
+  [PASS] Zone 9 | Weight: 16 <= Limit: 21
+  [PASS] Zone 10 | Weight: 16 <= Limit: 21
+  [PASS] Zone 11 | Weight: 16 <= Limit: 21
+  [PASS] Zone 12 | Weight: 16 <= Limit: 22
+  [PASS] Zone 13 | Weight: 16 <= Limit: 22
+  [PASS] Zone 14 | Weight: 16 <= Limit: 21
+  [PASS] Zone 15 | Weight: 16 <= Limit: 20
+
+Exit Edge Detected: g113 -> g121
+  [PASS] Zone 0 | Weight: 16 <= Limit: 21
+  [PASS] Zone 1 | Weight: 16 <= Limit: 21
+  [PASS] Zone 2 | Weight: 16 <= Limit: 21
+  [PASS] Zone 3 | Weight: 16 <= Limit: 21
+  [PASS] Zone 4 | Weight: 16 <= Limit: 21
+  [PASS] Zone 5 | Weight: 16 <= Limit: 21
+  [PASS] Zone 6 | Weight: 16 <= Limit: 21
+  [PASS] Zone 7 | Weight: 16 <= Limit: 21
+  [PASS] Zone 8 | Weight: 16 <= Limit: 21
+  [PASS] Zone 9 | Weight: 16 <= Limit: 21
+  [PASS] Zone 10 | Weight: 16 <= Limit: 21
+  [PASS] Zone 11 | Weight: 16 <= Limit: 21
+  [PASS] Zone 12 | Weight: 16 <= Limit: 22
+  [PASS] Zone 13 | Weight: 16 <= Limit: 22
+  [PASS] Zone 14 | Weight: 16 <= Limit: 21
+  [PASS] Zone 15 | Weight: 16 <= Limit: 20
+
+Exit Edge Detected: g119 -> g123
+  [PASS] Zone 0 | Weight: 8 <= Limit: 21
+  [PASS] Zone 1 | Weight: 8 <= Limit: 21
+  [PASS] Zone 2 | Weight: 8 <= Limit: 21
+  [PASS] Zone 3 | Weight: 8 <= Limit: 21
+  [PASS] Zone 4 | Weight: 8 <= Limit: 21
+  [PASS] Zone 5 | Weight: 8 <= Limit: 21
+  [PASS] Zone 6 | Weight: 8 <= Limit: 21
+  [PASS] Zone 7 | Weight: 8 <= Limit: 21
+  [PASS] Zone 8 | Weight: 8 <= Limit: 21
+  [PASS] Zone 9 | Weight: 8 <= Limit: 21
+  [PASS] Zone 10 | Weight: 8 <= Limit: 21
+  [PASS] Zone 11 | Weight: 8 <= Limit: 21
+  [PASS] Zone 12 | Weight: 8 <= Limit: 22
+  [PASS] Zone 13 | Weight: 8 <= Limit: 22
+  [PASS] Zone 14 | Weight: 8 <= Limit: 21
+  [PASS] Zone 15 | Weight: 8 <= Limit: 20
+
+Exit Edge Detected: g119 -> g124
+  [PASS] Zone 0 | Weight: 8 <= Limit: 21
+  [PASS] Zone 1 | Weight: 8 <= Limit: 21
+  [PASS] Zone 2 | Weight: 8 <= Limit: 21
+  [PASS] Zone 3 | Weight: 8 <= Limit: 21
+  [PASS] Zone 4 | Weight: 8 <= Limit: 21
+  [PASS] Zone 5 | Weight: 8 <= Limit: 21
+  [PASS] Zone 6 | Weight: 8 <= Limit: 21
+  [PASS] Zone 7 | Weight: 8 <= Limit: 21
+  [PASS] Zone 8 | Weight: 8 <= Limit: 21
+  [PASS] Zone 9 | Weight: 8 <= Limit: 21
+  [PASS] Zone 10 | Weight: 8 <= Limit: 21
+  [PASS] Zone 11 | Weight: 8 <= Limit: 21
+  [PASS] Zone 12 | Weight: 8 <= Limit: 22
+  [PASS] Zone 13 | Weight: 8 <= Limit: 22
+  [PASS] Zone 14 | Weight: 8 <= Limit: 21
+  [PASS] Zone 15 | Weight: 8 <= Limit: 20
+subgraph_extraction_time = 18.815359
+[34mGrid (4 X 4) and et=12 exploration started...[39m
+Cell(0,1) at iteration 1: 

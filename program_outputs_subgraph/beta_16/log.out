@@ -1,0 +1,76 @@
+id: AFUJRXQB_0001
+directory: output/AFUJRXQB_0001
+[36mbenchmark output/AFUJRXQB_0001/verilog/current.v[39m
+[36miteration 1 with et 12, available error 10[39m
+annotated_graph_loading_time = 0.31881899999999996
+started labelling
+> ZONE CONSTRAINT ACTIVE: Running multi-zone labelling...
+average_node_time = 0.14033082681564227
+labelling_time = 25.126682000000002
+> FUNCTION CALLED: Zone extractor is running! <
+>>> Total zone constraints added: 256
+===VERIFICATION ===
+
+Exit Edge Detected: g106 -> g110
+  [PASS] Zone 0 | Weight: 32 <= Limit: 1645
+
+Exit Edge Detected: g106 -> g111
+  [PASS] Zone 0 | Weight: 32 <= Limit: 1645
+
+Exit Edge Detected: g112 -> g117
+  [PASS] Zone 0 | Weight: 16 <= Limit: 1645
+
+Exit Edge Detected: g112 -> g122
+  [PASS] Zone 0 | Weight: 16 <= Limit: 1645
+subgraph_extraction_time = 80.066013
+[34mGrid (4 X 4) and et=12 exploration started...[39m
+Cell(0,1) at iteration 1: [32mSAT (1 models found)[39m 2.07s
+[36mverifying all approximate circuits ...[39m
+erreval_annotated_graph_loading_time = 0.28762499999999136
+[32mErrorEval verification PASSED. ( wce = 0 )[39m
+[32mDesign ID            Area        Power     Delay    Error
+----------------  -------  -----------  --------  -------
+Exact             175.518  6.22464e-05  0.528018        0
+gen_iter1_model0  123.895  3.49605e-05  0.442643        0[39m
+[36mbenchmark output/AFUJRXQB_0001/verilog/gen_iter1_model0.v[39m
+[36miteration 2 with et 24, available error 10[39m
+annotated_graph_loading_time = 0.32344500000000664
+started labelling
+> ZONE CONSTRAINT ACTIVE: Running multi-zone labelling...
+average_node_time = 0.12721388000000025
+labelling_time = 15.907605999999973
+> FUNCTION CALLED: Zone extractor is running! <
+>>> Total zone constraints added: 175
+===VERIFICATION ===
+
+Exit Edge Detected: g92 -> g94
+  [PASS] Zone 0 | Weight: 16 <= Limit: 1645
+
+Exit Edge Detected: g92 -> g102
+  [PASS] Zone 0 | Weight: 16 <= Limit: 1645
+
+Exit Edge Detected: g95 -> g96
+  [PASS] Zone 0 | Weight: 8 <= Limit: 1645
+
+Exit Edge Detected: g95 -> g97
+  [PASS] Zone 0 | Weight: 8 <= Limit: 1645
+subgraph_extraction_time = 18.697079000000016
+[34mGrid (4 X 4) and et=24 exploration started...[39m
+Cell(0,1) at iteration 2: [32mSAT (1 models found)[39m 2.08s
+[36mverifying all approximate circuits ...[39m
+erreval_annotated_graph_loading_time = 0.2952980000000309
+[32mErrorEval verification PASSED. ( wce = 32 )[39m
+[32mDesign ID            Area        Power     Delay    Error
+----------------  -------  -----------  --------  -------
+Exact             175.518  6.22464e-05  0.528018        0
+gen_iter2_model0   65.702  2.00925e-05  0.21619        32[39m
+┌────────────────────┬─────────────────────────────────────────────────┬────────┬─────────────┬─────────┬─────────┐
+│ metrics            │ file                                            │   area │       power │   delay │   error │
+├────────────────────┼─────────────────────────────────────────────────┼────────┼─────────────┼─────────┼─────────┤
+│ area->power->delay │ output/AFUJRXQB_0001/verilog/gen_iter2_model0.v │ 65.702 │ 2.00925e-05 │ 0.21619 │      32 │
+│ area->delay->power │ output/AFUJRXQB_0001/verilog/gen_iter2_model0.v │ 65.702 │ 2.00925e-05 │ 0.21619 │      32 │
+│ power->area->delay │ output/AFUJRXQB_0001/verilog/gen_iter2_model0.v │ 65.702 │ 2.00925e-05 │ 0.21619 │      32 │
+│ power->delay->area │ output/AFUJRXQB_0001/verilog/gen_iter2_model0.v │ 65.702 │ 2.00925e-05 │ 0.21619 │      32 │
+│ delay->area->power │ output/AFUJRXQB_0001/verilog/gen_iter2_model0.v │ 65.702 │ 2.00925e-05 │ 0.21619 │      32 │
+│ delay->power->area │ output/AFUJRXQB_0001/verilog/gen_iter2_model0.v │ 65.702 │ 2.00925e-05 │ 0.21619 │      32 │
+└────────────────────┴─────────────────────────────────────────────────┴────────┴─────────────┴─────────┴─────────┘

@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/home/mustat/subxpat/main.py", line 66, in <module>
+    if __name__ == '__main__': main()
+                               ~~~~^^
+  File "/home/mustat/subxpat/main.py", line 42, in main
+    raise ex
+  File "/home/mustat/subxpat/main.py", line 32, in main
+    results = explore_grid(specs_obj)
+  File "/home/mustat/subxpat/sxpat/xplore.py", line 343, in explore_grid
+    base_question = distribution_aware_questions.cnn_error_constraint(current_graph, param_circ,specs_obj)
+  File "/home/mustat/subxpat/sxpat/definitions/questions/distribution_aware_questions.py", line 24, in cnn_error_constraint
+    list_nodes = explicit_constraints(s_graph, t_graph, specs_obj.threshold_array_idx, specs_obj.beta)
+  File "/home/mustat/subxpat/sxpat/definitions/questions/constraints_definition.py", line 177, in explicit_constraints
+    value=et_array[zone_i * num_steps + zone_j])
+          ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+IndexError: list index out of range

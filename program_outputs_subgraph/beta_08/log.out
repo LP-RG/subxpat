@@ -1,0 +1,39 @@
+id: AFUJRXQB_0000
+directory: output/AFUJRXQB_0000
+[36mbenchmark output/AFUJRXQB_0000/verilog/current.v[39m
+[36miteration 1 with et 12, available error 10[39m
+annotated_graph_loading_time = 0.32654499999999986
+started labelling
+> ZONE CONSTRAINT ACTIVE: Running multi-zone labelling...
+average_node_time = 0.5377190446927378
+labelling_time = 96.258649
+> FUNCTION CALLED: Zone extractor is running! <
+>>> Total zone constraints added: 256
+===VERIFICATION ===
+
+Exit Edge Detected: g113 -> g118
+  [PASS] Zone 0 | Weight: 16 <= Limit: 21
+  [PASS] Zone 1 | Weight: 16 <= Limit: 21
+  [PASS] Zone 2 | Weight: 16 <= Limit: 22
+  [PASS] Zone 3 | Weight: 16 <= Limit: 22
+
+Exit Edge Detected: g113 -> g121
+  [PASS] Zone 0 | Weight: 16 <= Limit: 21
+  [PASS] Zone 1 | Weight: 16 <= Limit: 21
+  [PASS] Zone 2 | Weight: 16 <= Limit: 22
+  [PASS] Zone 3 | Weight: 16 <= Limit: 22
+
+Exit Edge Detected: g119 -> g123
+  [PASS] Zone 0 | Weight: 8 <= Limit: 21
+  [PASS] Zone 1 | Weight: 8 <= Limit: 21
+  [PASS] Zone 2 | Weight: 8 <= Limit: 22
+  [PASS] Zone 3 | Weight: 8 <= Limit: 22
+
+Exit Edge Detected: g119 -> g124
+  [PASS] Zone 0 | Weight: 8 <= Limit: 21
+  [PASS] Zone 1 | Weight: 8 <= Limit: 21
+  [PASS] Zone 2 | Weight: 8 <= Limit: 22
+  [PASS] Zone 3 | Weight: 8 <= Limit: 22
+subgraph_extraction_time = 28.423647000000017
+[34mGrid (4 X 4) and et=12 exploration started...[39m
+Cell(0,1) at iteration 1: 
