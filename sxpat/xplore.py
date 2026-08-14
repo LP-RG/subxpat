@@ -253,7 +253,8 @@ def explore_grid(specs_obj: Specifications):
             specs_obj.stats_storage.stage(labelling_time=_time)
             print(f'labelling_time = {_time}')
 
-        quit()
+        # quit()
+
         # extract subgraph
         _time = Timer.now()
         subgraph_nodes = extract_subgraph(current_graph, specs_obj)
@@ -631,14 +632,7 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
                 specs= specs_obj,
             )
         
-        # total_input_bits = len(circuit.inputs_names)
-        # bits_input_1 = total_input_bits // 2
-        # bits_input_2 = total_input_bits - bits_input_1
-
-        #write an if statement later
-
-        # bits_input_1 = 8
-        # bits_input_2 = 8
+    
 
         total_input_bits = len(circuit.inputs_names)
         bits_input_1 = total_input_bits // 2
