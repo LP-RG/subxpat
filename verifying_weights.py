@@ -2,7 +2,7 @@ import os
 import re
 import argparse
 
-def verify_weights(base_log_dir):
+def verify_weights(base_log_dir, min : bool):
     #betas tested
     betas = [1, 2, 4, 8, 16]
     
@@ -62,7 +62,7 @@ def verify_weights(base_log_dir):
 
             b_weights = beta_data[master_betas]
 
-            if base_log_dir == "program_outputs_max_lab":
+            if not min:
             # b_val = min(b_weights)
                 b_val = max(b_weights)
             
@@ -82,7 +82,7 @@ def verify_weights(base_log_dir):
                         print(f"Beta {master_beta} weight ({b_weights}) is strictly greater than the minimum weight in Beta {beta} ({current_max}).")
                         all_passed = False
                         failed_nodes += 1
-            if base_log_dir == "program_outputs":
+            if min:
                 b_val = min(b_weights)
         
                         
@@ -116,7 +116,13 @@ if __name__ == "__main__":
         type=str, 
         help="The base directory to check (e.g., program_outputs or program_outputs_max_lab)"
     )
+
+    parser.add_argument(
+            "is_min_lab", 
+            type=bool, 
+            help="Is it min labeling (True), or is it max labeling (False)"
+    )
     
     args = parser.parse_args()
     
-    verify_weights(args.log_dir)
+    verify_weights(args.log_dir, args.is_min_lab)
