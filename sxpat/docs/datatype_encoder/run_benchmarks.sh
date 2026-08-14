@@ -13,8 +13,8 @@ EXTRACTION_MODES=(1)
 BENCHMARKS=(
     #"benchmarks/v/adder_i8_o5.v"
     #"benchmarks/v/mul_i8_o8.v"
-    "benchmarks/v/mul_i12_o12.v."
-    "benchmarks/v/madd_i12_o8.v."
+    "benchmarks/v/mul_i12_o12.v"
+    "benchmarks/v/madd_i12_o8.v"
     "benchmarks/v/adder_i28_o15.v"
 )
 
