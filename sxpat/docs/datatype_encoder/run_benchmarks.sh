@@ -79,7 +79,7 @@ for line in sys.stdin:
         curr_n = m_n.group(1)
         
     # 3. Catch explicitly failed extractions (UNSAT)
-    if re.search(r'subgraph not found|unsat', line, re.IGNORECASE):
+    if re.search(r'subgraph not found', line, re.IGNORECASE):
         curr_n = '0'
         
     # 4. Match the extraction time and print the final result
