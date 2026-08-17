@@ -253,7 +253,7 @@ def explore_grid(specs_obj: Specifications):
             specs_obj.stats_storage.stage(labelling_time=_time)
             print(f'labelling_time = {_time}')
 
-        # quit()
+        #quit()
 
         # extract subgraph
         _time = Timer.now()
@@ -664,7 +664,7 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     
         circuit.zone_weights = z_weights
 
-        save_zone_heatmaps(z_weights, output_dir=f"zone_plots/beta_{specs_obj.beta}")
+        #save_zone_heatmaps(z_weights, output_dir=f"zone_plots/beta_{specs_obj.beta}")
 
         weights = {}
 
