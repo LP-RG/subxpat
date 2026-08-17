@@ -322,3 +322,46 @@ iteration 14: #ofNodes=7 subgraph_extraction_time: 0.1393549999999948
 iteration 15: #ofNodes=7 subgraph_extraction_time: 0.1367089999999962
 iteration 16: #ofNodes=7 subgraph_extraction_time: 0.1563989999999933
 iteration 17: #ofNodes=7 subgraph_extraction_time: 0.19211599999999862
+
+
+
+
+
+
+
+
+
+Prompt: python3 main.py benchmarks/v/adder_i16_o9.v --max-error=64 --subxpat --max-lpp=6 --max-ppo=10 --imax=8 --omax=5 --mode=55
+
+iteration 1: #ofNodes=45 subgraph_extraction_time: 1.0870180000000005
+iteration 2: #ofNodes=10 subgraph_extraction_time: 0.5077560000000005
+iteration 3: #ofNodes=23 subgraph_extraction_time: 0.5021739999999966
+iteration 4: #ofNodes=16 subgraph_extraction_time: 0.397034000000005
+iteration 5: #ofNodes=15 subgraph_extraction_time: 0.4619030000000066
+iteration 6: #ofNodes=16 subgraph_extraction_time: 0.4398700000000133
+iteration 7: #ofNodes=15 subgraph_extraction_time: 0.3999799999999709
+iteration 8: #ofNodes=23 subgraph_extraction_time: 0.38808599999998705
+iteration 9: #ofNodes=24 subgraph_extraction_time: 0.2833869999999479
+iteration 10: #ofNodes=19 subgraph_extraction_time: 0.602273000000082
+iteration 11: #ofNodes=16 subgraph_extraction_time: 0.7282169999999724
+iteration 12: #ofNodes=24 subgraph_extraction_time: 0.3858540000001085
+iteration 13: #ofNodes=28 subgraph_extraction_time: 0.4323309999999765
+iteration 14: #ofNodes=28 subgraph_extraction_time: 0.26948600000014267
+iteration 15: #ofNodes=27 subgraph_extraction_time: 0.2829859999999371
+iteration 16: #ofNodes=20 subgraph_extraction_time: 1.0890309999999772
+
+Prompt: python3 main.py benchmarks/v/adder_i16_o9.v --max-error=64 --subxpat --max-lpp=6 --max-ppo=10 --imax=8 --omax=5 --mode=5
+
+iteration 1: #ofNodes=45 subgraph_extraction_time: 0.3066260000000014
+iteration 2: #ofNodes=10 subgraph_extraction_time: 0.14587200000000067
+iteration 3: #ofNodes=23 subgraph_extraction_time: 0.1448389999999975
+iteration 4: #ofNodes=13 subgraph_extraction_time: 0.10940700000000447
+iteration 5: #ofNodes=13 subgraph_extraction_time: 0.1526839999999936
+iteration 6: #ofNodes=13 subgraph_extraction_time: 0.1063259999999957
+iteration 7: #ofNodes=21 subgraph_extraction_time: 0.11208400000001006
+iteration 8: #ofNodes=22 subgraph_extraction_time: 0.08568900000000212
+iteration 9: #ofNodes=22 subgraph_extraction_time: 0.14133399999991525
+iteration 10: #ofNodes=17 subgraph_extraction_time: 0.11148800000000847
+iteration 11: #ofNodes=17 subgraph_extraction_time: 0.1078700000000481
+iteration 12: #ofNodes=17 subgraph_extraction_time: 0.12038900000015929
+iteration 13: #ofNodes=22 subgraph_extraction_time: 0.10029200000008132
