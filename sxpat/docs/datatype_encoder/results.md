@@ -365,3 +365,49 @@ iteration 10: #ofNodes=17 subgraph_extraction_time: 0.11148800000000847
 iteration 11: #ofNodes=17 subgraph_extraction_time: 0.1078700000000481
 iteration 12: #ofNodes=17 subgraph_extraction_time: 0.12038900000015929
 iteration 13: #ofNodes=22 subgraph_extraction_time: 0.10029200000008132
+
+Prompt: python3 main.py benchmarks/v/adder_i16_o9.v --subxpat --extraction-mode=55 --input-max=6 --output-max=3 --error-partitioning=asc --max-error=64 --max-lpp=6 --max-ppo=10
+
+iteration 1: #ofNodes=29 subgraph_extraction_time: 1.041874
+iteration 2: #ofNodes=22 subgraph_extraction_time: 0.6063399999999994
+iteration 3: #ofNodes=21 subgraph_extraction_time: 0.7519079999999931
+iteration 4: #ofNodes=25 subgraph_extraction_time: 0.7263860000000051
+iteration 5: #ofNodes=22 subgraph_extraction_time: 0.7012339999999995
+iteration 6: #ofNodes=22 subgraph_extraction_time: 0.7186020000000042
+iteration 7: #ofNodes=19 subgraph_extraction_time: 0.7164849999999774
+iteration 8: #ofNodes=26 subgraph_extraction_time: 0.43690599999999336
+iteration 9: #ofNodes=26 subgraph_extraction_time: 0.450601000000006
+iteration 10: #ofNodes=28 subgraph_extraction_time: 0.4507110000000125
+iteration 11: #ofNodes=20 subgraph_extraction_time: 1.2250239999999621
+iteration 12: #ofNodes=15 subgraph_extraction_time: 0.8298210000000381
+iteration 13: #ofNodes=16 subgraph_extraction_time: 0.92923200000007
+iteration 14: #ofNodes=28 subgraph_extraction_time: 0.3160890000000336
+iteration 15: #ofNodes=28 subgraph_extraction_time: 0.3274020000000064
+iteration 16: #ofNodes=28 subgraph_extraction_time: 0.32092599999998583
+iteration 17: #ofNodes=18 subgraph_extraction_time: 0.3255820000001677
+iteration 18: #ofNodes=30 subgraph_extraction_time: 0.4127739999998994
+iteration 19: #ofNodes=23 subgraph_extraction_time: 0.4593750000001364
+iteration 20: #ofNodes=31 subgraph_extraction_time: 0.40083400000003166
+
+Prompt: python3 main.py benchmarks/v/adder_i16_o9.v --subxpat --extraction-mode=5 --input-max=6 --output-max=3 --error-partitioning=asc --max-error=64 --max-lpp=6 --max-ppo=10
+
+iteration 1: #ofNodes=29 subgraph_extraction_time: 0.29617199999999855
+iteration 2: #ofNodes=22 subgraph_extraction_time: 0.17962499999999793
+iteration 3: #ofNodes=21 subgraph_extraction_time: 0.4163739999999976
+iteration 4: #ofNodes=25 subgraph_extraction_time: 0.6307299999999998
+iteration 5: #ofNodes=22 subgraph_extraction_time: 0.3736510000000095
+iteration 6: #ofNodes=22 subgraph_extraction_time: 0.3624200000000144
+iteration 7: #ofNodes=23 subgraph_extraction_time: 0.2932119999999827
+iteration 8: #ofNodes=20 subgraph_extraction_time: 0.7896169999999927
+iteration 9: #ofNodes=26 subgraph_extraction_time: 0.5385150000000181
+iteration 10: #ofNodes=20 subgraph_extraction_time: 0.5871869999999717
+iteration 11: #ofNodes=26 subgraph_extraction_time: 0.3637650000000008
+iteration 12: #ofNodes=20 subgraph_extraction_time: 0.5862389999999778
+iteration 13: #ofNodes=20 subgraph_extraction_time: 0.5071030000000292
+iteration 14: #ofNodes=26 subgraph_extraction_time: 0.36986100000001443
+iteration 15: #ofNodes=20 subgraph_extraction_time: 0.6931180000000268
+iteration 16: #ofNodes=26 subgraph_extraction_time: 0.37144800000010036
+iteration 17: #ofNodes=20 subgraph_extraction_time: 0.7961680000000797
+iteration 18: #ofNodes=26 subgraph_extraction_time: 0.7118090000000166
+iteration 19: #ofNodes=21 subgraph_extraction_time: 1.068175999999994
+iteration 20: #ofNodes=21 subgraph_extraction_time: 1.1860179999998763

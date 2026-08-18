@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Define the encodings
-ENCODINGS=("z3datatype" "z3dbvec")
+ENCODINGS=("qbf"  "z3dbvec" "z3datatype")
 
 # Define the error spaces
 ERRORS=(4 8 16 32 64)
 
 # Define the extraction modes 
-EXTRACTION_MODES=(5)
+EXTRACTION_MODES=(5 55)
 
 # Define the benchmark files
 BENCHMARKS=(
@@ -19,10 +19,10 @@ BENCHMARKS=(
 )
 
 # Common configuration parameters
-IMAX=6
-OMAX=4
-lpp=14
-ppo=10
+IMAX=4
+OMAX=2
+lpp=1
+ppo=1
 
 for mode in "${EXTRACTION_MODES[@]}"; do
     echo "# Mode $mode: "
@@ -41,7 +41,7 @@ for mode in "${EXTRACTION_MODES[@]}"; do
                 echo "Running: $bench | Encoding: $enc | Mode: $mode | Max Error: $err"
                 echo "#=================================================="
                 
-                CMD=".venv/bin/python main.py $bench --subxpat --encoding=$enc --extraction-mode=$mode --max-labeling --max-lpp=$lpp --max-ppo=$ppo --max-error=$err --imax=$IMAX --omax=$OMAX $EXTRA_ARGS"
+                CMD=".venv/bin/python main.py $bench --subxpat --encoding=$enc --extraction-mode=$mode --max-labeling --max-lpp=$lpp --max-ppo=$ppo --max-error=$err --imax=$IMAX --omax=$OMAX --error-partitioning=asc $EXTRA_ARGS"
                 echo "$CMD"
                 echo "#=================================================="
                 echo ""
@@ -57,6 +57,7 @@ for mode in "${EXTRACTION_MODES[@]}"; do
                     --max-error=$err \
                     --imax=$IMAX \
                     --omax=$OMAX \
+                    --error-partitioning=asc \
                     $EXTRA_ARGS 2>&1)
                 
                 python3 -c "
