@@ -366,10 +366,6 @@ class Z3DirectEncoder(Z3Encoder):
                global_task: Union[ForAll, Min, Max, None] = None,
                ) -> None:
 
-        print("\n" + "="*50)
-        print("🚨🚨🚨 Z3DirectEncoder IS ACTUALLY RUNNING! 🚨🚨🚨")
-        print("="*50 + "\n")
-
         # initial computations
         node_mapping = cls.node_mapping
         type_mapping = cls.type_mapping
@@ -431,10 +427,6 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
                ) -> None:
-
-        print("\n" + "="*50)
-        print("🚨🚨🚨 Z3NODEEDGEENCODER IS ACTUALLY RUNNING! 🚨🚨🚨")
-        print("="*50 + "\n")
 
         # here we define how to translate a Python node into a Z3 string.
         node_mapping = cls.node_mapping

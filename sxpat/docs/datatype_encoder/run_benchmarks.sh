@@ -11,10 +11,10 @@ EXTRACTION_MODES=(1 5)
 
 # Define the benchmark files
 BENCHMARKS=(
-    #"benchmarks/v/adder_i8_o5.v"
+    "benchmarks/v/adder_i8_o5.v"
+    "benchmarks/v/adder_i16_o9.v"
     "benchmarks/v/mul_i8_o8.v"
-    #"benchmarks/v/adder_i16_o9.v"
-    "benchmarks/v/mul_i10_o10.v"
+    #"benchmarks/v/mul_i10_o10.v"
     #"benchmarks/v/mul_i12_o12.v"
     #"benchmarks/v/madd_i12_o8.v"
     #"benchmarks/v/adder_i28_o15.v"
@@ -43,7 +43,7 @@ for mode in "${EXTRACTION_MODES[@]}"; do
                 echo "Running: $bench | Encoding: $enc | Mode: $mode | Max Error: $err"
                 echo "#=================================================="
                 
-                CMD=".venv/bin/python main.py $bench --subxpat --encoding=$enc --extraction-mode=$mode --max-labeling --max-lpp=$lpp --max-ppo=$ppo --max-error=$err --imax=$IMAX --omax=$OMAX --error-partitioning=asc $EXTRA_ARGS"
+                CMD=".venv/bin/python3 main.py $bench --subxpat --encoding=$enc --extraction-mode=$mode --max-labeling --max-lpp=$lpp --max-ppo=$ppo --max-error=$err --imax=$IMAX --omax=$OMAX --error-partitioning=asc $EXTRA_ARGS"
                 echo "$CMD"
                 echo "#=================================================="
                 echo ""
