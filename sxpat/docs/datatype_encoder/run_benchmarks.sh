@@ -7,7 +7,7 @@ ENCODINGS=("z3dint"  "z3dbvec" "z3datatype")
 ERRORS=(4 8 16 32 64)
 
 # Define the extraction modes 
-EXTRACTION_MODES=(5)
+EXTRACTION_MODES=(1 5)
 
 # Define the benchmark files
 BENCHMARKS=(
