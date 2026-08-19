@@ -12,7 +12,7 @@ __all__ = [
     'Solver',
     'Z3FuncIntSolver', 'Z3FuncBitVecSolver',
     'Z3DirectIntSolver', 'Z3DirectBitVecSolver',
-    'Z3DataTypeSolver',
+    #'Z3DataTypeSolver',
 ]
 
 
