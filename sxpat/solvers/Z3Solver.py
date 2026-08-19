@@ -567,25 +567,25 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             # helper functions to recursively find all children (descendants) and parents (ancestors)
             def _descendants(name: str) -> list:
                 if name in _desc_cache: return _desc_cache[name]
-                found, stack, out = set(), list(successors.get(name, [])), []
+                found, stack, out = set(), set(successors.get(name, [])), []
                 while stack:
                     n = stack.pop()
                     if n in found: continue
                     found.add(n)
                     out.append(n)
-                    stack.extend(successors.get(n, []))
+                    stack.update(successors.get(n, []))
                 _desc_cache[name] = out
                 return out
     
             def _ancestors(name: str) -> list:
                 if name in _anc_cache: return _anc_cache[name]
-                found, stack, out = set(), list(predecessors.get(name, [])), []
+                found, stack, out = set(), set(predecessors.get(name, [])), []
                 while stack:
                     n = stack.pop()
                     if n in found: continue
                     found.add(n)
                     out.append(n)
-                    stack.extend(predecessors.get(n, []))
+                    stack.update(predecessors.get(n, []))
                 _anc_cache[name] = out
                 return out
 
