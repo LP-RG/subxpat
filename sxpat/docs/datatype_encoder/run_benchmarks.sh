@@ -11,16 +11,18 @@ EXTRACTION_MODES=(5 55)
 
 # Define the benchmark files
 BENCHMARKS=(
-    "benchmarks/v/adder_i8_o5.v"
-    "benchmarks/v/mul_i8_o8.v"
+    #"benchmarks/v/adder_i8_o5.v"
+    #"benchmarks/v/mul_i8_o8.v"
+    "benchmarks/v/adder_i16_o9.v"
+    "benchmarks/v/mul_i10_o10.v"
     #"benchmarks/v/mul_i12_o12.v"
     #"benchmarks/v/madd_i12_o8.v"
     #"benchmarks/v/adder_i28_o15.v"
 )
 
 # Common configuration parameters
-IMAX=4
-OMAX=2
+IMAX=8
+OMAX=5
 lpp=1
 ppo=1
 
