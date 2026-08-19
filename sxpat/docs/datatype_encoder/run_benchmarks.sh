@@ -23,8 +23,8 @@ BENCHMARKS=(
 # Common configuration parameters
 IMAX=8
 OMAX=5
-lpp=1
-ppo=1
+lpp=5
+ppo=5
 
 for mode in "${EXTRACTION_MODES[@]}"; do
     echo "# Mode $mode: "
