@@ -7,14 +7,14 @@ ENCODINGS=("z3dint"  "z3dbvec" "z3datatype")
 ERRORS=(4 8 16 32 64)
 
 # Define the extraction modes 
-EXTRACTION_MODES=(5)
+EXTRACTION_MODES=(1 2 3 4 5)
 
 # Define the benchmark files
 BENCHMARKS=(
     "benchmarks/v/adder_i8_o5.v"
     "benchmarks/v/adder_i16_o9.v"
     "benchmarks/v/mul_i8_o8.v"
-    #"benchmarks/v/mul_i10_o10.v"
+    "benchmarks/v/mul_i10_o10.v"
     #"benchmarks/v/mul_i12_o12.v"
     #"benchmarks/v/madd_i12_o8.v"
     #"benchmarks/v/adder_i28_o15.v"
@@ -23,8 +23,8 @@ BENCHMARKS=(
 # Common configuration parameters
 IMAX=8
 OMAX=5
-lpp=5
-ppo=5
+lpp=1
+ppo=1
 
 for mode in "${EXTRACTION_MODES[@]}"; do
     echo "# Mode $mode: "
