@@ -553,6 +553,16 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             destination.write('\n# --- Edges List ---\n')
             for src_name, tgt_name in edges:
                 destination.write(f"edges.append(Edge.mk_edge(nodes['{src_name}'], nodes['{tgt_name}']))\n")
+
+            # identify permanently disabled nodes
+            fixed_false_nodes = set()
+            for node in all_nodes:
+                weight = getattr(node, 'weight', 1)
+                if weight is None: weight = 1
+                if isinstance(node, (Variable, Constant, Target, Constraint)) or weight == -1:
+                    fixed_false_nodes.add(node.name)
+            for op in ghost_operands:
+                fixed_false_nodes.add(op)
     
             # convexity structure
             successors: Dict[str, list] = {}
@@ -589,24 +599,37 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                 _anc_cache[name] = out
                 return out
 
+
+            total_unique_names = list(unique_nodes.keys()) + ghost_operands
+            for node_name in total_unique_names:
+                desc = _descendants(node_name)
+                if desc:
+                    not_desc = ", ".join(f"Not(Node.in_subgraph(nodes['{l}']))" for l in desc + [node_name])
+                    destination.write(f"not_desc_{node_name} = And({not_desc})\n")
+                
+                anc = _ancestors(node_name)
+                if anc:
+                    not_anc = ", ".join(f"Not(Node.in_subgraph(nodes['{l}']))" for l in anc + [node_name])
+                    destination.write(f"not_anc_{node_name} = And({not_anc})\n")
+
             # creating the logic strings
             convexity_lines = []
             for src_name, tgt_name in edges:
+                if src_name in fixed_false_nodes and tgt_name in fixed_false_nodes:
+                    continue
                 desc = _descendants(tgt_name)
                 if desc:
                     # Use Datatype accessors exclusively!
-                    not_desc = ", ".join(f"Not(Node.in_subgraph(nodes['{l}']))" for l in desc + [tgt_name])
                     convexity_lines.append(
                         f"    Implies(And(Node.in_subgraph(nodes['{src_name}']), "
-                        f"Not(Node.in_subgraph(nodes['{tgt_name}']))), And({not_desc})),"
+                        f"Not(Node.in_subgraph(nodes['{tgt_name}']))), not_desc_{tgt_name}),"
                     )
                 anc = _ancestors(src_name)
                 if anc:
                     # Use Datatype accessors exclusively!
-                    not_anc = ", ".join(f"Not(Node.in_subgraph(nodes['{l}']))" for l in anc + [src_name])
                     convexity_lines.append(
                         f"    Implies(And(Not(Node.in_subgraph(nodes['{src_name}'])), "
-                        f"Node.in_subgraph(nodes['{tgt_name}'])), And({not_anc})),"
+                        f"Node.in_subgraph(nodes['{tgt_name}'])), not_anc_{src_name}),"
                     )
     
             destination.write('\n'.join((
