@@ -1,5 +1,7 @@
 import csv
+import os
 import re
+import sys
 from typing import Any, ClassVar, Optional, Union
 
 from os.path import join as path_join
@@ -179,7 +181,6 @@ class Labelling:
         script_path = self._get_script_path(target_node)
         FS.writefile(script_path, script)
         # run script
-        print(f"SCRIPT PATH from legacy: {script_path}")
         _time = Timer.now()
         result = subprocess.run(
             ['python3', script_path],
@@ -188,17 +189,21 @@ class Labelling:
         )
         _time = Timer.now() - _time
 
-        iter_nr = re.compile(r'/labelling(\d+)')
-        node_name = re.compile(r'/g(\d+)')
+        # measure and save individual nodes labelling times (if the save file exists)
+        circuit_name = re.compile(r'/v/(\w+).v')
+        individual_times_file = f'./individual_nodes_times/{circuit_name.search(sys.argv[1])[1]}.csv'
+        if os.path.isfile(individual_times_file):
+            iter_nr = re.compile(r'/labelling(\d+)')
+            node_name = re.compile(r'/g(\d+)')
 
-        data = [ {'iteration': int(iter_nr.search(script_path)[1]), 
-                'node': node_name.search(script_path)[1], 
-                'solver': 'legacy', 
-                'time': _time} ]
-        with open('./individual_nodes_times.csv', 'a', newline='') as csvfile:
-            fieldnames = ['iteration', 'node', 'solver', 'time']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writerows(data)
+            data = [ {'iteration': int(iter_nr.search(script_path)[1]), 
+                    'node': node_name.search(script_path)[1], 
+                    'solver': 'legacy', 
+                    'time': _time} ]
+            with open(individual_times_file, 'a', newline='') as csvfile:
+                fieldnames = ['iteration', 'node', 'solver', 'time']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writerows(data)
 
         # parse result
         self.__cached_weights[target_node] = _w = int(result.stdout)

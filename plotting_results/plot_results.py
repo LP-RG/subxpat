@@ -1,11 +1,13 @@
 from typing import Any, Sequence
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import os
 import sys
 
 def scatter_circuits(circuits: Sequence[Any], color_str: str, label_str: str, alpha_val: float, annotation: bool = False) -> None:
+    """
+        @authors: Ilia Zeller
+    """
     label = True
     for circuit in circuits:
         ypoints = circuit
@@ -18,6 +20,10 @@ def scatter_circuits(circuits: Sequence[Any], color_str: str, label_str: str, al
 
 
 def plot_encoder_circuits(circuits: Sequence[Any], color_str: str, label_str: str) -> None:
+    """
+        @authors: Ilia Zeller
+    """
+
     plt.figure(dpi=1500) 
     plt.title(f'{label_str} circuits')
     plt.xlabel('Iterations')
@@ -32,11 +38,25 @@ def plot_encoder_circuits(circuits: Sequence[Any], color_str: str, label_str: st
     plt.clf()
 
 def main():
+    """
+        Generate 3 types of plots. 
+        1. Single circuit for all encoders plot
+            Time trend through the iterations needed by each encoder to label a specific circuit.
+            Plots saved as 'individual_circuits_plots/CIRCUIT_NAME.png'.
+        2. All circuits for a single encorder plot 
+            Time trend through the iterations needed by a specific encoder to label every circuit.
+            Plots saved as 'all_circuits_plots/ENCODER_NAME_circuits_times_plot.png'.
+        3. All circuits for all encorders plot
+            Time trend through the iterations needed by each encorder to label every circuit.
+            Plots saved as 'all_circuits_plots/all_circuits_times_plot.png'.
+        
+        @authors: Ilia Zeller
+    """
 
     argv = sys.argv[1:]
-    output_dir = "output"
+    circuits_dir = "output"    
     if len(argv) > 0:
-        output_dir = argv[0]
+        circuits_dir = argv[0]
 
     all_circuits_legacy_times : Sequence[Any] = list()
     all_circuits_Z3_functional_times : Sequence[Any] = list()
@@ -44,20 +64,20 @@ def main():
     all_circuits_Z3_hybrid_times : Sequence[Any] = list()
     all_circuits_Qbf_times : Sequence[Any] = list()
 
-    os.makedirs("all_circuits_plots", exist_ok=True)
-    os.makedirs("individual_circuits_plots", exist_ok=True)
+    os.makedirs("./all_circuits_plots", exist_ok=True)
+    os.makedirs("./individual_circuits_plots", exist_ok=True)
 
-    circuits = os.listdir(output_dir)
+    circuits = os.listdir(circuits_dir)
     for circuit in circuits:
 
-        path_details = f'{output_dir}/{circuit}/run_details.csv' #ensure computation for current circuit is done
+        path_details = f'{circuits_dir}/{circuit}/run_details.csv' #ensure computation for 'circuit' is done
         if os.path.getsize(path_details) == 0:
             continue
         data = pd.read_csv(path_details)
         exact_circuit_path : str = str(list(data)[1])
         exact_circuit_name : str = (exact_circuit_path.split('/')[2]).split('.')[0]
 
-        path_stats = f'{output_dir}/{circuit}/run_stats.csv'
+        path_stats = f'{circuits_dir}/{circuit}/run_stats.csv'
         data = pd.read_csv(path_stats)
 
         iterations = data['iteration'].unique()
@@ -95,7 +115,7 @@ def main():
 
         plt.legend()
         plt.grid(linestyle = '--', linewidth = 0.5)
-        plt.savefig(f'{output_dir}/{circuit}/times_plot.png')
+        plt.savefig(f'{circuits_dir}/{circuit}/times_plot.png')
         plt.savefig(f'individual_circuits_plots/{exact_circuit_name}.png')
         plt.clf()
     

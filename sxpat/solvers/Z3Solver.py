@@ -1,4 +1,6 @@
 import csv
+import os
+import sys
 from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, overload, override
 from abc import abstractmethod
 
@@ -769,7 +771,6 @@ class Z3Solver(Solver):
         """
 
         # run
-        print(f"SCRIPT PATH from Z3: {script_path}")
         _time = Timer.now()
         process = subprocess.run(
             ['python3', script_path],
@@ -778,21 +779,25 @@ class Z3Solver(Solver):
         )
         _time = Timer.now() - _time
 
-        solver_type = re.compile(r'_(func|dire|hybr)')
-        st = solver_type.search(script_path)
-        if st:
-            st = solver_type.search(script_path)[1]
-            iter_nr = re.compile(r'iter(\d+)')
-            node_name = re.compile(r'_g(\d+)')
+        # measure and save individual nodes labelling times (if the save file exists)
+        circuit_name = re.compile(r'/v/(\w+).v')
+        individual_times_file = f'./individual_nodes_times/{circuit_name.search(sys.argv[1])[1]}.csv'
+        if os.path.isfile(individual_times_file):
+            solver_type = re.compile(r'_(func|dire|hybr)')
+            st = solver_type.search(script_path)
+            if st:
+                st = solver_type.search(script_path)[1]
+                iter_nr = re.compile(r'iter(\d+)')
+                node_name = re.compile(r'_g(\d+)')
 
-            data = [ {'iteration': int(iter_nr.search(script_path)[1]), 
-                    'node': node_name.search(script_path)[1], 
-                    'solver': st, 
-                    'time': _time} ]
-            with open('./individual_nodes_times.csv', 'a', newline='') as csvfile:
-                fieldnames = ['iteration', 'node', 'solver', 'time']
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writerows(data)
+                data = [ {'iteration': int(iter_nr.search(script_path)[1]), 
+                        'node': node_name.search(script_path)[1], 
+                        'solver': st, 
+                        'time': _time} ]
+                with open(individual_times_file, 'a', newline='') as csvfile:
+                    fieldnames = ['iteration', 'node', 'solver', 'time']
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                    writer.writerows(data)
 
         # return decoded output
         return process.stdout

@@ -34,6 +34,8 @@ Laura/
 /all_circuits_plots*
 /individual_circuits_plots*
 /individual_nodes_plots*
-/extras
+/extras*
 /output*
-costs.txt
+/individual_nodes_times*
+/individual_steps_costs*
+/issue_bitvec

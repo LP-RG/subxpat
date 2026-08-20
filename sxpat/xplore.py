@@ -1,4 +1,7 @@
 from __future__ import annotations
+import csv
+import re
+import sys
 from typing import Dict, Iterable, Iterator, List, Literal, Optional, Tuple, Union
 import dataclasses as dc
 
@@ -50,7 +53,6 @@ from sxpat.labelling.labelling import Labelling
 
 def explore_grid(specs_obj: Specifications):
     # initial setup
-    _time = Timer.now()
     # store circuits
     FS.copy(specs_obj.exact_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'origin.v'))
     specs_obj.exact_benchmark = tmp
@@ -59,6 +61,9 @@ def explore_grid(specs_obj: Specifications):
     # load exact circuit and compute its metrics
     exact_graph = load_circuit_from_verilog(specs_obj.exact_benchmark, specs_obj.path.run)
     exact_circuit_metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, specs_obj.exact_benchmark, specs_obj.path.run.temporary)
+
+    circuit_name = re.compile(r'/v/(\w+).v')
+    costs_csv_path =  f'./individual_steps_costs/{circuit_name.search(sys.argv[1])[1]}.csv'
 
     #
     all_generated_circuits_data = [
@@ -96,18 +101,10 @@ def explore_grid(specs_obj: Specifications):
             step = orig_et // 8 if orig_et // 8 > 0 else 1
             et_array = iter(list(range(step, orig_et + step, step)))
 
-    _time = Timer.now() - _time
-    with open('./costs.txt', 'a') as file:
-        file.write(f'Initialization time: {_time}\n')
-    print(f'COSTS REVIEW - Initialization time: {_time}')
-
     #
     while (obtained_wce_exact < specs_obj.max_error):
         specs_obj.iteration += 1
         specs_obj.stats_storage.stage(iteration=specs_obj.iteration)
-        with open('./costs.txt', 'a') as file:
-            file.write(f'Iteration: {specs_obj.iteration}\n')
-        print(f'COSTS REVIEW - Iteration: {specs_obj.iteration}')
 
         # compute error threshold for the iteration
         _time = Timer.now()
@@ -156,9 +153,9 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.et > specs_obj.max_error or specs_obj.et <= 0: break
 
         _time = Timer.now() - _time
-        with open('./costs.txt', 'a') as file:
-            file.write(f'Threshold computation time: {_time}\n')
-        print(f'COSTS REVIEW - Threshold computation time: {_time}')
+
+        # measure threshold cost
+        threshold_computation_time = _time
 
         # slash to kill
         if specs_obj.slash_to_kill:
@@ -203,9 +200,9 @@ def explore_grid(specs_obj: Specifications):
         # logging
         specs_obj.stats_storage.stage(annotated_graphs_initialization_time=_time)
         print(f'annotated_graph_loading_time = {_time}')
-        with open('./costs.txt', 'a') as file:
-            file.write(f'Annotated graph loading time: {_time}\n')
-        print(f'COSTS REVIEW - Annotated graph loading time: {_time}')
+
+        # measure loading cost
+        annotated_graph_loading_time = _time
 
         # label graph
         _time = Timer.now()
@@ -227,9 +224,9 @@ def explore_grid(specs_obj: Specifications):
             # input('PAUSED: enter to continue')
         
         _time = Timer.now() - _time
-        with open('./costs.txt', 'a') as file:
-            file.write(f'Labeling time: {_time}\n')
-        print(f'COSTS REVIEW - Labeling time: {_time}')
+
+        # measure labeling cost
+        labeling_time = _time
 
         # extract subgraph
         _time = Timer.now()
@@ -247,9 +244,10 @@ def explore_grid(specs_obj: Specifications):
             subgraph_outputs_count=len(current_graph.subgraph_outputs),
         )
         print(f'subgraph_extraction_time = {_time}')
-        with open('./costs.txt', 'a') as file:
-            file.write(f'Subgraph extraction time: {_time}\n')
-        print(f'COSTS REVIEW - Subgraph extraction time: {_time}')
+
+        # measure subgraph extraction cost
+        subgraph_extraction_time = _time
+
         # logging
         if specs_obj.debug:
             from sxpat.newag import export_annotated_graph
@@ -455,9 +453,22 @@ def explore_grid(specs_obj: Specifications):
             if specs_obj.debug: specs_obj.stats_storage.save()
 
         _time_explore_grid = Timer.now() - _time_explore_grid
-        with open('./costs.txt', 'a') as file:
-            file.write(f'Explore grid time: {_time_explore_grid}\n')
-        print(f'COSTS REVIEW: Explore grid time: {_time_explore_grid}')
+
+        # measure explore grid cost
+        explore_grid_time = _time_explore_grid
+
+        # save costs of individual steps (if the save file exists)
+        if os.path.isfile(costs_csv_path):
+            data = [ {'iteration': specs_obj.iteration,
+                    'threshold_computation_time': threshold_computation_time, 
+                    'annotated_graph_loading_time': annotated_graph_loading_time, 
+                    'labeling_time': labeling_time, 
+                    'subgraph_extraction_time': subgraph_extraction_time,
+                    'explore_grid_time': explore_grid_time} ]
+            with open(costs_csv_path, 'a', newline='') as csvfile:
+                fieldnames = ['iteration', 'threshold_computation_time', 'annotated_graph_loading_time', 'labeling_time', 'subgraph_extraction_time', 'explore_grid_time']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writerows(data)
 
         if status == SAT and best_model_data.area == 0:
             pprint.info3('Area zero found!\nTerminated.')

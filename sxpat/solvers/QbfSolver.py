@@ -3,7 +3,9 @@
 """
 
 import csv
+import os
 import re
+import sys
 from typing import IO, Any, Iterable, Mapping, Optional, Sequence, Tuple, TypeVar, Union, Dict, List, Protocol
 from typing_extensions import TypeAlias, Self
 
@@ -575,7 +577,6 @@ class QbfSolver(Solver):
         variables = list(set(variables))
         variables.sort()
 
-        print(f"SCRIPT PATH from Qbf: {script_path}")
         _time = Timer.now()
         with open(script_path, 'w') as f:
             id_gen = NodeIdGen()
@@ -619,17 +620,21 @@ class QbfSolver(Solver):
     
         _time = Timer.now() - _time
 
-        iter_nr = re.compile(r'_iter(\d+)')
-        node_name = re.compile(r'_g(\d+)')
+        # measure and save individual nodes labelling times (if the save file exists)
+        circuit_name = re.compile(r'/v/(\w+).v')
+        individual_times_file = f'./individual_nodes_times/{circuit_name.search(sys.argv[1])[1]}.csv'
+        if os.path.isfile(individual_times_file):
+            iter_nr = re.compile(r'_iter(\d+)')
+            node_name = re.compile(r'_g(\d+)')
 
-        data = [ {'iteration': int(iter_nr.search(script_path)[1]), 
-                'node': node_name.search(script_path)[1], 
-                'solver': 'qbf', 
-                'time': _time} ]
-        with open('./individual_nodes_times.csv', 'a', newline='') as csvfile:
-            fieldnames = ['iteration', 'node', 'solver', 'time']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writerows(data)
+            data = [ {'iteration': int(iter_nr.search(script_path)[1]), 
+                    'node': node_name.search(script_path)[1], 
+                    'solver': 'qbf', 
+                    'time': _time} ]
+            with open(individual_times_file, 'a', newline='') as csvfile:
+                fieldnames = ['iteration', 'node', 'solver', 'time']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writerows(data)
 
         result = subprocess.run(
             [specifications.path.tools.cqesto, script_path],
