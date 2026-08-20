@@ -14,20 +14,21 @@ BENCHMARKS=(
     #"benchmarks/v/adder_i8_o5.v"
     #"benchmarks/v/adder_i12_o7.v"
     #"benchmarks/v/adder_i16_o9.v"
-    #"benchmarks/v/adder_i28_o15.v"
+    "benchmarks/v/adder_i28_o15.v"
+    "benchmarks/v/mul_i4_o4.v"
+    "benchmarks/v/mul_i6_o6.v"
     "benchmarks/v/mul_i8_o8.v"
-    #"benchmarks/v/mul_i10_o10.v"
+    "benchmarks/v/mul_i10_o10.v"
+    "benchmarks/v/mul_i12_o12.v"
+    "benchmarks/v/madd_i12_o8.v"
     #"benchmarks/v/madd_i12_o8.v"
-    #"benchmarks/v/mul_i12_o12.v"
-    #"benchmarks/v/madd_i12_o8.v"
-    #"benchmarks/v/adder_i28_o15.v"
 )
 
 # Common configuration parameters
 IMAX=8
 OMAX=5
-lpp=3
-ppo=3
+lpp=1
+ppo=1
 
 for mode in "${EXTRACTION_MODES[@]}"; do
     echo "# Mode $mode: "
