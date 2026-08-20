@@ -12,6 +12,7 @@ EXTRACTION_MODES=(5)
 # Define the benchmark files
 BENCHMARKS=(
     #"benchmarks/v/adder_i8_o5.v"
+    "benchmarks/v/adder_i12_o7.v"
     "benchmarks/v/adder_i16_o9.v"
     #"benchmarks/v/adder_i28_o15.v"
     #"benchmarks/v/mul_i8_o8.v"
@@ -25,8 +26,8 @@ BENCHMARKS=(
 # Common configuration parameters
 IMAX=8
 OMAX=5
-lpp=6
-ppo=10
+lpp=3
+ppo=3
 
 for mode in "${EXTRACTION_MODES[@]}"; do
     echo "# Mode $mode: "
