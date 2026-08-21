@@ -30,7 +30,7 @@ class Z3DirectBitVecSolver {
 
 ' UROP Addition:
 class Z3DataTypeSolver #LightGreen {
-  + encoder = Z3DataTypeEncoder
+  + encoder = Z3NodeEdgeEncoder
 }
 
 ' Relationships
