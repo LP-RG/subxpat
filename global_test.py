@@ -51,10 +51,10 @@ if __name__ == "__main__":
     max_threads = 2
 
     # the list of betas
-    tasks = [8, 4, 2, 1]
+    tasks = [16, 8, 4, 2, 1]
 
     #the list of indexes
-    index=[2,3,4,5]
+    index=[2,3,4,5,6]
     
 
     with ThreadPoolExecutor(max_threads) as pool:
