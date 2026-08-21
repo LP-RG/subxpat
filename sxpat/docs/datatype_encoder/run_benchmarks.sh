@@ -11,6 +11,11 @@ EXTRACTION_MODES=(5)
 
 # Define the benchmark files
 BENCHMARKS=(
+    "benchmarks/v/abs_diff_i20_o10.v"
+    "benchmarks/v/abs_diff_i24_o12.v"
+    "benchmarks/v/abs_diff_i28_o14.v"
+    "benchmarks/v/abs_diff_i32_o16.v"
+    "benchmarks/v/abs_diff_i36_o18.v"
     #"benchmarks/v/adder_i8_o5.v"
     #"benchmarks/v/adder_i12_o7.v"
     #"benchmarks/v/adder_i16_o9.v"
@@ -24,8 +29,8 @@ BENCHMARKS=(
     #"benchmarks/v/mul_i8_o8.v"
     #"benchmarks/v/mul_i10_o10.v"
     #"benchmarks/v/mul_i12_o12.v"
-    "benchmarks/v/madd_i6_o4.v"
-    "benchmarks/v/madd_i9_o6.v"
+    #"benchmarks/v/madd_i6_o4.v"
+    #"benchmarks/v/madd_i9_o6.v"
     "benchmarks/v/madd_i12_o8.v"
     "benchmarks/v/madd_i15_o10.v"
 )
