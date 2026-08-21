@@ -35,7 +35,7 @@ package "Component Library" as CL #D9D7B6 {
     [Penalty-based Soft Constraints] as PS
     [Multi-Partition Iteration Engine] as MPE
     [Search Space Calibration & State Management] as SSCSM
-    [Symbolic Topology Management] as STM
+    [Bitvector Topology Management] as BTM
     [Interactive & Diagnostic Tools] as IDT
 }
 
@@ -112,8 +112,8 @@ A12 -right-> MPE
 A6 -right-> SSCSM
 
 ' mapping dependencies for 'Symbolic Topology Management'
-A55 --> STM
-A100 --> STM
+A55 --> BTM
+A100 --> BTM
 A6 -right-> A55
 
 ' mapping dependencies for 'Interactive & Diagnostic Tools'
