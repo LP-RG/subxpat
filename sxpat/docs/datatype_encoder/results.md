@@ -917,5 +917,115 @@ iteration 10: #ofNodes=18 subgraph_extraction_time: 74.42401999999993
 ---
 total_subgraph_extraction_time: 164.49849100000006
 
+#==================================================
+Running: benchmarks/v/abs_diff_i10_o5.v | Encoding: z3dint | Mode: 5 | Max Error: 64
+#==================================================
+.venv/bin/python3 main.py benchmarks/v/abs_diff_i10_o5.v --subxpat --encoding=z3dint --extraction-mode=5 --max-labeling --max-lpp=1 --max-ppo=1 --max-error=64 --imax=8 --omax=5 --error-partitioning=asc 
+#==================================================
+
+iteration 1: #ofNodes=27 subgraph_extraction_time: 47.65723799999999
+iteration 2: #ofNodes=31 subgraph_extraction_time: 0.18914499999999634
+iteration 3: #ofNodes=49 subgraph_extraction_time: 0.26700400000001423
+iteration 4: #ofNodes=49 subgraph_extraction_time: 0.30666199999998867
+iteration 5: #ofNodes=49 subgraph_extraction_time: 0.301589000000007
+iteration 6: #ofNodes=49 subgraph_extraction_time: 0.2713019999999915
+iteration 7: #ofNodes=49 subgraph_extraction_time: 0.49125600000002123
+iteration 8: #ofNodes=49 subgraph_extraction_time: 0.3051269999999988
+iteration 9: #ofNodes=49 subgraph_extraction_time: 0.31108199999999897
+---
+total_subgraph_extraction_time: 50.10040500000001
+
+#==================================================
+Running: benchmarks/v/abs_diff_i10_o5.v | Encoding: z3dbvec | Mode: 5 | Max Error: 64
+#==================================================
+.venv/bin/python3 main.py benchmarks/v/abs_diff_i10_o5.v --subxpat --encoding=z3dbvec --extraction-mode=5 --max-labeling --max-lpp=1 --max-ppo=1 --max-error=64 --imax=8 --omax=5 --error-partitioning=asc 
+#==================================================
+
+iteration 1: #ofNodes=27 subgraph_extraction_time: 47.83253
+iteration 2: #ofNodes=22 subgraph_extraction_time: 0.4773139999999927
+iteration 3: #ofNodes=37 subgraph_extraction_time: 0.9014360000000039
+iteration 4: #ofNodes=42 subgraph_extraction_time: 27.33323200000001
+iteration 5: #ofNodes=34 subgraph_extraction_time: 0.07358799999997245
+---
+total_subgraph_extraction_time: 76.61809999999997
+
+#==================================================
+Running: benchmarks/v/abs_diff_i10_o5.v | Encoding: z3datatype | Mode: 5 | Max Error: 64
+#==================================================
+.venv/bin/python3 main.py benchmarks/v/abs_diff_i10_o5.v --subxpat --encoding=z3datatype --extraction-mode=5 --max-labeling --max-lpp=1 --max-ppo=1 --max-error=64 --imax=8 --omax=5 --error-partitioning=asc 
+#==================================================
+
+iteration 1: #ofNodes=27 subgraph_extraction_time: 48.56495000000001
+iteration 2: #ofNodes=31 subgraph_extraction_time: 0.19605199999999456
+iteration 3: #ofNodes=49 subgraph_extraction_time: 0.2699489999999969
+iteration 4: #ofNodes=49 subgraph_extraction_time: 0.3005399999999838
+iteration 5: #ofNodes=49 subgraph_extraction_time: 0.29764800000000946
+iteration 6: #ofNodes=49 subgraph_extraction_time: 0.2691110000000094
+iteration 7: #ofNodes=49 subgraph_extraction_time: 0.4937349999999867
+iteration 8: #ofNodes=49 subgraph_extraction_time: 0.30925999999999476
+iteration 9: #ofNodes=49 subgraph_extraction_time: 0.3087409999999977
+---
+total_subgraph_extraction_time: 51.009985999999984
+
+#==================================================
+Running: benchmarks/v/abs_diff_i12_o6.v | Encoding: z3dint | Mode: 5 | Max Error: 64
+#==================================================
+.venv/bin/python3 main.py benchmarks/v/abs_diff_i12_o6.v --subxpat --encoding=z3dint --extraction-mode=5 --max-labeling --max-lpp=1 --max-ppo=1 --max-error=64 --imax=8 --omax=5 --error-partitioning=asc 
+#==================================================
+
+iteration 1: #ofNodes=24 subgraph_extraction_time: 8918.357646
+iteration 2: #ofNodes=21 subgraph_extraction_time: 0.44910499999969034
+iteration 3: #ofNodes=35 subgraph_extraction_time: 0.7706749999997555
+iteration 4: #ofNodes=31 subgraph_extraction_time: 0.16133699999954842
+iteration 5: #ofNodes=31 subgraph_extraction_time: 0.39711800000077346
+iteration 6: #ofNodes=23 subgraph_extraction_time: 0.04370100000051025
+iteration 7: #ofNodes=23 subgraph_extraction_time: 0.03379700000004959
+iteration 8: #ofNodes=23 subgraph_extraction_time: 0.045889000000897795
+iteration 9: #ofNodes=23 subgraph_extraction_time: 0.044447000000218395
+iteration 10: #ofNodes=23 subgraph_extraction_time: 0.04518099999950209
+iteration 11: #ofNodes=23 subgraph_extraction_time: 0.041831999998976244
+---
+total_subgraph_extraction_time: 8920.390728
+
+#==================================================
+Running: benchmarks/v/abs_diff_i12_o6.v | Encoding: z3dbvec | Mode: 5 | Max Error: 64
+#==================================================
+.venv/bin/python3 main.py benchmarks/v/abs_diff_i12_o6.v --subxpat --encoding=z3dbvec --extraction-mode=5 --max-labeling --max-lpp=1 --max-ppo=1 --max-error=64 --imax=8 --omax=5 --error-partitioning=asc 
+#==================================================
+
+iteration 1: #ofNodes=24 subgraph_extraction_time: 8960.053674
+iteration 2: #ofNodes=21 subgraph_extraction_time: 0.44759000000158267
+iteration 3: #ofNodes=35 subgraph_extraction_time: 0.7674630000001343
+iteration 4: #ofNodes=31 subgraph_extraction_time: 0.15648099999998522
+iteration 5: #ofNodes=31 subgraph_extraction_time: 0.3942380000007688
+iteration 6: #ofNodes=23 subgraph_extraction_time: 0.04391600000053586
+iteration 7: #ofNodes=23 subgraph_extraction_time: 0.0426099999986036
+iteration 8: #ofNodes=23 subgraph_extraction_time: 0.043455000000903965
+iteration 9: #ofNodes=23 subgraph_extraction_time: 0.04747099999985949
+iteration 10: #ofNodes=23 subgraph_extraction_time: 0.04345800000191957
+iteration 11: #ofNodes=23 subgraph_extraction_time: 0.04201699999975972
+---
+total_subgraph_extraction_time: 8962.082373000005
+
+#==================================================
+Running: benchmarks/v/abs_diff_i12_o6.v | Encoding: z3datatype | Mode: 5 | Max Error: 64
+#==================================================
+.venv/bin/python3 main.py benchmarks/v/abs_diff_i12_o6.v --subxpat --encoding=z3datatype --extraction-mode=5 --max-labeling --max-lpp=1 --max-ppo=1 --max-error=64 --imax=8 --omax=5 --error-partitioning=asc 
+#==================================================
+
+iteration 1: #ofNodes=24 subgraph_extraction_time: 8695.274905999999
+iteration 2: #ofNodes=21 subgraph_extraction_time: 0.44587699999829056
+iteration 3: #ofNodes=35 subgraph_extraction_time: 0.7608099999997648
+iteration 4: #ofNodes=31 subgraph_extraction_time: 0.1570659999997588
+iteration 5: #ofNodes=31 subgraph_extraction_time: 0.39601199999924575
+iteration 6: #ofNodes=23 subgraph_extraction_time: 0.04477899999983492
+iteration 7: #ofNodes=23 subgraph_extraction_time: 0.042201999998724204
+iteration 8: #ofNodes=23 subgraph_extraction_time: 0.04459399999905145
+iteration 9: #ofNodes=23 subgraph_extraction_time: 0.045760999999401974
+iteration 10: #ofNodes=23 subgraph_extraction_time: 0.04178499999943597
+iteration 11: #ofNodes=23 subgraph_extraction_time: 0.04135399999904621
+---
+total_subgraph_extraction_time: 8697.295145999991
+
 
 #==============================================================================================================================
