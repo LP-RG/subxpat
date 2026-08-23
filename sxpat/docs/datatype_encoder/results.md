@@ -1027,5 +1027,41 @@ iteration 11: #ofNodes=23 subgraph_extraction_time: 0.04135399999904621
 ---
 total_subgraph_extraction_time: 8697.295145999991
 
+# Mode 1: 
+#==================================================
+Error Space - 64
+#==================================================
+Running: benchmarks/v/abs_diff_i10_o5.v | Encoding: z3dint | Mode: 1 | Max Error: 64
+#==================================================
+.venv/bin/python3 main.py benchmarks/v/abs_diff_i10_o5.v --subxpat --encoding=z3dint --extraction-mode=1 --max-labeling --max-lpp=1 --max-ppo=1 --max-error=64 --imax=8 --omax=5 --error-partitioning=asc 
+#==================================================
+
+iteration 1: #ofNodes=47 subgraph_extraction_time: 360.6644600000001
+iteration 2: #ofNodes=47 subgraph_extraction_time: 1255.580847
+---
+total_subgraph_extraction_time: 1616.2453070000001
+
+#==================================================
+Running: benchmarks/v/abs_diff_i10_o5.v | Encoding: z3dbvec | Mode: 1 | Max Error: 64
+#==================================================
+.venv/bin/python3 main.py benchmarks/v/abs_diff_i10_o5.v --subxpat --encoding=z3dbvec --extraction-mode=1 --max-labeling --max-lpp=1 --max-ppo=1 --max-error=64 --imax=8 --omax=5 --error-partitioning=asc 
+#==================================================
+
+iteration 1: #ofNodes=47 subgraph_extraction_time: 371.652225
+iteration 2: #ofNodes=47 subgraph_extraction_time: 1314.8515469999998
+---
+total_subgraph_extraction_time: 1686.5037719999998
+
+#==================================================
+Running: benchmarks/v/abs_diff_i10_o5.v | Encoding: z3datatype | Mode: 1 | Max Error: 64
+#==================================================
+.venv/bin/python3 main.py benchmarks/v/abs_diff_i10_o5.v --subxpat --encoding=z3datatype --extraction-mode=1 --max-labeling --max-lpp=1 --max-ppo=1 --max-error=64 --imax=8 --omax=5 --error-partitioning=asc 
+#==================================================
+
+iteration 1: #ofNodes=47 subgraph_extraction_time: 319.893054
+iteration 2: #ofNodes=47 subgraph_extraction_time: 1186.002104
+---
+total_subgraph_extraction_time: 1505.8951579999998
+
 
 #==============================================================================================================================

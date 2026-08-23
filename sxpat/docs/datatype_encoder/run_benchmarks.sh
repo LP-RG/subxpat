@@ -12,7 +12,7 @@ EXTRACTION_MODES=(1 11)
 # Define the benchmark files
 BENCHMARKS=(
     #"benchmarks/v/abs_diff_i8_o4.v"
-    "benchmarks/v/abs_diff_i10_o5.v"
+    #"benchmarks/v/abs_diff_i10_o5.v"
     #"benchmarks/v/abs_diff_i12_o6.v"
     #"benchmarks/v/abs_diff_i16_o8.v"
     #"benchmarks/v/abs_diff_i20_o10.v"
