@@ -319,7 +319,7 @@ def explore_grid(specs_obj: Specifications):
                 for candidate_data in cur_model_results:
                     #
                     _time = Timer.now()
-                    cur_graph = load_circuit_from_verilog(verilog_path, specs_obj.path.run)
+                    cur_graph = load_circuit_from_verilog(candidate_data.path, specs_obj.path.run)
                     _time = Timer.now() - _time
                     # logging
                     specs_obj.stats_storage.stage(erroreval_annotated_graphs_initialization_time=_time)
