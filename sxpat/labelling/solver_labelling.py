@@ -93,7 +93,7 @@ class Labelling:
                 )
         return all_zones
 
-    def label_node(self, node_to_label: str, zone_intervals:Zone = None) -> int:
+    def label_node(self, node_to_label: str, zone_intervals:Zone = None, target_error: int = None) -> int:
         """
         Evaluates a specific node within an input zone to calculate its weight.
         """
@@ -104,7 +104,7 @@ class Labelling:
         # define question
         question = [
             self.reference,
-            *self._define_question(node_to_label, zone_intervals)
+            *self._define_question(node_to_label, zone_intervals, target_error)
         ]
 
         # run solver
@@ -120,7 +120,7 @@ class Labelling:
 
     #iterating through all the zones
 
-    def label_all_zones(self, node_to_label:str, input1_zone:Tuple[int, int], input2_zone:Tuple[int,int], beta:int) -> Dict[str, int]:
+    def label_all_zones(self, node_to_label:str, input1_zone:Tuple[int, int], input2_zone:Tuple[int,int], beta:int, et_list) -> Dict[str, int]:
         """
         Iterates over the entire partitioned input space to calculate the error weight of a node in every zone.
 
@@ -132,11 +132,27 @@ class Labelling:
 
         #for every zone the node is labelled with a weight 
         for zone in self.zone_generator(input1_zone, input2_zone, beta):
-            weight = self.label_node(node_to_label, zone)
+            # weight = self.label_node(node_to_label, zone)
 
-            if weight is not None:
-                # MARCO:COMMENT: (TAG:A) if you implemented the other TAG:A, here you can use zone_weights[zone] = weight
-                zone_weights[zone] = weight
+            # if weight is not None:
+            #     # MARCO:COMMENT: (TAG:A) if you implemented the other TAG:A, here you can use zone_weights[zone] = weight
+            #     zone_weights[zone] = weight
+            if et_list is None:
+                weight = self.label_node(node_to_label, zone)
+                if weight is not None:
+                    zone_weights[zone] = weight
+                    
+            # PARTITIONED EXECUTION
+            else:
+                for target in et_list:
+                    # Feed the specific target to the solver
+                    weight = self.label_node(node_to_label, zone, target_error=target)
+                    
+                    if weight is not None:
+                        # Found the minimum valid bracket
+                        zone_weights[zone] = weight
+                        break
+
 
         return zone_weights
 
@@ -155,7 +171,7 @@ class Labelling:
     def label_graph(self) -> Dict[str, int]:
         raise NotImplementedError('To be done later')
 
-    def _define_question(self, node_to_label: str, zone_intervals: Zone):
+    def _define_question(self, node_to_label: str, zone_intervals: Zone, target_error: int = None):
         # > guards
         if node_to_label not in self.to_be_labelled:
             raise ValueError(f'Node {node_to_label} not found in circuit')
@@ -200,6 +216,21 @@ class Labelling:
                 zero := IntConstant('Zero', value=0),
                 gt := GreaterThan('GT_0', operands=[abs_diff.name, zero.name]),
                 Constraint.of(gt),
+            ])
+
+
+        if target_error is not None:
+            # 1. Create a constant node for the target error number
+            target_const = IntConstant('target_error_limit', value=target_error)
+            
+            # 2. Mathematically define: weight <= target_error
+            le_target = LessEqualThan('LE_target', operands=[abs_diff.name, target_const.name])
+            
+            # 3. Add them to the graph and force Z3 to obey it as a strict constraint
+            new_nodes.extend([
+                target_const,
+                le_target,
+                Constraint.of(le_target)
             ])
 
         # MARCO:REVIEW:
