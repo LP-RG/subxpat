@@ -142,14 +142,13 @@ class Labelling:
                 if weight is not None:
                     zone_weights[zone] = weight
                     
-            # PARTITIONED EXECUTION
+            # partitioning
             else:
                 for target in et_list:
-                    # Feed the specific target to the solver
-                    weight = self.label_node(node_to_label, zone, target_error=target)
+                    # feed the specific target to the solver
+                    weight = self.label_node(node_to_label, zone, target)
                     
                     if weight is not None:
-                        # Found the minimum valid bracket
                         zone_weights[zone] = weight
                         break
 
@@ -219,14 +218,14 @@ class Labelling:
             ])
 
 
-        if target_error is not None:
-            # 1. Create a constant node for the target error number
+        if target_error is not None: #formulate the weight <= target error
+    
             target_const = IntConstant('target_error_limit', value=target_error)
             
-            # 2. Mathematically define: weight <= target_error
+            # weight <= target_error
             le_target = LessEqualThan('LE_target', operands=[abs_diff.name, target_const.name])
             
-            # 3. Add them to the graph and force Z3 to obey it as a strict constraint
+            # add them
             new_nodes.extend([
                 target_const,
                 le_target,
