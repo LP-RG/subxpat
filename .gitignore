@@ -31,3 +31,8 @@ Laura/
 .DS_Store
 nohup.out
 .gitignore
+
+/program_outputs
+/program_outputs_global
+/program_outputs_max_lab
+/program_outputs_subgraph
