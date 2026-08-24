@@ -7,12 +7,12 @@ ENCODINGS=("z3dint"  "z3dbvec" "z3datatype")
 ERRORS=(64)
 
 # Define the extraction modes 
-EXTRACTION_MODES=(1 11)
+EXTRACTION_MODES=(11 5)
 
 # Define the benchmark files
 BENCHMARKS=(
     #"benchmarks/v/abs_diff_i8_o4.v"
-    "benchmarks/v/abs_diff_i10_o5.v"
+    #"benchmarks/v/abs_diff_i10_o5.v"
     #"benchmarks/v/abs_diff_i12_o6.v"
     #"benchmarks/v/abs_diff_i16_o8.v"
     #"benchmarks/v/abs_diff_i20_o10.v"
@@ -22,16 +22,16 @@ BENCHMARKS=(
     #"benchmarks/v/abs_diff_i36_o18.v"
     #"benchmarks/v/adder_i8_o5.v"
     #"benchmarks/v/adder_i12_o7.v"
-    #"benchmarks/v/adder_i16_o9.v"
-    #---"benchmarks/v/adder_i28_o15.v"
-    #---"benchmarks/v/adder_i32_o17.v"
+    "benchmarks/v/adder_i16_o9.v"
+    "benchmarks/v/adder_i28_o15.v"
+    "benchmarks/v/adder_i32_o17.v"
     #---"benchmarks/v/adder_i36_o19.v"
     #---"benchmarks/v/adder_i40_o21.v"
     #---"benchmarks/v/adder_i64_o33.v"
     #"benchmarks/v/mul_i4_o4.v"
     #---"benchmarks/v/mul_i6_o6.v"
-    #---"benchmarks/v/mul_i8_o8.v"
-    #---"benchmarks/v/mul_i10_o10.v"
+    "benchmarks/v/mul_i8_o8.v"
+    "benchmarks/v/mul_i10_o10.v"
     #"benchmarks/v/mul_i12_o12.v"
     #"benchmarks/v/madd_i6_o4.v"
     #"benchmarks/v/madd_i9_o6.v"
