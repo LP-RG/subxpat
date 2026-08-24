@@ -645,8 +645,15 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
         node_times = []
         for node in circuit.nodes:
             _time = Timer.now()
+
+            #partitioning
+            if specs_obj.error_partitioning is ErrorPartitioningType.EXPONENTIAL:
+                zone_et_array = iter([2**i for i in range(8)]) 
+            else:
+                zone_et_array = None
+
             zone_dict = labeller.label_all_zones(
-                node.name, input1_zone, input2_zone, specs_obj.beta
+                node.name, input1_zone, input2_zone, specs_obj.beta, zone_et_array
             )
             _time = Timer.now() - _time
 
