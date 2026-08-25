@@ -50,9 +50,9 @@ if __name__ == "__main__":
 
     # the list of betas
     tasks = [16, 8, 4, 2, 1]
-
+    
     #the list of indexes
-    index=[1,2,3,4,5]
+    index=[2,3,4,5,6]
     
 
     with ThreadPoolExecutor(max_threads) as pool:
