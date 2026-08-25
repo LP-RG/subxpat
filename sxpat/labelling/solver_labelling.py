@@ -120,7 +120,7 @@ class Labelling:
 
     #iterating through all the zones
 
-    def label_all_zones(self, node_to_label:str, input1_zone:Tuple[int, int], input2_zone:Tuple[int,int], beta:int, et_list) -> Dict[str, int]:
+    def label_all_zones(self, node_to_label:str, input1_zone:Tuple[int, int], input2_zone:Tuple[int,int], beta:int) -> Dict[str, int]:
         """
         Iterates over the entire partitioned input space to calculate the error weight of a node in every zone.
 
