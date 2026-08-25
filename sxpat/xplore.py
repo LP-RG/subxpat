@@ -90,12 +90,16 @@ def explore_grid(specs_obj: Specifications):
         max_out_node = specs_obj.outputs
 
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
-        orig_et = specs_obj.max_error if specs_obj.zone_constraint is None else 100
+        if specs_obj.zone_constraint is None:
+            orig_et = specs_obj.max_error
+        else:
+            orig_et = specs_obj.beta ** 2
+    
         if orig_et <= 8:
-            et_array = iter(list(range(1, orig_et + 1, 1)))
+            et_array = iter(list(range(1, int(orig_et) + 1, 1)))
         else:
             step = orig_et // specs_obj.partition_divider if orig_et // specs_obj.partition_divider > 0 else 1
-            list_values = list(range(step, orig_et + step, step))
+            list_values = list(range(int(step), int(orig_et + step), int(step)))
             et_array = iter(list_values)
     elif specs_obj.error_partitioning is ErrorPartitioningType.EXPONENTIAL:
         et_array = iter([2**i for i in range(8)])
