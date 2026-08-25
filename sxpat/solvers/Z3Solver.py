@@ -448,12 +448,6 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         # constants - writes the circuit constants (if any exist)
         cls.inject_constants(destination, graphs, accessories)
 
-        destination.write('\n'.join((
-            '# define solver',
-            f'solver = {solver_construct[type(global_task)]}',
-            *('',) * 2,
-        )))
-
         # =====================================================================
         # PHASE 2: VERIFICATION (Circuit Logic)
         # it only runs when I check the error (For All/None); we turn this off at Extraction!
@@ -461,17 +455,17 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         # why the 'not isinstance(Min, Max)' if statement? Because in Phase 1 
         # (when we cut the graph), we do not want to simulate current. If we did, 
         # Z3 would choke trying to solve logic equations instead of cutting edges.
-        #if not isinstance(global_task, (Min, Max)):
-        # nodes behavior
-        destination.write('\n'.join((
-            '# behaviour',
-            *(
-                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
-                for graph in graphs
-                for node in graph.expressions
-            ),
-            *('',) * 2,
-        )))
+        if not isinstance(global_task, (Min, Max)):
+            # nodes behavior
+            destination.write('\n'.join((
+                '# behaviour',
+                *(
+                    f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
+                    for graph in graphs
+                    for node in graph.expressions
+                ),
+                *('',) * 2,
+            )))
 
         # =====================================================================
         # PHASE 1: EXTRACTION (Datatypes + Convexity)
@@ -479,202 +473,177 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         # =====================================================================
         # why the 'isinstance(Min, Max)' if statement? this triggers only when 
         # optimizing. we don't want to overhead Phase 2 with graph structure generation.
-        #if isinstance(global_task, (Min, Max)):
-        # gather all nodes, edges, and hidden constraint operands
-        all_nodes = []
-        unique_nodes = {}
-        edges = []
-        
-        ghost_operands = [] # tracks internal variables missing from graph.nodes
-
-        # gather all nodes and edges
-        for graph in graphs:
-            for node in graph.nodes:
-                if node.name not in unique_nodes:
-                    unique_nodes[node.name] = node
-                    all_nodes.append(node)
-        
-        # build edges and catch hidden constraint operands
-        for graph in graphs:
-            for node in graph.nodes:
-                if hasattr(node, 'operands'):
-                    for op_name in node.operands:
-                        edges.append((op_name, node.name))
-                        # if the operand wasn't caught, register it as a ghost
-                        if op_name not in unique_nodes and op_name not in ghost_operands:
-                            ghost_operands.append(op_name)
-
-        # calculate how many bits we need for the node ID 
-        total_node_count = len(all_nodes) + len(ghost_operands)
-        # calculate how many bits we need for the node ID 
-        # (e.g., 8 nodes = 4 bits)
-        num_bits = max(1, total_node_count.bit_length()) + 1
-
-        # Declare Datatypes
-        destination.write('\n'.join((
-            '# --- Node / Edge Datatypes (BitVec-sized) ---',
-            'Node = Datatype("Node")',
-            f'Node.declare("mk_node", ("id", BitVecSort({num_bits})), ("weight", BitVecSort({num_bits})), ("in_subgraph", BoolSort()))',
-            'Node = Node.create()',
-            '',
-            'Edge = Datatype("Edge")',
-            'Edge.declare("mk_edge", ("source", Node), ("target", Node))',
-            'Edge = Edge.create()',
-            'nodes = {}',
-            'edges = []',
-            *('',) * 2,
-        )))
-
-        # create the nodes 
-        destination.write('# --- Nodes Dictionary ---\n')
-        node_idx = 0  # use a manual counter so we can continue it for ghosts
-        for node in all_nodes:
-            weight = getattr(node, 'weight', None)
-            weight = 1 if weight is None else weight
-
-            # fix: use a dummy variable (_sel) for the constructor
-            # this prevents Z3 from flattening the Datatype to the circuit variable
-            sel_expr = f"Bool('{node.name}_sel')"
+        if isinstance(global_task, (Min, Max)):
+            # gather all nodes, edges, and hidden constraint operands
+            all_nodes = []
+            unique_nodes = {}
+            edges = []
             
-            destination.write(
-                f"nodes['{node.name}'] = Node.mk_node(BitVecVal({node_idx}, {num_bits}), "
-                f"BitVecVal({weight}, {num_bits}), {sel_expr})\n"
-            )
+            ghost_operands = [] # tracks internal variables missing from graph.nodes
 
-            # fix fixed nodes (I/O, constants, unlabeled) explicitly via the Datatype accessor
-            if isinstance(node, (Variable, Constant, Target, Constraint)) or weight == -1:
-                destination.write(f"solver.add(Node.in_subgraph(nodes['{node.name}']) == BoolVal(False))\n")
-            else:
-                # link the circuit boolean variable to the Datatype accessor for usage constraints
-                #destination.write(f"{node.name} = Bool('{node.name}')\n")
-                #destination.write(f"solver.add({node.name} == Node.in_subgraph(nodes['{node.name}']))\n")
-                pass
+            # gather all nodes and edges
+            for graph in graphs:
+                for node in graph.nodes:
+                    if node.name not in unique_nodes:
+                        unique_nodes[node.name] = node
+                        all_nodes.append(node)
             
-            node_idx += 1 # Increment the ID
+            # build edges and catch hidden constraint operands
+            for graph in graphs:
+                for node in graph.nodes:
+                    if hasattr(node, 'operands'):
+                        for op_name in node.operands:
+                            edges.append((op_name, node.name))
+                            # if the operand wasn't caught, register it as a ghost
+                            if op_name not in unique_nodes and op_name not in ghost_operands:
+                                ghost_operands.append(op_name)
 
-        # create the ghost nodes
-        if ghost_operands:
-            destination.write('\n# --- Internal Constraints & Operands Nodes ---\n')
-            for op_name in ghost_operands:
-                sel_expr = f"Bool('{op_name}_sel')"
-                destination.write(f"nodes['{op_name}'] = Node.mk_node(BitVecVal({node_idx}, {num_bits}), BitVecVal(1, {num_bits}), {sel_expr})\n")
-                destination.write(f"solver.add(Node.in_subgraph(nodes['{op_name}']) == BoolVal(False))\n")
-                node_idx += 1 # increment the ID
+            # calculate how many bits we need for the node ID 
+            total_node_count = len(all_nodes) + len(ghost_operands)
+            # calculate how many bits we need for the node ID 
+            # (e.g., 8 nodes = 4 bits)
+            num_bits = max(1, total_node_count.bit_length()) + 1
+    
+            # Declare Datatypes
+            destination.write('\n'.join((
+                '# --- Node / Edge Datatypes (BitVec-sized) ---',
+                'Node = Datatype("Node")',
+                f'Node.declare("mk_node", ("id", BitVecSort({num_bits})), ("weight", BitVecSort({num_bits})), ("in_subgraph", BoolSort()))',
+                'Node = Node.create()',
+                '',
+                'Edge = Datatype("Edge")',
+                'Edge.declare("mk_edge", ("source", Node), ("target", Node))',
+                'Edge = Edge.create()',
+                'nodes = {}',
+                'edges = []',
+                *('',) * 2,
+            )))
 
-        # create the edges 
-        destination.write('\n# --- Edges List ---\n')
-        for src_name, tgt_name in edges:
-            destination.write(f"edges.append(Edge.mk_edge(nodes['{src_name}'], nodes['{tgt_name}']))\n")
-
-
-        # --- reuse existing node_idx ordering as bit positions ---
-        # total_unique_names is already built in the same order node_idx was assigned,
-        # so name_to_bit[name] == the 'id' value already stored in the Node datatype.
-        # --- reuse existing node_idx ordering as bit positions ---
-        total_unique_names = list(unique_nodes.keys()) + ghost_operands
-        name_to_bit = {name: i for i, name in enumerate(total_unique_names)}
-        mask_width = total_node_count  # one bit per node (real + ghost)
-
-        # convexity structure
-        successors: Dict[str, list] = {}
-        predecessors: Dict[str, list] = {}
-        for src_name, tgt_name in edges:
-            successors.setdefault(src_name, []).append(tgt_name)
-            predecessors.setdefault(tgt_name, []).append(src_name)
-
-        _desc_cache: Dict[str, list] = {}
-        _anc_cache: Dict[str, list] = {}
-
-        # helper functions to recursively find all children (descendants) and parents (ancestors)
-        def _descendants(name: str) -> list:
-            if name in _desc_cache: return _desc_cache[name]
-            found, stack, out = set(), set(successors.get(name, [])), []
-            while stack:
-                n = stack.pop()
-                if n in found: continue
-                found.add(n)
-                out.append(n)
-                stack.update(successors.get(n, []))
-            _desc_cache[name] = out
-            return out
-
-        def _ancestors(name: str) -> list:
-            if name in _anc_cache: return _anc_cache[name]
-            found, stack, out = set(), set(predecessors.get(name, [])), []
-            while stack:
-                n = stack.pop()
-                if n in found: continue
-                found.add(n)
-                out.append(n)
-                stack.update(predecessors.get(n, []))
-            _anc_cache[name] = out
-            return out
-
-        # --- build ONE symbolic bitvector representing subgraph membership ---
-        # O(V) terms, built once, reused by every edge's convexity check below.
-        destination.write('# --- subgraph membership bitvector ---\n')
-        destination.write(f"subgraph_bv = BitVecVal(0, {mask_width})\n")
-        for name in total_unique_names:
-            bit = name_to_bit[name]
-            destination.write(
-                f"subgraph_bv = subgraph_bv | If(Node.in_subgraph(nodes['{name}']), "
-                f"BitVecVal({1 << bit}, {mask_width}), BitVecVal(0, {mask_width}))\n"
-            )
-        destination.write('\n')
-
-        # --- precompute static descendant/ancestor bitmasks (Python ints, baked in as constants) ---
-        destination.write('# --- static reachability masks ---\n')
-        desc_mask_names = set()
-        anc_mask_names = set()
-        for name in total_unique_names:
-            desc = _descendants(name)
-            if desc:
-                mask = sum(1 << name_to_bit[d] for d in desc)
-                destination.write(f"desc_mask_{name} = BitVecVal({mask}, {mask_width})\n")
-                desc_mask_names.add(name)
-            anc = _ancestors(name)
-            if anc:
-                mask = sum(1 << name_to_bit[a] for a in anc)
-                destination.write(f"anc_mask_{name} = BitVecVal({mask}, {mask_width})\n")
-                anc_mask_names.add(name)
-        destination.write('\n')
-
-        # identify permanently disabled nodes
-        fixed_false_nodes = set()
-        for node in all_nodes:
-            weight = getattr(node, 'weight', 1)
-            if weight is None: weight = 1
-            if isinstance(node, (Variable, Constant, Target, Constraint)) or weight == -1:
-                fixed_false_nodes.add(node.name)
-        for op in ghost_operands:
-            fixed_false_nodes.add(op)
-
-        # creating the logic strings
-        convexity_lines = []
-        for src_name, tgt_name in edges:
-            if src_name in fixed_false_nodes and tgt_name in fixed_false_nodes:
-                continue
-            if tgt_name in desc_mask_names:
-                convexity_lines.append(
-                    f"    Implies(And(Node.in_subgraph(nodes['{src_name}']), "
-                    f"Not(Node.in_subgraph(nodes['{tgt_name}']))), "
-                    f"(subgraph_bv & desc_mask_{tgt_name}) == BitVecVal(0, {mask_width})),"
-                )
-            if src_name in anc_mask_names:
-                convexity_lines.append(
-                    f"    Implies(And(Not(Node.in_subgraph(nodes['{src_name}'])), "
-                    f"Node.in_subgraph(nodes['{tgt_name}'])), "
-                    f"(subgraph_bv & anc_mask_{src_name}) == BitVecVal(0, {mask_width})),"
+            # create the nodes 
+            destination.write('# --- Nodes Dictionary ---\n')
+            node_idx = 0  # use a manual counter so we can continue it for ghosts
+            for node in all_nodes:
+                weight = getattr(node, 'weight', None)
+                weight = 1 if weight is None else weight
+    
+                # fix: use a dummy variable (_sel) for the constructor
+                # this prevents Z3 from flattening the Datatype to the circuit variable
+                sel_expr = f"Bool('{node.name}_sel')"
+                
+                destination.write(
+                    f"nodes['{node.name}'] = Node.mk_node(BitVecVal({node_idx}, {num_bits}), "
+                    f"BitVecVal({weight}, {num_bits}), {sel_expr})\n"
                 )
 
-        destination.write('\n'.join((
-            '# convexity (structural) constraints',
-            'convexity = And(',
-            *(convexity_lines or ['    True,']),
-            ')',
-            'solver.add(convexity)', # add convexity directly to the solver.
-            *('',) * 2,
-        )))
+                # fix fixed nodes (I/O, constants, unlabeled) explicitly via the Datatype accessor
+                if isinstance(node, (Variable, Constant, Target, Constraint)) or weight == -1:
+                    destination.write(f"solver.add(Node.in_subgraph(nodes['{node.name}']) == BoolVal(False))\n")
+                else:
+                    # link the circuit boolean variable to the Datatype accessor for usage constraints
+                    destination.write(f"solver.add({node.name} == Node.in_subgraph(nodes['{node.name}']))\n")
+                
+                node_idx += 1 # Increment the ID
+
+            # create the ghost nodes
+            if ghost_operands:
+                destination.write('\n# --- Internal Constraints & Operands Nodes ---\n')
+                for op_name in ghost_operands:
+                    sel_expr = f"Bool('{op_name}_sel')"
+                    destination.write(f"nodes['{op_name}'] = Node.mk_node(BitVecVal({node_idx}, {num_bits}), BitVecVal(1, {num_bits}), {sel_expr})\n")
+                    destination.write(f"solver.add(Node.in_subgraph(nodes['{op_name}']) == BoolVal(False))\n")
+                    node_idx += 1 # increment the ID
+
+            # create the edges 
+            destination.write('\n# --- Edges List ---\n')
+            for src_name, tgt_name in edges:
+                destination.write(f"edges.append(Edge.mk_edge(nodes['{src_name}'], nodes['{tgt_name}']))\n")
+
+            # identify permanently disabled nodes
+            fixed_false_nodes = set()
+            for node in all_nodes:
+                weight = getattr(node, 'weight', 1)
+                if weight is None: weight = 1
+                if isinstance(node, (Variable, Constant, Target, Constraint)) or weight == -1:
+                    fixed_false_nodes.add(node.name)
+            for op in ghost_operands:
+                fixed_false_nodes.add(op)
+    
+            # convexity structure
+            successors: Dict[str, list] = {}
+            predecessors: Dict[str, list] = {}
+            for src_name, tgt_name in edges:
+                successors.setdefault(src_name, []).append(tgt_name)
+                predecessors.setdefault(tgt_name, []).append(src_name)
+    
+            _desc_cache: Dict[str, list] = {}
+            _anc_cache: Dict[str, list] = {}
+
+            # helper functions to recursively find all children (descendants) and parents (ancestors)
+            def _descendants(name: str) -> list:
+                if name in _desc_cache: return _desc_cache[name]
+                found, stack, out = set(), set(successors.get(name, [])), []
+                while stack:
+                    n = stack.pop()
+                    if n in found: continue
+                    found.add(n)
+                    out.append(n)
+                    stack.update(successors.get(n, []))
+                _desc_cache[name] = out
+                return out
+    
+            def _ancestors(name: str) -> list:
+                if name in _anc_cache: return _anc_cache[name]
+                found, stack, out = set(), set(predecessors.get(name, [])), []
+                while stack:
+                    n = stack.pop()
+                    if n in found: continue
+                    found.add(n)
+                    out.append(n)
+                    stack.update(predecessors.get(n, []))
+                _anc_cache[name] = out
+                return out
+
+
+            total_unique_names = list(unique_nodes.keys()) + ghost_operands
+            for node_name in total_unique_names:
+                desc = _descendants(node_name)
+                if desc:
+                    not_desc = ", ".join(f"Not(Node.in_subgraph(nodes['{l}']))" for l in desc + [node_name])
+                    destination.write(f"not_desc_{node_name} = And({not_desc})\n")
+                
+                anc = _ancestors(node_name)
+                if anc:
+                    not_anc = ", ".join(f"Not(Node.in_subgraph(nodes['{l}']))" for l in anc + [node_name])
+                    destination.write(f"not_anc_{node_name} = And({not_anc})\n")
+
+            # creating the logic strings
+            convexity_lines = []
+            for src_name, tgt_name in edges:
+                if src_name in fixed_false_nodes and tgt_name in fixed_false_nodes:
+                    continue
+                desc = _descendants(tgt_name)
+                if desc:
+                    # Use Datatype accessors exclusively!
+                    convexity_lines.append(
+                        f"    Implies(And(Node.in_subgraph(nodes['{src_name}']), "
+                        f"Not(Node.in_subgraph(nodes['{tgt_name}']))), not_desc_{tgt_name}),"
+                    )
+                anc = _ancestors(src_name)
+                if anc:
+                    # Use Datatype accessors exclusively!
+                    convexity_lines.append(
+                        f"    Implies(And(Not(Node.in_subgraph(nodes['{src_name}'])), "
+                        f"Node.in_subgraph(nodes['{tgt_name}'])), not_anc_{src_name}),"
+                    )
+    
+            destination.write('\n'.join((
+                '# convexity (structural) constraints',
+                'convexity = And(',
+                *(convexity_lines or ['    True,']),
+                ')',
+                'solver.add(convexity)', # add convexity directly to the solver.
+                *('',) * 2,
+            )))
 
         # nodes usage
         destination.write('\n'.join((
@@ -688,9 +657,10 @@ class Z3NodeEdgeEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
-        # final constraints (solver already defined above)
+        # solver
         destination.write('\n'.join((
-            '# assert usage / task',
+            f'# define solver',
+            f'solver = {solver_construct[type(global_task)]}',
             *constraint_assertion[type(global_task)]('solver', global_task, ['usage']),
             *('',) * 2,
         )))
