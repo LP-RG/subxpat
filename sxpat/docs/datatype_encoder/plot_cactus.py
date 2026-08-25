@@ -16,7 +16,7 @@ m5_z3datatype = [0.48982400000001647, 3.895863000000003, 10.435973000000047, 12.
 x_m5 = range(1, len(m5_z3dint) + 1)
 
 # 3. Plotting Setup
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(14, 9))
 
 # Plot Mode 5 Encodings
 plt.plot(x_m5, m5_z3datatype, marker='o', linestyle='-', color='blue', label='z3datatype')
