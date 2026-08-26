@@ -434,6 +434,10 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         constraint_assertion = cls.constraints_assertion
         (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
 
+        print("\n" + "="*50)
+        print("🚨🚨🚨 Z3NODEEDGEENCODER IS ACTUALLY RUNNING! 🚨🚨🚨")
+        print("="*50 + "\n")
+
         cls.inject_initialization(destination)
 
         physical_nodes = {}
