@@ -427,100 +427,87 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
                ) -> None:
-
+ 
         node_mapping = cls.node_mapping
-        type_mapping = cls.type_mapping
         solver_construct = cls.solver_construct
         constraint_assertion = cls.constraints_assertion
         (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
-
-        #print("\n" + "="*50)
-        #print("🚨🚨🚨 Z3NODEEDGEENCODER IS ACTUALLY RUNNING! 🚨🚨🚨")
-        #print("="*50 + "\n")
-
+ 
+        # initialization
         cls.inject_initialization(destination)
-
-        physical_nodes = {}
-        for graph in graphs:
-            # we only want physical gates, so we skip the Constraint Graph (CGraph)
-            if not isinstance(graph, CGraph):
-                for node in graph.nodes:
-                    physical_nodes[node.name] = node
-
+ 
+        # --- minimal Node Datatype: one field, only what's used ---
         destination.write('\n'.join((
-            '# --- Custom Datatype Definitions ---',
+            '# --- Node Datatype (minimal: single boolean field) ---',
             'Node = Datatype("Node")',
-            'Node.declare("mk_node", ("id", IntSort()), ("weight", IntSort()), ("in_subgraph", BoolSort()))',
+            'Node.declare("mk_node", ("in_subgraph", BoolSort()))',
             'Node = Node.create()',
-            '',
-            'Edge = Datatype("Edge")',
-            'Edge.declare("mk_edge", ("source", Node), ("target", Node))',
-            'Edge = Edge.create()',
-            '',
             'nodes = {}',
-            'edges = []',
             *('',) * 2,
         )))
-
-        destination.write('# --- Initialize Physical Nodes ---\n')
-        for name, node in physical_nodes.items():
-            destination.write(f"nodes['{name}'] = Const('node_{name}', Node)\n")
-        
-        destination.write('\n# --- Initialize Topological Edges ---\n')
-        for tgt_name, node in physical_nodes.items():
-            # the 'operands' are the input wires to the gate
-            if hasattr(node, 'operands'):
-                for src_name in node.operands:
-                    if src_name in physical_nodes:
-                        # feed the topology to Z3's memory using the Edge Datatype
-                        destination.write(f"edges.append(Edge.mk_edge(nodes['{src_name}'], nodes['{tgt_name}']))\n")
-        destination.write('\n')
-
-        # we override standard variable injection to use our differentiation logic
-        destination.write('# --- Variables & Constraints ---\n')
-        all_vars = {node.name: node for graph in graphs for node in graph.nodes if isinstance(node, Variable)}
-        
-        # fix: identify which variables are being quantified in the ForAll loop
+ 
+        # --- variables: quantified inputs stay plain Bool (or their normal
+        #     mapping if non-Bool), everything else Bool-typed and
+        #     non-quantified (template parameters, boundary signals) is
+        #     wrapped as a Node record, accessed via Node.in_subgraph(...) ---
+        all_vars = {
+            node.name: node
+            for graph in graphs
+            for node in graph.nodes
+            if isinstance(node, Variable)
+        }
         quantified_vars = set(global_task.operands) if isinstance(global_task, ForAll) else set()
-        
+ 
+        destination.write('# --- variables (Node-wrapped where applicable) ---\n')
         for name, node in all_vars.items():
-            # if it is a physical gate AND it is NOT a quantified boundary input
-            if name in physical_nodes and name not in quantified_vars:
-                # map it to the Datatype accessor
+            if isinstance(node, BoolVariable) and name not in quantified_vars:
+                destination.write(f"nodes['{name}'] = Const('node_{name}', Node)\n")
                 destination.write(f"{name} = Node.in_subgraph(nodes['{name}'])\n")
             else:
-                # if it's a constraint, penalty, OR a quantified input, use a standard Bool
-                destination.write(f"{name} = Bool('{name}')\n")
+                # quantified inputs, and any non-Bool variable (e.g. IntVariable
+                # template parameters), fall back to the standard mapping
+                destination.write(f"{name} = {node_mapping[type(node)](node, None, accessories(node))}\n")
         destination.write('\n')
-
+ 
+        # constants
         cls.inject_constants(destination, graphs, accessories)
-
+ 
         destination.write('\n'.join((
-            '# behaviour',
-            *(f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
-              for graph in graphs for node in graph.expressions),
+            '# define solver',
+            f'solver = {solver_construct[type(global_task)]}',
             *('',) * 2,
         )))
-
+ 
         destination.write('\n'.join((
-            '# usage (Constraints)',
+            '# behaviour',
+            *(
+                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
+                for graph in graphs
+                for node in graph.expressions
+            ),
+            *('',) * 2,
+        )))
+ 
+        destination.write('\n'.join((
+            '# usage',
             'usage = And(', *(
-                f'    {constraint_node.operand},'
-                for graph in graphs if isinstance(graph, CGraph) for constraint_node in graph.constraints
+                f'    {c.operand},'
+                for graph in graphs if isinstance(graph, CGraph)
+                for c in graph.constraints
             ), ')',
             *('',) * 2,
         )))
-
-        # define solver and output results
+ 
+        # final assertion (task-shape-dependent: plain / ForAll / Min / Max)
         destination.write('\n'.join((
-            f'# define solver',
-            f'solver = {solver_construct[type(global_task)]}',
+            '# assert usage / task',
             *constraint_assertion[type(global_task)]('solver', global_task, ['usage']),
             *('',) * 2,
         )))
-
+ 
+        # results
         cls.inject_solve_and_result_writing(destination, graphs, graphs)
-
+ 
 # Node to Z3 expression
 Z3_INT_NODE_MAPPING = {
     # variables
