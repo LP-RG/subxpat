@@ -476,12 +476,16 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         destination.write('# --- Variables & Constraints ---\n')
         all_vars = {node.name: node for graph in graphs for node in graph.nodes if isinstance(node, Variable)}
         
+        # FIX: Identify which variables are being quantified in the ForAll loop
+        quantified_vars = set(global_task.operands) if isinstance(global_task, ForAll) else set()
+        
         for name, node in all_vars.items():
-            if name in physical_nodes:
-                # If it's a physical gate, map it to the Datatype accessor
+            # If it is a physical gate AND it is NOT a quantified boundary input
+            if name in physical_nodes and name not in quantified_vars:
+                # Map it to the Datatype accessor
                 destination.write(f"{name} = Node.in_subgraph(nodes['{name}'])\n")
             else:
-                # If it's an abstract constraint (like convexity/penalty), use a standard Bool/Int
+                # If it's a constraint, penalty, OR a quantified input, use a standard Bool
                 destination.write(f"{name} = Bool('{name}')\n")
         destination.write('\n')
 
