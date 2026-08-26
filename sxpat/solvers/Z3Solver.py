@@ -434,15 +434,15 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         constraint_assertion = cls.constraints_assertion
         (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
 
-        print("\n" + "="*50)
-        print("🚨🚨🚨 Z3NODEEDGEENCODER IS ACTUALLY RUNNING! 🚨🚨🚨")
-        print("="*50 + "\n")
+        #print("\n" + "="*50)
+        #print("🚨🚨🚨 Z3NODEEDGEENCODER IS ACTUALLY RUNNING! 🚨🚨🚨")
+        #print("="*50 + "\n")
 
         cls.inject_initialization(destination)
 
         physical_nodes = {}
         for graph in graphs:
-            # We ONLY want physical gates, so we skip the Constraint Graph (CGraph)
+            # we only want physical gates, so we skip the Constraint Graph (CGraph)
             if not isinstance(graph, CGraph):
                 for node in graph.nodes:
                     physical_nodes[node.name] = node
@@ -468,28 +468,28 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         
         destination.write('\n# --- Initialize Topological Edges ---\n')
         for tgt_name, node in physical_nodes.items():
-            # The 'operands' are the input wires to the gate
+            # the 'operands' are the input wires to the gate
             if hasattr(node, 'operands'):
                 for src_name in node.operands:
                     if src_name in physical_nodes:
-                        # Feed the topology to Z3's memory using the Edge Datatype
+                        # feed the topology to Z3's memory using the Edge Datatype
                         destination.write(f"edges.append(Edge.mk_edge(nodes['{src_name}'], nodes['{tgt_name}']))\n")
         destination.write('\n')
 
-        # We override standard variable injection to use our differentiation logic
+        # we override standard variable injection to use our differentiation logic
         destination.write('# --- Variables & Constraints ---\n')
         all_vars = {node.name: node for graph in graphs for node in graph.nodes if isinstance(node, Variable)}
         
-        # FIX: Identify which variables are being quantified in the ForAll loop
+        # fix: identify which variables are being quantified in the ForAll loop
         quantified_vars = set(global_task.operands) if isinstance(global_task, ForAll) else set()
         
         for name, node in all_vars.items():
-            # If it is a physical gate AND it is NOT a quantified boundary input
+            # if it is a physical gate AND it is NOT a quantified boundary input
             if name in physical_nodes and name not in quantified_vars:
-                # Map it to the Datatype accessor
+                # map it to the Datatype accessor
                 destination.write(f"{name} = Node.in_subgraph(nodes['{name}'])\n")
             else:
-                # If it's a constraint, penalty, OR a quantified input, use a standard Bool
+                # if it's a constraint, penalty, OR a quantified input, use a standard Bool
                 destination.write(f"{name} = Bool('{name}')\n")
         destination.write('\n')
 
