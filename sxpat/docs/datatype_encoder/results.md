@@ -1027,6 +1027,65 @@ iteration 11: #ofNodes=23 subgraph_extraction_time: 0.04135399999904621
 ---
 total_subgraph_extraction_time: 8697.295145999991
 
+#==================================================
+Running: benchmarks/v/adder_i40_o21.v | Encoding: z3dint | Mode: 5 | Max Error: 64
+#==================================================
+.venv/bin/python3 main.py benchmarks/v/adder_i40_o21.v --subxpat --encoding=z3dint --extraction-mode=5 --max-labeling --max-lpp=1 --max-ppo=1 --max-error=64 --imax=8 --omax=5 --error-partitioning=asc 
+#==================================================
+
+iteration 1: #ofNodes=40 subgraph_extraction_time: 1.8761840000006487
+iteration 2: #ofNodes=13 subgraph_extraction_time: 2.459940999999162
+iteration 3: #ofNodes=15 subgraph_extraction_time: 17.554775000000518
+iteration 4: #ofNodes=15 subgraph_extraction_time: 27.46987799999988
+iteration 5: #ofNodes=33 subgraph_extraction_time: 1.4474909999989904
+iteration 6: #ofNodes=33 subgraph_extraction_time: 1.407427000000098
+iteration 7: #ofNodes=21 subgraph_extraction_time: 1.3790589999989606
+iteration 8: #ofNodes=21 subgraph_extraction_time: 2.4573860000000423
+iteration 9: #ofNodes=21 subgraph_extraction_time: 1.4818530000011378
+iteration 10: #ofNodes=22 subgraph_extraction_time: 10.976145999999062
+---
+total_subgraph_extraction_time: 68.5101399999985
+
+#==================================================
+Running: benchmarks/v/adder_i40_o21.v | Encoding: z3dbvec | Mode: 5 | Max Error: 64
+#==================================================
+.venv/bin/python3 main.py benchmarks/v/adder_i40_o21.v --subxpat --encoding=z3dbvec --extraction-mode=5 --max-labeling --max-lpp=1 --max-ppo=1 --max-error=64 --imax=8 --omax=5 --error-partitioning=asc 
+#==================================================
+
+iteration 1: #ofNodes=40 subgraph_extraction_time: 1.8292989999990823
+iteration 2: #ofNodes=13 subgraph_extraction_time: 2.88936399999875
+iteration 3: #ofNodes=15 subgraph_extraction_time: 38.414129999999204
+iteration 4: #ofNodes=15 subgraph_extraction_time: 41.34054699999979
+iteration 5: #ofNodes=33 subgraph_extraction_time: 1.5473540000002686
+iteration 6: #ofNodes=33 subgraph_extraction_time: 1.464254999998957
+iteration 7: #ofNodes=33 subgraph_extraction_time: 1.4882649999999558
+iteration 8: #ofNodes=21 subgraph_extraction_time: 1.3260639999989507
+iteration 9: #ofNodes=21 subgraph_extraction_time: 2.4875759999995353
+iteration 10: #ofNodes=23 subgraph_extraction_time: 5.430280000000494
+---
+total_subgraph_extraction_time: 98.21713399999499
+
+#==================================================
+Running: benchmarks/v/adder_i40_o21.v | Encoding: z3datatype | Mode: 5 | Max Error: 64
+#==================================================
+.venv/bin/python3 main.py benchmarks/v/adder_i40_o21.v --subxpat --encoding=z3datatype --extraction-mode=5 --max-labeling --max-lpp=1 --max-ppo=1 --max-error=64 --imax=8 --omax=5 --error-partitioning=asc 
+#==================================================
+
+iteration 1: #ofNodes=40 subgraph_extraction_time: 1.829820999999356
+iteration 2: #ofNodes=13 subgraph_extraction_time: 2.467158000001291
+iteration 3: #ofNodes=15 subgraph_extraction_time: 17.186251000000993
+iteration 4: #ofNodes=15 subgraph_extraction_time: 27.325096999999005
+iteration 5: #ofNodes=33 subgraph_extraction_time: 1.4165849999990314
+iteration 6: #ofNodes=33 subgraph_extraction_time: 1.3765480000001844
+iteration 7: #ofNodes=21 subgraph_extraction_time: 1.3650649999999587
+iteration 8: #ofNodes=21 subgraph_extraction_time: 2.4126309999992372
+iteration 9: #ofNodes=21 subgraph_extraction_time: 1.4611989999993966
+iteration 10: #ofNodes=22 subgraph_extraction_time: 10.652782000001025
+---
+total_subgraph_extraction_time: 67.49313699999948
+
+#==============================================================================================================================
+
 # Mode 1: 
 #==================================================
 Error Space - 64
