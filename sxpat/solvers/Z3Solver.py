@@ -427,85 +427,90 @@ class Z3NodeEdgeEncoder(Z3Encoder):
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
                ) -> None:
- 
+
         node_mapping = cls.node_mapping
+        type_mapping = cls.type_mapping
         solver_construct = cls.solver_construct
         constraint_assertion = cls.constraints_assertion
         (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
- 
-        # initialization
+
         cls.inject_initialization(destination)
- 
-        # --- minimal Node Datatype: one field, only what's used ---
+
+        physical_nodes = {}
+        for graph in graphs:
+            # We ONLY want physical gates, so we skip the Constraint Graph (CGraph)
+            if not isinstance(graph, CGraph):
+                for node in graph.nodes:
+                    physical_nodes[node.name] = node
+
         destination.write('\n'.join((
-            '# --- Node Datatype (minimal: single boolean field) ---',
+            '# --- Custom Datatype Definitions ---',
             'Node = Datatype("Node")',
-            'Node.declare("mk_node", ("in_subgraph", BoolSort()))',
+            'Node.declare("mk_node", ("id", IntSort()), ("weight", IntSort()), ("in_subgraph", BoolSort()))',
             'Node = Node.create()',
+            '',
+            'Edge = Datatype("Edge")',
+            'Edge.declare("mk_edge", ("source", Node), ("target", Node))',
+            'Edge = Edge.create()',
+            '',
             'nodes = {}',
+            'edges = []',
             *('',) * 2,
         )))
- 
-        # --- variables: quantified inputs stay plain Bool (or their normal
-        #     mapping if non-Bool), everything else Bool-typed and
-        #     non-quantified (template parameters, boundary signals) is
-        #     wrapped as a Node record, accessed via Node.in_subgraph(...) ---
-        all_vars = {
-            node.name: node
-            for graph in graphs
-            for node in graph.nodes
-            if isinstance(node, Variable)
-        }
-        quantified_vars = set(global_task.operands) if isinstance(global_task, ForAll) else set()
- 
-        destination.write('# --- variables (Node-wrapped where applicable) ---\n')
+
+        destination.write('# --- Initialize Physical Nodes ---\n')
+        for name, node in physical_nodes.items():
+            destination.write(f"nodes['{name}'] = Const('node_{name}', Node)\n")
+        
+        destination.write('\n# --- Initialize Topological Edges ---\n')
+        for tgt_name, node in physical_nodes.items():
+            # The 'operands' are the input wires to the gate
+            if hasattr(node, 'operands'):
+                for src_name in node.operands:
+                    if src_name in physical_nodes:
+                        # Feed the topology to Z3's memory using the Edge Datatype
+                        destination.write(f"edges.append(Edge.mk_edge(nodes['{src_name}'], nodes['{tgt_name}']))\n")
+        destination.write('\n')
+
+        # We override standard variable injection to use our differentiation logic
+        destination.write('# --- Variables & Constraints ---\n')
+        all_vars = {node.name: node for graph in graphs for node in graph.nodes if isinstance(node, Variable)}
+        
         for name, node in all_vars.items():
-            if isinstance(node, BoolVariable) and name not in quantified_vars:
-                destination.write(f"nodes['{name}'] = Const('node_{name}', Node)\n")
+            if name in physical_nodes:
+                # If it's a physical gate, map it to the Datatype accessor
                 destination.write(f"{name} = Node.in_subgraph(nodes['{name}'])\n")
             else:
-                # quantified inputs, and any non-Bool variable (e.g. IntVariable
-                # template parameters), fall back to the standard mapping
-                destination.write(f"{name} = {node_mapping[type(node)](node, None, accessories(node))}\n")
+                # If it's an abstract constraint (like convexity/penalty), use a standard Bool/Int
+                destination.write(f"{name} = Bool('{name}')\n")
         destination.write('\n')
- 
-        # constants
+
         cls.inject_constants(destination, graphs, accessories)
- 
-        destination.write('\n'.join((
-            '# define solver',
-            f'solver = {solver_construct[type(global_task)]}',
-            *('',) * 2,
-        )))
- 
+
         destination.write('\n'.join((
             '# behaviour',
-            *(
-                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
-                for graph in graphs
-                for node in graph.expressions
-            ),
+            *(f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
+              for graph in graphs for node in graph.expressions),
             *('',) * 2,
         )))
- 
+
         destination.write('\n'.join((
-            '# usage',
+            '# usage (Constraints)',
             'usage = And(', *(
-                f'    {c.operand},'
-                for graph in graphs if isinstance(graph, CGraph)
-                for c in graph.constraints
+                f'    {constraint_node.operand},'
+                for graph in graphs if isinstance(graph, CGraph) for constraint_node in graph.constraints
             ), ')',
             *('',) * 2,
         )))
- 
-        # final assertion (task-shape-dependent: plain / ForAll / Min / Max)
+
+        # define solver and output results
         destination.write('\n'.join((
-            '# assert usage / task',
+            f'# define solver',
+            f'solver = {solver_construct[type(global_task)]}',
             *constraint_assertion[type(global_task)]('solver', global_task, ['usage']),
             *('',) * 2,
         )))
- 
-        # results
+
         cls.inject_solve_and_result_writing(destination, graphs, graphs)
  
 # Node to Z3 expression
@@ -565,8 +570,8 @@ Z3_BITVEC_NODE_MAPPING = {
 }
 Z3_DATATYPE_NODE_MAPPING = {
     **Z3_INT_NODE_MAPPING, 
-    #BoolVariable: lambda n, operands, accs: f"Node.in_subgraph(nodes['{n.name}'])",
-    #IntVariable:  lambda n, operands, accs: f"Node.weight(nodes['{n.name}'])",
+    BoolVariable: lambda n, operands, accs: f"Node.in_subgraph(nodes['{n.name}'])",
+    IntVariable:  lambda n, operands, accs: f"Node.weight(nodes['{n.name}'])",
 }
 
 # bool/int to Z3 sorts
