@@ -62,7 +62,7 @@ plt.figure(figsize=(16, 8))
 
 # Plot Mode 5 Encodings
 plt.plot(x_m5, m5_z3datatype, marker='o', linestyle='-', color='blue', label='z3datatype')
-plt.plot(x_m5, m5_z3dint, marker='s', linestyle='-', color='green', label='z3dint')
+#plt.plot(x_m5, m5_z3dint, marker='s', linestyle='-', color='green', label='z3dint')
 plt.plot(x_m5, m5_z3dbvec, marker='^', linestyle='-', color='red', label='z3dbvec')
 
 # 4. Formatting the Graph
