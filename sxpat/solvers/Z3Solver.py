@@ -520,6 +520,9 @@ class Z3HybridEncoder(Z3Encoder):
                functional_nodes_names: set,
                **_,
                ) -> None:
+        
+        # the implementation requires at least one node to be represented functionally, otherwise the Z3 direct encoder has to be used
+        assert(len(functional_nodes_names) > 0)
 
         # initial computations
         node_mapping = cls.node_mapping
