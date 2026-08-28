@@ -56,7 +56,11 @@ def main():
     argv = sys.argv[1:]
     circuits_dir = "output"    
     if len(argv) > 0:
-        circuits_dir = argv[0]
+        if argv[0].startswith("--circuits-results="):
+            circuits_dir = (argv[0].split('='))[1]
+        else:
+            print("--circuits-results=D  : path D to the directory containing the circuits results from which plots are to be generated")
+            return
 
     all_circuits_legacy_times : Sequence[Any] = list()
     all_circuits_Z3_functional_times : Sequence[Any] = list()
