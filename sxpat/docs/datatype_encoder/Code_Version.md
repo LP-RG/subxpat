@@ -507,3 +507,97 @@ class Z3NodeEdgeEncoder(Z3Encoder):
         # results
         cls.inject_solve_and_result_writing(destination, graphs, graphs)
 
+
+#================================================================================================================================
+
+@classmethod
+    def encode(cls, graphs: Solver._Graphs,
+               destination: IO[str],
+               global_task: Union[ForAll, Min, Max, None] = None,
+               ) -> None:
+
+        node_mapping = cls.node_mapping
+        type_mapping = cls.type_mapping
+        solver_construct = cls.solver_construct
+        constraint_assertion = cls.constraints_assertion
+        (graphs, inputs_names, parameters_name, nodes_types, accessories) = cls.simplification_and_accessories(graphs)
+
+        cls.inject_initialization(destination)
+
+        physical_nodes = {}
+        for graph in graphs:
+            # We ONLY want physical gates, so we skip the Constraint Graph (CGraph)
+            if not isinstance(graph, CGraph):
+                for node in graph.nodes:
+                    physical_nodes[node.name] = node
+
+        destination.write('\n'.join((
+            '# --- Custom Datatype Definitions ---',
+            'Node = Datatype("Node")',
+            'Node.declare("mk_node", ("id", IntSort()), ("weight", IntSort()), ("in_subgraph", BoolSort()))',
+            'Node = Node.create()',
+            '',
+            'Edge = Datatype("Edge")',
+            'Edge.declare("mk_edge", ("source", Node), ("target", Node))',
+            'Edge = Edge.create()',
+            '',
+            'nodes = {}',
+            'edges = []',
+            *('',) * 2,
+        )))
+
+        destination.write('# --- Initialize Physical Nodes ---\n')
+        for name, node in physical_nodes.items():
+            destination.write(f"nodes['{name}'] = Const('node_{name}', Node)\n")
+        
+        destination.write('\n# --- Initialize Topological Edges ---\n')
+        for tgt_name, node in physical_nodes.items():
+            # The 'operands' are the input wires to the gate
+            if hasattr(node, 'operands'):
+                for src_name in node.operands:
+                    if src_name in physical_nodes:
+                        # Feed the topology to Z3's memory using the Edge Datatype
+                        destination.write(f"edges.append(Edge.mk_edge(nodes['{src_name}'], nodes['{tgt_name}']))\n")
+        destination.write('\n')
+
+        # We override standard variable injection to use our differentiation logic
+        destination.write('# --- Variables & Constraints ---\n')
+        all_vars = {node.name: node for graph in graphs for node in graph.nodes if isinstance(node, Variable)}
+        
+        for name, node in all_vars.items():
+            if name in physical_nodes:
+                # If it's a physical gate, map it to the Datatype accessor
+                destination.write(f"{name} = Node.in_subgraph(nodes['{name}'])\n")
+            else:
+                # If it's an abstract constraint (like convexity/penalty), use a standard Bool/Int
+                destination.write(f"{name} = Bool('{name}')\n")
+        destination.write('\n')
+
+        cls.inject_constants(destination, graphs, accessories)
+
+        destination.write('\n'.join((
+            '# behaviour',
+            *(f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
+              for graph in graphs for node in graph.expressions),
+            *('',) * 2,
+        )))
+
+        destination.write('\n'.join((
+            '# usage (Constraints)',
+            'usage = And(', *(
+                f'    {constraint_node.operand},'
+                for graph in graphs if isinstance(graph, CGraph) for constraint_node in graph.constraints
+            ), ')',
+            *('',) * 2,
+        )))
+
+        # define solver and output results
+        destination.write('\n'.join((
+            f'# define solver',
+            f'solver = {solver_construct[type(global_task)]}',
+            *constraint_assertion[type(global_task)]('solver', global_task, ['usage']),
+            *('',) * 2,
+        )))
+
+        cls.inject_solve_and_result_writing(destination, graphs, graphs)
+
