@@ -1,5 +1,5 @@
 import itertools
-from typing import Dict, Iterable, Iterator, List, Literal, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Union
 import dataclasses as dc
 
 import functools as ft
@@ -10,6 +10,7 @@ from os.path import join as path_join
 from sxpat.graph.graph import SGraph, IOGraph
 from sxpat.graph.node import Extras, Node
 from sxpat.error_iter import ErrorIterator
+from sxpat.conf_explorer import ConfigurationExploration
 from sxpat.newag import load_circuit_from_verilog
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
 
@@ -79,12 +80,9 @@ def explore_grid(specs_obj: Specifications):
     specs_obj.iteration = 0
 
     # initialize error iterator (error partitioning)
-    erriter = error_iterator(specs_obj)
+    erriter = error_iterator_factory(specs_obj)
     if erriter is None:
-        # logging
-        specs_obj.stats_storage.stage(ERROR='illegal_state__error_partitioning')
-        specs_obj.stats_storage.commit()
-        #
+        specs_obj.stats_storage.stage(ERROR='illegal_state__error_partitioning').commit()
         raise NotImplementedError('invalid error iteration')
 
     #
@@ -200,19 +198,21 @@ def explore_grid(specs_obj: Specifications):
 
         # explore the grid
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
-        dominant_cells = []
-        for lpp, ppo in CellIterator.factory(specs_obj):
+        confexplorer = configuration_explorer_factory(
+            specs_obj,
+            len(current_graph.subgraph_inputs),
+            len(current_graph.subgraph_outputs),
+        )
+        if confexplorer is None:
+            specs_obj.stats_storage.stage(ERROR='illegal_state__configuration_exploration').commit()
+            raise NotImplementedError('invalid error iteration')
+
+        for conf in confexplorer:
+            # TODO: wip
+            lpp, ppo = conf
+
             timer_cell = Timer2.default().start()
-            print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
-
-            if lpp > len(current_graph.subgraph_inputs):
-                pprint.info3('SKIPPED (lpp > #subgraph_inputs)')
-                continue
-
-            # skip if dominated
-            if is_dominated((lpp, ppo), dominant_cells):
-                pprint.info3('DOMINATED')
-                continue
+            print(f'Cell({conf}) at iteration {specs_obj.iteration}: ', end='')
 
             # > cell step settings
 
@@ -266,11 +266,11 @@ def explore_grid(specs_obj: Specifications):
                 cell_time=timer_cell.total(),
             )
 
+            # update exploration
+            confexplorer.give_result(conf, status)
+
             # skip if no model found
             if status != SAT:
-                # if UNKNOWN, store cell as dominant (to skip dominated subgrid)
-                if status == UNKNOWN: dominant_cells.append((lpp, ppo))
-
                 # logging
                 pprint.warning(status.upper(), f'{timer_cell.total():.2f}s')
                 specs_obj.stats_storage.commit()
@@ -409,48 +409,6 @@ def error_evaluation(reference_circuit: IOGraph, current_circuit: IOGraph, specs
     return next(iter(model.values()))
 
 
-class CellIterator:
-    @classmethod
-    def factory(cls, specs: Specifications) -> Iterator[Tuple[int, int]]:
-        return {
-            TemplateType.NON_SHARED: cls.non_shared,
-            TemplateType.SHARED: cls.shared,
-        }[specs.template](specs)
-
-    @staticmethod
-    def shared(specs: Specifications) -> Iterator[Tuple[int, int]]:
-        max_pit = specs.max_pit
-
-        # special cell
-        yield (0, 1)
-
-        # grid cells
-        for pit in range(1, max_pit + 1):
-            for its in range(max(pit, specs.outputs), max(pit + 3 + 1, specs.outputs + 1)):
-                yield (its, pit)
-
-    @staticmethod
-    def non_shared(specs: Specifications) -> Iterator[Tuple[int, int]]:
-        max_lpp = specs.max_lpp
-        max_ppo = specs.max_ppo
-
-        # special cell
-        yield (0, 1)
-
-        # grid cells
-        for ppo in range(1, max_ppo + 1):
-            for lpp in range(1, max_lpp + 1):
-                yield (lpp, ppo)
-
-
-def is_dominated(coords: Tuple[int, int], dominant_cells: Iterable[Tuple[int, int]]) -> bool:
-    (lpp, ppo) = coords
-    return any(
-        lpp >= dom_lpp and ppo >= dom_ppo
-        for (dom_lpp, dom_ppo) in dominant_cells
-    )
-
-
 def update_context(specs_obj: Specifications, lpp: int, ppo: int):
     specs_obj.lpp = lpp
     specs_obj.ppo = specs_obj.pit = ppo
@@ -518,20 +476,41 @@ def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
     }[specs_obj.extraction_mode](circuit, specs_obj)
 
 
-def error_iterator(specs: Specifications) -> ErrorIterator | None:
+def error_iterator_factory(
+    specs: Specifications,
+) -> ErrorIterator | None:
     import sxpat.error_iter as _ei
 
     if specs.subxpat:
-        erriter = {
-            ErrorPartitioningType.ASCENDING: _ei.AscendingEI(specs.max_error, 2),
-            ErrorPartitioningType.SMART_ASCENDING: _ei.SmartAscendingEI(specs.max_error, 2),
-            ErrorPartitioningType.DESCENDING: _ei.DescendingEI(specs.max_error),
-            ErrorPartitioningType.SMART_DESCENDING: _ei.SmartDescendingEI(specs.max_error),
-        }.get(specs.error_partitioning, None)
+        match specs.error_partitioning:
+            case ErrorPartitioningType.ASCENDING:
+                return _ei.AscendingEI(specs.max_error, 2)
+            case ErrorPartitioningType.SMART_ASCENDING:
+                return _ei.SmartAscendingEI(specs.max_error, 2)
+            case ErrorPartitioningType.DESCENDING:
+                return _ei.DescendingEI(specs.max_error)
+            case ErrorPartitioningType.SMART_DESCENDING:
+                return _ei.SmartDescendingEI(specs.max_error)
+            case _:
+                return None
     else:
-        erriter = _ei.XPATEI(specs.max_error)
+        return _ei.XPATEI(specs.max_error)
 
-    return erriter
+
+def configuration_explorer_factory(
+    specs: Specifications,
+    subgraph_inputs_count: int,
+    subgraph_outputs_count: int,
+) -> ConfigurationExploration | None:
+    import sxpat.conf_explorer as _cf
+
+    match specs.template:
+        case TemplateType.NON_SHARED:
+            return _cf.NonShared_Exploration(specs.max_lpp, specs.max_ppo, subgraph_inputs_count)
+        case TemplateType.SHARED:
+            return _cf.Shared_Exploration(specs.max_pit, subgraph_outputs_count)
+        case _:
+            return None
 
 
 def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
