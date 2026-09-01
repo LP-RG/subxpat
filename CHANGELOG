@@ -1,0 +1,9 @@
+---------------------------------------------------------------------------------------------------
+Version: preview
+Date: 2026-09-01
+  Ease of use:
+    - Made it possible to start execution with `./main` if the environment was installed locally under `.venv`. (#210)
+  Features:
+    - Added specific archivation approaches (.tar.gz, .tar.xz, .zip). (#210)
+  Minor Changes:
+    - Now the default archivation is .tar.xz instead of .zip. (#210)
