@@ -393,22 +393,10 @@ def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
 def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
     print("> FUNCTION CALLED: Zone extractor is running! <")
 
-    # DEBUG: Check what attributes are on the circuit object
-    # print(f"Has zone_weights attribute? {hasattr(circuit, 'zone_weights')}")
-    # if hasattr(circuit, 'zone_weights'):
-    #     print(f"Number of nodes with zone weights: {len(circuit.zone_weights)}")
-    
-    # if not hasattr(circuit, 'zone_weights') or not circuit.zone_weights:
-    #     print("ERROR: zone_weights is missing or empty on this iteration's circuit graph!")
-    #     return []
-
-
     try:
         with open(ERROR_THRESHOLD_ARRAYS_PATH, 'r') as f:
             error_threshold_arrays = json.load(f)
             et_array = error_threshold_arrays[specs.threshold_array_idx]["values"]
-        if len(et_array) != (256 // specs.beta) ** 2:
-            raise ValueError(f"Error threshold array length {len(et_array)} does not match expected size {(256 // specs.beta) ** 2} for beta={specs.beta}.")
     except Exception as e:
         print(f"Failed to load error thresholds: {e}")
 
@@ -431,8 +419,16 @@ def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
     zone_constraints = []
 
     #calculate grid width
-    grid_width= 256//specs.beta
+    total_zones = len(et_array) if isinstance(et_array, list) else 1
+    grid_width = int(math.sqrt(total_zones))
 
+    #determine step size
+    input_bits = len(circuit.inputs_names) // 2
+    input_space_size = 2 ** input_bits
+
+    # determine step size dynamically
+    zone_step_size = input_space_size // grid_width
+    
     #iterating through gates of the graph
     for source, target in graph.edges():
 
@@ -445,12 +441,11 @@ def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
         
         for zone, weight in source_zones.items():
 
-            row = zone.input_1.l_bound // specs.beta
-            col = zone.input_2.l_bound // specs.beta
+            row = zone.input_1.l_bound // zone_step_size
+            col = zone.input_2.l_bound // zone_step_size
             num_idx = (row * grid_width) + col
 
             limit = et_array[num_idx] if isinstance(et_array, list) else et_array
-
 
             zone_conditions.append(
                 ULE(
@@ -480,7 +475,38 @@ def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
 
     print(f">>> Total zone constraints added: {len(zone_constraints)}")
 
-    return _solve_and_extract(optimizer, max_nodes, h, circuit)
+    subgraph_nodes = _solve_and_extract(optimizer, max_nodes, h, circuit)
+
+    print("===VERIFICATION ===")
+
+    exit_nodes_found = 0
+
+    for source, target in graph.edges():
+        if source in subgraph_nodes and target not in subgraph_nodes:
+            exit_nodes_found += 1
+            print(f"\nExit Edge Detected: {source} -> {target}")
+            
+            source_zones = circuit.zone_weights.get(source, {})
+            if not source_zones:
+                print(f" {source} has no zone weights.")
+                continue
+                
+            for zone, weight in source_zones.items():
+                row = zone.input_1.l_bound // specs.beta
+                col = zone.input_2.l_bound // specs.beta
+                num_idx = (row * grid_width) + col
+                
+                limit = et_array[num_idx] if isinstance(et_array, list) else et_array
+                
+                if weight <= limit:
+                    print(f"  [PASS] Zone {num_idx} | Weight: {weight} <= Limit: {limit}")
+                else:
+                    print(f"  [FAIL] Zone {num_idx} | Weight: {weight} >  Limit: {limit} !!!")
+
+    if exit_nodes_found == 0:
+        print("No exit nodes found. (Subgraph is empty/ covers the whole circuit).")
+
+    return subgraph_nodes
 
 
 
