@@ -1,0 +1,7 @@
+---------------------------------------------------------------------------------------------------
+Version: preview
+Date: 2026-09-01
+  Major Optimizations:
+    - improved circuit loading pipeline, now the scaling is linear on the size of the circuits (number of nodes) instead of quadratic. (#214)
+  Documentation:
+    - added `config/abc_annotated.script` which is a copy of `config/abc.script` with descriptions of what is happening. (#214)

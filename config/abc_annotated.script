@@ -1,0 +1,24 @@
+strash;         # 0:  transforms combinational logic into an AIG
+ifraig;         # 1:  performs fraiging using a new method
+dc2;            # 2:  performs combinational AIG optimization
+fraig;          # 3:  transforms a logic network into a functionally reduced AIG
+rewrite;        # 4:  performs technology-independent rewriting of the AIG
+refactor;       # 5:  performs technology-independent refactoring of the AIG
+resub;          # 6:  performs technology-independent restructuring of the AIG
+rewrite;        # 4:  performs technology-independent rewriting of the AIG
+refactor;       # 5:  performs technology-independent refactoring of the AIG
+resub;          # 6:  performs technology-independent restructuring of the AIG
+rewrite;        # 4:  performs technology-independent rewriting of the AIG
+rewrite -z;     # 4*: -z enable using zero-cost replacements
+rewrite -z;     # 4*: -z enable using zero-cost replacements
+rewrite -z;     # 4*: -z enable using zero-cost replacements
+balance;        # 7:  transforms the current network into a well-balanced AIG
+refactor -z;    # 5*: -z enable using zero-cost replacements
+refactor -N 11; # 5*: -N <num> the max support of the collapsed node
+resub -K 10;    # 6*: -K <num> the max cut size (4 <= num <= 16)
+resub -K 12;    # 6*: -K <num> the max cut size (4 <= num <= 16)
+resub -K 14;    # 6*: -K <num> the max cut size (4 <= num <= 16)
+resub -K 16;    # 6*: -K <num> the max cut size (4 <= num <= 16)
+refactor;       # 5:  performs technology-independent refactoring of the AIG
+balance;        # 7:  transforms the current network into a well-balanced AIG
+map -a          # 8:  performs standard cell mapping of the current network : -a enable area-only mapping

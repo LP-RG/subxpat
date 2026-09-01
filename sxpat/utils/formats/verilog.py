@@ -22,17 +22,18 @@ class synthesize_verilog_to_notand_gate_level:
 
     YOSYS_COMMAND: ClassVar = dedent("""
         read_verilog {input_path};
+
+        # flattening
         synth -flatten;
-        opt;
-        opt_clean -purge;
-        abc -g NAND;
-        opt;
-        opt_clean -purge;
-        splitnets -ports;
-        opt;
-        opt_clean -purge;
+        opt -purge;       # needed if already flat
+        splitnets -ports; # needed if original
+
+        # normalize
+        abc -g NAND; # some alternatives we could discuss are: "abc -g NAND,AND", "aigmap"
+        opt -purge;
+
         write_verilog -noattr {output_path};
-    """).replace('\n', ' ').strip()
+    """).strip()
 
     MODULE_PATTERN: ClassVar = re.compile(r'^\s*module\s+\w+\s*\(([\w,\\\s\[\]]+?)\);', re.MULTILINE)
     SPACES_PATTERN: ClassVar = re.compile(r'\s+')
@@ -159,11 +160,11 @@ class synthesize_verilog_to_notand_gate_level:
     @classmethod
     def _relabel_variables(cls, verilog_lines: Iterable[str], labels: Mapping[str, str]) -> List[str]:
         """
-            Relabel all variables with their new representation.
+        Relabel all variables with their new representation.
 
-            :param verilog_lines: the lines to update
-            :param labels: the mapping from old to new label
-            :return: the updated list of lines
+        :param verilog_lines: the lines to update
+        :param labels: the mapping from old to new label
+        :return: the updated list of lines
         """
         # copy
         verilog_lines = list(verilog_lines)
@@ -181,15 +182,15 @@ class synthesize_verilog_to_notand_gate_level:
     @classmethod
     def _propagate_bitwidth(cls, inputs: Sequence[str]) -> List[str]:
         """
-            Given a sequence of inputs, propagate the size of the first to the others.
+        Given a sequence of inputs, propagate the size of the first to the others.
 
-            :param inputs: the raw sequence of inputs
-            :return: the updated list of inputs
+        :param inputs: the raw sequence of inputs
+        :return: the updated list of inputs
 
-            Examples
-            ---
-            >>> propagate_bitwidth['[1:0]a', 'b']
-            ['[1:0]a', '[1:0]b']
+        Examples
+        ---
+        >>> propagate_bitwidth['[1:0]a', 'b']
+        ['[1:0]a', '[1:0]b']
         """
 
         inputs = list(inputs)
@@ -206,10 +207,10 @@ class synthesize_verilog_to_notand_gate_level:
     @classmethod
     def _extract_name(cls, variable: str) -> str:
         """
-            Extract the name of the variable.
+        Extract the name of the variable.
 
-            :param variable: the raw string of the variable
-            :return: the name of the variable
+        :param variable: the raw string of the variable
+        :return: the name of the variable
         """
 
         match = cls.VECTOR_PATTERN.search(variable)
@@ -219,10 +220,10 @@ class synthesize_verilog_to_notand_gate_level:
     @classmethod
     def _compute_width(cls, variable: str) -> int:
         """
-            Compute the bit-width of the variable.
+        Compute the bit-width of the variable.
 
-            :param variable: the raw string of the variable
-            :return: the bit-width of the variable
+        :param variable: the raw string of the variable
+        :return: the bit-width of the variable
         """
 
         match = cls.RANGE_PATTERN.search(variable)
@@ -241,15 +242,17 @@ class convert_verilog_to_dot:
 
     YOSYS_COMMAND: ClassVar = dedent("""
         read_verilog {input_verilog_path};
-        opt;
-        clean;
+        opt -purge;
         show -prefix {output_dot_path} -format dot;
-    """).replace('\n', ' ').strip()
+    """).strip()
 
     def __new__(cls, input_verilog_path: str, output_gv_path: str, temporary_path: str):
         # prepare
         tmp_dot_path = path_join(temporary_path, 'cvtgv_to_fd.dot')
-        yosys_command = cls.YOSYS_COMMAND.format(input_verilog_path=input_verilog_path, output_dot_path=tmp_dot_path[:-4])
+        yosys_command = cls.YOSYS_COMMAND.format(
+            input_verilog_path=input_verilog_path,
+            output_dot_path=tmp_dot_path[:-4],
+        )
 
         # run command
         run(
