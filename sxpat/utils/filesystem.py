@@ -1,6 +1,7 @@
 from typing import Iterable, Iterator, Literal, Optional, final, overload
 
 import os as _os
+import os.path as _ospath
 import sys as _sys
 import shutil as _shutil
 import errno as _errno
@@ -41,7 +42,7 @@ class FS:
         """
 
         # normalize and prepare
-        path = _os.path.normpath(_os.path.join(directory, filename))
+        path = _ospath.normpath(_ospath.join(directory, filename))
 
         #
         _os.close(_os.open(path, _os.O_CREAT, 0o666))
@@ -69,9 +70,9 @@ class FS:
         """
 
         # normalize and prepare
-        filepath = _os.path.join(
-            _os.path.normpath(directory),
-            _os.path.normpath(fileprefix),
+        filepath = _ospath.join(
+            _ospath.normpath(directory),
+            _ospath.normpath(fileprefix),
         )
 
         # iterate over all possible ids
@@ -95,7 +96,7 @@ class FS:
             # close file
             _os.close(fd)
             # return the first valid path
-            return _os.path.basename(path)
+            return _ospath.basename(path)
 
         raise FileExistsError(_errno.EEXIST, 'No usable unique file name found')
 
@@ -113,10 +114,10 @@ class FS:
         """
 
         # normalize
-        filepath = _os.path.normpath(filepath)
+        filepath = _ospath.normpath(filepath)
 
         #
-        if _os.path.exists(filepath):
+        if _ospath.exists(filepath):
             _os.remove(filepath)
 
     @classmethod
@@ -147,7 +148,7 @@ class FS:
             raise TypeError("only one of these arguments can be used at a time: 'content', 'lines'")
 
         # normalize
-        filepath = _os.path.normpath(filepath)
+        filepath = _ospath.normpath(filepath)
 
         # prepare
         if content is None:
@@ -191,7 +192,7 @@ class FS:
         """
 
         # normalize
-        filepath = _os.path.normpath(filepath)
+        filepath = _ospath.normpath(filepath)
 
         # prepare
         if binary:
@@ -219,7 +220,7 @@ class FS:
         """
 
         # normalize and prepare
-        dirpath = _os.path.normpath(_os.path.join(directory, dirname))
+        dirpath = _ospath.normpath(_ospath.join(directory, dirname))
 
         #
         _os.makedirs(dirpath, exist_ok=True)
@@ -246,9 +247,9 @@ class FS:
         """
 
         # normalize and prepare
-        dirpath = _os.path.join(
-            _os.path.normpath(directory),
-            _os.path.normpath(dirname),
+        dirpath = _ospath.join(
+            _ospath.normpath(directory),
+            _ospath.normpath(dirname),
         )
 
         # iterate over all possible ids
@@ -269,7 +270,7 @@ class FS:
                 else: raise _e
 
             # return the first valid path
-            return _os.path.basename(path)
+            return _ospath.basename(path)
 
         raise FileExistsError(_errno.EEXIST, 'No usable unique directory name found')
 
@@ -289,10 +290,10 @@ class FS:
         """
 
         # normalize
-        dirpath = _os.path.normpath(dirpath)
+        dirpath = _ospath.normpath(dirpath)
 
         #
-        if _os.path.exists(dirpath):
+        if _ospath.exists(dirpath):
             if recursive:
                 _shutil.rmtree(dirpath)
             else:
@@ -312,13 +313,13 @@ class FS:
         """
 
         # normalize
-        dirpath = _os.path.normpath(dirpath)
+        dirpath = _ospath.normpath(dirpath)
 
         #
         for _path in cls.listdir(dirpath):
-            if _os.path.isfile(_path) or _os.path.islink(_path):
+            if _ospath.isfile(_path) or _ospath.islink(_path):
                 _os.remove(_path)
-            elif _os.path.isdir(_path):
+            elif _ospath.isdir(_path):
                 _shutil.rmtree(_path)
 
     @classmethod
@@ -336,11 +337,11 @@ class FS:
         """
 
         # normalize
-        dirpath = _os.path.normpath(dirpath)
+        dirpath = _ospath.normpath(dirpath)
 
         #
         yield from (
-            _os.path.join(dirpath, file)
+            _ospath.join(dirpath, file)
             for file in _os.listdir(dirpath)
         )
 
@@ -355,11 +356,11 @@ class FS:
         """
 
         # normalize
-        path = _os.path.normpath(dirpath)
+        path = _ospath.normpath(dirpath)
 
         #
         yield from (
-            _os.path.join(dirpath, filename)
+            _ospath.join(dirpath, filename)
             for dirpath, _, filenames in _os.walk(path)
             for filename in filenames
         )
@@ -378,10 +379,10 @@ class FS:
         """
 
         # normalize
-        path = _os.path.normpath(path)
+        path = _ospath.normpath(path)
 
         #
-        if _os.path.isdir(path):
+        if _ospath.isdir(path):
             yield from cls.walkdir(path)
         else:
             yield path
@@ -399,37 +400,10 @@ class FS:
         """
 
         # normalize
-        path = _os.path.normpath(path)
+        path = _ospath.normpath(path)
 
         #
-        return _os.path.exists(path)
-
-    @classmethod
-    def join(
-        cls, path: str, *paths: str,
-    ) -> str:
-        """
-        Join two or more path components.
-
-        :param path: the first path component.
-        :param paths: the other paths components.
-
-        :raises ValueError: if any component in `paths` is an absolute path.
-        :raises ValueError: if no component is given in `paths`.
-        """
-
-        # guard
-        if len(paths) == 0:
-            raise ValueError('no components given')
-        if any(p.startswith('/') for p in paths):
-            raise ValueError('invalid absolute path as component')
-
-        # normalize
-        path = _os.path.normpath(path)
-        paths = tuple(_os.path.normpath(p) for p in paths)
-
-        #
-        return _os.path.normpath(_os.path.join(path, *paths))
+        return _ospath.exists(path)
 
     @classmethod
     def copy(
@@ -448,15 +422,15 @@ class FS:
         """
 
         # guard
-        if not overwrite and _os.path.exists(dst_path):
+        if not overwrite and _ospath.exists(dst_path):
             raise FileExistsError(_errno.EEXIST, f'{dst_path} already exists')
 
         # normalize
-        src_path = _os.path.normpath(src_path)
-        dst_path = _os.path.normpath(dst_path)
+        src_path = _ospath.normpath(src_path)
+        dst_path = _ospath.normpath(dst_path)
 
         #
-        if _os.path.isdir(src_path):
+        if _ospath.isdir(src_path):
             _shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
         else:
             _shutil.copyfile(src_path, dst_path, follow_symlinks=True)
@@ -478,12 +452,12 @@ class FS:
         """
 
         # guard
-        if not overwrite and _os.path.exists(dst_path):
+        if not overwrite and _ospath.exists(dst_path):
             raise FileExistsError(_errno.EEXIST, f'{dst_path} already exists')
 
         # normalize
-        src_path = _os.path.normpath(src_path)
-        dst_path = _os.path.normpath(dst_path)
+        src_path = _ospath.normpath(src_path)
+        dst_path = _ospath.normpath(dst_path)
 
         _shutil.rmtree(dst_path, ignore_errors=True)
         _shutil.move(src_path, dst_path)
@@ -527,6 +501,49 @@ class FS:
                     id_size=id_size,
                 )
             case _: raise
+
+    # > PATHS
+
+    @classmethod
+    def joinpath(
+        cls, path: str, *paths: str,
+    ) -> str:
+        """
+        Join two or more path components.
+
+        :param path: the first path component.
+        :param paths: the other paths components.
+
+        :raises ValueError: if any component in `paths` is an absolute path.
+        :raises ValueError: if no component is given in `paths`.
+        """
+
+        # guard
+        if len(paths) == 0:
+            raise ValueError('no components given')
+        if any(p.startswith('/') for p in paths):
+            raise ValueError('invalid absolute path as component')
+
+        # normalize
+        path = _ospath.normpath(path)
+        paths = tuple(_ospath.normpath(p) for p in paths)
+
+        #
+        return _ospath.normpath(_ospath.join(path, *paths))
+
+    @classmethod
+    def relpath(
+        cls, path: str, start_path: str | None = None,
+    ):
+        """
+        Make the given path relative to the given start.
+
+        :param path: the path to make relative.
+        :param start_path: the path to make it relative to, defaults to the current path.
+        """
+
+        # this already does all the pre/post cleanup
+        return _ospath.relpath(path, start_path)
 
     # > helpers
 

@@ -1,11 +1,10 @@
-import itertools
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 import dataclasses as dc
 
+import itertools
 import functools as ft
 import networkx as nx
 import os
-from os.path import join as path_join
 
 from sxpat.graph.graph import SGraph, IOGraph
 from sxpat.graph.node import Extras, Node
@@ -47,9 +46,9 @@ from sxpat.labelling.labelling import Labelling
 def explore_grid(specs_obj: Specifications):
     # initial setup
     # store circuits
-    FS.copy(specs_obj.exact_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'origin.v'))
+    FS.copy(specs_obj.exact_benchmark, tmp := FS.joinpath(specs_obj.path.run.verilog, 'origin.v'))
     specs_obj.exact_benchmark = tmp
-    FS.copy(specs_obj.current_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'current.v'))
+    FS.copy(specs_obj.current_benchmark, tmp := FS.joinpath(specs_obj.path.run.verilog, 'current.v'))
     specs_obj.current_benchmark = tmp
     # load exact circuit and compute its metrics
     exact_graph = load_circuit_from_verilog(specs_obj.exact_benchmark, specs_obj.path.run)
@@ -60,7 +59,7 @@ def explore_grid(specs_obj: Specifications):
     all_generated_circuits_data = [
         ExpandedCircuitData(
             'origin.v',
-            path_join(specs_obj.path.run.verilog, f'origin.v'),
+            FS.joinpath(specs_obj.path.run.verilog, f'origin.v'),
             exact_circuit_metrics.area,
             exact_circuit_metrics.power,
             exact_circuit_metrics.delay,
@@ -75,7 +74,7 @@ def explore_grid(specs_obj: Specifications):
     )
 
     #
-    previous_graphs: List[SGraph] = list()
+    previous_graphs: list[SGraph] = list()
     obtained_wce_exact = 0
     specs_obj.iteration = 0
 
@@ -120,7 +119,7 @@ def explore_grid(specs_obj: Specifications):
         specs_obj.stats_storage.stage(
             iteration=specs_obj.iteration,
             error_threshold=specs_obj.et,
-            circuit_to_approximate=os.path.relpath(specs_obj.current_benchmark, specs_obj.path.run.base_folder),
+            circuit_to_approximate=FS.relpath(specs_obj.current_benchmark, specs_obj.path.run.base_folder),
         )
         pprint.info1(f'benchmark {specs_obj.current_benchmark}')
         pprint.info1(f'iteration {specs_obj.iteration} with et {specs_obj.et}, available error {specs_obj.max_error}'
@@ -168,8 +167,8 @@ def explore_grid(specs_obj: Specifications):
         if specs_obj.debug:
             from sxpat.newag import export_annotated_graph
             # construct path
-            _path = path_join(specs_obj.path.run.graphviz, f'{extract_name(specs_obj.current_benchmark)}_subgraph.gv')
-            _p_path = os.path.relpath(_path, specs_obj.path.run.base_folder)
+            _path = FS.joinpath(specs_obj.path.run.graphviz, f'{extract_name(specs_obj.current_benchmark)}_subgraph.gv')
+            _p_path = FS.relpath(_path, specs_obj.path.run.base_folder)
             # export graph
             export_annotated_graph(current_graph, _path)
             specs_obj.stats_storage.stage(subgraph_dot=_p_path)
@@ -280,7 +279,7 @@ def explore_grid(specs_obj: Specifications):
                 pprint.success(f'{status.upper()} ({len(models)} models found)', f'{timer_cell.total():.2f}s')
 
                 #
-                cur_model_results: List[ExpandedCircuitData] = list()
+                cur_model_results: list[ExpandedCircuitData] = list()
                 #
                 for model_number, model in enumerate(models):
                     # apply model to circuit
@@ -288,7 +287,7 @@ def explore_grid(specs_obj: Specifications):
 
                     # export approximate graph as verilog
                     circuit_id = f'gen_iter{specs_obj.iteration}_model{model_number}'
-                    verilog_path = path_join(specs_obj.path.run.verilog, f'{circuit_id}.v')
+                    verilog_path = FS.joinpath(specs_obj.path.run.verilog, f'{circuit_id}.v')
                     VerilogExporter.to_file(
                         a_graph, verilog_path,
                         VerilogExporter.Info(model_number=model_number),
@@ -361,7 +360,7 @@ def explore_grid(specs_obj: Specifications):
                 # commit all circuit data
                 for (i, circuit_data) in enumerate(sorted_circuits):
                     specs_obj.stats_storage.stage(
-                        circuit_path=os.path.relpath(circuit_data.path, specs_obj.path.run.base_folder),
+                        circuit_path=FS.relpath(circuit_data.path, specs_obj.path.run.base_folder),
                         circuit_error=circuit_data.error_to_origin,
                         circuit_area=circuit_data.area,
                         circuit_power=circuit_data.power,
@@ -415,7 +414,7 @@ def update_context(specs_obj: Specifications, lpp: int, ppo: int):
 
 
 def print_current_model(
-        sorted_models_data: List[ExpandedCircuitData],
+        sorted_models_data: list[ExpandedCircuitData],
         origin_circuit_data: Optional[MetricsEstimator.Metrics] = None,
         normalize: bool = False
 ) -> None:
@@ -459,7 +458,7 @@ def print_current_model(
     pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
 
-def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
+def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> list[str]:
     return {
         0: find_subgraph_output_nodes_ascendant,
         1: find_subgraph,
@@ -513,7 +512,7 @@ def configuration_explorer_factory(
             return None
 
 
-def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
+def label_graph(circuit: IOGraph, specs_obj: Specifications) -> dict[str, int]:
     """This function adds the labels inplace to the given graph"""
 
     reference: IOGraph = circuit
