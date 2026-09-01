@@ -1,15 +1,15 @@
-from __future__ import annotations
+import itertools
 from typing import Dict, Iterable, Iterator, List, Literal, Optional, Tuple, Union
 import dataclasses as dc
 
 import functools as ft
-import math
 import networkx as nx
 import os
 from os.path import join as path_join
 
 from sxpat.graph.graph import SGraph, IOGraph
 from sxpat.graph.node import Extras, Node
+from sxpat.error_iter import ErrorIterator
 from sxpat.newag import load_circuit_from_verilog
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
 
@@ -18,6 +18,7 @@ from sxpat.specifications import Specifications, TemplateType, ErrorPartitioning
 from sxpat.constants.misc import UNKNOWN, SAT
 
 from sxpat.utils.filesystem import FS
+from sxpat.utils.iterators import while_predicate
 from sxpat.utils.names import extract_name
 from sxpat.utils.timer import Timer
 from sxpat.utils.print import pprint
@@ -51,7 +52,8 @@ def explore_grid(specs_obj: Specifications):
     specs_obj.current_benchmark = tmp
     # load exact circuit and compute its metrics
     exact_graph = load_circuit_from_verilog(specs_obj.exact_benchmark, specs_obj.path.run)
-    exact_circuit_metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, specs_obj.exact_benchmark, specs_obj.path.run.temporary)
+    exact_circuit_metrics = MetricsEstimator.estimate_metrics(
+        specs_obj.path.synthesis, specs_obj.exact_benchmark, specs_obj.path.run.temporary)
 
     #
     all_generated_circuits_data = [
@@ -75,77 +77,32 @@ def explore_grid(specs_obj: Specifications):
     previous_graphs: List[SGraph] = list()
     obtained_wce_exact = 0
     specs_obj.iteration = 0
-    persistence = 0
-    persistence_limit = 2
-    prev_actual_error = 0 if specs_obj.subxpat else 1
-    prev_given_error = 0
 
-    #
-    if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
-        orig_et = specs_obj.max_error
-        if orig_et <= 8:
-            et_array = iter(list(range(1, orig_et + 1, 1)))
-        else:
-            step = orig_et // 8 if orig_et // 8 > 0 else 1
-            et_array = iter(list(range(step, orig_et + step, step)))
-
-    #
-    while (obtained_wce_exact < specs_obj.max_error):
-        specs_obj.iteration += 1
-        specs_obj.stats_storage.stage(iteration=specs_obj.iteration)
-
-        # compute error threshold for the iteration
-        if not specs_obj.subxpat:
-            if prev_actual_error == 0: break
-            specs_obj.et = specs_obj.max_error
-
-        elif specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
-            if (persistence == persistence_limit or prev_actual_error == 0):
-                persistence = 0
-                try:
-                    specs_obj.et = next(et_array)
-                except StopIteration:
-                    pprint.warning('The error space is exhausted!')
-                    break
-            else:
-                persistence += 1
-
-        elif specs_obj.error_partitioning is ErrorPartitioningType.DESCENDING:
-            log2 = int(math.log2(specs_obj.max_error))
-            specs_obj.et = 2 ** (log2 - specs_obj.iteration - 2)
-
-        elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_ASCENDING:
-            if specs_obj.iteration == 1:
-                specs_obj.et = 1
-            else:
-                if prev_actual_error == 0 or persistence == persistence_limit:
-                    specs_obj.et = prev_given_error * 2
-                else:
-                    specs_obj.et = prev_given_error
-                    persistence += 1
-            prev_given_error = specs_obj.et
-
-        elif specs_obj.error_partitioning is ErrorPartitioningType.SMART_DESCENDING:
-            specs_obj.et = specs_obj.max_error if specs_obj.iteration == 1 else math.ceil(prev_given_error / (2 if prev_actual_error == 0 else 1))
-            prev_given_error = specs_obj.et
-
-        else:
-            # logging
-            specs_obj.stats_storage.stage(ERROR='illegal_state__error_partitioning')
-            specs_obj.stats_storage.commit()
-            #
-            raise NotImplementedError('invalid status')
-
+    # initialize error iterator (error partitioning)
+    erriter = error_iterator(specs_obj)
+    if erriter is None:
+        # logging
+        specs_obj.stats_storage.stage(ERROR='illegal_state__error_partitioning')
+        specs_obj.stats_storage.commit()
         #
-        if specs_obj.et > specs_obj.max_error or specs_obj.et <= 0: break
+        raise NotImplementedError('invalid error iteration')
 
+    #
+    for (
+        specs_obj.iteration,
+        specs_obj.et,
+        *_,
+    ) in zip(
+        itertools.count(1),  # iteration id
+        erriter,  # error threshold for the iteration
+        while_predicate(lambda: obtained_wce_exact < specs_obj.max_error),  # normal continuation
+    ):
         # slash to kill
         if specs_obj.slash_to_kill:
             # first iteration: apply slash
             if specs_obj.iteration == 1:
                 # store relevant specifications values
-                saved_min_labeling = specs_obj.min_labeling
-                saved_exctraction_mode = specs_obj.extraction_mode
+                preserved_slash_state = (specs_obj.min_labeling, specs_obj.extraction_mode)
 
                 # update specifications
                 specs_obj.min_labeling = False
@@ -154,9 +111,7 @@ def explore_grid(specs_obj: Specifications):
 
             # second iteration: restore state
             elif specs_obj.iteration == 2:
-                # restore specifications values
-                specs_obj.min_labeling = saved_min_labeling
-                specs_obj.extraction_mode = saved_exctraction_mode
+                (specs_obj.min_labeling, specs_obj.extraction_mode) = preserved_slash_state
 
             # skip all iterations implicitly achieved through the slash to kill step
             if specs_obj.iteration > 1 and specs_obj.et < specs_obj.error_for_slash:
@@ -165,6 +120,7 @@ def explore_grid(specs_obj: Specifications):
 
         # logging
         specs_obj.stats_storage.stage(
+            iteration=specs_obj.iteration,
             error_threshold=specs_obj.et,
             circuit_to_approximate=os.path.relpath(specs_obj.current_benchmark, specs_obj.path.run.base_folder),
         )
@@ -228,7 +184,7 @@ def explore_grid(specs_obj: Specifications):
 
         # guard: skip if no subgraph was found
         if not subgraph_is_available:
-            prev_actual_error = 0
+            erriter.give_feedback(error_to_previous=0)
             # logging
             pprint.warning(f'No subgraph available.')
             specs_obj.stats_storage.commit()
@@ -241,7 +197,7 @@ def explore_grid(specs_obj: Specifications):
             and len(previous_graphs) >= 2
             and are_circuits_equal(previous_graphs[-2], previous_graphs[-1])
         ):
-            prev_actual_error = 0
+            erriter.give_feedback(error_to_previous=0)
             # logging
             pprint.warning('The subgraph is equal to the previous one. Skipping iteration ...')
             specs_obj.stats_storage.commit()
@@ -344,7 +300,10 @@ def explore_grid(specs_obj: Specifications):
                     )
 
                     # compute circuit metrics
-                    _metrics = MetricsEstimator.estimate_metrics(specs_obj.path.synthesis, verilog_path, specs_obj.path.run.temporary)
+                    _metrics = MetricsEstimator.estimate_metrics(
+                        specs_obj.path.synthesis, verilog_path,
+                        specs_obj.path.run.temporary,
+                    )
                     cur_model_results.append(ExpandedCircuitData(
                         circuit_id,
                         verilog_path,
@@ -360,7 +319,7 @@ def explore_grid(specs_obj: Specifications):
                 for candidate_data in cur_model_results:
                     #
                     _time = Timer.now()
-                    cur_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
+                    cur_graph = load_circuit_from_verilog(candidate_data.path, specs_obj.path.run)
                     _time = Timer.now() - _time
                     # logging
                     specs_obj.stats_storage.stage(erroreval_annotated_graphs_initialization_time=_time)
@@ -377,7 +336,10 @@ def explore_grid(specs_obj: Specifications):
                         specs_obj.stats_storage.stage(ERROR='error_verification_failed')
                         specs_obj.stats_storage.commit()
                         #
-                        raise Exception(f'ErrorEval Verification FAILED with wce = {candidate_data.error_to_origin} for circuit {candidate_data.path}')
+                        raise Exception(
+                            f'ErrorEval Verification FAILED with wce = {candidate_data.error_to_origin}'
+                            f' for circuit {candidate_data.path}'
+                        )
 
                 # logging
                 specs_obj.stats_storage.stage(verification_time=verification_timer.total)
@@ -392,8 +354,11 @@ def explore_grid(specs_obj: Specifications):
 
                 # prepare for next iteration
                 specs_obj.current_benchmark = best_model_data.path
-                obtained_wce_exact = best_model_data.error_to_origin
-                prev_actual_error = best_model_data.error_to_previous
+                obtained_wce_exact: int = best_model_data.error_to_origin  # pyright: ignore[reportAssignmentType]
+                erriter.give_feedback(
+                    error_to_origin=best_model_data.error_to_origin,  # pyright: ignore[reportArgumentType]
+                    error_to_previous=best_model_data.error_to_previous,  # pyright: ignore[reportArgumentType]
+                )
 
                 # logging
                 # commit all circuit data
@@ -413,7 +378,7 @@ def explore_grid(specs_obj: Specifications):
                 # a valid circuit was found, stop grid exploration
                 break
 
-            prev_actual_error = 0
+            erriter.give_feedback(error_to_previous=0)
 
             # debug
             if specs_obj.debug: specs_obj.stats_storage.save()
@@ -508,7 +473,8 @@ def print_current_model(
     # if the exact is given, print that too
     if origin_circuit_data is not None:
         # add exact circuit data
-        origin_area, origin_power, origin_delay = (origin_circuit_data.area, origin_circuit_data.power, origin_circuit_data.delay)
+        origin_area, origin_power, origin_delay = (
+            origin_circuit_data.area, origin_circuit_data.power, origin_circuit_data.delay)
         data.append(['Exact', origin_area, origin_power, origin_delay, 0])
 
         # if the models data should be normalized to the exact, normalize into a copy
@@ -555,6 +521,22 @@ def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
     }[specs_obj.extraction_mode](circuit, specs_obj)
 
 
+def error_iterator(specs: Specifications) -> ErrorIterator | None:
+    import sxpat.error_iter as _ei
+
+    if specs.subxpat:
+        erriter = {
+            ErrorPartitioningType.ASCENDING: _ei.AscendingEI(specs.max_error, 2),
+            ErrorPartitioningType.SMART_ASCENDING: _ei.SmartAscendingEI(specs.max_error, 2),
+            ErrorPartitioningType.DESCENDING: _ei.DescendingEI(specs.max_error),
+            ErrorPartitioningType.SMART_DESCENDING: _ei.SmartDescendingEI(specs.max_error),
+        }.get(specs.error_partitioning, None)
+    else:
+        erriter = _ei.XPATEI(specs.max_error)
+
+    return erriter
+
+
 def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     """This function adds the labels inplace to the given graph"""
 
@@ -563,7 +545,7 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
 
     #
     labeller = Labelling(
-        reference, to_be_labelled, 
+        reference, to_be_labelled,
         specs_obj,
         minimise=specs_obj.min_labeling,
         use_functions=True,
