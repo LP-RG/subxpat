@@ -460,7 +460,6 @@ class FS:
             _shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
         else:
             _shutil.copyfile(src_path, dst_path, follow_symlinks=True)
-            _shutil.copy
 
     @classmethod
     def move(
