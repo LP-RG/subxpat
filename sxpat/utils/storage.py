@@ -1,9 +1,8 @@
-from typing import Any, Dict, List, Mapping, NoReturn, Union
+from typing import Any, Mapping, NoReturn, Self, Union
 from bidict import bidict
 
 import csv
 import copy
-import os.path
 import itertools as it
 
 
@@ -14,44 +13,51 @@ class LiveStorage:
     """
         Represents a live storage on which data can be staged and then committed.  
         The class uses a stack to store staged data,
-        the first stage after a commit pops all data above the staged key.
+        the first stage after a commit pops all data above the restaged key.
 
         The class has guards to prevent restaging data without committing or staging out of order
         (a key cannot be added before others that appeared sooner in previous staging sequences).
         A commit with missing keys (actually missing, not implicitly copied from the previous iteration) is **valid**.
 
-        If a save happens and then a new key is committed, the next save will update the file with the new key (header and older rows).
+        The unerlying file is kept updated as new keys and rows are added.
 
-        This class can be used with a context manager and will automatically save on exit.
+        This class can be used with a context manager and will automatically flush on exit.
 
-        @authors: Marco Biasion
+        :authors: Marco Biasion
     """
 
-    def __init__(self, save_destination: str):
-        self._stack: Dict[str, Any] = dict()
-        """Contains the staged data."""
-        self._storage: List[Dict[str, Any]] = list()
-        """Contains all committed data."""
+    def __init__(
+        self,
+        save_destination: str,
+    ):
+        """
+            :param save_destination: the path to open the file to.
+            :raises FileExistsError: if the file already exists.
+        """
 
+        self._stack: dict[str, Any] = dict()
+        """Contains the staged data."""
         self._order: bidict[str, int] = bidict()
         """Records the order of the keys."""
         self._last_index_set: int = -1
         """Records the latest index that was set. -1 if no new stages after a commit."""
-        self._save_from: int = 0
-        """Starting index in `_storage` a `save()` call sould save."""
 
-        self._destination = save_destination
-        """Name of the file that will contain the storage when exiting."""
+        self._must_rewrite: bool = True
+        """If the file should be rewritten from scratch."""
+        self._storage: list[list[Any]] = list()
+        """Contains all committed data."""
+        self._file = open(save_destination, 'x')
+        """File object that will contain the data."""
+        self._writer = csv.writer(self._file, lineterminator='\n')
+        """CSV Writer object to write to the file."""
 
-        # prepare destination file
-        open(self._destination, 'x').close()
-
-    @property
-    def destination(self) -> str: return self._destination
-
-    def stage(self, mapping: Mapping[str, Any] = dict(), /, **kwargs: Any) -> None:
+    def stage(self, mapping: Mapping[str, Any] = dict(), /, **kwargs: Any) -> Self:
         """
             Stages all given values at their given key on the current stack.
+
+            :param mapping: a dictionary like object containing keys and their associated values to stage.
+            :param kwargs: keyword arguments, that will be staged under the keyword.
+            :return: the storage object.
         """
 
         # loop in order through all new key/value pairs
@@ -59,7 +65,7 @@ class LiveStorage:
             # add key to _order if first occurrence
             if key not in self._order:
                 self._order[key] = len(self._order)
-                self._save_from = 0
+                self._must_rewrite = True
 
             # guards
             self._check_out_of_order(key)
@@ -74,11 +80,31 @@ class LiveStorage:
             # save latest index
             self._last_index_set = self._order[key]
 
+        return self
+
     def commit(self):
         """Commits the current stack."""
 
-        # add stack to storage
-        self._storage.append(copy.deepcopy(self._stack))
+        # add stack to storage (as list)
+        self._storage.append([
+            copy.deepcopy(v)
+            for v in {
+                **dict.fromkeys(self._order.keys()),  # required to correctly preserve missing keys
+                **self._stack
+            }.values()
+        ])
+
+        # write
+        if self._must_rewrite:
+            # reset file if needed
+            self._file.seek(0, 0)
+            self._writer.writerow(self._order.keys())
+            # write all rows
+            self._writer.writerows(self._storage)
+        else:
+            # write only last
+            self._writer.writerow(self._storage[-1])
+
         # reset latest index
         self._last_index_set = -1
 
@@ -91,29 +117,8 @@ class LiveStorage:
         # reset latest index
         self._last_index_set = -1
 
-    def save(self) -> None:
-        """
-            Writes all the commited data in `csv` format to the file described by `save_destination`,
-            the data is appended if the file was created by a previous save of this object, it is overwritten otherwise.
-
-            Skips all data which was already saved, so multiple calls do not duplicate data.
-        """
-
-        # skip if there is no data to save
-        if self._save_from == len(self._storage): return
-
-        # select opening mode (first save/updated columns or if just append)
-        wanted_mode = 'w' if self._save_from == 0 else 'a'
-        with open(self._destination, wanted_mode) as ofile:
-            writer = csv.DictWriter(ofile, self._order.keys())
-
-            # write header if it is the first save, or if a new field was added
-            if self._save_from == 0: writer.writeheader()
-
-            writer.writerows(it.islice(self._storage, self._save_from, None, None))
-
-        # update starting index for next save
-        self._save_from = len(self._storage)
+    def flush(self): self._file.flush()
+    def close(self): self._file.close()
 
     def _check_out_of_order(self, key: str) -> Union[None, NoReturn]:
         if self._last_index_set == -1: return
@@ -130,9 +135,9 @@ class LiveStorage:
             raise self.KeyRestagedWithoutCommitError(key)
 
     def __enter__(self): return self
-    def __exit__(self, _0, _1, _2): self.save()
+    def __exit__(self, exc_type, exc, tb): self.flush()
 
-    def __repr__(self) -> str: return f'{type(self).__qualname__}({self._destination})'
+    def __repr__(self) -> str: return f'{type(self).__qualname__}({self._file.name})'
 
     class StageError(Exception):
         """Base class for data staging errors."""
@@ -161,25 +166,21 @@ class LiveStorage:
 
 class AppendStorage:
     """
-        Represents a storage on which data can be appended to.  
+        Represents a storage on which data can be appended to.
 
         The class has guards to prevent readding data with the same keys.
 
         This class can be used with a context manager and will automatically save on exit.
 
-        @authors: Marco Biasion
+        :authors: Marco Biasion
     """
 
     def __init__(self, save_destination: str):
-        # guard
-        if os.path.exists(save_destination): raise FileExistsError(save_destination)
-
         #
         self._seen_keys = set()
-
-        # open
+        #
         self._file = open(save_destination, 'x')
-        self._writer = csv.writer(self._file)
+        self._writer = csv.writer(self._file, lineterminator='\n')
 
     def add(self, mapping: Mapping[str, Any] = dict(), /, **kwargs: Any):
         # guard
@@ -194,7 +195,7 @@ class AppendStorage:
     def close(self): self._file.close()
 
     def __enter__(self): return self
-    def __exit__(self, _0, _1, _2): self.close()
+    def __exit__(self, exc_type, exc, tb): self.flush()
 
     class DuplicateKeyError(LookupError):
         """A key was trying to be readded."""

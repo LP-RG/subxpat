@@ -48,7 +48,7 @@ def main():
         specs_obj.details_storage.add(import_time=import_timer.time)
 
         # gracefully close storages
-        specs_obj.stats_storage.save()
+        specs_obj.stats_storage.close()
         specs_obj.details_storage.close()
 
     # > remove temporary files

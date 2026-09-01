@@ -378,7 +378,7 @@ def explore_grid(specs_obj: Specifications):
             erriter.give_feedback(error_to_previous=0)
 
             # debug
-            if specs_obj.debug: specs_obj.stats_storage.save()
+            if specs_obj.debug: specs_obj.stats_storage.flush()
 
         if status == SAT and best_model_data.area == 0:
             pprint.info3('Area zero found!\nTerminated.')
