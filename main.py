@@ -5,8 +5,8 @@ def main():
     import_timer = ImportTimer.instrument()
 
     # misc
-    from sxpat.utils.timer import Timer
-    start_time = Timer.now()
+    from sxpat.utils.timer import default_counter
+    start_time = default_counter()
 
     # > parse arguments and prepare specifications
     from sxpat.specifications import Specifications
@@ -44,7 +44,7 @@ def main():
 
     finally:
         # timings
-        specs_obj.details_storage.add(total_time=Timer.now() - start_time)
+        specs_obj.details_storage.add(total_time=default_counter() - start_time)
         specs_obj.details_storage.add(import_time=import_timer.time)
 
         # gracefully close storages

@@ -20,7 +20,7 @@ from sxpat.constants.misc import UNKNOWN, SAT
 from sxpat.utils.filesystem import FS
 from sxpat.utils.iterators import while_predicate
 from sxpat.utils.names import extract_name
-from sxpat.utils.timer import Timer
+from sxpat.utils.timer import Timer2
 from sxpat.utils.print import pprint
 
 from sxpat.metrics import MetricsEstimator
@@ -132,46 +132,41 @@ def explore_grid(specs_obj: Specifications):
         # > grid step settings
 
         # import the graph
-        _time = Timer.now()
-        current_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
-        _time = Timer.now() - _time
+        with Timer2.default() as _timer:
+            current_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
         # logging
-        specs_obj.stats_storage.stage(annotated_graphs_initialization_time=_time)
-        print(f'annotated_graph_loading_time = {_time}')
+        specs_obj.stats_storage.stage(annotated_graphs_initialization_time=_timer.total())
+        print(f'annotated_graph_loading_time = {_timer.total()}')
 
         # label graph
         if specs_obj.requires_labeling:
             print('started labelling')
-            _time = Timer.now()
 
-            weights = label_graph(current_graph, specs_obj)
-            for (i, n) in enumerate(current_graph.outputs_names):
-                weights[n] = 2 ** i
-
-            current_graph = iograph_with_weights(current_graph, weights)
-            _time = Timer.now() - _time
+            with Timer2.default() as _timer:
+                weights = label_graph(current_graph, specs_obj)
+                for (i, n) in enumerate(current_graph.outputs_names):
+                    weights[n] = 2 ** i
+                current_graph = iograph_with_weights(current_graph, weights)
 
             # logging
-            specs_obj.stats_storage.stage(labelling_time=_time)
-            print(f'labelling_time = {_time}')
+            specs_obj.stats_storage.stage(labelling_time=_timer.total())
+            print(f'labelling_time = {_timer.total()}')
 
         # extract subgraph
-        _time = Timer.now()
-        subgraph_nodes = extract_subgraph(current_graph, specs_obj)
-        subgraph_is_available = len(subgraph_nodes) > 0
-        current_graph = iograph_to_sgraph(current_graph, subgraph_nodes)
-        _time = Timer.now() - _time
+        with Timer2.default() as _timer:
+            subgraph_nodes = extract_subgraph(current_graph, specs_obj)
+            subgraph_is_available = len(subgraph_nodes) > 0
+            current_graph = iograph_to_sgraph(current_graph, subgraph_nodes)
         previous_graphs.append(current_graph)
-
         # logging
         specs_obj.stats_storage.stage(
-            subgraph_extraction_time=_time,
+            subgraph_extraction_time=_timer.total(),
             subgraph_nodes_count=len(current_graph.subgraph_nodes),
             subgraph_inputs_count=len(current_graph.subgraph_inputs),
             subgraph_outputs_count=len(current_graph.subgraph_outputs),
         )
-        print(f'subgraph_extraction_time = {_time}')
-        # logging
+        print(f'subgraph_extraction_time = {_timer.total()}')
+        # debug logging
         if specs_obj.debug:
             from sxpat.newag import export_annotated_graph
             # construct path
@@ -207,7 +202,7 @@ def explore_grid(specs_obj: Specifications):
         pprint.info2(f'Grid ({specs_obj.grid_param_1} X {specs_obj.grid_param_2}) and et={specs_obj.et} exploration started...')
         dominant_cells = []
         for lpp, ppo in CellIterator.factory(specs_obj):
-            _cell_time = Timer.now()
+            timer_cell = Timer2.default().start()
             print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
 
             if lpp > len(current_graph.subgraph_inputs):
@@ -230,21 +225,20 @@ def explore_grid(specs_obj: Specifications):
             )
 
             # define template (and relative constraints)
-            _time = Timer.now()
-            param_circ, *param_circ_constr = get_templater(specs_obj).define(current_graph, specs_obj)
-            _time_define = Timer.now() - _time
+            with Timer2.default() as _timer_define:
+                param_circ, *param_circ_constr = get_templater(specs_obj).define(current_graph, specs_obj)
             # define question
-            _time = Timer.now()
-            base_question = exists_parameters.not_above_threshold_forall_inputs(
-                current_graph, param_circ,
-                AbsoluteDifferenceOfInteger, specs_obj.et,
-            )
-            _time_define += Timer.now() - _time
+            with _timer_define:
+                base_question = exists_parameters.not_above_threshold_forall_inputs(
+                    current_graph, param_circ,
+                    AbsoluteDifferenceOfInteger, specs_obj.et,
+                )
             # logging
-            specs_obj.stats_storage.stage(grid_phase_definition_time=_time_define)
+            specs_obj.stats_storage.stage(grid_phase_definition_time=_timer_define.total())
 
             # prepare solver/question
-            solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
+            _timer_solve = Timer2.default()
+            solve = get_solver(specs_obj).solve
             question = [exact_graph, param_circ, *param_circ_constr, *base_question]
             #
             models = []
@@ -256,7 +250,8 @@ def explore_grid(specs_obj: Specifications):
                 if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
 
                 # solve question
-                status, model = solve(question, specs_obj)
+                with _timer_solve:
+                    status, model = solve(question, specs_obj)
 
                 # terminate if status is not sat, otherwise store the model
                 if status != SAT: break
@@ -264,11 +259,11 @@ def explore_grid(specs_obj: Specifications):
             #
             if len(models) > 0: status = SAT
             # logging
-            _cell_time = Timer.now() - _cell_time
+            timer_cell.stop()
             specs_obj.stats_storage.stage(
-                grid_phase_solution_time=solve_timer.total,
+                grid_phase_solution_time=_timer_solve.total(),
                 status=status.upper(),
-                cell_time=_cell_time,
+                cell_time=timer_cell.total(),
             )
 
             # skip if no model found
@@ -277,12 +272,12 @@ def explore_grid(specs_obj: Specifications):
                 if status == UNKNOWN: dominant_cells.append((lpp, ppo))
 
                 # logging
-                pprint.warning(status.upper(), f'{_cell_time:.2f}s')
+                pprint.warning(status.upper(), f'{timer_cell.total():.2f}s')
                 specs_obj.stats_storage.commit()
 
             # otherwise verify all models and select best for next iteration
             else:
-                pprint.success(f'{status.upper()} ({len(models)} models found)', f'{_cell_time:.2f}s')
+                pprint.success(f'{status.upper()} ({len(models)} models found)', f'{timer_cell.total():.2f}s')
 
                 #
                 cur_model_results: List[ExpandedCircuitData] = list()
@@ -314,26 +309,28 @@ def explore_grid(specs_obj: Specifications):
 
                 # verify all models and store errors
                 pprint.info1('verifying all approximate circuits ...')
-                verification_timer, _error_evaluation = Timer.from_function(error_evaluation)
+                _timer_verification = Timer2.default()
                 # for candidate_path, candidate_data in cur_model_results.items():
                 for candidate_data in cur_model_results:
                     #
-                    _time = Timer.now()
-                    cur_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
-                    _time = Timer.now() - _time
+                    with Timer2.default() as _timer:
+                        cur_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
                     # logging
-                    specs_obj.stats_storage.stage(erroreval_annotated_graphs_initialization_time=_time)
-                    print(f'erreval_annotated_graph_loading_time = {_time}')
+                    specs_obj.stats_storage.stage(erroreval_annotated_graphs_initialization_time=_timer.total())
+                    print(f'erreval_annotated_graph_loading_time = {_timer.total()}')
 
                     # compute errors relative to origin and previous
-                    candidate_data.error_to_origin = _error_evaluation(exact_graph, cur_graph, specs_obj)
-                    candidate_data.error_to_previous = _error_evaluation(current_graph, cur_graph, specs_obj)
+                    with _timer_verification:
+                        candidate_data.error_to_origin = error_evaluation(exact_graph, cur_graph, specs_obj)
+                        candidate_data.error_to_previous = error_evaluation(current_graph, cur_graph, specs_obj)
 
                     #
                     if candidate_data.error_to_origin > specs_obj.et:
                         # logging
-                        specs_obj.stats_storage.stage(verification_time=verification_timer.total)
-                        specs_obj.stats_storage.stage(ERROR='error_verification_failed')
+                        specs_obj.stats_storage.stage(
+                            verification_time=_timer_verification.total(),
+                            ERROR='error_verification_failed',
+                        )
                         specs_obj.stats_storage.commit()
                         #
                         raise Exception(
@@ -342,7 +339,7 @@ def explore_grid(specs_obj: Specifications):
                         )
 
                 # logging
-                specs_obj.stats_storage.stage(verification_time=verification_timer.total)
+                specs_obj.stats_storage.stage(verification_time=_timer_verification.total())
 
                 # sort circuits and select best
                 sorted_circuits = sorted(cur_model_results, key=ft.cmp_to_key(model_compare))
