@@ -175,12 +175,25 @@ class Timer2[T:_SupportsAddSub]:
         self._running: bool = False
 
     def tick(self) -> T:
+        """
+            Returns the difference between now and the previous tick or the start, whichever is closest.
+
+            :raises RuntimeError: if the timer is not running.
+        """
+
         now = self._clock_counter()
-        delta = now - self._previous
-        self._previous = now
+        if self._running:
+            delta = now - self._previous
+            self._previous = now
+        else:
+            raise RuntimeError('The timer is not running.')
         return delta
 
     def total(self) -> T:
+        """
+            If the timer is running, returns the difference since the start summed with all totals from previous measurements.  
+            If the timer is *not* running, returns the sum of all totals from the measurements.
+        """
         now = self._clock_counter()
         # action
         if self._running:
@@ -191,10 +204,15 @@ class Timer2[T:_SupportsAddSub]:
             return self._total  # pyright: ignore[reportReturnType] # always valid here
 
     def start(self) -> _Self:
+        """
+            Starts the timer. This is required for updating the measurements.
+
+            :raises RuntimeError: if the timer is alrady running.
+        """
         now = self._clock_counter()
         # action
         if self._running:
-            raise RuntimeError('timer is already running.')
+            raise RuntimeError('The timer is already running.')
         else:
             self._start = now
             self._previous = now
@@ -202,6 +220,11 @@ class Timer2[T:_SupportsAddSub]:
         return self
 
     def stop(self) -> T:
+        """
+            Stops the timer.
+
+            :raises RuntimeError: if the timer is alrady stopped.
+        """
         now = self._clock_counter()
         # action
         if self._running:
@@ -211,7 +234,7 @@ class Timer2[T:_SupportsAddSub]:
             self._previous = now
             self._running = False
         else:
-            raise RuntimeError('timer is already stopped.')
+            raise RuntimeError('The timer is already stopped.')
         return self._total  # pyright: ignore[reportReturnType] # always valid here
 
     def __enter__(self): return self.start()
