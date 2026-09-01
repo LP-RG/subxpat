@@ -63,9 +63,12 @@ class Labelling:
         {objective_definition}
 
         # execution and extraction
-        solver.check()
-        model = solver.model()
-        print(opt_objective.value())
+        status = solver.check()
+        if status == sat:
+            model = solver.model()
+            print(opt_objective.value())
+        else:
+            print(1)
     """)
 
     def __init__(
@@ -91,6 +94,16 @@ class Labelling:
         self.__base_script: Optional[str] = None
         self.__cached_weights: dict[Any, int] = dict()
         self.__lock = Lock()
+
+        #
+        if self._minimise:
+            import sys
+            print(
+                '[WARNING] minimisation could cause inaccuracies.'
+                ' In the current implementation no error is found sometimes,'
+                ' in those cases 1 is produced.',
+                file=sys.stdout
+            )
 
     @property
     def base_script(self) -> str:
