@@ -1,7 +1,4 @@
-from typing import (
-    Protocol,
-    Self,
-)
+from typing import Protocol, Self
 
 
 class SupportsAdd(Protocol):
@@ -13,3 +10,7 @@ class SupportsSub(Protocol):
 
 
 class SupportsAddSub(SupportsAdd, SupportsSub, Protocol): ...
+
+
+class SupportsWrite[T](Protocol):
+    def write(self, s: T, /) -> object: ...
