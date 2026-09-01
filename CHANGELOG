@@ -5,6 +5,7 @@ Date: 2026-09-01
     - further modularised Configuration Exploration. (#213)
   Minor Features:
     - added a class for csv formatting. (#213)
+    - added more multipliers verilogs. (#213)
   Major Changes:
     - completely revised the Timer module and how it works. (#213)
   Minor Changes:
