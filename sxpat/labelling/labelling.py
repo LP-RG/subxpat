@@ -99,9 +99,9 @@ class Labelling:
         if self._minimise:
             import sys
             print(
-                '[WARNING] minimisation could cause inaccuracies.'
+                '[WARNING] labelling with weight minimisation could produce wrong results.'
                 ' In the current implementation no error is found sometimes,'
-                ' in those cases 1 is produced.',
+                ' in those cases 1 is produced. (FURTHER ANALYSIS REQUIRED)',
                 file=sys.stdout
             )
 
