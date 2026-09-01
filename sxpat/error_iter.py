@@ -44,7 +44,7 @@ class DescendingEI(ErrorIterator):
     def __init__(self, max_error: int):
         super().__init__(max_error)
         self._iteration: int = 0
-        self._log2 = int(_math.log2(max_error))
+        self._log2 = int(_math.log2(max(1, max_error)))
 
     def get_next(self) -> int | None:
         self._iteration += 1
