@@ -21,7 +21,7 @@ def cnn_error_constraint(s_graph: SGraph, t_graph: PGraph,specs_obj: Specificati
      #max_error: int, beta: int, alpha: int, c_constant: int, threshold_array_idx: int, constraint_type: CnnErrorConstraintTypes   
     constraint_type = specs_obj.cnn_constraint
     if(constraint_type == CnnErrorConstraintTypes.EXPLICIT):
-        list_nodes = explicit_constraints(s_graph, t_graph, specs_obj.threshold_array_idx, specs_obj.beta)
+        list_nodes = explicit_constraints(s_graph, t_graph, list(specs_obj.et), specs_obj.beta)
     elif(constraint_type == CnnErrorConstraintTypes.NINE):
         list_nodes = nine(s_graph, t_graph, specs_obj.max_error, specs_obj.beta, specs_obj.alpha)
     elif(constraint_type == CnnErrorConstraintTypes.NINE_PRIME):

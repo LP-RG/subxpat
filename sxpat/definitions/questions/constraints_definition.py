@@ -120,27 +120,13 @@ def nine_prime(s_graph: SGraph, t_graph: PGraph, max_error: int, beta: int, alph
             Constraint.of(error_check)
         ]
 
-# beta parameter defines the size of each zone (submatrix)
-# For example with beta = 32, we have 8x8 zones for 256x256 input space thus needing array of lenght 64 (8*8).
-def explicit_constraints(s_graph: SGraph, t_graph: PGraph, et_array_idx: int, beta: int) -> List[Node]:
+
+def explicit_constraints(s_graph: SGraph, t_graph: PGraph, et: list(int), beta: int) -> List[Node]:
         
-        try:
-            with open(ERROR_THRESHOLD_ARRAYS_PATH, 'r') as f:
-                error_threshold_arrays = json.load(f)
-            et_array = error_threshold_arrays[et_array_idx]["values"]
-
-            if len(et_array) != (256 // beta) ** 2:
-                raise ValueError(f"Error threshold array length {len(et_array)} does not match expected size {(256 // beta) ** 2} for beta={beta}.")
-
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Error threshold arrays file not found at path: {ERROR_THRESHOLD_ARRAYS_PATH}")
-        except IndexError:
-            raise IndexError(f"Threshold array index {et_array_idx} is out of range.")
-        except json.JSONDecodeError:
-            raise ValueError(f"Error decoding JSON from file: {ERROR_THRESHOLD_ARRAYS_PATH}. Check the file format.")
-
-
-        num_steps = 256 // beta
+        et_array = et
+        if len(et_array) != ((2 ** (len(s_graph.inputs)//2)) // beta) ** 2:
+            raise ValueError(f"Error threshold array length {len(et_array)} does not match expected size {(256 // beta) ** 2} for beta={beta}.")
+        num_steps = (2 ** (len(s_graph.inputs)//2))// beta
         nodes = [
 
             *(PlaceHolder(name) for name in s_graph.inputs_names[:]),
@@ -226,5 +212,5 @@ def explicit_constraints(s_graph: SGraph, t_graph: PGraph, et_array_idx: int, be
         nodes.append(error_check)
         
         nodes.append(Constraint.of(error_check))
-
+        nodes.append(ForAll('forall_error_check', operands=(s_graph.inputs_names)))
         return nodes

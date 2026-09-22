@@ -4,7 +4,7 @@
 
 from typing import IO, Any, Iterable, Mapping, Optional, Sequence, Tuple, TypeVar, Union, Dict, List, Protocol
 from typing_extensions import TypeAlias, Self
-
+import threading
 import copy
 import subprocess
 from itertools import chain, count
@@ -556,11 +556,12 @@ class QbfSolver(Solver):
                specifications: Specifications,
                forall=[]) -> Tuple[str, Optional[Mapping[str, Any]]]:
 
+        t_id = threading.get_ident()
+
         script_path = path_join(
             specifications.path.run.solver_scripts,
-            f'iter{specifications.iteration}_{specifications.sub_iteration}.txt'
+            f'iter{specifications.iteration}_{specifications.sub_iteration}_t{t_id}.txt'
         )
-
         mapping = {}
         forall.sort()
         variables = [
@@ -613,9 +614,11 @@ class QbfSolver(Solver):
             encoder.write_custom(f'{id_gen.get_sat_problem()} = and({", ".join(mapping[x][0] for x in in_the_output)})\n')
 
         result = subprocess.run(
-            [specifications.path.tools.cqesto, script_path],
-            capture_output=True, text=True,
-        )
+                [specifications.path.tools.cqesto, script_path],
+                capture_output=True, 
+                text=True,
+                process_group=0
+            )
 
         if result.returncode == 10:
             answer_vars = {

@@ -6,10 +6,14 @@ import functools as ft
 import math
 import networkx as nx
 import os
+import json
+import numpy as np
+import itertools as it
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from os.path import join as path_join
 
 from sxpat.graph.graph import SGraph, IOGraph
-from sxpat.graph.node import Extras, Node
+from sxpat.graph.node import Extras, Node, BoolConstant
 from sxpat.newag import load_circuit_from_verilog
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
 
@@ -41,11 +45,13 @@ from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
 
 from sxpat.labelling.solver_labelling import Labelling as ZoneLabelling
+from sxpat.labelling.solver_labelling import Zone, Interval
 from sxpat.labelling.labelling import Labelling
 
 from plot_zones import save_zone_heatmaps
 
 
+ERROR_THRESHOLD_ARRAYS_PATH = 'input/error_threshold_arrays.json'
 
 def explore_grid(specs_obj: Specifications):
     # initial setup
@@ -84,33 +90,60 @@ def explore_grid(specs_obj: Specifications):
     persistence_limit = specs_obj.persistence
     prev_actual_error = 0 if specs_obj.subxpat else 1
     prev_given_error = 0
-
+    def load_zone_ets(specs_obj: Specifications):
+        try: 
+            with open(ERROR_THRESHOLD_ARRAYS_PATH, 'r') as f:
+                return json.load(f)[specs_obj.threshold_array_idx]["values"]
+        except Exception as e:
+            print(e)
     if(specs_obj.extraction_mode == 0):
         specs_obj.et = specs_obj.max_error
         max_out_node = specs_obj.outputs
+    #Partitioning of the ETs
 
+    if specs_obj.partial_labeling:
+            print("partial labeling active")
     if specs_obj.error_partitioning is ErrorPartitioningType.ASCENDING:
-        if specs_obj.zone_constraint is None:
-            orig_et = specs_obj.max_error
+        orig_et = (
+            load_zone_ets(specs_obj=specs_obj)
+            if specs_obj.zone_constraint
+            else specs_obj.max_error
+        )
+        if isinstance(orig_et, (int, np.integer)):
+            step = (
+                orig_et // specs_obj.partition_divider
+                if (orig_et // specs_obj.partition_divider) > 0
+                else 1
+            )
+            list_values = list(range(step, orig_et + step, step))
+            et_array = iter(list_values)
+        #TODO fix this
         else:
-            orig_et = specs_obj.beta ** 2
-    
-        if orig_et <= 8:
-            et_array = iter(list(range(1, int(orig_et) + 1, 1)))
-        else:
-            step = orig_et // specs_obj.partition_divider if orig_et // specs_obj.partition_divider > 0 else 1
-            list_values = list(range(int(step), int(orig_et + step), int(step)))
+            orig_et = np.asarray(orig_et)
+            specs_obj.max_error = orig_et
+            step = np.where(
+                orig_et // specs_obj.partition_divider > 0,
+                orig_et // specs_obj.partition_divider,
+                1,
+            )
+            list_values = []
+            increase = step
+            while max(step) <= max(orig_et + increase):
+                list_values.append(step)
+                step = step + increase       
             et_array = iter(list_values)
     elif specs_obj.error_partitioning is ErrorPartitioningType.EXPONENTIAL:
-        et_array = iter([2**i for i in range(8)])
-    #
-    while (obtained_wce_exact <= specs_obj.max_error or (specs_obj.extraction_mode == 0)): 
+            et_array = iter([2**i for i in range(8)])
+
+
+    while np.all(obtained_wce_exact <= specs_obj.max_error) or  specs_obj.extraction_mode == 0:
         specs_obj.iteration += 1
         specs_obj.stats_storage.stage(iteration=specs_obj.iteration)
 
         # compute error threshold for the iteration
         if not specs_obj.subxpat:
-            if prev_actual_error == 0: break
+            if prev_actual_error == 0: 
+                break
             specs_obj.et = specs_obj.max_error
 
         elif(specs_obj.extraction_mode == 0):
@@ -159,7 +192,7 @@ def explore_grid(specs_obj: Specifications):
             raise NotImplementedError('invalid status')
 
         #
-        if (specs_obj.et > specs_obj.max_error and specs_obj.metric != MetricType.RELATIVE) or specs_obj.et <= 0: break
+        if (np.any(specs_obj.et > specs_obj.max_error) and specs_obj.metric != MetricType.RELATIVE) or np.any(specs_obj.et <= 0): break
 
         # slash to kill
         if specs_obj.slash_to_kill:
@@ -345,14 +378,17 @@ def explore_grid(specs_obj: Specifications):
                     current_graph, param_circ,
                     AbsoluteDifferenceOfInteger, specs_obj.et,
                 )
+
             elif(specs_obj.metric.value == 'wre'):
-                base_question = distribution_aware_questions.cnn_error_constraint(current_graph, param_circ,specs_obj)
+                base_question = distribution_aware_questions.cnn_error_constraint(current_graph, param_circ ,specs_obj)
+
             _time_define += Timer.now() - _time
             # logging
             specs_obj.stats_storage.stage(grid_phase_definition_time=_time_define)
-
+            
             # prepare solver/question
-            solve_timer, solve = Timer.from_function(get_solver(specs_obj).solve)
+            solver_instance = get_solver(specs_obj)
+            solve_timer, solve = Timer.from_function(solver_instance.solve)
             question = [exact_graph, param_circ, *param_circ_constr, *base_question]
             #
             models = []
@@ -363,11 +399,27 @@ def explore_grid(specs_obj: Specifications):
                 # prevent parameters combination if any
                 if len(models) > 0: question.append(prevent_assignment(models[-1], i - 1))
 
-                # solve question
+                # solve question with individual timer
+                _solve_attempt_start = Timer.now()
                 status, model = solve(question, specs_obj)
+                _solve_attempt_elapsed = Timer.now() - _solve_attempt_start
+
+                # --- DEBUG PRINT: Soluzione modello singolo ---
+                print(f"\n  [DEBUG Model {i+1}/{specs_obj.wanted_models}] status={status} elapsed={_solve_attempt_elapsed:.2f}s")
 
                 # terminate if status is not sat, otherwise store the model
-                if status != SAT: break
+                if status != SAT:
+                    # --- DEBUG PRINT: Ispezione del motivo dell'UNKNOWN ---
+                    if status == UNKNOWN:
+                        reason = "N/A"
+                        # Tenta di estrarre il motivo se disponibile sul solver o sull'istanza Z3 sottostante
+                        if hasattr(solver_instance, 'reason_unknown'):
+                            reason = solver_instance.reason_unknown()
+                        elif hasattr(solver_instance, '_solver') and hasattr(solver_instance._solver, 'reason_unknown'):
+                            reason = solver_instance._solver.reason_unknown()
+                        print(f"  [DEBUG UNKNOWN REASON] Cell({lpp},{ppo}) model index {i} failed. Reason: {reason}")
+                    break
+
                 models.append(model)
             #
             if len(models) > 0: status = SAT
@@ -382,7 +434,9 @@ def explore_grid(specs_obj: Specifications):
             # skip if no model found
             if status != SAT:
                 # if UNKNOWN, store cell as dominant (to skip dominated subgrid)
-                if status == UNKNOWN: dominant_cells.append((lpp, ppo))
+                if status == UNKNOWN:
+                    print(f"\n  [DEBUG DOMINANCE] Adding ({lpp},{ppo}) to dominant_cells due to UNKNOWN status.")
+                    dominant_cells.append((lpp, ppo))  # <-- SE VUOI PROVARE A NON TAGLIARE LE CELLE SUCCESSIVE, COMMENTA QUESTA RIGA
 
                 # logging
                 pprint.warning(status.upper(), f'{_cell_time:.2f}s')
@@ -433,15 +487,6 @@ def explore_grid(specs_obj: Specifications):
                     # compute errors relative to origin and previous
                     candidate_data.error_to_origin = _error_evaluation(exact_graph, cur_graph, specs_obj)
                     candidate_data.error_to_previous = _error_evaluation(current_graph, cur_graph, specs_obj)
-
-                    #
-                    # if candidate_data.error_to_origin > specs_obj.et:
-                    #     # logging
-                    #     specs_obj.stats_storage.stage(verification_time=verification_timer.total)
-                    #     specs_obj.stats_storage.stage(ERROR='error_verification_failed')
-                    #     specs_obj.stats_storage.commit()
-                    #     #
-                    #     raise Exception(f'ErrorEval Verification FAILED with wce = {candidate_data.error_to_origin} for circuit {candidate_data.path}')
 
                 # logging
                 specs_obj.stats_storage.stage(verification_time=verification_timer.total)
@@ -620,59 +665,142 @@ def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
     }[specs_obj.extraction_mode](circuit, specs_obj)
 
 
+
+def zone_generator(input1_interval: Tuple[int, int], input2_interval: Tuple[int, int], beta: int) -> List[Zone]:
+    """Genera tutte le zone del circuito a partire dagli intervalli dei due input e dal valore beta."""
+    l_bound1, u_bound1 = input1_interval
+    l_bound2, u_bound2 = input2_interval
+    all_zones = []
+
+    for start1 in range(l_bound1, u_bound1 + 1, beta):
+        end1 = min(start1 + beta - 1, u_bound1)
+        for start2 in range(l_bound2, u_bound2 + 1, beta):
+            end2 = min(start2 + beta - 1, u_bound2)
+            all_zones.append(
+                Zone(Interval(start1, end1), Interval(start2, end2))
+            )
+    return all_zones
+
+
+def get_constant_bits_for_interval(interval: Interval, num_bits: int, start_idx: int) -> Dict[str, bool]:
+    """Calcola quali bit dell'input rimangono costanti nell'intervallo [l_bound, u_bound]."""
+    min_val = interval.l_bound
+    max_val = interval.u_bound
+
+    varying_bits = min_val ^ max_val
+    constant_bits = {}
+
+    for bit_offset in range(num_bits):
+        if not (varying_bits & (1 << bit_offset)):
+            bit_val = bool((min_val >> bit_offset) & 1)
+            input_name = f"in{start_idx + bit_offset}"
+            constant_bits[input_name] = bit_val
+
+    return constant_bits
+
+
+def _process_node_worker(
+    node_name: str, 
+    reference: IOGraph, 
+    to_be_labelled: IOGraph, 
+    specs_obj: Specifications, 
+    zones_with_fixed_bits: List[Tuple[Zone, Dict[str, BoolConstant]]]
+) -> Tuple[str, Dict[Zone, int], float]:
+    """Worker per parallelizzare l'elaborazione dei nodi tramite ThreadPoolExecutor."""
+    _time = Timer.now()
+    start = Timer.now()
+
+    labeller = ZoneLabelling(
+        reference, to_be_labelled, 
+        specs=specs_obj,
+    )
+
+    zone_dict = labeller.label_all_zones(node_name, zones_with_fixed_bits)
+
+    runtime = Timer.now() - start
+    elapsed = Timer.now() - _time
+
+    return node_name, zone_dict, elapsed
+
+
 def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     """This function adds the labels inplace to the given graph"""
 
     reference: IOGraph = circuit
     to_be_labelled: IOGraph = circuit
 
-    
-   #update
     if specs_obj.zone_constraint:
-        print("> ZONE CONSTRAINT ACTIVE: Running multi-zone labelling...")
-
-        labeller = ZoneLabelling(
-                reference, to_be_labelled, 
-                specs= specs_obj,
-            )
-        
-    
+        print("> ZONE CONSTRAINT ACTIVE: Running multi-zone labelling...", flush=True)
 
         total_input_bits = len(circuit.inputs_names)
         bits_input_1 = total_input_bits // 2
         bits_input_2 = total_input_bits - bits_input_1
         
-        input1_zone = (0, (2 ** bits_input_1) - 1)
-        input2_zone = (0, (2 ** bits_input_2) - 1)
+        input1_interval = (0, (2 ** bits_input_1) - 1)
+        input2_interval = (0, (2 ** bits_input_2) - 1)
+
+        zones = zone_generator(input1_interval, input2_interval, specs_obj.beta)
+
+        zones_with_fixed_bits: List[Tuple[Zone, Dict[str, BoolConstant]]] = []
+
+        for zone in zones:
+            const_in1 = get_constant_bits_for_interval(
+                zone.input_1, num_bits=bits_input_1, start_idx=0
+            )
+            const_in2 = get_constant_bits_for_interval(
+                zone.input_2, num_bits=bits_input_2, start_idx=bits_input_1
+            )
+
+            fixed_bits_dict = {
+                name: BoolConstant(name, value=val)
+                for name, val in it.chain(const_in1.items(), const_in2.items())
+            }
+
+            zones_with_fixed_bits.append((zone, fixed_bits_dict))
+
+            fixed_str = ", ".join([f"{k}={int(v.value)}" for k, v in fixed_bits_dict.items()]) or "nessuno"
+            """print(
+                f"[DEBUG INIT] Zona In1:[{zone.input_1.l_bound}-{zone.input_1.u_bound}] "
+                f"In2:[{zone.input_2.l_bound}-{zone.input_2.u_bound}] | "
+                f"Input fissati: {fixed_str}",
+                flush=True
+            )"""
+
+        # Filtra i nodi da processare
+        nodes_to_process = [
+            node.name for node in circuit.nodes 
+            if node not in circuit.inputs and node not in circuit.outputs
+        ]
+
+        max_workers = 16
+        print(f"\n> Esecuzione in parallelo su {max_workers} thread per {len(nodes_to_process)} nodi...", flush=True)
 
         z_weights = {}
         node_times = []
-        for node in circuit.nodes:
-            _time = Timer.now()
 
-            zone_dict = labeller.label_all_zones(
-                node.name, input1_zone, input2_zone, specs_obj.beta
-            )
-            _time = Timer.now() - _time
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(
+                    _process_node_worker, 
+                    node_name, 
+                    reference, 
+                    to_be_labelled, 
+                    specs_obj, 
+                    zones_with_fixed_bits
+                )
+                for node_name in nodes_to_process
+            ]
 
-            node_times.append(_time)
-            
-            
-            print(f"\nNode: {node.name}")
-            for zone, weight in zone_dict.items():
-                print(f"  Zone {zone}: Weight {weight}")
-
-            z_weights[node.name] = zone_dict
+            for future in as_completed(futures):
+                node_name, zone_dict, elapsed = future.result()
+                z_weights[node_name] = zone_dict
+                node_times.append(elapsed)
 
         avg_node_time = sum(node_times) / len(node_times) if node_times else 0
-        print(f'average_node_time = {avg_node_time}')
-    
+        print(f'average_node_time = {avg_node_time}', flush=True)
         circuit.zone_weights = z_weights
 
-        #save_zone_heatmaps(z_weights, output_dir=f"zone_plots/beta_{specs_obj.beta}")
-
         weights = {}
-
         for node in circuit.nodes:
             weights[node.name] = 1
 

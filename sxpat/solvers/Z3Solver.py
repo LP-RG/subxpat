@@ -158,6 +158,8 @@ class Z3Encoder:
             f'# check',
             f'status = solver.check()',
             f'print(status)',
+            f'if status == unknown:',
+            f'    print("REASON:", solver.reason_unknown())',
             f'',
             f'# model',
             f'if status == sat:',
@@ -609,26 +611,18 @@ class Z3Solver(Solver):
         Given the raw result, returns the contained status and model.
         """
 
-        # documentation: the result is not saved to a json for multiple models and so on.
-        #                each Solver.solve call must return at most one model.
-        #                the timing must be computed at a higher level, same with the multimodel logic.
-        #                the new format is as follows:
-        # example sat:
-        # sat\n
-        # p_somebool True\n
-        # p_somemorebool False\n
-        # p_someint 1\n
-        # p_somemoreint 7\n
-        #
-        # example unsat (all are the same):
-        # unsat\n
-        #
-        # example unknown (all are the same):
-        # unknown\n
-        #
-
         # split status and model
-        status, *raw_model = raw_result.splitlines()
+        lines = raw_result.splitlines()
+        if not lines:
+            return ('unknown', None)
+
+        status = lines[0]
+
+        # DEBUG: Stampa a schermo la motivazione nativa di Z3
+        if status == 'unknown' and len(lines) > 1 and lines[1].startswith('REASON:'):
+            print(f" [DEBUG Z3 UNKNOWN MOTIVO REALE] {lines[1]}")
+
+        raw_model = lines[1:] if status != 'unknown' else []
 
         # parse model
         model = None

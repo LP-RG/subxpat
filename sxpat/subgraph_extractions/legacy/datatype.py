@@ -139,10 +139,10 @@ def _encode_edges(
 def _setup_problem(circuit: IOGraph, specs: Specifications):
     graph = circuit._inner
     feasibility_threshold = specs.et
-
+    #TODO Fix This
     bit_width = max(
         len(circuit.outputs) + math.ceil(math.log2(len(circuit.nodes))),
-        math.ceil(math.log2(max(1, feasibility_threshold))) + 1
+        math.ceil(math.log2(max(1,max(feasibility_threshold)))) + 1
     )
 
     optimizer = Optimize()
@@ -393,13 +393,8 @@ def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
 def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
     print("> FUNCTION CALLED: Zone extractor is running! <")
 
-    try:
-        with open(ERROR_THRESHOLD_ARRAYS_PATH, 'r') as f:
-            error_threshold_arrays = json.load(f)
-            et_array = error_threshold_arrays[specs.threshold_array_idx]["values"]
-    except Exception as e:
-        print(f"Failed to load error thresholds: {e}")
-
+    et_array = list(specs.et)
+    print(et_array)
     optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = _setup_problem(circuit, specs)
 
     z3_subinput_edges, z3_suboutput_edges = _add_boundary_edges(graph, Node, z3_nodes, bit_width)
@@ -420,6 +415,7 @@ def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
 
     #calculate grid width
     total_zones = len(et_array) if isinstance(et_array, list) else 1
+    print(total_zones)
     grid_width = int(math.sqrt(total_zones))
 
     #determine step size
