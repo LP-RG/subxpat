@@ -591,7 +591,7 @@ class Z3Solver(Solver):
                 check=True,
                 timeout=specifications.timeout,
             )
-        except TimeoutError:
+        except subprocess.TimeoutExpired:
             return ('unknown', None)
 
         # decode
