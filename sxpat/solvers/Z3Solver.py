@@ -584,26 +584,20 @@ class Z3Solver(Solver):
             cls.encoder.encode(graphs, f, global_task)
 
         # run
-        raw_result = cls._run_script(script_path)
+        try:
+            process = subprocess.run(
+                ['python3', script_path],
+                capture_output=True, text=True,
+                check=True,
+                timeout=specifications.timeout,
+            )
+        except TimeoutError:
+            return ('unknown', None)
 
         # decode
-        return cls._decode_output(raw_result)
-
-    @classmethod
-    def _run_script(cls, script_path: str) -> str:
-        """
-        Run the given python script and return its standard output.
-        """
-
-        # run
-        process = subprocess.run(
-            ['python3', script_path],
-            capture_output=True, text=True,
-            check=True,
-        )
-
-        # return decoded output
-        return process.stdout
+        _stdout = process.stdout.strip()
+        if not _stdout: raise RuntimeError('Invalid result from Z3Solver script execution.')
+        return cls._decode_output(_stdout)
 
     @classmethod
     def _decode_output(cls, raw_result: str) -> Tuple[str, Optional[Dict[str, Union[bool, int]]]]:
@@ -613,9 +607,6 @@ class Z3Solver(Solver):
 
         # split status and model
         lines = raw_result.splitlines()
-        if not lines:
-            return ('unknown', None)
-
         status = lines[0]
 
         # DEBUG: Stampa a schermo la motivazione nativa di Z3
