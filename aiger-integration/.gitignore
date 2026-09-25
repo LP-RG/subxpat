@@ -1,5 +1,0 @@
-test.out
-venv/
-aiger/__pycache/
-*.aig
-*.gv

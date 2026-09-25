@@ -1,5 +1,4 @@
-from sxpat.annotatedGraph import AnnotatedGraph
-from sxpat.converting.legacy import iograph_from_legacy
+from sxpat.utils.formats.aiger import iograph_from_digraph, gen_circuit_digraph
 from time import perf_counter
 import sys
 import os
@@ -8,7 +7,7 @@ import re
 def main():
     benchmark_names = []
     if sys.argv[1] == "--all":
-        path = "./input/ver"
+        path = "./benchmarks/v"
         for f in os.listdir(path):
             benchmark_names.append((re.split(r"\.", f))[0])
     else:
@@ -19,7 +18,7 @@ def main():
         print("***")
         print("Testing MyAnnotatedGraph performance with benchmark " + benchmark_name)
         start = perf_counter()
-        iograph = iograph_from_legacy(AnnotatedGraph(benchmark_name))
+        g = iograph_from_digraph(benchmark_name, gen_circuit_digraph(benchmark_name))
         end = perf_counter()
         time = end - start
         total_time += time
