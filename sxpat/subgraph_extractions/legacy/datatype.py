@@ -5,7 +5,7 @@ import json
 
 import re
 import networkx as nx
-
+import numpy as np
 from z3 import (
     BitVecRef,
     BitVecVal,
@@ -393,14 +393,17 @@ def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
 def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
     print("> FUNCTION CALLED: Zone extractor is running! <")
 
-    et_array = list(specs.et)
+    if isinstance(specs.et, (int, np.integer)):
+        et_array = [int(specs.et)]
+    else:
+        et_array = list(specs.et)
+        
     print(et_array)
     optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = _setup_problem(circuit, specs)
 
     z3_subinput_edges, z3_suboutput_edges = _add_boundary_edges(graph, Node, z3_nodes, bit_width)
 
     _add_convexity(optimizer, graph, Node, z3_nodes)
-
     # maximize
     z3_bitvec_1 = BitVecVal(1, bit_width)
     max_nodes = [
@@ -408,50 +411,57 @@ def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
         for n in z3_nodes.values()
     ]
     h = optimizer.maximize(Sum(max_nodes))
+    """# Error-aware objective: maximize node utility based on error weight across zones
+    objective_terms = []
+    for node_name, z3_node in z3_nodes.items():
+        source_zones = circuit.zone_weights.get(node_name, {})
+        
+        # If the node was pruned (-1 in weights), force it out of the subgraph
+        if -1 in source_zones.values():
+            optimizer.add(Not(Node.in_subgraph(z3_node)))
+            continue
 
+        if source_zones:
+            max_weight = max(source_zones.values())
+            node_utility = max(1, int(max_weight))
+        else:
+            node_utility = 1
 
-    #setting up zone weight constraints
+        objective_terms.append(
+            If(Node.in_subgraph(z3_node), BitVecVal(node_utility, bit_width), BitVecVal(0, bit_width))
+        )
+        
+    h = optimizer.maximize(Sum(objective_terms))"""
+
+    # Zone weight constraints setup
     zone_constraints = []
+    total_zones = len(et_array)
+    grid_width = int(math.sqrt(total_zones)) if total_zones > 1 else 1
 
-    #calculate grid width
-    total_zones = len(et_array) if isinstance(et_array, list) else 1
-    print(total_zones)
-    grid_width = int(math.sqrt(total_zones))
-
-    #determine step size
     input_bits = len(circuit.inputs_names) // 2
     input_space_size = 2 ** input_bits
-
-    # determine step size dynamically
-    zone_step_size = input_space_size // grid_width
+    zone_step_size = input_space_size // grid_width if grid_width > 0 else input_space_size
     
-    #iterating through gates of the graph
     for source, target in graph.edges():
-
-        #looking up weights of a specific node
         source_zones = circuit.zone_weights.get(source, {})
-
-
-        #check that for every zone of the node, the corrosponding weight is less then or equal to its corrosponding zone et
-        zone_conditions=[]
         
+        # Skip zone constraints for pruned nodes since they are already banned from the subgraph
+        if -1 in source_zones.values():
+            continue
+
+        zone_conditions = []
         for zone, weight in source_zones.items():
-
-            row = zone.input_1.l_bound // zone_step_size
-            col = zone.input_2.l_bound // zone_step_size
+            row = zone.input_1.l_bound // zone_step_size if zone_step_size > 0 else 0
+            col = zone.input_2.l_bound // zone_step_size if zone_step_size > 0 else 0
             num_idx = (row * grid_width) + col
+            num_idx = min(num_idx, len(et_array) - 1)
 
-            limit = et_array[num_idx] if isinstance(et_array, list) else et_array
-
+            limit = et_array[num_idx]
             zone_conditions.append(
-                ULE(
-                    BitVecVal(weight, bit_width),
-                    BitVecVal(limit, bit_width)
-                )
+                ULE(BitVecVal(weight, bit_width), BitVecVal(limit, bit_width))
             )
 
         if zone_conditions:
-            #if the edge is an exit point then the zone condition must apply
             zone_constraints.append(Implies(
                 And(
                     Node.in_subgraph(z3_nodes[source]),
@@ -460,21 +470,19 @@ def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
                 And(zone_conditions)
             ))
 
-    # feasibility (edge-wise)
-    optimizer.add(And(zone_constraints))
+    if zone_constraints:
+        optimizer.add(And(zone_constraints))
 
-    # imax / omax
     if specs.imax is not None:
         optimizer.add(Sum(z3_subinput_edges) <= specs.imax)
     if specs.omax is not None:
         optimizer.add(Sum(z3_suboutput_edges) <= specs.omax)
 
     print(f">>> Total zone constraints added: {len(zone_constraints)}")
-
     subgraph_nodes = _solve_and_extract(optimizer, max_nodes, h, circuit)
+    #subgraph_nodes = _solve_and_extract(optimizer, objective_terms, h, circuit)
 
-    print("===VERIFICATION ===")
-
+    print("=== VERIFICATION ===")
     exit_nodes_found = 0
 
     for source, target in graph.edges():
@@ -488,12 +496,12 @@ def find_subgraph_feasible_hard_zones_datatype_bitvec(circuit: IOGraph, specs):
                 continue
                 
             for zone, weight in source_zones.items():
-                row = zone.input_1.l_bound // specs.beta
-                col = zone.input_2.l_bound // specs.beta
+                row = zone.input_1.l_bound // zone_step_size if zone_step_size > 0 else 0
+                col = zone.input_2.l_bound // zone_step_size if zone_step_size > 0 else 0
                 num_idx = (row * grid_width) + col
+                num_idx = min(num_idx, len(et_array) - 1)
                 
-                limit = et_array[num_idx] if isinstance(et_array, list) else et_array
-                
+                limit = et_array[num_idx]
                 if weight <= limit:
                     print(f"  [PASS] Zone {num_idx} | Weight: {weight} <= Limit: {limit}")
                 else:

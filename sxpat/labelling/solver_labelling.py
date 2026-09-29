@@ -1,13 +1,22 @@
 from typing import Dict, List, Tuple
 from dataclasses import dataclass, fields
 import itertools as it
-
+import threading
+import math
+import numpy as np
 from sxpat.graph import *
 from sxpat.graph.node import *
 from sxpat.converting.utils import set_prefix_new
 from sxpat.solvers import QbfSolver
 from sxpat.specifications import Specifications
 from sxpat.utils.collections import iterable_replace
+
+
+_print_lock = threading.Lock()
+
+def safe_print(*args, **kwargs):
+    with _print_lock:
+        print(*args, **kwargs, flush=True)
 
 
 @dataclass(frozen=True)
@@ -37,7 +46,7 @@ class Labelling:
         *,
         specs: Specifications,
     ):
-        self.reference = set_prefix_new(reference, 'ref_', it.chain(reference.inputs_names))
+        self.reference = set_prefix_new(reference, 'ref_', reference.inputs_names)
         self.to_be_labelled = to_be_labelled
         self._minimise = specs.min_labeling
         self._specs = specs
@@ -46,17 +55,53 @@ class Labelling:
         question = [
             *self._define_question(node_to_label, zone_intervals, fixed_bits_dict)
         ]
+        
         status, model = QbfSolver.solve(question, self._specs)
         if status == 'unsat':
             return 0
         return model['weight']
 
-    def label_all_zones(self, node_to_label: str, zones_with_fixed_bits: List[Tuple[Zone, Dict[str, BoolConstant]]]) -> Dict[Zone, int]:
+    def label_all_zones(
+        self, 
+        node_to_label: str, 
+        zones_with_fixed_bits: List[Tuple[Zone, Dict[str, BoolConstant]]], 
+        specs_obj: Specifications
+    ) -> Dict[Zone, int]:
         zone_weights = {}
-        for zone, fixed_bits_dict in zones_with_fixed_bits:
-            weight = self.label_node(node_to_label, zone, fixed_bits_dict)
-            if weight is not None:
+        
+        if isinstance(specs_obj.et, (int, np.integer)):
+            et_array = [int(specs_obj.et)]
+        else:
+            et_array = list(specs_obj.et)
+            
+        total_zones = len(et_array)
+        grid_width = int(math.sqrt(total_zones)) if total_zones > 1 else 1
+        input_bits = len(self.to_be_labelled.inputs_names) // 2
+        input_space_size = 2 ** input_bits
+        zone_step_size = input_space_size // grid_width if grid_width > 0 else input_space_size
+
+        try:
+            for i, (zone, fixed_bits_dict) in enumerate(zones_with_fixed_bits):
+                weight = self.label_node(node_to_label, zone, fixed_bits_dict)
+                
+                if weight is None:
+                    continue
+                
+                row = zone.input_1.l_bound // zone_step_size if zone_step_size > 0 else 0
+                col = zone.input_2.l_bound // zone_step_size if zone_step_size > 0 else 0
+                num_idx = (row * grid_width) + col
+                num_idx = min(num_idx, len(et_array) - 1)
+                limit = et_array[num_idx]
+                
+                if weight > limit:
+                    return {-1: -1}
+                
                 zone_weights[zone] = weight
+                
+        except Exception as e:
+            safe_print(f"[ERROR] Exception in label_all_zones for node '{node_to_label}': {e}")
+            raise e
+            
         return zone_weights
 
     def label_graph(self, **kwargs) -> Dict[str, int]:
@@ -67,12 +112,9 @@ class Labelling:
             raise ValueError(f'Node {node_to_label} not found in circuit')
 
         unrelevant_input_dict = fixed_bits_dict if fixed_bits_dict is not None else {}
-
-        # Lista di BoolConstant congelati
         unrelevant_input = list(unrelevant_input_dict.values())
         unrelevant_input_names = tuple(unrelevant_input_dict.keys())
 
-        # Gli input rilevanti per il solver sono solo quelli NON congelati
         relevant_inputs = tuple(
             inp.name for inp in self.to_be_labelled.inputs 
             if inp.name not in unrelevant_input_dict
@@ -86,7 +128,6 @@ class Labelling:
             new_operands = iterable_replace(succ.operands, node_to_label, not_node.name)
             updated_nodes[succ.name] = succ.copy(operands=new_operands)
 
-        # Costruzione dei circuiti
         ref_circuit = IOGraph(
             it.chain(
                 unrelevant_input,
@@ -163,14 +204,16 @@ class Labelling:
             in_zone.append(final_condition)
             in_zone_constraints.append(Constraint.of(final_condition))
 
+        iterlib_names = it.chain(
+            self.reference.outputs_names,
+            broken_circuit.outputs_names,
+            self.to_be_labelled.inputs_names
+        )
+
         # construct structure
         constraint_graph = CGraph(
             it.chain(
-                (PlaceHolder(name) for name in it.chain(
-                    self.reference.outputs_names,
-                    broken_circuit.outputs_names,
-                    self.to_be_labelled.inputs_names
-                )),
+                (PlaceHolder(name) for name in iterlib_names),
                 in_zone,
                 in_zone_constraints,
                 new_nodes,
