@@ -54,6 +54,59 @@ def iograph_from_digraph(clean_digraph: nx.DiGraph) -> IOGraph:
         sorted(outputs_names, key=lambda x: int(x[3:])),
     )
 
+def iograph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> IOGraph:
+    # iograph_from_digraph used for performance testing
+    gtypes = {'not': Not, 'and': And}
+
+    num_inputs = 0
+    num_outputs = 0 
+    num_gates = 0
+    num_constants = 0
+
+    # construct nodes and extract inputs/outputs
+    nodes = list()
+    inputs_names = list()
+    outputs_names = list()
+    for (node, attrs) in clean_digraph.nodes(True):
+        ntype = attrs.get('type')
+
+        if ntype == 'input':
+            num_inputs += 1
+            inputs_names.append(node)
+            nodes.append(BoolVariable(node))
+        elif ntype == 'output':
+            num_outputs += 1
+            outputs_names.append(node)
+            nodes.append(Identity(
+                node,
+                clean_digraph.predecessors(node),  # type: ignore
+            ))
+        elif ntype == 'gate':
+            num_gates += 1
+            cls = gtypes[attrs.get('label')]
+            nodes.append(cls(
+                node,
+                clean_digraph.predecessors(node),  # type: ignore
+            ))
+        elif ntype == 'constant':
+            num_constants += 1
+            nodes.append(BoolConstant(
+                node,
+                str_to_bool(attrs.get('label')),
+            ))
+        else:
+            raise RuntimeError(f'Unable to parse node {node} from DiGraph (attributes={attrs})')
+
+    info.extend([str(num_inputs), str(num_outputs), str(num_gates), str(num_constants)])
+
+    # construct graph
+    return IOGraph(
+        nodes,
+        sorted(inputs_names, key=lambda x: int(x[2:])),
+        sorted(outputs_names, key=lambda x: int(x[3:])),
+    )
+
+
 def _my_nodes_from_inner_legacy(inner_graph):
     nodes = list()
     for (index, data) in inner_graph.nodes(True):

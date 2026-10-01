@@ -12,6 +12,8 @@
 # data
 /results
 /aiger
+/legacy
+/benchmarks
 /*.csv
 # scripts
 /scripts

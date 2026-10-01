@@ -20,8 +20,8 @@ __all__ = [
         ]
 
 # generates circuit digraph
-def gen_circuit_digraph(benchmark_name):
-    verilog_path = f'{"./benchmarks/v"}/{benchmark_name}.{"v"}'
+def gen_circuit_digraph(benchmark_name, inputs_path):
+    verilog_path = f'{inputs_path}/{benchmark_name}.{"v"}'
     os.makedirs("./aiger/aig_files", exist_ok=True)
     aiger_path = f'{"./aiger/aig_files"}/{benchmark_name}.{"aig"}'
 
@@ -117,7 +117,7 @@ def sort_dict(this_dict: dict) -> dict:
         sorted_dict[i] = this_dict[i]
     return sorted_dict
 
-def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph) -> IOGraph:
+def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list) -> IOGraph:
     
     graph = circuit_digraph
 
@@ -180,11 +180,12 @@ def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph) -> IOGraph
         f.write('}')
 
     # Printing some infos
-    print("\tNumber of inputs: " + str(num_inputs))
-    print("\tNumber of outputs: " + str(num_outputs))
-    print("\tNumber of AND gates: " + str(num_AND_gates))
-    print("\tNumber of NOT gates: " + str(not_gates_amount))
-    print("\tNumber of constants: " + str(num_constants))
+    # print("\tNumber of inputs: " + str(num_inputs))
+    # print("\tNumber of outputs: " + str(num_outputs))
+    # print("\tNumber of AND gates: " + str(num_AND_gates))
+    # print("\tNumber of NOT gates: " + str(not_gates_amount))
+    # print("\tNumber of constants: " + str(num_constants))
+    info.extend([str(num_inputs), str(num_outputs), str(num_AND_gates), str(not_gates_amount), str(num_constants)])
 
     nodes = list()
     inputs_names = list()
