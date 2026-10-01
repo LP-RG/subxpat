@@ -1,0 +1,17 @@
+---------------------------------------------------------------------------------------------------
+Version: preview
+Date: 2026-09-01
+  Features:
+    - further modularised Configuration Exploration. (#213)
+  Minor Features:
+    - added a class for csv formatting. (#213)
+    - added more multipliers verilogs. (#213)
+  Major Changes:
+    - completely revised the Timer module and how it works. (#213)
+  Minor Changes:
+    - standardised Live/Append Storage interface. (#213)
+    - further modularised Configuration Exploration. (#213)
+  Bugfixes:
+    - patched a bug when min-labelling, where no error is found (also added warning). (#213)
+  Minor Optimizations:
+    - optimised memory footprint of LiveStorage. (#213)
