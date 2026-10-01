@@ -48,32 +48,6 @@ def gen_circuit_digraph(benchmark_name, inputs_path):
         print(f'Error!')
         raise Exception(f'ERROR!!! yosys cannot do its pass on file {verilog_path}\n{process.stderr.decode()}')
     
-    # generate ASCII version of aiger file (just for file ispection)
-    os.makedirs("./aiger/ascii_aig_files", exist_ok=True)
-    ascii_aiger_path = f'{"./aiger/ascii_aig_files"}/{benchmark_name}.{"aig"}'
-
-    yosys_command_ascii = dedent(f"""
-        read_verilog {verilog_path};
-
-        # flattening
-        synth -flatten;
-        opt -purge;       # needed if already flat
-        splitnets -ports; # needed if original
-
-        # normalize
-        abc -g NAND; # some alternatives we could discuss are: "abc -g NAND,AND", "aigmap"
-        opt -purge;
-
-        #
-        aigmap;
-        write_aiger -ascii {ascii_aiger_path};
-    """)
-
-    process = subprocess.run(['yosys', '-p', yosys_command_ascii], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-    if process.stderr.decode():
-        print(f'Error!')
-        raise Exception(f'ERROR!!! yosys cannot do its pass on file {verilog_path}\n{process.stderr.decode()}')
-    
     # generate DiGraph
     aig_obj = aig.io.read_aiger_into_aig(aiger_path)
     circuit_digraph = aig_nx.to_networkx(aig_obj)
