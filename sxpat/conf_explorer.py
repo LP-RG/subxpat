@@ -63,7 +63,7 @@ class Shared_Exploration(BiDimDomBase):
         self._iter = self.__iterator(max_pit, subgraph_outputs_count)
 
         import sys
-        print('[WARNING] the shared exploration may have issues.', file=sys.stderr)
+        print('[WARNING] the `shared` exploration may have issues.', file=sys.stderr)
 
     @classmethod
     def __iterator(cls, max_pit: int, subgraph_outputs_count: int) -> Iterator[tuple[int, int]]:
