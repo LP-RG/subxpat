@@ -79,7 +79,7 @@ class EnumChoicesAction(argparse.Action):
         self.enum = type
 
     def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace,
-                 value: str, option_string: str  | None = None) -> None:
+                 value: str, option_string: str | None = None) -> None:
         setattr(namespace, self.dest, self.enum(value))
 
 
@@ -180,6 +180,30 @@ class Specifications:
     :authors: Marco Biasion, Morteza Rezaalipour
     """
 
+    # to automatically generate the argument for a specific field, add the 'argument' key in the metadata.
+    # some attributes are automatically extracted from the field:
+    # - field type annotation : will be used for the type of the argument value
+    # - default value         : will be use for the default value of the argument
+    # other attributes can be added to customise the parsing, inside the dictionary at 'argument' (all are optional):
+    # - 'positional: bool      : will change the construction to the argument to make it positional (default: False)
+    # - 'args':      list[str] : the list of argument names, prevent the default generation of the argument name (default: None)
+    # - 'aliases':   list[str] : extra argument names to use, in addition to the default argument name (default: None)
+    # - 'help':      str       : the help message to show in the command line help (default: '')
+    # - 'group':     str       : under which group to show the argument in the command line help (default: None)
+    # - 'choices':   list[Any] : the possible values for the argument (default: None)
+    # - 'action':    Action    : the specific argparse.Action to use for that argument (default: None)
+
+    # to add dependencies between the fields, add the mapping 'dependencies':{} in the metadata.
+    # the mapping 'requires':{} represents the mapping from values to the current field 
+    #   to their required other fields, to be present or to have a specific value
+    # the mapping 'required_by':{} is NOT IMPLEMENTED yet
+
+    # to add a dynamic default value, you can use the following classes:
+    # - CustomDefaultS: this requires a function that takes only a Specifications like object, and return the default value.
+
+    # if a field is variable, meaning that its value can change during normal execution
+    #   you should add the mapping 'writable':True in the metadata
+
     # benchmark
     exact_benchmark: str = dc.field(
         metadata={
@@ -231,6 +255,11 @@ class Specifications:
                 'choices': [0, 1, 2, 3, 4, 5, 55, 6, 100, 11, 12, 42],
                 'help': 'Subgraph extraction algorithm to use (default: 55)',
                 'group': 'Subgraph extraction',
+            },
+            'dependencies': {
+                'requires': {
+                    55: ['imax', 'omax'],
+                }
             }
         },
     )
@@ -305,6 +334,11 @@ class Specifications:
             'argument': {
                 'help': 'Enable the slash pass for the first iteration',
                 'group': 'Subgraph extraction',
+            },
+            'dependencies': {
+                'requires': {
+                    True: ['error_for_slash'],
+                }
             }
         },
     )
@@ -330,7 +364,12 @@ class Specifications:
             'argument': {
                 'help': 'Run SubXPAT iteratively, instead of standard XPAT',
                 'group': 'Execution',
-            }
+            },
+            'dependencies': {
+                'requires': {
+                    True: ['extraction_mode'],
+                }
+            },
         },
     )
     template: TemplateType = dc.field(
@@ -340,6 +379,12 @@ class Specifications:
                 'action': EnumChoicesAction,
                 'help': 'Template logic (default: nonshared)',
                 'group': 'Execution',
+            },
+            'dependencies': {
+                'requires': {
+                    TemplateType.NON_SHARED: ['max_lpp', 'max_ppo'],
+                    TemplateType.SHARED: ['max_pit'],
+                }
             }
         },
     )
@@ -370,6 +415,14 @@ class Specifications:
                 'action': EnumChoicesAction,
                 'help': 'Representation of false constants from the subgraph (default: output)',
                 'group': 'Execution',
+            },
+            'dependencies': {
+                'requires': {
+                    # template variants only implemented by some templates
+                    ConstantFalseType.PRODUCT: [
+                        ('template', [TemplateType.NON_SHARED]),
+                    ],
+                }
             }
         },
     )
@@ -633,81 +686,59 @@ class Specifications:
                 _cd = getattr(raw_args, f.name)
                 setattr(raw_args, f.name, _cd(raw_args))
 
-        # define dependencies
-        # the structure for each dependency is:
-        # - source: [target0, ..., targetN]
-        # a source must be either:
-        # - (argument_object, value) # the dependency is checked only if the argument has the given value
-        # - argument_object          # the dependency is checked no matter the actual value
-        # a target must be either:
-        # - (argument_object, value) # the dependency is accepted if the argument has the given value
-        # - argument_object          # the dependency is accepted if the argument is present
-        dependencies: dict[Dependency.SourceItem, list[Dependency.TargetItem]] = {
-            ('subxpat', True): ['extraction_mode'],
-            ('template', TemplateType.NON_SHARED): ['max_lpp', 'max_ppo'],
-            ('template', TemplateType.SHARED): ['max_pit'],
-            # template variants only implemented by some templates
-            ('constant_false', ConstantFalseType.PRODUCT): [('template', [TemplateType.NON_SHARED])],
-            #
-            ('extraction_mode', 55): ['imax', 'omax'],
-            ('slash_to_kill', True): ['error_for_slash'],
-        }
-
         # check dependencies
         fields_dict = {f.name: f for f in dc.fields(cls)}
-        for (source, targets) in dependencies.items():
-            # print(targets)
-            source_has_value = isinstance(source, tuple)
-            if source_has_value:
-                source_dest = source[0]
-                source_value = source[1]
-            else:
-                source_dest = source
-                source_value = None
+        for field in fields_dict.values():
+            requires = field.metadata.get('dependencies', {}).get('requires', None)
+            if not requires: continue
 
-            # skip if source not present
-            if (_v := getattr(raw_args, source_dest, None)) is None:
-                continue
-            # skip if source wants a specific value which is not the current one
-            if source_has_value and source_value != _v:
-                continue
+            source_dest = field.name
+            source_action = fields_dict[source_dest].metadata['argument']['_action']
+            for (if_value, then_requires) in requires.items():
+                source_has_value = if_value is not None
 
-            option_str = fields_dict[source_dest].metadata['argument']['_action'].option_strings[0]
-            source_message = ''.join((
-                f'missing or wrong argument: argument `{option_str}`',
-                f' with value {arg_value_to_string(source_value)}' if source_has_value else '',
-                ' requires argument',
-            ))
+                # skip if source not present
+                if (_v := getattr(raw_args, source_dest, None)) is None:
+                    continue
+                # skip if source wants a specific value which is not the current one
+                if source_has_value and if_value != _v:
+                    continue
 
-            # verify targets
-            for target in targets:
-                target_has_values = isinstance(target, tuple)
-                if target_has_values:
-                    target_dest = target[0]
-                    target_values = target[1]
-                else:
-                    target_dest = target
-                    target_values = []
+                source_message = ''.join((
+                    f'missing or wrong argument: argument `{source_action.option_strings[0]}`',
+                    f' with value {arg_value_to_string(if_value)}' if source_has_value else '',
+                    ' requires argument',
+                ))
 
-                if (
-                    # target not present
-                    (_v := getattr(raw_args, target_dest, None)) is None
-                    # target has wrong value
-                    or target_has_values and _v not in target_values
-                ):
-                    target_action = fields_dict[target_dest].metadata['argument']['_action']
-
-                    # improved error message
-                    if len(target_values) == 1:
-                        if target_action.const == True: msg = 'to not be used'
-                        elif target_action.const == False: msg = 'to be used'
-                        else: msg = f'to have the following value: {arg_value_to_string(target_values[0])}'
-                    elif len(target_values) > 1:
-                        msg = f'to have one of the following values: {", ".join(map(arg_value_to_string, target_values))}'
+                # verify targets
+                for required in then_requires:
+                    required_has_values = isinstance(required, tuple)
+                    if required_has_values:
+                        target_dest = required[0]
+                        target_values = required[1]
                     else:
-                        msg = ''
+                        target_dest = required
+                        target_values = []
 
-                    parser.error(f'{source_message} `{target_action.option_strings[0]}` {msg}')
+                    if (
+                        # target not present
+                        (_v := getattr(raw_args, target_dest, None)) is None
+                        # target has wrong value
+                        or required_has_values and _v not in target_values
+                    ):
+                        target_action = fields_dict[target_dest].metadata['argument']['_action']
+
+                        # improved error message
+                        if len(target_values) == 1:
+                            if target_action.const == True: msg = 'to not be used'
+                            elif target_action.const == False: msg = 'to be used'
+                            else: msg = f'to have the following value: {arg_value_to_string(target_values[0])}'
+                        elif len(target_values) > 1:
+                            msg = f'to have one of the following values: {", ".join(map(arg_value_to_string, target_values))}'
+                        else:
+                            msg = ''
+
+                        parser.error(f'{source_message} `{target_action.option_strings[0]}` {msg}')
 
         # construct specifications object
         return cls(**vars(raw_args))
