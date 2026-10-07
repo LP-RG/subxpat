@@ -2,18 +2,27 @@ from typing import Any
 from collections.abc import Callable
 import networkx as nx
 
+__all__ = [
+    'Subgraph', 'Topology', 'Weight', 'Type', 'Component',
+]
+
 class Component:
     """Generic component"""
     object: Any 
     action: Callable[..., Any]
+    inheritable: bool
     def __init__(self, 
                  object: Any, 
-                 action: Callable[..., Any]) -> None:
+                 action: Callable[..., Any],
+                 inheritable: bool = True) -> None:
         """The component stores an object (could also be a list of objects) onto which an action is applied 
-           when the component is accessed/used, moreover there's an optional function to update the object.
+           when the component is accessed/used. A component can be inheritable, meaning that a graph resulting
+           from a copy of a graph having a the component will automatically inherit it, instead an uninheritable 
+           component will not be passed to the graph's copies.
         """
         self.object = object
         self.action = action
+        self.inheritable = inheritable
     def perform_action(self, *optionalArgs) -> Any:
         return self.action(self.object, *optionalArgs)
 
@@ -21,7 +30,6 @@ class Subgraph(Component):
     """Concrete and 'static' component
         - object: mapping from node id to boolean representing whether node is present in the current subgraph
         - action: return list of node ids in the current subgraph 
-        - update: replace old mapping with new given one
     """
     def __init__(self, map: dict[str, bool]) -> None:
         action = lambda map: [k for k in map.keys() if map[k] == 1]
@@ -40,7 +48,6 @@ class Weight(Component):
     """Concrete and 'static' component
         - object: mapping from node id to its weight
         - action: return the weight corresponding to the given node id
-        - update: replace old mapping with given updated one
     """
     def __init__(self, map: dict[str, int]) -> None:
         action = lambda map, node_id: map[node_id]

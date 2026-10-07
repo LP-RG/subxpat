@@ -1,6 +1,7 @@
 import operator as op
-from typing import AbstractSet, Any, Iterable, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Self
+from typing import AbstractSet, Any, Iterable, Literal, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Self, cast
 from types import MappingProxyType
+from components import Subgraph, Weight, Type, Topology, Component
 
 import networkx as nx
 import functools as ft
@@ -152,9 +153,13 @@ class IOGraph(Graph):
     """Graph with inputs and outputs."""
 
     EXTRAS: Sequence[str] = ('inputs_names', 'outputs_names')
+    base_components: dict[Literal['Subgraph', 'Topology', 'Weight', 'Type'], Component]
+    extra_components: dict[str, Component]
 
     def __init__(self, nodes: Iterable[AnyNode],
-                 inputs_names: Sequence[str], outputs_names: Sequence[str]
+                 inputs_names: Sequence[str], 
+                 outputs_names: Sequence[str],
+                 components: Sequence[Component] = list()
                  ) -> None:
         # construct base
         super().__init__(nodes)
@@ -162,6 +167,10 @@ class IOGraph(Graph):
         # freeze local instances
         self.inputs_names = tuple(inputs_names)
         self.outputs_names = tuple(outputs_names)
+        self.base_components = dict([
+            (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(c).__name__), c)
+            for c in components
+        ])
 
         # guard
         if len(missing := tuple(name for name in self.inputs_names if name not in self)) > 0:
@@ -204,6 +213,101 @@ class IOGraph(Graph):
         in_out_set = frozenset((*self.inputs_names, *self.outputs_names))
         return tuple(n for n in self.nodes if n.name not in in_out_set)
 
+    @final
+    def add_base_component(self, new_component: Subgraph | Topology | Weight | Type) -> IOGraph:
+        copy: IOGraph
+        new_name = cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(new_component).__name__)
+        if len(self.base_components) > 0:
+            new_base_components = list()
+            new_base_components.append(new_component)
+            for name, component in self.base_components.items():
+                if name != new_name:
+                    new_base_components.append(component)
+            copy = IOGraph(self.nodes, self.inputs_names, self.outputs_names, new_base_components)
+        else: 
+            copy = IOGraph(self.nodes, self.inputs_names, self.outputs_names, [new_component])
+        #handle extra components
+        inheritable_extra_components: dict[str, Component] = dict()
+        for name, component in self.extra_components.items():
+            if component.inheritable:
+                inheritable_extra_components[name] = component
+        copy.extra_components = inheritable_extra_components
+        return copy
+
+    @final
+    def add_extra_component(self, new_component: Component, new_name: str) -> IOGraph:
+        copy: IOGraph
+        if len(self.base_components) > 0:
+            copy = IOGraph(self.nodes, self.inputs_names, self.outputs_names, list(self.base_components.values()))
+        else: 
+            copy = IOGraph(self.nodes, self.inputs_names, self.outputs_names)
+        #handle extra components
+        inheritable_extra_components: dict[str, Component] = dict()
+        inheritable_extra_components[new_name] = new_component
+        for name, component in self.extra_components.items():
+            if component.inheritable and name != new_name:
+                inheritable_extra_components[name] = component
+        copy.extra_components = inheritable_extra_components
+        return copy
+
+    @ft.cached_property
+    @final
+    def subgraph_nodes(self) -> Sequence[AnyNode]:
+        if not 'Subgraph' in self.base_components:
+            print("IoGraph does not possess a subgraph component")
+            exit(1)
+        subgraph_ids = self.base_components['Subgraph'].perform_action()
+        return tuple(
+            node for node in self.nodes
+            if isinstance(node, Extras) and node.name in subgraph_ids
+        )
+
+    @ft.cached_property
+    @final
+    def subgraph_inputs(self) -> Sequence[AnyNode]:
+        # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
+        if not 'Subgraph' in self.base_components:
+            print("IoGraph does not possess a subgraph component")
+            exit(1)
+        subgraph_ids = self.base_components['Subgraph'].perform_action()
+        return tuple(dict.fromkeys(it.chain.from_iterable(
+            (
+                pred for pred in self.predecessors(node)
+                if not isinstance(pred, Extras) or not pred.name in subgraph_ids
+            )
+            for node in self.subgraph_nodes
+        )))
+
+    @ft.cached_property
+    @final
+    def subgraph_outputs(self) -> Sequence[AnyNode]:
+        # a node is a subgraph output if it is in the subgraph and at least one successor is not in the subgraph
+        if not 'Subgraph' in self.base_components:
+            print("IoGraph does not possess a subgraph component")
+            exit(1)
+        subgraph_ids = self.base_components['Subgraph'].perform_action()
+        return tuple(sorted(
+            (
+                node for node in self.subgraph_nodes
+                if any(
+                    not isinstance(succ, Extras) or not succ.name in subgraph_ids
+                    for succ in self.successors(node)
+                )
+            ),
+            key=op.attrgetter('name')
+        ))
+
+    @final
+    def node_edges_to_subgraph(self, node_or_name: Union[str, Node]) -> int:
+        """Returns the number of edges from this node to the subgraph."""
+        if not 'Subgraph' in self.base_components:
+            print("IoGraph does not possess a subgraph component")
+            exit(1)
+        subgraph_ids = self.base_components['Subgraph'].perform_action()
+        return sum(
+            n.name in subgraph_ids for n in self.successors(node_or_name)
+            if isinstance(n, Extras)
+        )
 
 class SGraph(IOGraph):
     """Graph with inputs, outputs and a subgraph."""
