@@ -1,8 +1,10 @@
-module top(a, b, c);
-input [5:0]a;
-input [5:0]b;
-output [6:0]c;
+module top (a, b, r);
+    parameter BITSIZE_IN  = 6; // single input bitsize
+    parameter BITSIZE_OUT = BITSIZE_IN + 1;
 
-assign c = a + b;
+    input  [BITSIZE_IN-1:0]  a, b;
+    output [BITSIZE_OUT-1:0] r;
+
+    assign r = a + b;
 
 endmodule
