@@ -1,29 +1,39 @@
 """
-    @authors: Ilia Zeller
+Aiger files generation, and aiger files loading and parsing to produce IOGraph.
 
-    Aiger files generation, and aiger files loading and parsing to produce IOGraph.
+:authors: Ilia Zeller
 """
 
-from textwrap import dedent
+from typing import Iterable
+
 from sxpat.graph import IOGraph
 from sxpat.graph.node import BoolVariable, BoolConstant, And, Not, Identity
-import subprocess
-import numpy as np
-import aigverse as aig
+
+import aigverse.io as aig_io
 import aigverse.adapters.networkx as aig_nx
+
 import networkx as nx
+import numpy as np
 import os
+import subprocess
+from textwrap import dedent
 
 __all__ = [
-            'gen_circuit_digraph',
-            'iograph_from_digraph',
-        ]
+    'gen_circuit_digraph',
+    'iograph_from_digraph',
+]
 
-# generates circuit digraph
-def gen_circuit_digraph(benchmark_name, inputs_path):
-    verilog_path = f'{inputs_path}/{benchmark_name}.{"v"}'
+
+def gen_circuit_digraph(benchmark_name: str, inputs_path: str):
+    """
+    Generates circuit as digraph.
+
+    :authors: Ilia Zeller
+    """
+
+    verilog_path = f"{inputs_path}/{benchmark_name}.v"
     os.makedirs("./aiger/aig_files", exist_ok=True)
-    aiger_path = f'{"./aiger/aig_files"}/{benchmark_name}.{"aig"}'
+    aiger_path = f"./aiger/aig_files/{benchmark_name}.aig"
 
     # synthesize to gate level
     yosys_command = dedent(f"""
@@ -40,30 +50,39 @@ def gen_circuit_digraph(benchmark_name, inputs_path):
 
         #
         aigmap;
-        write_aiger {aiger_path};
+        write_aiger -symbols {aiger_path};
     """)
 
-    process = subprocess.run(['yosys', '-p', yosys_command], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    process = subprocess.run(["yosys", "-p", yosys_command], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     if process.stderr.decode():
-        print(f'Error!')
-        raise Exception(f'ERROR!!! yosys cannot do its pass on file {verilog_path}\n{process.stderr.decode()}')
-    
+        raise Exception(f"ERROR!!! yosys cannot do its pass on file {verilog_path}\n{process.stderr.decode()}")
+
     # generate DiGraph
-    aig_obj = aig.io.read_aiger_into_aig(aiger_path)
+    aig_obj = aig_io.read_aiger_into_aig(aiger_path)
     circuit_digraph = aig_nx.to_networkx(aig_obj)
     return circuit_digraph
 
-def is_topological_order(G, order):
+
+def is_topological_order(G: nx.DiGraph, order: Iterable) -> bool:
+    """
+    :authors: Ilia Zeller
+    """
+
     # Create a position map: node -> index in the given order
     pos = {node: i for i, node in enumerate(order)}
-    
+
     # Check all edges
     for u, v in G.edges():
         if pos[u] >= pos[v]:
             return False
     return True
 
-def topological_sort(G: nx.DiGraph):
+
+def topological_sort(G: nx.DiGraph) -> nx.DiGraph:
+    """
+    :authors: Ilia Zeller
+    """
+
     # Sort nodes in topological order
     sorted_G = nx.DiGraph()
     sorted_G.graph = G.graph
@@ -71,19 +90,29 @@ def topological_sort(G: nx.DiGraph):
     sorted_G.add_edges_from(G.edges(data=True))
     return sorted_G
 
+
 def extract_inputs_outputs(graph: nx.DiGraph):
+    """
+    :authors: Ilia Zeller
+    """
+
     input_dict = {}
     output_dict = {}
     for n in graph.nodes():
-        idx = int(graph.nodes[n]['index'])
-        node_type = graph.nodes[n]['type']    
+        idx = int(graph.nodes[n]["index"])
+        node_type = graph.nodes[n]["type"]
         if node_type[1]:  # input
             input_dict[idx] = n
         elif node_type[3]:  # output
             output_dict[idx] = n
     return input_dict, output_dict
 
+
 def sort_dict(this_dict: dict) -> dict:
+    """
+    :authors: Ilia Zeller
+    """
+
     sorted_dict = {}
     this_dict_ids = list(this_dict.keys())
     this_dict_ids.sort()
@@ -91,15 +120,25 @@ def sort_dict(this_dict: dict) -> dict:
         sorted_dict[i] = this_dict[i]
     return sorted_dict
 
-def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list) -> IOGraph:
-    
+
+def iograph_from_digraph(
+    benchmark_name: str,
+    circuit_digraph: nx.DiGraph,
+    info: list,
+) -> IOGraph:
+    """
+    :authors: Ilia Zeller
+    """
+
     graph = circuit_digraph
 
-    if (not is_topological_order(graph, graph.nodes)): 
+    if (not is_topological_order(graph, graph.nodes)):
         graph = topological_sort(graph)
 
+    # TODO:from-MARCO: this could be removed, or done only if in debug mode
+    # TODO:from-MARCO: there are already some paths in the specifications that could be used (instead of creating custom ones)
     os.makedirs("./aiger/gv_files", exist_ok=True)
-    with open(f'{"./aiger/gv_files"}/{benchmark_name}.{"gv"}', 'w') as f:
+    with open(f"./aiger/gv_files/{benchmark_name}.gv", "w") as f:
         # save in .gv file for graph visualization -> BEFORE NOT GATES INTEGRATION
         f.write('strict digraph GGraph {\n')
         for n in graph.nodes: f.write(f'"{n}" [label="{n}"];\n')
@@ -107,32 +146,33 @@ def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list
         f.write('}')
 
     input_nodes, output_nodes = extract_inputs_outputs(graph)
+    # TODO:from-MARCO: are these two still useful?
     input_dict = sort_dict(input_nodes)
     output_dict = sort_dict(output_nodes)
 
-    num_inputs = graph.graph["num_pis"] #num_pis = number of primary inputs.
-    num_outputs = graph.graph["num_pos"] #num_pos = number of primary outputs.
-    num_AND_gates = graph.graph["num_gates"] #num_gates = number of AND gates.
+    num_inputs = graph.graph["num_pis"]  # num_pis = number of primary inputs.
+    num_outputs = graph.graph["num_pos"]  # num_pos = number of primary outputs.
+    num_AND_gates = graph.graph["num_gates"]  # num_gates = number of AND gates.
     num_constants = 0
-    
+
     nodes = []
     for n in graph.nodes.data():
         # "type" -> [const, pi, gate, po]
         if int(n[1]["type"][0]) == 1:
             num_constants += 1
         nodes.append(n)
-    
+
     num_gates = num_AND_gates
-    new_nodes = [] #nodes representing both AND and NOT gates
-    new_edges = [] #edges (just of regular kind) 
+    new_nodes = []  # nodes representing both AND and NOT gates
+    new_edges = []  # edges (just of regular kind)
     num_gates = not_gates_integration(graph, nodes, new_nodes, new_edges, num_gates)
-    
+
     not_gates_amount = num_gates - num_AND_gates
 
     # ASSERT new nodes and edges: expected amount == actual amount
     # int(list(self.__graph.edges)[0][0]) equals to either 0 or 1 -> 0 if node with index number equal to 0 represents an actual gate,
     # 1 if node with index number equal to 0 does not represent a gate and was just inserted by aigverse.
-    # From aigverse documentation (https://aigverse.readthedocs.io/en/stable/api/aigverse/adapters/networkx/index.html): 
+    # From aigverse documentation (https://aigverse.readthedocs.io/en/stable/api/aigverse/adapters/networkx/index.html):
     # "Note that the constant-0 node is always included in the graph, as index 0, even if it is not referenced by any edges"
     assert len(nodes) - int(list(graph.edges)[0][0]) + not_gates_amount == len(new_nodes)
     assert len(graph.edges.data()) + not_gates_amount == len(new_edges)
@@ -145,14 +185,17 @@ def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list
     # ASSERT topological order is preserved during not_gates_integration() call
     assert is_topological_order(graph, graph.nodes)
 
+    # TODO:from-MARCO: this could be removed, or done only if in debug mode
+    # TODO:from-MARCO: there are already some paths in the specifications that could be used (instead of creating custom ones)
     os.makedirs("./aiger/gv_files_NOT", exist_ok=True)
-    with open(f'{"./aiger/gv_files_NOT"}/{benchmark_name}.{"gv"}', 'w') as f:
+    with open(f"./aiger/gv_files_NOT/{benchmark_name}.gv", "w") as f:
         # save in .gv file for graph visualization -> AFTER NOT GATES INTEGRATION
         f.write('strict digraph GGraph {\n')
         for n in graph.nodes: f.write(f'"{n}" [label="{n}"];\n')
         for u, v in graph.edges: f.write(f'"{u}" -> "{v}";\n')
         f.write('}')
 
+    # TODO:from-MARCO: code that is not needed anymore, and is not relevant for the future, could be removed
     # Printing some infos
     # print("\tNumber of inputs: " + str(num_inputs))
     # print("\tNumber of outputs: " + str(num_outputs))
@@ -165,8 +208,12 @@ def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list
     inputs_names = list()
     outputs_names = list()
     for (node_index, attrs) in graph.nodes(True):
+        # TODO:from-MARCO: adding type annotations could be beneficial
+        #                  example: `node_index: np.???`
+        #                  the above line, does not assign a value to node_index, but helps in understanding its type
+
         # get features
-        node_type = attrs.get('type') # "type" -> [const, pi, gate, po]
+        node_type = attrs.get("type")  # "type" -> [const, pi, gate, po]
         operands = graph.predecessors(node_index)
 
         # create node
@@ -211,9 +258,21 @@ def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list
 #  - increases 'num_gates' to account for NOT gates (-> count all gates, not only AND gates)
 #  - NOT gates get indices starting from 'not_gates_index' (= biggest index among all the AND gates ones, incremented by 1)
 #  - AND and NOT gates are distinguished by the 'gate' value in their 'type' one-hot encoded vector -> 1 for AND gates, 2 for NOT gates
-#  - 'nodes' might contain a node with 'index' 0 that does not represent an actual gate, it's just automatically inserted by aigverse, 
+#  - 'nodes' might contain a node with 'index' 0 that does not represent an actual gate, it's just automatically inserted by aigverse,
 #    this node is not kept, meaning it's not inserted in 'new_nodes', 'new_nodes' only contains nodes representing either AND or NOT gates
-def not_gates_integration(graph: nx.DiGraph, nodes: list, new_nodes: list, new_edges: list, num_gates: int) -> int:
+
+
+def not_gates_integration(
+    graph: nx.DiGraph,
+    nodes: list,
+    new_nodes: list,
+    new_edges: list,
+    num_gates: int,
+) -> int:
+    """
+    :authors: Ilia Zeller
+    """
+
     # 'tmp_edges': list to temporary store edges adjacent to newly added NOT gates (only the edges starting from the NOT gate)
     tmp_edges = []
     # 'and_gates_ptr': index "pointing" to a node in 'nodes', set to 0 if node with index number equal to 0 represents an actual gate,
@@ -221,10 +280,10 @@ def not_gates_integration(graph: nx.DiGraph, nodes: list, new_nodes: list, new_e
     and_gates_ptr = 1
     if int(list(graph.edges)[0][0]) == 0:
         and_gates_ptr = 0
-    not_gates_index = (nodes[len(nodes) - 1][0]) + 1 # biggest AND index + 1 
-    # 'prev_node_index': starting node index of edge considered in the previous iteration, used to detect when all edges starting 
+    not_gates_index = (nodes[len(nodes) - 1][0]) + 1  # biggest AND index + 1
+    # 'prev_node_index': starting node index of edge considered in the previous iteration, used to detect when all edges starting
     # from a certain node have been visited and the current edge starts from a different node. When this detection happens, if there
-    # are edges in 'tmp_edges', these edges are added to 'new_edges'. Edges are inserted this way to keep the same ordering format given 
+    # are edges in 'tmp_edges', these edges are added to 'new_edges'. Edges are inserted this way to keep the same ordering format given
     # by aigverse (= the nodes and the edges starting nodes have the same ordering).
     prev_node_index = -1
 
@@ -239,7 +298,7 @@ def not_gates_integration(graph: nx.DiGraph, nodes: list, new_nodes: list, new_e
             while and_gates_ptr < len(nodes) and int(nodes[and_gates_ptr][1]["index"]) <= int(e[0]):
                 new_nodes.append(nodes[and_gates_ptr])
                 and_gates_ptr += 1
-            new_nodes.append((not_gates_index, {'index': not_gates_index, 'type': np.array([0, 0, 2, 0], dtype='int8')})) #NOT gate
+            new_nodes.append((not_gates_index, {"index": not_gates_index, "type": np.array([0, 0, 2, 0], dtype=np.int8)}))  # NOT gate
             prev_node_index = e[0]
             new_edges.append((e[0], not_gates_index))
             tmp_edges.append((not_gates_index, e[1]))
