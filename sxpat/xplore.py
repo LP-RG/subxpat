@@ -42,6 +42,8 @@ from sxpat.converting import VerilogExporter
 
 from sxpat.labelling.labelling import Labelling
 
+from sxpat.graph.components import Subgraph, Topology, Weight, Type, Component
+
 
 def explore_grid(specs_obj: Specifications):
     # initial setup
@@ -159,7 +161,12 @@ def explore_grid(specs_obj: Specifications):
         _time = Timer.now()
         subgraph_nodes = extract_subgraph(current_graph, specs_obj)
         subgraph_is_available = len(subgraph_nodes) > 0
-        current_graph = iograph_to_sgraph(current_graph, subgraph_nodes)
+        # "current_graph = iograph_to_sgraph(current_graph, subgraph_nodes)" BECOMES:
+        subgraph_mapping = dict()
+        for n in current_graph.nodes:
+            subgraph_mapping[n.name] = n.name in subgraph_nodes
+        subgraph_component = Subgraph(subgraph_mapping)
+        current_graph = current_graph.add_base_component(subgraph_component)
         _time = Timer.now() - _time
         previous_graphs.append(current_graph)
 

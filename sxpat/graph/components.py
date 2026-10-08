@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, final
 from collections.abc import Callable
 import networkx as nx
 
@@ -23,6 +23,7 @@ class Component:
         self.object = object
         self.action = action
         self.inheritable = inheritable
+    @final
     def perform_action(self, *optionalArgs) -> Any:
         return self.action(self.object, *optionalArgs)
 
@@ -34,6 +35,8 @@ class Subgraph(Component):
     def __init__(self, map: dict[str, bool]) -> None:
         action = lambda map: [k for k in map.keys() if map[k] == 1]
         super().__init__(map, action)
+    def nodes_names(self) -> list[str]:
+        return self.perform_action()
 
 class Topology(Component):
     """Concrete and 'static' component
@@ -43,6 +46,8 @@ class Topology(Component):
     def __init__(self, digraph: nx.DiGraph) -> None:
         action = lambda digraph : digraph
         super().__init__(digraph, action)
+    def get(self) -> nx.DiGraph:
+        return self.perform_action()
 
 class Weight(Component):
     """Concrete and 'static' component
@@ -52,6 +57,8 @@ class Weight(Component):
     def __init__(self, map: dict[str, int]) -> None:
         action = lambda map, node_id: map[node_id]
         super().__init__(map, action)
+    def get(self, node_id: str) -> int:
+        return self.perform_action(node_id)
 
 class Type(Component):
     """Concrete and 'static' component
@@ -61,6 +68,8 @@ class Type(Component):
     def __init__(self, map: dict[str, str]) -> None:
             action = lambda map, node_id: map[node_id]
             super().__init__(map, action)
+    def get(self, node_id: str) -> str:
+        return self.perform_action(node_id)
 
 
 # def test_classes():

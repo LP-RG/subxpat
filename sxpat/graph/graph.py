@@ -1,5 +1,5 @@
 import operator as op
-from typing import AbstractSet, Any, Iterable, Literal, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Self, cast
+from typing import AbstractSet, Any, Iterable, Literal, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Self, cast, overload
 from types import MappingProxyType
 from components import Subgraph, Weight, Type, Topology, Component
 
@@ -148,12 +148,27 @@ class Graph:
         """Given a node or a node name, returns the node name."""
         return node_or_name.name if isinstance(node_or_name, Node) else node_or_name
 
+class ComponentsDict(dict[Literal['Subgraph', 'Topology', 'Weight', 'Type'], Component]):
+    @overload
+    def __getitem__(self, key: Literal["Subgraph"]) -> Subgraph: ...
+    
+    @overload
+    def __getitem__(self, key: Literal["Topology"]) -> Topology: ...
+    
+    @overload
+    def __getitem__(self, key: Literal["Weight"]) -> Weight: ...
+    
+    @overload
+    def __getitem__(self, key: Literal["Type"]) -> Type: ...
+
+    def __getitem__(self, key: Literal['Subgraph', 'Topology', 'Weight', 'Type']) -> Component:
+        return super().__getitem__(key)
 
 class IOGraph(Graph):
     """Graph with inputs and outputs."""
 
     EXTRAS: Sequence[str] = ('inputs_names', 'outputs_names')
-    base_components: dict[Literal['Subgraph', 'Topology', 'Weight', 'Type'], Component]
+    base_components: ComponentsDict
     extra_components: dict[str, Component]
 
     def __init__(self, nodes: Iterable[AnyNode],
@@ -167,7 +182,7 @@ class IOGraph(Graph):
         # freeze local instances
         self.inputs_names = tuple(inputs_names)
         self.outputs_names = tuple(outputs_names)
-        self.base_components = dict([
+        self.base_components = ComponentsDict([
             (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(c).__name__), c)
             for c in components
         ])
@@ -256,7 +271,7 @@ class IOGraph(Graph):
         if not 'Subgraph' in self.base_components:
             print("IoGraph does not possess a subgraph component")
             exit(1)
-        subgraph_ids = self.base_components['Subgraph'].perform_action()
+        subgraph_ids = self.base_components['Subgraph'].nodes_names()
         return tuple(
             node for node in self.nodes
             if isinstance(node, Extras) and node.name in subgraph_ids
@@ -269,7 +284,7 @@ class IOGraph(Graph):
         if not 'Subgraph' in self.base_components:
             print("IoGraph does not possess a subgraph component")
             exit(1)
-        subgraph_ids = self.base_components['Subgraph'].perform_action()
+        subgraph_ids = self.base_components['Subgraph'].nodes_names()
         return tuple(dict.fromkeys(it.chain.from_iterable(
             (
                 pred for pred in self.predecessors(node)
@@ -285,7 +300,7 @@ class IOGraph(Graph):
         if not 'Subgraph' in self.base_components:
             print("IoGraph does not possess a subgraph component")
             exit(1)
-        subgraph_ids = self.base_components['Subgraph'].perform_action()
+        subgraph_ids = self.base_components['Subgraph'].nodes_names()
         return tuple(sorted(
             (
                 node for node in self.subgraph_nodes
@@ -303,7 +318,7 @@ class IOGraph(Graph):
         if not 'Subgraph' in self.base_components:
             print("IoGraph does not possess a subgraph component")
             exit(1)
-        subgraph_ids = self.base_components['Subgraph'].perform_action()
+        subgraph_ids = self.base_components['Subgraph'].nodes_names()
         return sum(
             n.name in subgraph_ids for n in self.successors(node_or_name)
             if isinstance(n, Extras)
