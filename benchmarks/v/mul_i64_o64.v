@@ -1,5 +1,5 @@
 module top (a, b, r);
-    parameter BITSIZE_IN  = 10; // single input bitsize
+    parameter BITSIZE_IN  = 32; // single input bitsize
     parameter BITSIZE_OUT = BITSIZE_IN * 2;
 
     input  [BITSIZE_IN-1:0]  a, b;

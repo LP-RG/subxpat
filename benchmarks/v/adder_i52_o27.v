@@ -1,8 +1,10 @@
-module adder_i52_o27 (a,b,r);
-input [25:0] a,b;
-output [26:0] r;
+module top (a, b, r);
+    parameter BITSIZE_IN  = 26; // single input bitsize
+    parameter BITSIZE_OUT = BITSIZE_IN + 1;
 
-assign r = a+b;
+    input  [BITSIZE_IN-1:0]  a, b;
+    output [BITSIZE_OUT-1:0] r;
+
+    assign r = a + b;
 
 endmodule
-
