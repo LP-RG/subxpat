@@ -125,7 +125,7 @@ try:
         if max_compression:
             preset = 9 | lzma.PRESET_EXTREME
         else:
-            preset = 6
+            preset = 3
 
         # extract prefix
         prefix = ''
