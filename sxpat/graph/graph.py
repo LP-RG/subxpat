@@ -148,6 +148,7 @@ class Graph:
         """Given a node or a node name, returns the node name."""
         return node_or_name.name if isinstance(node_or_name, Node) else node_or_name
 
+# COMMENT:from-MARCO: "from typing import TypedDict" this might help you in simplifying the code below
 class ComponentsDict(dict[Literal['Subgraph', 'Topology', 'Weight', 'Type'], Component]):
     @overload
     def __getitem__(self, key: Literal["Subgraph"]) -> Subgraph: ...
@@ -171,6 +172,8 @@ class IOGraph(Graph):
     base_components: ComponentsDict
     extra_components: dict[str, Component]
 
+    # COMMENT:from-MARCO: you can assume that also inputs and outputs will be given by components (one comp. for both, or individually for each, we can discuss about this)
+    # COMMENT:from-MARCO: taking in directly the ComponentsDict may be better; we should discuss this.
     def __init__(self, nodes: Iterable[AnyNode],
                  inputs_names: Sequence[str], 
                  outputs_names: Sequence[str],
@@ -228,6 +231,9 @@ class IOGraph(Graph):
         in_out_set = frozenset((*self.inputs_names, *self.outputs_names))
         return tuple(n for n in self.nodes if n.name not in in_out_set)
 
+    # COMMENT:from-MARCO: the following two methods are very nice QoL (Quality of Life) features to have.
+    # the naming of them is a bit counter-intuitive, but the logic is sound.
+
     @final
     def add_base_component(self, new_component: Subgraph | Topology | Weight | Type) -> IOGraph:
         copy: IOGraph
@@ -264,6 +270,10 @@ class IOGraph(Graph):
                 inheritable_extra_components[name] = component
         copy.extra_components = inheritable_extra_components
         return copy
+
+    # COMMENT:from-MARCO: the following 4 functionalities could be contained in the component.
+    # doing so firther modularise the architecture.
+    # note that, doing that requires reasoning about a few extra things, but once that is reasoned about, the rest should be much easier.
 
     @ft.cached_property
     @final
