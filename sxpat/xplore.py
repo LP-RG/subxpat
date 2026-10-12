@@ -166,7 +166,7 @@ def explore_grid(specs_obj: Specifications):
         for n in current_graph.nodes:
             subgraph_mapping[n.name] = n.name in subgraph_nodes
         subgraph_component = Subgraph(subgraph_mapping)
-        current_graph = current_graph.add_base_component(subgraph_component)
+        current_graph = current_graph.with_base_component(subgraph_component)
         _time = Timer.now() - _time
         previous_graphs.append(current_graph)
 

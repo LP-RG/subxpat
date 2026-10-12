@@ -9,6 +9,7 @@
 /test
 /experiments
 /output
+/output*
 # data
 /results
 /aiger

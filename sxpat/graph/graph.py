@@ -45,6 +45,7 @@ class ComponentsDict(dict[Literal['Subgraph', 'Topology', 'Weight', 'Type'], Com
 
     def __getitem__(self, key: Literal['Subgraph', 'Topology', 'Weight', 'Type']) -> Component:
         return super().__getitem__(key)
+
 class Graph:
     """Generic graph."""
 
@@ -53,12 +54,18 @@ class Graph:
     base_components: ComponentsDict
     extra_components: dict[str, Component]
 
-    def __init__(self, nodes: Iterable[AnyNode]) -> None:
+    def __init__(self, nodes: Iterable[AnyNode], components: Sequence[Component] = list()) -> None:
         """
             Creates a new graph from the given nodes.
 
             @authors: Marco Biasion
         """
+
+        self.base_components = ComponentsDict([
+            (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(c).__name__), c)
+            for c in components
+        ])
+        self.extra_components = dict()
 
         nodes = tuple(nodes)
 
@@ -93,7 +100,22 @@ class Graph:
         self._inner: Final[nx.DiGraph] = nx.freeze(_inner)
 
     def copy(self, nodes: Optional[Iterable[AnyNode]] = None, **extras) -> Self:
-        return type(self)(self.nodes if nodes is None else nodes, **{**self.extras, **extras})
+        c = type(self)(self.nodes if nodes is None else nodes, **{**self.extras, **extras})
+        #TODO: adapt the below code when method with_graph is added to Component
+        if len(self.base_components) > 0:
+            new_base_components = list()
+            for name, component in self.base_components.items():
+                new_base_components.append(component)
+            c.base_components = ComponentsDict([
+                (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(c).__name__), c)
+                for c in new_base_components
+            ])
+        inheritable_extra_components: dict[str, Component] = dict()
+        for name, component in self.extra_components.items():
+            if component.inheritable:
+                inheritable_extra_components[name] = component
+        c.extra_components = inheritable_extra_components
+        return c
 
     @ft.cached_property
     def extras(self) -> Mapping[str, Any]:
@@ -178,15 +200,11 @@ class IOGraph(Graph):
                  components: Sequence[Component] = list()
                  ) -> None:
         # construct base
-        super().__init__(nodes)
+        super().__init__(nodes, components)
 
         # freeze local instances
         self.inputs_names = tuple(inputs_names)
         self.outputs_names = tuple(outputs_names)
-        self.base_components = ComponentsDict([
-            (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(c).__name__), c)
-            for c in components
-        ])
 
         # guard
         if len(missing := tuple(name for name in self.inputs_names if name not in self)) > 0:
