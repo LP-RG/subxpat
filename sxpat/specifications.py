@@ -194,7 +194,7 @@ class Specifications:
     # - 'action':    Action    : the specific argparse.Action to use for that argument (default: None)
 
     # to add dependencies between the fields, add the mapping 'dependencies':{} in the metadata.
-    # the mapping 'requires':{} represents the mapping from values to the current field 
+    # the mapping 'requires':{} represents the mapping from values to the current field
     #   to their required other fields, to be present or to have a specific value
     # the mapping 'required_by':{} is NOT IMPLEMENTED yet
 
@@ -630,10 +630,10 @@ class Specifications:
 
     @property
     def template_name(self) -> str:
-        return {
-            TemplateType.NON_SHARED: 'Sop1',
-            TemplateType.SHARED: 'SharedLogic',
-        }[self.template]
+        match self.template:
+            case TemplateType.NON_SHARED: return 'Sop1'
+            case TemplateType.SHARED: return 'SharedLogic'
+            case _: raise
 
     @property
     def requires_subgraph_extraction(self) -> bool:
@@ -651,17 +651,17 @@ class Specifications:
 
     @property
     def grid_param_1(self) -> int:
-        return {  # lazy
-            TemplateType.NON_SHARED: lambda: self.max_lpp,
-            TemplateType.SHARED: lambda: self.max_its,
-        }[self.template]()
+        match self.template:
+            case TemplateType.NON_SHARED: return self.max_lpp
+            case TemplateType.SHARED: return self.max_its
+            case _: raise
 
     @property
     def grid_param_2(self) -> int:
-        return {  # lazy
-            TemplateType.NON_SHARED: lambda: self.max_ppo,
-            TemplateType.SHARED: lambda: self.max_pit,
-        }[self.template]()
+        match self.template:
+            case TemplateType.NON_SHARED: return self.max_ppo
+            case TemplateType.SHARED: return self.max_pit
+            case _: raise
 
     @classmethod
     def parse_args(cls):
