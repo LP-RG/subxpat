@@ -1,8 +1,10 @@
-module mul_i14_o14 (a, b, r);
-input [6:0] a, b;
-output [13:0] r;
+module top (a, b, r);
+    parameter BITSIZE_IN  = 7; // single input bitsize
+    parameter BITSIZE_OUT = BITSIZE_IN * 2;
 
+    input  [BITSIZE_IN-1:0]  a, b;
+    output [BITSIZE_OUT-1:0] r;
 
-assign r = a * b;
+    assign r = a * b;
 
-endmodule 
+endmodule
