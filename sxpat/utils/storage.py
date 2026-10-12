@@ -76,7 +76,7 @@ class LiveStorage:
                 while self._stack.popitem()[0] != key: pass
 
             # add to stack
-            self._stack[key] = value
+            self._stack[key] = copy.deepcopy(value)
             # save latest index
             self._last_index_set = self._order[key]
 
@@ -87,7 +87,7 @@ class LiveStorage:
 
         # add stack to storage (as list)
         self._storage.append([
-            copy.deepcopy(v)
+            v
             for v in {
                 **dict.fromkeys(self._order.keys()),  # required to correctly preserve missing keys
                 **self._stack
