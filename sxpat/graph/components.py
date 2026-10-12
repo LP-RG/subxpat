@@ -1,6 +1,7 @@
 from typing import Any, final
 from collections.abc import Callable
 import networkx as nx
+from copy import deepcopy
 
 __all__ = [
     'Subgraph', 'Topology', 'Weight', 'Type', 'Component',
@@ -68,9 +69,8 @@ class Topology(Component):
         super().__init__(digraph, action)
 
     def get(self) -> nx.DiGraph:
-        # COMMENT:from-MARCO: values produced by components should not allow to change the graph
-        return self.perform_action()
-
+        # COMMENT:from-MARCO: values produced by components should not allow to change the graph 
+        return deepcopy(self.perform_action())
 
 class Weight(Component):
     """Concrete and 'static' component

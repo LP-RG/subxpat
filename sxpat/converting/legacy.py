@@ -2,7 +2,7 @@ from typing import Iterable, Mapping
 
 import networkx as nx
 
-from sxpat.graph import IOGraph, SGraph
+from sxpat.graph import IOGraph
 from sxpat.graph.node import BoolVariable, BoolConstant, And, Not, Identity
 from sxpat.utils.functions import str_to_bool
 
@@ -10,7 +10,6 @@ from sxpat.utils.functions import str_to_bool
 __all__ = [
     'iograph_from_digraph',
     'iograph_with_weights',
-    'iograph_to_sgraph',
 ]
 
 
@@ -107,31 +106,31 @@ def iograph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> IOGra
     )
 
 
-def _my_nodes_from_inner_legacy(inner_graph):
-    nodes = list()
-    for (index, data) in inner_graph.nodes(True):
-        # get features
-        weight = data.get('weight', None)
-        in_subgraph = bool(data.get('subgraph', False))
-        operands = inner_graph.predecessors(index)
-        node_type = data.get('type')
-        # "type" -> [const, pi, gate, po]
+# def _my_nodes_from_inner_legacy(inner_graph):
+#     nodes = list()
+#     for (index, data) in inner_graph.nodes(True):
+#         # get features
+#         weight = data.get('weight', None)
+#         in_subgraph = bool(data.get('subgraph', False))
+#         operands = inner_graph.predecessors(index)
+#         node_type = data.get('type')
+#         # "type" -> [const, pi, gate, po]
 
-        # create node
-        if node_type[1]:  # input
-            nodes.append(BoolVariable(index, weight, in_subgraph))
-        elif node_type[3]:  # output
-            nodes.append(Identity(index, operands, weight, in_subgraph))
-        elif node_type[2] == 1:  # and
-            nodes.append(And(index, operands, weight, in_subgraph))
-        elif node_type[2] == 2:  # not
-            nodes.append(Not(index, operands, weight, in_subgraph))
-        elif node_type[0]:  # constant
-            nodes.append(BoolConstant(index, True, weight, in_subgraph))
-        else:
-            raise RuntimeError(f'Unable to parse node {index} from AnnotatedGraph ({data})')
+#         # create node
+#         if node_type[1]:  # input
+#             nodes.append(BoolVariable(index, weight, in_subgraph))
+#         elif node_type[3]:  # output
+#             nodes.append(Identity(index, operands, weight, in_subgraph))
+#         elif node_type[2] == 1:  # and
+#             nodes.append(And(index, operands, weight, in_subgraph))
+#         elif node_type[2] == 2:  # not
+#             nodes.append(Not(index, operands, weight, in_subgraph))
+#         elif node_type[0]:  # constant
+#             nodes.append(BoolConstant(index, True, weight, in_subgraph))
+#         else:
+#             raise RuntimeError(f'Unable to parse node {index} from AnnotatedGraph ({data})')
 
-    return nodes
+#     return nodes
 
 
 def iograph_with_weights(graph: IOGraph, weights: Mapping[str, int]) -> IOGraph:
@@ -140,18 +139,18 @@ def iograph_with_weights(graph: IOGraph, weights: Mapping[str, int]) -> IOGraph:
         for node in graph.nodes
     )
 
-def my_iograph_from_legacy(l_graph) -> IOGraph:
-    return IOGraph(_my_nodes_from_inner_legacy(l_graph.graph),
-                   l_graph.input_dict.values(),
-                   l_graph.output_dict.values())
+# def my_iograph_from_legacy(l_graph) -> IOGraph:
+#     return IOGraph(_my_nodes_from_inner_legacy(l_graph.graph),
+#                    l_graph.input_dict.values(),
+#                    l_graph.output_dict.values())
 
-def iograph_to_sgraph(graph: IOGraph, subgraph_nodes: Iterable[str]) -> SGraph:
-    subgraph_nodes = frozenset(subgraph_nodes)
-    return SGraph(
-        (
-            node.copy(in_subgraph=node.name in subgraph_nodes)
-            for node in graph.nodes
-        ),
-        graph.inputs_names,
-        graph.outputs_names,
-    )
+# def iograph_to_sgraph(graph: IOGraph, subgraph_nodes: Iterable[str]) -> SGraph:
+#     subgraph_nodes = frozenset(subgraph_nodes)
+#     return SGraph(
+#         (
+#             node.copy(in_subgraph=node.name in subgraph_nodes)
+#             for node in graph.nodes
+#         ),
+#         graph.inputs_names,
+#         graph.outputs_names,
+#     )

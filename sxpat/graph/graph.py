@@ -1,7 +1,7 @@
 import operator as op
 from typing import AbstractSet, Any, Iterable, Literal, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Self, cast, overload
 from types import MappingProxyType
-from components import Subgraph, Weight, Type, Topology, Component
+from .components import Subgraph, Weight, Type, Topology, Component
 
 import networkx as nx
 import functools as ft
@@ -23,18 +23,35 @@ __all__ = [
     #
     'Graph',
     #
-    'IOGraph', 'SGraph', 'PGraph',
+    'IOGraph', 'PGraph',
     'CGraph',
     #
     'T_Graph', 'AnyGraph', 'T_AnyGraph'
 ]
 
+# COMMENT:from-MARCO: "from typing import TypedDict" this might help you in simplifying the code below
+class ComponentsDict(dict[Literal['Subgraph', 'Topology', 'Weight', 'Type'], Component]):
+    @overload
+    def __getitem__(self, key: Literal["Subgraph"]) -> Subgraph: ...
+    
+    @overload
+    def __getitem__(self, key: Literal["Topology"]) -> Topology: ...
+    
+    @overload
+    def __getitem__(self, key: Literal["Weight"]) -> Weight: ...
+    
+    @overload
+    def __getitem__(self, key: Literal["Type"]) -> Type: ...
 
+    def __getitem__(self, key: Literal['Subgraph', 'Topology', 'Weight', 'Type']) -> Component:
+        return super().__getitem__(key)
 class Graph:
     """Generic graph."""
 
     K = object()
     EXTRAS: Sequence[str] = ()
+    base_components: ComponentsDict
+    extra_components: dict[str, Component]
 
     def __init__(self, nodes: Iterable[AnyNode]) -> None:
         """
@@ -148,29 +165,10 @@ class Graph:
         """Given a node or a node name, returns the node name."""
         return node_or_name.name if isinstance(node_or_name, Node) else node_or_name
 
-# COMMENT:from-MARCO: "from typing import TypedDict" this might help you in simplifying the code below
-class ComponentsDict(dict[Literal['Subgraph', 'Topology', 'Weight', 'Type'], Component]):
-    @overload
-    def __getitem__(self, key: Literal["Subgraph"]) -> Subgraph: ...
-    
-    @overload
-    def __getitem__(self, key: Literal["Topology"]) -> Topology: ...
-    
-    @overload
-    def __getitem__(self, key: Literal["Weight"]) -> Weight: ...
-    
-    @overload
-    def __getitem__(self, key: Literal["Type"]) -> Type: ...
-
-    def __getitem__(self, key: Literal['Subgraph', 'Topology', 'Weight', 'Type']) -> Component:
-        return super().__getitem__(key)
-
 class IOGraph(Graph):
     """Graph with inputs and outputs."""
 
     EXTRAS: Sequence[str] = ('inputs_names', 'outputs_names')
-    base_components: ComponentsDict
-    extra_components: dict[str, Component]
 
     # COMMENT:from-MARCO: you can assume that also inputs and outputs will be given by components (one comp. for both, or individually for each, we can discuss about this)
     # COMMENT:from-MARCO: taking in directly the ComponentsDict may be better; we should discuss this.
@@ -231,11 +229,22 @@ class IOGraph(Graph):
         in_out_set = frozenset((*self.inputs_names, *self.outputs_names))
         return tuple(n for n in self.nodes if n.name not in in_out_set)
 
+    @final 
+    def has_base_component(self, component_name: Literal['Subgraph', 'Topology', 'Weight', 'Type']) -> bool:
+        if component_name in self.base_components:
+            return True
+        return False
+
+    @final 
+    def has_extra_component(self, component_name: str) -> bool:
+        if component_name in self.extra_components:
+            return True
+        return False
+    
     # COMMENT:from-MARCO: the following two methods are very nice QoL (Quality of Life) features to have.
     # the naming of them is a bit counter-intuitive, but the logic is sound.
-
     @final
-    def add_base_component(self, new_component: Subgraph | Topology | Weight | Type) -> IOGraph:
+    def with_base_component(self, new_component: Subgraph | Topology | Weight | Type) -> IOGraph:
         copy: IOGraph
         new_name = cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(new_component).__name__)
         if len(self.base_components) > 0:
@@ -256,7 +265,7 @@ class IOGraph(Graph):
         return copy
 
     @final
-    def add_extra_component(self, new_component: Component, new_name: str) -> IOGraph:
+    def with_extra_component(self, new_component: Component, new_name: str) -> IOGraph:
         copy: IOGraph
         if len(self.base_components) > 0:
             copy = IOGraph(self.nodes, self.inputs_names, self.outputs_names, list(self.base_components.values()))
@@ -334,57 +343,10 @@ class IOGraph(Graph):
             if isinstance(n, Extras)
         )
 
-class SGraph(IOGraph):
-    """Graph with inputs, outputs and a subgraph."""
-
-    @ft.cached_property
-    @final
-    def subgraph_nodes(self) -> Sequence[AnyNode]:
-        return tuple(
-            node for node in self.nodes
-            if isinstance(node, Extras) and node.in_subgraph
-        )
-
-    @ft.cached_property
-    @final
-    def subgraph_inputs(self) -> Sequence[AnyNode]:
-        # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
-        return tuple(dict.fromkeys(it.chain.from_iterable(
-            (
-                pred for pred in self.predecessors(node)
-                if not isinstance(pred, Extras) or not pred.in_subgraph
-            )
-            for node in self.subgraph_nodes
-        )))
-
-    @ft.cached_property
-    @final
-    def subgraph_outputs(self) -> Sequence[AnyNode]:
-        # a node is a subgraph output if it is in the subgraph and at least one successor is not in the subgraph
-        return tuple(sorted(
-            (
-                node for node in self.subgraph_nodes
-                if any(
-                    not isinstance(succ, Extras) or not succ.in_subgraph
-                    for succ in self.successors(node)
-                )
-            ),
-            key=op.attrgetter('name')
-        ))
-
-    @final
-    def node_edges_to_subgraph(self, node_or_name: Union[str, Node]) -> int:
-        """Returns the number of edges from this node to the subgraph."""
-        return sum(
-            n.in_subgraph for n in self.successors(node_or_name)
-            if isinstance(n, Extras)
-        )
-
-
-class PGraph(SGraph):
+class PGraph(IOGraph):
     """Graph with inputs, outputs and parameters (for example, parameters of a template)."""
 
-    EXTRAS: Sequence[str] = (*SGraph.EXTRAS, 'parameters_names')
+    EXTRAS: Sequence[str] = (*IOGraph.EXTRAS, 'parameters_names')
 
     def __init__(self, nodes: Iterable[AnyNode],
                  inputs_names: Sequence[str], outputs_names: Sequence[str],
@@ -437,7 +399,7 @@ class CGraph(Graph):
 # > Typing help
 
 
-T_Graph = TypeVar('T_Graph', Graph, IOGraph, SGraph, PGraph, CGraph)
-T_IOGraph = TypeVar('T_IOGraph', IOGraph, SGraph, PGraph)
-AnyGraph = Union[Graph, IOGraph, SGraph, PGraph, CGraph]
+T_Graph = TypeVar('T_Graph', Graph, IOGraph, PGraph, CGraph)
+T_IOGraph = TypeVar('T_IOGraph', IOGraph, PGraph)
+AnyGraph = Union[Graph, IOGraph, PGraph, CGraph]
 T_AnyGraph = TypeVar('T_AnyGraph', bound=AnyGraph)

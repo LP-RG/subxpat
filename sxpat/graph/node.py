@@ -111,11 +111,9 @@ class Extras(__Base):
     """
 
     weight: Optional[int] = None
-    in_subgraph: bool = False
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        object.__setattr__(self, 'in_subgraph', bool(self.in_subgraph))
 
     @classmethod
     def has_weight(cls, obj: Any) -> bool:

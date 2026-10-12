@@ -131,11 +131,11 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         Objective: 'doubleoctagon',
     })
     NODE_COLOR: Mapping[Type[Graph], Callable[[Graph, Node], Optional[str]]] = {
-        Graph: lambda g, n: 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
-        IOGraph: lambda g, n: 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
-        CGraph: lambda g, n: 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
-        SGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
-        PGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
+        Graph: lambda g, n: 'red' if isinstance(n, Extras) and n.name in g.base_components['Subgraph'].nodes_names() else 'white',
+        IOGraph: lambda g, n: 'red' if isinstance(n, Extras) and n.name in g.base_components['Subgraph'].nodes_names() else 'white',
+        CGraph: lambda g, n: 'red' if isinstance(n, Extras) and n.name in g.base_components['Subgraph'].nodes_names() else 'white',
+        #TODO: how to change? SGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if isinstance(n, Extras) and n.name in g.base_components['Subgraph'].nodes_names() else 'white',
+        PGraph: lambda g, n: 'olive' if n in g.subgraph_inputs else 'skyblue3' if n in g.subgraph_outputs else 'red' if isinstance(n, Extras) and n.name in g.base_components['Subgraph'].nodes_names() else 'white',
     }
 
     GRAPH_PATTERN = re.compile(r'strict digraph _(\w+) {(?:\n\s*node \[.*\];)?((?:\n\s*\w+ \[.*\];)+)(?:\n\s*\w+ -> \w+;)+((?:\n\s*\/\/ \w+.*)*)\n}')

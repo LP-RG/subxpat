@@ -20,8 +20,10 @@ __all__ = [
         ]
 
 # generates circuit digraph
-def gen_circuit_digraph(benchmark_name, inputs_path):
+def gen_circuit_digraph(benchmark_name, inputs_path: str = ""):
     verilog_path = f'{inputs_path}/{benchmark_name}.{"v"}'
+    if len(inputs_path) == 0:
+        verilog_path = f'{"./benchmarks/v"}/{benchmark_name}.{"v"}'
     os.makedirs("./aiger/aig_files", exist_ok=True)
     aiger_path = f'{"./aiger/aig_files"}/{benchmark_name}.{"aig"}'
 
@@ -91,7 +93,7 @@ def sort_dict(this_dict: dict) -> dict:
         sorted_dict[i] = this_dict[i]
     return sorted_dict
 
-def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list) -> IOGraph:
+def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list = list()) -> IOGraph:
     
     graph = circuit_digraph
 

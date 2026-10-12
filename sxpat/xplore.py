@@ -7,11 +7,11 @@ import networkx as nx
 import os
 from os.path import join as path_join
 
-from sxpat.graph.graph import SGraph, IOGraph
+from sxpat.graph.graph import IOGraph
 from sxpat.graph.node import Extras, Node
 from sxpat.error_iter import ErrorIterator
 from sxpat.newag import load_circuit_from_verilog
-from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
+from sxpat.converting.legacy import iograph_with_weights
 
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
 
@@ -76,7 +76,7 @@ def explore_grid(specs_obj: Specifications):
     )
 
     #
-    previous_graphs: List[SGraph] = list()
+    previous_graphs: List[IOGraph] = list()
     obtained_wce_exact = 0
     specs_obj.iteration = 0
 
@@ -565,15 +565,31 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
     return weights
 
 
-def are_circuits_equal(g1: SGraph, g2: SGraph) -> bool:
+# def are_circuits_equal(g1: SGraph, g2: SGraph) -> bool:
+#     class _Node(Node, Extras): ...
+
+#     def node_matcher(_n1: dict, _n2: dict) -> bool:
+#         n1: _Node = _n1[SGraph.K]
+#         n2: _Node = _n2[SGraph.K]
+#         return (
+#             type(n1) == type(n2)
+#             and n1.in_subgraph == n2.in_subgraph
+#         )
+
+#     return nx.is_isomorphic(g1._inner, g2._inner, node_match=node_matcher)
+# BECOMES:
+
+def are_circuits_equal(g1: IOGraph, g2: IOGraph) -> bool:
+    if g1.base_components['Subgraph'].nodes_names() != g2.base_components['Subgraph'].nodes_names():
+        return False
+
     class _Node(Node, Extras): ...
 
     def node_matcher(_n1: dict, _n2: dict) -> bool:
-        n1: _Node = _n1[SGraph.K]
-        n2: _Node = _n2[SGraph.K]
+        n1: _Node = _n1[IOGraph.K]
+        n2: _Node = _n2[IOGraph.K]
         return (
             type(n1) == type(n2)
-            and n1.in_subgraph == n2.in_subgraph
         )
 
     return nx.is_isomorphic(g1._inner, g2._inner, node_match=node_matcher)

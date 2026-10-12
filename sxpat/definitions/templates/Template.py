@@ -2,7 +2,7 @@ import sys
 from typing import Any, Iterator, Literal, Sequence, SupportsIndex, Union, overload
 from abc import ABCMeta, abstractmethod
 
-from sxpat.graph import SGraph, PGraph, CGraph
+from sxpat.graph import IOGraph, PGraph, CGraph
 from sxpat.specifications import Specifications
 from sxpat.utils.decorators import make_utility_class
 
@@ -40,7 +40,7 @@ class TemplateBundle(Sequence):
 class Template(metaclass=ABCMeta):
     @classmethod
     @abstractmethod
-    def define(cls, graph: SGraph, specs: Specifications) -> TemplateBundle:
+    def define(cls, graph: IOGraph, specs: Specifications) -> TemplateBundle:
         """
             Given a graph with subgraph informations and the specifications,
             returns the parametric graph with the subgraph replaced with the template 

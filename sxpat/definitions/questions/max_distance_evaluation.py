@@ -15,7 +15,7 @@ class MaxDistanceEvaluation:
     @classmethod
     def define(cls, circuit: IOGraph) -> Tuple[IOGraph, CGraph]:
 
-        a_graph: SGraph = set_prefix(circuit, 'a_')
+        a_graph: IOGraph = set_prefix(circuit, 'a_')
 
         template_graph = IOGraph(
             (n for n in a_graph.nodes),

@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from sxpat.graph.graph import SGraph
+from sxpat.graph.graph import IOGraph
 from sxpat.graph.node import And, BoolConstant, Extras, Node, Not
 from sxpat.specifications import Paths
 
@@ -104,7 +104,7 @@ class export_annotated_graph:
         '}}',
     ))
 
-    def __new__(cls, circuit: SGraph, path: str):
+    def __new__(cls, circuit: IOGraph, path: str):
         inputs = frozenset(circuit.inputs_names)
         outputs = frozenset(circuit.outputs_names)
         subgraph_inputs = frozenset(_n.name for _n in circuit.subgraph_inputs)
@@ -121,7 +121,7 @@ class export_annotated_graph:
             name = n.name
             fillcolor_str = 3 if name in subgraph_inputs else \
                 2 if name in subgraph_outputs else \
-                1 if isinstance(n, Extras) and n.in_subgraph else ''
+                1 if isinstance(n, Extras) and n.name in circuit.base_components['Subgraph'].nodes_names() else ''
             if fillcolor_str != '': fillcolor_str = f', fillcolor={fillcolor_str}'
             weight_str = f'\\n{n.weight}' if Extras.has_weight(n) else ''
 

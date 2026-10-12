@@ -23,7 +23,7 @@ class _NonSharedBase:
     """
 
     @classmethod
-    def construct_products(cls, a_graph: SGraph, products_per_output: int
+    def construct_products(cls, a_graph: IOGraph, products_per_output: int
                            ) -> Tuple[List[List[And]], List[List[List[Tuple[BoolVariable, BoolVariable]]]], List[Multiplexer]]:
         """
             Generates the products and all relative multiplexers and parameters.
@@ -45,15 +45,15 @@ class _NonSharedBase:
                 _muxs, parameters = [], []
                 for in_i, in_node in enumerate(a_graph.subgraph_inputs):
                     parameters.append((
-                        (p_usage := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_u', in_subgraph=True)),
-                        (p_assert := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_a', in_subgraph=True)),
+                        (p_usage := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_u')),
+                        (p_assert := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_a')),
                     ))
-                    _muxs.append(Multiplexer(f'mux_o{out_i}_t{prod_i}_i{in_i}', in_subgraph=True, operands=[in_node, p_usage, p_assert]))
+                    _muxs.append(Multiplexer(f'mux_o{out_i}_t{prod_i}_i{in_i}', operands=[in_node, p_usage, p_assert]))
                 out_prod_mux_params[-1].append(parameters)
                 multiplexers.extend(_muxs)
 
                 # create the product
-                products[-1].append(And(f'o{out_i}_p{prod_i}', in_subgraph=True, operands=_muxs))
+                products[-1].append(And(f'o{out_i}_p{prod_i}', operands=_muxs))
 
         return (
             products,
@@ -62,15 +62,15 @@ class _NonSharedBase:
         )
 
     @classmethod
-    def construct_sums(cls, a_graph: SGraph, products: List[List[And]]
+    def construct_sums(cls, a_graph: IOGraph, products: List[List[And]]
                        ) -> List[Or]:
         return [
-            Or(f'sum{out_i}', in_subgraph=True, operands=products[out_i])
+            Or(f'sum{out_i}', operands=products[out_i])
             for out_i, _ in enumerate(a_graph.subgraph_outputs)
         ]
 
     @classmethod
-    def constants_rewriting(cls, a_graph: SGraph, updated_nodes: Dict[str, AnyOperation], specs: Specifications
+    def constants_rewriting(cls, a_graph: IOGraph, updated_nodes: Dict[str, AnyOperation], specs: Specifications
                             ) -> List[BoolVariable]:
         """
             Generates the nodes for constants rewriting, will update `updated_nodes` inplace with the changed successors (if any).
@@ -138,9 +138,9 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
     """
 
     @classmethod
-    def define(cls, s_graph: SGraph, specs: Specifications) -> TemplateBundle:
+    def define(cls, s_graph: IOGraph, specs: Specifications) -> TemplateBundle:
         # get prefixed graph
-        a_graph: SGraph = set_prefix(s_graph, 'a_')
+        a_graph: IOGraph = set_prefix(s_graph, 'a_')
 
         # > Template Graph
 
@@ -156,11 +156,11 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         updated_nodes: Dict[str, AnyOperation] = dict()
         for (out_i, (out_node, sum_node)) in enumerate(zip(a_graph.subgraph_outputs, sums)):
             # create the constant False switch
-            outs_p.append(p_o := BoolVariable(f'p_o{out_i}', in_subgraph=True))
-            outs.append(new_out_node := And(f'sw_o{out_i}', in_subgraph=True, operands=(p_o, sum_node)))
+            outs_p.append(p_o := BoolVariable(f'p_o{out_i}'))
+            outs.append(new_out_node := And(f'sw_o{out_i}', operands=(p_o, sum_node)))
 
             # update all output successors to descend from new outputs
-            for succ in filter(lambda n: not n.in_subgraph, a_graph.successors(out_node)):
+            for succ in filter(lambda n: not n.name in s_graph.base_components['Subgraph'].nodes_names(), a_graph.successors(out_node)):
                 succ = updated_nodes.get(succ.name, succ)
                 new_operands = iterable_replace(succ.operands, out_node.name, new_out_node.name)
                 updated_nodes[succ.name] = succ.copy(operands=new_operands)
@@ -176,7 +176,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                 (  # unchanged nodes
                     n
                     for n in a_graph.nodes
-                    if not n.in_subgraph
+                    if not n.name in s_graph.base_components['Subgraph'].nodes_names()
                     if n.name not in updated_nodes
                 ),
                 # changed nodes
@@ -249,9 +249,9 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
     """
 
     @classmethod
-    def define(cls, s_graph: SGraph, specs: Specifications) -> TemplateBundle:
+    def define(cls, s_graph: IOGraph, specs: Specifications) -> TemplateBundle:
         # get prefixed graph
-        a_graph: SGraph = set_prefix(s_graph, 'a_')
+        a_graph: IOGraph = set_prefix(s_graph, 'a_')
 
         # > Template Graph
 
@@ -264,7 +264,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
         # update all output successors to descend from new outputs (sums)
         updated_nodes: Dict[str, AnyOperation] = dict()
         for (out_node, sum_node) in zip(a_graph.subgraph_outputs, sums):
-            for succ in filter(lambda n: not n.in_subgraph, a_graph.successors(out_node)):
+            for succ in filter(lambda n: not n.name in s_graph.base_components['Subgraph'].nodes_names(), a_graph.successors(out_node)):
                 succ = updated_nodes.get(succ.name, succ)
                 new_operands = iterable_replace(succ.operands, out_node.name, sum_node.name)
                 updated_nodes[succ.name] = succ.copy(operands=new_operands)
@@ -280,7 +280,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
                 (  # unchanged nodes
                     n
                     for n in a_graph.nodes
-                    if not n.in_subgraph
+                    if not n.name in s_graph.base_components['Subgraph'].nodes_names()
                     if n.name not in updated_nodes
                 ),
                 # changed nodes

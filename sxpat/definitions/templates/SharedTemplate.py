@@ -27,9 +27,9 @@ class SharedTemplate(Template):
     """
 
     @classmethod
-    def define(cls, graph: SGraph, specs: Specifications) -> TemplateBundle:
+    def define(cls, graph: IOGraph, specs: Specifications) -> TemplateBundle:
         # get prefixed graph
-        a_graph: SGraph = set_prefix(graph, 'a_')
+        a_graph: IOGraph = set_prefix(graph, 'a_')
 
         # > Template Graph
 
@@ -43,13 +43,13 @@ class SharedTemplate(Template):
             products_p.append([])
             for in_i, in_node in enumerate(a_graph.subgraph_inputs):
                 products_p[-1].append((
-                    (p_usage := BoolVariable(f'p_p{prod_i}_i{in_i}_u', in_subgraph=True)),
-                    (p_assert := BoolVariable(f'p_p{prod_i}_i{in_i}_a', in_subgraph=True)),
+                    (p_usage := BoolVariable(f'p_p{prod_i}_i{in_i}_u')),
+                    (p_assert := BoolVariable(f'p_p{prod_i}_i{in_i}_a')),
                 ))
-                _muxs.append(Multiplexer(f'mux_p{prod_i}_i{in_i}', in_subgraph=True, operands=[in_node, p_usage, p_assert]))
+                _muxs.append(Multiplexer(f'mux_p{prod_i}_i{in_i}', operands=[in_node, p_usage, p_assert]))
 
             # create the product (and store multiplexers)
-            products.append(And(f'prod{prod_i}', in_subgraph=True, operands=_muxs))
+            products.append(And(f'prod{prod_i}', operands=_muxs))
             multiplexers.extend(_muxs)
 
         # construct sums and constant 0 switch
@@ -65,18 +65,18 @@ class SharedTemplate(Template):
             _sws = []
             sums_p.append([])
             for prod_i, prod_node in enumerate(products):
-                sums_p[-1].append(param := BoolVariable(f'p_o{out_i}_p{prod_i}', in_subgraph=True))
-                _sws.append(If(f'sw_o{out_i}_p{prod_i}', in_subgraph=True, operands=(param, prod_node, consts[True])))
+                sums_p[-1].append(param := BoolVariable(f'p_o{out_i}_p{prod_i}'))
+                _sws.append(If(f'sw_o{out_i}_p{prod_i}', operands=(param, prod_node, consts[True])))
 
             # create the sum and constant 0 switch
-            sums.append(_sum := Or(f'sum{out_i}', in_subgraph=True, operands=_sws))
+            sums.append(_sum := Or(f'sum{out_i}', operands=_sws))
             switches.extend(_sws)
-            outs_p.append(p_o := BoolVariable(f'p_o{out_i}', in_subgraph=True))
-            outs.append(new_out_node := If(f'sw_o{out_i}', in_subgraph=True, operands=(p_o, _sum, consts[False])))
+            outs_p.append(p_o := BoolVariable(f'p_o{out_i}'))
+            outs.append(new_out_node := If(f'sw_o{out_i}', operands=(p_o, _sum, consts[False])))
 
             # update all output successors to descend from new outputs
             for succ in a_graph.successors(out_node):
-                if not succ.in_subgraph:
+                if not succ.name in graph.base_components['Subgraph'].nodes_names():
                     succ = out_successors.get(succ.name, succ)
                     new_out_index = succ.operands.index(out_node.name)
                     new_operands = succ.operands[:new_out_index] + (new_out_node.name,) + succ.operands[new_out_index + 1:]
@@ -87,7 +87,7 @@ class SharedTemplate(Template):
             (  # unchanged nodes
                 n
                 for n in a_graph.nodes
-                if not n.in_subgraph
+                if not n.name in graph.base_components['Subgraph'].nodes_names()
                 if n.name not in out_successors
             ),
             # constants

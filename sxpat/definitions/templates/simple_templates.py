@@ -6,7 +6,7 @@ from sxpat.converting.utils import prune_unused_keepio, set_prefix_new, node_fro
 
 from .Template import Template, TemplateBundle
 from sxpat.graph.graph import IOGraph
-from sxpat.graph import SGraph, PGraph
+from sxpat.graph import PGraph
 from sxpat.graph.node import AnyNode, AnyNonEndPoint, AnyOperation, BoolVariable, Xor
 
 
@@ -24,14 +24,14 @@ class SimpleTemplate(Template):
     """
 
     @classmethod
-    def _define_parameters(cls, circuit: SGraph) -> Sequence[BoolVariable]:
+    def _define_parameters(cls, circuit: IOGraph) -> Sequence[BoolVariable]:
         return tuple(
             node_from_node(BoolVariable, out_node, {'name': f'p_{out_node.name}'})
             for out_node in circuit.subgraph_outputs
         )
 
     @classmethod
-    def _get_updated_suboutputs_successors(cls, circuit: SGraph,
+    def _get_updated_suboutputs_successors(cls, circuit: IOGraph,
                                            new_subgraph_outputs: Sequence[AnyNonEndPoint]
                                            ) -> Mapping[str, AnyOperation]:
 
@@ -39,7 +39,7 @@ class SimpleTemplate(Template):
 
         for (new, old) in zip(new_subgraph_outputs, circuit.subgraph_outputs):
             for succ in circuit.successors(old):
-                if not succ.in_subgraph:
+                if not succ.name in circuit.base_components['Subgraph'].nodes_names():
                     succ = updated_nodes.get(succ.name, succ)
                     new_operands = iterable_replace(succ.operands, old.name, new.name)
                     updated_nodes[succ.name] = succ.copy(operands=new_operands)
@@ -84,7 +84,7 @@ class ConstantTemplate(SimpleTemplate):
     """
 
     @classmethod
-    def define(cls, circuit: SGraph, _unused=...) -> TemplateBundle:
+    def define(cls, circuit: IOGraph, _unused=...) -> TemplateBundle:
         """The `TemplateBundle` returned from this method contains only the circuit."""
 
         # define the parameters
@@ -113,14 +113,14 @@ class SwitchedTemplate(SimpleTemplate):
     """
 
     @classmethod
-    def define(cls, circuit: SGraph, _unused=...) -> TemplateBundle:
+    def define(cls, circuit: IOGraph, _unused=...) -> TemplateBundle:
 
         # define the parameters
         parameters = cls._define_parameters(circuit)
 
         # define xors (they break the subout when their parameter is true)
         xors = [
-            Xor(f'xor{out_i}', operands=[subout, param], weight=subout.weight, in_subgraph=True)
+            Xor(f'xor{out_i}', operands=[subout, param], weight=subout.weight)
             for (out_i, param, subout) in zip(it.count(), parameters, circuit.subgraph_outputs)
         ]
 
