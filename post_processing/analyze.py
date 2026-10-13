@@ -103,7 +103,7 @@ def main():
 
 # ======= TCAD CSV table for latex table generation ==========
 def create_csv_table_tcad(args: Arguments, folder, pareto_area_et, toolname, total_subxpat_time=None):
-    if toolname == sxpatconfig.SUBXPAT:
+    if toolname == 'subxpat':
         print(f'{toolname}')
         print(f'{pareto_area_et = }')
         assert total_subxpat_time is not None

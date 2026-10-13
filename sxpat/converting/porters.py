@@ -3,17 +3,19 @@ from typing import Type, Callable, Mapping, Optional, Union, Generic
 import dataclasses as dc
 
 from bidict import bidict
+from sxpat.utils.collections import InheritanceMapping
 
 import itertools as it
 import re
 import json
 
-from sxpat.graph import *
-from sxpat.graph.node import *
+from sxpat.utils.filesystem import FS
 from sxpat.utils.inheritance import get_all_subclasses, get_all_leaves_subclasses
 from sxpat.utils.functions import str_to_bool
-from sxpat.utils.collections import InheritanceMapping
 from sxpat.utils.decorators import make_utility_class
+
+from sxpat.graph import *
+from sxpat.graph.node import *
 
 
 __all__ = [
@@ -38,9 +40,8 @@ class GraphImporter(Generic[T_Graph]):
 
     @classmethod
     def from_file(cls, filename: str) -> T_Graph:
-        with open(filename, 'r') as f:
-            string = f.read()
-        return cls.from_string(string)
+        _s = FS.readfile(filename)
+        return cls.from_string(_s)
 
 
 @make_utility_class
@@ -54,9 +55,8 @@ class GraphExporter(Generic[T_Graph]):
 
     @classmethod
     def to_file(cls, graph: T_Graph, filename: str) -> None:
-        string = cls.to_string(graph)
-        with open(filename, 'w') as f:
-            f.write(string)
+        _s = cls.to_string(graph)
+        FS.writefile(filename, _s, overwrite=True)
 
 
 class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
@@ -435,6 +435,5 @@ class VerilogExporter(GraphExporter[IOGraph]):
 
     @classmethod
     def to_file(cls, graph: T_Graph, filename: str, info: Info = None) -> None:
-        string = cls.to_string(graph, info)
-        with open(filename, 'w') as f:
-            f.write(string)
+        _s = cls.to_string(graph, info)
+        FS.writefile(filename, _s, overwrite=True)

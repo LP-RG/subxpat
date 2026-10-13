@@ -22,7 +22,7 @@ __all__ = [
     # compute graph accessories
     'get_nodes_type', 'get_nodes_bitwidth',
 
-    'get_rolling_code',
+    'get_unique_code',
 
     # others
     # (this could be in questions? or a new module? maybe called constraints::? or maybe something else)
@@ -405,6 +405,8 @@ class crystallise:
             AbsDiff: cls._all_or_nothing_node,
             Mul: cls._all_or_nothing_node,
             Div: cls._all_or_nothing_node,
+            RightShift: cls._all_or_nothing_node,
+            LeftShift: cls._all_or_nothing_node,
             # bool to int
             ToInt: cls._all_or_nothing_node,
             # int to bool
@@ -432,10 +434,9 @@ class crystallise:
             # select crystalliser
             try:
                 crystallise = _crystalliser_for[type(node)]
-            except KeyError:
-                pprint.error(f'No crystalliser for {type(node)} is implemented, defaulting to "as is".')
-                print(f'No crystalliser for {type(node)} is implemented, defaulting to "as is".', file=sys.stderr)
-                crystallise = cls._as_is
+            except KeyError as err:
+                pprint.error(f'No crystalliser for {type(node)} is implemented')
+                raise err
 
             # get operands
             if isinstance(node, Operation):
@@ -669,6 +670,8 @@ class crystallise:
                 Mul: lambda ops: math.prod(op.value for op in ops),
                 Div: lambda ops: ops[0].value // ops[1].value,
                 ToInt: lambda ops: sum(op.value * (2 ** i) for (i, op) in enumerate(ops)),
+                RightShift: lambda ops: ops[0].value // (2 ** node.value),
+                LeftShift: lambda ops: ops[0].value * (2 ** node.value),
                 # bool to int
                 Equals: lambda ops: ops[0].value == ops[1].value,
                 NotEquals: lambda ops: ops[0].value != ops[1].value,
@@ -913,11 +916,12 @@ def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N
     return cls(**kwargs)
 
 
-class get_rolling_code:
+class get_unique_code:
     """
-        Returns a two letters code, by selecting a new permutation of two letters (upper and lower case).
+        Returns a unique alphabetical code made of upper and lower case letters.
 
-        Will start repeating after 2704 (26\*2 \* 26\*2) calls.
+        The first 2704 calls use a two-letter format (AA..zz).
+        After that, the code grows to three letters, then four, and so on.
     """
 
     _chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -930,7 +934,23 @@ class get_rolling_code:
 
     @classmethod
     def prefix_for_index(cls, idx: int) -> str:
-        i0 = idx // len(cls._chars)
-        i1 = idx % len(cls._chars)
+        if idx < 0:
+            raise ValueError('idx must be non-negative')
 
-        return cls._chars[i0] + cls._chars[i1]
+        base = len(cls._chars)
+        size = cls._size
+        span = base ** size
+
+        # Keep the historical AA..zz sequence for the first two-letter block,
+        # then extend to longer codes instead of overflowing the alphabet.
+        while idx >= span:
+            idx -= span
+            size += 1
+            span = base ** size
+
+        digits = []
+        for _ in range(size):
+            idx, rem = divmod(idx, base)
+            digits.append(cls._chars[rem])
+
+        return ''.join(reversed(digits))
