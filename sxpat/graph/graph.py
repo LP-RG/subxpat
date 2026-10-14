@@ -61,8 +61,13 @@ class Graph:
             @authors: Marco Biasion
         """
 
+        #TODO: pass also the extra components to the constructor, set self.extra_components inside the
+        # constructor, make base_components and extra_components final, every time they need to be modified
+        # generate new graph and pass the new base_components/extra_components to the constructor (like 
+        # in with_base_component and in with_extra_component for base_components)
+
         self.base_components = ComponentsDict([
-            (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(c).__name__), c)
+            (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(c).__name__), c.with_graph(self))
             for c in components
         ])
         self.extra_components = dict()
@@ -100,22 +105,20 @@ class Graph:
         self._inner: Final[nx.DiGraph] = nx.freeze(_inner)
 
     def copy(self, nodes: Optional[Iterable[AnyNode]] = None, **extras) -> Self:
-        c = type(self)(self.nodes if nodes is None else nodes, **{**self.extras, **extras})
-        #TODO: adapt the below code when method with_graph is added to Component
-        if len(self.base_components) > 0:
-            new_base_components = list()
-            for name, component in self.base_components.items():
-                new_base_components.append(component)
-            c.base_components = ComponentsDict([
-                (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(c).__name__), c)
-                for c in new_base_components
-            ])
+        copy = type(self)(self.nodes if nodes is None else nodes, **{**self.extras, **extras})
+        new_base_components: Sequence[Component] = list()
+        for name, component in self.base_components.items():
+            new_base_components.append(component)
+        copy.base_components = ComponentsDict([
+            (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(c).__name__), c.with_graph(copy))
+            for c in new_base_components
+        ])
         inheritable_extra_components: dict[str, Component] = dict()
-        for name, component in self.extra_components.items():
+        for name, component in self.extra_components.items(): 
             if component.inheritable:
-                inheritable_extra_components[name] = component
-        c.extra_components = inheritable_extra_components
-        return c
+                inheritable_extra_components[name] = component.with_graph(copy)
+        copy.extra_components = inheritable_extra_components
+        return copy
 
     @ft.cached_property
     def extras(self) -> Mapping[str, Any]:
@@ -278,7 +281,7 @@ class IOGraph(Graph):
         inheritable_extra_components: dict[str, Component] = dict()
         for name, component in self.extra_components.items():
             if component.inheritable:
-                inheritable_extra_components[name] = component
+                inheritable_extra_components[name] = component.with_graph(copy)
         copy.extra_components = inheritable_extra_components
         return copy
 
@@ -291,75 +294,12 @@ class IOGraph(Graph):
             copy = IOGraph(self.nodes, self.inputs_names, self.outputs_names)
         #handle extra components
         inheritable_extra_components: dict[str, Component] = dict()
-        inheritable_extra_components[new_name] = new_component
+        inheritable_extra_components[new_name] = new_component.with_graph(copy)
         for name, component in self.extra_components.items():
             if component.inheritable and name != new_name:
-                inheritable_extra_components[name] = component
+                inheritable_extra_components[name] = component.with_graph(copy)
         copy.extra_components = inheritable_extra_components
         return copy
-
-    # COMMENT:from-MARCO: the following 4 functionalities could be contained in the component.
-    # doing so firther modularise the architecture.
-    # note that, doing that requires reasoning about a few extra things, but once that is reasoned about, the rest should be much easier.
-
-    @ft.cached_property
-    @final
-    def subgraph_nodes(self) -> Sequence[AnyNode]:
-        if not 'Subgraph' in self.base_components:
-            print("IoGraph does not possess a subgraph component")
-            exit(1)
-        subgraph_ids = self.base_components['Subgraph'].nodes_names()
-        return tuple(
-            node for node in self.nodes
-            if isinstance(node, Extras) and node.name in subgraph_ids
-        )
-
-    @ft.cached_property
-    @final
-    def subgraph_inputs(self) -> Sequence[AnyNode]:
-        # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
-        if not 'Subgraph' in self.base_components:
-            print("IoGraph does not possess a subgraph component")
-            exit(1)
-        subgraph_ids = self.base_components['Subgraph'].nodes_names()
-        return tuple(dict.fromkeys(it.chain.from_iterable(
-            (
-                pred for pred in self.predecessors(node)
-                if not isinstance(pred, Extras) or not pred.name in subgraph_ids
-            )
-            for node in self.subgraph_nodes
-        )))
-
-    @ft.cached_property
-    @final
-    def subgraph_outputs(self) -> Sequence[AnyNode]:
-        # a node is a subgraph output if it is in the subgraph and at least one successor is not in the subgraph
-        if not 'Subgraph' in self.base_components:
-            print("IoGraph does not possess a subgraph component")
-            exit(1)
-        subgraph_ids = self.base_components['Subgraph'].nodes_names()
-        return tuple(sorted(
-            (
-                node for node in self.subgraph_nodes
-                if any(
-                    not isinstance(succ, Extras) or not succ.name in subgraph_ids
-                    for succ in self.successors(node)
-                )
-            ),
-            key=op.attrgetter('name')
-        ))
-
-    @final
-    def node_edges_to_subgraph(self, node_or_name: Union[str, Node]) -> int:
-        """Returns the number of edges from this node to the subgraph."""
-        if not 'Subgraph' in self.base_components:
-            print("IoGraph does not possess a subgraph component")
-            exit(1)
-        subgraph_ids = self.base_components['Subgraph'].nodes_names()
-        return sum(
-            n.name in subgraph_ids for n in self.successors(node_or_name)
-            if isinstance(n, Extras)
-        )
 
 class PGraph(IOGraph):
     """Graph with inputs, outputs and parameters (for example, parameters of a template)."""

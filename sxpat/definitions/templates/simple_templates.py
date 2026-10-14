@@ -27,7 +27,7 @@ class SimpleTemplate(Template):
     def _define_parameters(cls, circuit: IOGraph) -> Sequence[BoolVariable]:
         return tuple(
             node_from_node(BoolVariable, out_node, {'name': f'p_{out_node.name}'})
-            for out_node in circuit.subgraph_outputs
+            for out_node in circuit.base_components['Subgraph'].subgraph_outputs
         )
 
     @classmethod
@@ -37,7 +37,7 @@ class SimpleTemplate(Template):
 
         updated_nodes: Dict[str, AnyOperation] = dict()
 
-        for (new, old) in zip(new_subgraph_outputs, circuit.subgraph_outputs):
+        for (new, old) in zip(new_subgraph_outputs, circuit.base_components['Subgraph'].subgraph_outputs):
             for succ in circuit.successors(old):
                 if not succ.name in circuit.base_components['Subgraph'].nodes_names():
                     succ = updated_nodes.get(succ.name, succ)
@@ -121,7 +121,7 @@ class SwitchedTemplate(SimpleTemplate):
         # define xors (they break the subout when their parameter is true)
         xors = [
             Xor(f'xor{out_i}', operands=[subout, param], weight=subout.weight)
-            for (out_i, param, subout) in zip(it.count(), parameters, circuit.subgraph_outputs)
+            for (out_i, param, subout) in zip(it.count(), parameters, circuit.base_components['Subgraph'].subgraph_outputs)
         ]
 
         # use xors as subgraph outputs

@@ -107,9 +107,9 @@ class export_annotated_graph:
     def __new__(cls, circuit: IOGraph, path: str):
         inputs = frozenset(circuit.inputs_names)
         outputs = frozenset(circuit.outputs_names)
-        subgraph_inputs = frozenset(_n.name for _n in circuit.subgraph_inputs)
-        subgraph_outputs = frozenset(_n.name for _n in circuit.subgraph_outputs)
-        subgraph_nodes = frozenset(_n.name for _n in circuit.subgraph_nodes)
+        subgraph_inputs = frozenset(_n.name for _n in circuit.base_components['Subgraph'].subgraph_inputs)
+        subgraph_outputs = frozenset(_n.name for _n in circuit.base_components['Subgraph'].subgraph_outputs)
+        subgraph_nodes = frozenset(_n.name for _n in circuit.base_components['Subgraph'].subgraph_nodes)
         edge_color = {
             # s, d
             (False, True): 3,

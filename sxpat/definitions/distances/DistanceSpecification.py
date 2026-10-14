@@ -90,7 +90,7 @@ class DistanceSpecification(metaclass=ABCMeta):
                 ) -> int:
         
         if wanted_a is None:
-            wanted_a = (n.name for n in graph_a.subgraph_outputs)
+            wanted_a = (n.name for n in graph_a.base_components['Subgraph'].subgraph_outputs)
         
         return cls._minimum_distance(graph_a, wanted_a)
         

@@ -41,7 +41,7 @@ class SharedTemplate(Template):
             # create all multiplexers for the product
             _muxs = []
             products_p.append([])
-            for in_i, in_node in enumerate(a_graph.subgraph_inputs):
+            for in_i, in_node in enumerate(a_graph.base_components['Subgraph'].subgraph_inputs):
                 products_p[-1].append((
                     (p_usage := BoolVariable(f'p_p{prod_i}_i{in_i}_u')),
                     (p_assert := BoolVariable(f'p_p{prod_i}_i{in_i}_a')),
@@ -60,7 +60,7 @@ class SharedTemplate(Template):
         outs_p: List[BoolVariable] = []
         outs: List[If] = []
         out_successors: Dict[str, AnyOperation] = dict()
-        for out_i, out_node in enumerate(a_graph.subgraph_outputs):
+        for out_i, out_node in enumerate(a_graph.base_components['Subgraph'].subgraph_outputs):
             # create all switches for the output
             _sws = []
             sums_p.append([])

@@ -1,7 +1,12 @@
-from typing import Any, final
+from typing import Any, Final, Sequence, Union, final, overload
 from collections.abc import Callable
 import networkx as nx
 from copy import deepcopy
+from abc import ABC, abstractmethod
+from .node import AnyNode, Extras, Node, T_Node
+import functools as ft
+import itertools as it
+import operator as op
 
 __all__ = [
     'Subgraph', 'Topology', 'Weight', 'Type', 'Component',
@@ -18,12 +23,11 @@ __all__ = [
 # if you want to simplify further your structure (as it will get there eventually anyway) you can use integers as "ids" for nodes, instead than strings.
 # NOTE THAT if you do this many other things will break, so you would require a middle-step on the accesses of the graphs to map from an outside string to an inside integer, and viceversa
 
-
-class Component:
-    """Generic component"""
-    object: Any
-    action: Callable[..., Any]
-    inheritable: bool
+class Component(ABC):
+    """Component interface"""
+    object: Final[Any]
+    action: Final[Callable[..., Any]]
+    inheritable: Final[bool]
 
     # COMMENT:from-MARCO: i think the auto-inherit-on-copy is a very good idea
     def __init__(self,
@@ -39,10 +43,37 @@ class Component:
         self.action = action
         self.inheritable = inheritable
 
+    @abstractmethod
+    def with_graph(self, graph: Any) -> Component:
+        pass
+
+class CustomComponent(Component):
+    """User-defined component"""
+
+    graph: Final[Any]
+    graph_reference: Final[bool]
+   
+    def __init__(self,
+                 object: Any,
+                 action: Callable[..., Any],
+                 inheritable: bool = True,
+                 keep_graph_reference: bool = False,
+                 graph: Any = None) -> None:
+        
+        super.__init__(object, action, inheritable)
+        self.graph = graph
+        self.graph_reference = keep_graph_reference
+
     @final
     def perform_action(self, *optionalArgs) -> Any:
         return self.action(self.object, *optionalArgs)
-
+    
+    @final 
+    def with_graph(self, graph: Any = None) -> CustomComponent:
+        if not self.graph_reference:
+            return self
+        else:
+            return CustomComponent(self.object, self.action, self.inheritable, self.graph_reference, graph)
 
 class Subgraph(Component):
     """Concrete and 'static' component
@@ -50,13 +81,67 @@ class Subgraph(Component):
         - action: return list of node ids in the current subgraph 
     """
 
-    def __init__(self, map: dict[str, bool]) -> None:
+    graph: Final[Any]
+
+    def __init__(self, map: dict[str, bool], graph: Any = None) -> None:
         action = lambda map: [k for k in map.keys() if map[k] == 1]
         super().__init__(map, action)
+        self.graph = graph
 
+    @final
     def nodes_names(self) -> list[str]:
-        return self.perform_action()
+        return self.action(self.object)
 
+    @final 
+    def with_graph(self, graph: Any) -> Subgraph:
+        return Subgraph(self.object, graph)
+
+    @ft.cached_property
+    @final
+    def subgraph_nodes(self) -> Sequence[AnyNode]:
+        subgraph_ids = self.nodes_names()
+        return tuple(
+            node for node in self.graph.nodes
+            if isinstance(node, Extras) and node.name in subgraph_ids
+        )
+
+    @ft.cached_property
+    @final
+    def subgraph_inputs(self) -> Sequence[AnyNode]:
+        # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
+        subgraph_ids = self.nodes_names()
+        return tuple(dict.fromkeys(it.chain.from_iterable(
+            (
+                pred for pred in self.graph.predecessors(node)
+                if not isinstance(pred, Extras) or not pred.name in subgraph_ids
+            )
+            for node in self.subgraph_nodes
+        )))
+
+    @ft.cached_property
+    @final
+    def subgraph_outputs(self) -> Sequence[AnyNode]:
+        # a node is a subgraph output if it is in the subgraph and at least one successor is not in the subgraph
+        subgraph_ids = self.nodes_names()
+        return tuple(sorted(
+            (
+                node for node in self.subgraph_nodes
+                if any(
+                    not isinstance(succ, Extras) or not succ.name in subgraph_ids
+                    for succ in self.graph.successors(node)
+                )
+            ),
+            key=op.attrgetter('name')
+        ))
+
+    @final
+    def node_edges_to_subgraph(self, node_or_name: Union[str, Node]) -> int:
+        """Returns the number of edges from this node to the subgraph."""
+        subgraph_ids = self.nodes_names()
+        return sum(
+            n.name in subgraph_ids for n in self.graph.successors(node_or_name)
+            if isinstance(n, Extras)
+        )
 
 class Topology(Component):
     """Concrete and 'static' component
@@ -65,12 +150,17 @@ class Topology(Component):
     """
 
     def __init__(self, digraph: nx.DiGraph) -> None:
-        action = lambda digraph: digraph
+        action = lambda digraph: deepcopy(digraph)
         super().__init__(digraph, action)
 
+    @final
     def get(self) -> nx.DiGraph:
         # COMMENT:from-MARCO: values produced by components should not allow to change the graph 
-        return deepcopy(self.perform_action())
+        return self.action(self.object)
+
+    @final
+    def with_graph(self, graph: object = None) -> Topology:
+        return self
 
 class Weight(Component):
     """Concrete and 'static' component
@@ -83,8 +173,11 @@ class Weight(Component):
         super().__init__(map, action)
 
     def get(self, node_id: str) -> int:
-        return self.perform_action(node_id)
+        return self.action(self.object, node_id)
 
+    @final
+    def with_graph(self, graph: object = None) -> Weight:
+        return self
 
 class Type(Component):
     """Concrete and 'static' component
@@ -93,37 +186,14 @@ class Type(Component):
     """
 
     # COMMENT:from-MARCO: types here should be specific Node types (Sum, And, ...)
-    def __init__(self, map: dict[str, str]) -> None:
+    def __init__(self, map: dict[str, T_Node]) -> None:
         action = lambda map, node_id: map[node_id]
         super().__init__(map, action)
 
-    def get(self, node_id: str) -> str:
-        return self.perform_action(node_id)
+    @final
+    def get(self, node_id: str) -> T_Node:
+        return self.action(self.object, node_id)
 
-
-# def test_classes():
-#     M1 = {'a': True, 'b': False, 'c': False, 'd': True}
-#     C1 = Subgraph(M1)
-#     assert(C1.perform_action() == ['a', 'd'])
-
-#     M3 = {'a': 5, 'b': 45, 'c': 12, 'd': 0}
-#     C2 = Weight(M3)
-#     assert(C2.perform_action('a') == 5)
-#     assert(C2.perform_action('b') == 45)
-#     assert(C2.perform_action('c') == 12)
-#     assert(C2.perform_action('d') == 0)
-
-#     M5 = {'a': 'nodeA', 'b': 'nodeB', 'c': 'nodeC', 'd': 'nodeD'}
-#     C3 = Type(M5)
-#     assert(C3.perform_action('a') == 'nodeA')
-#     assert(C3.perform_action('b') == 'nodeB')
-#     assert(C3.perform_action('c') == 'nodeC')
-#     assert(C3.perform_action('d') == 'nodeD')
-
-#     G1 = nx.DiGraph()
-#     C4 = Topology(G1)
-#     assert(C4.perform_action() == G1)
-
-#     print("All tests passed!")
-
-# if __name__ == '__main__': test_classes()
+    @final
+    def with_graph(self, graph: object = None) -> Type:
+        return self

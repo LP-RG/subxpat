@@ -173,9 +173,9 @@ def explore_grid(specs_obj: Specifications):
         # logging
         specs_obj.stats_storage.stage(
             subgraph_extraction_time=_time,
-            subgraph_nodes_count=len(current_graph.subgraph_nodes),
-            subgraph_inputs_count=len(current_graph.subgraph_inputs),
-            subgraph_outputs_count=len(current_graph.subgraph_outputs),
+            subgraph_nodes_count=len(current_graph.base_components['Subgraph'].subgraph_nodes),
+            subgraph_inputs_count=len(current_graph.base_components['Subgraph'].subgraph_inputs),
+            subgraph_outputs_count=len(current_graph.base_components['Subgraph'].subgraph_outputs),
         )
         print(f'subgraph_extraction_time = {_time}')
         # logging
@@ -217,7 +217,7 @@ def explore_grid(specs_obj: Specifications):
             _cell_time = Timer.now()
             print(f'Cell({lpp},{ppo}) at iteration {specs_obj.iteration}: ', end='')
 
-            if lpp > len(current_graph.subgraph_inputs):
+            if lpp > len(current_graph.base_components['Subgraph'].subgraph_inputs):
                 pprint.info3('SKIPPED (lpp > #subgraph_inputs)')
                 continue
 

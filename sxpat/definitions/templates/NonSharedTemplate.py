@@ -34,7 +34,7 @@ class _NonSharedBase:
         multiplexers: List[Multiplexer] = []
 
         # for all outputs
-        for out_i, _ in enumerate(a_graph.subgraph_outputs):
+        for out_i, _ in enumerate(a_graph.base_components['Subgraph'].subgraph_outputs):
 
             # for all products
             products.append([])
@@ -43,7 +43,7 @@ class _NonSharedBase:
 
                 # create all multiplexers and relative parameters for the product
                 _muxs, parameters = [], []
-                for in_i, in_node in enumerate(a_graph.subgraph_inputs):
+                for in_i, in_node in enumerate(a_graph.base_components['Subgraph'].subgraph_inputs):
                     parameters.append((
                         (p_usage := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_u')),
                         (p_assert := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_a')),
@@ -66,7 +66,7 @@ class _NonSharedBase:
                        ) -> List[Or]:
         return [
             Or(f'sum{out_i}', operands=products[out_i])
-            for out_i, _ in enumerate(a_graph.subgraph_outputs)
+            for out_i, _ in enumerate(a_graph.base_components['Subgraph'].subgraph_outputs)
         ]
 
     @classmethod
@@ -155,7 +155,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         outs_p: List[BoolVariable] = []
         outs: List[If] = []
         updated_nodes: Dict[str, AnyOperation] = dict()
-        for (out_i, (out_node, sum_node)) in enumerate(zip(a_graph.subgraph_outputs, sums)):
+        for (out_i, (out_node, sum_node)) in enumerate(zip(a_graph.base_components['Subgraph'].subgraph_outputs, sums)):
             # create the constant False switch
             outs_p.append(p_o := BoolVariable(f'p_o{out_i}'))
             outs.append(new_out_node := And(f'sw_o{out_i}', operands=(p_o, sum_node)))
@@ -264,7 +264,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
 
         # update all output successors to descend from new outputs (sums)
         updated_nodes: Dict[str, AnyOperation] = dict()
-        for (out_node, sum_node) in zip(a_graph.subgraph_outputs, sums):
+        for (out_node, sum_node) in zip(a_graph.base_components['Subgraph'].subgraph_outputs, sums):
             for succ in filter(lambda n: not n.name in s_graph.base_components['Subgraph'].nodes_names(), a_graph.successors(out_node)):
                 succ = updated_nodes.get(succ.name, succ)
                 new_operands = iterable_replace(succ.operands, out_node.name, sum_node.name)
