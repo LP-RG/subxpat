@@ -14,4 +14,3 @@ class SolverStatus(Enum):
 
 
 # node attributes
-WEIGHT = 'weight'

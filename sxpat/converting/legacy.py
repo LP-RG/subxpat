@@ -9,7 +9,6 @@ from sxpat.utils.functions import str_to_bool
 
 __all__ = [
     'iograph_from_digraph',
-    'iograph_with_weights',
 ]
 
 
@@ -133,11 +132,11 @@ def iograph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> IOGra
 #     return nodes
 
 
-def iograph_with_weights(graph: IOGraph, weights: Mapping[str, int]) -> IOGraph:
-    return graph.copy(
-        node.copy(weight=weights.get(node.name, None))
-        for node in graph.nodes
-    )
+# def iograph_with_weights(graph: IOGraph, weights: Mapping[str, int]) -> IOGraph:
+#     return graph.copy(
+#         node.copy(weight=weights.get(node.name, None))
+#         for node in graph.nodes
+#     )
 
 # def my_iograph_from_legacy(l_graph) -> IOGraph:
 #     return IOGraph(_my_nodes_from_inner_legacy(l_graph.graph),

@@ -110,15 +110,8 @@ class Extras(__Base):
         *abstract*
     """
 
-    weight: Optional[int] = None
-
     def __post_init__(self) -> None:
         super().__post_init__()
-
-    @classmethod
-    def has_weight(cls, obj: Any) -> bool:
-        """Returns if the given object is an instance of `Extras` and has an assigned weight."""
-        return isinstance(obj, cls) and obj.weight is not None
 
 
 # valued

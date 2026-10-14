@@ -143,14 +143,14 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     EXTRA_PATTERN = re.compile(r'\/\/ (\w+)\[([\w,]+)\]')
 
     @classmethod
-    def _get_label(cls, node: Node) -> str:
+    def _get_label(cls, graph: Graph, node: Node) -> str:
         # base informations
         string = rf'{cls.NODE_SYMBOL[type(node)]}\n{node.name}'
 
         # extra informations
-        if isinstance(node, Extras) and node.weight is not None:
-            string += rf'\nw={node.weight}'
-        if isinstance(node, Extras) and node.in_subgraph:
+        if isinstance(node, Extras) and graph.base_components['Weight'].get(node.name) is not None:
+            string += rf'\nw={graph.base_components['Weight'].get(node.name)}'
+        if isinstance(node, Extras) and node.name in graph.base_components['Subgraph'].nodes_names():
             string += rf'\nsub'
         if isinstance(node, Operation):
             string += rf'\ni={",".join(node.operands)}'
@@ -208,7 +208,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     def to_string(cls, graph: Graph) -> str:
         # base data
         node_lines = [
-            f'"{node.name}" [label="{cls._get_label(node)}", shape={cls.NODE_SHAPE[type(node)]}, fillcolor={cls.NODE_COLOR[type(graph)](graph, node)}];'
+            f'"{node.name}" [label="{cls._get_label(graph, node)}", shape={cls.NODE_SHAPE[type(node)]}, fillcolor={cls.NODE_COLOR[type(graph)](graph, node)}];'
             for node in graph.nodes
         ]
         edge_lines = [

@@ -245,7 +245,7 @@ def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missi
 
         node = graph[name]
 
-        new_nodes[node.name] = BoolConstant(node.name, value, node.weight)
+        new_nodes[node.name] = BoolConstant(node.name, value)
 
     return graph.copy(new_nodes.values())
 
@@ -900,8 +900,6 @@ def node_is_false(node: Union[Node, BoolConstant]) -> bool:
 def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N:
     # get common fields
     kwargs = {'name': node.name}
-    if issubclass(cls, Extras) and isinstance(node, Extras):
-        kwargs['weight'] = node.weight
     if issubclass(cls, Operation) and isinstance(node, Operation):
         kwargs['operands'] = node.operands
     if issubclass(cls, Valued) and isinstance(node, Valued):

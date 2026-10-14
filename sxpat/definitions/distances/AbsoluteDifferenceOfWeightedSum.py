@@ -32,14 +32,14 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         w_nodes_b: Collection[Extras] = tuple(graph_b[n] for n in wanted_b)  # type: ignore
 
         # guard
-        if (broken := first(lambda x: not Extras.has_weight(x), w_nodes_a, None)) is not None:
+        if (broken := first(lambda x: not graph_a.base_components['Weight'].has_weight(x), w_nodes_a, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_a ({graph_a}) has no weight.')
-        elif (broken := first(lambda x: not Extras.has_weight(x), w_nodes_b, None)) is not None:
+        elif (broken := first(lambda x: not graph_b.base_components['Weight'].has_weight(x), w_nodes_b, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_b ({graph_b}) has no weight.')
 
         # values
-        (a_nodes, a_name) = cls._define_value(w_nodes_a, 'a')
-        (b_nodes, b_name) = cls._define_value(w_nodes_b, 'b')
+        (a_nodes, a_name) = cls._define_value(graph_a, w_nodes_a, 'a')
+        (b_nodes, b_name) = cls._define_value(graph_b, w_nodes_b, 'b')
 
         # distance
         distance = AbsDiff('dist_distance', operands=[a_name, b_name])
@@ -69,10 +69,10 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         w_nodes: Sequence[Extras] = tuple(graph[n] for n in wanted)  # type: ignore
 
         # guard
-        if (broken := first(Extras.has_weight, w_nodes, None)) is not None:
+        if (broken := first(graph.base_components['Weight'].has_weight, w_nodes, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph ({graph}) has no weight.')
 
-        (value_nodes, value_name) = cls._define_value(w_nodes, 'v')
+        (value_nodes, value_name) = cls._define_value(graph, w_nodes, 'v')
 
         # construct CGraph
         value_func = CGraph(value_nodes)
@@ -80,7 +80,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         return (value_func, value_name)
 
     @classmethod
-    def _define_value(cls, wanted_nodes: Sequence[AnyExtras], value_id: str
+    def _define_value(cls, graph: IOGraph, wanted_nodes: Sequence[AnyExtras], value_id: str
                       ) -> Tuple[Iterable[Union[PlaceHolder, IntConstant, If, Sum]], str]:
 
         # graph int
@@ -91,7 +91,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
             wanted_nodes,
         ):
             # create constants
-            val: int = node.weight  # type: ignore
+            val: int = graph.base_components['Weight'].get(node.name) # type: ignore
             consts_n.extend([
                 const_0 := IntConstant(f'dist_{value_id}{i}_const_0', 0),
                 const_n := IntConstant(f'dist_{value_id}{i}_const_{val}', val),

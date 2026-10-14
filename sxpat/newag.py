@@ -123,7 +123,7 @@ class export_annotated_graph:
                 2 if name in subgraph_outputs else \
                 1 if isinstance(n, Extras) and n.name in circuit.base_components['Subgraph'].nodes_names() else ''
             if fillcolor_str != '': fillcolor_str = f', fillcolor={fillcolor_str}'
-            weight_str = f'\\n{n.weight}' if Extras.has_weight(n) else ''
+            weight_str = f'\\n{circuit.base_components["Weight"].get(n.name)}' if circuit.base_components['Weight'].has_weight(n) else ''
 
             if name in inputs:
                 return rf'{name} [label={name}, shape=circle{fillcolor_str}];'

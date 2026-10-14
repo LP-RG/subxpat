@@ -31,11 +31,11 @@ class WeightedHammingDistance(DistanceSpecification):
         # guard
         if len(graph_a.outputs_names) != len(graph_b.outputs_names):
             raise ValueError('The sequences of wanted nodes have different lengths (or the graphs have different number of outputs).')
-        if (broken := first(lambda x: not Extras.has_weight(x), w_nodes_a, None)) is not None:
+        if (broken := first(lambda x: not graph_a.base_components['Weight'].has_weight(x), w_nodes_a, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_a ({graph_a}) has no weight.')
-        elif (broken := first(lambda x: not Extras.has_weight(x), w_nodes_b, None)) is not None:
+        elif (broken := first(lambda x: not graph_b.base_components['Weight'].has_weight(x), w_nodes_b, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_b ({graph_b}) has no weight.')
-        if (mismatch := first(lambda ns: ns[0].weight != ns[1].weight, zip(w_nodes_a, w_nodes_b), None)) is not None:
+        if (mismatch := first(lambda ns: graph_a.base_components['Weight'].get(ns[0].name) != graph_b.base_components['Weight'].get(ns[1].name), zip(w_nodes_a, w_nodes_b), None)) is not None:
             raise ValueError(f'The wanted nodes of the two graphs ({mismatch[0]}, {mismatch[1]}) have mismatching weights.')
 
         # bit flips to int
@@ -48,7 +48,7 @@ class WeightedHammingDistance(DistanceSpecification):
             w_nodes_b,
         ):
             # create constants
-            val: int = node_a.weight  # type: ignore
+            val: int = graph_a.base_components['Weight'].get(node_a.name)  # type: ignore
             consts.extend([
                 const_0 := IntConstant(f'dist_a{i}_const_0', 0),
                 const_n := IntConstant(f'dist_a{i}_const_{val}', val),
@@ -81,4 +81,4 @@ class WeightedHammingDistance(DistanceSpecification):
                 wanted_a: Sequence[str]
                 ) -> int:
 
-        return min(graph_a[n].weight for n in wanted_a)
+        return min(graph_a.base_components['Weight'].get(graph_a[n].name) for n in wanted_a)

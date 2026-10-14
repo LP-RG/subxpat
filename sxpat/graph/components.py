@@ -172,12 +172,17 @@ class Weight(Component):
         action = lambda map, node_id: map[node_id]
         super().__init__(map, action)
 
-    def get(self, node_id: str) -> int:
+    def get(self, node_id: str) -> int | None:
         return self.action(self.object, node_id)
 
     @final
     def with_graph(self, graph: object = None) -> Weight:
         return self
+
+    @final 
+    def has_weight(self, obj: Any) -> bool:
+        """Returns if the given object is an instance of `Extras` and has an assigned weight."""
+        return isinstance(obj, Extras) and self.get(obj.name) is not None
 
 class Type(Component):
     """Concrete and 'static' component

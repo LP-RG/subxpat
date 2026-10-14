@@ -120,7 +120,7 @@ class SwitchedTemplate(SimpleTemplate):
 
         # define xors (they break the subout when their parameter is true)
         xors = [
-            Xor(f'xor{out_i}', operands=[subout, param], weight=subout.weight)
+            Xor(f'xor{out_i}', operands=[subout, param])
             for (out_i, param, subout) in zip(it.count(), parameters, circuit.base_components['Subgraph'].subgraph_outputs)
         ]
 

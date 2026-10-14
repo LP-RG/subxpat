@@ -11,7 +11,6 @@ from sxpat.graph.graph import IOGraph
 from sxpat.graph.node import Extras, Node
 from sxpat.error_iter import ErrorIterator
 from sxpat.newag import load_circuit_from_verilog
-from sxpat.converting.legacy import iograph_with_weights
 
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
 
@@ -150,7 +149,12 @@ def explore_grid(specs_obj: Specifications):
             for (i, n) in enumerate(current_graph.outputs_names):
                 weights[n] = 2 ** i
 
-            current_graph = iograph_with_weights(current_graph, weights)
+            # "current_graph = iograph_with_weights(current_graph, weights)" BECOMES:
+            weights_mapping = dict()
+            for n in current_graph.nodes:
+                weights_mapping[n.name] = weights.get(n.name, None)
+            weight_component = Weight(weights_mapping)
+            current_graph = current_graph.with_base_component(weight_component)
             _time = Timer.now() - _time
 
             # logging
