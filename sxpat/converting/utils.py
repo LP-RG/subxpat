@@ -240,16 +240,21 @@ def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missi
     """
 
     new_nodes = {n.name: n for n in graph.nodes}
+    new_weights_mapping = dict()
     for (name, value) in constants.items():
         if skip_missing and name not in graph: continue
         if isinstance(graph[name], PlaceHolder): continue
 
         node = graph[name]
-
+        
         # COMMENT:from-MARCO: valid
         new_nodes[node.name] = BoolConstant(node.name, value)
+        new_weights_mapping[node.name] = graph.base_components['Weight'].get(node.name)
 
-    return graph.copy(new_nodes.values())
+    new_weight_component = Weight(new_weights_mapping)
+    new_graph = graph.copy(new_nodes.values())
+    new_graph = new_graph.with_base_component(new_weight_component)
+    return new_graph
 
 
 def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:

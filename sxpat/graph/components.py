@@ -171,7 +171,7 @@ class Weight(Component):
         - action: return the weight corresponding to the given node id
     """
 
-    def __init__(self, map: dict[str, int]) -> None:
+    def __init__(self, map: dict[str, int | None]) -> None:
         action = lambda map, node_id: map[node_id]
         super().__init__(map, action)
 

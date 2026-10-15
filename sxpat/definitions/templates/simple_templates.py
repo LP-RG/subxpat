@@ -8,6 +8,7 @@ from .Template import Template, TemplateBundle
 from sxpat.graph.graph import IOGraph
 from sxpat.graph import PGraph
 from sxpat.graph.node import AnyNode, AnyNonEndPoint, AnyOperation, BoolVariable, Xor
+from sxpat.graph.components import Weight
 
 
 __all__ = ['ConstantTemplate', 'SwitchedTemplate']
@@ -124,10 +125,24 @@ class SwitchedTemplate(SimpleTemplate):
             for (out_i, param, subout) in zip(it.count(), parameters, circuit.base_components['Subgraph'].subgraph_outputs)
         ]
 
+        xors_weights = [
+            circuit.base_components['Weight'].get(subout.name)
+            for subout in circuit.base_components['Subgraph'].subgraph_outputs
+        ]
+
         # use xors as subgraph outputs
         updated_nodes = cls._get_updated_suboutputs_successors(circuit, xors)
 
         # create the parametric circuit
         parametric_circuit = cls._create_parametric_circuit(circuit, updated_nodes, xors, parameters)
+
+        new_weights_mapping = dict()
+        for xor_node, xor_weight in zip(xors, xors_weights):
+            new_weights_mapping[xor_node.name] = xor_weight
+        for n in parametric_circuit.nodes:
+            if not n.name in new_weights_mapping.keys():
+                new_weights_mapping[n.name] = parametric_circuit.base_components['Weight'].get(n.name)
+        new_weight_component = Weight(new_weights_mapping)
+        parametric_circuit = parametric_circuit.with_base_component(new_weight_component)
 
         return TemplateBundle(parametric_circuit)
