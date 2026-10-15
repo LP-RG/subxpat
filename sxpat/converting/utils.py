@@ -69,6 +69,7 @@ def unpack_ToInt(graph: T_Graph) -> T_Graph:
     sums = [
         Sum(
             toint.name,
+            # COMMENT:from-MARCO: valid
             operands=ifs[toint.name]
         )
         for toint in toint_nodes
@@ -245,6 +246,7 @@ def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missi
 
         node = graph[name]
 
+        # COMMENT:from-MARCO: valid
         new_nodes[node.name] = BoolConstant(node.name, value)
 
     return graph.copy(new_nodes.values())
@@ -900,6 +902,7 @@ def node_is_false(node: Union[Node, BoolConstant]) -> bool:
 def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N:
     # get common fields
     kwargs = {'name': node.name}
+    # COMMENT:from-MARCO: valid removal of Extras
     if issubclass(cls, Operation) and isinstance(node, Operation):
         kwargs['operands'] = node.operands
     if issubclass(cls, Valued) and isinstance(node, Valued):

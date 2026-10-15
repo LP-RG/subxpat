@@ -106,7 +106,10 @@ class Graph:
 
     def copy(self, nodes: Optional[Iterable[AnyNode]] = None, **extras) -> Self:
         copy = type(self)(self.nodes if nodes is None else nodes, **{**self.extras, **extras})
-        new_base_components: Sequence[Component] = list()
+        # COMMENT:from-MARCO: very good, only a few comments
+        #                     when using local variables, feel free to use concrete types (like list[...] instead of Sequence[...])
+        #                       more abstract or interface types are mainly relevant in signatures
+        new_base_components: Sequence[Component] = list() 
         for name, component in self.base_components.items():
             new_base_components.append(component)
         copy.base_components = ComponentsDict([
@@ -250,20 +253,22 @@ class IOGraph(Graph):
         in_out_set = frozenset((*self.inputs_names, *self.outputs_names))
         return tuple(n for n in self.nodes if n.name not in in_out_set)
 
+    # COMMENT:from-MARCO: valid approach, maybe it is better to also move this to Graph
     @final 
     def has_base_component(self, component_name: Literal['Subgraph', 'Topology', 'Weight', 'Type']) -> bool:
+        # COMMENT:from-MARCO: 🧐
         if component_name in self.base_components:
             return True
         return False
 
     @final 
     def has_extra_component(self, component_name: str) -> bool:
+        # COMMENT:from-MARCO: 🧐
         if component_name in self.extra_components:
             return True
         return False
     
-    # COMMENT:from-MARCO: the following two methods are very nice QoL (Quality of Life) features to have.
-    # the naming of them is a bit counter-intuitive, but the logic is sound.
+    # COMMENT:from-MARCO: maybe it is better to also move this to Graph
     @final
     def with_base_component(self, new_component: Subgraph | Topology | Weight | Type) -> IOGraph:
         copy: IOGraph

@@ -131,9 +131,11 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         Objective: 'doubleoctagon',
     })
     NODE_COLOR: Mapping[Type[Graph], Callable[[Graph, Node], Optional[str]]] = {
+        # COMMENT:from-MARCO: these changes are valid, the only thing that we may do to improve the performance, is to have the components expose efficient methods for some computations, such as "node in subgraph"
         Graph: lambda g, n: 'red' if isinstance(n, Extras) and n.name in g.base_components['Subgraph'].nodes_names() else 'white',
         IOGraph: lambda g, n: 'red' if isinstance(n, Extras) and n.name in g.base_components['Subgraph'].nodes_names() else 'white',
         CGraph: lambda g, n: 'red' if isinstance(n, Extras) and n.name in g.base_components['Subgraph'].nodes_names() else 'white',
+        # COMMENT:from-MARCO: I think removing this is ok, or was there a different question?
         #TODO: how to change? SGraph: lambda g, n: 'olive' if n in g.base_components['Subgraph'].subgraph_inputs else 'skyblue3' if n in g.base_components['Subgraph'].subgraph_outputs else 'red' if isinstance(n, Extras) and n.name in g.base_components['Subgraph'].nodes_names() else 'white',
         PGraph: lambda g, n: 'olive' if n in g.base_components['Subgraph'].subgraph_inputs else 'skyblue3' if n in g.base_components['Subgraph'].subgraph_outputs else 'red' if isinstance(n, Extras) and n.name in g.base_components['Subgraph'].nodes_names() else 'white',
     }
@@ -148,6 +150,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         string = rf'{cls.NODE_SYMBOL[type(node)]}\n{node.name}'
 
         # extra informations
+        # COMMENT:from-MARCO: valid change. what we can do in the future, is update the `if` structure to be based on components directly 
         if isinstance(node, Extras) and graph.base_components['Weight'].get(node.name) is not None:
             string += rf'\nw={graph.base_components['Weight'].get(node.name)}'
         if isinstance(node, Extras) and node.name in graph.base_components['Subgraph'].nodes_names():

@@ -107,6 +107,7 @@ class export_annotated_graph:
     def __new__(cls, circuit: IOGraph, path: str):
         inputs = frozenset(circuit.inputs_names)
         outputs = frozenset(circuit.outputs_names)
+        # COMMENT:from-MARCO: valid, a way to improve performance is to get the component before looping
         subgraph_inputs = frozenset(_n.name for _n in circuit.base_components['Subgraph'].subgraph_inputs)
         subgraph_outputs = frozenset(_n.name for _n in circuit.base_components['Subgraph'].subgraph_outputs)
         subgraph_nodes = frozenset(_n.name for _n in circuit.base_components['Subgraph'].subgraph_nodes)

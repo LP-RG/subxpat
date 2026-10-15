@@ -105,6 +105,8 @@ def iograph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> IOGra
     )
 
 
+# COMMENT:from-MARCO: good to leave these commented out for now, we will remove it at the end
+
 # def _my_nodes_from_inner_legacy(inner_graph):
 #     nodes = list()
 #     for (index, data) in inner_graph.nodes(True):

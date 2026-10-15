@@ -45,6 +45,7 @@ class _NonSharedBase:
                 _muxs, parameters = [], []
                 for in_i, in_node in enumerate(a_graph.base_components['Subgraph'].subgraph_inputs):
                     parameters.append((
+                        # COMMENT:from-MARCO: valid, but we have to make sure that we will mark these nodes as being in the subgraph
                         (p_usage := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_u')),
                         (p_assert := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_a')),
                     ))
@@ -157,6 +158,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         updated_nodes: Dict[str, AnyOperation] = dict()
         for (out_i, (out_node, sum_node)) in enumerate(zip(a_graph.base_components['Subgraph'].subgraph_outputs, sums)):
             # create the constant False switch
+            # COMMENT:from-MARCO: valid but we have to make sure we mark these nodes as being in the subgraph
             outs_p.append(p_o := BoolVariable(f'p_o{out_i}'))
             outs.append(new_out_node := And(f'sw_o{out_i}', operands=(p_o, sum_node)))
 
@@ -191,7 +193,8 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                 constants_rewriting,
             ),
             a_graph.inputs_names, a_graph.outputs_names,
-            (n.name for n in parameters)
+            (n.name for n in parameters),
+            # COMMENT:from-MARCO: given the comments about marking subgraph nodes, here we should read the subgraph component, with the relevant added nodes
         )
 
         # > Constraints Graph

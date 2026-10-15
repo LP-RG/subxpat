@@ -109,6 +109,8 @@ class Extras(__Base):
 
         *abstract*
     """
+    # COMMENT:from-MARCO: perfect, now that you removed all content from this, a following step should be to clear out all references to Extras
+    #                     this will slightly simplify the node hierarchy, and may greately simplify code all around the system
 
     def __post_init__(self) -> None:
         super().__post_init__()

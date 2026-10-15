@@ -149,6 +149,7 @@ def explore_grid(specs_obj: Specifications):
             for (i, n) in enumerate(current_graph.outputs_names):
                 weights[n] = 2 ** i
 
+            # COMMENT:from-MARCO: good
             # "current_graph = iograph_with_weights(current_graph, weights)" BECOMES:
             weights_mapping = dict()
             for n in current_graph.nodes:
@@ -584,6 +585,9 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
 # BECOMES:
 
 def are_circuits_equal(g1: IOGraph, g2: IOGraph) -> bool:
+    # COMMENT:from-MARCO: this will have a few issues, specifically:
+    #                     two different circuits (crossing iterations) may be syntactically equivalent, but have their names be scrambled
+    #                     a better approach for this, I thing should be use the subgraph check inside the node_matcher, per node
     if g1.base_components['Subgraph'].nodes_names() != g2.base_components['Subgraph'].nodes_names():
         return False
 

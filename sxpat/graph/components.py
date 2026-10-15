@@ -29,7 +29,6 @@ class Component(ABC):
     action: Final[Callable[..., Any]]
     inheritable: Final[bool]
 
-    # COMMENT:from-MARCO: i think the auto-inherit-on-copy is a very good idea
     def __init__(self,
                  object: Any,
                  action: Callable[..., Any],
@@ -84,6 +83,7 @@ class Subgraph(Component):
     graph: Final[Any]
 
     def __init__(self, map: dict[str, bool], graph: Any = None) -> None:
+        # COMMENT:from-MARCO: perfect, in the future we can also see about optimising a few things
         action = lambda map: [k for k in map.keys() if map[k] == 1]
         super().__init__(map, action)
         self.graph = graph
@@ -108,6 +108,9 @@ class Subgraph(Component):
     @ft.cached_property
     @final
     def subgraph_inputs(self) -> Sequence[AnyNode]:
+        # COMMENT:from-MARCO: you should reason about what is best to return from these methods, the node object, or the id/name?
+        #                     once you reasoned about it we can discuss this in the next meeting
+
         # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
         subgraph_ids = self.nodes_names()
         return tuple(dict.fromkeys(it.chain.from_iterable(
@@ -150,12 +153,12 @@ class Topology(Component):
     """
 
     def __init__(self, digraph: nx.DiGraph) -> None:
+        # COMMENT:from-MARCO: perfect, in the future we can also see about optimising a few things
         action = lambda digraph: deepcopy(digraph)
         super().__init__(digraph, action)
 
     @final
     def get(self) -> nx.DiGraph:
-        # COMMENT:from-MARCO: values produced by components should not allow to change the graph 
         return self.action(self.object)
 
     @final

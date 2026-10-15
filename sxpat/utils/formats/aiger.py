@@ -21,6 +21,7 @@ __all__ = [
 
 # generates circuit digraph
 def gen_circuit_digraph(benchmark_name, inputs_path: str = ""):
+    # COMMENT:from-MARCO: next meeting we can talk about these paths, we may have some utilities to simplify and generalise the approach
     verilog_path = f'{inputs_path}/{benchmark_name}.{"v"}'
     if len(inputs_path) == 0:
         verilog_path = f'{"./benchmarks/v"}/{benchmark_name}.{"v"}'
@@ -93,6 +94,7 @@ def sort_dict(this_dict: dict) -> dict:
         sorted_dict[i] = this_dict[i]
     return sorted_dict
 
+# COMMENT:from-MARCO: I think I forgot what we use this `info` parameter for
 def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list = list()) -> IOGraph:
     
     graph = circuit_digraph

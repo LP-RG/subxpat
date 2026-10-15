@@ -18,6 +18,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
     """
         Defines a distance as the absolute difference of the wanted nodes of the circuits where each node is valued using its weight.
 
+        # COMMENT:from-MARCO: for the classes/methods you change, you can append your name to the authors if you want, or if you completely rewrite/adapt the method, you can prepend it
         @authors: Marco Biasion
     """
 
@@ -32,6 +33,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         w_nodes_b: Collection[Extras] = tuple(graph_b[n] for n in wanted_b)  # type: ignore
 
         # guard
+        # COMMENT:from-MARCO: valid. a way to improve this, would be to get the Weight component before the ifs and use it directly (saves on a lot of accesses)
         if (broken := first(lambda x: not graph_a.base_components['Weight'].has_weight(x), w_nodes_a, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_a ({graph_a}) has no weight.')
         elif (broken := first(lambda x: not graph_b.base_components['Weight'].has_weight(x), w_nodes_b, None)) is not None:
@@ -91,6 +93,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
             wanted_nodes,
         ):
             # create constants
+            # COMMENT:from-MARCO: good, but similar to a comment above, we can improve the performance of this by getting the component before the loop
             val: int = graph.base_components['Weight'].get(node.name) # type: ignore
             consts_n.extend([
                 const_0 := IntConstant(f'dist_{value_id}{i}_const_0', 0),
