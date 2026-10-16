@@ -21,12 +21,25 @@ __all__ = [
     # enums
     'ErrorPartitioningType', 'EncodingType',
     'TemplateType', 'ConstantsType',
+    'LabelingType', 'LabelingRelativeTo',
 ]
 
 
 class Dependency:
     SourceItem = Union[argparse.Action, Tuple[argparse.Action, Any]]
     TargetItem = Union[argparse.Action, Tuple[argparse.Action, List[Any]]]
+
+
+class LabelingRelativeTo(enum.Enum):
+    ORIGIN = 'origin'
+    CURRENT = 'current'
+
+
+class LabelingType(enum.Enum):
+    MIN = 'min'
+    MAX = 'max'
+    SIMPLE_MIN = 'simple_min'
+    SIMPLE_MAX = 'simple_max'
 
 
 class ErrorPartitioningType(enum.Enum):
@@ -164,8 +177,8 @@ class Specifications:
     outputs: int = dc.field(init=False)
 
     # labeling
-    min_labeling: bool
-    partial_labeling: bool
+    labeling: LabelingType
+    labeling_relative_to: LabelingRelativeTo
 
     # subgraph extraction
     extraction_mode: int
@@ -310,15 +323,17 @@ class Specifications:
         # > graph labeling
         _lab_group = parser.add_argument_group('Labeling')
 
-        _max_lab = _lab_group.add_argument('--max-labeling',
-                                           action='store_false',
-                                           dest='min_labeling',
-                                           help='Nodes are weighted using their maximum error, instead of minimum error')
+        _lab = _lab_group.add_argument('--labeling',
+                                       type=LabelingType,
+                                       action=EnumChoicesAction,
+                                       default=LabelingType.SIMPLE_MIN,
+                                       help='Labeling Type (default: simple_min)')
 
-        _part_lab = _lab_group.add_argument('--no-partial-labeling',
-                                            action='store_false',
-                                            dest='partial_labeling',
-                                            help='Weights are assigned to all nodes, not only to the relevant ones')
+        _lab_rel_to = _lab_group.add_argument('--labeling-relative-to',
+                                              type=LabelingRelativeTo,
+                                              action=EnumChoicesAction,
+                                              default=LabelingRelativeTo.CURRENT,
+                                              help='Labeling relative to a circuit (default: current)')
 
         # > subgraph extraction stuff
         _subex_group = parser.add_argument_group('Subgraph extraction')
