@@ -21,7 +21,7 @@ __all__ = [
     'Specifications',
     # enums
     'ErrorPartitioningType', 'EncodingType',
-    'TemplateType', 'ConstantsType',
+    'TemplateType', 'ConstantsType', 'SlashType',
 ]
 
 
@@ -48,6 +48,12 @@ class EncodingType(enum.Enum):
 class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
     SHARED = 'shared'
+
+
+class SlashType(enum.Enum):
+    NONE = 'none'
+    SLASH_SUBGRAPH = 'slash_to_kill'
+    SLASH_INPUT_ITERATIVE = 'slash_it'
 
 
 class DistanceType(enum.Enum):
@@ -303,24 +309,27 @@ class Specifications:
         },
     )
     #
-    slash_to_kill: bool = dc.field(
-        default=False,
+    slash: SlashType = dc.field(
+        default=SlashType.NONE,
         metadata={
             'argument': {
-                'help': 'Enable the slash pass for the first iteration',
+                'action': EnumChoicesAction,
+                'help': 'Type of slash pass to apply (default: {default})',
                 'group': 'Subgraph extraction',
             },
             'dependencies': {
                 'requires': {
-                    True: ['error_for_slash'],
+                    SlashType.SLASH_SUBGRAPH: ['error_for_slash'],
+                    SlashType.SLASH_INPUT_ITERATIVE: ['error_for_slash'],
                 }
             }
         },
     )
     error_for_slash: int = dc.field(
+        default=1,
         metadata={
             'argument': {
-                'help': 'The error to use for the slash pass',
+                'help': 'The error to use for the slash pass (default: {default})',
                 'group': 'Subgraph extraction',
             }
         },
