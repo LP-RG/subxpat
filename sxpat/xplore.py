@@ -1,3 +1,4 @@
+from __future__ import annotations
 import itertools
 from typing import Dict, Iterable, Iterator, List, Literal, Optional, Tuple, Union
 import dataclasses as dc
@@ -13,7 +14,7 @@ from sxpat.error_iter import ErrorIterator
 from sxpat.newag import load_circuit_from_verilog
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
 
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, LabelingType, LabelingRelativeTo
 
 from sxpat.constants.misc import UNKNOWN, SAT
 
@@ -41,6 +42,8 @@ from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
 
 from sxpat.labelling.labelling import Labelling
+
+from sxpat.fast_labeling import fast_labeling, upper_bound, lower_bound
 
 
 def explore_grid(specs_obj: Specifications):
@@ -102,16 +105,16 @@ def explore_grid(specs_obj: Specifications):
             # first iteration: apply slash
             if specs_obj.iteration == 1:
                 # store relevant specifications values
-                preserved_slash_state = (specs_obj.min_labeling, specs_obj.extraction_mode)
+                preserved_slash_state = (specs_obj.labeling, specs_obj.extraction_mode)
 
                 # update specifications
-                specs_obj.min_labeling = False
+                specs_obj.labeling = LabelingType.MAX
                 specs_obj.extraction_mode = 100
                 specs_obj.et = specs_obj.error_for_slash
 
             # second iteration: restore state
             elif specs_obj.iteration == 2:
-                (specs_obj.min_labeling, specs_obj.extraction_mode) = preserved_slash_state
+                (specs_obj.labeling, specs_obj.extraction_mode) = preserved_slash_state
 
             # skip all iterations implicitly achieved through the slash to kill step
             if specs_obj.iteration > 1 and specs_obj.et < specs_obj.error_for_slash:
@@ -144,7 +147,7 @@ def explore_grid(specs_obj: Specifications):
             print('started labelling')
             _time = Timer.now()
 
-            weights = label_graph(current_graph, specs_obj)
+            weights = label_graph(exact_graph, current_graph, specs_obj)
             for (i, n) in enumerate(current_graph.outputs_names):
                 weights[n] = 2 ** i
 
@@ -537,23 +540,34 @@ def error_iterator(specs: Specifications) -> ErrorIterator | None:
     return erriter
 
 
-def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
-    """This function adds the labels inplace to the given graph"""
+def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
+    """Compute the weight of every relevant node of the `current` circuit."""
 
-    reference: IOGraph = circuit
-    to_be_labelled: IOGraph = circuit
+    relative_to_origin = specs_obj.labeling_relative_to == LabelingRelativeTo.ORIGIN
+    reference = exact if relative_to_origin else current
+    to_be_labelled: IOGraph = current
 
-    #
-    labeller = Labelling(
-        reference, to_be_labelled,
-        specs_obj,
-        minimise=specs_obj.min_labeling,
-        use_functions=True,
-    )
-    weights = labeller.label_graph(
-        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else -1,
-        parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
-    )
+    if specs_obj.labeling == LabelingType.SIMPLE_MIN:
+        weights = lower_bound(current)
+    elif specs_obj.labeling == LabelingType.SIMPLE_MAX:
+        weights = upper_bound(current)
+    elif specs_obj.iteration == 1:
+        weights = fast_labeling(
+            exact, current, specs_obj.et, specs_obj,
+            skip_at_output=not relative_to_origin,
+        )
+    else:
+        labeller = Labelling(
+            reference, to_be_labelled,
+            specs_obj,
+            minimise=specs_obj.labeling == LabelingType.MIN,
+            use_functions=True,
+        )
+        weights = fast_labeling(
+            exact, current, specs_obj.et, specs_obj,
+            skip_at_output=not relative_to_origin,
+            labeller=labeller,
+        )
 
     return weights
 
