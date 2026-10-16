@@ -132,8 +132,15 @@ def explore_grid(specs_obj: Specifications):
                 specs_obj.path.synthesis, specs_obj.current_benchmark, specs_obj.path.run.temporary,
             )
 
-            pprint.info2(f'slash of inputs: error={slash_error}, '
-                         f'area={slash_metrics.area}, power={slash_metrics.power}, delay={slash_metrics.delay}')
+            slash_circuit_data = CircuitData(
+                'gen_slash',
+                specs_obj.current_benchmark,
+                slash_metrics.area,
+                slash_metrics.power,
+                slash_metrics.delay,
+                slash_error,
+                slash_error,
+            )
 
             # logging
             specs_obj.stats_storage.stage(
@@ -143,16 +150,11 @@ def explore_grid(specs_obj: Specifications):
                 slash_delay=slash_metrics.delay,
                 slash_time=slash_time,
             )
-            all_generated_circuits_data.append(CircuitData(
-                'gen_slash.v',
-                specs_obj.current_benchmark,
-                slash_metrics.area,
-                slash_metrics.power,
-                slash_metrics.delay,
-                slash_error,
-                slash_error,
-            ))
+            all_generated_circuits_data.append(slash_circuit_data)
             specs_obj.stats_storage.commit()
+
+            # print the slashed circuit metrics in the same format as the iterations
+            print_current_model([slash_circuit_data], origin_circuit_data=exact_circuit_metrics)
 
             # the slash pass is done, continue the exploration on the slashed circuit
             specs_obj.slash = SlashType.NONE
