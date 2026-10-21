@@ -61,6 +61,17 @@ class Graph:
             @authors: Marco Biasion
         """
 
+        #Add default Subgraph and Weight components if they're not passed as argument 
+        #(this because the Node structure had default weight = None and in_subgraph = False)
+        if not any(type(c).__name__ == 'Subgraph' for c in components):
+            default_subgraph_component = Subgraph(set())
+            components.append(default_subgraph_component)
+        
+        if not any(type(c).__name__ == 'Weight' for c in components):
+            default_weights_map: dict[str, int | None] = dict([(n.name, None) for n in nodes])
+            default_weight_component = Weight(default_weights_map)
+            components.append(default_weight_component)
+
         #TODO: pass also the extra components to the constructor, set self.extra_components inside the
         # constructor, make base_components and extra_components final, every time they need to be modified
         # generate new graph and pass the new base_components/extra_components to the constructor (like 

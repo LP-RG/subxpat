@@ -82,15 +82,19 @@ class Subgraph(Component):
 
     graph: Final[Any]
 
-    def __init__(self, map: dict[str, bool], graph: Any = None) -> None:
+    def __init__(self, subgraph_set: set[str], graph: Any = None) -> None:
         # COMMENT:from-MARCO: perfect, in the future we can also see about optimising a few things
-        action = lambda map: [k for k in map.keys() if map[k] == 1]
-        super().__init__(map, action)
+        action = lambda subgraph_set: list(subgraph_set)
+        super().__init__(subgraph_set, action)
         self.graph = graph
 
     @final
     def nodes_names(self) -> list[str]:
         return self.action(self.object)
+
+    @final
+    def in_subgraph(self, node_id: str) -> bool:
+        return node_id in self.object
 
     @final 
     def with_graph(self, graph: Any) -> Subgraph:

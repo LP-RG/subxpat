@@ -155,7 +155,8 @@ def _setup_problem(circuit: IOGraph, specs: Specifications):
     z3_nodes, base_constraints = _encode_nodes(
         available_nodes,
         unavailable_nodes,
-        {node.name: (getattr(node, WEIGHT, None) or -1) for node in circuit.nodes},
+        # {node.name: (getattr(node, WEIGHT, None) or -1) for node in circuit.nodes},
+        {node.name: (circuit.base_components['Weight'].get(node.name) or -1) for node in circuit.nodes},
         bit_width,
         Node,
     )
