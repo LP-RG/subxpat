@@ -48,6 +48,7 @@ class _NonSharedBase:
                 for in_i, in_node in enumerate(a_graph.base_components['Subgraph'].subgraph_inputs):
                     parameters.append((
                         # COMMENT:from-MARCO: valid, but we have to make sure that we will mark these nodes as being in the subgraph
+                        # from-ILIA: fixed by using 'subgraph_set'
                         (p_usage := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_u')), #HERE MARK SUBGRAPH
                         (p_assert := BoolVariable(f'p_o{out_i}_t{prod_i}_i{in_i}_a')), #HERE MARK SUBGRAPH
                     ))
@@ -182,6 +183,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         for (out_i, (out_node, sum_node)) in enumerate(zip(a_graph.base_components['Subgraph'].subgraph_outputs, sums)):
             # create the constant False switch
             # COMMENT:from-MARCO: valid but we have to make sure we mark these nodes as being in the subgraph
+            # from-ILIA: fixed by using 'template_subgraph_set' and 'constraint_subgraph_set'
             outs_p.append(p_o := BoolVariable(f'p_o{out_i}')) #HERE MARK SUBGRAPH
             template_subgraph_set.add(f'p_o{out_i}')
             constraint_subgraph_set.add(f'p_o{out_i}')

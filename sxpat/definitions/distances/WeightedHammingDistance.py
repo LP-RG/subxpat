@@ -30,14 +30,17 @@ class WeightedHammingDistance(DistanceSpecification):
         w_nodes_b: Sequence[Extras] = tuple(graph_b[n] for n in wanted_b)  # type: ignore
 
         # guard
+        graph_a_weights = graph_a.base_components['Weight']
+        graph_b_weights = graph_b.base_components['Weight']
         if len(graph_a.outputs_names) != len(graph_b.outputs_names):
             raise ValueError('The sequences of wanted nodes have different lengths (or the graphs have different number of outputs).')
         # COMMENT:from-MARCO: valid. an optimisation could be to get the component before looping with it
-        if (broken := first(lambda x: not graph_a.base_components['Weight'].has_weight(x), w_nodes_a, None)) is not None:
+        # from-ILIA: fixed
+        if (broken := first(lambda x: not graph_a_weights.has_weight(x), w_nodes_a, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_a ({graph_a}) has no weight.')
-        elif (broken := first(lambda x: not graph_b.base_components['Weight'].has_weight(x), w_nodes_b, None)) is not None:
+        elif (broken := first(lambda x: not graph_b_weights.has_weight(x), w_nodes_b, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_b ({graph_b}) has no weight.')
-        if (mismatch := first(lambda ns: graph_a.base_components['Weight'].get(ns[0].name) != graph_b.base_components['Weight'].get(ns[1].name), zip(w_nodes_a, w_nodes_b), None)) is not None:
+        if (mismatch := first(lambda ns: graph_a_weights.get(ns[0].name) != graph_b_weights.get(ns[1].name), zip(w_nodes_a, w_nodes_b), None)) is not None:
             raise ValueError(f'The wanted nodes of the two graphs ({mismatch[0]}, {mismatch[1]}) have mismatching weights.')
 
         # bit flips to int
@@ -50,7 +53,7 @@ class WeightedHammingDistance(DistanceSpecification):
             w_nodes_b,
         ):
             # create constants
-            val: int = graph_a.base_components['Weight'].get(node_a.name)  # type: ignore
+            val: int = graph_a_weights.get(node_a.name)  # type: ignore
             consts.extend([
                 const_0 := IntConstant(f'dist_a{i}_const_0', 0),
                 const_n := IntConstant(f'dist_a{i}_const_{val}', val),

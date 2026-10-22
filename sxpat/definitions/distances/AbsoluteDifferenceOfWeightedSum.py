@@ -19,6 +19,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         Defines a distance as the absolute difference of the wanted nodes of the circuits where each node is valued using its weight.
 
         # COMMENT:from-MARCO: for the classes/methods you change, you can append your name to the authors if you want, or if you completely rewrite/adapt the method, you can prepend it
+        # from-ILIA: still TODO
         @authors: Marco Biasion
     """
 
@@ -32,11 +33,14 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         w_nodes_a: Collection[Extras] = tuple(graph_a[n] for n in wanted_a)  # type: ignore
         w_nodes_b: Collection[Extras] = tuple(graph_b[n] for n in wanted_b)  # type: ignore
 
+        graph_a_weights = graph_a.base_components['Weight']
+        graph_b_weights = graph_b.base_components['Weight']
         # guard
         # COMMENT:from-MARCO: valid. a way to improve this, would be to get the Weight component before the ifs and use it directly (saves on a lot of accesses)
-        if (broken := first(lambda x: not graph_a.base_components['Weight'].has_weight(x), w_nodes_a, None)) is not None:
+        # from-ILIA: fixed
+        if (broken := first(lambda x: not graph_a_weights.has_weight(x), w_nodes_a, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_a ({graph_a}) has no weight.')
-        elif (broken := first(lambda x: not graph_b.base_components['Weight'].has_weight(x), w_nodes_b, None)) is not None:
+        elif (broken := first(lambda x: not graph_b_weights.has_weight(x), w_nodes_b, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_b ({graph_b}) has no weight.')
 
         # values
@@ -88,13 +92,15 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         # graph int
         consts_n = []
         bits_n = []
+        weight_component = graph.base_components['Weight']
         for (i, node) in zip(
             formatted_int_range(len(wanted_nodes)),
             wanted_nodes,
         ):
             # create constants
             # COMMENT:from-MARCO: good, but similar to a comment above, we can improve the performance of this by getting the component before the loop
-            val: int = graph.base_components['Weight'].get(node.name) # type: ignore
+            # from-ILIA: fixed
+            val: int = weight_component.get(node.name) # type: ignore
             consts_n.extend([
                 const_0 := IntConstant(f'dist_{value_id}{i}_const_0', 0),
                 const_n := IntConstant(f'dist_{value_id}{i}_const_{val}', val),

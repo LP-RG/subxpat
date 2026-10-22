@@ -108,9 +108,11 @@ class export_annotated_graph:
         inputs = frozenset(circuit.inputs_names)
         outputs = frozenset(circuit.outputs_names)
         # COMMENT:from-MARCO: valid, a way to improve performance is to get the component before looping
-        subgraph_inputs = frozenset(_n.name for _n in circuit.base_components['Subgraph'].subgraph_inputs)
-        subgraph_outputs = frozenset(_n.name for _n in circuit.base_components['Subgraph'].subgraph_outputs)
-        subgraph_nodes = frozenset(_n.name for _n in circuit.base_components['Subgraph'].subgraph_nodes)
+        # from-ILIA: fixed
+        subgraph_component = circuit.base_components['Subgraph']
+        subgraph_inputs = frozenset(_n.name for _n in subgraph_component.subgraph_inputs)
+        subgraph_outputs = frozenset(_n.name for _n in subgraph_component.subgraph_outputs)
+        subgraph_nodes = frozenset(_n.name for _n in subgraph_component.subgraph_nodes)
         edge_color = {
             # s, d
             (False, True): 3,
@@ -122,7 +124,7 @@ class export_annotated_graph:
             name = n.name
             fillcolor_str = 3 if name in subgraph_inputs else \
                 2 if name in subgraph_outputs else \
-                1 if isinstance(n, Extras) and n.name in circuit.base_components['Subgraph'].nodes_names() else ''
+                1 if isinstance(n, Extras) and n.name in subgraph_component.nodes_names() else ''
             if fillcolor_str != '': fillcolor_str = f', fillcolor={fillcolor_str}'
             weight_str = f'\\n{circuit.base_components["Weight"].get(n.name)}' if circuit.base_components['Weight'].has_weight(n) else ''
 

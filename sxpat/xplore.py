@@ -585,8 +585,18 @@ def are_circuits_equal(g1: IOGraph, g2: IOGraph) -> bool:
     # COMMENT:from-MARCO: this will have a few issues, specifically:
     #                     two different circuits (crossing iterations) may be syntactically equivalent, but have their names be scrambled
     #                     a better approach for this, I thing should be use the subgraph check inside the node_matcher, per node
-    if g1.base_components['Subgraph'].nodes_names() != g2.base_components['Subgraph'].nodes_names():
+    # from-ILIA: I understand the problem with my implementation, but do not really understand the solution you had in mind,
+    # therefore here's another alternative solution that should fix the problem you were talking about (we can discuss this further!!)
+    # 
+    # if g1.base_components['Subgraph'].nodes_names() != g2.base_components['Subgraph'].nodes_names():
+    #     return False 
+    # BECOMES:
+
+    if len(g1.base_components['Subgraph'].nodes_names()) != len(g2.base_components['Subgraph'].nodes_names()):
         return False
+    for name1 in g1.base_components['Subgraph'].nodes_names():
+        if not name1 in g2.base_components['Subgraph'].nodes_names():
+            return False 
 
     class _Node(Node, Extras): ...
 

@@ -18,10 +18,12 @@ __all__ = [
 # - given that different components may behave vary different behaviours, you can keep each one in its own unique hierarchy, meaning that, if you want to inherit from Component, Component can be only a very coincise interface, maybe specifying the requirements all components should follow (like as immutability and such).
 # - given the above, the .perform_action could be removed, and instead of passing thorugh self.action, each component directly defines its methods (e.g. .nodes_names, .get, ...).
 # these could simplify the effort required for a new developer to understand the component
+# from-ILIA: fixed by making Component an interface 
 
 # COMMENT:from-MARCO: (this can be left for later)
 # if you want to simplify further your structure (as it will get there eventually anyway) you can use integers as "ids" for nodes, instead than strings.
 # NOTE THAT if you do this many other things will break, so you would require a middle-step on the accesses of the graphs to map from an outside string to an inside integer, and viceversa
+# from-ILIA: left for later! still TODO
 
 class Component(ABC):
     """Component interface"""
@@ -114,6 +116,7 @@ class Subgraph(Component):
     def subgraph_inputs(self) -> Sequence[AnyNode]:
         # COMMENT:from-MARCO: you should reason about what is best to return from these methods, the node object, or the id/name?
         #                     once you reasoned about it we can discuss this in the next meeting
+        # from-ILIA: still have to reason about this
 
         # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
         subgraph_ids = self.nodes_names()
@@ -198,6 +201,7 @@ class Type(Component):
     """
 
     # COMMENT:from-MARCO: types here should be specific Node types (Sum, And, ...)
+    # from-ILIA: fixed
     def __init__(self, map: dict[str, T_Node]) -> None:
         action = lambda map, node_id: map[node_id]
         super().__init__(map, action)

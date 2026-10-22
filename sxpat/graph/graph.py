@@ -1,5 +1,5 @@
 import operator as op
-from typing import AbstractSet, Any, Iterable, Literal, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Self, cast, overload
+from typing import AbstractSet, Any, Iterable, List, Literal, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Self, cast, overload
 from types import MappingProxyType
 from .components import Subgraph, Weight, Type, Topology, Component
 
@@ -30,6 +30,8 @@ __all__ = [
 ]
 
 # COMMENT:from-MARCO: "from typing import TypedDict" this might help you in simplifying the code below
+# from-ILIA: I already explored this solution before coming up with the current one, I couldn't find a solution
+# with "TypedDict" that came close to the current behaviour
 class ComponentsDict(dict[Literal['Subgraph', 'Topology', 'Weight', 'Type'], Component]):
     @overload
     def __getitem__(self, key: Literal["Subgraph"]) -> Subgraph: ...
@@ -120,7 +122,8 @@ class Graph:
         # COMMENT:from-MARCO: very good, only a few comments
         #                     when using local variables, feel free to use concrete types (like list[...] instead of Sequence[...])
         #                       more abstract or interface types are mainly relevant in signatures
-        new_base_components: Sequence[Component] = list() 
+        # from-ILIA: got it!
+        new_base_components: List[Component] = list() 
         for name, component in self.base_components.items():
             new_base_components.append(component)
         copy.base_components = ComponentsDict([
@@ -204,7 +207,6 @@ class Graph:
         """Given a node or a node name, returns the node name."""
         return node_or_name.name if isinstance(node_or_name, Node) else node_or_name
 
-    # COMMENT:from-MARCO: valid approach, maybe it is better to also move this to Graph
     @final 
     def has_base_component(self, component_name: Literal['Subgraph', 'Topology', 'Weight', 'Type']) -> bool:
         # COMMENT:from-MARCO: 🧐
