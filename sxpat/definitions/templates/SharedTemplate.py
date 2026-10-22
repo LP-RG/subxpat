@@ -96,7 +96,7 @@ class SharedTemplate(Template):
 
             # update all output successors to descend from new outputs
             for succ in a_graph.successors(out_node):
-                if not succ.name in graph.base_components['Subgraph'].nodes_names():
+                if not succ.name in a_graph.base_components['Subgraph'].nodes_names():
                     succ = out_successors.get(succ.name, succ)
                     new_out_index = succ.operands.index(out_node.name)
                     new_operands = succ.operands[:new_out_index] + (new_out_node.name,) + succ.operands[new_out_index + 1:]
@@ -107,7 +107,7 @@ class SharedTemplate(Template):
             (  # unchanged nodes
                 n
                 for n in a_graph.nodes
-                if not n.name in graph.base_components['Subgraph'].nodes_names()
+                if not n.name in a_graph.base_components['Subgraph'].nodes_names()
                 if n.name not in out_successors
             ),
             # constants

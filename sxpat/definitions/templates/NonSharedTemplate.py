@@ -207,7 +207,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                 (  # unchanged nodes
                     n
                     for n in a_graph.nodes
-                    if not n.name in s_graph.base_components['Subgraph'].nodes_names()
+                    if not n.name in a_graph.base_components['Subgraph'].nodes_names()
                     if n.name not in updated_nodes
                 ),
                 # changed nodes
@@ -331,7 +331,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
                 (  # unchanged nodes
                     n
                     for n in a_graph.nodes
-                    if not n.name in s_graph.base_components['Subgraph'].nodes_names()
+                    if not n.name in a_graph.base_components['Subgraph'].nodes_names()
                     if n.name not in updated_nodes
                 ),
                 # changed nodes
