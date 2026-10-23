@@ -1,5 +1,3 @@
-#!.venv/bin/python3
-
 def main():
     # instrumentations
     from instrumentations.import_timer import ImportTimer
