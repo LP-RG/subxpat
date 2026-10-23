@@ -1,5 +1,5 @@
-from typing import NamedTuple, Self
-from typing import Any, Literal, Optional, Union
+from typing import Self
+from typing import Literal, Optional, Union
 import dataclasses as dc
 
 import itertools
@@ -413,41 +413,6 @@ def synthesize_approximation(
         circuit_id, verilog_path,
         _metrics.area, _metrics.power, _metrics.delay,
     )
-
-
-# def verify_approximation(
-#     circuit_data: CircuitData_1,
-#     specs: Specifications,
-#     loading_timer: Timer2 = Timer2Dummy(),
-#     verification_timer: Timer2 = Timer2Dummy(),
-# ) -> CircuitData_2:
-#     with loading_timer:
-#         circuit = load_circuit_from_verilog(circuit_data.path, specs.path.run)
-#     # logging
-#     specs.stats_storage.stage(erroreval_annotated_graphs_initialization_time=_timer.total())
-#     print(f'erreval_annotated_graph_loading_time = {_timer.total()}')
-
-#     # compute errors relative to origin and previous
-#     with verification_timer:
-#         return CircuitData_2.from_1(
-#             circuit_data,
-#             error_to_origin=error_evaluation(exact_graph, circuit, specs),
-#             error_to_previous=error_evaluation(current_graph, circuit, specs),
-#         )
-
-#     #
-#     if candidate_data.error_to_origin > specs.et:
-#         # logging
-#         specs.stats_storage.stage(
-#             verification_time=_timer_verification.total(),
-#             ERROR='error_verification_failed',
-#         )
-#         specs.stats_storage.commit()
-#         #
-#         raise Exception(
-#             f'ErrorEval Verification FAILED with wce = {candidate_data.error_to_origin}'
-#             f' for circuit {candidate_data.path}'
-#         )
 
 
 def error_evaluation(reference_circuit: IOGraph, current_circuit: IOGraph, specs_obj: Specifications) -> int:
