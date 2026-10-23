@@ -1,0 +1,8 @@
+---------------------------------------------------------------------------------------------------
+Version: preview
+Date: 2026-10-23
+  Features:
+    - Added specific archivation approaches (.tar.gz, .tar.xz). (#210)
+  Minor Changes:
+    - Now the default archivation is .tar.xz instead of .zip. (#210)
+    - Removed zip archivation approach. (#210)
