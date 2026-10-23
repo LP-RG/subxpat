@@ -1,20 +1,23 @@
 ---------------------------------------------------------------------------------------------------
 Version: preview
-Date: 2026-10-07
+Date: 2026-10-23
   Features:
-    - further modularised Configuration Exploration. (#213)
+    - Added specific archivation approaches (.tar.gz, .tar.xz). (#210)
+    - Further modularised Configuration Exploration. (#213)
   Minor Features:
-    - added a class for csv formatting. (#213)
-    - added more multipliers verilogs. (#213)
+    - Added a class for csv formatting. (#213)
+    - Added more multipliers verilogs. (#213)
   Major Changes:
-    - completely revised the Timer module and how it works. (#213)
-    - completely revised the argument parsing for Specifications; now more centralised and automated. (#213)
+    - Completely revised the Timer module and how it works. (#213)
+    - Completely revised the argument parsing for Specifications; now more centralised and automated. (#213)
   Minor Changes:
-    - standardised Live/Append Storage interface. (#213)
-    - further modularised Configuration Exploration. (#213)
-    - rewritten all circuits verilogs to simplify understanding and extension. (#213)
-    - reorganised solve/synth/verify pipeline. (#213)
+    - Standardised Live/Append Storage interface. (#213)
+    - Further modularised Configuration Exploration. (#213)
+    - Rewritten all circuits verilogs to simplify understanding and extension. (#213)
+    - Reorganised solve/synth/verify pipeline. (#213)
+    - Now the default archivation is .tar.xz instead of .zip. (#210)
+    - Removed zip archivation approach. (#210)
   Bugfixes:
-    - patched a bug when min-labelling, where no error is found (also added warning). (#213)
+    - Patched a bug when min-labelling, where no error is found (also added warning). (#213)
   Minor Optimizations:
-    - optimised memory footprint of LiveStorage. (#213)
+    - Optimised memory footprint of LiveStorage. (#213)
