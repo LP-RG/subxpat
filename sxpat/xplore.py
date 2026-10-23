@@ -209,7 +209,7 @@ def explore_grid(specs_obj: Specifications):
 
         found_approximations: list[IOGraph] = []
         for conf in confexplorer:
-            # TODO: wip
+            # TODO: will be removed on a complete generalisation of the exploration
             lpp, ppo = conf
 
             timer_cell = Timer2.default().start()
@@ -496,7 +496,8 @@ def print_current_model(
                     model_data.area / origin_area,
                     model_data.power / origin_power,
                     model_data.delay / origin_delay,
-                    model_data.error_to_origin
+                    model_data.error_to_origin,
+                    model_data.error_to_previous,
                 )
                 for model_data in sorted_models_data
             ]
@@ -515,20 +516,23 @@ def print_current_model(
 
 
 def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> list[str]:
-    return {
-        0: find_subgraph_output_nodes_ascendant,
-        1: find_subgraph,
-        2: find_subgraph_sensitivity,
-        3: find_subgraph_sensitivity_no_io_constraints,
-        4: find_subgraph_feasible,
-        42: extract,
-        5: find_subgraph_feasible_hard,
-        55: find_subgraph_feasible_hard_datatype_bitvec,
-        6: find_subgraph_feasible_hard_datatype_bitvec_mintreshold,
-        100: slash_to_kill,
-        11: find_subgraph_feasible_soft,
-        12: find_subgraph_feasible_soft_outputs,
-    }[specs_obj.extraction_mode](circuit, specs_obj)
+    if specs_obj.subxpat:
+        return {
+            0: find_subgraph_output_nodes_ascendant,
+            1: find_subgraph,
+            2: find_subgraph_sensitivity,
+            3: find_subgraph_sensitivity_no_io_constraints,
+            4: find_subgraph_feasible,
+            42: extract,
+            5: find_subgraph_feasible_hard,
+            55: find_subgraph_feasible_hard_datatype_bitvec,
+            6: find_subgraph_feasible_hard_datatype_bitvec_mintreshold,
+            100: slash_to_kill,
+            11: find_subgraph_feasible_soft,
+            12: find_subgraph_feasible_soft_outputs,
+        }[specs_obj.extraction_mode](circuit, specs_obj)
+    else:  # monolithic XPAT
+        return [n.name for n in circuit.inners]
 
 
 def error_iterator_factory(
@@ -619,7 +623,7 @@ class CircuitRelativeErrors:
 
 
 @dc.dataclass(frozen=True, slots=True)
-class CircuitData(CircuitSynthesisData, CircuitRelativeErrors):
+class CircuitData(CircuitRelativeErrors, CircuitSynthesisData):
     @classmethod
     def combine(cls, cd1: CircuitSynthesisData, er: CircuitRelativeErrors) -> Self:
         return cls(**dc.asdict(cd1), **dc.asdict(er))

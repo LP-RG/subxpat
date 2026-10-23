@@ -105,8 +105,9 @@ class LiveStorage:
             # write only last
             self._writer.writerow(self._storage[-1])
 
-        # reset latest index
+        # reset
         self._last_index_set = -1
+        self._must_rewrite = False
 
     def ignore(self):
         """

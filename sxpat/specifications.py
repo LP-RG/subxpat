@@ -163,10 +163,6 @@ class Paths:
         return f'{self.__class__.__qualname__}({params})'
 
 
-def writable_with_default[_T](default: _T) -> _T:
-    return dc.field(init=False, default=default, metadata={'writable': True})
-
-
 class CustomDefaultS[T]:
     def __init__(self, func: Callable[[Specifications], T]) -> None: self._func = func
     def __call__(self, spec: Specifications) -> T: return self._func(spec)
@@ -256,11 +252,6 @@ class Specifications:
                 'help': 'Subgraph extraction algorithm to use (default: 55)',
                 'group': 'Subgraph extraction',
             },
-            'dependencies': {
-                'requires': {
-                    55: ['imax', 'omax'],
-                }
-            }
         },
     )
     #
