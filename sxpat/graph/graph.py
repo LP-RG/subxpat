@@ -32,6 +32,7 @@ __all__ = [
 # COMMENT:from-MARCO: "from typing import TypedDict" this might help you in simplifying the code below
 # from-ILIA: I already explored this solution before coming up with the current one, I couldn't find a solution
 # with "TypedDict" that came close to the current behaviour
+# COMMENT:from-MARCO: ok, then let's leave it as it is (leave also this conversation)
 class ComponentsDict(dict[Literal['Subgraph', 'Topology', 'Weight', 'Type'], Component]):
     @overload
     def __getitem__(self, key: Literal["Subgraph"]) -> Subgraph: ...
@@ -58,9 +59,9 @@ class Graph:
 
     def __init__(self, nodes: Iterable[AnyNode], components: Sequence[Component] = list()) -> None:
         """
-            Creates a new graph from the given nodes.
+        Creates a new graph from the given nodes.
 
-            @authors: Marco Biasion
+        :authors: Marco Biasion, Ilia Zeller
         """
 
         #Add default Subgraph and Weight components if they're not passed as argument 
@@ -70,6 +71,7 @@ class Graph:
             components.append(default_subgraph_component)
         
         if not any(type(c).__name__ == 'Weight' for c in components):
+            # COMMENT:from-MARCO: you can do: dict.fromkeys(n.name for n in nodes), if you prefer this other style, they are equivalent and both correct.
             default_weights_map: dict[str, int | None] = dict([(n.name, None) for n in nodes])
             default_weight_component = Weight(default_weights_map)
             components.append(default_weight_component)

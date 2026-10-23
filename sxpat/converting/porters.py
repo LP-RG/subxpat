@@ -133,6 +133,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     NODE_COLOR: Mapping[Type[Graph], Callable[[Graph, Node], Optional[str]]] = {
         # COMMENT:from-MARCO: these changes are valid, the only thing that we may do to improve the performance, is to have the components expose efficient methods for some computations, such as "node in subgraph"
         # from-ILIA: does the following work? Is it what you meant?
+        # from-MARCO: yes, this is perfect. I find this to be a fundamental behaviour of this component, and now that we have a specific entry point, we simplify the process of future changes to the internal behaviour of the component
         Graph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
         IOGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
         CGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',

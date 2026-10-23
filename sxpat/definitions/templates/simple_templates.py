@@ -125,6 +125,7 @@ class SwitchedTemplate(SimpleTemplate):
             for (out_i, param, subout) in zip(it.count(), parameters, circuit.base_components['Subgraph'].subgraph_outputs)
         ]
 
+        # COMMENT:from-MARCO: valid. a way to improve this, would be to get the Weight component before the ifs and use it directly (saves on a lot of accesses)
         xors_weights = [
             circuit.base_components['Weight'].get(subout.name)
             for subout in circuit.base_components['Subgraph'].subgraph_outputs
@@ -141,6 +142,7 @@ class SwitchedTemplate(SimpleTemplate):
             new_weights_mapping[xor_node.name] = xor_weight
         for n in parametric_circuit.nodes:
             if not n.name in new_weights_mapping.keys():
+                # COMMENT:from-MARCO: valid. a way to improve this, would be to get the Weight component before the ifs and use it directly (saves on a lot of accesses)
                 new_weights_mapping[n.name] = parametric_circuit.base_components['Weight'].get(n.name)
         new_weight_component = Weight(new_weights_mapping)
         parametric_circuit = parametric_circuit.with_base_component(new_weight_component)

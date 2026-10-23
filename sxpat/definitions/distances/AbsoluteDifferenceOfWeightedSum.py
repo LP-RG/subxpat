@@ -36,8 +36,6 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         graph_a_weights = graph_a.base_components['Weight']
         graph_b_weights = graph_b.base_components['Weight']
         # guard
-        # COMMENT:from-MARCO: valid. a way to improve this, would be to get the Weight component before the ifs and use it directly (saves on a lot of accesses)
-        # from-ILIA: fixed
         if (broken := first(lambda x: not graph_a_weights.has_weight(x), w_nodes_a, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_a ({graph_a}) has no weight.')
         elif (broken := first(lambda x: not graph_b_weights.has_weight(x), w_nodes_b, None)) is not None:

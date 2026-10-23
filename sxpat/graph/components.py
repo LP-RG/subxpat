@@ -86,6 +86,8 @@ class Subgraph(Component):
 
     def __init__(self, subgraph_set: set[str], graph: Any = None) -> None:
         # COMMENT:from-MARCO: perfect, in the future we can also see about optimising a few things
+        # COMMENT:from-MARCO: a thing I noticed now, is that, doing the casting/getting/whatever later, may allow the input datastructure to change
+        #                     example: i create the component passing in my own set/dict, then after the component has been created, if I (even outside the component) update the datastructure I passed in, now the component will behave on this new data, making it not deeply immutable
         action = lambda subgraph_set: list(subgraph_set)
         super().__init__(subgraph_set, action)
         self.graph = graph
@@ -179,6 +181,8 @@ class Weight(Component):
     """
 
     def __init__(self, map: dict[str, int | None]) -> None:
+        # COMMENT:from-MARCO: a thing I noticed now, is that, doing the casting/getting/whatever later, may allow the input datastructure to change
+        #                     example: i create the component passing in my own set/dict, then after the component has been created, if I (even outside the component) update the datastructure I passed in, now the component will behave on this new data, making it not deeply immutable
         action = lambda map, node_id: map[node_id]
         super().__init__(map, action)
 
@@ -203,6 +207,8 @@ class Type(Component):
     # COMMENT:from-MARCO: types here should be specific Node types (Sum, And, ...)
     # from-ILIA: fixed
     def __init__(self, map: dict[str, T_Node]) -> None:
+        # COMMENT:from-MARCO: a thing I noticed now, is that, doing the casting/getting/whatever later, may allow the input datastructure to change
+        #                     example: i create the component passing in my own set/dict, then after the component has been created, if I (even outside the component) update the datastructure I passed in, now the component will behave on this new data, making it not deeply immutable
         action = lambda map, node_id: map[node_id]
         super().__init__(map, action)
 

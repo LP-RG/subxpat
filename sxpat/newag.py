@@ -107,8 +107,6 @@ class export_annotated_graph:
     def __new__(cls, circuit: IOGraph, path: str):
         inputs = frozenset(circuit.inputs_names)
         outputs = frozenset(circuit.outputs_names)
-        # COMMENT:from-MARCO: valid, a way to improve performance is to get the component before looping
-        # from-ILIA: fixed
         subgraph_component = circuit.base_components['Subgraph']
         subgraph_inputs = frozenset(_n.name for _n in subgraph_component.subgraph_inputs)
         subgraph_outputs = frozenset(_n.name for _n in subgraph_component.subgraph_outputs)
@@ -122,6 +120,7 @@ class export_annotated_graph:
 
         def _node_tostr(n: _Node):
             name = n.name
+            # COMMENT:from-MARCO: here you could use the component.in_subgraph, as you did in other places
             fillcolor_str = 3 if name in subgraph_inputs else \
                 2 if name in subgraph_outputs else \
                 1 if isinstance(n, Extras) and n.name in subgraph_component.nodes_names() else ''

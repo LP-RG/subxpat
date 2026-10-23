@@ -582,16 +582,18 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
 # BECOMES:
 
 def are_circuits_equal(g1: IOGraph, g2: IOGraph) -> bool:
-    # COMMENT:from-MARCO: this will have a few issues, specifically:
-    #                     two different circuits (crossing iterations) may be syntactically equivalent, but have their names be scrambled
-    #                     a better approach for this, I thing should be use the subgraph check inside the node_matcher, per node
+    # COMMENT:from-MARCO: This will have a few issues, specifically:
+    #                     Two different circuits (crossing iterations) may be syntactically equivalent, but have their names be shuffled (meaning that, two graphs, A and B, might be equivalent, even if only node "a" is in the subgraph in graph A, and only node "b" is in the subgraph in graph B. this is because the equivalence should ignore names, as they are arbitrary each time).
+    #                     A way to solve this difference is, to use the subgraph check inside the `node_matcher``, per node; meaning that, when two nodes (one from each graph) are being compared, they can be equal only if both have the same in_subgraph status.
     # from-ILIA: I understand the problem with my implementation, but do not really understand the solution you had in mind,
-    # therefore here's another alternative solution that should fix the problem you were talking about (we can discuss this further!!)
-    # 
+    #            therefore here's another alternative solution that should fix the problem you were talking about (we can discuss this further!!)
+    # from-MARCO: your updated implementation below, does not solve the issue, but in practice it reduces almost completely these kinds of wrong equality comparison.
+
+    # THIS:
     # if g1.base_components['Subgraph'].nodes_names() != g2.base_components['Subgraph'].nodes_names():
     #     return False 
-    # BECOMES:
 
+    # BECOMES:
     if len(g1.base_components['Subgraph'].nodes_names()) != len(g2.base_components['Subgraph'].nodes_names()):
         return False
     for name1 in g1.base_components['Subgraph'].nodes_names():
