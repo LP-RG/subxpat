@@ -1,7 +1,10 @@
-module abs_diff_i24_o12(a,b,r);
-input [11:0] a,b;
-output [11:0] r;
+module top (a, b, r);
+    parameter BITSIZE_IN  = 12; // single input bitsize
+    parameter BITSIZE_OUT = BITSIZE_IN;
 
-assign r = (a>b) ? (a-b) : (b-a);
+    input  [BITSIZE_IN-1:0]  a, b;
+    output [BITSIZE_OUT-1:0] r;
+
+    assign r = (a > b) ? (a - b) : (b - a);
 
 endmodule

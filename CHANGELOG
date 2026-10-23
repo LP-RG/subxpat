@@ -3,6 +3,21 @@ Version: preview
 Date: 2026-10-23
   Features:
     - Added specific archivation approaches (.tar.gz, .tar.xz). (#210)
+    - Further modularised Configuration Exploration. (#213)
+  Minor Features:
+    - Added a class for csv formatting. (#213)
+    - Added more multipliers verilogs. (#213)
+  Major Changes:
+    - Completely revised the Timer module and how it works. (#213)
+    - Completely revised the argument parsing for Specifications; now more centralised and automated. (#213)
   Minor Changes:
+    - Standardised Live/Append Storage interface. (#213)
+    - Further modularised Configuration Exploration. (#213)
+    - Rewritten all circuits verilogs to simplify understanding and extension. (#213)
+    - Reorganised solve/synth/verify pipeline. (#213)
     - Now the default archivation is .tar.xz instead of .zip. (#210)
     - Removed zip archivation approach. (#210)
+  Bugfixes:
+    - Patched a bug when min-labelling, where no error is found (also added warning). (#213)
+  Minor Optimizations:
+    - Optimised memory footprint of LiveStorage. (#213)

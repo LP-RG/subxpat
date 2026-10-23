@@ -1,8 +1,10 @@
-module madd_i9_o6 (a, b, c, r);
-input [2:0] a, b, c;
-output [5:0] r;
+module top (a, b, c, r);
+    parameter BITSIZE_IN  = 3; // single input bitsize
+    parameter BITSIZE_OUT = BITSIZE_IN * 2;
 
+    input  [BITSIZE_IN-1:0]  a, b, c;
+    output [BITSIZE_OUT-1:0] r;
 
-assign r = (a * b) + c;
+    assign r = (a * b) + c;
 
-endmodule  
+endmodule
