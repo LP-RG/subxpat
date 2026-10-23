@@ -1,6 +1,8 @@
 __all__ = ['Timer']
 
+from abc import ABC, abstractmethod
 from typing import (
+    Literal,
     Tuple as _Tuple,
     Callable as _Callable,
     TypeVar as _TypeVar,
@@ -150,24 +152,70 @@ def rusage_counter() -> float:
 default_counter = rusage_counter
 
 
-@_final
-class Timer2[T:_SupportsAddSub]:
+class TimeRecorder[T:_SupportsAddSub](ABC):
     """
-        :authors: Marco Biasion
+    :authors: Marco Biasion
+    """
+
+    @abstractmethod
+    def tick(self) -> T:
+        """
+        Returns the difference between now and the previous tick or the start, whichever is closest.
+
+        :raises RuntimeError: if the timer is not running.
+        """
+        raise NotImplementedError()
+
+    def total(self) -> T | None:
+        """
+        If the timer is running, returns the difference since the start, summed with all totals from previous measurements.  
+        If the timer is *not* running, returns the sum of all totals from the measurements.
+        """
+        raise NotImplementedError()
+
+    def start(self) -> _Self:
+        """
+        Starts the timer. This is required for updating the measurements.
+
+        :raises RuntimeError: if the timer is alrady running.
+        """
+        raise NotImplementedError()
+
+    def stop(self) -> T:
+        """
+        Stops the timer.
+
+        :raises RuntimeError: if the timer is alrady stopped.
+        """
+        raise NotImplementedError()
+
+    def __enter__(self): return self.start()
+    def __exit__(self, exc_type, exc, tb): self.stop()
+
+
+@_final
+class Timer2[T:_SupportsAddSub](TimeRecorder[T]):
+    """
+    :authors: Marco Biasion
     """
     __slots__ = ['_clock_counter', '_start', '_previous', '_total', '_running']
 
     @classmethod
     def default(cls: type[Timer2]) -> Timer2: return cls(default_counter)
     @classmethod
-    def perf(cls: type[Timer2]) -> Timer2[float]: return cls(perf_counter)
+    def perf(cls: type[Timer2[float]]) -> Timer2[float]: return cls(perf_counter)
     @classmethod
-    def perf_ns(cls: type[Timer2]) -> Timer2[int]: return cls(perf_counter_ns)
+    def perf_ns(cls: type[Timer2[int]]) -> Timer2[int]: return cls(perf_counter_ns)
     @classmethod
-    def rusage(cls: type[Timer2]) -> Timer2[float]: return cls(rusage_counter)
+    def rusage(cls: type[Timer2[float]]) -> Timer2[float]: return cls(rusage_counter)
 
-    def __init__(self, counter: _Callable[[], T]):
+    def __init__(
+        self,
+        counter: _Callable[[], T],
+        stopped_callback: _Callable[[T], None] = lambda t: None,
+    ):
         self._clock_counter = counter
+        self._stopped_callback = stopped_callback
         #
         self._start: T
         self._previous: T
@@ -176,23 +224,23 @@ class Timer2[T:_SupportsAddSub]:
 
     def tick(self) -> T:
         """
-            Returns the difference between now and the previous tick or the start, whichever is closest.
+        Returns the difference between now and the previous tick or the start, whichever is closest.
 
-            :raises RuntimeError: if the timer is not running.
+        :raises RuntimeError: if the timer is not running.
         """
 
         now = self._clock_counter()
-        if self._running:
-            delta = now - self._previous
-            self._previous = now
-        else:
-            raise RuntimeError('The timer is not running.')
+        if not self._running: raise RuntimeError('The timer is not running.')
+
+        delta = now - self._previous
+        self._previous = now
         return delta
 
-    def total(self) -> T:
+    def total(self) -> T | None:
         """
-            If the timer is running, returns the difference since the start summed with all totals from previous measurements.  
-            If the timer is *not* running, returns the sum of all totals from the measurements.
+        If the timer is running, returns the difference since the start summed with all totals from previous measurements.  
+        If the timer is *not* running, returns the sum of all totals from the measurements.  
+        If the timer never run, returns `None`.
         """
         now = self._clock_counter()
         # action
@@ -201,13 +249,13 @@ class Timer2[T:_SupportsAddSub]:
             if self._total is None: return delta
             else: return self._total + delta
         else:
-            return self._total  # pyright: ignore[reportReturnType] # always valid here
+            return self._total
 
     def start(self) -> _Self:
         """
-            Starts the timer. This is required for updating the measurements.
+        Starts the timer. This is required for updating the measurements.
 
-            :raises RuntimeError: if the timer is alrady running.
+        :raises RuntimeError: if the timer is alrady running.
         """
         now = self._clock_counter()
         # action
@@ -221,21 +269,34 @@ class Timer2[T:_SupportsAddSub]:
 
     def stop(self) -> T:
         """
-            Stops the timer.
+        Stops the timer.
 
-            :raises RuntimeError: if the timer is alrady stopped.
+        :raises RuntimeError: if the timer is alrady stopped.
         """
         now = self._clock_counter()
+        if not self._running: raise RuntimeError('The timer is already stopped.')
         # action
-        if self._running:
-            delta = now - self._start
-            if self._total is None: self._total = delta
-            else: self._total += delta
-            self._previous = now
-            self._running = False
-        else:
-            raise RuntimeError('The timer is already stopped.')
-        return self._total  # pyright: ignore[reportReturnType] # always valid here
+        delta = now - self._start
+        if self._total is None: self._total = delta
+        else: self._total += delta
+        self._previous = now
+        self._running = False
+        self._stopped_callback(delta)
+        return self._total
 
-    def __enter__(self): return self.start()
-    def __exit__(self, exc_type, exc, tb): self.stop()
+    def get_subtimer(self) -> Timer2:
+        """
+        Creates and returns a timer that, when stopped, will add its total to this one.
+        """
+
+        def increment_total(t: T):
+            if self._total is None: self._total = t
+            else: self._total += t
+        return Timer2(self._clock_counter, increment_total)
+
+
+class DummyTimer(TimeRecorder[int]):
+    def tick(self) -> Literal[0]: return 0
+    def total(self) -> Literal[0]: return 0
+    def start(self) -> _Self: return self
+    def stop(self) -> Literal[0]: return 0

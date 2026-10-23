@@ -682,9 +682,9 @@ class Specifications:
 
         # custom defaults
         for f in dc.fields(Specifications):
-            if isinstance(f.default, CustomDefaultS):
-                _cd = getattr(raw_args, f.name)
-                setattr(raw_args, f.name, _cd(raw_args))
+            _cd = getattr(raw_args, f.name, None)
+            if isinstance(_cd, CustomDefaultS):
+                setattr(raw_args, f.name, _cd(raw_args))  # pyright: ignore[reportArgumentType]
 
         # check dependencies
         fields_dict = {f.name: f for f in dc.fields(cls)}

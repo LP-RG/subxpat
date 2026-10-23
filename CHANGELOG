@@ -13,6 +13,7 @@ Date: 2026-10-07
     - standardised Live/Append Storage interface. (#213)
     - further modularised Configuration Exploration. (#213)
     - rewritten all circuits verilogs to simplify understanding and extension. (#213)
+    - reorganised solve/synth/verify pipeline. (#213)
   Bugfixes:
     - patched a bug when min-labelling, where no error is found (also added warning). (#213)
   Minor Optimizations:

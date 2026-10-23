@@ -1,4 +1,5 @@
-from typing import Literal, Optional, Union
+from typing import NamedTuple, Self
+from typing import Any, Literal, Optional, Union
 import dataclasses as dc
 
 import itertools
@@ -6,7 +7,7 @@ import functools as ft
 import networkx as nx
 import os
 
-from sxpat.graph.graph import SGraph, IOGraph
+from sxpat.graph.graph import PGraph, SGraph, IOGraph
 from sxpat.graph.node import Extras, Node
 from sxpat.error_iter import ErrorIterator
 from sxpat.conf_explorer import ConfigurationExploration
@@ -20,7 +21,7 @@ from sxpat.constants.misc import UNKNOWN, SAT
 from sxpat.utils.filesystem import FS
 from sxpat.utils.iterators import while_predicate
 from sxpat.utils.names import extract_name
-from sxpat.utils.timer import Timer2
+from sxpat.utils.timer import TimeRecorder, Timer2, DummyTimer
 from sxpat.utils.print import pprint
 
 from sxpat.metrics import MetricsEstimator
@@ -57,7 +58,7 @@ def explore_grid(specs_obj: Specifications):
 
     #
     all_generated_circuits_data = [
-        ExpandedCircuitData(
+        CircuitData(
             'origin.v',
             FS.joinpath(specs_obj.path.run.verilog, f'origin.v'),
             exact_circuit_metrics.area,
@@ -206,6 +207,7 @@ def explore_grid(specs_obj: Specifications):
             specs_obj.stats_storage.stage(ERROR='illegal_state__configuration_exploration').commit()
             raise NotImplementedError('invalid error iteration')
 
+        found_approximations: list[IOGraph] = []
         for conf in confexplorer:
             # TODO: wip
             lpp, ppo = conf
@@ -225,7 +227,8 @@ def explore_grid(specs_obj: Specifications):
 
             # define template (and relative constraints)
             with Timer2.default() as _timer_define:
-                param_circ, *param_circ_constr = get_templater(specs_obj).define(current_graph, specs_obj)
+                param_circ: PGraph
+                param_circ, *param_circ_constr = get_templater(specs_obj).define(current_graph, specs_obj)  # pyright: ignore[reportAssignmentType]
             # define question
             with _timer_define:
                 base_question = exists_parameters.not_above_threshold_forall_inputs(
@@ -278,110 +281,102 @@ def explore_grid(specs_obj: Specifications):
             else:
                 pprint.success(f'{status.upper()} ({len(models)} models found)', f'{timer_cell.total():.2f}s')
 
-                #
-                cur_model_results: list[ExpandedCircuitData] = list()
-                #
-                for model_number, model in enumerate(models):
-                    # apply model to circuit
-                    a_graph = set_bool_constants(param_circ, model, skip_missing=True)
-
-                    # export approximate graph as verilog
-                    circuit_id = f'gen_iter{specs_obj.iteration}_model{model_number}'
-                    verilog_path = FS.joinpath(specs_obj.path.run.verilog, f'{circuit_id}.v')
-                    VerilogExporter.to_file(
-                        a_graph, verilog_path,
-                        VerilogExporter.Info(model_number=model_number),
-                    )
-
-                    # compute circuit metrics
-                    _metrics = MetricsEstimator.estimate_metrics(
-                        specs_obj.path.synthesis, verilog_path,
-                        specs_obj.path.run.temporary,
-                    )
-                    cur_model_results.append(ExpandedCircuitData(
-                        circuit_id,
-                        verilog_path,
-                        _metrics.area,
-                        _metrics.power,
-                        _metrics.delay,
-                    ))
-
-                # verify all models and store errors
-                pprint.info1('verifying all approximate circuits ...')
-                _timer_verification = Timer2.default()
-                # for candidate_path, candidate_data in cur_model_results.items():
-                for candidate_data in cur_model_results:
-                    #
-                    with Timer2.default() as _timer:
-                        cur_graph = load_circuit_from_verilog(candidate_data.path, specs_obj.path.run)
-                    # logging
-                    specs_obj.stats_storage.stage(erroreval_annotated_graphs_initialization_time=_timer.total())
-                    print(f'erreval_annotated_graph_loading_time = {_timer.total()}')
-
-                    # compute errors relative to origin and previous
-                    with _timer_verification:
-                        candidate_data.error_to_origin = error_evaluation(exact_graph, cur_graph, specs_obj)
-                        candidate_data.error_to_previous = error_evaluation(current_graph, cur_graph, specs_obj)
-
-                    #
-                    if candidate_data.error_to_origin > specs_obj.et:
-                        # logging
-                        specs_obj.stats_storage.stage(
-                            verification_time=_timer_verification.total(),
-                            ERROR='error_verification_failed',
-                        )
-                        specs_obj.stats_storage.commit()
-                        #
-                        raise Exception(
-                            f'ErrorEval Verification FAILED with wce = {candidate_data.error_to_origin}'
-                            f' for circuit {candidate_data.path}'
-                        )
-
-                # logging
-                specs_obj.stats_storage.stage(verification_time=_timer_verification.total())
-
-                # sort circuits and select best
-                sorted_circuits = sorted(cur_model_results, key=ft.cmp_to_key(model_compare))
-                best_model_data = sorted_circuits[0]
-                pprint.success(f'ErrorEval verification PASSED. ( wce = {best_model_data.error_to_origin} )')
-
-                # store all circuits
-                all_generated_circuits_data.extend(sorted_circuits)
-
-                # prepare for next iteration
-                specs_obj.current_benchmark = best_model_data.path
-                obtained_wce_exact: int = best_model_data.error_to_origin  # pyright: ignore[reportAssignmentType]
-                erriter.give_feedback(
-                    error_to_origin=best_model_data.error_to_origin,  # pyright: ignore[reportArgumentType]
-                    error_to_previous=best_model_data.error_to_previous,  # pyright: ignore[reportArgumentType]
+                # store approximation
+                found_approximations.extend(
+                    set_bool_constants(param_circ, model, skip_missing=True)
+                    for model in models
                 )
-
-                # logging
-                # commit all circuit data
-                for (i, circuit_data) in enumerate(sorted_circuits):
-                    specs_obj.stats_storage.stage(
-                        circuit_path=FS.relpath(circuit_data.path, specs_obj.path.run.base_folder),
-                        circuit_error=circuit_data.error_to_origin,
-                        circuit_area=circuit_data.area,
-                        circuit_power=circuit_data.power,
-                        circuit_delay=circuit_data.delay,
-                        circuit_is_best=(i == 0),
-                    )
-                    specs_obj.stats_storage.commit()
-                # print table
-                print_current_model(sorted_circuits, origin_circuit_data=exact_circuit_metrics)
-
-                # a valid circuit was found, stop grid exploration
+                # a circuit was found, stop grid exploration
                 break
 
+        if len(found_approximations) > 0:
+            # synthesise all found approximations
+            _synth_approximations = tuple(
+                synthesize_approximation(approx_circuit, specs_obj, model_number)
+                for model_number, approx_circuit in enumerate(found_approximations)
+            )
+
+            # verify all approximations and store errors
+            pprint.info1('verifying all approximate circuits ...')
+            _timer_verification = Timer2.default()
+            verified_approximations: list[CircuitData] = []
+            # for candidate_path, candidate_data in cur_model_results.items():
+            for candidate_data in _synth_approximations:
+                #
+                with Timer2.default() as _timer:
+                    cur_graph = load_circuit_from_verilog(candidate_data.path, specs_obj.path.run)
+                # logging
+                specs_obj.stats_storage.stage(erroreval_annotated_graphs_initialization_time=_timer.total())
+                print(f'erreval_annotated_graph_loading_time = {_timer.total()}')
+
+                # compute errors relative to origin and previous
+                with _timer_verification:
+                    errors = CircuitRelativeErrors(
+                        error_evaluation(exact_graph, cur_graph, specs_obj),
+                        error_evaluation(current_graph, cur_graph, specs_obj),
+                    )
+
+                #
+                if errors.error_to_origin > specs_obj.et:
+                    # logging
+                    specs_obj.stats_storage.stage(
+                        verification_time=_timer_verification.total(),
+                        ERROR='error_verification_failed',
+                    )
+                    specs_obj.stats_storage.commit()
+                    #
+                    raise Exception(
+                        f'ErrorEval Verification FAILED with wce = {errors.error_to_origin}'
+                        f' for circuit {candidate_data.path}'
+                    )
+
+                verified_approximations.append(CircuitData.combine(candidate_data, errors))
+
+            # logging
+            specs_obj.stats_storage.stage(verification_time=_timer_verification.total())
+
+            # sort circuits and select best
+            sorted_circuits = sorted(verified_approximations, key=ft.cmp_to_key(model_compare))
+            best_model_data = sorted_circuits[0]
+            pprint.success(f'ErrorEval verification PASSED. ( wce = {best_model_data.error_to_origin} )')
+
+            # store all circuits
+            all_generated_circuits_data.extend(sorted_circuits)
+
+            # prepare for next iteration
+            specs_obj.current_benchmark = best_model_data.path
+            obtained_wce_exact: int = best_model_data.error_to_origin
+            erriter.give_feedback(
+                error_to_origin=best_model_data.error_to_origin,
+                error_to_previous=best_model_data.error_to_previous,
+            )
+
+            # logging
+            # commit all circuit data
+            for (i, circuit_data) in enumerate(sorted_circuits):
+                specs_obj.stats_storage.stage(
+                    circuit_path=FS.relpath(circuit_data.path, specs_obj.path.run.base_folder),
+                    circuit_error=circuit_data.error_to_origin,
+                    circuit_area=circuit_data.area,
+                    circuit_power=circuit_data.power,
+                    circuit_delay=circuit_data.delay,
+                    circuit_is_best=(i == 0),
+                )
+                specs_obj.stats_storage.commit()
+            # print table
+            print_current_model(sorted_circuits, origin_circuit_data=exact_circuit_metrics)
+
+            # zero area found
+            if best_model_data.area == 0:
+                pprint.info3('Area zero found!\nTerminating.')
+                break
+
+        else:
+            # prepare for next iteration
             erriter.give_feedback(error_to_previous=0)
 
-            # debug
-            if specs_obj.debug: specs_obj.stats_storage.flush()
-
-        if status == SAT and best_model_data.area == 0:
-            pprint.info3('Area zero found!\nTerminated.')
-            break
+        # debug
+        if specs_obj.debug: specs_obj.stats_storage.flush()
 
     # find best circuit between all the generated ones for each order of metric
     return ResultCircuitsSelection(
@@ -392,6 +387,67 @@ def explore_grid(specs_obj: Specifications):
         delay_area_power=min(all_generated_circuits_data, key=lambda d: (d.delay, d.area, d.power, d.error_to_origin)),
         delay_power_area=min(all_generated_circuits_data, key=lambda d: (d.delay, d.power, d.area, d.error_to_origin)),
     )
+
+
+def synthesize_approximation(
+    approximate_circuit: IOGraph,
+    specs: Specifications,
+    approx_id: int = 0,
+    metrics_timer: TimeRecorder = DummyTimer(),
+) -> CircuitSynthesisData:
+    # export approximate graph as verilog
+    circuit_id = f'gen_iter{specs.iteration}_model{approx_id}'
+    verilog_path = FS.joinpath(specs.path.run.verilog, f'{circuit_id}.v')
+    VerilogExporter.to_file(
+        approximate_circuit, verilog_path,
+        VerilogExporter.Info(model_number=approx_id),
+    )
+
+    # compute circuit metrics
+    with metrics_timer:
+        _metrics = MetricsEstimator.estimate_metrics(
+            specs.path.synthesis, verilog_path,
+            specs.path.run.temporary,
+        )
+    return CircuitSynthesisData(
+        circuit_id, verilog_path,
+        _metrics.area, _metrics.power, _metrics.delay,
+    )
+
+
+# def verify_approximation(
+#     circuit_data: CircuitData_1,
+#     specs: Specifications,
+#     loading_timer: Timer2 = Timer2Dummy(),
+#     verification_timer: Timer2 = Timer2Dummy(),
+# ) -> CircuitData_2:
+#     with loading_timer:
+#         circuit = load_circuit_from_verilog(circuit_data.path, specs.path.run)
+#     # logging
+#     specs.stats_storage.stage(erroreval_annotated_graphs_initialization_time=_timer.total())
+#     print(f'erreval_annotated_graph_loading_time = {_timer.total()}')
+
+#     # compute errors relative to origin and previous
+#     with verification_timer:
+#         return CircuitData_2.from_1(
+#             circuit_data,
+#             error_to_origin=error_evaluation(exact_graph, circuit, specs),
+#             error_to_previous=error_evaluation(current_graph, circuit, specs),
+#         )
+
+#     #
+#     if candidate_data.error_to_origin > specs.et:
+#         # logging
+#         specs.stats_storage.stage(
+#             verification_time=_timer_verification.total(),
+#             ERROR='error_verification_failed',
+#         )
+#         specs.stats_storage.commit()
+#         #
+#         raise Exception(
+#             f'ErrorEval Verification FAILED with wce = {candidate_data.error_to_origin}'
+#             f' for circuit {candidate_data.path}'
+#         )
 
 
 def error_evaluation(reference_circuit: IOGraph, current_circuit: IOGraph, specs_obj: Specifications) -> int:
@@ -414,7 +470,7 @@ def update_context(specs_obj: Specifications, lpp: int, ppo: int):
 
 
 def print_current_model(
-        sorted_models_data: list[ExpandedCircuitData],
+        sorted_models_data: list[CircuitData],
         origin_circuit_data: Optional[MetricsEstimator.Metrics] = None,
         normalize: bool = False
 ) -> None:
@@ -434,7 +490,7 @@ def print_current_model(
         # if the models data should be normalized to the exact, normalize into a copy
         if normalize:
             sorted_models_data = [
-                ExpandedCircuitData(
+                CircuitData(
                     '',
                     model_data.path,
                     model_data.area / origin_area,
@@ -547,25 +603,36 @@ def are_circuits_equal(g1: SGraph, g2: SGraph) -> bool:
     return nx.is_isomorphic(g1._inner, g2._inner, node_match=node_matcher)
 
 
-@dc.dataclass
-class ExpandedCircuitData:
+@dc.dataclass(frozen=True)
+class CircuitSynthesisData:
     id: str
     path: str
     area: float
     power: float
     delay: float
-    error_to_origin: Optional[int] = None
-    error_to_previous: Optional[int] = None
+
+
+@dc.dataclass(frozen=True)
+class CircuitRelativeErrors:
+    error_to_origin: int
+    error_to_previous: int
+
+
+@dc.dataclass(frozen=True, slots=True)
+class CircuitData(CircuitSynthesisData, CircuitRelativeErrors):
+    @classmethod
+    def combine(cls, cd1: CircuitSynthesisData, er: CircuitRelativeErrors) -> Self:
+        return cls(**dc.asdict(cd1), **dc.asdict(er))
 
 
 @dc.dataclass(frozen=True)
 class ResultCircuitsSelection:
-    area_power_delay: ExpandedCircuitData
-    area_delay_power: ExpandedCircuitData
-    power_area_delay: ExpandedCircuitData
-    power_delay_area: ExpandedCircuitData
-    delay_area_power: ExpandedCircuitData
-    delay_power_area: ExpandedCircuitData
+    area_power_delay: CircuitData
+    area_delay_power: CircuitData
+    power_area_delay: CircuitData
+    power_delay_area: CircuitData
+    delay_area_power: CircuitData
+    delay_power_area: CircuitData
 
     @property
     def apd(self): return self.area_power_delay
@@ -597,7 +664,7 @@ def print_results(sel: ResultCircuitsSelection):
     ))
 
 
-def model_compare(a: ExpandedCircuitData, b: ExpandedCircuitData) -> Union[Literal[-1], Literal[0], Literal[+1]]:
+def model_compare(a: CircuitData, b: CircuitData) -> Union[Literal[-1], Literal[0], Literal[+1]]:
     if a.area < b.area: return -1
     elif a.area > b.area: return +1
     elif a.error_to_origin < b.error_to_origin: return -1
