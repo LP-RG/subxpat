@@ -55,6 +55,7 @@ class HammingDistance(DistanceSpecification):
         distance = Sum('dist_distance', operands=int_bits)
 
         # construct CGraph
+        # GRAPH CREATION/COPY
         dist_func = CGraph((
             *(PlaceHolder(name) for name in wanted_a),
             *(PlaceHolder(name) for name in wanted_b),

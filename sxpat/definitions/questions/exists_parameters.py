@@ -50,7 +50,7 @@ class exists_parameters:
                 *(PlaceHolder(inp) for inp in reference_circuit.inputs_names),
                 ForAll('que_quantifier', operands=reference_circuit.inputs_names),
             ])
-
+        # GRAPH CREATION/COPY
         return (dist_function, CGraph(components))
 
     @classmethod

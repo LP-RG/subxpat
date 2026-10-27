@@ -31,6 +31,7 @@ class AbsoluteDifferenceOfInteger(DistanceSpecification):
         distance = AbsDiff('dist_distance', operands=[int_a, int_b])
 
         # construct CGraph
+        # GRAPH CREATION/COPY
         dist_func = CGraph((
             *(PlaceHolder(name) for name in wanted_a),
             int_a,

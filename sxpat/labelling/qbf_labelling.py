@@ -28,12 +28,12 @@ class Labelling:
         updated_nodes: dict[str, Node] = dict()
         for succ in a_graph.successors(labeled_node_name):
             new_operands = iterable_replace_index(succ.operands, succ.operands.index(labeled_node_name), not_node.name)
-            updated_nodes[succ.name] = succ.copy(operands=new_operands)
+            updated_nodes[succ.name] = succ.copy(operands=new_operands) # NODE COPY
         constraint_nodes = []
         nodes_to_place_hold = []
 
         a: Iterable[str] = it.chain(['a', 'b'])
-
+        # GRAPH CREATION/COPY
         template_graph = PGraph(
             it.chain(  # type: ignore
                     (
@@ -66,7 +66,7 @@ class Labelling:
                 gt := GreaterThan('GT_0', operands=(abs_diff.name, zero.name)),
                 Constraint.of(gt),
             ])
-
+        # GRAPH CREATION/COPY
         constraint_graph = CGraph(
             it.chain(
                 (PlaceHolder(name) for name in it.chain(

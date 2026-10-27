@@ -43,7 +43,7 @@ class SimpleTemplate(Template):
                 if not succ.name in circuit.base_components['Subgraph'].nodes_names():
                     succ = updated_nodes.get(succ.name, succ)
                     new_operands = iterable_replace(succ.operands, old.name, new.name)
-                    updated_nodes[succ.name] = succ.copy(operands=new_operands)
+                    updated_nodes[succ.name] = succ.copy(operands=new_operands) # NODE COPY
 
         return updated_nodes
 
@@ -55,6 +55,7 @@ class SimpleTemplate(Template):
                                    ) -> PGraph:
 
         # create parametric circuit
+        # GRAPH CREATION/COPY
         param_circ = PGraph(
             it.chain(
                 (  # replace updated nodes

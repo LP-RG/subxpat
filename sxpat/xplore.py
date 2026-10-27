@@ -151,11 +151,7 @@ def explore_grid(specs_obj: Specifications):
 
             # COMMENT:from-MARCO: good
             # "current_graph = iograph_with_weights(current_graph, weights)" BECOMES:
-            weights_mapping = dict()
-            for n in current_graph.nodes:
-                weights_mapping[n.name] = weights.get(n.name, None)
-            weight_component = Weight(weights_mapping)
-            current_graph = current_graph.with_base_component(weight_component)
+            current_graph = current_graph.with_base_component(Weight(weights))
             _time = Timer.now() - _time
 
             # logging
@@ -167,8 +163,7 @@ def explore_grid(specs_obj: Specifications):
         subgraph_nodes = extract_subgraph(current_graph, specs_obj)
         subgraph_is_available = len(subgraph_nodes) > 0
         # "current_graph = iograph_to_sgraph(current_graph, subgraph_nodes)" BECOMES:
-        subgraph_component = Subgraph(set(subgraph_nodes))
-        current_graph = current_graph.with_base_component(subgraph_component)
+        current_graph = current_graph.with_base_component(Subgraph(set(subgraph_nodes)))
         _time = Timer.now() - _time
         previous_graphs.append(current_graph)
 

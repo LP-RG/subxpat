@@ -203,7 +203,7 @@ class Solver(metaclass=ABCMeta):
                     comparison_class(SC.optimization.rule, operands=(SC.optimization.identity, SC.optimization.constant)),
                     Constraint(SC.optimization.constraint, operands=(SC.optimization.rule,)),
                 )
-            _graphs = (*graphs, CGraph(_extra_nodes))
+            _graphs = (*graphs, CGraph(_extra_nodes)) # GRAPH CREATION/COPY
 
             # solve
             _global_targets = GlobalTasks(forall=forall_target)
@@ -258,7 +258,7 @@ class Solver(metaclass=ABCMeta):
                         if len(succ := graph.successors(n)) == 1 and succ[0].name in task_names
                     )
 
-                    graph = CGraph(
+                    graph = CGraph( # GRAPH CREATION/COPY
                         n for n in graph.nodes
                         if n.name not in task_names and n.name not in placeholder_names
                     )

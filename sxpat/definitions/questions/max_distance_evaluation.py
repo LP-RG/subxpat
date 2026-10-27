@@ -9,7 +9,7 @@ from sxpat.graph.node import ToInt, AbsDiff, Max, PlaceHolder, Target
 
 __all__ = ['MaxDistanceEvaluation']
 
-
+# GRAPH CREATION/COPY
 class MaxDistanceEvaluation:
 
     @classmethod

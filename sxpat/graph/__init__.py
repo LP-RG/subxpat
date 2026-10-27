@@ -11,5 +11,8 @@ from .graph import (
 from .components import (
     Component, Subgraph, Topology, Weight, Type,
 )
+from .graphCreators import (
+    GraphCopier, GraphBuilder
+)
 from . import node
 from . import error

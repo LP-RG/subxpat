@@ -100,7 +100,7 @@ class SharedTemplate(Template):
                     succ = out_successors.get(succ.name, succ)
                     new_out_index = succ.operands.index(out_node.name)
                     new_operands = succ.operands[:new_out_index] + (new_out_node.name,) + succ.operands[new_out_index + 1:]
-                    out_successors[succ.name] = succ.copy(operands=new_operands)
+                    out_successors[succ.name] = succ.copy(operands=new_operands) # NODE COPY
 
         # create template graph
         nodes = it.chain(
@@ -125,6 +125,7 @@ class SharedTemplate(Template):
             # updated successors
             out_successors.values(),
         )
+        # GRAPH CREATION/COPY
         template_graph = PGraph(
             nodes,
             a_graph.inputs_names, a_graph.outputs_names,
@@ -209,6 +210,7 @@ class SharedTemplate(Template):
             prod_ord_nodes,
             targets,
         )
+        # GRAPH CREATION/COPY
         constraint_graph = CGraph(nodes, [Subgraph(constraint_subgraph_set)])
 
         return TemplateBundle(template_graph, [constraint_graph])

@@ -11,7 +11,7 @@ __all__ = [
     'iograph_from_digraph',
 ]
 
-
+# GRAPH CREATION/COPY
 def iograph_from_digraph(clean_digraph: nx.DiGraph) -> IOGraph:
     gtypes = {'not': Not, 'and': And}
 

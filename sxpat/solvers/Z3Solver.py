@@ -222,6 +222,7 @@ class Z3FuncEncoder(Z3Encoder):
         }
 
         # node conversion
+        # NODE COPY
         nodes = tuple(
             (
                 node.copy(name=updated_names[node.name], operands=(updated_names[name] for name in node.operands))
@@ -255,7 +256,7 @@ class Z3FuncEncoder(Z3Encoder):
         extra = dict()
         if isinstance(graph, IOGraph): extra['outputs_names'] = (updated_names[name] for name in graph.outputs_names)
 
-        return graph.copy(nodes, **extra)
+        return graph.copy(nodes, **extra) # GRAPH CREATION/COPY
 
     @classmethod
     def encode(cls, graphs: Solver._Graphs,

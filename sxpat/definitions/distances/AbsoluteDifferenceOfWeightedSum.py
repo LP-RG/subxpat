@@ -49,6 +49,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         distance = AbsDiff('dist_distance', operands=[a_name, b_name])
 
         # construct CGraph
+        # GRAPH CREATION/COPY
         dist_func = CGraph(it.chain(
             a_nodes,
             b_nodes,
@@ -79,6 +80,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         (value_nodes, value_name) = cls._define_value(graph, w_nodes, 'v')
 
         # construct CGraph
+        # GRAPH CREATION/COPY
         value_func = CGraph(value_nodes)
 
         return (value_func, value_name)

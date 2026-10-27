@@ -64,17 +64,19 @@ class Graph:
         :authors: Marco Biasion, Ilia Zeller
         """
 
-        #Add default Subgraph and Weight components if they're not passed as argument 
-        #(this because the Node structure had default weight = None and in_subgraph = False)
-        if not any(type(c).__name__ == 'Subgraph' for c in components):
-            default_subgraph_component = Subgraph(set())
-            components.append(default_subgraph_component)
+        # nodes = list(nodes)
+
+        # #Add default Subgraph and Weight components if they're not passed as argument 
+        # #(this because the Node structure had default weight = None and in_subgraph = False)
+        # if not any(type(c).__name__ == 'Subgraph' for c in components):
+        #     default_subgraph_component = Subgraph(set())
+        #     components.append(default_subgraph_component)
         
-        if not any(type(c).__name__ == 'Weight' for c in components):
-            # COMMENT:from-MARCO: you can do: dict.fromkeys(n.name for n in nodes), if you prefer this other style, they are equivalent and both correct.
-            default_weights_map: dict[str, int | None] = dict([(n.name, None) for n in nodes])
-            default_weight_component = Weight(default_weights_map)
-            components.append(default_weight_component)
+        # if not any(type(c).__name__ == 'Weight' for c in components):
+        #     # COMMENT:from-MARCO: you can do: dict.fromkeys(n.name for n in nodes), if you prefer this other style, they are equivalent and both correct.
+        #     default_weights_map: dict[str, int | None] = dict([(n.name, None) for n in nodes])
+        #     default_weight_component = Weight(default_weights_map)
+        #     components.append(default_weight_component)
 
         #TODO: pass also the extra components to the constructor, set self.extra_components inside the
         # constructor, make base_components and extra_components final, every time they need to be modified
@@ -120,14 +122,19 @@ class Graph:
         self._inner: Final[nx.DiGraph] = nx.freeze(_inner)
 
     def copy(self, nodes: Optional[Iterable[AnyNode]] = None, **extras) -> Self:
+        new_base_components: List[Component] = list()
+        if "components" in extras:
+            for component in extras.pop("components"):
+                new_base_components.append(component)
         copy = type(self)(self.nodes if nodes is None else nodes, **{**self.extras, **extras})
         # COMMENT:from-MARCO: very good, only a few comments
         #                     when using local variables, feel free to use concrete types (like list[...] instead of Sequence[...])
         #                       more abstract or interface types are mainly relevant in signatures
-        # from-ILIA: got it!
-        new_base_components: List[Component] = list() 
+        # from-ILIA: got it! 
+        existing_components = [type(c).__name__ for c in new_base_components]
         for name, component in self.base_components.items():
-            new_base_components.append(component)
+            if not name in existing_components:
+                new_base_components.append(component)
         copy.base_components = ComponentsDict([
             (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(c).__name__), c.with_graph(copy))
             for c in new_base_components
@@ -223,6 +230,7 @@ class Graph:
             return True
         return False
 
+    # GRAPH CREATION/COPY
     def with_base_component(self, new_component: Subgraph | Topology | Weight | Type) -> Graph:
         copy: Graph
         new_name = cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(new_component).__name__)
@@ -304,6 +312,7 @@ class IOGraph(Graph):
         return tuple(n for n in self.nodes if n.name not in in_out_set)
     
     # COMMENT:from-MARCO: maybe it is better to also move this to Graph
+    # GRAPH CREATION/COPY
     def with_base_component(self, new_component: Subgraph | Topology | Weight | Type) -> IOGraph:
         copy: IOGraph
         new_name = cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(new_component).__name__)
@@ -325,6 +334,7 @@ class IOGraph(Graph):
         return copy
 
     @final
+    # GRAPH CREATION/COPY
     def with_extra_component(self, new_component: Component, new_name: str) -> IOGraph:
         copy: IOGraph
         if len(self.base_components) > 0:
@@ -373,6 +383,7 @@ class PGraph(IOGraph):
         return tuple(self._inner.nodes[name][self.K] for name in self.parameters_names)
 
     #TODO: move with_base_component to Graph and make it final
+    # GRAPH CREATION/COPY
     def with_base_component(self, new_component: Subgraph | Topology | Weight | Type) -> PGraph:
         copy: PGraph
         new_name = cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(new_component).__name__)
@@ -414,7 +425,7 @@ class CGraph(Graph):
     def global_tasks(self) -> AbstractSet[AnyGlobalObjective]:
         """The set of all `GlobalTask` nodes in the graph."""
         return dict.fromkeys(node for node in self.nodes if isinstance(node, GlobalTask)).keys()
-
+    # GRAPH CREATION/COPY
     def with_base_component(self, new_component: Subgraph | Topology | Weight | Type) -> CGraph:
         copy: CGraph
         new_name = cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(new_component).__name__)
@@ -434,8 +445,7 @@ class CGraph(Graph):
                 inheritable_extra_components[name] = component.with_graph(copy)
         copy.extra_components = inheritable_extra_components
         return copy
-
-
+    
 # > Typing help
 
 

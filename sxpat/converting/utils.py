@@ -7,6 +7,7 @@ import itertools as it
 from sxpat.graph import *
 from sxpat.graph.node import *
 from sxpat.utils.print import pprint
+from sxpat.graph.graphCreators import GraphCopier
 
 
 __all__ = [
@@ -40,6 +41,8 @@ def unpack_ToInt(graph: T_Graph) -> T_Graph:
         @authors: Marco Biasion
     """
 
+    graph_copier = GraphCopier(graph)
+
     toint_nodes = tuple(
         node
         for node in graph.nodes
@@ -56,6 +59,9 @@ def unpack_ToInt(graph: T_Graph) -> T_Graph:
         }
         for toint in toint_nodes
     }
+    for consts in int_consts.values():
+        for node in consts.values():
+            graph_copier.add_node(node)
 
     # create all if->int nodes (Dict[original_node_name, List[if_nodes_for_that_node]])
     ifs: Dict[str, List[If]] = {
@@ -65,28 +71,45 @@ def unpack_ToInt(graph: T_Graph) -> T_Graph:
         ]
         for toint in toint_nodes
     }
+    for ifs_list in ifs.values():
+        for node in ifs_list:
+            graph_copier.add_node(node)
+    
     # create the Sum nodes
-    sums = [
-        Sum(
-            toint.name,
-            # COMMENT:from-MARCO: valid
-            operands=ifs[toint.name]
-        )
-        for toint in toint_nodes
-    ]
+    # sums = [
+    #     Sum(
+    #         toint.name,
+    #         # COMMENT:from-MARCO: valid
+    #         operands=ifs[toint.name]
+    #     )
+    #     for toint in toint_nodes
+    # ]
 
-    nodes = it.chain(
-        *(consts.values() for consts in int_consts.values()),
-        (
-            node
-            for node in graph.nodes
-            if not isinstance(node, ToInt)
-        ),
-        *ifs.values(),
-        sums,
-    )
+    # nodes = it.chain(
+    #     *(consts.values() for consts in int_consts.values()),
+    #     (
+    #         node
+    #         for node in graph.nodes
+    #         if not isinstance(node, ToInt)
+    #     ),
+    #     *ifs.values(),
+    #     sums,
+    # )
 
-    return graph.copy(nodes)
+    # return graph.copy(nodes)
+
+    for toint in toint_nodes:
+        node = Sum(toint.name, operands=ifs[toint.name])
+        if graph.has_base_component('Subgraph'):
+            graph_copier.add_node(node, in_subgraph=graph.base_components['Subgraph'].in_subgraph(toint.name))
+        else:
+            graph_copier.add_node(node)
+
+    for node in graph.nodes:
+        if not isinstance(node, ToInt):
+            graph_copier.add_node(node)
+
+    return graph_copier.copy() # GRAPH CREATION/COPY
 
 
 def prune_unused(graph: T_Graph, reserved_names: Iterable[str]) -> T_Graph:
@@ -108,8 +131,14 @@ def prune_unused(graph: T_Graph, reserved_names: Iterable[str]) -> T_Graph:
         valid_terminations.extend(_n.name for _n in graph.predecessors(node_name))
 
     # keep only visited nodes
-    nodes = (graph[name] for name in visited_nodes)
-    return graph.copy(nodes)
+    # nodes = list(graph[name] for name in visited_nodes)
+    # return graph.copy(nodes)
+
+    graph_copier = GraphCopier(graph)
+    for name in visited_nodes:
+        graph_copier.add_node(graph[name])
+    
+    return graph_copier.copy() # GRAPH CREATION/COPY
 
 
 def prune_unused_keepio(graph: T_IOGraph, reserved_names: Iterable[str] = tuple()) -> T_IOGraph:
@@ -250,7 +279,13 @@ def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missi
         # COMMENT:from-MARCO: valid
         new_nodes[node.name] = BoolConstant(node.name, value)
 
-    return graph.copy(new_nodes.values())
+    # return graph.copy(new_nodes.values())
+
+    graph_copier = GraphCopier(graph)
+    for node in new_nodes.values():
+        graph_copier.add_node(node)
+
+    return graph_copier.copy() # GRAPH CREATION/COPY
 
 
 def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
@@ -273,15 +308,20 @@ def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
     for node in graph.nodes:
         if isinstance(node, Operation):
             operands = (updated_names[name] for name in node.operands)
-            nodes.append(node.copy(name=updated_names[node.name], operands=operands))
+            nodes.append(node.copy(name=updated_names[node.name], operands=operands)) # NODE COPY
         else:
-            nodes.append(node.copy(name=updated_names[node.name]))
+            nodes.append(node.copy(name=updated_names[node.name])) # NODE COPY
 
     extras = dict()
     if isinstance(graph, IOGraph):
         extras['outputs_names'] = (f'{prefix}{name}' for name in graph.outputs_names)
 
-    return graph.copy(nodes, **extras)
+    # return graph.copy(nodes, **extras)
+    graph_copier = GraphCopier(graph)
+    for node in nodes:
+        graph_copier.add_node(node)
+
+    return graph_copier.copy(**extras) # GRAPH CREATION/COPY
 
 
 def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterable[str]] = None) -> T_Graph:
@@ -306,9 +346,9 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
     for node in graph.nodes:
         if isinstance(node, Operation):
             operands = (new_name_of[name] for name in node.operands)
-            nodes.append(node.copy(name=new_name_of[node.name], operands=operands))
+            nodes.append(node.copy(name=new_name_of[node.name], operands=operands)) # NODE COPY
         else:
-            nodes.append(node.copy(name=new_name_of[node.name]))
+            nodes.append(node.copy(name=new_name_of[node.name])) # NODE COPY
 
     # compute extras
     extras = dict()
@@ -318,7 +358,12 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
     if isinstance(graph, PGraph):
         extras['parameters_names'] = (new_name_of[name] for name in graph.parameters_names)
 
-    return graph.copy(nodes, **extras)
+    # return graph.copy(nodes, **extras)
+    graph_copier = GraphCopier(graph)
+    for node in nodes:
+        graph_copier.add_node(node)
+
+    return graph_copier.copy(**extras) # GRAPH CREATION/COPY
 
 
 def prevent_assignment(assignments: Mapping[str, bool],
@@ -353,7 +398,7 @@ def prevent_assignment(assignments: Mapping[str, bool],
         ),
         Constraint(f'prass_{assignment_id}_prevent_constr', operands=[prevent])
     ]
-
+    # GRAPH CREATION/COPY
     return CGraph(it.chain(
         placeholders,
         negations,
@@ -456,7 +501,12 @@ class crystallise:
             # crystallise node
             new_nodes[node.name] = crystallise(node, operands, pre_crystallised_graphs)
 
-        return graph.copy(new_nodes.values())
+        # return graph.copy(new_nodes.values())
+        graph_copier = GraphCopier(graph)
+        for node in new_nodes.values():
+            graph_copier.add_node(node)
+
+        return graph_copier.copy() # GRAPH CREATION/COPY
 
     @classmethod
     def graphs(cls, graphs: Sequence[Graph]) -> Sequence[Graph]:

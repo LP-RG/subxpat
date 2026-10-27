@@ -107,6 +107,7 @@ class _NonSharedBase:
             # if the constants is at the graph output
             if len(succs := a_graph.successors(const)) == 1 and (out_i := a_graph.output_index_of(succ := succs[0])) >= 0:
                 constants_parameters.append(const_rew := BoolVariable(f'p_c{out_i}'))
+                # NODE COPY
                 updated_nodes[succ.name] = succ.copy(operands=(const_rew,))  # by definition, the output node has no other operand
 
         return constants_parameters
@@ -194,7 +195,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
             for succ in filter(lambda n: not n.name in a_graph.base_components['Subgraph'].nodes_names(), a_graph.successors(out_node)):
                 succ = updated_nodes.get(succ.name, succ)
                 new_operands = iterable_replace(succ.operands, out_node.name, new_out_node.name)
-                updated_nodes[succ.name] = succ.copy(operands=new_operands)
+                updated_nodes[succ.name] = succ.copy(operands=new_operands) # NODE COPY
 
         # constants rewriting
         constants_rewriting = cls.constants_rewriting(a_graph, updated_nodes, specs)
@@ -204,8 +205,9 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         #DOUBT: is it correct that nodes in updated_nodes.values() are NOT in the subgraph?? unsure since updated_nodes is somehow changed in method constants_rewriting()
 
         # create template graph
+        # GRAPH CREATION/COPY
         template_graph = PGraph(
-            list(it.chain(  # nodes
+            it.chain(  # nodes
                 (  # unchanged nodes
                     n
                     for n in a_graph.nodes
@@ -221,7 +223,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                 sums, outs_p, outs,
                 # output constant rewriting
                 constants_rewriting,
-            )),
+            ),
             a_graph.inputs_names, a_graph.outputs_names,
             (n.name for n in parameters),
             # COMMENT:from-MARCO: given the comments about marking subgraph nodes, here we should read the subgraph component, with the relevant added nodes
@@ -265,6 +267,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
                 constraint_subgraph_set.add(name)
 
         # create constraints graph
+        # GRAPH CREATION/COPY
         constraint_graph = CGraph(
             it.chain(  # nodes
                 # placeholders
@@ -318,7 +321,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
             for succ in filter(lambda n: not n.name in a_graph.base_components['Subgraph'].nodes_names(), a_graph.successors(out_node)):
                 succ = updated_nodes.get(succ.name, succ)
                 new_operands = iterable_replace(succ.operands, out_node.name, sum_node.name)
-                updated_nodes[succ.name] = succ.copy(operands=new_operands)
+                updated_nodes[succ.name] = succ.copy(operands=new_operands) # NODE COPY
 
         # constants rewriting
         constants_rewriting = cls.constants_rewriting(a_graph, updated_nodes, specs)
@@ -328,6 +331,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
         #DOUBT (as above): is it correct that nodes in updated_nodes.values() are NOT in the subgraph?? unsure since updated_nodes is somehow updated in method constants_rewriting()
 
         # create template graph
+        # GRAPH CREATION/COPY
         template_graph = PGraph(
             it.chain(  # nodes
                 (  # unchanged nodes
@@ -398,6 +402,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
                 constraint_subgraph_set.add(name)
 
         # create constraints graph
+        # GRAPH CREATION/COPY
         constraint_graph = CGraph(
             it.chain(  # nodes
                 # placeholders

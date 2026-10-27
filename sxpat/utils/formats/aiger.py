@@ -203,6 +203,7 @@ def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list
             raise RuntimeError(f'Unable to parse node {node_index} from DiGraph (attributes={attrs})')
 
     # construct graph
+    # GRAPH CREATION/COPY
     return IOGraph(
         nodes,
         sorted(inputs_names, key=lambda x: int(x)),

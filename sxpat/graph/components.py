@@ -1,4 +1,4 @@
-from typing import Any, Final, Sequence, Union, final, overload
+from typing import Any, Final, Sequence, Union, final
 from collections.abc import Callable
 import networkx as nx
 from copy import deepcopy
@@ -180,10 +180,10 @@ class Weight(Component):
         - action: return the weight corresponding to the given node id
     """
 
-    def __init__(self, map: dict[str, int | None]) -> None:
+    def __init__(self, map: dict[str, int]) -> None:
         # COMMENT:from-MARCO: a thing I noticed now, is that, doing the casting/getting/whatever later, may allow the input datastructure to change
         #                     example: i create the component passing in my own set/dict, then after the component has been created, if I (even outside the component) update the datastructure I passed in, now the component will behave on this new data, making it not deeply immutable
-        action = lambda map, node_id: map[node_id]
+        action = lambda map, node_id: map[node_id] if node_id in map else None
         super().__init__(map, action)
 
     def get(self, node_id: str) -> int | None:
@@ -194,9 +194,9 @@ class Weight(Component):
         return self
 
     @final 
-    def has_weight(self, obj: Any) -> bool:
+    def has_weight(self, node: Any) -> bool:
         """Returns if the given object is an instance of `Extras` and has an assigned weight."""
-        return isinstance(obj, Extras) and self.get(obj.name) is not None
+        return isinstance(node, Extras) and self.get(node.name) is not None
 
 class Type(Component):
     """Concrete and 'static' component
