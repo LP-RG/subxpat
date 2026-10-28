@@ -1,11 +1,11 @@
-from typing import List, TypedDict, Unpack, NotRequired
-from .graph import AnyGraph, Graph
+from typing import List, Sequence, TypedDict, Unpack, NotRequired
+from .graph import AnyGraph, Graph, IOGraph, PGraph, CGraph
 from .components import Component, Weight, Subgraph
 from .node import AnyNode
 
 class NodeAttributes(TypedDict):
     in_subgraph: NotRequired[bool] 
-    weight: NotRequired[int]
+    weight: NotRequired[int | None]
 
 class GraphCopier:
 
@@ -33,6 +33,10 @@ class GraphCopier:
         if "in_subgraph" in extras and extras["in_subgraph"]:
             self.subgraph_set.add(node.name)
 
+    def add_nodes(self, nodes: Sequence[AnyNode], **extras: Unpack[NodeAttributes]) -> None:
+        for node in nodes:
+            self.add_node(node, **extras)
+
     def copy(self, **extras) -> AnyGraph:
         components: List[Component] = list()
         if len(self.subgraph_set) > 0:
@@ -52,10 +56,14 @@ class GraphBuilder:
 
     def add_new_node(self, node: AnyNode, **extras: Unpack[NodeAttributes]) -> None:
         self.nodes.append(node)
-        if "weight" in extras:
+        if "weight" in extras and extras["weight"] != None:
             self.weights_map[node.name] = extras["weight"]
         if "in_subgraph" in extras and extras["in_subgraph"]:
             self.subgraph_set.add(node.name)
+
+    def add_new_nodes(self, nodes: Sequence[AnyNode], **extras: Unpack[NodeAttributes]) -> None:
+        for node in nodes:
+            self.add_new_node(node, **extras)
 
     def add_inherited_node(self, node: AnyNode, predecessor_graph: AnyGraph) -> None:
         self.nodes.append(node)
@@ -64,7 +72,11 @@ class GraphBuilder:
         if predecessor_graph.has_base_component('Weight') and predecessor_graph.base_components['Weight'].has_weight(node):
             self.weights_map[node.name] = predecessor_graph.base_components['Weight'].get(node.name)
 
-    def create(self, graphClass: type[Graph], **extras) -> Graph:
+    def add_inherited_nodes(self, nodes: Sequence[AnyNode], predecessor_graph: AnyGraph) -> None:
+        for node in nodes:
+            self.add_inherited_node(node, predecessor_graph)
+
+    def create(self, graphClass: type[Graph] | type[IOGraph] | type[PGraph] | type[CGraph], *extras) -> AnyGraph:
         components: List[Component] = list()
         if len(self.subgraph_set) > 0:
             subgraph_component = Subgraph(self.subgraph_set)
@@ -73,6 +85,6 @@ class GraphBuilder:
             weights_component = Weight(self.weights_map)
             components.append(weights_component)
         if len(components) > 0:
-            extras = {**extras, **{'components': components}}
-        return graphClass(self.nodes, **extras)
+            extras = (*extras, components)
+        return graphClass(self.nodes, *extras)
         

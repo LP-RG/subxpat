@@ -5,6 +5,7 @@ import itertools as it
 from sxpat.converting import set_prefix
 from sxpat.graph import *
 from sxpat.graph.node import ToInt, AbsDiff, Max, PlaceHolder, Target
+from sxpat.graph.graphCreators import GraphBuilder
 
 
 __all__ = ['MaxDistanceEvaluation']
@@ -17,10 +18,14 @@ class MaxDistanceEvaluation:
 
         a_graph: IOGraph = set_prefix(circuit, 'a_')
 
-        template_graph = IOGraph(
-            (n for n in a_graph.nodes),
-            a_graph.inputs_names, a_graph.outputs_names,
-        )
+        template_graph_builder = GraphBuilder()
+        template_graph_builder.add_inherited_nodes([n for n in a_graph.nodes], a_graph)
+        template_graph = template_graph_builder.create(IOGraph, a_graph.inputs_names, a_graph.outputs_names)
+
+        # template_graph = IOGraph(
+        #     (n for n in a_graph.nodes),
+        #     a_graph.inputs_names, a_graph.outputs_names,
+        # )
 
         others = [
             cur_int := ToInt('cur_int', operands=circuit.outputs_names),
