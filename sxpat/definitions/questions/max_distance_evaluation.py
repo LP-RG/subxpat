@@ -20,7 +20,9 @@ class MaxDistanceEvaluation:
 
         template_graph_builder = GraphBuilder()
         template_graph_builder.add_inherited_nodes([n for n in a_graph.nodes], a_graph)
-        template_graph = template_graph_builder.create(IOGraph, a_graph.inputs_names, a_graph.outputs_names)
+        template_graph = template_graph_builder.create(IOGraph, 
+                                                       a_graph.inputs_names, 
+                                                       a_graph.outputs_names)
 
         # template_graph = IOGraph(
         #     (n for n in a_graph.nodes),

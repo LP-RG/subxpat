@@ -14,6 +14,7 @@ from .Solver import Solver
 from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.graph import *
 from sxpat.graph.node import *
+from sxpat.graph.graphCreators import GraphCopier
 
 
 __all__ = [
@@ -252,11 +253,24 @@ class Z3FuncEncoder(Z3Encoder):
             get_mapping=True
         )
 
+        updated_names_inverted: Dict[str, str] = dict()
+        for x, y in updated_names.items():
+            updated_names_inverted[y] = x
+
         # update extras (if needed)
         extra = dict()
         if isinstance(graph, IOGraph): extra['outputs_names'] = (updated_names[name] for name in graph.outputs_names)
 
-        return graph.copy(nodes, **extra) # GRAPH CREATION/COPY
+        graph_copier = GraphCopier(graph)
+        for node in nodes:
+            graph_copier.add_node(
+                node, 
+                in_subgraph=graph.base_components['Subgraph'].in_subgraph(updated_names_inverted[node.name]),
+                weight=graph.base_components['Weight'].get(updated_names_inverted[node.name])
+            )
+        return graph_copier.copy(**extra)
+
+        # return graph.copy(nodes, **extra) # GRAPH CREATION/COPY
 
     @classmethod
     def encode(cls, graphs: Solver._Graphs,
@@ -284,7 +298,8 @@ class Z3FuncEncoder(Z3Encoder):
         )
         # update global_task if present (mainly useful for operands)
         if global_task:
-            global_task = cls.nodes_as_function_calls([global_task], inputs_string, non_gates_names)[0]
+            global_task = cls.nodes_as_function_calls([global_task], inputs_string, non_gates_names)[0] 
+            #CORRECT TO LEAVE IT LIKE THIS? (since the change in nodes_as_function_calls)
 
         # gather constraints graphs
         c_graphs = tuple(graph for graph in graphs if isinstance(graph, CGraph))

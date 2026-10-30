@@ -6,6 +6,7 @@ from sxpat.graph.graph import *
 from sxpat.graph.node import *
 from sxpat.specifications import Specifications
 from sxpat.utils.collections import iterable_replace_index
+from sxpat.graph.graphCreators import GraphBuilder
 
 
 __all__ = ['Labelling', 'label_node']
@@ -32,23 +33,41 @@ class Labelling:
         constraint_nodes = []
         nodes_to_place_hold = []
 
+        template_graph_builder = GraphBuilder()
+        template_graph_builder.add_inherited_nodes([
+            n
+            for n in a_graph.nodes
+            if n.name not in updated_nodes
+        ], a_graph)
+        template_graph_builder.add_new_node(not_node)
+        for node in updated_nodes.values():
+            template_graph_builder.add_new_node(
+                node,
+                in_subgraph=a_graph.base_components['Subgraph'].in_subgraph(node.name),
+                weight=a_graph.base_components['Weight'].get(node.name))
+        template_graph_builder.add_new_nodes(constraint_nodes)
+
+        template_graph = template_graph_builder.create(PGraph,
+                                                       a_graph.inputs_names,
+                                                       a_graph.outputs_names)
+
         a: Iterable[str] = it.chain(['a', 'b'])
-        # GRAPH CREATION/COPY
-        template_graph = PGraph(
-            it.chain(  # type: ignore
-                    (
-                        n
-                        for n in a_graph.nodes
-                        if n.name not in updated_nodes
-                    ),
-                (not_node,),
-                updated_nodes.values(),
-                constraint_nodes
-            ),
-            a_graph.inputs_names,
-            a_graph.outputs_names,
-            ()
-        )
+        # # GRAPH CREATION/COPY
+        # template_graph = PGraph(
+        #     it.chain(  # type: ignore
+        #             (
+        #                 n
+        #                 for n in a_graph.nodes
+        #                 if n.name not in updated_nodes
+        #             ),
+        #         (not_node,),
+        #         updated_nodes.values(),
+        #         constraint_nodes
+        #     ),
+        #     a_graph.inputs_names,
+        #     a_graph.outputs_names,
+        #     ()
+        # )
 
         new_nodes = [
             cur_int := ToInt('cur_int', operands=graph.outputs_names),
@@ -66,18 +85,32 @@ class Labelling:
                 gt := GreaterThan('GT_0', operands=(abs_diff.name, zero.name)),
                 Constraint.of(gt),
             ])
-        # GRAPH CREATION/COPY
-        constraint_graph = CGraph(
-            it.chain(
-                (PlaceHolder(name) for name in it.chain(
-                    graph.outputs_names,
-                    template_graph.outputs_names,
-                    nodes_to_place_hold
-                )),
-                new_nodes,
-                [Target.of(abs_diff),]
+
+        constraint_graph_builder = GraphBuilder()
+        constraint_graph_builder.add_new_nodes([
+            PlaceHolder(name)
+            for name in it.chain(
+                graph.outputs_names,
+                template_graph.outputs_names,
+                nodes_to_place_hold
             )
-        )
+        ])
+        constraint_graph_builder.add_new_nodes(new_nodes)
+        constraint_graph_builder.add_new_node(Target.of(abs_diff))
+        constraint_graph = constraint_graph_builder.create(CGraph)
+
+        # # GRAPH CREATION/COPY
+        # constraint_graph = CGraph(
+        #     it.chain(
+        #         (PlaceHolder(name) for name in it.chain(
+        #             graph.outputs_names,
+        #             template_graph.outputs_names,
+        #             nodes_to_place_hold
+        #         )),
+        #         new_nodes,
+        #         [Target.of(abs_diff),]
+        #     )
+        # )
 
         return (template_graph, constraint_graph)
 

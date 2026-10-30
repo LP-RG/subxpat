@@ -28,7 +28,7 @@ class GraphCopier:
                 if self.graph_to_copy.has_base_component('Weight') and self.graph_to_copy.base_components["Weight"].has_weight(node):
                     self.weights_map[node.name] = self.graph_to_copy.base_components['Weight'].get(node.name)
                 return
-        if "weight" in extras:
+        if "weight" in extras and extras["weight"] != None:
             self.weights_map[node.name] = extras["weight"]
         if "in_subgraph" in extras and extras["in_subgraph"]:
             self.subgraph_set.add(node.name)

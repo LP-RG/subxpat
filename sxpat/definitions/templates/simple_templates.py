@@ -9,6 +9,7 @@ from sxpat.graph.graph import IOGraph
 from sxpat.graph import PGraph
 from sxpat.graph.node import AnyNode, AnyNonEndPoint, AnyOperation, BoolVariable, Xor
 from sxpat.graph.components import Weight
+from sxpat.graph.graphCreators import GraphBuilder
 
 
 __all__ = ['ConstantTemplate', 'SwitchedTemplate']
@@ -25,15 +26,19 @@ class SimpleTemplate(Template):
     """
 
     @classmethod
-    def _define_parameters(cls, circuit: IOGraph) -> Sequence[BoolVariable]:
-        return tuple(
-            node_from_node(BoolVariable, out_node, {'name': f'p_{out_node.name}'})
-            for out_node in circuit.base_components['Subgraph'].subgraph_outputs
-        )
+    def _define_parameters(cls, circuit: IOGraph, graph_builder: GraphBuilder) -> Sequence[BoolVariable]:
+        params = []
+        for out_node in circuit.base_components['Subgraph'].subgraph_outputs:
+            new_node = node_from_node(BoolVariable, out_node, {'name': f'p_{out_node.name}'})
+            params.append(new_node)
+            graph_builder.add_new_node(new_node,
+                                       in_subgraph=circuit.base_components['Subgraph'].in_subgraph(new_node.name),
+                                       weight=circuit.base_components['Weight'].get(new_node.name))
+        return tuple(params)
 
     @classmethod
     def _get_updated_suboutputs_successors(cls, circuit: IOGraph,
-                                           new_subgraph_outputs: Sequence[AnyNonEndPoint]
+                                           new_subgraph_outputs: Sequence[AnyNonEndPoint],
                                            ) -> Mapping[str, AnyOperation]:
 
         updated_nodes: Dict[str, AnyOperation] = dict()
@@ -50,25 +55,40 @@ class SimpleTemplate(Template):
     @classmethod
     def _create_parametric_circuit(cls, circuit: IOGraph,
                                    updated_nodes: Mapping[str, AnyNode],
-                                   new_nodes: Iterable[AnyNode],
                                    parameters: Sequence[BoolVariable],
+                                   graph_builder: GraphBuilder
                                    ) -> PGraph:
+        
+        # # create parametric circuit
+        # # GRAPH CREATION/COPY
+        # param_circ = PGraph(
+        #     it.chain(
+        #         (  # replace updated nodes
+        #             updated_nodes.get(n.name, n)
+        #             for n in circuit.nodes
+        #         ),
+        #         new_nodes,
+        #         parameters,
+        #     ),
+        #     inputs_names=circuit.inputs_names,
+        #     outputs_names=circuit.outputs_names,
+        #     parameters_names=tuple(n.name for n in parameters),
+        # )
+    
+        for n in circuit.nodes:
+            node = updated_nodes.get(n.name, n)
+            if node is n:
+                graph_builder.add_inherited_node(n, circuit)
+            else:
+                graph_builder.add_new_node(
+                    node, 
+                    in_subgraph=circuit.base_components['Subgraph'].in_subgraph(node.name),
+                    weight=circuit.base_components['Weight'].get(node.name))
 
-        # create parametric circuit
-        # GRAPH CREATION/COPY
-        param_circ = PGraph(
-            it.chain(
-                (  # replace updated nodes
-                    updated_nodes.get(n.name, n)
-                    for n in circuit.nodes
-                ),
-                new_nodes,
-                parameters,
-            ),
-            inputs_names=circuit.inputs_names,
-            outputs_names=circuit.outputs_names,
-            parameters_names=tuple(n.name for n in parameters),
-        )
+        param_circ = graph_builder.create(PGraph,
+                                          circuit.inputs_names,
+                                          circuit.outputs_names,
+                                          tuple(n.name for n in parameters))
         # prefix all nodes
         param_circ = set_prefix_new(
             param_circ, circuit_prefix,
@@ -89,14 +109,16 @@ class ConstantTemplate(SimpleTemplate):
     def define(cls, circuit: IOGraph, _unused=...) -> TemplateBundle:
         """The `TemplateBundle` returned from this method contains only the circuit."""
 
+        graph_builder = GraphBuilder()
+
         # define the parameters
-        parameters = cls._define_parameters(circuit)
+        parameters = cls._define_parameters(circuit, graph_builder)
 
         # use parameters as subgraph outputs
         updated_nodes = cls._get_updated_suboutputs_successors(circuit, parameters)
 
         # create the parametric circuit
-        parametric_circuit = cls._create_parametric_circuit(circuit, updated_nodes, [], parameters)
+        parametric_circuit = cls._create_parametric_circuit(circuit, updated_nodes, parameters, graph_builder)
         # remove unused nodes
         parametric_circuit = prune_unused_keepio(
             parametric_circuit,
@@ -117,14 +139,18 @@ class SwitchedTemplate(SimpleTemplate):
     @classmethod
     def define(cls, circuit: IOGraph, _unused=...) -> TemplateBundle:
 
+        graph_builder = GraphBuilder()
+
         # define the parameters
-        parameters = cls._define_parameters(circuit)
+        parameters = cls._define_parameters(circuit, graph_builder)
 
         # define xors (they break the subout when their parameter is true)
         xors = [
             Xor(f'xor{out_i}', operands=[subout, param])
             for (out_i, param, subout) in zip(it.count(), parameters, circuit.base_components['Subgraph'].subgraph_outputs)
         ]
+        for node in xors:
+            graph_builder.add_new_node(node)
 
         # COMMENT:from-MARCO: valid. a way to improve this, would be to get the Weight component before the ifs and use it directly (saves on a lot of accesses)
         xors_weights = [
@@ -136,7 +162,7 @@ class SwitchedTemplate(SimpleTemplate):
         updated_nodes = cls._get_updated_suboutputs_successors(circuit, xors)
 
         # create the parametric circuit
-        parametric_circuit = cls._create_parametric_circuit(circuit, updated_nodes, xors, parameters)
+        parametric_circuit = cls._create_parametric_circuit(circuit, updated_nodes, parameters, graph_builder)
 
         new_weights_mapping = dict()
         for xor_node, xor_weight in zip(xors, xors_weights):

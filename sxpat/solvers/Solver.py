@@ -9,6 +9,7 @@ from sxpat.utils.decorators import make_utility_class
 
 from sxpat.constants import SolverConstants as SC
 from sxpat.utils.print import pprint
+from sxpat.graph.graphCreators import GraphBuilder
 
 
 __all__ = [
@@ -258,10 +259,19 @@ class Solver(metaclass=ABCMeta):
                         if len(succ := graph.successors(n)) == 1 and succ[0].name in task_names
                     )
 
-                    graph = CGraph( # GRAPH CREATION/COPY
-                        n for n in graph.nodes
+                    graph_builder = GraphBuilder()
+                    graph_builder.add_inherited_nodes([
+                        n 
+                        for n in graph.nodes
                         if n.name not in task_names and n.name not in placeholder_names
-                    )
+                    ], graph)
+
+                    graph = graph_builder.create(CGraph)
+
+                    # graph = CGraph( # GRAPH CREATION/COPY
+                    #     n for n in graph.nodes
+                    #     if n.name not in task_names and n.name not in placeholder_names
+                    # )
 
             _graphs.append(graph)
 

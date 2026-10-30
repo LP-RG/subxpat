@@ -304,6 +304,10 @@ def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
         for n in graph.nodes
     }
 
+    updated_names_inverted: Dict[str, str] = dict()
+    for x, y in updated_names.items():
+        updated_names_inverted[y] = x
+
     nodes: List[AnyNode] = []
     for node in graph.nodes:
         if isinstance(node, Operation):
@@ -319,7 +323,10 @@ def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
     # return graph.copy(nodes, **extras)
     graph_copier = GraphCopier(graph)
     for node in nodes:
-        graph_copier.add_node(node)
+        graph_copier.add_node(
+            node,
+            in_subgraph=graph.base_components['Subgraph'].in_subgraph(updated_names_inverted[node.name]),
+            weight=graph.base_components['Weight'].get(updated_names_inverted[node.name]))
 
     return graph_copier.copy(**extras) # GRAPH CREATION/COPY
 
@@ -341,6 +348,10 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
         for n in graph.nodes
     }
 
+    new_name_of_inverted: Dict[str, str] = dict()
+    for x, y in new_name_of.items():
+        new_name_of_inverted[y] = x
+
     # create updated nodes
     nodes: List[AnyNode] = []
     for node in graph.nodes:
@@ -361,7 +372,10 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
     # return graph.copy(nodes, **extras)
     graph_copier = GraphCopier(graph)
     for node in nodes:
-        graph_copier.add_node(node)
+        graph_copier.add_node(
+            node,
+            in_subgraph=graph.base_components['Subgraph'].in_subgraph(new_name_of_inverted[node.name]),
+            weight=graph.base_components['Weight'].get(new_name_of_inverted[node.name]))
 
     return graph_copier.copy(**extras) # GRAPH CREATION/COPY
 
@@ -477,6 +491,7 @@ class crystallise:
         }
 
         new_nodes = dict()
+        new_nodes_attributes: dict[str, tuple[bool, int | None]] = dict()
         for node in graph.nodes:
             # select crystalliser
             try:
@@ -501,10 +516,24 @@ class crystallise:
             # crystallise node
             new_nodes[node.name] = crystallise(node, operands, pre_crystallised_graphs)
 
+            if not new_nodes[node.name] is node:
+                in_subgraph = False
+                weight = None
+                if graph.has_base_component('Subgraph'):
+                    in_subgraph = graph.base_components['Subgraph'].in_subgraph(node.name)
+                if graph.has_base_component('Weight'):
+                    weight = graph.base_components['Weight'].get(node.name)
+                new_nodes_attributes[node.name] = (in_subgraph, weight)
+
         # return graph.copy(new_nodes.values())
         graph_copier = GraphCopier(graph)
         for node in new_nodes.values():
-            graph_copier.add_node(node)
+            if node.name in new_nodes_attributes:
+                graph_copier.add_node(node,
+                                      in_subgraph=new_nodes_attributes[node.name][0],
+                                      weight=new_nodes_attributes[node.name][1])
+            else:
+                graph_copier.add_node(node)
 
         return graph_copier.copy() # GRAPH CREATION/COPY
 

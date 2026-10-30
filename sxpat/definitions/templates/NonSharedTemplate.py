@@ -157,8 +157,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
     @classmethod
     def define(cls, s_graph: IOGraph, specs: Specifications) -> TemplateBundle:
         # get prefixed graph
-        # a_graph: IOGraph = set_prefix(s_graph, 'a_') TODO: fix the rename issue!!
-        a_graph: IOGraph = s_graph
+        a_graph: IOGraph = set_prefix(s_graph, 'a_')
         template_graph_builder = GraphBuilder()
         constraint_graph_builder = GraphBuilder()
 
