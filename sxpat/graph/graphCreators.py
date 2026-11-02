@@ -10,12 +10,15 @@ class NodeAttributes(TypedDict):
 class GraphCopier:
 
     graph_to_copy: AnyGraph
-    nodes: List[AnyNode] = list()
-    subgraph_set: set[str] = set()
-    weights_map: dict[str, int] = dict()
+    nodes: List[AnyNode]
+    subgraph_set: set[str]
+    weights_map: dict[str, int]
 
     def __init__(self, graph_to_copy: AnyGraph) -> None:
         self.graph_to_copy = graph_to_copy
+        self.nodes = list()
+        self.subgraph_set = set()
+        self.weights_map = dict()
 
     # either the below version of add_node, or a version where the various separate elements for the node
     # creation (type, name, ...) are passed as argument and the node is generated inside add_node
@@ -50,9 +53,14 @@ class GraphCopier:
         
 class GraphBuilder:
 
-    nodes: List[AnyNode] = list()
-    subgraph_set: set[str] = set()
-    weights_map: dict[str, int] = dict()
+    nodes: List[AnyNode] 
+    subgraph_set: set[str] 
+    weights_map: dict[str, int] 
+
+    def __init__(self) -> None:
+        self.nodes = list()
+        self.subgraph_set = set()
+        self.weights_map = dict()
 
     def add_new_node(self, node: AnyNode, **extras: Unpack[NodeAttributes]) -> None:
         self.nodes.append(node)
