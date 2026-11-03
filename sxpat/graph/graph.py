@@ -32,7 +32,7 @@ __all__ = [
 class Graph:
     """Generic graph."""
 
-    K = object()
+    K = '6(}eIj_=*er9]<Nw7vr[JZiI#/~qH>J4'  # random id
     EXTRAS: Sequence[str] = ()
 
     def __init__(self, nodes: Iterable[AnyNode]) -> None:
