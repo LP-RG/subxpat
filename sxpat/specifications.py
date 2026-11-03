@@ -1,6 +1,6 @@
 from __future__ import annotations
 from types import MappingProxyType
-from typing import Any, Dict, Iterable, List, Mapping, Tuple, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union
 import enum
 import dataclasses as dc
 
@@ -40,6 +40,8 @@ class LabelingType(enum.Enum):
     MAX = 'max'
     SIMPLE_MIN = 'simple_min'
     SIMPLE_MAX = 'simple_max'
+    SAMPLE_MIN = 'sample_min'
+    SAMPLE_MAX = 'sample_max'
 
 
 class ErrorPartitioningType(enum.Enum):
@@ -87,6 +89,16 @@ class EnumChoicesAction(argparse.Action):
     def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace,
                  value: str, option_string: str = None) -> None:
         setattr(namespace, self.dest, self.enum(value))
+
+
+def labeling_seed(value: str) -> Optional[int]:
+    """Parse a labeling seed: an integer, or `random` for a non-deterministic seed."""
+    if value.strip().lower() == 'random':
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected an integer or 'random', got {value!r}")
 
 
 @dc.dataclass(init=False, frozen=True)
@@ -179,6 +191,8 @@ class Specifications:
     # labeling
     labeling: LabelingType
     labeling_relative_to: LabelingRelativeTo
+    labeling_samples: int
+    labeling_seed: Optional[int]
 
     # subgraph extraction
     extraction_mode: int
@@ -334,6 +348,16 @@ class Specifications:
                                               action=EnumChoicesAction,
                                               default=LabelingRelativeTo.CURRENT,
                                               help='Labeling relative to a circuit (default: current)')
+
+        _lab_samples = _lab_group.add_argument('--labeling-samples',
+                                               type=int,
+                                               default=2,
+                                               help='Number of random samples used by the sampling labeling types, in addition to the all-zero and all-one cases (default: 2)')
+
+        _lab_seed = _lab_group.add_argument('--labeling-seed',
+                                            type=labeling_seed,
+                                            default=0,
+                                            help="Seed for the sampling labeling types: an integer for reproducible sampling, or 'random' (default: 0)")
 
         # > subgraph extraction stuff
         _subex_group = parser.add_argument_group('Subgraph extraction')
