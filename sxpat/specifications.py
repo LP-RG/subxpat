@@ -14,7 +14,7 @@ import os.path
 from sxpat.utils.filesystem import FS
 from sxpat.utils.functions import int_to_strbase
 from sxpat.utils.storage import AppendStorage, LiveStorage
-from sxpat.utils.argument_parser import add_dataclass_options
+from sxpat.utils.argument_parser import add_dataclass_options, EnumChoicesAction, TimeDeltaAction
 
 
 __all__ = [
@@ -65,22 +65,6 @@ class ConstantsType(enum.Enum):
 class ConstantFalseType(enum.Enum):
     OUTPUT = 'output'
     PRODUCT = 'product'
-
-
-class EnumChoicesAction(argparse.Action):
-    """
-    Custom argparse.Action that will use our custom Enum.
-
-    :authors: Marco Biasion
-    """
-
-    def __init__(self, *args, type: type[enum.Enum], **kwargs) -> None:
-        super().__init__(*args, **kwargs, choices=[e.value for e in type])
-        self.enum = type
-
-    def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace,
-                 value: str, option_string: str | None = None) -> None:
-        setattr(namespace, self.dest, self.enum(value))
 
 
 @dc.dataclass(init=False, frozen=True)
@@ -249,7 +233,7 @@ class Specifications:
             'argument': {
                 'aliases': ['--mode'],
                 'choices': [0, 1, 2, 3, 4, 5, 55, 6, 100, 11, 12, 42],
-                'help': 'Subgraph extraction algorithm to use (default: 55)',
+                'help': 'Subgraph extraction algorithm to use (default: {default})',
                 'group': 'Subgraph extraction',
             },
         },
@@ -313,7 +297,7 @@ class Specifications:
         default=1,
         metadata={
             'argument': {
-                'help': 'The number of attempts for subgraph extraction (default: 1)',
+                'help': 'The number of attempts for subgraph extraction (default: {default})',
                 'group': 'Subgraph extraction',
             }
         },
@@ -368,7 +352,7 @@ class Specifications:
         metadata={
             'argument': {
                 'action': EnumChoicesAction,
-                'help': 'Template logic (default: nonshared)',
+                'help': 'Template logic (default: {default})',
                 'group': 'Execution',
             },
             'dependencies': {
@@ -384,7 +368,7 @@ class Specifications:
         metadata={
             'argument': {
                 'action': EnumChoicesAction,
-                'help': 'The encoding to use in solving (default: z3bvec)',
+                'help': 'The encoding to use in solving (default: {default})',
                 'group': 'Execution',
             }
         },
@@ -394,7 +378,7 @@ class Specifications:
         metadata={
             'argument': {
                 'action': EnumChoicesAction,
-                'help': 'Usage of constants (default: always)',
+                'help': 'Usage of constants (default: {default})',
                 'group': 'Execution',
             }
         },
@@ -404,7 +388,7 @@ class Specifications:
         metadata={
             'argument': {
                 'action': EnumChoicesAction,
-                'help': 'Representation of false constants from the subgraph (default: output)',
+                'help': 'Representation of false constants from the subgraph (default: {default})',
                 'group': 'Execution',
             },
             'dependencies': {
@@ -421,7 +405,7 @@ class Specifications:
         default=1,
         metadata={
             'argument': {
-                'help': 'Wanted number of models to generate at each step (default: 1)',
+                'help': 'Wanted number of models to generate at each step (default: {default})',
                 'group': 'Execution',
             }
         },
@@ -498,7 +482,7 @@ class Specifications:
             'argument': {
                 'aliases': ['--epar'],
                 'action': EnumChoicesAction,
-                'help': 'The error partitioning algorithm to use (default: asc)',
+                'help': 'The error partitioning algorithm to use (default: {default})',
                 'group': 'Error',
             }
         },
@@ -510,7 +494,7 @@ class Specifications:
         metadata={
             'argument': {
                 'args': ['--output'],
-                'help': f'The base directory for the output (default: {Paths.RunFiles.base_folder})',
+                'help': 'The base directory for the output (default: {default})',
                 'group': 'Files and folders',
             }
         },
@@ -520,17 +504,19 @@ class Specifications:
         metadata={
             'argument': {
                 'args': ['--cell-library'],
-                'help': f'The cell library file to use in the metrics estimation (default: {Paths.Synthesis.cell_library})',
+                'help': 'The cell library file to use in the metrics estimation (default: {default})',
                 'group': 'Files and folders',
             }
         })
-    path_cqesto: dc.InitVar[str] = dc.field(default=Paths.Tools.cqesto, metadata={
-        'argument': {
-            'args': ['--cqesto'],
-            'help': f'The path of the executable of cqesto (default: {Paths.Tools.cqesto})',
-            'group': 'Files and folders',
-        }
-    },
+    path_cqesto: dc.InitVar[str] = dc.field(
+        default=Paths.Tools.cqesto,
+        metadata={
+            'argument': {
+                'args': ['--cqesto'],
+                'help': 'The path of the executable of cqesto (default: {default})',
+                'group': 'Files and folders',
+            }
+        },
     )
     path: Paths = dc.field(init=False)  # writable once
     should_archive: bool = dc.field(
@@ -558,7 +544,8 @@ class Specifications:
         default=10800,
         metadata={
             'argument': {
-                'help': 'The maximum time each cell is given to run (in seconds) (default: 3h)',
+                'action': TimeDeltaAction,
+                'help': 'The maximum time each cell is given to run (in seconds) (default: {default})',
                 'group': 'Miscellaneous',
             }
         },

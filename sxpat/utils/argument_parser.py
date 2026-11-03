@@ -30,10 +30,16 @@
 
 
 import argparse
+import enum
+import re
 from types import NoneType
 from typing import (
+    Any,
+    ClassVar,
     Iterable,
+    NoReturn,
     Optional,
+    Sequence,
     get_origin,
     get_type_hints,
     Literal,
@@ -69,9 +75,12 @@ def add_dataclass_options[OT](
         if isinstance(field_type, InitVar): field_type = field_type.type
 
         # prepare kwargs for argument constructor
+        action = arg_metadata.get("action", None)
+        if hasattr(action, "format_value"): _format_default = action.format_value  # pyright: ignore
+        else: _format_default = lambda d: d
         kwargs = {
             "type": arg_metadata.get("type", field_type),
-            "help": arg_metadata.get("help", None),
+            "help": arg_metadata.get("help", '').format(default=_format_default(field.default)),
         }
 
         # generate names
@@ -150,8 +159,8 @@ def add_dataclass_options[OT](
         elif field.default != MISSING:
             kwargs["default"] = field.default
 
-        if (_action := arg_metadata.get('action')) is not None:
-            kwargs['action'] = _action
+        if action is not None:
+            kwargs['action'] = action
 
         elif field_type is bool:
             _handle_bool_type(field, args, kwargs)
@@ -235,3 +244,96 @@ def _handle_argument_group(
 
 def _get_arg_name(field: Field):
     return field.name.replace("_", "-")
+
+
+class CustomActionBase(argparse.Action):
+    """
+    :authors: Marco Biasion
+    """
+
+    def _single_check(self,
+                      parser: argparse.ArgumentParser,
+                      values: str | Sequence[Any] | None,
+                      option_string: str | None
+                      ) -> str:
+        if values is None: self._error(parser, option_string)
+        if not isinstance(values, str): self._error(parser, option_string)
+        return values
+
+    def _error(self, parser: argparse.ArgumentParser, option_string: str | None) -> NoReturn:
+        if option_string is None: parser.error(f'unable to parse `{self.metavar}`.')
+        else: parser.error(f'unable to parse `{self.option_strings}`.')
+
+
+class EnumChoicesAction(CustomActionBase):
+    """
+    Custom argparse.Action to use enumerator as choices.
+
+    Include formatting from enum to string, and parsing from string to enum.
+
+    Note that the formatted value of an enum will always be a string,
+    but the parsed value should be a concrete value assigned to an entry of an enum class.
+    For this reason, this mostly works with string enums.
+
+    :authors: Marco Biasion
+    """
+
+    def __init__(self, *args, type: type[enum.Enum], **kwargs) -> None:
+        super().__init__(*args, **kwargs, choices=[self.format_value(e) for e in type])
+        self.enum = type
+
+    def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace,
+                 values: str | Sequence[Any] | None, option_string: str | None = None) -> None:
+        value = self._single_check(parser, values, option_string)
+
+        try: setattr(namespace, self.dest, self.enum(value))
+        except: self._error(parser, option_string)
+
+    @classmethod
+    def format_value(cls, value: enum.Enum | None) -> str:
+        if isinstance(value, enum.Enum): return str(value.value)
+        return '???'
+
+
+class TimeDeltaAction(CustomActionBase):
+    """
+    Custom argparse.Action for use in parsing time deltas to seconds.
+
+    A time delta is any sequence of digits, followed by:
+    - `S` / `s` / nothing : seconds
+    - `M` / `m` : minutes
+    - `H` / `h` : hours
+    - `D` / `d` : days
+
+    :authors: Marco Biasion
+    """
+
+    _PATTERN: ClassVar = re.compile(r'(\d+)([smhd]?)')
+    _MULTS: ClassVar = {'S': 1, '': 1, 'M': 60, 'H': 60 * 60, 'D': 60 * 60 * 24}
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+    def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace,
+                 values: str | Sequence[Any] | None, option_string: str | None = None) -> None:
+        value = self._single_check(parser, values, option_string)
+
+        # recompose seconds
+        seconds = self.parse_value(value)
+        if seconds is None: self._error(parser, option_string)
+        setattr(namespace, self.dest, seconds)
+
+    def parse_value(self, raw: str) -> int | None:
+        m = self._PATTERN.match(raw)
+        if m is None: return None
+        return int(m[1]) * self._MULTS[m[2].upper()]
+
+    @classmethod
+    def format_value(cls, value: int | None) -> str:
+        if isinstance(value, int):
+            if value == 0: return 'none'
+            if value % 60 != 0: return f'{value}s'
+            if (v := value // 60) % 60 != 0: return f'{v}m'
+            if (v := v // 60) % 24 != 0: return f'{v}h'
+            else: return f'{v // 24}d'
+        return '???'
