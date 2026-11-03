@@ -79,8 +79,10 @@ Here are all the parameters with their arguments and descriptions:
 | :-------------------------------------------: | --------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------- |
 | `exact-benchmark`                             | `path` to Verilog file                  |                                    | Circuit to approximate                                                 |
 | `--current-benchmark` <br> `--curr`           | `path` to Verilog file                  | the same as <br> `exact-benchmark` | Approximated circuit used to continue the execution                    |
-| `--labeling`                                  | { min, max, simple_min, simple_max }    | simple_min                         | Labeling algorithm to use                                              |
+| `--labeling`                                  | { min, max, simple_min, simple_max, sample_min, sample_max } | simple_min            | Labeling algorithm to use                                              |
 | `--labeling-relative-to`                      | { origin, current }                     | current                            | Circuit the labeling weights are computed against                      |
+| `--labeling-samples`                          | `int` > 0                               | 2                                  | Random samples used by the sampling labeling types, besides all-0/all-1 |
+| `--labeling-seed`                             | `int` or `random`                       | 0                                  | Seed for the sampling labeling types (`random` for a random seed)      |
 | `--extraction-mode` <br> `--mode`             | { 1, 2, 3, 4, 5, 55, 6, 11, 12, 42 }    | 55                                 | Subgraph extraction algorithm to use                                   |
 | `--input-max` <br> `--imax`                   | `int` > 0                               |                                    | Maximum allowed number of inputs to the subgraph                       |
 | `--output-max` <br> `--omax`                  | `int` > 0                               |                                    | Maximum allowed number of outputs from the subgraph                    |

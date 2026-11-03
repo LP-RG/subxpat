@@ -43,7 +43,7 @@ from sxpat.converting import VerilogExporter
 
 from sxpat.labelling.labelling import Labelling
 
-from sxpat.fast_labeling import fast_labeling, upper_bound, lower_bound
+from sxpat.fast_labeling import SamplingLabeler, fast_labeling, upper_bound, lower_bound
 
 
 def explore_grid(specs_obj: Specifications):
@@ -551,6 +551,18 @@ def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> 
         weights = lower_bound(current)
     elif specs_obj.labeling == LabelingType.SIMPLE_MAX:
         weights = upper_bound(current)
+    elif specs_obj.labeling in (LabelingType.SAMPLE_MIN, LabelingType.SAMPLE_MAX):
+        sampler = SamplingLabeler(
+            reference, current,
+            n_samples=specs_obj.labeling_samples,
+            seed=specs_obj.labeling_seed,
+            minimise=specs_obj.labeling == LabelingType.SAMPLE_MIN,
+        )
+        weights = fast_labeling(
+            exact, current, specs_obj.et, specs_obj,
+            skip_at_output=not relative_to_origin,
+            sampler=sampler,
+        )
     elif specs_obj.iteration == 1:
         weights = fast_labeling(
             exact, current, specs_obj.et, specs_obj,
