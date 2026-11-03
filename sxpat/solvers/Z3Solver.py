@@ -1,4 +1,4 @@
-from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, overload, override
+from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, List, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, overload, override
 from abc import abstractmethod
 
 import itertools as it
@@ -15,6 +15,7 @@ from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.graph import *
 from sxpat.graph.node import *
 from sxpat.graph.graphCreators import GraphCopier
+from sxpat.graph.components import IO
 
 
 __all__ = [
@@ -93,14 +94,18 @@ class Z3Encoder:
         accessories = cls.node_accessories((nodes_bitwidths,))
 
         # extract graph inputs (each IOGraph should have the same inputs_names)
-        found_inputs_names = set(graph.inputs_names for graph in graphs if isinstance(graph, IOGraph))
+        found_inputs_names = set(graph.base_components['IO'].inputs_names for graph in graphs if isinstance(graph, IOGraph))
         if len(found_inputs_names) == 0: raise ValueError('No IOGraph was given to the Solver module.')
         elif len(found_inputs_names) >= 2: raise ValueError('The inputs of the IOGraphs given to the Solver module did not match.')
 
-        # extract graphs parameters (multiple PGraphs can define their own parameters)
+        # extract graphs parameters (multiple graphs can define their own parameters)
+        # parameters_names = tuple(it.chain.from_iterable(
+        #     graph.parameters_names
+        #     for graph in graphs if isinstance(graph, PGraph)
+        # ))
         parameters_names = tuple(it.chain.from_iterable(
-            graph.parameters_names
-            for graph in graphs if isinstance(graph, PGraph)
+            graph.base_components['Parameter'].parameters_names
+            for graph in graphs if graph.has_base_component('Parameter')
         ))
 
         return (graphs, found_inputs_names.pop(), parameters_names, nodes_types, accessories,)
@@ -238,7 +243,7 @@ class Z3FuncEncoder(Z3Encoder):
         else: return nodes
 
     @classmethod
-    def graph_as_function_calls(cls, graph: Union[IOGraph, PGraph, CGraph],
+    def graph_as_function_calls(cls, graph: Union[IOGraph, CGraph],
                                 inputs_string: str,
                                 non_gates_names: Container[str]):
         """
@@ -258,8 +263,12 @@ class Z3FuncEncoder(Z3Encoder):
             updated_names_inverted[y] = x
 
         # update extras (if needed)
-        extra = dict()
-        if isinstance(graph, IOGraph): extra['outputs_names'] = (updated_names[name] for name in graph.outputs_names)
+        extra_components: List[Component] = list()
+        if graph.has_base_component('IO'):
+            extra_components.append(
+                IO(inputs_names=graph.base_components['IO'].inputs_names,
+                   outputs_names=[updated_names[name] for name in graph.base_components['IO'].outputs_names])
+            )
 
         graph_copier = GraphCopier(graph)
         for node in nodes:
@@ -268,7 +277,7 @@ class Z3FuncEncoder(Z3Encoder):
                 in_subgraph=graph.base_components['Subgraph'].in_subgraph(updated_names_inverted[node.name]),
                 weight=graph.base_components['Weight'].get(updated_names_inverted[node.name])
             )
-        return graph_copier.copy(**extra)
+        return graph_copier.copy(extra_components)
 
         # return graph.copy(nodes, **extra) # GRAPH CREATION/COPY
 

@@ -98,12 +98,12 @@ class Labelling:
         if self.__base_script is None:
             with self.__lock:
                 if self.__base_script is None:
-                    num_outputs = len(self.to_be_labelled.outputs_names)
+                    num_outputs = len(self.to_be_labelled.base_components['IO'].outputs_names)
 
                     #
                     inputs_str = '\n'.join(
                         f'{inp} = Bool(\'{inp}\')'
-                        for inp in self.reference.inputs_names
+                        for inp in self.reference.base_components['IO'].inputs_names
                     )
                     #
                     constants_str = '\n'.join([
@@ -201,8 +201,8 @@ class Labelling:
         # select nodes to label (all non-input ancestors of outputs under the cutoff)
         nodes_to_label: set[str] = set()
         if partial_cutoff <= 0:
-            partial_cutoff = 2 ** len(self.to_be_labelled.outputs_names)
-        for (i, output) in enumerate(self.to_be_labelled.outputs_names):
+            partial_cutoff = 2 ** len(self.to_be_labelled.base_components['IO'].outputs_names)
+        for (i, output) in enumerate(self.to_be_labelled.base_components['IO'].outputs_names):
             # break if output is too large (next ones will be larger)
             if (1 << i) > partial_cutoff:
                 break
@@ -250,7 +250,7 @@ class Labelling:
             for succ in circuit.successors(node):
                 name = succ.name
                 remaining_predecessors_count[name] -= 1
-                if remaining_predecessors_count[name] == 0 and name not in circuit.outputs_names:
+                if remaining_predecessors_count[name] == 0 and name not in circuit.base_components['IO'].outputs_names:
                     assert isinstance(succ, (Not, And, BoolConstant))
                     nodes_queue.append(succ)
 
@@ -261,7 +261,7 @@ class Labelling:
             prefix = cls.LABELLING_PREFIX
 
         # enqueue children of inputs
-        for n in circuit.inputs_names:
+        for n in circuit.base_components['IO'].inputs_names:
             _enqueue_valid_children(n)
 
         # enqueue constants
@@ -283,7 +283,7 @@ class Labelling:
 
         # write outputs and integer conversion
         names = list()
-        for (i, output) in enumerate(circuit.outputs_names):
+        for (i, output) in enumerate(circuit.base_components['IO'].outputs_names):
             proutput = prefix + output
             if isinstance(circuit.predecessors(output)[0], BoolVariable):
                 strings.append(f'{proutput} = {circuit.predecessors(output)[0].name}\n')

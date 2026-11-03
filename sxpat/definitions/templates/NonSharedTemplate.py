@@ -9,7 +9,7 @@ from sxpat.graph import *
 from sxpat.graph.node import *
 from sxpat.specifications import ConstantsType, Specifications
 from sxpat.utils.collections import flat, iterable_replace, pairwise
-from sxpat.graph.components import Subgraph
+from sxpat.graph.components import Subgraph, Parameter, IO
 
 
 __all__ = ['NonSharedFOutTemplate', 'NonSharedFProdTemplate']
@@ -100,7 +100,7 @@ class _NonSharedBase:
         # for all constants
         for const in a_graph.constants:
             # if the constants is at the graph output
-            if len(succs := a_graph.successors(const)) == 1 and (out_i := a_graph.output_index_of(succ := succs[0])) >= 0:
+            if len(succs := a_graph.successors(const)) == 1 and (out_i := a_graph.base_components['IO'].output_index_of(succ := succs[0])) >= 0:
                 constants_parameters.append(const_rew := BoolVariable(f'p_c{out_i}'))
                 # NODE COPY
                 updated_nodes[succ.name] = succ.copy(operands=(const_rew,))  # by definition, the output node has no other operand
@@ -213,10 +213,12 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
 
         template_graph_builder.add_new_nodes(constants_rewriting)
 
-        template_graph = template_graph_builder.create(PGraph, 
-                                                        a_graph.inputs_names, 
-                                                        a_graph.outputs_names,
-                                                        (n.name for n in parameters))
+        template_graph = template_graph_builder.create(IOGraph, 
+                                                       extra_components=[
+                                                           IO(a_graph.base_components['IO'].inputs_names, 
+                                                              a_graph.base_components['IO'].outputs_names),
+                                                           Parameter((n.name for n in parameters))
+                                                       ])
 
         # # create template graph
         # # GRAPH CREATION/COPY
@@ -274,9 +276,9 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
             PlaceHolder(name) 
             for name in it.chain(
                 (p.name for p in parameters),
-                s_graph.inputs_names,
-                s_graph.outputs_names,
-                template_graph.outputs_names
+                s_graph.base_components['IO'].inputs_names,
+                s_graph.base_components['IO'].outputs_names,
+                template_graph.base_components['IO'].outputs_names
             )
         ])
 
@@ -368,10 +370,12 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
 
         template_graph_builder.add_new_nodes(constants_rewriting)
 
-        template_graph = template_graph_builder.create(PGraph,
-                                                       a_graph.inputs_names, 
-                                                       a_graph.outputs_names,
-                                                       (n.name for n in parameters))
+        template_graph = template_graph_builder.create(IOGraph,
+                                                       extra_components=[
+                                                           IO(a_graph.base_components['IO'].inputs_names, 
+                                                              a_graph.base_components['IO'].outputs_names),
+                                                           Parameter((n.name for n in parameters))
+                                                       ])
 
         # # create template graph
         # # GRAPH CREATION/COPY
@@ -438,9 +442,9 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
             PlaceHolder(name) 
             for name in it.chain(
                 (p.name for p in parameters),
-                s_graph.inputs_names,
-                s_graph.outputs_names,
-                template_graph.outputs_names
+                s_graph.base_components['IO'].inputs_names,
+                s_graph.base_components['IO'].outputs_names,
+                template_graph.base_components['IO'].outputs_names
             )
         ])
 

@@ -68,7 +68,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         """
 
         # default
-        if wanted is None: wanted = graph.outputs_names
+        if wanted is None: wanted = graph.base_components['IO'].outputs_names
 
         # useful variables
         w_nodes: Sequence[Extras] = tuple(graph[n] for n in wanted)  # type: ignore

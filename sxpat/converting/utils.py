@@ -8,6 +8,7 @@ from sxpat.graph import *
 from sxpat.graph.node import *
 from sxpat.utils.print import pprint
 from sxpat.graph.graphCreators import GraphCopier
+from sxpat.graph.components import IO, Parameter
 
 
 __all__ = [
@@ -141,7 +142,7 @@ def prune_unused(graph: T_Graph, reserved_names: Iterable[str]) -> T_Graph:
     return graph_copier.copy() # GRAPH CREATION/COPY
 
 
-def prune_unused_keepio(graph: T_IOGraph, reserved_names: Iterable[str] = tuple()) -> T_IOGraph:
+def prune_unused_keepio(graph: IOGraph, reserved_names: Iterable[str] = tuple()) -> IOGraph:
     """
         Given a graph, returns a new graph without any dangling nodes (recursively).  
         By default all inputs and outputs root the graph and will be kept,
@@ -153,8 +154,8 @@ def prune_unused_keepio(graph: T_IOGraph, reserved_names: Iterable[str] = tuple(
     return prune_unused(
         graph,
         it.chain(
-            graph.inputs_names,
-            graph.outputs_names,
+            graph.base_components['IO'].inputs_names,
+            graph.base_components['IO'].outputs_names,
             reserved_names,
         )
     )
@@ -316,11 +317,13 @@ def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
         else:
             nodes.append(node.copy(name=updated_names[node.name])) # NODE COPY
 
-    extras = dict()
-    if isinstance(graph, IOGraph):
-        extras['outputs_names'] = (f'{prefix}{name}' for name in graph.outputs_names)
+    extra_components: List[Component] = list()
+    if graph.has_base_component('IO'):
+        extra_components.append(
+            IO(inputs_names=graph.base_components['IO'].inputs_names,
+               outputs_names=[f'{prefix}{name}' for name in graph.base_components['IO'].outputs_names])
+        )
 
-    # return graph.copy(nodes, **extras)
     graph_copier = GraphCopier(graph)
     for node in nodes:
         graph_copier.add_node(
@@ -328,7 +331,7 @@ def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
             in_subgraph=graph.base_components['Subgraph'].in_subgraph(updated_names_inverted[node.name]),
             weight=graph.base_components['Weight'].get(updated_names_inverted[node.name]))
 
-    return graph_copier.copy(**extras) # GRAPH CREATION/COPY
+    return graph_copier.copy(extra_components) # GRAPH CREATION/COPY
 
 
 def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterable[str]] = None) -> T_Graph:
@@ -362,14 +365,17 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
             nodes.append(node.copy(name=new_name_of[node.name])) # NODE COPY
 
     # compute extras
-    extras = dict()
-    if isinstance(graph, IOGraph):
-        extras['inputs_names'] = (new_name_of[name] for name in graph.inputs_names)
-        extras['outputs_names'] = (new_name_of[name] for name in graph.outputs_names)
-    if isinstance(graph, PGraph):
-        extras['parameters_names'] = (new_name_of[name] for name in graph.parameters_names)
+    extra_components: List[Component] = list()
+    if graph.has_base_component('IO'):
+        extra_components.append(
+            IO(inputs_names=[new_name_of[name] for name in graph.base_components['IO'].inputs_names],
+               outputs_names=[new_name_of[name] for name in graph.base_components['IO'].outputs_names])
+        )
+    if graph.has_base_component('Parameter'):
+        extra_components.append(
+            Parameter(parameters_names=[new_name_of[name] for name in graph.base_components['Parameter'].parameters_names])
+        )
 
-    # return graph.copy(nodes, **extras)
     graph_copier = GraphCopier(graph)
     for node in nodes:
         graph_copier.add_node(
@@ -377,7 +383,7 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
             in_subgraph=graph.base_components['Subgraph'].in_subgraph(new_name_of_inverted[node.name]),
             weight=graph.base_components['Weight'].get(new_name_of_inverted[node.name]))
 
-    return graph_copier.copy(**extras) # GRAPH CREATION/COPY
+    return graph_copier.copy(extra_components) # GRAPH CREATION/COPY
 
 
 def prevent_assignment(assignments: Mapping[str, bool],

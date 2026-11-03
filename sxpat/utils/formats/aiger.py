@@ -6,6 +6,7 @@
 
 from textwrap import dedent
 from sxpat.graph import IOGraph
+from sxpat.graph.components import IO
 from sxpat.graph.node import BoolVariable, BoolConstant, And, Not, Identity
 import subprocess
 import numpy as np
@@ -206,8 +207,10 @@ def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list
     # GRAPH CREATION/COPY
     return IOGraph(
         nodes,
-        sorted(inputs_names, key=lambda x: int(x)),
-        sorted(outputs_names, key=lambda x: int(x)),
+        components=[
+            IO(sorted(inputs_names, key=lambda x: int(x)),
+               sorted(outputs_names, key=lambda x: int(x)))
+        ]
     )
 
     # TODO: maybe gates dicts, and gates fields

@@ -6,9 +6,8 @@ from sxpat.converting.utils import prune_unused_keepio, set_prefix_new, node_fro
 
 from .Template import Template, TemplateBundle
 from sxpat.graph.graph import IOGraph
-from sxpat.graph import PGraph
 from sxpat.graph.node import AnyNode, AnyNonEndPoint, AnyOperation, BoolVariable, Xor
-from sxpat.graph.components import Weight
+from sxpat.graph.components import Weight, IO, Parameter
 from sxpat.graph.graphCreators import GraphBuilder
 
 
@@ -57,7 +56,7 @@ class SimpleTemplate(Template):
                                    updated_nodes: Mapping[str, AnyNode],
                                    parameters: Sequence[BoolVariable],
                                    graph_builder: GraphBuilder
-                                   ) -> PGraph:
+                                   ) -> IOGraph:
         
         # # create parametric circuit
         # # GRAPH CREATION/COPY
@@ -85,14 +84,16 @@ class SimpleTemplate(Template):
                     in_subgraph=circuit.base_components['Subgraph'].in_subgraph(node.name),
                     weight=circuit.base_components['Weight'].get(node.name))
 
-        param_circ = graph_builder.create(PGraph,
-                                          circuit.inputs_names,
-                                          circuit.outputs_names,
-                                          tuple(n.name for n in parameters))
+        param_circ = graph_builder.create(IOGraph,
+                                          extra_components=[
+                                              IO(circuit.base_components['IO'].inputs_names, 
+                                                 circuit.base_components['IO'].outputs_names),
+                                              Parameter(tuple(n.name for n in parameters))
+                                          ])
         # prefix all nodes
         param_circ = set_prefix_new(
             param_circ, circuit_prefix,
-            param_circ.inputs_names,
+            param_circ.base_components['IO'].inputs_names,
         )
 
         return param_circ
@@ -122,7 +123,7 @@ class ConstantTemplate(SimpleTemplate):
         # remove unused nodes
         parametric_circuit = prune_unused_keepio(
             parametric_circuit,
-            parametric_circuit.parameters_names,
+            parametric_circuit.base_components['Parameter'].parameters_names,
         )
 
         return TemplateBundle(parametric_circuit)

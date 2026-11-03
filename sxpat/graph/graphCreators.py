@@ -1,5 +1,5 @@
 from typing import List, Sequence, TypedDict, Unpack, NotRequired
-from .graph import AnyGraph, Graph, IOGraph, PGraph, CGraph
+from .graph import AnyGraph, Graph, IOGraph, CGraph
 from .components import Component, Weight, Subgraph
 from .node import AnyNode
 
@@ -40,16 +40,15 @@ class GraphCopier:
         for node in nodes:
             self.add_node(node, **extras)
 
-    def copy(self, **extras) -> AnyGraph:
-        components: List[Component] = list()
+    def copy(self, extra_components: List[Component] = list()) -> AnyGraph:
+        components = extra_components
         if len(self.subgraph_set) > 0:
             subgraph_component = Subgraph(self.subgraph_set)
             components.append(subgraph_component)
         if len(self.weights_map) > 0:
             weights_component = Weight(self.weights_map)
             components.append(weights_component)
-        extras = {**extras, **{'components': components}}
-        return self.graph_to_copy.copy(self.nodes, **extras)
+        return self.graph_to_copy.copy(self.nodes, components)
         
 class GraphBuilder:
 
@@ -84,15 +83,15 @@ class GraphBuilder:
         for node in nodes:
             self.add_inherited_node(node, predecessor_graph)
 
-    def create(self, graphClass: type[Graph] | type[IOGraph] | type[PGraph] | type[CGraph], *extras) -> AnyGraph:
-        components: List[Component] = list()
+    def create(self, 
+               graphClass: type[Graph] | type[IOGraph] | type[CGraph], 
+               extra_components: List[Component] = list()) -> AnyGraph:
+        components = extra_components
         if len(self.subgraph_set) > 0:
             subgraph_component = Subgraph(self.subgraph_set)
             components.append(subgraph_component)
         if len(self.weights_map) > 0:
             weights_component = Weight(self.weights_map)
             components.append(weights_component)
-        if len(components) > 0:
-            extras = (*extras, components)
-        return graphClass(self.nodes, *extras)
+        return graphClass(self.nodes, components)
         

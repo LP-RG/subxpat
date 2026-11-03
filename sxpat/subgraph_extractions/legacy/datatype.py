@@ -138,7 +138,7 @@ def _setup_problem(circuit: IOGraph, specs: Specifications):
     feasibility_threshold = specs.et
 
     bit_width = max(
-        len(circuit.outputs) + math.ceil(math.log2(len(circuit.nodes))),
+        len(circuit.base_components['IO'].outputs) + math.ceil(math.log2(len(circuit.nodes))),
         math.ceil(math.log2(max(1, feasibility_threshold))) + 1
     )
 
@@ -147,8 +147,8 @@ def _setup_problem(circuit: IOGraph, specs: Specifications):
 
     available_nodes = [node.name for node in circuit.nodes]
     unavailable_nodes = itertools.chain(
-        [name for name in circuit.inputs_names],
-        [name for name in circuit.outputs_names],
+        [name for name in circuit.base_components['IO'].inputs_names],
+        [name for name in circuit.base_components['IO'].outputs_names],
         [node.name for node in circuit.constants],
     )
 
@@ -292,7 +292,7 @@ def _setup_output_ancestor_problem(
 
     Node, Edge = _declare_ancestor_datatypes()
 
-    output_name = circuit.outputs_names[specs.out_node]
+    output_name = circuit.base_components['IO'].outputs_names[specs.out_node]
 
     if output_name not in graph:
         return None
@@ -310,9 +310,9 @@ def _setup_output_ancestor_problem(
     ids = itertools.count()
 
     all_nodes = (
-        list(circuit.inputs_names)
+        list(circuit.base_components['IO'].inputs_names)
         + [n.name for n in circuit.nodes]
-        + list(circuit.outputs_names)
+        + list(circuit.base_components['IO'].outputs_names)
         + [n.name for n in circuit.constants]
     )
 
@@ -323,8 +323,8 @@ def _setup_output_ancestor_problem(
         )
 
         if (
-            name in circuit.inputs_names
-            or name in circuit.outputs_names
+            name in circuit.base_components['IO'].inputs_names
+            or name in circuit.base_components['IO'].outputs_names
             or name in [n.name for n in circuit.constants]
             or name not in available_nodes
         ):
@@ -463,7 +463,7 @@ def find_subgraph_output_nodes_ascendant(
 
     graph = circuit._inner
 
-    output_name = circuit.outputs_names[specs.out_node]
+    output_name = circuit.base_components['IO'].outputs_names[specs.out_node]
 
     if output_name not in graph:
         return []
@@ -487,7 +487,7 @@ def find_subgraph_output_nodes_ascendant(
         if specs.out_node >= specs.outputs:
             return []
 
-        output_name = circuit.outputs_names[specs.out_node]
+        output_name = circuit.base_components['IO'].outputs_names[specs.out_node]
         ancestors_output = sorted(nx.ancestors(graph, output_name))
         gate_ancestors = [
             n
@@ -495,7 +495,7 @@ def find_subgraph_output_nodes_ascendant(
             if n.startswith("g")
         ]
 
-    print(circuit.outputs_names)
+    print(circuit.base_components['IO'].outputs_names)
     print(specs.out_node, gate_ancestors)
     setup = _setup_output_ancestor_problem(
         circuit,

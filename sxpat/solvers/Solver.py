@@ -2,7 +2,7 @@ from typing import Mapping, Optional, Sequence, Tuple, Union, TypeVar, NamedTupl
 from typing_extensions import final
 from abc import abstractmethod, ABCMeta
 
-from sxpat.graph import IOGraph, PGraph, CGraph
+from sxpat.graph import IOGraph, CGraph
 from sxpat.graph.node import ForAll, Max, Min, PlaceHolder, GlobalTask, GreaterThan, Identity, LessThan, PlaceHolder, Target, Constraint, IntConstant
 from sxpat.specifications import Specifications
 from sxpat.utils.decorators import make_utility_class
@@ -53,7 +53,7 @@ class Solver(metaclass=ABCMeta):
     :authors: Marco Biasion
     """
 
-    _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, PGraph, CGraph]])
+    _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, CGraph]])
 
     @classmethod
     @final
@@ -67,7 +67,6 @@ class Solver(metaclass=ABCMeta):
 
         The supported graphs are:
         - IOGraph (and subclasses): for input variables (and local behaviour)
-        - PGraph (and subclasses): for parameter variables (and local behaviour)
         - CGraph (and subclasses): for applicable constraints
 
         Returns the status of the resolution (`sat`, `unsat`, `unknown`) and the model evaluated from the `Target` nodes if `sat`.

@@ -3,10 +3,11 @@ from collections.abc import Callable
 import networkx as nx
 from copy import deepcopy
 from abc import ABC, abstractmethod
-from .node import AnyNode, Extras, Node, T_Node
+from .node import AnyNode, Extras, Node, T_Node, BoolVariable, BoolConstant
 import functools as ft
 import itertools as it
 import operator as op
+from .error import UndefinedNodeError
 
 __all__ = [
     'Subgraph', 'Topology', 'Weight', 'Type', 'Component',
@@ -197,6 +198,88 @@ class Weight(Component):
     def has_weight(self, node: Any) -> bool:
         """Returns if the given object is an instance of `Extras` and has an assigned weight."""
         return isinstance(node, Extras) and self.get(node.name) is not None
+
+class Parameter(Component):
+    """Concrete and 'static' component
+        - object: tuple of parameters names
+        - action: return the parameters
+    """
+
+    graph: Final[Any]
+
+    def __init__(self, parameters_names: Sequence[str], graph: Any = None) -> None:
+        action = lambda params, graph: tuple(graph._inner.nodes[name][graph.K] for name in params)
+        super().__init__(tuple(parameters_names), action)
+        self.graph = graph
+
+    @final 
+    def with_graph(self, graph: Any) -> Parameter:
+        return Parameter(self.object, graph)
+
+    @ft.cached_property
+    @final
+    def parameters(self) -> Sequence[Union[BoolVariable, BoolConstant]]:
+        return self.action(self.object, self.graph)
+
+    @ft.cached_property
+    @final
+    def parameters_names(self) -> tuple[str]:
+        return deepcopy(self.object)
+
+class IO(Component):
+    """Concrete and 'static' component
+        - object: list of inputs and outputs
+        - action: return the inputs or the outputs according to 'index'
+    """
+
+    graph: Final[Any]
+
+    def __init__(self, inputs_names: Sequence[str], outputs_names: Sequence[str], graph: Any = None) -> None:
+        action = lambda inputs_outputs_list, index: deepcopy(inputs_outputs_list[index])
+        super().__init__([tuple(inputs_names), tuple(outputs_names)], action)
+        self.graph = graph
+
+    @final
+    def with_graph(self, graph: object = None) -> IO:
+        return IO(self.object[0], self.object[1], graph)
+
+    @ft.cached_property
+    @final
+    def inputs_names(self) -> tuple[str]:
+        return self.action(self.object, 0)
+
+    @ft.cached_property
+    @final
+    def outputs_names(self) -> tuple[str]:
+        return self.action(self.object, 1)
+
+    @ft.cached_property
+    @final
+    def inputs(self) -> Sequence[AnyNode]:
+        return tuple(self.graph._inner.nodes[name][self.graph.K] for name in self.inputs_names)
+
+    @final
+    def input_index_of(self, node_or_name: Union[str, Node]) -> int:
+        """Returns the index of the node in the inputs, -1 if the node is not an input."""
+        try: return self.inputs_names.index(self.graph._get_name(node_or_name))
+        except: return -1
+
+    @ft.cached_property
+    @final
+    def outputs(self) -> Sequence[AnyNode]:
+        return tuple(self.graph._inner.nodes[name][self.graph.K] for name in self.outputs_names)
+
+    @final
+    def output_index_of(self, node_or_name: Union[str, Node]) -> int:
+        """Returns the index of the node in the outputs, -1 if the node is not an output."""
+        try: return self.outputs_names.index(self.graph._get_name(node_or_name))
+        except: return -1
+
+    @ft.cached_property
+    @final
+    def inners(self) -> Sequence[Node]:
+        in_out_set = frozenset((*self.inputs_names, *self.outputs_names))
+        return tuple(n for n in self.graph.nodes if n.name not in in_out_set)
 
 class Type(Component):
     """Concrete and 'static' component

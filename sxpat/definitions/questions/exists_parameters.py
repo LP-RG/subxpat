@@ -3,7 +3,7 @@ from typing import List, Sequence, Type, Union
 import itertools as it
 from sxpat.utils.decorators import make_utility_class
 
-from sxpat.graph import CGraph, IOGraph, PGraph
+from sxpat.graph import CGraph, IOGraph
 from sxpat.graph.node import AnyNode, Constraint, ForAll, GreaterEqualThan, GreaterThan, IntConstant, LessEqualThan, LessThan, PlaceHolder, Target
 from sxpat.definitions.distances.DistanceSpecification import DistanceSpecification
 
@@ -16,7 +16,7 @@ class exists_parameters:
     @classmethod
     def _define(cls,
                 reference_circuit: IOGraph,
-                parametric_circuit: PGraph,
+                parametric_circuit: IOGraph,
                 distance_definition: DistanceSpecification,
                 threshold: int,
                 comparison_type: Type[Union[LessThan, LessEqualThan, GreaterThan, GreaterEqualThan]],
@@ -33,7 +33,7 @@ class exists_parameters:
         # add parameters as targets (and relative placeholders)
         components.extend(it.chain.from_iterable(
             (PlaceHolder(param), Target.of(param))
-            for param in parametric_circuit.parameters_names
+            for param in parametric_circuit.base_components['Parameter'].parameters_names
         ))
 
         # define error condition (and relative placeholders)
@@ -47,8 +47,8 @@ class exists_parameters:
         # define forall quantifier (and relative placeholders) if required
         if do_forall:
             components.extend([
-                *(PlaceHolder(inp) for inp in reference_circuit.inputs_names),
-                ForAll('que_quantifier', operands=reference_circuit.inputs_names),
+                *(PlaceHolder(inp) for inp in reference_circuit.base_components['IO'].inputs_names),
+                ForAll('que_quantifier', operands=reference_circuit.base_components['IO'].inputs_names),
             ])
         # GRAPH CREATION/COPY
         return (dist_function, CGraph(components))
@@ -56,7 +56,7 @@ class exists_parameters:
     @classmethod
     def not_above_threshold_forall_inputs(cls,
                                           reference_circuit: IOGraph,
-                                          parametric_circuit: PGraph,
+                                          parametric_circuit: IOGraph,
                                           distance_definition: DistanceSpecification,
                                           threshold: int,) -> Sequence[CGraph]:
         return cls._define(
@@ -68,7 +68,7 @@ class exists_parameters:
     @classmethod
     def above_threshold(cls,
                         reference_circuit: IOGraph,
-                        parametric_circuit: PGraph,
+                        parametric_circuit: IOGraph,
                         distance_definition: DistanceSpecification,
                         threshold: int,) -> Sequence[CGraph]:
         return cls._define(

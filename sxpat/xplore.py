@@ -146,7 +146,7 @@ def explore_grid(specs_obj: Specifications):
             _time = Timer.now()
 
             weights = label_graph(current_graph, specs_obj)
-            for (i, n) in enumerate(current_graph.outputs_names):
+            for (i, n) in enumerate(current_graph.base_components['IO'].outputs_names):
                 weights[n] = 2 ** i
 
             # COMMENT:from-MARCO: good

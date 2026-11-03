@@ -5,6 +5,7 @@ import networkx as nx
 from sxpat.graph import IOGraph
 from sxpat.graph.node import BoolVariable, BoolConstant, And, Not, Identity
 from sxpat.utils.functions import str_to_bool
+from sxpat.graph.components import IO
 
 
 __all__ = [
@@ -48,8 +49,8 @@ def iograph_from_digraph(clean_digraph: nx.DiGraph) -> IOGraph:
     # construct graph
     return IOGraph(
         nodes,
-        sorted(inputs_names, key=lambda x: int(x[2:])),
-        sorted(outputs_names, key=lambda x: int(x[3:])),
+        [IO(inputs_names=sorted(inputs_names, key=lambda x: int(x[2:])),
+            outputs_names=sorted(outputs_names, key=lambda x: int(x[3:])))],
     )
 
 def iograph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> IOGraph:
@@ -100,8 +101,8 @@ def iograph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> IOGra
     # construct graph
     return IOGraph(
         nodes,
-        sorted(inputs_names, key=lambda x: int(x[2:])),
-        sorted(outputs_names, key=lambda x: int(x[3:])),
+        [IO(inputs_names=sorted(inputs_names, key=lambda x: int(x[2:])),
+            outputs_names=sorted(outputs_names, key=lambda x: int(x[3:])))],
     )
 
 

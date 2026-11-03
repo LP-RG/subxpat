@@ -9,7 +9,7 @@ from sxpat.graph import *
 from sxpat.graph.node import *
 from sxpat.specifications import Specifications
 from sxpat.utils.collections import flat, pairwise
-from sxpat.graph.components import Subgraph
+from sxpat.graph.components import Subgraph, Parameter, IO
 from sxpat.graph.graphCreators import GraphBuilder
 
 
@@ -112,10 +112,12 @@ class SharedTemplate(Template):
                 weight=a_graph.base_components['Weight'].get(node.name)
             )
 
-        template_graph = template_graph_builder.create(PGraph,
-                                                       a_graph.inputs_names, 
-                                                       a_graph.outputs_names,
-                                                       (n.name for n in flat((products_p, sums_p, outs_p))))
+        template_graph = template_graph_builder.create(IOGraph,
+                                                       extra_components=[
+                                                           IO(a_graph.base_components['IO'].inputs_names, 
+                                                              a_graph.base_components['IO'].outputs_names),
+                                                           Parameter((n.name for n in flat((products_p, sums_p, outs_p))))
+                                                       ])
 
         # # create template graph
         # nodes = it.chain(
@@ -152,8 +154,8 @@ class SharedTemplate(Template):
 
         # error constraint
         error_nodes = [
-            cur_int := ToInt('cur_int', operands=graph.outputs_names),
-            tem_int := ToInt('tem_int', operands=template_graph.outputs_names),
+            cur_int := ToInt('cur_int', operands=graph.base_components['IO'].outputs_names),
+            tem_int := ToInt('tem_int', operands=template_graph.base_components['IO'].outputs_names),
             abs_diff := AbsDiff('abs_diff', operands=(cur_int, tem_int,)),
             et := IntConstant('et', value=specs.et),
             error_check := LessEqualThan('error_check', operands=(abs_diff, et)),
@@ -204,8 +206,8 @@ class SharedTemplate(Template):
             PlaceHolder(node.name) 
             for node in flat((sums_p, products_p, outs_p, sums_p))
         ])
-        constraint_graph_builder.add_new_nodes([PlaceHolder(name) for name in graph.outputs_names])
-        constraint_graph_builder.add_new_nodes([PlaceHolder(name) for name in template_graph.outputs_names])
+        constraint_graph_builder.add_new_nodes([PlaceHolder(name) for name in graph.base_components['IO'].outputs_names])
+        constraint_graph_builder.add_new_nodes([PlaceHolder(name) for name in template_graph.base_components['IO'].outputs_names])
         constraint_graph_builder.add_new_nodes(list(consts.values()) 
                                                + error_nodes
                                                + its_nodes

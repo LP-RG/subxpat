@@ -32,7 +32,7 @@ class WeightedHammingDistance(DistanceSpecification):
         # guard
         graph_a_weights = graph_a.base_components['Weight']
         graph_b_weights = graph_b.base_components['Weight']
-        if len(graph_a.outputs_names) != len(graph_b.outputs_names):
+        if len(graph_a.base_components['IO'].outputs_names) != len(graph_b.base_components['IO'].outputs_names):
             raise ValueError('The sequences of wanted nodes have different lengths (or the graphs have different number of outputs).')
         if (broken := first(lambda x: not graph_a_weights.has_weight(x), w_nodes_a, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_a ({graph_a}) has no weight.')

@@ -105,8 +105,8 @@ class export_annotated_graph:
     ))
 
     def __new__(cls, circuit: IOGraph, path: str):
-        inputs = frozenset(circuit.inputs_names)
-        outputs = frozenset(circuit.outputs_names)
+        inputs = frozenset(circuit.base_components['IO'].inputs_names)
+        outputs = frozenset(circuit.base_components['IO'].outputs_names)
         subgraph_component = circuit.base_components['Subgraph']
         subgraph_inputs = frozenset(_n.name for _n in subgraph_component.subgraph_inputs)
         subgraph_outputs = frozenset(_n.name for _n in subgraph_component.subgraph_outputs)

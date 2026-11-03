@@ -139,7 +139,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         CGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
         # COMMENT:from-MARCO: I think removing this is ok, or was there a different question?
         # from-ILIA: removed!
-        PGraph: lambda g, n: 'olive' if n in g.base_components['Subgraph'].subgraph_inputs else 'skyblue3' if n in g.base_components['Subgraph'].subgraph_outputs else 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
+        # PGraph: lambda g, n: 'olive' if n in g.base_components['Subgraph'].subgraph_inputs else 'skyblue3' if n in g.base_components['Subgraph'].subgraph_outputs else 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
     }
 
     GRAPH_PATTERN = re.compile(r'strict digraph _(\w+) {(?:\n\s*node \[.*\];)?((?:\n\s*\w+ \[.*\];)+)(?:\n\s*\w+ -> \w+;)+((?:\n\s*\/\/ \w+.*)*)\n}')
@@ -227,10 +227,12 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # extra data
         extra_lines = []
         if isinstance(graph, IOGraph):
-            extra_lines.append(f'// inputs_names[{",".join(graph.inputs_names)}]')
-            extra_lines.append(f'// outputs_names[{",".join(graph.outputs_names)}]')
-        if isinstance(graph, PGraph):
-            extra_lines.append(f'// parameters_names[{",".join(graph.parameters_names)}]')
+            extra_lines.append(f'// inputs_names[{",".join(graph.base_components['IO'].inputs_names)}]')
+            extra_lines.append(f'// outputs_names[{",".join(graph.base_components['IO'].outputs_names)}]')
+        if graph.has_base_component('Parameter'):
+            extra_lines.append(f'// parameters_names[{",".join(graph.base_components['Parameter'].parameters_names)}]')
+        # if isinstance(graph, PGraph):
+        #     extra_lines.append(f'// parameters_names[{",".join(graph.parameters_names)}]')
 
         return '\n'.join(it.chain(
             (f'strict digraph _{type(graph).__name__} {{',),
@@ -422,19 +424,20 @@ class VerilogExporter(GraphExporter[IOGraph]):
     @classmethod
     def to_string(cls, graph: IOGraph, info: Info = None) -> str:
         info = info or cls.Info()
+        IO_component = graph.base_components['IO']
 
         return '\n'.join(filter(bool, (
             f'/* model {info.model_number} */' if info.model_number >= 0 else None,
-            f'module {info.graph_name} ({", ".join((*graph.inputs_names, *graph.outputs_names))});',
+            f'module {info.graph_name} ({", ".join((*IO_component.inputs_names, *IO_component.outputs_names))});',
             # declarations
-            f'input {", ".join(graph.inputs_names)};',
-            f'output {", ".join(graph.outputs_names)};',
+            f'input {", ".join(IO_component.inputs_names)};',
+            f'output {", ".join(IO_component.outputs_names)};',
             f'wire {", ".join(n.name for n in graph.inners)};',
             # assignments
             *(
                 f'assign {node.name} = {cls.NODE_EXPORT[type(node)](node)};'
                 for node in graph.nodes
-                if node.name not in graph.inputs_names
+                if node.name not in IO_component.inputs_names
             ),
             'endmodule',
         )))

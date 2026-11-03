@@ -44,13 +44,13 @@ class DistanceSpecification(metaclass=ABCMeta):
 
         # no wanted names given
         if wanted_a is None and wanted_b is None:
-            wanted_a = graph_a.outputs_names
-            wanted_b = graph_b.outputs_names
+            wanted_a = graph_a.base_components['IO'].outputs_names
+            wanted_b = graph_b.base_components['IO'].outputs_names
 
             # delegate computation
             dist_func, root_name = cls._define(
                 graph_a, graph_b,
-                graph_a.outputs_names, graph_b.outputs_names,
+                graph_a.base_components['IO'].outputs_names, graph_b.base_components['IO'].outputs_names,
             )
 
         elif wanted_a is not None:
