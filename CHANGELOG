@@ -1,0 +1,7 @@
+---------------------------------------------------------------------------------------------------
+Version: preview
+Date: 2026-11-03
+  Minor Features:
+    - Added color ratio shade computation utility for GraphVizPorter. (#222)
+  Bugfixes:
+    - Fixed a possible crash when sharing a graph with multiple processes. (#222)
