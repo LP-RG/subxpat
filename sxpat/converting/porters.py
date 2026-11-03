@@ -61,9 +61,9 @@ class GraphExporter(Generic[T_Graph]):
 
 class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     """
-        Allows for dumping/loading of a Graph to/from a GraphViz (aka. Dot) string/file.
+    Allows for dumping/loading of a Graph to/from a GraphViz (aka. Dot) string/file.
 
-        @authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
     NODE_SYMBOL = bidict({
@@ -130,6 +130,18 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # > solver nodes
         Objective: 'doubleoctagon',
     })
+
+    @staticmethod
+    def shade_compute(g: Graph, n: Node):
+        min_value = 0  # change if needed
+        max_value = max(1, *((getattr(n, 'weight', None) or 0) for n in g.nodes))
+        node_value = max(getattr(n, 'weight', None) or 0, 0)
+        #
+        normalized = (node_value - min_value) / max_value
+        #
+        channel = int(normalized * 255)
+        return f'"#FF{255 - channel:2X}{255 - channel:2X}"'
+
     NODE_COLOR: Mapping[Type[Graph], Callable[[Graph, Node], Optional[str]]] = {
         Graph: lambda g, n: 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
         IOGraph: lambda g, n: 'red' if isinstance(n, Extras) and n.in_subgraph else 'white',
@@ -330,9 +342,9 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
 
 class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
     """
-        Allows for dumping and loading of a Graph to and from a JSON string/file.
+    Allows for dumping and loading of a Graph to and from a JSON string/file.
 
-        @authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
     _CLASS_F = 'class'
@@ -365,9 +377,9 @@ class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
 
 class VerilogExporter(GraphExporter[IOGraph]):
     """
-        Allows for dumping of an IOGraph to a Verilog string/file.
+    Allows for dumping of an IOGraph to a Verilog string/file.
 
-        @authors: Marco Biasion
+    :authors: Marco Biasion
     """
 
     NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, Valued, Operation]], str]] = {
@@ -384,8 +396,8 @@ class VerilogExporter(GraphExporter[IOGraph]):
         Not: lambda n: f'(~{n.operand})',
         And: lambda n: f'({" & ".join(n.operands)})',
         Or: lambda n: f'({" | ".join(n.operands)})',
-        Xor: lambda n : f'({" ^ ".join(n.operands)})',
-        Xnor: lambda n : f'(~({n.left} ^ {n.right}))',
+        Xor: lambda n: f'({" ^ ".join(n.operands)})',
+        Xnor: lambda n: f'(~({n.left} ^ {n.right}))',
         Implies: lambda n: f'(~{n.left} | {n.right})',
         # int-int operations
         Sum: lambda n: f'({" + ".join(n.operands)})',
