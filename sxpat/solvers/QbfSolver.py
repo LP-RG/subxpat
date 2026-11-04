@@ -600,7 +600,7 @@ class QbfSolver(Solver):
                     # TODO : add accessories (accs)
                     encoder.process_node(node, [], variables, mapping)
 
-                    if isinstance(graph, CGraph):
+                    if graph.has_base_component('Constraints'):
                         if isinstance(node, Constraint):
                             assert len(mapping[node.name]) == 1
                             in_the_output.append(node.name)

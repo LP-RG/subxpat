@@ -1,13 +1,12 @@
-from typing import Any, Final, Sequence, Union, final
+from typing import AbstractSet, Any, Final, List, Sequence, Union, final
 from collections.abc import Callable
 import networkx as nx
 from copy import deepcopy
 from abc import ABC, abstractmethod
-from .node import AnyNode, Extras, Node, T_Node, BoolVariable, BoolConstant
+from .node import AnyNode, Extras, Node, T_Node, BoolVariable, BoolConstant, Not, PlaceHolder, AnyGlobalObjective, GlobalTask
 import functools as ft
 import itertools as it
 import operator as op
-from .error import UndefinedNodeError
 
 __all__ = [
     'Subgraph', 'Topology', 'Weight', 'Type', 'Component',
@@ -280,6 +279,48 @@ class IO(Component):
     def inners(self) -> Sequence[Node]:
         in_out_set = frozenset((*self.inputs_names, *self.outputs_names))
         return tuple(n for n in self.graph.nodes if n.name not in in_out_set)
+
+class Constraints(Component):
+    """Concrete and 'static' component
+        - object: list of nodes, grouped into 'PlaceHolder', 'Constraint' and 'GlobalTask' types
+        - action: return the nodes corresponding to the given group
+    """
+
+    def __init__(self, nodes: Sequence[AnyNode]) -> None:
+        placeholders: List[PlaceHolder] = list()
+        constraints: List[Constraints] = list() 
+        globaltasks: List[GlobalTask] = list()
+        for node in nodes:
+            if isinstance(node, PlaceHolder):
+                placeholders.append(node)
+            if isinstance(node, Constraints):
+                constraints.append(node)
+            if isinstance(node, GlobalTask):
+                globaltasks.append(node)
+        action = lambda index, nodes_list: deepcopy(nodes_list[index])
+        super().__init__([placeholders, constraints, globaltasks], action, inheritable=False)
+
+    @final
+    def with_graph(self, graph: object = None) -> Constraints:
+        return self
+
+    @ft.cached_property
+    @final
+    def placeholders(self) -> AbstractSet[PlaceHolder]:
+        """The sequence of all `PlaceHolder` nodes in the graph."""
+        return dict.fromkeys(self.action(0, self.object)).keys()
+
+    @ft.cached_property
+    @final
+    def constraints(self) -> Sequence[Constraints]:
+        """The sequence of all `Constraint` nodes in the graph."""
+        return tuple(self.action(1, self.object))
+
+    @ft.cached_property
+    @final
+    def global_tasks(self) -> AbstractSet[AnyGlobalObjective]:
+        """The set of all `GlobalTask` nodes in the graph."""
+        return dict.fromkeys(self.action(2, self.object)).keys()
 
 class Type(Component):
     """Concrete and 'static' component

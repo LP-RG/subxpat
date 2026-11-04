@@ -100,7 +100,7 @@ class Labelling:
         ])
         constraint_graph_builder.add_new_nodes(new_nodes)
         constraint_graph_builder.add_new_node(Target.of(abs_diff))
-        constraint_graph = constraint_graph_builder.create(CGraph)
+        constraint_graph = constraint_graph_builder.create(Graph, with_constraints_component=True)
 
         # # GRAPH CREATION/COPY
         # constraint_graph = CGraph(

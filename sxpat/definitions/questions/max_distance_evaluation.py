@@ -4,9 +4,9 @@ import itertools as it
 
 from sxpat.converting import set_prefix
 from sxpat.graph import *
-from sxpat.graph.node import ToInt, AbsDiff, Max, PlaceHolder, Target
+from sxpat.graph.node import ToInt, AbsDiff, Max, PlaceHolder, Target, AnyNode
 from sxpat.graph.graphCreators import GraphBuilder
-from sxpat.graph.components import IO
+from sxpat.graph.components import IO, Constraints
 
 
 __all__ = ['MaxDistanceEvaluation']
@@ -15,7 +15,7 @@ __all__ = ['MaxDistanceEvaluation']
 class MaxDistanceEvaluation:
 
     @classmethod
-    def define(cls, circuit: IOGraph) -> Tuple[IOGraph, CGraph]:
+    def define(cls, circuit: IOGraph) -> Tuple[IOGraph, Graph]:
 
         a_graph: IOGraph = set_prefix(circuit, 'a_')
 
@@ -39,16 +39,19 @@ class MaxDistanceEvaluation:
             maximize := Max('maximize', operands=(abs_diff,))
         ]
 
-        constraint_graph = CGraph(
-            it.chain(
-                # placeholders
-                (PlaceHolder(name) for name in it.chain(
-                    circuit.base_components['IO'].outputs_names,
-                    template_graph.base_components['IO'].outputs_names
-                )),
-                others,
-                [Target.of(abs_diff),]
-            )
+        graph_nodes = list(it.chain(
+            # placeholders
+            list(PlaceHolder(name) for name in it.chain(
+                circuit.base_components['IO'].outputs_names,
+                template_graph.base_components['IO'].outputs_names
+            )),
+            others,
+            [Target.of(abs_diff),]
+        ))
+
+        constraint_graph = Graph(
+            graph_nodes,
+            [Constraints(graph_nodes)]
         )
 
         return (template_graph, constraint_graph)

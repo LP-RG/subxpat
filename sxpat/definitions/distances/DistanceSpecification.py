@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABCMeta
 from typing import Optional, Sequence, Tuple, final, overload
 
-from sxpat.graph import CGraph, IOGraph
+from sxpat.graph import Graph, IOGraph
 from sxpat.graph import error as g_error
 
 from sxpat.utils.collections import first
@@ -18,27 +18,27 @@ class DistanceSpecification(metaclass=ABCMeta):
     @overload
     def define(cls, graph_a: IOGraph, graph_b: IOGraph,
                wanted_a: Sequence[str], wanted_b: Optional[Sequence[str]] = None
-               ) -> Tuple[CGraph, str]:
+               ) -> Tuple[Graph, str]:
         """
             Defines a distance between two circuits (given as graph), given a specific sequence (or one per circuit) of nodes to use.
 
-            @returns: the `CGraph` containing the definition and the name of the node representing the distance
+            @returns: the `Constraints Graph` containing the definition and the name of the node representing the distance
         """
 
     @classmethod
     @overload
-    def define(cls, graph_a: IOGraph, graph_b: IOGraph) -> Tuple[CGraph, str]:
+    def define(cls, graph_a: IOGraph, graph_b: IOGraph) -> Tuple[Graph, str]:
         """
             Defines a distance between the outputs of two circuits (given as graphs).
 
-            @returns: the `CGraph` containing the definition and the name of the node representing the distance
+            @returns: the `Constraints Graph` containing the definition and the name of the node representing the distance
         """
 
     @classmethod
     @final
     def define(cls, graph_a: IOGraph, graph_b: IOGraph,
                wanted_a: Optional[Sequence[str]] = None, wanted_b: Optional[Sequence[str]] = None,
-               ) -> Tuple[CGraph, str]:
+               ) -> Tuple[Graph, str]:
 
         # > generate distance function graph
 
@@ -82,7 +82,7 @@ class DistanceSpecification(metaclass=ABCMeta):
     @abstractmethod
     def _define(cls, graph_a: IOGraph, graph_b: IOGraph,
                 wanted_a: Sequence[str], wanted_b: Sequence[str]
-                ) -> Tuple[CGraph, str]: ...
+                ) -> Tuple[Graph, str]: ...
 
     @classmethod
     def minimum_distance(cls, graph_a: IOGraph,

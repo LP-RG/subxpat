@@ -3,9 +3,10 @@ from typing_extensions import override
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph import CGraph
+from sxpat.graph import Graph
 from sxpat.graph.node import If, IntConstant, PlaceHolder, Sum, Xor
 from sxpat.utils.collections import formatted_int_range
+from sxpat.graph.components import Constraints
 
 
 __all__ = ['HammingDistance']
@@ -22,7 +23,7 @@ class HammingDistance(DistanceSpecification):
     @classmethod
     def _define(cls, _0, _1,
                 wanted_a: Sequence[str], wanted_b: Sequence[str],
-                ) -> Tuple[CGraph, str]:
+                ) -> Tuple[Graph, str]:
 
         # guard
         if len(wanted_a) != len(wanted_b):
@@ -54,9 +55,7 @@ class HammingDistance(DistanceSpecification):
         # distance
         distance = Sum('dist_distance', operands=int_bits)
 
-        # construct CGraph
-        # GRAPH CREATION/COPY
-        dist_func = CGraph((
+        graph_nodes = list((
             *(PlaceHolder(name) for name in wanted_a),
             *(PlaceHolder(name) for name in wanted_b),
             *consts,
@@ -64,6 +63,10 @@ class HammingDistance(DistanceSpecification):
             *int_bits,
             distance,
         ))
+
+        # construct Constraints Graph
+        # GRAPH CREATION/COPY
+        dist_func = Graph(graph_nodes, [Constraints(graph_nodes)])
 
         return (dist_func, distance.name)
 

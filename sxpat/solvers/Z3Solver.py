@@ -243,7 +243,7 @@ class Z3FuncEncoder(Z3Encoder):
         else: return nodes
 
     @classmethod
-    def graph_as_function_calls(cls, graph: Union[IOGraph, CGraph],
+    def graph_as_function_calls(cls, graph: Union[IOGraph, Graph],
                                 inputs_string: str,
                                 non_gates_names: Container[str]):
         """
@@ -299,7 +299,7 @@ class Z3FuncEncoder(Z3Encoder):
         non_gates_names = frozenset(it.chain(
             (n.name for g in graphs for n in g.variables),
             (n.name for g in graphs for n in g.constants),
-            (t.name for g in graphs if isinstance(g, CGraph) for t in g.targets),
+            (t.name for g in graphs if g.has_base_component('Constraints') for t in g.targets),
         ))
         call_graphs = tuple(
             cls.graph_as_function_calls(graph, inputs_string, non_gates_names)
@@ -311,8 +311,8 @@ class Z3FuncEncoder(Z3Encoder):
             #CORRECT TO LEAVE IT LIKE THIS? (since the change in nodes_as_function_calls)
 
         # gather constraints graphs
-        c_graphs = tuple(graph for graph in graphs if isinstance(graph, CGraph))
-        call_c_graphs = tuple(graph for graph in call_graphs if isinstance(graph, CGraph))
+        c_graphs = tuple(graph for graph in graphs if graph.has_base_component('Constraints'))
+        call_c_graphs = tuple(graph for graph in call_graphs if graph.has_base_component('Constraints'))
 
         # initialization
         cls.inject_initialization(destination)
@@ -354,7 +354,7 @@ class Z3FuncEncoder(Z3Encoder):
             'usage = And(', *(
                 f'    {constraint_node.operand},'
                 for call_graph in call_c_graphs
-                for constraint_node in call_graph.constraints
+                for constraint_node in call_graph.base_components['Constraints'].constraints
             ), ')',
             *('',) * 2,
         )))
@@ -417,8 +417,8 @@ class Z3DirectEncoder(Z3Encoder):
             'usage = And(', *(
                 f'    {constraint_node.operand},'
                 for graph in graphs
-                if isinstance(graph, CGraph)
-                for constraint_node in graph.constraints
+                if graph.has_base_component('Constraints')
+                for constraint_node in graph.base_components['Constraints'].constraints
             ), ')',
             *('',) * 2,
         )))

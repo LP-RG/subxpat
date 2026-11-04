@@ -2,7 +2,7 @@ import sys
 from typing import Any, Iterator, Literal, Sequence, SupportsIndex, Union, overload
 from abc import ABCMeta, abstractmethod
 
-from sxpat.graph import IOGraph, CGraph
+from sxpat.graph import IOGraph, Graph
 from sxpat.specifications import Specifications
 from sxpat.utils.decorators import make_utility_class
 
@@ -11,15 +11,15 @@ __all__ = ['Template']
 
 
 class TemplateBundle(Sequence):
-    def __init__(self, templated_circuit: IOGraph, constraints_graphs: Sequence[CGraph] = ()) -> None:
+    def __init__(self, templated_circuit: IOGraph, constraints_graphs: Sequence[Graph] = ()) -> None:
         self._data = (templated_circuit, *constraints_graphs)
 
-    def __getitem__(self, key: int) -> Union[IOGraph, CGraph]: return self._data.__getitem__(key)
+    def __getitem__(self, key: int) -> Union[IOGraph, Graph]: return self._data.__getitem__(key)
     def __len__(self) -> int: return self._data.__len__()
 
-    def __contains__(self, obj: Union[IOGraph, CGraph]) -> bool: return self._data.__contains__(obj)
-    def __iter__(self) -> Iterator[Union[IOGraph, CGraph]]: return self._data.__iter__()
-    def __reversed__(self) -> Iterator[Union[IOGraph, CGraph]]: return self._data.__reversed__()
+    def __contains__(self, obj: Union[IOGraph, Graph]) -> bool: return self._data.__contains__(obj)
+    def __iter__(self) -> Iterator[Union[IOGraph, Graph]]: return self._data.__iter__()
+    def __reversed__(self) -> Iterator[Union[IOGraph, Graph]]: return self._data.__reversed__()
     def count(self, value: Any) -> int: return self._data.count(value)
 
     def index(self, value: Any, start: SupportsIndex = 0, stop: SupportsIndex = sys.maxsize) -> int:
@@ -33,7 +33,7 @@ class TemplateBundle(Sequence):
     @overload
     def __getitem__(self, key: Literal[0]) -> IOGraph: ...
     @overload
-    def __getitem__(self, key: int) -> CGraph: ...
+    def __getitem__(self, key: int) -> Graph: ...
 
 
 @make_utility_class

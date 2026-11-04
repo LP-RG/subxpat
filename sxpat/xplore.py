@@ -589,11 +589,14 @@ def are_circuits_equal(g1: IOGraph, g2: IOGraph) -> bool:
     #     return False 
 
     # BECOMES:
-    if len(g1.base_components['Subgraph'].nodes_names()) != len(g2.base_components['Subgraph'].nodes_names()):
+    if g1.has_base_component('Subgraph') != g2.has_base_component('Subgraph'):
         return False
-    for name1 in g1.base_components['Subgraph'].nodes_names():
-        if not name1 in g2.base_components['Subgraph'].nodes_names():
-            return False 
+    if g1.has_base_component('Subgraph'):
+        if len(g1.base_components['Subgraph'].nodes_names()) != len(g2.base_components['Subgraph'].nodes_names()):
+            return False
+        for name1 in g1.base_components['Subgraph'].nodes_names():
+            if not name1 in g2.base_components['Subgraph'].nodes_names():
+                return False 
 
     class _Node(Node, Extras): ...
 

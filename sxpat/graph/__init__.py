@@ -2,7 +2,6 @@ from .graph import (
     Graph,
     #
     IOGraph,
-    CGraph,
     #
     T_Graph, AnyGraph, T_AnyGraph,
 )

@@ -2,7 +2,7 @@ from typing import Mapping, Optional, Sequence, Tuple, Union, TypeVar, NamedTupl
 from typing_extensions import final
 from abc import abstractmethod, ABCMeta
 
-from sxpat.graph import IOGraph, CGraph
+from sxpat.graph import IOGraph, Graph
 from sxpat.graph.node import ForAll, Max, Min, PlaceHolder, GlobalTask, GreaterThan, Identity, LessThan, PlaceHolder, Target, Constraint, IntConstant
 from sxpat.specifications import Specifications
 from sxpat.utils.decorators import make_utility_class
@@ -10,6 +10,7 @@ from sxpat.utils.decorators import make_utility_class
 from sxpat.constants import SolverConstants as SC
 from sxpat.utils.print import pprint
 from sxpat.graph.graphCreators import GraphBuilder
+from sxpat.graph.components import Constraints
 
 
 __all__ = [
@@ -53,7 +54,7 @@ class Solver(metaclass=ABCMeta):
     :authors: Marco Biasion
     """
 
-    _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, CGraph]])
+    _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, Graph]])
 
     @classmethod
     @final
@@ -67,7 +68,7 @@ class Solver(metaclass=ABCMeta):
 
         The supported graphs are:
         - IOGraph (and subclasses): for input variables (and local behaviour)
-        - CGraph (and subclasses): for applicable constraints
+        - Graph (and subclasses): for applicable constraints
 
         Returns the status of the resolution (`sat`, `unsat`, `unknown`) and the model evaluated from the `Target` nodes if `sat`.
 
@@ -193,7 +194,7 @@ class Solver(metaclass=ABCMeta):
         last_model = None
         previous_value = None
         while True:
-            # define custom CGraph with rules for the optimization
+            # define custom Constraints Graph with rules for the optimization
             if previous_value is None:
                 _extra_nodes = extra_nodes
             else:
@@ -203,7 +204,8 @@ class Solver(metaclass=ABCMeta):
                     comparison_class(SC.optimization.rule, operands=(SC.optimization.identity, SC.optimization.constant)),
                     Constraint(SC.optimization.constraint, operands=(SC.optimization.rule,)),
                 )
-            _graphs = (*graphs, CGraph(_extra_nodes)) # GRAPH CREATION/COPY
+            _extra_nodes = list(_extra_nodes)
+            _graphs = (*graphs, Graph(_extra_nodes, [Constraints(_extra_nodes)])) # GRAPH CREATION/COPY
 
             # solve
             _global_targets = GlobalTasks(forall=forall_target)
@@ -229,7 +231,7 @@ class Solver(metaclass=ABCMeta):
 
         Returns
             - `ForAll` and `Min`/`Max` nodes from the given graphs, if present.
-            - Sequence of graphs where `CGraphs` are updated/dropped based on their `GlobalTask` content (partial/only).
+            - Sequence of graphs where `Constraints Graphs` are updated/dropped based on their `GlobalTask` content (partial/only).
 
         :authors: Marco Biasion
         """
@@ -237,24 +239,24 @@ class Solver(metaclass=ABCMeta):
         _graphs = []
         _global_tasks = []
         for graph in graphs:
-            if (not isinstance(graph, CGraph)) or (len(graph.global_tasks) == 0):
+            if (not graph.has_base_component('Constraints')) or (len(graph.base_components['Constraints'].global_tasks) == 0):
                 # nothing to extract
-                # keep as-is if not a CGraph or not containing any GlobalTask
+                # keep as-is if not a Constraints Graph or not containing any GlobalTask
                 pass
 
             else:
                 # extract tasks
-                _global_tasks.extend(graph.global_tasks)
+                _global_tasks.extend(graph.base_components['Constraints'].global_tasks)
 
                 # drop graph if all nodes are GlobalTask and PlaceHolder
                 if all(isinstance(n, (PlaceHolder, GlobalTask)) for n in graph.nodes):
                     continue
 
-                # update CGraph without GlobalTask (and relative PlaceHolder)
+                # update Constraints Graph without GlobalTask (and relative PlaceHolder)
                 else:
-                    task_names = frozenset(n.name for n in graph.global_tasks)
+                    task_names = frozenset(n.name for n in graph.base_components['Constraints'].global_tasks)
                     placeholder_names = frozenset(
-                        n.name for n in graph.placeholders
+                        n.name for n in graph.base_components['Constraints'].placeholders
                         if len(succ := graph.successors(n)) == 1 and succ[0].name in task_names
                     )
 
@@ -265,12 +267,7 @@ class Solver(metaclass=ABCMeta):
                         if n.name not in task_names and n.name not in placeholder_names
                     ], graph)
 
-                    graph = graph_builder.create(CGraph)
-
-                    # graph = CGraph( # GRAPH CREATION/COPY
-                    #     n for n in graph.nodes
-                    #     if n.name not in task_names and n.name not in placeholder_names
-                    # )
+                    graph = graph_builder.create(Graph, with_constraints_component=True)
 
             _graphs.append(graph)
 

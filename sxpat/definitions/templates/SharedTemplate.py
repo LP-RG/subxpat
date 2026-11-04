@@ -217,7 +217,7 @@ class SharedTemplate(Template):
                                                + prod_ord_nodes
                                                + targets)
 
-        constraint_graph = constraint_graph_builder.create(CGraph)
+        constraint_graph = constraint_graph_builder.create(Graph, with_constraints_component=True)
 
         # nodes = it.chain(
         #     # placeholders

@@ -4,7 +4,7 @@
     This module contains all the distance (error) functions we have implemented.
 
     Some functions may have specific requirements (weights, number of outputs, ...)
-    but all of them share the same interface: `cls.define(IOGraph, IOGraph) -> Tuple[CGraph, str]`
+    but all of them share the same interface: `cls.define(IOGraph, IOGraph) -> Tuple[Graph, str]`
 
     @authors: Marco Biasion
 """

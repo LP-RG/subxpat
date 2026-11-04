@@ -136,7 +136,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # from-MARCO: yes, this is perfect. I find this to be a fundamental behaviour of this component, and now that we have a specific entry point, we simplify the process of future changes to the internal behaviour of the component
         Graph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
         IOGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
-        CGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
+        # CGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
         # COMMENT:from-MARCO: I think removing this is ok, or was there a different question?
         # from-ILIA: removed!
         # PGraph: lambda g, n: 'olive' if n in g.base_components['Subgraph'].subgraph_inputs else 'skyblue3' if n in g.base_components['Subgraph'].subgraph_outputs else 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',

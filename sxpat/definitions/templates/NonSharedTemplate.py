@@ -290,7 +290,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
 
         constraint_graph_builder.add_new_nodes(cls.products_order_redundancy(out_prod_mux_params))
 
-        constraint_graph = constraint_graph_builder.create(CGraph)
+        constraint_graph = constraint_graph_builder.create(Graph, with_constraints_component=True)
 
         # # create constraints graph
         # # GRAPH CREATION/COPY
@@ -456,7 +456,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
 
         constraint_graph_builder.add_new_nodes(cls.products_order_redundancy(out_prod_mux_params))
 
-        constraint_graph = constraint_graph_builder.create(CGraph)
+        constraint_graph = constraint_graph_builder.create(Graph, with_constraints_component=True)
 
         # # create constraints graph
         # # GRAPH CREATION/COPY

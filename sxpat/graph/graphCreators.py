@@ -1,6 +1,6 @@
 from typing import List, Sequence, TypedDict, Unpack, NotRequired
-from .graph import AnyGraph, Graph, IOGraph, CGraph
-from .components import Component, Weight, Subgraph
+from .graph import AnyGraph, Graph, IOGraph
+from .components import Component, Weight, Subgraph, Constraints
 from .node import AnyNode
 
 class NodeAttributes(TypedDict):
@@ -84,8 +84,9 @@ class GraphBuilder:
             self.add_inherited_node(node, predecessor_graph)
 
     def create(self, 
-               graphClass: type[Graph] | type[IOGraph] | type[CGraph], 
-               extra_components: List[Component] = list()) -> AnyGraph:
+               graphClass: type[Graph] | type[IOGraph], 
+               extra_components: List[Component] = list(),
+               with_constraints_component: bool = False) -> AnyGraph:
         components = extra_components
         if len(self.subgraph_set) > 0:
             subgraph_component = Subgraph(self.subgraph_set)
@@ -93,5 +94,8 @@ class GraphBuilder:
         if len(self.weights_map) > 0:
             weights_component = Weight(self.weights_map)
             components.append(weights_component)
+        if with_constraints_component:
+            constraints_component = Constraints(self.nodes)
+            components.append(constraints_component)
         return graphClass(self.nodes, components)
         

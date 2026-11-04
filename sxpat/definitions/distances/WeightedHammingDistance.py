@@ -3,10 +3,11 @@ from typing_extensions import override
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph import CGraph, IOGraph
+from sxpat.graph import Graph, IOGraph
 from sxpat.graph import error as g_error
 from sxpat.graph.node import Extras, If, IntConstant, PlaceHolder, Sum, Xor
 from sxpat.utils.collections import first, formatted_int_range
+from sxpat.graph.components import Constraints
 
 
 __all__ = ['WeightedHammingDistance']
@@ -23,7 +24,7 @@ class WeightedHammingDistance(DistanceSpecification):
     @classmethod
     def _define(cls, graph_a: IOGraph, graph_b: IOGraph,
                 wanted_a: Sequence[str], wanted_b: Sequence[str]
-                ) -> Tuple[CGraph, str]:
+                ) -> Tuple[Graph, str]:
 
         # useful variables
         w_nodes_a: Sequence[Extras] = tuple(graph_a[n] for n in wanted_a)  # type: ignore
@@ -66,9 +67,7 @@ class WeightedHammingDistance(DistanceSpecification):
         # distance
         distance = Sum('dist_distance', operands=int_bits)
 
-        # construct CGraph
-        # GRAPH CREATION/COPY
-        dist_func = CGraph((
+        graph_nodes = list((
             *(PlaceHolder(name) for name in wanted_a),
             *(PlaceHolder(name) for name in wanted_b),
             *consts,
@@ -76,6 +75,10 @@ class WeightedHammingDistance(DistanceSpecification):
             *int_bits,
             distance,
         ))
+
+        # construct Constraints Graph
+        # GRAPH CREATION/COPY
+        dist_func = Graph(graph_nodes, [Constraints(graph_nodes)])
 
         return (dist_func, distance.name)
 

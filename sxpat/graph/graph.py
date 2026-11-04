@@ -1,7 +1,7 @@
 import operator as op
 from typing import AbstractSet, Any, Iterable, List, Literal, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Self, cast, overload
 from types import MappingProxyType
-from .components import Subgraph, Weight, Type, Topology, Component, Parameter, IO
+from .components import Subgraph, Weight, Type, Topology, Component, Parameter, IO, Constraints
 
 import networkx as nx
 import functools as ft
@@ -11,7 +11,7 @@ from .node import (
     AnyVariable, BoolConstant, Expression, Extras, Node, Operation, Constant, GlobalTask,
     #
     BoolVariable, PlaceHolder,
-    Target, Constraint,
+    Target,
     #
     AnyNode, AnyConstant, AnyExpression, AnyGlobalObjective,
     AnyNonEndPoint, AnyNonEntryPoint, Variable,
@@ -24,7 +24,6 @@ __all__ = [
     'Graph',
     #
     'IOGraph',
-    'CGraph',
     #
     'T_Graph', 'AnyGraph', 'T_AnyGraph'
 ]
@@ -33,7 +32,7 @@ __all__ = [
 # from-ILIA: I already explored this solution before coming up with the current one, I couldn't find a solution
 # with "TypedDict" that came close to the current behaviour
 # COMMENT:from-MARCO: ok, then let's leave it as it is (leave also this conversation)
-class ComponentsDict(dict[Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO'], Component]):
+class ComponentsDict(dict[Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO', 'Constraints'], Component]):
     @overload
     def __getitem__(self, key: Literal["Subgraph"]) -> Subgraph: ...
     
@@ -52,7 +51,10 @@ class ComponentsDict(dict[Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Par
     @overload
     def __getitem__(self, key: Literal["IO"]) -> IO: ...
 
-    def __getitem__(self, key: Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO']) -> Component:
+    @overload
+    def __getitem__(self, key: Literal["Constraints"]) -> Constraints: ...
+
+    def __getitem__(self, key: Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO', 'Constraints']) -> Component:
         return super().__getitem__(key)
 
 class Graph:
@@ -70,19 +72,13 @@ class Graph:
         :authors: Marco Biasion, Ilia Zeller
         """
 
-        nodes = list(nodes)
-
         #Add default Subgraph and Weight components if they're not passed as argument 
         #(this because the Node structure had default weight = None and in_subgraph = False)
         if not any(type(c).__name__ == 'Subgraph' for c in components):
-            default_subgraph_component = Subgraph(set())
-            components.append(default_subgraph_component)
+            components.append(Subgraph(set()))
         
         if not any(type(c).__name__ == 'Weight' for c in components):
-            # COMMENT:from-MARCO: you can do: dict.fromkeys(n.name for n in nodes), if you prefer this other style, they are equivalent and both correct.
-            default_weights_map: dict[str, int | None] = dict([(n.name, None) for n in nodes])
-            default_weight_component = Weight(default_weights_map)
-            components.append(default_weight_component)
+            components.append(Weight(dict()))
 
         #TODO: pass also the extra components to the constructor, set self.extra_components inside the
         # constructor, make base_components and extra_components final, every time they need to be modified
@@ -90,7 +86,7 @@ class Graph:
         # in with_base_component and in with_extra_component for base_components)
 
         self.base_components = ComponentsDict([
-            (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO'], type(c).__name__), c.with_graph(self))
+            (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO', 'Constraints'], type(c).__name__), c.with_graph(self))
             for c in components
         ])
         self.extra_components = dict()
@@ -148,7 +144,7 @@ class Graph:
             if (not name in new_base_components_types) and component.inheritable:
                 copy_base_components.append(component)
         copy.base_components = ComponentsDict([
-            (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO'], type(c).__name__), c.with_graph(copy))
+            (cast(Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO', 'Constraints'], type(c).__name__), c.with_graph(copy))
             for c in copy_base_components
         ])
         inheritable_extra_components: dict[str, Component] = dict()
@@ -241,7 +237,7 @@ class Graph:
         return node_or_name.name if isinstance(node_or_name, Node) else node_or_name
 
     @final 
-    def has_base_component(self, component_name: Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO']) -> bool:
+    def has_base_component(self, component_name: Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO', 'Constraints']) -> bool:
         # COMMENT:from-MARCO: 🧐
         if component_name in self.base_components:
             return True
@@ -255,9 +251,9 @@ class Graph:
         return False
 
     # GRAPH CREATION/COPY
-    def with_base_component(self, new_component: Subgraph | Topology | Weight | Type | Parameter | IO) -> Graph:
+    def with_base_component(self, new_component: Subgraph | Topology | Weight | Type | Parameter | IO | Constraints) -> Graph:
         copy: Graph
-        new_name = cast(Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO'], type(new_component).__name__)
+        new_name = cast(Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO', 'Constraints'], type(new_component).__name__)
         if len(self.base_components) > 0:
             new_base_components = list()
             new_base_components.append(new_component)
@@ -278,25 +274,12 @@ class Graph:
 class IOGraph(Graph):
     """Graph with inputs and outputs."""
 
-    # EXTRAS: Sequence[str] = ('inputs_names', 'outputs_names')
-
-    # COMMENT:from-MARCO: you can assume that also inputs and outputs will be given by components (one comp. for both, or individually for each, we can discuss about this)
     # COMMENT:from-MARCO: taking in directly the ComponentsDict may be better; we should discuss this.
     def __init__(self, nodes: Iterable[AnyNode],
                  components: Sequence[Component] = list()
                  ) -> None:
         # construct base
         super().__init__(nodes, components)
-
-        # # freeze local instances
-        # self.inputs_names = tuple(inputs_names)
-        # self.outputs_names = tuple(outputs_names)
-
-        # # guard
-        # if len(missing := tuple(name for name in self.inputs_names if name not in self)) > 0:
-        #     raise UndefinedNodeError(f'The following nodes are not defined but are being used as inputs: {missing}')
-        # if len(missing := tuple(name for name in self.outputs_names if name not in self)) > 0:
-        #     raise UndefinedNodeError(f'The following nodes are not defined but are being used as outputs: {missing}')
 
     @ft.cached_property
     @final
@@ -307,9 +290,9 @@ class IOGraph(Graph):
     
     # COMMENT:from-MARCO: maybe it is better to also move this to Graph
     # GRAPH CREATION/COPY
-    def with_base_component(self, new_component: Subgraph | Topology | Weight | Type | Parameter | IO) -> IOGraph:
+    def with_base_component(self, new_component: Subgraph | Topology | Weight | Type | Parameter | IO | Constraints) -> IOGraph:
         copy: IOGraph
-        new_name = cast(Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter','IO'], type(new_component).__name__)
+        new_name = cast(Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO', 'Constraints'], type(new_component).__name__)
         if len(self.base_components) > 0:
             new_base_components = list()
             new_base_components.append(new_component)
@@ -344,105 +327,9 @@ class IOGraph(Graph):
         copy.extra_components = inheritable_extra_components
         return copy
 
-# class PGraph(IOGraph):
-#     """Graph with inputs, outputs and parameters (for example, parameters of a template)."""
 
-#     EXTRAS: Sequence[str] = (*IOGraph.EXTRAS, 'parameters_names')
-
-#     def __init__(self, nodes: Iterable[AnyNode],
-#                  inputs_names: Sequence[str], 
-#                  outputs_names: Sequence[str],
-#                  parameters_names: Sequence[str],
-#                  components: Sequence[Component] = list(),
-#                  ) -> None:
-
-#         super().__init__(nodes, inputs_names, outputs_names, components)
-
-#         # freeze local instances
-#         self.parameters_names = tuple(parameters_names)
-
-#         # guard
-#         if len(missing := tuple(name for name in self.parameters_names if name not in self)) > 0:
-#             raise UndefinedNodeError(f'The following nodes are not defined but are being used as parameters: {missing}')
-
-#     def __eq__(self, other) -> bool:
-#         return (
-#             super().__eq__(other)
-#             and frozenset(self.parameters_names) == frozenset(other.parameters_names)
-#         )
-
-#     @ft.cached_property
-#     @final
-#     def parameters(self) -> Sequence[Union[BoolVariable, BoolConstant]]:
-#         return tuple(self._inner.nodes[name][self.K] for name in self.parameters_names)
-
-#     #TODO: move with_base_component to Graph and make it final
-#     # GRAPH CREATION/COPY
-#     def with_base_component(self, new_component: Subgraph | Topology | Weight | Type) -> PGraph:
-#         copy: PGraph
-#         new_name = cast(Literal['Subgraph', 'Topology', 'Weight', 'Type'], type(new_component).__name__)
-#         if len(self.base_components) > 0:
-#             new_base_components = list()
-#             new_base_components.append(new_component)
-#             for name, component in self.base_components.items():
-#                 if name != new_name:
-#                     new_base_components.append(component)
-#             copy = PGraph(self.nodes, self.inputs_names, self.outputs_names, self.parameters_names, new_base_components)
-#         else: 
-#             copy = PGraph(self.nodes, self.inputs_names, self.outputs_names, self.parameters_names, [new_component])
-#         #handle extra components
-#         inheritable_extra_components: dict[str, Component] = dict()
-#         for name, component in self.extra_components.items():
-#             if component.inheritable:
-#                 inheritable_extra_components[name] = component.with_graph(copy)
-#         copy.extra_components = inheritable_extra_components
-#         return copy
-
-
-class CGraph(Graph):
-    """Graph containing the constraints."""
-
-    @ft.cached_property
-    @final
-    def placeholders(self) -> AbstractSet[PlaceHolder]:
-        """The sequence of all `Constraint` node in the graph."""
-        return dict.fromkeys(node for node in self.nodes if isinstance(node, PlaceHolder)).keys()
-
-    @ft.cached_property
-    @final
-    def constraints(self) -> Sequence[Constraint]:
-        """The sequence of all `Constraint` node in the graph."""
-        return tuple(node for node in self.nodes if isinstance(node, Constraint))
-
-    @ft.cached_property
-    @final
-    def global_tasks(self) -> AbstractSet[AnyGlobalObjective]:
-        """The set of all `GlobalTask` nodes in the graph."""
-        return dict.fromkeys(node for node in self.nodes if isinstance(node, GlobalTask)).keys()
-    # GRAPH CREATION/COPY
-    def with_base_component(self, new_component: Subgraph | Topology | Weight | Type | Parameter | IO) -> CGraph:
-        copy: CGraph
-        new_name = cast(Literal['Subgraph', 'Topology', 'Weight', 'Type', 'Parameter', 'IO'], type(new_component).__name__)
-        if len(self.base_components) > 0:
-            new_base_components = list()
-            new_base_components.append(new_component)
-            for name, component in self.base_components.items():
-                if name != new_name:
-                    new_base_components.append(component)
-            copy = CGraph(self.nodes, new_base_components)
-        else: 
-            copy = CGraph(self.nodes, [new_component])
-        #handle extra components
-        inheritable_extra_components: dict[str, Component] = dict()
-        for name, component in self.extra_components.items():
-            if component.inheritable:
-                inheritable_extra_components[name] = component.with_graph(copy)
-        copy.extra_components = inheritable_extra_components
-        return copy
-    
 # > Typing help
 
-
-T_Graph = TypeVar('T_Graph', Graph, IOGraph, CGraph)
-AnyGraph = Union[Graph, IOGraph, CGraph]
+T_Graph = TypeVar('T_Graph', Graph, IOGraph)
+AnyGraph = Union[Graph, IOGraph]
 T_AnyGraph = TypeVar('T_AnyGraph', bound=AnyGraph)

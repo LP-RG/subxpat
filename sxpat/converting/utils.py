@@ -9,6 +9,7 @@ from sxpat.graph.node import *
 from sxpat.utils.print import pprint
 from sxpat.graph.graphCreators import GraphCopier
 from sxpat.graph.components import IO, Parameter
+from sxpat.graph.components import Constraints
 
 
 __all__ = [
@@ -387,9 +388,9 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
 
 
 def prevent_assignment(assignments: Mapping[str, bool],
-                       assignment_id: Union[str, int]) -> CGraph:
+                       assignment_id: Union[str, int]) -> Graph:
     """
-        Returns a CGraph with constraints preventing the given assignment.
+        Returns a Graph with constraints preventing the given assignment.
 
         @authors: Marco Biasion
     """
@@ -419,11 +420,10 @@ def prevent_assignment(assignments: Mapping[str, bool],
         Constraint(f'prass_{assignment_id}_prevent_constr', operands=[prevent])
     ]
     # GRAPH CREATION/COPY
-    return CGraph(it.chain(
-        placeholders,
-        negations,
-        prevention,
-    ))
+    return Graph(
+        it.chain(placeholders, negations, prevention), 
+        [Constraints(placeholders + negations + prevention)]
+    )
 
 
 class crystallise:

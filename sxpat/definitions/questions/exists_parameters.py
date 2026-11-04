@@ -3,9 +3,10 @@ from typing import List, Sequence, Type, Union
 import itertools as it
 from sxpat.utils.decorators import make_utility_class
 
-from sxpat.graph import CGraph, IOGraph
+from sxpat.graph import Graph, IOGraph
 from sxpat.graph.node import AnyNode, Constraint, ForAll, GreaterEqualThan, GreaterThan, IntConstant, LessEqualThan, LessThan, PlaceHolder, Target
 from sxpat.definitions.distances.DistanceSpecification import DistanceSpecification
+from sxpat.graph.components import Constraints
 
 
 __all__ = ['exists_parameters']
@@ -21,7 +22,7 @@ class exists_parameters:
                 threshold: int,
                 comparison_type: Type[Union[LessThan, LessEqualThan, GreaterThan, GreaterEqualThan]],
                 do_forall: bool,
-                ) -> Sequence[CGraph]:
+                ) -> Sequence[Graph]:
         """@authors: Marco Biasion"""
 
         # define distance
@@ -51,14 +52,14 @@ class exists_parameters:
                 ForAll('que_quantifier', operands=reference_circuit.base_components['IO'].inputs_names),
             ])
         # GRAPH CREATION/COPY
-        return (dist_function, CGraph(components))
+        return (dist_function, Graph(components, [Constraints(components)]))
 
     @classmethod
     def not_above_threshold_forall_inputs(cls,
                                           reference_circuit: IOGraph,
                                           parametric_circuit: IOGraph,
                                           distance_definition: DistanceSpecification,
-                                          threshold: int,) -> Sequence[CGraph]:
+                                          threshold: int,) -> Sequence[Graph]:
         return cls._define(
             reference_circuit, parametric_circuit,
             distance_definition, threshold, LessEqualThan,
@@ -70,7 +71,7 @@ class exists_parameters:
                         reference_circuit: IOGraph,
                         parametric_circuit: IOGraph,
                         distance_definition: DistanceSpecification,
-                        threshold: int,) -> Sequence[CGraph]:
+                        threshold: int,) -> Sequence[Graph]:
         return cls._define(
             reference_circuit, parametric_circuit,
             distance_definition, threshold, GreaterThan,

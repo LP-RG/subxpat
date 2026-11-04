@@ -6,9 +6,10 @@ from sxpat.utils.collections import first, formatted_int_range
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph import CGraph, IOGraph
+from sxpat.graph import Graph, IOGraph
 from sxpat.graph import error as g_error
 from sxpat.graph.node import AbsDiff, AnyExtras, Extras, If, IntConstant, PlaceHolder, Sum
+from sxpat.graph.components import Constraints
 
 
 __all__ = ['AbsoluteDifferenceOfWeightedSum']
@@ -27,7 +28,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
     @classmethod
     def _define(cls, graph_a: IOGraph, graph_b: IOGraph,
                 wanted_a: Collection[str], wanted_b: Collection[str],
-                ) -> Tuple[CGraph, str]:
+                ) -> Tuple[Graph, str]:
 
         # useful variables
         w_nodes_a: Collection[Extras] = tuple(graph_a[n] for n in wanted_a)  # type: ignore
@@ -48,19 +49,21 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         # distance
         distance = AbsDiff('dist_distance', operands=[a_name, b_name])
 
-        # construct CGraph
-        # GRAPH CREATION/COPY
-        dist_func = CGraph(it.chain(
+        graph_nodes = list(it.chain(
             a_nodes,
             b_nodes,
             [distance],
         ))
 
+        # construct Constraints Graph
+        # GRAPH CREATION/COPY
+        dist_func = Graph(graph_nodes, [Constraints(graph_nodes)])
+
         return (dist_func, distance.name)
 
     @classmethod
     def define_value(cls, graph: IOGraph, wanted: Optional[Collection[str]] = None
-                     ) -> Tuple[CGraph, str]:
+                     ) -> Tuple[Graph, str]:
         """
             Define an individual weighted sum given the graph and an optional specific collection of nodes to use.
 
@@ -78,10 +81,11 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph ({graph}) has no weight.')
 
         (value_nodes, value_name) = cls._define_value(graph, w_nodes, 'v')
+        value_nodes = list(value_nodes)
 
-        # construct CGraph
+        # construct Constraints Graph
         # GRAPH CREATION/COPY
-        value_func = CGraph(value_nodes)
+        value_func = Graph(value_nodes, [Constraints(value_nodes)])
 
         return (value_func, value_name)
 
