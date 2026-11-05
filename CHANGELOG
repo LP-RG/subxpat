@@ -1,8 +1,10 @@
 ---------------------------------------------------------------------------------------------------
 Version: preview
-Date: 2026-10-23
+Date: 2026-11-03
   Features:
     - Added specific archivation approaches (.tar.gz, .tar.xz). (#210)
+    - Added the slash of inputs pass (`--slash=slash_it`). (#222)
   Minor Changes:
     - Now the default archivation is .tar.xz instead of .zip. (#210)
     - Removed zip archivation approach. (#210)
+    - Replaced `--slash-to-kill` with `--slash` (`none`, `slash_to_kill`, `slash_it`). (#222)
