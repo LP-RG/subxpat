@@ -8,7 +8,7 @@ Details on template logic can be found on [arXiv][arXiv-shared].
 
 ## Dependencies
 
-SubXPAT has been developed for a **Linux** environment and requires the manual installation of the following dependencies:
+SubXPAT has been developed for a **Linux** environment and requires the following dependencies:
 
 - [Python] (version 3.14 or higher)
 - [Yosys] (using apt: `sudo apt install yosys`)
@@ -16,6 +16,8 @@ SubXPAT has been developed for a **Linux** environment and requires the manual i
 - [OpenSTA] (using apt: `sudo apt install opensta`)
 
 **Note:** the binaries of Yosys and OpenSTA should be added to your PATH.
+
+On **macOS** (Apple silicon or Intel) only Python, Yosys and GraphViz are available as packages: OpenSTA is built from source by `make setup macos` into `.deps/`, together with everything else that is missing. See [macOS](#macos).
 
 ### Optional
 
@@ -30,17 +32,48 @@ To prepare the system for execution you will need to follow a few steps:
 1. Initial system setup:
     ```bash
     # bulk commands
-    make setup     # everything
+    make setup        # python environment and python dependencies
+    make setup macos  # [macOS] the above, plus yosys, graphviz and OpenSTA
+    make setup all    # the above, plus cqesto (needed by `--encoding=qbf`)
 
     # individual commands
     make py_init     # create python environment
     make py_dep      # install/update requirements
+    make macos       # native dependencies only (same as `make setup macos`)
+    make all         # native dependencies and cqesto only (same as `make setup all`)
     ```
 
 2. Activate the python environment:
     ```bash
     . .venv/bin/activate
     ```
+
+### macOS
+
+`make setup macos` installs `python@3.14`, `yosys`, `graphviz`, `swig` and `tcl-tk@8` with [Homebrew] and builds everything that has no package into `./.deps/`, so that no global installation is needed besides Homebrew itself:
+
+| dependency | source | reason |
+| :-- | :-- | :-- |
+| Python, Yosys, GraphViz | Homebrew | packaged, no build required |
+| OpenSTA (`sta`) | cloned and built into `.deps/opt/opensta` | not packaged: only Debian ships it |
+| cqesto (`--encoding=qbf`) | cloned and built into `.deps/bin` by `make setup all` | not packaged anywhere |
+| `swig`, `tcl-tk@8` | Homebrew | build dependencies of OpenSTA |
+
+OpenSTA is built at version 2.0.17 (commit `c018cb21`, the revision Debian packages as `opensta`), so the metrics match the ones obtained on Linux. Two adjustments are required by the macOS build:
+
+- the Tcl 8.6 headers and library are passed explicitly (`-DTCL_HEADER`, `-DTCL_LIB`), because OpenSTA's `findTcl` picks the system Tcl on macOS, and Tcl 9 is not supported (hence the `tcl-tk@8` keg instead of the default `tcl-tk` one);
+- `tcl/StaException.i` is patched from `$function` to `$action`, because SWIG 4.3 and later no longer expand `$function` inside an `%exception` block.
+
+The generated binaries are found automatically: `main.py` looks them up on the `PATH` first and then in `.deps/bin`, so no `PATH` modification is needed.
+
+The macOS setup reproduces the Linux numbers. On the SubXPAT example below the run ends with
+
+| Design | Area | Power | Delay | Error |
+| :-- | --: | --: | --: | --: |
+| Exact | 52.5616 | 1.84986e-05 | 0.229553 | 0 |
+| gen_iter12_model0 | 6.5702 | 2.28038e-06 | 0.0611735 | 8 |
+
+and `run_stats.csv` matches the Linux run row for row, with `circuit_power`/`circuit_delay` differing only past the eighth significant digit. The Yosys provided by Homebrew is 0.45 against the 0.52 of the Linux machines: the synthesized areas agree on the benchmarks tested, but pin a different version if a run has to be comparable with an older result.
 
 
 ### Other useful commands
@@ -51,11 +84,12 @@ To prepare the system for execution you will need to follow a few steps:
     make rm_cache # remove the pycache folders
     make rm_temp  # remove temporary files
     make rm_pyenv # remove the virtual python environment
+    make rm_deps  # remove the locally built dependencies (.deps/)
     make rm_data  # remove the output results
 
     # all together
     make clean     # rm_cache, rm_temp
-    make clean-all # clean, rm_pyenv, rm_data
+    make clean-all # clean, rm_pyenv, rm_deps, rm_data
     ```
 
 - To display the program help:
@@ -142,8 +176,8 @@ python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extracti
 
 ## Known limitations
 
-- On Apple devices running M# architecture, you will have problems with some packages. \
-  No support is given at the moment for this situation.
+- On Apple devices running M# architecture, use `make setup macos`: the dependencies that Linux installs with apt have to be built from source. \
+  No support is given for other setups.
 
 
 <!-- links -->
@@ -154,4 +188,5 @@ python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extracti
 [Yosys]: https://github.com/YosysHQ/yosys
 [GraphViz]: https://gitlab.com/graphviz/graphviz
 [OpenSTA]: https://github.com/The-OpenROAD-Project/OpenSTA
+[Homebrew]: https://brew.sh
 [FreePDK45nm]: https://si2.org/open-cell-and-free-pdk-libraries/

@@ -1,5 +1,14 @@
 ---------------------------------------------------------------------------------------------------
 Version: preview
+Date: 2026-11-05
+  Features:
+    - Added `make setup macos`, which builds the native dependencies that have no package on macOS (OpenSTA 2.0.17, plus Yosys and GraphViz from Homebrew) into `.deps/`. (#85)
+    - Added `make setup all`, which additionally builds cqesto, and documented both in the README. (#85)
+  Minor Changes:
+    - `yosys`, `sta` and `cqesto` are now looked up on the PATH and then in `.deps/bin`, and a missing executable raises an actionable error instead of a `FileNotFoundError`. (#85)
+    - Added `make rm_deps`, and `make clean-all` now also removes `.deps/`. (#85)
+---------------------------------------------------------------------------------------------------
+Version: preview
 Date: 2026-10-23
   Features:
     - Added specific archivation approaches (.tar.gz, .tar.xz). (#210)
