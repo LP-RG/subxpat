@@ -3,7 +3,7 @@ from collections.abc import Callable
 import networkx as nx
 from copy import deepcopy
 from abc import ABC, abstractmethod
-from .node import AnyNode, Extras, Node, T_Node, BoolVariable, BoolConstant, Not, PlaceHolder, AnyGlobalObjective, GlobalTask
+from .node import AnyNode, Extras, Node, T_Node, BoolVariable, BoolConstant, PlaceHolder, AnyGlobalObjective, GlobalTask, Constraint
 import functools as ft
 import itertools as it
 import operator as op
@@ -288,12 +288,12 @@ class Constraints(Component):
 
     def __init__(self, nodes: Sequence[AnyNode]) -> None:
         placeholders: List[PlaceHolder] = list()
-        constraints: List[Constraints] = list() 
+        constraints: List[Constraint] = list() 
         globaltasks: List[GlobalTask] = list()
         for node in nodes:
             if isinstance(node, PlaceHolder):
                 placeholders.append(node)
-            if isinstance(node, Constraints):
+            if isinstance(node, Constraint):
                 constraints.append(node)
             if isinstance(node, GlobalTask):
                 globaltasks.append(node)
@@ -312,7 +312,7 @@ class Constraints(Component):
 
     @ft.cached_property
     @final
-    def constraints(self) -> Sequence[Constraints]:
+    def constraints(self) -> Sequence[Constraint]:
         """The sequence of all `Constraint` nodes in the graph."""
         return tuple(self.action(1, self.object))
 

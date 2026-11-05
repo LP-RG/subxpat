@@ -48,6 +48,9 @@ class GraphCopier:
         if len(self.weights_map) > 0:
             weights_component = Weight(self.weights_map)
             components.append(weights_component)
+        if self.graph_to_copy.has_base_component('Constraints'):
+            constraints_component = Constraints(self.nodes)
+            components.append(constraints_component)
         return self.graph_to_copy.copy(self.nodes, components)
         
 class GraphBuilder:
