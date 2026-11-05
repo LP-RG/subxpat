@@ -1,8 +1,14 @@
 ---------------------------------------------------------------------------------------------------
 Version: preview
-Date: 2026-10-23
+Date: 2026-11-03
   Features:
     - Added specific archivation approaches (.tar.gz, .tar.xz). (#210)
+    - Added configurable labeling types (`--labeling`, `--labeling-relative-to`, `--labeling-samples`, `--labeling-seed`). (#223)
+  Minor Features:
+    - Added color ratio shade computation utility for GraphVizPorter. (#222)
   Minor Changes:
     - Now the default archivation is .tar.xz instead of .zip. (#210)
     - Removed zip archivation approach. (#210)
+    - Removed `--max-labeling` and `--no-partial-labeling` in favour of `--labeling`. (#223)
+  Bugfixes:
+    - Fixed a possible crash when sharing a graph with multiple processes. (#222)
