@@ -13,7 +13,7 @@ from sxpat.error_iter import ErrorIterator
 from sxpat.newag import load_circuit_from_verilog
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
 
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, SlashType
 
 from sxpat.constants.misc import UNKNOWN, SAT
 
@@ -42,10 +42,13 @@ from sxpat.converting import VerilogExporter
 
 from sxpat.labelling.labelling import Labelling
 
+from sxpat.slash_inputs import remove_inputs
+
 
 def explore_grid(specs_obj: Specifications):
     # initial setup
     # store circuits
+    exact_benchmark_name = os.path.basename(specs_obj.exact_benchmark)
     FS.copy(specs_obj.exact_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'origin.v'))
     specs_obj.exact_benchmark = tmp
     FS.copy(specs_obj.current_benchmark, tmp := path_join(specs_obj.path.run.verilog, 'current.v'))
@@ -97,8 +100,8 @@ def explore_grid(specs_obj: Specifications):
         erriter,  # error threshold for the iteration
         while_predicate(lambda: obtained_wce_exact < specs_obj.max_error),  # normal continuation
     ):
-        # slash to kill
-        if specs_obj.slash_to_kill:
+        # slash pass
+        if specs_obj.slash is SlashType.SLASH_SUBGRAPH:
             # first iteration: apply slash
             if specs_obj.iteration == 1:
                 # store relevant specifications values
@@ -117,6 +120,47 @@ def explore_grid(specs_obj: Specifications):
             if specs_obj.iteration > 1 and specs_obj.et < specs_obj.error_for_slash:
                 specs_obj.stats_storage.ignore()
                 continue
+
+        elif specs_obj.slash is SlashType.SLASH_INPUT_ITERATIVE:
+            # the slash pass is a one-shot transformation of the exact benchmark:
+            # remove the inputs that can be tied to a shared constant while keeping
+            # the resulting circuit within `error_for_slash` of the original one
+            specs_obj.sub_iteration = 'slash'
+            start = Timer.now()
+            specs_obj.current_benchmark, slash_error = remove_inputs(specs_obj, exact_benchmark_name)
+            slash_time = Timer.now() - start
+
+            slash_metrics = MetricsEstimator.estimate_metrics(
+                specs_obj.path.synthesis, specs_obj.current_benchmark, specs_obj.path.run.temporary,
+            )
+
+            slash_circuit_data = ExpandedCircuitData(
+                'gen_slash',
+                specs_obj.current_benchmark,
+                slash_metrics.area,
+                slash_metrics.power,
+                slash_metrics.delay,
+                slash_error,
+                slash_error,
+            )
+
+            # logging
+            specs_obj.stats_storage.stage(
+                slash_error=slash_error,
+                slash_area=slash_metrics.area,
+                slash_power=slash_metrics.power,
+                slash_delay=slash_metrics.delay,
+                slash_time=slash_time,
+            )
+            all_generated_circuits_data.append(slash_circuit_data)
+            specs_obj.stats_storage.commit()
+
+            # print the slashed circuit metrics in the same format as the iterations
+            print_current_model([slash_circuit_data], origin_circuit_data=exact_circuit_metrics)
+
+            # the slash pass is done, continue the exploration on the slashed circuit
+            specs_obj.slash = SlashType.NONE
+            continue
 
         # logging
         specs_obj.stats_storage.stage(

@@ -20,13 +20,19 @@ __all__ = [
     'Specifications',
     # enums
     'ErrorPartitioningType', 'EncodingType',
-    'TemplateType', 'ConstantsType',
+    'TemplateType', 'ConstantsType', 'SlashType',
 ]
 
 
 class Dependency:
     SourceItem = Union[argparse.Action, Tuple[argparse.Action, Any]]
     TargetItem = Union[argparse.Action, Tuple[argparse.Action, List[Any]]]
+
+
+class SlashType(enum.Enum):
+    NONE = 'none'
+    SLASH_SUBGRAPH = 'slash_to_kill'
+    SLASH_INPUT_ITERATIVE = 'slash_it'
 
 
 class ErrorPartitioningType(enum.Enum):
@@ -175,7 +181,7 @@ class Specifications:
     num_subgraphs: int
     max_sensitivity: int
     sensitivity: int = dc.field(init=False, default=None, metadata={'writable': True})  # rw
-    slash_to_kill: bool
+    slash: SlashType
     error_for_slash: int
     persistance: int
     persistance_counter: int = dc.field(init=False, default=0, metadata={'writable': True})  # rw
@@ -356,13 +362,16 @@ class Specifications:
                                              default=1,
                                              help='The number of attempts for subgraph extraction (default: 1)')
 
-        _slash = _subex_group.add_argument('--slash-to-kill',
-                                           action='store_true',
-                                           help='Enable the slash pass for the first iteration')
+        _slash = _subex_group.add_argument('--slash',
+                                           type=SlashType,
+                                           action=EnumChoicesAction,
+                                           default=SlashType.NONE,
+                                           help='Type of slash pass to apply (default: none)')
 
         _error_slash = _subex_group.add_argument('--error-for-slash',
                                                  type=int,
-                                                 help='The error to use for the slash pass')
+                                                 default=1,
+                                                 help='The error to use for the slash pass (default: 1)')
 
         # > execution stuff
         _explor_group = parser.add_argument_group('Execution')
@@ -490,7 +499,8 @@ class Specifications:
             (_const_f, ConstantFalseType.PRODUCT): [(_template, [TemplateType.NON_SHARED])],
             #
             (_ex_mode, 55): [_imax, _omax],
-            (_slash, True): [_error_slash],
+            (_slash, SlashType.SLASH_SUBGRAPH): [_error_slash],
+            (_slash, SlashType.SLASH_INPUT_ITERATIVE): [_error_slash],
         }
 
         # check dependencies
