@@ -1,4 +1,4 @@
-from typing import Mapping, Optional, Sequence, Tuple, Union, TypeVar, NamedTuple
+from typing import Literal, Mapping, Optional, Sequence, Tuple, Union, TypeVar, NamedTuple
 from typing_extensions import final
 from abc import abstractmethod, ABCMeta
 
@@ -20,6 +20,10 @@ __all__ = [
 class GlobalTasks(NamedTuple):
     optimize: Optional[Union[Min, Max]] = None
     forall: Optional[ForAll] = None
+
+
+type success_result = tuple[Literal['sat'], Mapping[str, Union[bool, int]]]
+type failure_result = tuple[Literal['unsat', 'unknown'], None]
 
 
 @make_utility_class
@@ -60,7 +64,7 @@ class Solver(metaclass=ABCMeta):
               specifications: Specifications,
               *,
               _global_targets: Optional[GlobalTasks] = None,
-              ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+              ) -> Union[success_result, failure_result]:
         """
         Solve the required problem defined by the given graphs.
 
@@ -106,7 +110,7 @@ class Solver(metaclass=ABCMeta):
     @abstractmethod
     def solve_exists(cls, graphs: _Graphs,
                      specifications: Specifications,
-                     ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+                     ) -> Union[success_result, failure_result]:
         """
         Solve a non optimization and not forall quantified problem.
         """
@@ -116,7 +120,7 @@ class Solver(metaclass=ABCMeta):
     def solve_forall(cls, graphs: _Graphs,
                      specifications: Specifications,
                      forall_target: ForAll,
-                     ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+                     ) -> Union[success_result, failure_result]:
         """
         Solve a forall quantified (non optimization) problem.
         """
@@ -130,7 +134,7 @@ class Solver(metaclass=ABCMeta):
     def solve_optimize(cls, graphs: _Graphs,
                        specifications: Specifications,
                        optimize_target: Union[Min, Max],
-                       ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+                       ) -> Union[success_result, failure_result]:
         """
         Solve an optimization (not forall quantified) problem.
         """
@@ -145,7 +149,7 @@ class Solver(metaclass=ABCMeta):
                               specifications: Specifications,
                               optimize_target: Union[Min, Max],
                               forall_target: ForAll,
-                              ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+                              ) -> Union[success_result, failure_result]:
         """
         Solve an optimization and forall quantified problem.
         """
@@ -160,7 +164,7 @@ class Solver(metaclass=ABCMeta):
     def _solve_forall(cls, graphs: _Graphs,
                       specifications: Specifications,
                       forall_target: ForAll,
-                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+                      ) -> Union[success_result, failure_result]:
         # TODO: here we can implement the custom forall approach as for the initial implementations of XPAT (in year ~2021)
         raise NotImplementedError(f'{cls.__qualname__}._solve_forall(...) is work in progress')
 
@@ -170,7 +174,7 @@ class Solver(metaclass=ABCMeta):
                                          specifications: Specifications,
                                          optimize_target: Union[Min, Max],
                                          forall_target: Optional[ForAll],
-                                         ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
+                                         ) -> Union[success_result, failure_result]:
         """
         Solve an optimization (optionally forall quantified) problem iteratively without requiring solver specific features.
 
