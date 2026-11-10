@@ -51,7 +51,9 @@ rm_temp:
 	rm -f .history_sta
 
 rm_pyenv:
-	@echo "\n[[ removing the virtual python environment ]]"
+	@case '$(ENV_NAME)' in .|..|/*|*/*) echo "error: invalid ENV_NAME '$(ENV_NAME)'" >&2; exit 1 ;; esac
+	@echo "\n[[ removing the virtual python environment (.venv/) ]]\n[[ !! YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION !! ]]"
+	@sleep $(DELETION_DELAY)
 	rm -rf '$(ENV_NAME)'
 
 rm_deps:

@@ -75,7 +75,7 @@ venv_is_current() {
 
 create_venv() {
   case "$ENV_NAME" in
-    ""|.|..|/*|*/*) die "invalid ENV_NAME '$ENV_NAME'" ;;
+    .|..|/*|*/*) die "invalid ENV_NAME '$ENV_NAME'" ;;
   esac
   ensure_python
   if venv_is_current; then return 0; fi
@@ -127,7 +127,8 @@ build_opensta() {
     git fetch --quiet --tags origin
   fi
   git checkout --quiet -- .
-  git checkout --quiet "$OPENSTA_REF"
+  git checkout --quiet "$OPENSTA_REF" \
+    || die "cannot check out OpenSTA ref '$OPENSTA_REF' (check that it exists in $OPENSTA_REPO)"
   sha="$(git rev-parse HEAD)"
 
   target="$DEPS_DIR/opt/opensta"
@@ -153,8 +154,8 @@ PY
     -DTCL_LIB="$tcl_lib" -DTCL_HEADER="$tcl_prefix/include/tcl-tk/tcl.h" \
     -DCMAKE_INSTALL_PREFIX="$target.next" > "$DEPS_DIR/src/opensta-configure.log" 2>&1 \
     || die "OpenSTA configure failed, see $DEPS_DIR/src/opensta-configure.log"
-  cmake --build build -j"$JOBS"
-  cmake --install build > /dev/null
+  cmake --build build -j"$JOBS" || die "OpenSTA build failed"
+  cmake --install build > /dev/null || die "OpenSTA install failed"
   rm -rf "$target"
   mv "$target.next" "$target"
   echo "$sha" > "$stamp"
@@ -162,7 +163,7 @@ PY
 }
 
 build_cqesto() {
-  local minisat_lib
+  local minisat_lib sha stamp
   need_tool git
   need_tool cmake "install cmake to build cqesto"
   need_tool make "install the Xcode command line tools"
@@ -180,8 +181,14 @@ build_cqesto() {
     git fetch --quiet origin
   fi
   git checkout --quiet -- .
-  git checkout --quiet "$CQESTO_REF"
-  if [ -x "$BIN_DIR/cqesto" ]; then return 0; fi
+  git checkout --quiet "$CQESTO_REF" \
+    || die "cannot check out cqesto ref '$CQESTO_REF' (check that it exists in $CQESTO_REPO)"
+  sha="$(git rev-parse HEAD)"
+  stamp="$DEPS_DIR/opt/cqesto.stamp"
+  if [ -x "$BIN_DIR/cqesto" ] && [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$sha" ]; then
+    return 0
+  fi
+  [ -f configure ] || die "cqesto checkout is incomplete, remove $DEPS_DIR/src/cqesto and retry"
 
   log "building cqesto"
   minisat_lib="contrib/minisat/lib/libminisat.so"
@@ -192,11 +199,12 @@ build_cqesto() {
     sed -i.bak 's|cmake -DCMAKE_INSTALL_PREFIX=${MDIR} ..|cmake -DCMAKE_INSTALL_PREFIX=${MDIR} -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..|' contrib/setup-minisat.sh
     rm -f contrib/setup-minisat.sh.bak
   fi
-  [ -f configure ] || die "cqesto checkout is incomplete, remove $DEPS_DIR/src/cqesto and retry"
   rm -rf build
   CC="${CC:-cc}" CXX="${CXX:-c++}" ./configure > "$DEPS_DIR/src/cqesto-configure.log" 2>&1 \
     || die "cqesto configure failed, see $DEPS_DIR/src/cqesto-configure.log"
   make -C build -j"$JOBS" || die "cqesto build failed"
+  mkdir -p "$DEPS_DIR/opt"
+  echo "$sha" > "$stamp"
   ln -sf "$DEPS_DIR/src/cqesto/build/cqesto" "$BIN_DIR/cqesto"
 }
 
