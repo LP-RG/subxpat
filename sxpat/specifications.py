@@ -1,6 +1,6 @@
 from __future__ import annotations
 from types import MappingProxyType
-from typing import Any, Callable, Iterable, Mapping, Union
+from typing import Any, Callable, Iterable, Mapping, Optional, Union
 import enum
 import dataclasses as dc
 
@@ -22,12 +22,27 @@ __all__ = [
     # enums
     'ErrorPartitioningType', 'EncodingType',
     'TemplateType', 'ConstantsType',
+    'LabelingType', 'LabelingRelativeTo',
 ]
 
 
 class Dependency:
     SourceItem = Union[str, tuple[str, Any]]
     TargetItem = Union[str, tuple[str, list[Any]]]
+
+
+class LabelingRelativeTo(enum.Enum):
+    ORIGIN = 'origin'
+    CURRENT = 'current'
+
+
+class LabelingType(enum.Enum):
+    MIN = 'min'
+    MAX = 'max'
+    SIMPLE_MIN = 'simple_min'
+    SIMPLE_MAX = 'simple_max'
+    SAMPLE_MIN = 'sample_min'
+    SAMPLE_MAX = 'sample_max'
 
 
 class ErrorPartitioningType(enum.Enum):
@@ -65,6 +80,16 @@ class ConstantsType(enum.Enum):
 class ConstantFalseType(enum.Enum):
     OUTPUT = 'output'
     PRODUCT = 'product'
+
+
+def parse_labeling_seed(value: str) -> Optional[int]:
+    """Parse a labeling seed: an integer, or `random` for a non-deterministic seed."""
+    if value.strip().lower() == 'random':
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected an integer or 'random', got {value!r}")
 
 
 @dc.dataclass(init=False, frozen=True)
@@ -206,21 +231,41 @@ class Specifications:
     outputs: int = dc.field(init=False)
 
     # labeling
-    min_labeling: bool = dc.field(
-        default=True,
+    labeling: LabelingType = dc.field(
+        default=LabelingType.SIMPLE_MIN,
         metadata={
             'argument': {
-                'args': ['--max-labeling'],
-                'help': 'Nodes are weighted using their maximum error, instead of minimum error',
+                'action': EnumChoicesAction,
+                'help': 'Labeling algorithm to use (default: {default})',
                 'group': 'Labeling',
             }
         },
     )
-    partial_labeling: bool = dc.field(
-        default=True,
+    labeling_relative_to: LabelingRelativeTo = dc.field(
+        default=LabelingRelativeTo.CURRENT,
         metadata={
             'argument': {
-                'help': 'Weights are assigned to all nodes, not only to the relevant ones',
+                'action': EnumChoicesAction,
+                'help': 'Circuit the labeling weights are computed against (default: {default})',
+                'group': 'Labeling',
+            }
+        },
+    )
+    labeling_samples: int = dc.field(
+        default=2,
+        metadata={
+            'argument': {
+                'help': 'Number of random samples used by the sampling labeling types, in addition to the all-zero and all-one cases (default: {default})',
+                'group': 'Labeling',
+            }
+        },
+    )
+    labeling_seed: Optional[int] = dc.field(
+        default=0,
+        metadata={
+            'argument': {
+                'type': parse_labeling_seed,
+                'help': "Seed for the sampling labeling types: an integer for reproducible sampling, or 'random' (default: {default})",
                 'group': 'Labeling',
             }
         },
