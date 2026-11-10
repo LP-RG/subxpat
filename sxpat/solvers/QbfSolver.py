@@ -613,8 +613,9 @@ class QbfSolver(Solver):
             #
             encoder.write_custom(f'{id_gen.get_sat_problem()} = and({", ".join(mapping[x][0] for x in in_the_output)})\n')
 
+        cqesto_path = require_tool(specifications.path.tools.cqesto, 'run `make setup all`')
         result = subprocess.run(
-            [require_tool(specifications.path.tools.cqesto, 'run `make setup all`'), script_path],
+            [cqesto_path, script_path],
             capture_output=True, text=True,
         )
 
@@ -642,7 +643,7 @@ class QbfSolver(Solver):
 
         else:
             raise RuntimeError(
-                f'command `{specifications.path.tools.cqesto} {script_path}` failed with code {result.returncode}\n'
+                f'command `{cqesto_path} {script_path}` failed with code {result.returncode}\n'
                 f'{result.stderr}'
             )
 

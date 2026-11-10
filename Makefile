@@ -2,14 +2,12 @@
 
 PY := python3.14
 ENV_NAME := .venv
-DEPS_DIR ?= .deps
 DELETION_DELAY ?= 10
 
 # computed
 
 ACTIV_ENV := . $(ENV_NAME)/bin/activate
-IN_ENV := $(ACTIV_ENV) &&
-SETUP := DEPS_DIR=$(DEPS_DIR) ENV_NAME=$(ENV_NAME) PY=$(PY) bash setup/deps.sh
+SETUP := ENV_NAME=$(ENV_NAME) PY=$(PY) bash setup/deps.sh
 
 # includes
 -include *.mk
@@ -55,9 +53,9 @@ rm_pyenv:
 	rm -rf $(ENV_NAME)
 
 rm_deps:
-	@echo "\n[[ removing the locally built dependencies ($(DEPS_DIR)/) ]]\n[[ !! YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION !! ]]"
+	@echo "\n[[ removing the locally built dependencies (.deps/) ]]\n[[ !! YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION !! ]]"
 	@sleep $(DELETION_DELAY)
-	rm -rf $(DEPS_DIR)
+	rm -rf "$${DEPS_DIR:-.deps}"
 
 clean: rm_cache rm_temp
 
