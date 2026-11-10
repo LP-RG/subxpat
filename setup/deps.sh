@@ -20,6 +20,9 @@ JOBS="$( (sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4) )"
 log() { printf '\n[[ %s ]]\n' "$*"; }
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 is_macos() { [ "$(uname -s)" = "Darwin" ]; }
+build_tools_hint() {
+  if is_macos; then echo "install the Xcode command line tools"; else echo "install build-essential"; fi
+}
 
 case "$MODE" in
   --python-init|--python-dep|--macos|--all) ;;
@@ -106,9 +109,9 @@ build_opensta() {
   local tcl_prefix tcl_lib target stamp sha
   ensure_python
   need_tool git
-  need_tool cmake "install it with brew install cmake"
-  need_tool make "install the Xcode command line tools"
-  need_tool cc "install the Xcode command line tools"
+  need_tool cmake "install cmake"
+  need_tool make "$(build_tools_hint)"
+  need_tool cc "$(build_tools_hint)"
 
   tcl_prefix="$(brew --prefix tcl-tk@8)"
   tcl_lib="$tcl_prefix/lib/libtcl8.6.dylib"
@@ -127,7 +130,7 @@ build_opensta() {
     git fetch --quiet --tags origin
   fi
   git checkout --quiet -- .
-  git checkout --quiet "$OPENSTA_REF" \
+  git checkout --quiet "$OPENSTA_REF" 2>/dev/null \
     || die "cannot check out OpenSTA ref '$OPENSTA_REF' (check that it exists in $OPENSTA_REPO)"
   sha="$(git rev-parse HEAD)"
 
@@ -165,9 +168,9 @@ PY
 build_cqesto() {
   local minisat_lib sha stamp
   need_tool git
-  need_tool cmake "install cmake to build cqesto"
-  need_tool make "install the Xcode command line tools"
-  need_tool c++ "install the Xcode command line tools"
+  need_tool cmake "install cmake"
+  need_tool make "$(build_tools_hint)"
+  need_tool c++ "$(build_tools_hint)"
 
   mkdir -p "$DEPS_DIR/src" "$BIN_DIR"
   cd "$DEPS_DIR/src"
@@ -181,11 +184,12 @@ build_cqesto() {
     git fetch --quiet origin
   fi
   git checkout --quiet -- .
-  git checkout --quiet "$CQESTO_REF" \
+  git checkout --quiet "$CQESTO_REF" 2>/dev/null \
     || die "cannot check out cqesto ref '$CQESTO_REF' (check that it exists in $CQESTO_REPO)"
   sha="$(git rev-parse HEAD)"
   stamp="$DEPS_DIR/opt/cqesto.stamp"
-  if [ -x "$BIN_DIR/cqesto" ] && [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$sha" ]; then
+  if [ -x "$DEPS_DIR/opt/cqesto" ] && [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$sha" ]; then
+    ln -sf "$DEPS_DIR/opt/cqesto" "$BIN_DIR/cqesto"
     return 0
   fi
   [ -f configure ] || die "cqesto checkout is incomplete, remove $DEPS_DIR/src/cqesto and retry"
@@ -204,8 +208,9 @@ build_cqesto() {
     || die "cqesto configure failed, see $DEPS_DIR/src/cqesto-configure.log"
   make -C build -j"$JOBS" || die "cqesto build failed"
   mkdir -p "$DEPS_DIR/opt"
+  cp build/cqesto "$DEPS_DIR/opt/cqesto"
   echo "$sha" > "$stamp"
-  ln -sf "$DEPS_DIR/src/cqesto/build/cqesto" "$BIN_DIR/cqesto"
+  ln -sf "$DEPS_DIR/opt/cqesto" "$BIN_DIR/cqesto"
 }
 
 probe_tool() {

@@ -35,7 +35,7 @@ To prepare the system for execution you will need to follow a few steps:
     # bulk commands
     make setup        # python environment and python dependencies
     make setup macos  # (macOS) the above, plus python@3.14, yosys, cmake, swig, tcl-tk@8 and OpenSTA
-    make setup all    # the above, plus cqesto (needed by `--encoding=qbf`)
+    make setup all    # the above, plus cqesto (needed by `--encoding=qbf`; on Linux `setup` only)
 
     # individual commands
     make py_init     # create python environment (.venv/)
@@ -51,7 +51,7 @@ To prepare the system for execution you will need to follow a few steps:
 
 ### macOS
 
-`make setup macos` installs `python@3.14`, `yosys`, `cmake`, `swig` and `tcl-tk@8` with [Homebrew] and builds the parts that have no package (`sta`) into `./.deps/`; `make setup all` adds `cqesto`. Nothing has to be installed globally besides Homebrew itself and the Xcode command line tools (`cc`, `make`, `git`):
+`make setup macos` installs `python@3.14`, `yosys`, `cmake`, `swig` and `tcl-tk@8` with [Homebrew] and builds the part that has no package (`sta`) into `./.deps/`; `make setup all` adds `cqesto`. Nothing has to be installed globally besides Homebrew itself and the Xcode command line tools (`cc`, `make`, `git`):
 
 | dependency | source | reason |
 | :-- | :-- | :-- |
@@ -67,7 +67,7 @@ OpenSTA is built at version 2.0.17 (commit `c018cb21`, the revision Debian packa
 - the Tcl 8.6 headers and library are passed explicitly (`-DTCL_HEADER`, `-DTCL_LIB`): OpenSTA's own Tcl search only looks in `/usr/local/lib` on Darwin and only accepts 8.x names, so on Apple silicon (Homebrew in `/opt/homebrew`) it cannot find the keg on its own; Tcl 9 is not supported either, hence `tcl-tk@8` instead of the default `tcl-tk`;
 - `tcl/StaException.i` is patched from `$function` to `$action`, because SWIG 4.4 and later no longer expand `$function` inside an `%exception` block.
 
-Both targets finish by checking `yosys`, `sta` and `cqesto`: a missing or non-running `yosys` or `sta` fails the target with `error: toolchain incomplete`, while `cqesto` is only reported as `missing (optional)`. They also refuse to build OpenSTA from a repository path containing a space, which its own build rules cannot handle.
+Both targets finish by checking `yosys`, `sta` and `cqesto`: a missing or non-running `yosys` or `sta` fails the target with `error: toolchain incomplete`, while `cqesto` is only reported, as `missing (optional)` or `does not run (optional)`. They also refuse to build OpenSTA from a repository path containing a space, which its own build rules cannot handle.
 
 The generated binaries are found automatically: `sxpat/utils/tools.py` checks `.deps/bin` first and then the `PATH`, so `.deps/bin` does not have to be added to your `PATH` (Yosys comes from Homebrew and is found on the `PATH`).
 

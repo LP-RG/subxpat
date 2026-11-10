@@ -25,6 +25,7 @@ Date: 2026-11-10
     - Now the default archivation is .tar.xz instead of .zip. (#210)
     - Removed zip archivation approach. (#210)
   Bugfixes:
+    - The generated solver and labelling scripts now run with the interpreter executing `main.py`, instead of whatever `python3` resolves to on the PATH. (#85)
     - Patched a bug when min-labelling, where no error is found (also added warning). (#213)
   Minor Optimizations:
     - Optimised memory footprint of LiveStorage. (#213)
