@@ -17,7 +17,7 @@ Date: 2026-11-10
     - `make setup macos` and `make setup all` now verify the toolchain and fail when `yosys` or `sta` is missing or does not run. (#85)
     - `make py_init` recreates `.venv` when it was created by a different major.minor python version. (#85)
     - Added `make rm_deps`, and `make clean-all` now also removes `.deps/`. (#85)
-    - `make setup macos` and `make setup all` refuse a repository path containing a space, which the OpenSTA build rules cannot handle. (#85)
+    - On macOS `make setup macos` and `make setup all` refuse a repository path containing a space, which the OpenSTA build rules cannot handle. (#85)
     - Standardised Live/Append Storage interface. (#213)
     - Further modularised Configuration Exploration. (#213)
     - Rewritten all circuits verilogs to simplify understanding and extension. (#213)

@@ -35,7 +35,7 @@ To prepare the system for execution you will need to follow a few steps:
     # bulk commands
     make setup        # python environment and python dependencies
     make setup macos  # (macOS) the above, plus python@3.14, yosys, cmake, swig, tcl-tk@8 and OpenSTA
-    make setup all    # the above, plus cqesto (needed by `--encoding=qbf`; on Linux `setup` only)
+    make setup all    # the above, plus cqesto (needed by `--encoding=qbf`)
 
     # individual commands
     make py_init     # create python environment (.venv/)

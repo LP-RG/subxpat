@@ -23,6 +23,9 @@ is_macos() { [ "$(uname -s)" = "Darwin" ]; }
 build_tools_hint() {
   if is_macos; then echo "install the Xcode command line tools"; else echo "install build-essential"; fi
 }
+package_hint() {
+  if is_macos; then echo "install it with brew install $1"; else echo "install $1"; fi
+}
 
 case "$MODE" in
   --python-init|--python-dep|--macos|--all) ;;
@@ -109,7 +112,7 @@ build_opensta() {
   local tcl_prefix tcl_lib target stamp sha
   ensure_python
   need_tool git
-  need_tool cmake "install cmake"
+  need_tool cmake "$(package_hint cmake)"
   need_tool make "$(build_tools_hint)"
   need_tool cc "$(build_tools_hint)"
 
@@ -129,9 +132,10 @@ build_opensta() {
   if ! git cat-file -e "${OPENSTA_REF}^{commit}" 2>/dev/null; then
     git fetch --quiet --tags origin
   fi
+  git rev-parse --verify --quiet "${OPENSTA_REF}^{commit}" >/dev/null \
+    || die "OpenSTA ref '$OPENSTA_REF' not found in $OPENSTA_REPO"
   git checkout --quiet -- .
-  git checkout --quiet "$OPENSTA_REF" 2>/dev/null \
-    || die "cannot check out OpenSTA ref '$OPENSTA_REF' (check that it exists in $OPENSTA_REPO)"
+  git checkout --quiet "$OPENSTA_REF"
   sha="$(git rev-parse HEAD)"
 
   target="$DEPS_DIR/opt/opensta"
@@ -168,7 +172,7 @@ PY
 build_cqesto() {
   local minisat_lib sha stamp
   need_tool git
-  need_tool cmake "install cmake"
+  need_tool cmake "$(package_hint cmake)"
   need_tool make "$(build_tools_hint)"
   need_tool c++ "$(build_tools_hint)"
 
@@ -183,9 +187,10 @@ build_cqesto() {
   if ! git cat-file -e "${CQESTO_REF}^{commit}" 2>/dev/null; then
     git fetch --quiet origin
   fi
+  git rev-parse --verify --quiet "${CQESTO_REF}^{commit}" >/dev/null \
+    || die "cqesto ref '$CQESTO_REF' not found in $CQESTO_REPO"
   git checkout --quiet -- .
-  git checkout --quiet "$CQESTO_REF" 2>/dev/null \
-    || die "cannot check out cqesto ref '$CQESTO_REF' (check that it exists in $CQESTO_REPO)"
+  git checkout --quiet "$CQESTO_REF"
   sha="$(git rev-parse HEAD)"
   stamp="$DEPS_DIR/opt/cqesto.stamp"
   if [ -x "$DEPS_DIR/opt/cqesto" ] && [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$sha" ]; then
