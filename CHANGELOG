@@ -2,8 +2,8 @@
 Version: preview
 Date: 2026-11-10
   Features:
-    - Added `make setup macos`, which builds the native dependencies that have no package on macOS (OpenSTA 2.0.17) into `.deps/`, installing python@3.14, Yosys, cmake, swig and tcl-tk@8 from Homebrew. (#85)
-    - Added `make setup all`, which additionally builds cqesto, and documented both in the README. (#85)
+    - Added `make setup macos`, which builds the native dependency that has no package on macOS (OpenSTA 2.0.17) into `.deps/`, installing python@3.14, Yosys, cmake, swig and tcl-tk@8 from Homebrew. (#85)
+    - Added `make setup all`, which additionally builds cqesto at a pinned revision, and documented both in the README. (#85)
     - Added specific archivation approaches (.tar.gz, .tar.xz). (#210)
     - Further modularised Configuration Exploration. (#213)
   Minor Features:
@@ -17,6 +17,7 @@ Date: 2026-11-10
     - `make setup macos` and `make setup all` now verify the toolchain and fail when `yosys` or `sta` is missing or does not run. (#85)
     - `make py_init` recreates `.venv` when it was created by a different python version. (#85)
     - Added `make rm_deps`, and `make clean-all` now also removes `.deps/`. (#85)
+    - `make setup macos` refuses a repository path containing a space, which the OpenSTA build rules cannot handle. (#85)
     - Standardised Live/Append Storage interface. (#213)
     - Further modularised Configuration Exploration. (#213)
     - Rewritten all circuits verilogs to simplify understanding and extension. (#213)

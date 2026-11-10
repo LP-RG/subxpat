@@ -9,6 +9,8 @@ DELETION_DELAY ?= 10
 ACTIV_ENV := . $(ENV_NAME)/bin/activate
 SETUP := ENV_NAME='$(ENV_NAME)' PY='$(PY)' bash setup/deps.sh
 
+.PHONY: help activate py_init py_dep setup macos all rm_data rm_cache rm_temp rm_pyenv rm_deps clean clean-all
+
 # includes
 -include *.mk
 

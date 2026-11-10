@@ -14,10 +14,11 @@ SubXPAT has been developed for a **Linux** environment and requires the followin
 - [Yosys] (using apt: `sudo apt install yosys`)
 - [GraphViz] (you also need the headers for development, using apt: `sudo apt install graphviz graphviz-dev`; they are only needed when `pip` builds `pygraphviz` from source, the wheels ship the library)
 - [OpenSTA] (using apt: `sudo apt install opensta`)
+- [cqesto] (needed by `--encoding=qbf`; built from source by `make setup all`, requires `git`, `cmake`, `make` and a C++ compiler)
 
 **Note:** on Linux, the binaries of Yosys and OpenSTA should be added to your PATH.
 
-On **macOS** (Apple silicon; Intel untested) OpenSTA has no package at all and cqesto neither, so `make setup macos` builds OpenSTA and `make setup all` additionally builds cqesto, both into `.deps/`. GraphViz is not needed, because the `pygraphviz` wheel bundles the graphviz library. See [macOS](#macos).
+On **macOS** (Apple silicon; Intel untested) OpenSTA has no macOS package and cqesto has no package on any platform, so `make setup macos` builds OpenSTA and `make setup all` additionally builds cqesto, both into `.deps/`. GraphViz is not needed, because the `pygraphviz` wheel bundles the graphviz library. See [macOS](#macos).
 
 ### Optional
 
@@ -56,15 +57,17 @@ To prepare the system for execution you will need to follow a few steps:
 | :-- | :-- | :-- |
 | Python, Yosys, cmake | Homebrew | packaged, no build required |
 | OpenSTA (`sta`) | cloned and built into `.deps/opt/opensta` | no Homebrew formula (Debian packages this same commit) |
-| cqesto (`--encoding=qbf`) | cloned and built by `make setup all`, symlinked into `.deps/bin` | not packaged anywhere |
+| cqesto (`--encoding=qbf`) | cloned and built by `make setup all` at a pinned revision, symlinked into `.deps/bin` | no Homebrew formula and no Debian package |
 | `swig` | Homebrew | build-only dependency of OpenSTA |
-| `tcl-tk@8` | Homebrew | OpenSTA links it at run time: `sta` needs `libtcl8.6.dylib` |
+| `tcl-tk@8` | Homebrew | needed at build time (headers, link) and at run time: `sta` needs `libtcl8.6.dylib` |
 | GraphViz | not needed | the `pygraphviz` wheel links the graphviz library it ships, and no code runs the `dot` executable |
 
 OpenSTA is built at version 2.0.17 (commit `c018cb21`, the revision Debian packages as `opensta`), so the metrics match the ones obtained on Linux. Two adjustments are required by the macOS build:
 
-- the Tcl 8.6 headers and library are passed explicitly (`-DTCL_HEADER`, `-DTCL_LIB`): OpenSTA's own Tcl search only looks in `/usr/local/lib` on Darwin and only accepts 8.x names, so it cannot find the Homebrew keg on its own; Tcl 9 is not supported either, hence `tcl-tk@8` instead of the default `tcl-tk`;
+- the Tcl 8.6 headers and library are passed explicitly (`-DTCL_HEADER`, `-DTCL_LIB`): OpenSTA's own Tcl search only looks in `/usr/local/lib` on Darwin and only accepts 8.x names, so on Apple silicon (Homebrew in `/opt/homebrew`) it cannot find the keg on its own; Tcl 9 is not supported either, hence `tcl-tk@8` instead of the default `tcl-tk`;
 - `tcl/StaException.i` is patched from `$function` to `$action`, because SWIG 4.4 and later no longer expand `$function` inside an `%exception` block.
+
+Both targets finish by checking `yosys`, `sta` and `cqesto` and fail with `error: toolchain incomplete` when a required one is missing or does not run. They also refuse to build OpenSTA from a repository path containing a space, which its own build rules cannot handle.
 
 The generated binaries are found automatically: `sxpat/utils/tools.py` checks `.deps/bin` first and then the `PATH`, so `.deps/bin` does not have to be added to your `PATH` (Yosys comes from Homebrew and is found on the `PATH`).
 
@@ -72,7 +75,7 @@ The macOS setup reproduces the Linux numbers. Running
 ```bash
 python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --imax=6 --omax=3 --max-lpp=8 --max-ppo=10 --max-error=8
 ```
-prints
+prints (before the per-objective metrics table)
 
 | Design ID | Area | Power | Delay | Error |
 | :-- | --: | --: | --: | --: |
@@ -182,7 +185,7 @@ python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extracti
 
 ## Known limitations
 
-- On macOS two of the Linux dependencies have no Homebrew formula: OpenSTA (`make setup macos`) and cqesto (`make setup all`) are built into `.deps/`, Yosys comes from Homebrew, and GraphViz is not needed. Apple silicon is what has been tested; Intel is untested. \
+- On macOS neither OpenSTA nor cqesto has a Homebrew formula: they are built into `.deps/` by `make setup macos` and `make setup all`; Yosys comes from Homebrew and GraphViz is not needed. Apple silicon is what has been tested; Intel is untested. \
   At the moment no support is given for other setups.
 
 
@@ -195,4 +198,5 @@ python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extracti
 [GraphViz]: https://gitlab.com/graphviz/graphviz
 [OpenSTA]: https://github.com/The-OpenROAD-Project/OpenSTA
 [Homebrew]: https://brew.sh
+[cqesto]: https://github.com/MikolasJanota/cqesto
 [FreePDK45nm]: https://si2.org/open-cell-and-free-pdk-libraries/

@@ -12,6 +12,7 @@ PY="${PY:-python3.14}"
 OPENSTA_REPO="${OPENSTA_REPO:-https://github.com/The-OpenROAD-Project/OpenSTA.git}"
 OPENSTA_REF="${OPENSTA_REF:-c018cb21}"
 CQESTO_REPO="${CQESTO_REPO:-https://github.com/MikolasJanota/cqesto.git}"
+CQESTO_REF="${CQESTO_REF:-4fe4937000731fa8922b2bb25ced0352de01861f}"
 
 MODE="${1:-}"
 JOBS="$( (sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4) )"
@@ -73,8 +74,11 @@ venv_is_current() {
 }
 
 create_venv() {
-  if venv_is_current; then return 0; fi
+  case "$ENV_NAME" in
+    ""|.|..|/*|*/*) die "invalid ENV_NAME '$ENV_NAME'" ;;
+  esac
   ensure_python
+  if venv_is_current; then return 0; fi
   log "creating the python environment ($ENV_NAME) with $("$PY" -V 2>&1)"
   rm -rf "$VENV"
   "$PY" -m venv "$VENV"
@@ -113,7 +117,8 @@ build_opensta() {
 
   mkdir -p "$DEPS_DIR/src" "$BIN_DIR"
   cd "$DEPS_DIR/src"
-  if [ ! -d OpenSTA/.git ]; then
+  export GIT_CEILING_DIRECTORIES="$DEPS_DIR/src"
+  if [ ! -f OpenSTA/.git/HEAD ] || ! git -C OpenSTA rev-parse --verify --quiet HEAD >/dev/null 2>&1; then
     rm -rf OpenSTA
     git clone --quiet "$OPENSTA_REPO" OpenSTA
   fi
@@ -143,13 +148,15 @@ PY
   fi
 
   log "building OpenSTA $OPENSTA_REF (${sha:0:7})"
-  rm -rf build "$target"
+  rm -rf build "$target.next"
   cmake -B build -DCMAKE_BUILD_TYPE=Release \
     -DTCL_LIB="$tcl_lib" -DTCL_HEADER="$tcl_prefix/include/tcl-tk/tcl.h" \
-    -DCMAKE_INSTALL_PREFIX="$target" > "$DEPS_DIR/src/opensta-configure.log" 2>&1 \
+    -DCMAKE_INSTALL_PREFIX="$target.next" > "$DEPS_DIR/src/opensta-configure.log" 2>&1 \
     || die "OpenSTA configure failed, see $DEPS_DIR/src/opensta-configure.log"
   cmake --build build -j"$JOBS"
   cmake --install build > /dev/null
+  rm -rf "$target"
+  mv "$target.next" "$target"
   echo "$sha" > "$stamp"
   ln -sf "$target/bin/sta" "$BIN_DIR/sta"
 }
@@ -158,16 +165,22 @@ build_cqesto() {
   local minisat_lib
   need_tool git
   need_tool cmake "install cmake to build cqesto"
-  need_tool make
-  need_tool c++
+  need_tool make "install the Xcode command line tools"
+  need_tool c++ "install the Xcode command line tools"
 
   mkdir -p "$DEPS_DIR/src" "$BIN_DIR"
   cd "$DEPS_DIR/src"
-  if [ ! -d cqesto/.git ]; then
+  export GIT_CEILING_DIRECTORIES="$DEPS_DIR/src"
+  if [ ! -f cqesto/.git/HEAD ] || ! git -C cqesto rev-parse --verify --quiet HEAD >/dev/null 2>&1; then
     rm -rf cqesto
     git clone --quiet "$CQESTO_REPO" cqesto
   fi
   cd cqesto
+  if ! git cat-file -e "${CQESTO_REF}^{commit}" 2>/dev/null; then
+    git fetch --quiet origin
+  fi
+  git checkout --quiet -- .
+  git checkout --quiet "$CQESTO_REF"
   if [ -x "$BIN_DIR/cqesto" ]; then return 0; fi
 
   log "building cqesto"
@@ -177,6 +190,7 @@ build_cqesto() {
   if [ ! -e "$minisat_lib" ]; then rm -rf contrib/minisat; fi
   if [ ! -d contrib/minisat ] && [ -f contrib/setup-minisat.sh ]; then
     sed -i.bak 's|cmake -DCMAKE_INSTALL_PREFIX=${MDIR} ..|cmake -DCMAKE_INSTALL_PREFIX=${MDIR} -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..|' contrib/setup-minisat.sh
+    rm -f contrib/setup-minisat.sh.bak
   fi
   [ -f configure ] || die "cqesto checkout is incomplete, remove $DEPS_DIR/src/cqesto and retry"
   rm -rf build
