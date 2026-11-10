@@ -13,7 +13,7 @@ from z3 import (
 )
 
 from sxpat.constants.misc import WEIGHT
-from sxpat.graph.graph import IOGraph
+from sxpat.graph.graph import Graph
 from sxpat.specifications import Specifications
 
 from sxpat.utils.graph import is_selection_convex
@@ -305,7 +305,7 @@ def _solve_and_verify(
     return node_partition
 
 
-def find_subgraph(circuit: IOGraph, specs: Specifications) -> List[str]:
+def find_subgraph(circuit: Graph, specs: Specifications) -> List[str]:
     """
     Extract a subgraph, maximising the number of nodes in the subgraph (1).  
         (1) does this only if all weights are equal.
@@ -370,7 +370,7 @@ def find_subgraph(circuit: IOGraph, specs: Specifications) -> List[str]:
     return [gate_dict[_i] for _i in _partition]
 
 
-def find_subgraph_sensitivity(circuit: IOGraph, specs: Specifications) -> List[str]:
+def find_subgraph_sensitivity(circuit: Graph, specs: Specifications) -> List[str]:
     """
     Extract a subgraph, enforcing the sum of the weights of subgraph ouputs to be upper bounded by the `sensitivity`.
 
@@ -460,7 +460,7 @@ def find_subgraph_sensitivity(circuit: IOGraph, specs: Specifications) -> List[s
 
 
 def find_subgraph_sensitivity_no_io_constraints(
-    circuit: IOGraph,
+    circuit: Graph,
     specs: Specifications,
 ) -> List[str]:
     """
@@ -492,7 +492,7 @@ def find_subgraph_sensitivity_no_io_constraints(
 
 
 def _find_subgraph_feasible(
-    circuit: IOGraph,
+    circuit: Graph,
     specs: Specifications,
     required_feasible_outputs: Optional[int] = None,
 ) -> List[str]:
@@ -569,7 +569,7 @@ def _find_subgraph_feasible(
 
 
 def find_subgraph_feasible(
-    circuit: IOGraph,
+    circuit: Graph,
     specs: Specifications,
 ) -> List[str]:
     """
@@ -582,7 +582,7 @@ def find_subgraph_feasible(
 
 
 def find_subgraph_feasible_hard(
-    circuit: IOGraph,
+    circuit: Graph,
     specs: Specifications,
 ) -> List[str]:
     """
@@ -595,7 +595,7 @@ def find_subgraph_feasible_hard(
 
 
 def find_subgraph_feasible_soft(
-    circuit: IOGraph,
+    circuit: Graph,
     specs: Specifications,
 ) -> List[str]:
     """
@@ -727,7 +727,7 @@ def find_subgraph_feasible_soft(
 
 
 def find_subgraph_feasible_soft_outputs(
-    circuit: IOGraph,
+    circuit: Graph,
     specs: Specifications,
 ) -> Tuple[List[str], Dict]:
     """

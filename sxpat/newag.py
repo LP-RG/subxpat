@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from sxpat.graph.graph import IOGraph
+from sxpat.graph.graph import Graph
 from sxpat.graph.node import And, BoolConstant, Extras, Node, Not
 from sxpat.specifications import Paths
 
@@ -10,23 +10,23 @@ from os.path import join as path_join
 from sxpat.utils.names import extract_name
 from sxpat.utils.formats.dot import load_yosys_dot
 from sxpat.utils.formats.verilog import synthesize_verilog_to_notand_gate_level, convert_verilog_to_dot
-from sxpat.converting.legacy import iograph_from_digraph, iograph_from_digraph_testing
+from sxpat.converting.legacy import graph_from_digraph, graph_from_digraph_testing
 
 
 def load_circuit_from_yosysdot(circuit_dot_path: str):
     # load the Yosys dot
     digraph = load_yosys_dot(circuit_dot_path)
 
-    # convert to iograph
-    return iograph_from_digraph(digraph)
+    # convert to graph
+    return graph_from_digraph(digraph)
 
 def load_circuit_from_yosysdot_testing(circuit_dot_path: str, info: list):
     # load_circuit_from_yosysdot used for performance testing 
     # load the Yosys dot
     digraph = load_yosys_dot(circuit_dot_path)
 
-    # convert to iograph
-    return iograph_from_digraph_testing(digraph, info)
+    # convert to graph
+    return graph_from_digraph_testing(digraph, info)
 
 
 def load_circuit_from_notand_verilog(circuit_verilog_path: str, run_paths: Paths.RunFiles):
@@ -104,7 +104,7 @@ class export_annotated_graph:
         '}}',
     ))
 
-    def __new__(cls, circuit: IOGraph, path: str):
+    def __new__(cls, circuit: Graph, path: str):
         inputs = frozenset(circuit.base_components['IO'].inputs_names)
         outputs = frozenset(circuit.base_components['IO'].outputs_names)
         subgraph_component = circuit.base_components['Subgraph']

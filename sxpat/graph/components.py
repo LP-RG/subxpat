@@ -1,4 +1,4 @@
-from typing import AbstractSet, Any, Final, List, Sequence, Union, final
+from typing import AbstractSet, Any, Final, List, Sequence, Union, final, Literal
 from collections.abc import Callable
 import networkx as nx
 from copy import deepcopy
@@ -9,9 +9,10 @@ import itertools as it
 import operator as op
 
 __all__ = [
-    'Subgraph', 'Topology', 'Weight', 'Type', 'Component',
+    'Component', 'CustomComponent', 'Subgraph', 'Topology', 'Weight', 'Parameter', 'IO', 'Constraints', 'Type'
 ]
 
+available_graph_components = Literal['Subgraph', 'Topology', 'Weight', 'Parameter', 'IO', 'Constraints', 'Type']
 
 # COMMENT:from-MARCO: all this looks good.
 # i think you can simplify a few things, specifically:

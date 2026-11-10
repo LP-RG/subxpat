@@ -11,26 +11,19 @@ from sxpat.graph.components import IO, Constraints
 
 __all__ = ['MaxDistanceEvaluation']
 
-# GRAPH CREATION/COPY
 class MaxDistanceEvaluation:
 
     @classmethod
-    def define(cls, circuit: IOGraph) -> Tuple[IOGraph, Graph]:
+    def define(cls, circuit: Graph) -> Tuple[Graph, Graph]:
 
-        a_graph: IOGraph = set_prefix(circuit, 'a_')
+        a_graph: Graph = set_prefix(circuit, 'a_')
 
         template_graph_builder = GraphBuilder()
         template_graph_builder.add_inherited_nodes([n for n in a_graph.nodes], a_graph)
-        template_graph = template_graph_builder.create(IOGraph, 
-                                                       extra_components=[
+        template_graph = template_graph_builder.create(extra_components=[
                                                            IO(a_graph.base_components['IO'].inputs_names, 
                                                               a_graph.base_components['IO'].outputs_names)
                                                        ])
-
-        # template_graph = IOGraph(
-        #     (n for n in a_graph.nodes),
-        #     a_graph.inputs_names, a_graph.outputs_names,
-        # )
 
         others = [
             cur_int := ToInt('cur_int', operands=circuit.base_components['IO'].outputs_names),

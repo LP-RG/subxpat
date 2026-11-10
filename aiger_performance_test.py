@@ -1,4 +1,4 @@
-from sxpat.utils.formats.aiger import iograph_from_digraph, gen_circuit_digraph
+from sxpat.utils.formats.aiger import graph_from_digraph, gen_circuit_digraph
 from sxpat.newag import load_circuit_from_verilog_testing
 from sxpat.specifications import Paths
 from time import perf_counter
@@ -29,14 +29,14 @@ def get_circuits(circuit_type, min_output_size: int, max_output_size: int) -> Se
 
 def new_execution(benchmark_circuits: list) -> None:
     """
-        Generating IOGraph for a single circuit, both in the new way (using aigverse).
+        Generating Graph for a single circuit, both in the new way (using aigverse).
 
         @authors: Ilia Zeller
     """
 
     fieldnames = ['name', 'generation_time', 'inputs_amount', 'outputs_amount', 'AND_gates_amount', 'NOT_gates_amount', 'const_amount']
 
-    with open(f'./new_iograph_generation.csv', 'w', newline='') as csvfile:
+    with open(f'./new_graph_generation.csv', 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
   
@@ -44,10 +44,10 @@ def new_execution(benchmark_circuits: list) -> None:
     for benchmark_circuit in benchmark_circuits:
         info = list()
         start = perf_counter()
-        iograph_from_digraph(benchmark_circuit, gen_circuit_digraph(benchmark_circuit, inputs_path), info)
+        graph_from_digraph(benchmark_circuit, gen_circuit_digraph(benchmark_circuit, inputs_path), info)
         end = perf_counter()
         time = end - start
-        with open(f'./new_iograph_generation.csv', 'a', newline='') as csvfile:
+        with open(f'./new_graph_generation.csv', 'a', newline='') as csvfile:
             data = [ {'name': benchmark_circuit, 
                     'generation_time': time, 
                     'inputs_amount': info[0], 
@@ -60,14 +60,14 @@ def new_execution(benchmark_circuits: list) -> None:
 
 def legacy_execution(benchmark_circuits: list) -> None:
     """
-        Generating IOGraph for a single circuit, in the legacy way.
+        Generating Graph for a single circuit, in the legacy way.
 
         @authors: Ilia Zeller
     """
 
     fieldnames = ['name', 'generation_time', 'inputs_amount', 'outputs_amount', 'gates_amount', 'const_amount']
 
-    with open(f'./legacy_iograph_generation.csv', 'w', newline='') as csvfile:
+    with open(f'./legacy_graph_generation.csv', 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
@@ -80,7 +80,7 @@ def legacy_execution(benchmark_circuits: list) -> None:
         load_circuit_from_verilog_testing(f"{inputs_path}/{benchmark_circuit}.v", specs.run, info)
         end = perf_counter()
         time = end - start
-        with open(f'./legacy_iograph_generation.csv', 'a', newline='') as csvfile:
+        with open(f'./legacy_graph_generation.csv', 'a', newline='') as csvfile:
             data = [ {'name': benchmark_circuit, 
                     'generation_time': time, 
                     'inputs_amount': info[0], 

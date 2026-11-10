@@ -16,12 +16,12 @@ __all__ = ['Labelling', 'label_node']
 class Labelling:
 
     @classmethod
-    def define(cls, graph: IOGraph, accs=[], min_labeling=False):
+    def define(cls, graph: Graph, accs=[], min_labeling=False):
         assert len(accs) == 1, "Must pass the node to label"
         assert accs[0] in graph, f"Node requested to label ({accs[0]}) must be in the graph"
         if accs[0] not in graph: raise ValueError(f"Node '{accs[0]}' not found in graph")
 
-        a_graph: IOGraph = set_prefix_new(graph, 'a_', it.chain(graph.base_components['IO'].inputs_names))
+        a_graph: Graph = set_prefix_new(graph, 'a_', it.chain(graph.base_components['IO'].inputs_names))
 
         labeled_node = accs[0]
         labeled_node_name = labeled_node if labeled_node[:2] == 'in' else 'a_' + labeled_node
@@ -30,7 +30,7 @@ class Labelling:
         updated_nodes: dict[str, Node] = dict()
         for succ in a_graph.successors(labeled_node_name):
             new_operands = iterable_replace_index(succ.operands, succ.operands.index(labeled_node_name), not_node.name)
-            updated_nodes[succ.name] = succ.copy(operands=new_operands) # NODE COPY
+            updated_nodes[succ.name] = succ.copy(operands=new_operands)
         constraint_nodes = []
         nodes_to_place_hold = []
 
@@ -48,29 +48,10 @@ class Labelling:
                 weight=a_graph.base_components['Weight'].get(node.name))
         template_graph_builder.add_new_nodes(constraint_nodes)
 
-        template_graph = template_graph_builder.create(IOGraph,
-                                                       extra_components=[
+        template_graph = template_graph_builder.create(extra_components=[
                                                            IO(a_graph.base_components['IO'].inputs_names, 
                                                               a_graph.base_components['IO'].outputs_names)
                                                        ])
-
-        a: Iterable[str] = it.chain(['a', 'b'])
-        # # GRAPH CREATION/COPY
-        # template_graph = PGraph(
-        #     it.chain(  # type: ignore
-        #             (
-        #                 n
-        #                 for n in a_graph.nodes
-        #                 if n.name not in updated_nodes
-        #             ),
-        #         (not_node,),
-        #         updated_nodes.values(),
-        #         constraint_nodes
-        #     ),
-        #     a_graph.inputs_names,
-        #     a_graph.outputs_names,
-        #     ()
-        # )
 
         new_nodes = [
             cur_int := ToInt('cur_int', operands=graph.base_components['IO'].outputs_names),
@@ -100,25 +81,12 @@ class Labelling:
         ])
         constraint_graph_builder.add_new_nodes(new_nodes)
         constraint_graph_builder.add_new_node(Target.of(abs_diff))
-        constraint_graph = constraint_graph_builder.create(Graph, with_constraints_component=True)
-
-        # # GRAPH CREATION/COPY
-        # constraint_graph = CGraph(
-        #     it.chain(
-        #         (PlaceHolder(name) for name in it.chain(
-        #             graph.outputs_names,
-        #             template_graph.outputs_names,
-        #             nodes_to_place_hold
-        #         )),
-        #         new_nodes,
-        #         [Target.of(abs_diff),]
-        #     )
-        # )
+        constraint_graph = constraint_graph_builder.create(with_constraints_component=True)
 
         return (template_graph, constraint_graph)
 
 
-def label_node(exact_graph: IOGraph, current_graph: IOGraph, cur_node, specs_obj: Specifications):
+def label_node(exact_graph: Graph, current_graph: Graph, cur_node, specs_obj: Specifications):
     from sxpat.solvers.QbfSolver import QbfSolver
 
     define_template = Labelling.define

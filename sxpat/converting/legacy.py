@@ -2,18 +2,17 @@ from typing import Iterable, Mapping
 
 import networkx as nx
 
-from sxpat.graph import IOGraph
+from sxpat.graph import Graph
 from sxpat.graph.node import BoolVariable, BoolConstant, And, Not, Identity
 from sxpat.utils.functions import str_to_bool
 from sxpat.graph.components import IO
 
 
 __all__ = [
-    'iograph_from_digraph',
+    'graph_from_digraph',
 ]
 
-# GRAPH CREATION/COPY
-def iograph_from_digraph(clean_digraph: nx.DiGraph) -> IOGraph:
+def graph_from_digraph(clean_digraph: nx.DiGraph) -> Graph:
     gtypes = {'not': Not, 'and': And}
 
     # construct nodes and extract inputs/outputs
@@ -47,14 +46,14 @@ def iograph_from_digraph(clean_digraph: nx.DiGraph) -> IOGraph:
             raise RuntimeError(f'Unable to parse node {node} from DiGraph (attributes={attrs})')
 
     # construct graph
-    return IOGraph(
+    return Graph(
         nodes,
         [IO(inputs_names=sorted(inputs_names, key=lambda x: int(x[2:])),
             outputs_names=sorted(outputs_names, key=lambda x: int(x[3:])))],
     )
 
-def iograph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> IOGraph:
-    # iograph_from_digraph used for performance testing
+def graph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> Graph:
+    # graph_from_digraph used for performance testing
     gtypes = {'not': Not, 'and': And}
 
     num_inputs = 0
@@ -99,7 +98,7 @@ def iograph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> IOGra
     info.extend([str(num_inputs), str(num_outputs), str(num_gates), str(num_constants)])
 
     # construct graph
-    return IOGraph(
+    return Graph(
         nodes,
         [IO(inputs_names=sorted(inputs_names, key=lambda x: int(x[2:])),
             outputs_names=sorted(outputs_names, key=lambda x: int(x[3:])))],

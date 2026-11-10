@@ -111,7 +111,7 @@ def unpack_ToInt(graph: T_Graph) -> T_Graph:
         if not isinstance(node, ToInt):
             graph_copier.add_node(node)
 
-    return graph_copier.copy() # GRAPH CREATION/COPY
+    return graph_copier.copy()
 
 
 def prune_unused(graph: T_Graph, reserved_names: Iterable[str]) -> T_Graph:
@@ -140,10 +140,10 @@ def prune_unused(graph: T_Graph, reserved_names: Iterable[str]) -> T_Graph:
     for name in visited_nodes:
         graph_copier.add_node(graph[name])
     
-    return graph_copier.copy() # GRAPH CREATION/COPY
+    return graph_copier.copy() 
 
 
-def prune_unused_keepio(graph: IOGraph, reserved_names: Iterable[str] = tuple()) -> IOGraph:
+def prune_unused_keepio(graph: Graph, reserved_names: Iterable[str] = tuple()) -> Graph:
     """
         Given a graph, returns a new graph without any dangling nodes (recursively).  
         By default all inputs and outputs root the graph and will be kept,
@@ -287,7 +287,7 @@ def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missi
     for node in new_nodes.values():
         graph_copier.add_node(node)
 
-    return graph_copier.copy() # GRAPH CREATION/COPY
+    return graph_copier.copy()
 
 
 def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
@@ -314,9 +314,9 @@ def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
     for node in graph.nodes:
         if isinstance(node, Operation):
             operands = (updated_names[name] for name in node.operands)
-            nodes.append(node.copy(name=updated_names[node.name], operands=operands)) # NODE COPY
+            nodes.append(node.copy(name=updated_names[node.name], operands=operands))
         else:
-            nodes.append(node.copy(name=updated_names[node.name])) # NODE COPY
+            nodes.append(node.copy(name=updated_names[node.name]))
 
     extra_components: List[Component] = list()
     if graph.has_base_component('IO'):
@@ -332,7 +332,7 @@ def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
             in_subgraph=graph.base_components['Subgraph'].in_subgraph(updated_names_inverted[node.name]),
             weight=graph.base_components['Weight'].get(updated_names_inverted[node.name]))
 
-    return graph_copier.copy(extra_components) # GRAPH CREATION/COPY
+    return graph_copier.copy(extra_components) 
 
 
 def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterable[str]] = None) -> T_Graph:
@@ -361,9 +361,9 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
     for node in graph.nodes:
         if isinstance(node, Operation):
             operands = (new_name_of[name] for name in node.operands)
-            nodes.append(node.copy(name=new_name_of[node.name], operands=operands)) # NODE COPY
+            nodes.append(node.copy(name=new_name_of[node.name], operands=operands))
         else:
-            nodes.append(node.copy(name=new_name_of[node.name])) # NODE COPY
+            nodes.append(node.copy(name=new_name_of[node.name]))
 
     # compute extras
     extra_components: List[Component] = list()
@@ -384,7 +384,7 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
             in_subgraph=graph.base_components['Subgraph'].in_subgraph(new_name_of_inverted[node.name]),
             weight=graph.base_components['Weight'].get(new_name_of_inverted[node.name]))
 
-    return graph_copier.copy(extra_components) # GRAPH CREATION/COPY
+    return graph_copier.copy(extra_components)  
 
 
 def prevent_assignment(assignments: Mapping[str, bool],
@@ -419,7 +419,7 @@ def prevent_assignment(assignments: Mapping[str, bool],
         ),
         Constraint(f'prass_{assignment_id}_prevent_constr', operands=[prevent])
     ]
-    # GRAPH CREATION/COPY
+    
     return Graph(
         it.chain(placeholders, negations, prevention), 
         [Constraints(placeholders + negations + prevention)]
@@ -541,7 +541,7 @@ class crystallise:
             else:
                 graph_copier.add_node(node)
 
-        return graph_copier.copy() # GRAPH CREATION/COPY
+        return graph_copier.copy()
 
     @classmethod
     def graphs(cls, graphs: Sequence[Graph]) -> Sequence[Graph]:

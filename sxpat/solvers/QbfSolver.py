@@ -19,7 +19,7 @@ from sxpat.specifications import Specifications
 from sxpat.converting.utils import set_bool_constants, crystallise as crystallize
 
 
-_Graphs = TypeVar('_Graphs', bound=Sequence[IOGraph])
+_Graphs = TypeVar('_Graphs', bound=Sequence[Graph])
 NodeID: TypeAlias = str
 NodeIDSeq: TypeAlias = Sequence[NodeID]
 

@@ -6,7 +6,7 @@ from sxpat.utils.collections import first, formatted_int_range
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph import Graph, IOGraph
+from sxpat.graph import Graph
 from sxpat.graph import error as g_error
 from sxpat.graph.node import AbsDiff, AnyExtras, Extras, If, IntConstant, PlaceHolder, Sum
 from sxpat.graph.components import Constraints
@@ -26,7 +26,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
 
     @override
     @classmethod
-    def _define(cls, graph_a: IOGraph, graph_b: IOGraph,
+    def _define(cls, graph_a: Graph, graph_b: Graph,
                 wanted_a: Collection[str], wanted_b: Collection[str],
                 ) -> Tuple[Graph, str]:
 
@@ -56,13 +56,12 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         ))
 
         # construct Constraints Graph
-        # GRAPH CREATION/COPY
         dist_func = Graph(graph_nodes, [Constraints(graph_nodes)])
 
         return (dist_func, distance.name)
 
     @classmethod
-    def define_value(cls, graph: IOGraph, wanted: Optional[Collection[str]] = None
+    def define_value(cls, graph: Graph, wanted: Optional[Collection[str]] = None
                      ) -> Tuple[Graph, str]:
         """
             Define an individual weighted sum given the graph and an optional specific collection of nodes to use.
@@ -84,13 +83,12 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         value_nodes = list(value_nodes)
 
         # construct Constraints Graph
-        # GRAPH CREATION/COPY
         value_func = Graph(value_nodes, [Constraints(value_nodes)])
 
         return (value_func, value_name)
 
     @classmethod
-    def _define_value(cls, graph: IOGraph, wanted_nodes: Sequence[AnyExtras], value_id: str
+    def _define_value(cls, graph: Graph, wanted_nodes: Sequence[AnyExtras], value_id: str
                       ) -> Tuple[Iterable[Union[PlaceHolder, IntConstant, If, Sum]], str]:
 
         # graph int

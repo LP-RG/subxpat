@@ -3,12 +3,12 @@ from typing import Iterable, Sequence
 import os.path
 import networkx as nx
 from sxpat.utils.graph import is_selection_convex
-from sxpat.graph import IOGraph
+from sxpat.graph import Graph
 
 from sxpat.specifications import Specifications
 
 
-def extract(circuit: IOGraph, specs: Specifications) -> Sequence[str]:
+def extract(circuit: Graph, specs: Specifications) -> Sequence[str]:
     graph = circuit._inner
     before_path = os.path.join(specs.path.run.graphviz, 'manual_subgraph_extraction.gv')
     after_path = os.path.join(specs.path.run.graphviz, 'manual_subgraph_extraction_confirmation.gv')

@@ -41,7 +41,7 @@ def plot_results(legacy_file_path: str, new_file_path: str) -> None:
                 plt.xticks(rotation=70)
                 plt.legend(["legacy", "new"], loc="lower right")
                 plt.xlabel("Circuit name")
-                plt.ylabel("IoGraph generation time (sec)")
+                plt.ylabel("IO Graph generation time (sec)")
                 plt.show()
 
 def main():

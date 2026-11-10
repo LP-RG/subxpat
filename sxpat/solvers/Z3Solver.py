@@ -93,10 +93,10 @@ class Z3Encoder:
         # finalize node accessories
         accessories = cls.node_accessories((nodes_bitwidths,))
 
-        # extract graph inputs (each IOGraph should have the same inputs_names)
-        found_inputs_names = set(graph.base_components['IO'].inputs_names for graph in graphs if isinstance(graph, IOGraph))
-        if len(found_inputs_names) == 0: raise ValueError('No IOGraph was given to the Solver module.')
-        elif len(found_inputs_names) >= 2: raise ValueError('The inputs of the IOGraphs given to the Solver module did not match.')
+        # extract graph inputs (each Graph should have the same inputs_names)
+        found_inputs_names = set(graph.base_components['IO'].inputs_names for graph in graphs if graph.has_base_component('IO'))
+        if len(found_inputs_names) == 0: raise ValueError('No Graph was given to the Solver module.')
+        elif len(found_inputs_names) >= 2: raise ValueError('The inputs of the Graphs given to the Solver module did not match.')
 
         # extract graphs parameters (multiple graphs can define their own parameters)
         # parameters_names = tuple(it.chain.from_iterable(
@@ -228,7 +228,6 @@ class Z3FuncEncoder(Z3Encoder):
         }
 
         # node conversion
-        # NODE COPY
         nodes = tuple(
             (
                 node.copy(name=updated_names[node.name], operands=(updated_names[name] for name in node.operands))
@@ -243,7 +242,7 @@ class Z3FuncEncoder(Z3Encoder):
         else: return nodes
 
     @classmethod
-    def graph_as_function_calls(cls, graph: Union[IOGraph, Graph],
+    def graph_as_function_calls(cls, graph: Graph,
                                 inputs_string: str,
                                 non_gates_names: Container[str]):
         """
@@ -278,8 +277,6 @@ class Z3FuncEncoder(Z3Encoder):
                 weight=graph.base_components['Weight'].get(updated_names_inverted[node.name])
             )
         return graph_copier.copy(extra_components)
-
-        # return graph.copy(nodes, **extra) # GRAPH CREATION/COPY
 
     @classmethod
     def encode(cls, graphs: Solver._Graphs,

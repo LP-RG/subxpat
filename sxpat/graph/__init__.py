@@ -1,8 +1,6 @@
 from .graph import (
     Graph,
     #
-    IOGraph,
-    #
     T_Graph, AnyGraph, T_AnyGraph,
 )
 # COMMENT:from-MARCO: this is good

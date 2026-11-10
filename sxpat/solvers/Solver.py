@@ -2,7 +2,7 @@ from typing import Mapping, Optional, Sequence, Tuple, Union, TypeVar, NamedTupl
 from typing_extensions import final
 from abc import abstractmethod, ABCMeta
 
-from sxpat.graph import IOGraph, Graph
+from sxpat.graph import Graph
 from sxpat.graph.node import ForAll, Max, Min, PlaceHolder, GlobalTask, GreaterThan, Identity, LessThan, PlaceHolder, Target, Constraint, IntConstant
 from sxpat.specifications import Specifications
 from sxpat.utils.decorators import make_utility_class
@@ -54,7 +54,7 @@ class Solver(metaclass=ABCMeta):
     :authors: Marco Biasion
     """
 
-    _Graphs = TypeVar('_Graphs', bound=Sequence[Union[IOGraph, Graph]])
+    _Graphs = TypeVar('_Graphs', bound=Sequence[Union[Graph, Graph]])
 
     @classmethod
     @final
@@ -67,7 +67,7 @@ class Solver(metaclass=ABCMeta):
         Solve the required problem defined by the given graphs.
 
         The supported graphs are:
-        - IOGraph (and subclasses): for input variables (and local behaviour)
+        - Graph (and subclasses): for input variables (and local behaviour)
         - Graph (and subclasses): for applicable constraints
 
         Returns the status of the resolution (`sat`, `unsat`, `unknown`) and the model evaluated from the `Target` nodes if `sat`.
@@ -205,7 +205,7 @@ class Solver(metaclass=ABCMeta):
                     Constraint(SC.optimization.constraint, operands=(SC.optimization.rule,)),
                 )
             _extra_nodes = list(_extra_nodes)
-            _graphs = (*graphs, Graph(_extra_nodes, [Constraints(_extra_nodes)])) # GRAPH CREATION/COPY
+            _graphs = (*graphs, Graph(_extra_nodes, [Constraints(_extra_nodes)]))
 
             # solve
             _global_targets = GlobalTasks(forall=forall_target)
@@ -267,7 +267,7 @@ class Solver(metaclass=ABCMeta):
                         if n.name not in task_names and n.name not in placeholder_names
                     ], graph)
 
-                    graph = graph_builder.create(Graph, with_constraints_component=True)
+                    graph = graph_builder.create(with_constraints_component=True)
 
             _graphs.append(graph)
 

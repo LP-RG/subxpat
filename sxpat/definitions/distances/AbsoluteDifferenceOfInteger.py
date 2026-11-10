@@ -32,7 +32,6 @@ class AbsoluteDifferenceOfInteger(DistanceSpecification):
         distance = AbsDiff('dist_distance', operands=[int_a, int_b])
 
         # construct Constraints Graph
-        # GRAPH CREATION/COPY
         graph_nodes = [
             *(PlaceHolder(name) for name in wanted_a),
             int_a,

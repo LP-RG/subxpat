@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABCMeta
 from typing import Optional, Sequence, Tuple, final, overload
 
-from sxpat.graph import Graph, IOGraph
+from sxpat.graph import Graph
 from sxpat.graph import error as g_error
 
 from sxpat.utils.collections import first
@@ -16,7 +16,7 @@ class DistanceSpecification(metaclass=ABCMeta):
 
     @classmethod
     @overload
-    def define(cls, graph_a: IOGraph, graph_b: IOGraph,
+    def define(cls, graph_a: Graph, graph_b: Graph,
                wanted_a: Sequence[str], wanted_b: Optional[Sequence[str]] = None
                ) -> Tuple[Graph, str]:
         """
@@ -27,7 +27,7 @@ class DistanceSpecification(metaclass=ABCMeta):
 
     @classmethod
     @overload
-    def define(cls, graph_a: IOGraph, graph_b: IOGraph) -> Tuple[Graph, str]:
+    def define(cls, graph_a: Graph, graph_b: Graph) -> Tuple[Graph, str]:
         """
             Defines a distance between the outputs of two circuits (given as graphs).
 
@@ -36,7 +36,7 @@ class DistanceSpecification(metaclass=ABCMeta):
 
     @classmethod
     @final
-    def define(cls, graph_a: IOGraph, graph_b: IOGraph,
+    def define(cls, graph_a: Graph, graph_b: Graph,
                wanted_a: Optional[Sequence[str]] = None, wanted_b: Optional[Sequence[str]] = None,
                ) -> Tuple[Graph, str]:
 
@@ -80,12 +80,12 @@ class DistanceSpecification(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def _define(cls, graph_a: IOGraph, graph_b: IOGraph,
+    def _define(cls, graph_a: Graph, graph_b: Graph,
                 wanted_a: Sequence[str], wanted_b: Sequence[str]
                 ) -> Tuple[Graph, str]: ...
 
     @classmethod
-    def minimum_distance(cls, graph_a: IOGraph,
+    def minimum_distance(cls, graph_a: Graph,
                 wanted_a: Optional[Sequence[str]] = None
                 ) -> int:
         
@@ -96,6 +96,6 @@ class DistanceSpecification(metaclass=ABCMeta):
         
     @classmethod
     @abstractmethod
-    def _minimum_distance(cls, graph_a: IOGraph,
+    def _minimum_distance(cls, graph_a: Graph,
                 wanted_a: Sequence[str]
                 ) -> int: ...

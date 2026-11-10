@@ -11,7 +11,7 @@ import subprocess
 from threading import Lock
 from sxpat.utils.futures import ThreadPoolExecutor
 
-from sxpat.graph import IOGraph
+from sxpat.graph import Graph
 from sxpat.graph.node import BoolConstant, Node, And, Not, BoolVariable
 from sxpat.specifications import Specifications
 
@@ -70,7 +70,7 @@ class Labelling:
 
     def __init__(
         self,
-        reference: IOGraph, to_be_labelled: IOGraph,
+        reference: Graph, to_be_labelled: Graph,
         specs: Specifications,
         *,
         minimise: bool,
@@ -226,7 +226,7 @@ class Labelling:
         return path_join(self._base_path, f'{id}.py')
 
     @classmethod
-    def _node_to_z3str(cls, circuit: IOGraph, node: Node, prefix: str = REFERENCE_PREFIX) -> str:
+    def _node_to_z3str(cls, circuit: Graph, node: Node, prefix: str = REFERENCE_PREFIX) -> str:
         # prepare arguments string
         if isinstance(node, BoolConstant):
             args = str(node.value)
@@ -239,7 +239,7 @@ class Labelling:
         return f'{cls.NODES_TO_Z3PY.get(type(node))}({args})'
 
     @classmethod
-    def _circuit_to_z3str(cls, circuit: IOGraph, target_node: Optional[str] = None) -> str:
+    def _circuit_to_z3str(cls, circuit: Graph, target_node: Optional[str] = None) -> str:
         strings = list()
 
         # custom bfs, enqueue only when all predecessors have been visited

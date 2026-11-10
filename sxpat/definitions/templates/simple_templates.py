@@ -5,7 +5,7 @@ from sxpat.utils.collections import iterable_replace
 from sxpat.converting.utils import prune_unused_keepio, set_prefix_new, node_from_node
 
 from .Template import Template, TemplateBundle
-from sxpat.graph.graph import IOGraph
+from sxpat.graph.graph import Graph
 from sxpat.graph.node import AnyNode, AnyNonEndPoint, AnyOperation, BoolVariable, Xor
 from sxpat.graph.components import Weight, IO, Parameter
 from sxpat.graph.graphCreators import GraphBuilder
@@ -25,7 +25,7 @@ class SimpleTemplate(Template):
     """
 
     @classmethod
-    def _define_parameters(cls, circuit: IOGraph, graph_builder: GraphBuilder) -> Sequence[BoolVariable]:
+    def _define_parameters(cls, circuit: Graph, graph_builder: GraphBuilder) -> Sequence[BoolVariable]:
         params = []
         for out_node in circuit.base_components['Subgraph'].subgraph_outputs:
             new_node = node_from_node(BoolVariable, out_node, {'name': f'p_{out_node.name}'})
@@ -36,7 +36,7 @@ class SimpleTemplate(Template):
         return tuple(params)
 
     @classmethod
-    def _get_updated_suboutputs_successors(cls, circuit: IOGraph,
+    def _get_updated_suboutputs_successors(cls, circuit: Graph,
                                            new_subgraph_outputs: Sequence[AnyNonEndPoint],
                                            ) -> Mapping[str, AnyOperation]:
 
@@ -47,32 +47,17 @@ class SimpleTemplate(Template):
                 if not succ.name in circuit.base_components['Subgraph'].nodes_names():
                     succ = updated_nodes.get(succ.name, succ)
                     new_operands = iterable_replace(succ.operands, old.name, new.name)
-                    updated_nodes[succ.name] = succ.copy(operands=new_operands) # NODE COPY
+                    updated_nodes[succ.name] = succ.copy(operands=new_operands)
 
         return updated_nodes
 
     @classmethod
-    def _create_parametric_circuit(cls, circuit: IOGraph,
+    def _create_parametric_circuit(cls, circuit: Graph,
                                    updated_nodes: Mapping[str, AnyNode],
                                    parameters: Sequence[BoolVariable],
                                    graph_builder: GraphBuilder
-                                   ) -> IOGraph:
-        
-        # # create parametric circuit
-        # # GRAPH CREATION/COPY
-        # param_circ = PGraph(
-        #     it.chain(
-        #         (  # replace updated nodes
-        #             updated_nodes.get(n.name, n)
-        #             for n in circuit.nodes
-        #         ),
-        #         new_nodes,
-        #         parameters,
-        #     ),
-        #     inputs_names=circuit.inputs_names,
-        #     outputs_names=circuit.outputs_names,
-        #     parameters_names=tuple(n.name for n in parameters),
-        # )
+                                   ) -> Graph:
+    
     
         for n in circuit.nodes:
             node = updated_nodes.get(n.name, n)
@@ -84,8 +69,7 @@ class SimpleTemplate(Template):
                     in_subgraph=circuit.base_components['Subgraph'].in_subgraph(node.name),
                     weight=circuit.base_components['Weight'].get(node.name))
 
-        param_circ = graph_builder.create(IOGraph,
-                                          extra_components=[
+        param_circ = graph_builder.create(extra_components=[
                                               IO(circuit.base_components['IO'].inputs_names, 
                                                  circuit.base_components['IO'].outputs_names),
                                               Parameter(tuple(n.name for n in parameters))
@@ -107,7 +91,7 @@ class ConstantTemplate(SimpleTemplate):
     """
 
     @classmethod
-    def define(cls, circuit: IOGraph, _unused=...) -> TemplateBundle:
+    def define(cls, circuit: Graph, _unused=...) -> TemplateBundle:
         """The `TemplateBundle` returned from this method contains only the circuit."""
 
         graph_builder = GraphBuilder()
@@ -138,7 +122,7 @@ class SwitchedTemplate(SimpleTemplate):
     """
 
     @classmethod
-    def define(cls, circuit: IOGraph, _unused=...) -> TemplateBundle:
+    def define(cls, circuit: Graph, _unused=...) -> TemplateBundle:
 
         graph_builder = GraphBuilder()
 

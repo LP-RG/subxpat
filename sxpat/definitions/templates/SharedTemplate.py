@@ -29,9 +29,9 @@ class SharedTemplate(Template):
     """
 
     @classmethod
-    def define(cls, graph: IOGraph, specs: Specifications) -> TemplateBundle:
+    def define(cls, graph: Graph, specs: Specifications) -> TemplateBundle:
         # get prefixed graph
-        a_graph: IOGraph = set_prefix(graph, 'a_')
+        a_graph: Graph = set_prefix(graph, 'a_')
         template_graph_builder = GraphBuilder()
         constraint_graph_builder = GraphBuilder()
 
@@ -46,13 +46,13 @@ class SharedTemplate(Template):
             products_p.append([])
             for in_i, in_node in enumerate(a_graph.base_components['Subgraph'].subgraph_inputs):
                 products_p[-1].append((
-                    (p_usage := BoolVariable(f'p_p{prod_i}_i{in_i}_u')), #HERE MARK SUBGRAPH
-                    (p_assert := BoolVariable(f'p_p{prod_i}_i{in_i}_a')), #HERE MARK SUBGRAPH
+                    (p_usage := BoolVariable(f'p_p{prod_i}_i{in_i}_u')), 
+                    (p_assert := BoolVariable(f'p_p{prod_i}_i{in_i}_a')), 
                 ))
-                _muxs.append(Multiplexer(f'mux_p{prod_i}_i{in_i}', operands=[in_node, p_usage, p_assert])) #HERE MARK SUBGRAPH
+                _muxs.append(Multiplexer(f'mux_p{prod_i}_i{in_i}', operands=[in_node, p_usage, p_assert])) 
 
             # create the product (and store multiplexers)
-            products.append(And(f'prod{prod_i}', operands=_muxs)) #HERE MARK SUBGRAPH
+            products.append(And(f'prod{prod_i}', operands=_muxs)) 
             for node in _muxs:
                 template_graph_builder.add_new_node(node, in_subgraph=True)
 
@@ -68,15 +68,15 @@ class SharedTemplate(Template):
             _sws = []
             sums_p.append([])
             for prod_i, prod_node in enumerate(products):
-                sums_p[-1].append(param := BoolVariable(f'p_o{out_i}_p{prod_i}')) #HERE MARK SUBGRAPH
-                _sws.append(If(f'sw_o{out_i}_p{prod_i}', operands=(param, prod_node, consts[True]))) #HERE MARK SUBGRAPH
+                sums_p[-1].append(param := BoolVariable(f'p_o{out_i}_p{prod_i}')) 
+                _sws.append(If(f'sw_o{out_i}_p{prod_i}', operands=(param, prod_node, consts[True]))) 
 
             # create the sum and constant 0 switch
-            sums.append(_sum := Or(f'sum{out_i}', operands=_sws)) #HERE MARK SUBGRAPH
+            sums.append(_sum := Or(f'sum{out_i}', operands=_sws)) 
             for node in _sws:
                 template_graph_builder.add_new_node(node, in_subgraph=True)
-            outs_p.append(p_o := BoolVariable(f'p_o{out_i}')) #HERE MARK SUBGRAPH
-            outs.append(new_out_node := If(f'sw_o{out_i}', operands=(p_o, _sum, consts[False]))) #HERE MARK SUBGRAPH
+            outs_p.append(p_o := BoolVariable(f'p_o{out_i}')) 
+            outs.append(new_out_node := If(f'sw_o{out_i}', operands=(p_o, _sum, consts[False]))) 
 
             # update all output successors to descend from new outputs
             for succ in a_graph.successors(out_node):
@@ -84,7 +84,7 @@ class SharedTemplate(Template):
                     succ = out_successors.get(succ.name, succ)
                     new_out_index = succ.operands.index(out_node.name)
                     new_operands = succ.operands[:new_out_index] + (new_out_node.name,) + succ.operands[new_out_index + 1:]
-                    out_successors[succ.name] = succ.copy(operands=new_operands) # NODE COPY
+                    out_successors[succ.name] = succ.copy(operands=new_operands)
 
         template_graph_builder.add_inherited_nodes([
             # unchanged nodes
@@ -112,43 +112,11 @@ class SharedTemplate(Template):
                 weight=a_graph.base_components['Weight'].get(node.name)
             )
 
-        template_graph = template_graph_builder.create(IOGraph,
-                                                       extra_components=[
+        template_graph = template_graph_builder.create(extra_components=[
                                                            IO(a_graph.base_components['IO'].inputs_names, 
                                                               a_graph.base_components['IO'].outputs_names),
                                                            Parameter((n.name for n in flat((products_p, sums_p, outs_p))))
                                                        ])
-
-        # # create template graph
-        # nodes = it.chain(
-        #     (  # unchanged nodes
-        #         n
-        #         for n in a_graph.nodes
-        #         if not n.name in a_graph.base_components['Subgraph'].nodes_names()
-        #         if n.name not in out_successors
-        #     ),
-        #     # constants
-        #     consts.values(),
-        #     # products and relative operands
-        #     flat(products_p),
-        #     multiplexers,
-        #     products,
-        #     # sums and relative operands
-        #     flat(sums_p),
-        #     switches,
-        #     sums,
-        #     outs_p,
-        #     outs,
-        #     # updated successors
-        #     out_successors.values(),
-        # )
-        # # GRAPH CREATION/COPY
-        # template_graph = PGraph(
-        #     nodes,
-        #     a_graph.inputs_names, a_graph.outputs_names,
-        #     (n.name for n in flat((products_p, sums_p, outs_p))),
-        #     [Subgraph(template_subgraph_set)],
-        # )
 
         # > Constraints Graph
 
@@ -217,27 +185,6 @@ class SharedTemplate(Template):
                                                + prod_ord_nodes
                                                + targets)
 
-        constraint_graph = constraint_graph_builder.create(Graph, with_constraints_component=True)
-
-        # nodes = it.chain(
-        #     # placeholders
-        #     (PlaceHolder(node.name) for node in flat((sums_p, products_p, outs_p, sums_p))),
-        #     (PlaceHolder(name) for name in graph.outputs_names),
-        #     (PlaceHolder(name) for name in template_graph.outputs_names),
-        #     # constants
-        #     consts.values(),
-        #     # ints and error
-        #     error_nodes,
-        #     # its constraints
-        #     its_nodes,
-        #     # redundancy constraints
-        #     mux_red_nodes,
-        #     const0_red_nodes,
-        #     prod_ids,
-        #     prod_ord_nodes,
-        #     targets,
-        # )
-        # # GRAPH CREATION/COPY
-        # constraint_graph = CGraph(nodes, [Subgraph(constraint_subgraph_set)])
+        constraint_graph = constraint_graph_builder.create(with_constraints_component=True)
 
         return TemplateBundle(template_graph, [constraint_graph])

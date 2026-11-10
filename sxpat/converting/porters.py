@@ -135,7 +135,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # from-ILIA: does the following work? Is it what you meant?
         # from-MARCO: yes, this is perfect. I find this to be a fundamental behaviour of this component, and now that we have a specific entry point, we simplify the process of future changes to the internal behaviour of the component
         Graph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
-        IOGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
+        # IOGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
         # CGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
         # COMMENT:from-MARCO: I think removing this is ok, or was there a different question?
         # from-ILIA: removed!
@@ -226,7 +226,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
 
         # extra data
         extra_lines = []
-        if isinstance(graph, IOGraph):
+        if graph.has_base_component('IO'):
             extra_lines.append(f'// inputs_names[{",".join(graph.base_components['IO'].inputs_names)}]')
             extra_lines.append(f'// outputs_names[{",".join(graph.base_components['IO'].outputs_names)}]')
         if graph.has_base_component('Parameter'):
@@ -371,9 +371,9 @@ class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
         return json.dumps(_g, indent='\t')
 
 
-class VerilogExporter(GraphExporter[IOGraph]):
+class VerilogExporter(GraphExporter[Graph]):
     """
-        Allows for dumping of an IOGraph to a Verilog string/file.
+        Allows for dumping of an Graph to a Verilog string/file.
 
         @authors: Marco Biasion
     """
@@ -422,7 +422,7 @@ class VerilogExporter(GraphExporter[IOGraph]):
         model_number: int = -1
 
     @classmethod
-    def to_string(cls, graph: IOGraph, info: Info = None) -> str:
+    def to_string(cls, graph: Graph, info: Info = None) -> str:
         info = info or cls.Info()
         IO_component = graph.base_components['IO']
 

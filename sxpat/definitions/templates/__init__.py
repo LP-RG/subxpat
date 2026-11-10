@@ -3,7 +3,7 @@
 
     This module contains all the templates we have implemented.
     
-    All of them share the same interface: `cls.define(SGraph, Specifications) -> Tuple[IOGraph, Sequence[Graph]]`
+    All of them share the same interface: `cls.define(SGraph, Specifications) -> Tuple[Graph, Sequence[Graph]]`
 
     @authors: Marco Biasion
 """

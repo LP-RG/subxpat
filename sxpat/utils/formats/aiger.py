@@ -1,11 +1,11 @@
 """
     @authors: Ilia Zeller
 
-    Aiger files generation, and aiger files loading and parsing to produce IOGraph.
+    Aiger files generation, and aiger files loading and parsing to produce Graph.
 """
 
 from textwrap import dedent
-from sxpat.graph import IOGraph
+from sxpat.graph import Graph
 from sxpat.graph.components import IO
 from sxpat.graph.node import BoolVariable, BoolConstant, And, Not, Identity
 import subprocess
@@ -17,7 +17,7 @@ import os
 
 __all__ = [
             'gen_circuit_digraph',
-            'iograph_from_digraph',
+            'graph_from_digraph',
         ]
 
 # generates circuit digraph
@@ -97,7 +97,7 @@ def sort_dict(this_dict: dict) -> dict:
 
 # COMMENT:from-MARCO: I think I forgot what we use this `info` parameter for
 # from-ILIA: I added 'info' just for myself when testing the time improvement gained with the addition of aigverse!
-def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list = list()) -> IOGraph:
+def graph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list = list()) -> Graph:
     
     graph = circuit_digraph
 
@@ -204,8 +204,7 @@ def iograph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list
             raise RuntimeError(f'Unable to parse node {node_index} from DiGraph (attributes={attrs})')
 
     # construct graph
-    # GRAPH CREATION/COPY
-    return IOGraph(
+    return Graph(
         nodes,
         components=[
             IO(sorted(inputs_names, key=lambda x: int(x)),

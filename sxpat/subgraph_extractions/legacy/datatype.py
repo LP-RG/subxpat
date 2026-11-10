@@ -17,7 +17,7 @@ from z3 import (
 )
 
 from sxpat.constants.misc import WEIGHT
-from sxpat.graph.graph import IOGraph
+from sxpat.graph.graph import Graph
 from sxpat.graph.node import BoolConstant, Identity, BoolVariable
 from sxpat.specifications import Specifications
 
@@ -133,7 +133,7 @@ def _encode_edges(
     return z3_edges
 
 
-def _setup_problem(circuit: IOGraph, specs: Specifications):
+def _setup_problem(circuit: Graph, specs: Specifications):
     graph = circuit._inner
     feasibility_threshold = specs.et
 
@@ -237,7 +237,7 @@ def _add_convexity(optimizer, graph, Node, z3_nodes):
                 )
 
 
-def _solve_and_extract(optimizer, max_nodes, h, circuit: IOGraph) -> List[str]:
+def _solve_and_extract(optimizer, max_nodes, h, circuit: Graph) -> List[str]:
     graph = circuit._inner
 
     if optimizer.check() != sat:
@@ -283,7 +283,7 @@ def _declare_ancestor_datatypes():
     return Node, Edge
 
 def _setup_output_ancestor_problem(
-    circuit: IOGraph,
+    circuit: Graph,
     specs: Specifications,
 ):
     graph = circuit._inner
@@ -349,7 +349,7 @@ def _setup_output_ancestor_problem(
         ancestors_output,
     )
 
-def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
+def find_subgraph_feasible_hard_datatype_bitvec(circuit: Graph, specs):
     optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = _setup_problem(circuit, specs)
 
     z3_subinput_edges, z3_suboutput_edges = _add_boundary_edges(graph, Node, z3_nodes, bit_width)
@@ -389,7 +389,7 @@ def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
 
 
 def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
-    circuit: IOGraph,
+    circuit: Graph,
     specs: Specifications,
 ) -> List[str]:
 
@@ -408,7 +408,7 @@ def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
 
 
 def slash_to_kill(
-    circuit: IOGraph,
+    circuit: Graph,
     specs: Specifications,
 ) -> List[str]:
     optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width = _setup_problem(circuit, specs)
@@ -457,7 +457,7 @@ def slash_to_kill(
     return _solve_and_extract(optimizer, max_nodes, h, circuit)
 
 def find_subgraph_output_nodes_ascendant(
-    circuit: IOGraph,
+    circuit: Graph,
     specs: Specifications,
 ) -> List[str]:
 

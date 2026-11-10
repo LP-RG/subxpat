@@ -65,7 +65,6 @@ class HammingDistance(DistanceSpecification):
         ))
 
         # construct Constraints Graph
-        # GRAPH CREATION/COPY
         dist_func = Graph(graph_nodes, [Constraints(graph_nodes)])
 
         return (dist_func, distance.name)

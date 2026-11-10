@@ -7,7 +7,7 @@ import networkx as nx
 import os
 from os.path import join as path_join
 
-from sxpat.graph.graph import IOGraph
+from sxpat.graph.graph import Graph
 from sxpat.graph.node import Extras, Node
 from sxpat.error_iter import ErrorIterator
 from sxpat.newag import load_circuit_from_verilog
@@ -75,7 +75,7 @@ def explore_grid(specs_obj: Specifications):
     )
 
     #
-    previous_graphs: List[IOGraph] = list()
+    previous_graphs: List[Graph] = list()
     obtained_wce_exact = 0
     specs_obj.iteration = 0
 
@@ -149,8 +149,6 @@ def explore_grid(specs_obj: Specifications):
             for (i, n) in enumerate(current_graph.base_components['IO'].outputs_names):
                 weights[n] = 2 ** i
 
-            # COMMENT:from-MARCO: good
-            # "current_graph = iograph_with_weights(current_graph, weights)" BECOMES:
             current_graph = current_graph.with_base_component(Weight(weights))
             _time = Timer.now() - _time
 
@@ -162,7 +160,6 @@ def explore_grid(specs_obj: Specifications):
         _time = Timer.now()
         subgraph_nodes = extract_subgraph(current_graph, specs_obj)
         subgraph_is_available = len(subgraph_nodes) > 0
-        # "current_graph = iograph_to_sgraph(current_graph, subgraph_nodes)" BECOMES:
         current_graph = current_graph.with_base_component(Subgraph(set(subgraph_nodes)))
         _time = Timer.now() - _time
         previous_graphs.append(current_graph)
@@ -402,7 +399,7 @@ def explore_grid(specs_obj: Specifications):
     )
 
 
-def error_evaluation(reference_circuit: IOGraph, current_circuit: IOGraph, specs_obj: Specifications) -> int:
+def error_evaluation(reference_circuit: Graph, current_circuit: Graph, specs_obj: Specifications) -> int:
     # define error evaluation question
     p_graph, c_graph = MaxDistanceEvaluation.define(current_circuit)
     # solve error evaluation question
@@ -508,7 +505,7 @@ def print_current_model(
     pprint.success(tabulate(data, headers=['Design ID', 'Area', 'Power', 'Delay', 'Error']))
 
 
-def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> List[str]:
+def extract_subgraph(circuit: Graph, specs_obj: Specifications) -> List[str]:
     return {
         0: find_subgraph_output_nodes_ascendant,
         1: find_subgraph,
@@ -541,11 +538,11 @@ def error_iterator(specs: Specifications) -> ErrorIterator | None:
     return erriter
 
 
-def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
+def label_graph(circuit: Graph, specs_obj: Specifications) -> Dict[str, int]:
     """This function adds the labels inplace to the given graph"""
 
-    reference: IOGraph = circuit
-    to_be_labelled: IOGraph = circuit
+    reference: Graph = circuit
+    to_be_labelled: Graph = circuit
 
     #
     labeller = Labelling(
@@ -576,7 +573,8 @@ def label_graph(circuit: IOGraph, specs_obj: Specifications) -> Dict[str, int]:
 #     return nx.is_isomorphic(g1._inner, g2._inner, node_match=node_matcher)
 # BECOMES:
 
-def are_circuits_equal(g1: IOGraph, g2: IOGraph) -> bool:
+# TODO: check together and reason about the below method!
+def are_circuits_equal(g1: Graph, g2: Graph) -> bool:
     # COMMENT:from-MARCO: This will have a few issues, specifically:
     #                     Two different circuits (crossing iterations) may be syntactically equivalent, but have their names be shuffled (meaning that, two graphs, A and B, might be equivalent, even if only node "a" is in the subgraph in graph A, and only node "b" is in the subgraph in graph B. this is because the equivalence should ignore names, as they are arbitrary each time).
     #                     A way to solve this difference is, to use the subgraph check inside the `node_matcher``, per node; meaning that, when two nodes (one from each graph) are being compared, they can be equal only if both have the same in_subgraph status.
@@ -601,8 +599,8 @@ def are_circuits_equal(g1: IOGraph, g2: IOGraph) -> bool:
     class _Node(Node, Extras): ...
 
     def node_matcher(_n1: dict, _n2: dict) -> bool:
-        n1: _Node = _n1[IOGraph.K]
-        n2: _Node = _n2[IOGraph.K]
+        n1: _Node = _n1[Graph.K]
+        n2: _Node = _n2[Graph.K]
         return (
             type(n1) == type(n2)
         )
