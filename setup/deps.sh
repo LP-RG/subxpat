@@ -3,11 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-DEPS_DIR="${DEPS_DIR:-$REPO_DIR/.deps}"
-case "$DEPS_DIR" in
-  /*) ;;
-  *) DEPS_DIR="$REPO_DIR/$DEPS_DIR" ;;
-esac
+DEPS_DIR="$REPO_DIR/.deps"
 BIN_DIR="$DEPS_DIR/bin"
 ENV_NAME="${ENV_NAME:-.venv}"
 VENV="$REPO_DIR/$ENV_NAME"
@@ -31,7 +27,7 @@ esac
 
 need_tool() {
   command -v "$1" >/dev/null 2>&1 && return 0
-  die "`$1` not found${2:+ ($2)}"
+  die "'$1' not found${2:+ ($2)}"
 }
 
 brew_install() {
@@ -49,9 +45,15 @@ ensure_python() {
   command -v "$PY" >/dev/null 2>&1 || die "$PY not found after brew install"
 }
 
+python_version() {
+  "$1" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null
+}
+
 venv_is_current() {
+  local want
   [ -x "$VENV/bin/python" ] || return 1
-  "$VENV/bin/python" -c 'import sys; sys.exit(0 if sys.version_info[:2] == (3, 14) else 1)' 2>/dev/null
+  want="$(python_version "$PY")" || return 1
+  [ -n "$want" ] && [ "$(python_version "$VENV/bin/python")" = "$want" ]
 }
 
 create_venv() {
@@ -71,6 +73,9 @@ install_python_deps() {
 
 install_macos_deps() {
   is_macos || die "--macos is only available on macOS"
+  case "$REPO_DIR" in
+    *" "*) die "the path '$REPO_DIR' contains a space, which the OpenSTA build does not support" ;;
+  esac
   command -v brew >/dev/null 2>&1 || die "Homebrew is required on macOS (https://brew.sh)"
   log "installing brew packages"
   brew_install python@3.14
@@ -83,6 +88,7 @@ install_macos_deps() {
 
 build_opensta() {
   local tcl_prefix tcl_lib target stamp sha
+  ensure_python
   need_tool git
   need_tool cmake "install it with brew install cmake"
   need_tool make "install the Xcode command line tools"
@@ -95,7 +101,10 @@ build_opensta() {
 
   mkdir -p "$DEPS_DIR/src" "$BIN_DIR"
   cd "$DEPS_DIR/src"
-  [ -d OpenSTA ] || git clone --quiet "$OPENSTA_REPO" OpenSTA
+  if [ ! -d OpenSTA/.git ]; then
+    rm -rf OpenSTA
+    git clone --quiet "$OPENSTA_REPO" OpenSTA
+  fi
   cd OpenSTA
   if ! git cat-file -e "${OPENSTA_REF}^{commit}" 2>/dev/null; then
     git fetch --quiet --tags origin
@@ -122,7 +131,7 @@ PY
   fi
 
   log "building OpenSTA $OPENSTA_REF (${sha:0:7})"
-  rm -rf build
+  rm -rf build "$target"
   cmake -B build -DCMAKE_BUILD_TYPE=Release \
     -DTCL_LIB="$tcl_lib" -DTCL_HEADER="$tcl_prefix/include/tcl-tk/tcl.h" \
     -DCMAKE_INSTALL_PREFIX="$target" > "$DEPS_DIR/src/opensta-configure.log" 2>&1 \
@@ -142,7 +151,10 @@ build_cqesto() {
 
   mkdir -p "$DEPS_DIR/src" "$BIN_DIR"
   cd "$DEPS_DIR/src"
-  [ -d cqesto ] || git clone --quiet "$CQESTO_REPO" cqesto
+  if [ ! -d cqesto/.git ]; then
+    rm -rf cqesto
+    git clone --quiet "$CQESTO_REPO" cqesto
+  fi
   cd cqesto
   if [ -x "$BIN_DIR/cqesto" ]; then return 0; fi
 
@@ -155,6 +167,7 @@ build_cqesto() {
     sed -i.bak 's|cmake -DCMAKE_INSTALL_PREFIX=${MDIR} ..|cmake -DCMAKE_INSTALL_PREFIX=${MDIR} -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..|' contrib/setup-minisat.sh
   fi
   [ -f configure ] || die "cqesto checkout is incomplete, remove $DEPS_DIR/src/cqesto and retry"
+  rm -rf build
   CC="${CC:-cc}" CXX="${CXX:-c++}" ./configure > "$DEPS_DIR/src/cqesto-configure.log" 2>&1 \
     || die "cqesto configure failed, see $DEPS_DIR/src/cqesto-configure.log"
   make -C build -j"$JOBS" || die "cqesto build failed"
@@ -166,6 +179,7 @@ probe_tool() {
     yosys) "$2" -V ;;
     sta) "$2" -version ;;
     cqesto) "$2" --help ;;
+    *) return 1 ;;
   esac > /dev/null 2>&1
 }
 

@@ -7,7 +7,7 @@ DELETION_DELAY ?= 10
 # computed
 
 ACTIV_ENV := . $(ENV_NAME)/bin/activate
-SETUP := ENV_NAME=$(ENV_NAME) PY=$(PY) bash setup/deps.sh
+SETUP := ENV_NAME='$(ENV_NAME)' PY='$(PY)' bash setup/deps.sh
 
 # includes
 -include *.mk
@@ -50,12 +50,12 @@ rm_temp:
 
 rm_pyenv:
 	@echo "\n[[ removing the virtual python environment ]]"
-	rm -rf $(ENV_NAME)
+	rm -rf '$(ENV_NAME)'
 
 rm_deps:
 	@echo "\n[[ removing the locally built dependencies (.deps/) ]]\n[[ !! YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION !! ]]"
 	@sleep $(DELETION_DELAY)
-	rm -rf "$${DEPS_DIR:-.deps}"
+	rm -rf .deps
 
 clean: rm_cache rm_temp
 
