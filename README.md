@@ -17,7 +17,7 @@ SubXPAT has been developed for a **Linux** environment and requires the followin
 
 **Note:** the binaries of Yosys and OpenSTA should be added to your PATH.
 
-On **macOS** (Apple silicon or Intel) only Python, Yosys and GraphViz are available as packages: OpenSTA is built from source by `make setup macos` into `.deps/`, together with everything else that is missing. See [macOS](#macos).
+On **macOS** (Apple silicon or Intel) only Python and Yosys are available as packages: OpenSTA (and cqesto, for `--encoding=qbf`) have to be built from source, which `make setup macos` does into `.deps/`. GraphViz is not needed on macOS, because the `pygraphviz` wheel bundles the graphviz library. See [macOS](#macos).
 
 ### Optional
 
@@ -33,14 +33,12 @@ To prepare the system for execution you will need to follow a few steps:
     ```bash
     # bulk commands
     make setup        # python environment and python dependencies
-    make setup macos  # [macOS] the above, plus yosys, graphviz and OpenSTA
+    make setup macos  # (macOS) the above, plus yosys, graphviz and OpenSTA
     make setup all    # the above, plus cqesto (needed by `--encoding=qbf`)
 
     # individual commands
-    make py_init     # create python environment
+    make py_init     # create python environment (.venv/)
     make py_dep      # install/update requirements
-    make macos       # native dependencies only (same as `make setup macos`)
-    make all         # native dependencies and cqesto only (same as `make setup all`)
     ```
 
 2. Activate the python environment:
@@ -50,21 +48,22 @@ To prepare the system for execution you will need to follow a few steps:
 
 ### macOS
 
-`make setup macos` installs `python@3.14`, `yosys`, `graphviz`, `swig` and `tcl-tk@8` with [Homebrew] and builds everything that has no package into `./.deps/`, so that no global installation is needed besides Homebrew itself:
+`make setup macos` installs `python@3.14`, `yosys`, `swig` and `tcl-tk@8` with [Homebrew] and builds everything that has no package into `./.deps/`, so that no global installation is needed besides Homebrew itself:
 
 | dependency | source | reason |
 | :-- | :-- | :-- |
-| Python, Yosys, GraphViz | Homebrew | packaged, no build required |
+| Python, Yosys | Homebrew | packaged, no build required |
 | OpenSTA (`sta`) | cloned and built into `.deps/opt/opensta` | not packaged: only Debian ships it |
 | cqesto (`--encoding=qbf`) | cloned and built into `.deps/bin` by `make setup all` | not packaged anywhere |
 | `swig`, `tcl-tk@8` | Homebrew | build dependencies of OpenSTA |
+| GraphViz | not needed | the `pygraphviz` wheel links the graphviz library it ships, and no code runs the `dot` executable |
 
 OpenSTA is built at version 2.0.17 (commit `c018cb21`, the revision Debian packages as `opensta`), so the metrics match the ones obtained on Linux. Two adjustments are required by the macOS build:
 
 - the Tcl 8.6 headers and library are passed explicitly (`-DTCL_HEADER`, `-DTCL_LIB`), because OpenSTA's `findTcl` picks the system Tcl on macOS, and Tcl 9 is not supported (hence the `tcl-tk@8` keg instead of the default `tcl-tk` one);
 - `tcl/StaException.i` is patched from `$function` to `$action`, because SWIG 4.3 and later no longer expand `$function` inside an `%exception` block.
 
-The generated binaries are found automatically: `main.py` looks them up on the `PATH` first and then in `.deps/bin`, so no `PATH` modification is needed.
+The generated binaries are found automatically: `main.py` looks them up in `.deps/bin` first and then on the `PATH`, so no `PATH` modification is needed.
 
 The macOS setup reproduces the Linux numbers. On the SubXPAT example below the run ends with
 
@@ -82,10 +81,10 @@ and `run_stats.csv` matches the Linux run row for row, with `circuit_power`/`cir
     ```bash
     # individually
     make rm_cache # remove the pycache folders
-    make rm_temp  # remove temporary files
-    make rm_pyenv # remove the virtual python environment
+    make rm_temp  # remove temporary files (.history_sta)
+    make rm_pyenv # remove the virtual python environment (.venv/)
     make rm_deps  # remove the locally built dependencies (.deps/)
-    make rm_data  # remove the output results
+    make rm_data  # remove the output results (output/)
 
     # all together
     make clean     # rm_cache, rm_temp
@@ -176,8 +175,8 @@ python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extracti
 
 ## Known limitations
 
-- On Apple devices running M# architecture, use `make setup macos`: the dependencies that Linux installs with apt have to be built from source. \
-  No support is given for other setups.
+- On Apple devices running M# architecture, the dependencies that Linux installs with apt have to be built from source: use `make setup macos`. \
+  At the moment no support is given for other setups.
 
 
 <!-- links -->

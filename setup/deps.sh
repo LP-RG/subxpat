@@ -25,8 +25,8 @@ die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 is_macos() { [ "$(uname -s)" = "Darwin" ]; }
 
 case "$MODE" in
-  --python|--python-init|--python-dep|--macos|--all) ;;
-  *) die "usage: $0 {--python|--python-init|--python-dep|--macos|--all}" ;;
+  --python-init|--python-dep|--macos|--all) ;;
+  *) die "usage: $0 {--python-init|--python-dep|--macos|--all}" ;;
 esac
 
 ensure_python() {
@@ -66,7 +66,6 @@ install_macos_deps() {
   ensure_python
   log "installing brew packages"
   brew_install yosys
-  brew_install graphviz
   brew_install swig
   brew_install tcl-tk@8
   build_opensta
@@ -121,37 +120,43 @@ build_cqesto() {
     fi
     CC="${CC:-cc}" CXX="${CXX:-c++}" ./configure > "$DEPS_DIR/src/cqesto-configure.log" 2>&1
     make -C build -j"$JOBS"
-    cp build/cqesto "$BIN_DIR/cqesto"
+    ln -sf "$DEPS_DIR/src/cqesto/build/cqesto" "$BIN_DIR/cqesto"
   fi
 }
 
+probe_tool() {
+  case "$1" in
+    yosys) "$2" -V ;;
+    sta) "$2" -version ;;
+    cqesto) "$2" --help ;;
+  esac > /dev/null 2>&1
+}
+
 check_toolchain() {
-  local missing=0
+  local missing=0 tool path
   log "checking the toolchain"
-  for tool in yosys sta; do
-    if command -v "$tool" >/dev/null 2>&1 || [ -x "$BIN_DIR/$tool" ]; then
-      printf '  %-8s %s\n' "$tool" "$(command -v "$tool" 2>/dev/null || echo "$BIN_DIR/$tool")"
+  for tool in yosys sta cqesto; do
+    [ -x "$BIN_DIR/$tool" ] && path="$BIN_DIR/$tool" || path="$(command -v "$tool" 2>/dev/null || echo "$BIN_DIR/$tool")"
+    if [ ! -x "$path" ]; then
+      case "$tool" in
+        yosys|sta) printf '  %-8s missing\n' "$tool"; missing=1 ;;
+        *) printf '  %-8s missing (optional)\n' "$tool" ;;
+      esac
+    elif ! probe_tool "$tool" "$path"; then
+      case "$tool" in
+        yosys|sta) printf '  %-8s %s does not run\n' "$tool" "$path"; missing=1 ;;
+        *) printf '  %-8s %s does not run (optional)\n' "$tool" "$path" ;;
+      esac
     else
-      printf '  %-8s missing\n' "$tool"
-      missing=1
+      printf '  %-8s %s\n' "$tool" "$path"
     fi
   done
-  if command -v dot >/dev/null 2>&1 || [ -x "$BIN_DIR/dot" ]; then
-    printf '  %-8s %s\n' dot "$(command -v dot 2>/dev/null || echo "$BIN_DIR/dot")"
-  else
-    printf '  %-8s missing (only needed by --debug)\n' dot
-  fi
-  if [ -x "$BIN_DIR/cqesto" ]; then
-    printf '  %-8s %s\n' cqesto "$BIN_DIR/cqesto"
-  fi
-  printf '  %-8s %s\n' python "$("$VENV/bin/python" -V 2>&1)"
   [ "$missing" = 0 ] || die "toolchain incomplete"
 }
 
 case "$MODE" in
   --python-init) create_venv ;;
   --python-dep) install_python_deps ;;
-  --python) install_python_deps ;;
   --macos) install_macos_deps && install_python_deps && check_toolchain ;;
   --all)
     if is_macos; then install_macos_deps; fi

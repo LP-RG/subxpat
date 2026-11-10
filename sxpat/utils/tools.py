@@ -10,8 +10,8 @@ LOCAL_TOOLS_DIR = path.join(PROJECT_ROOT, '.deps', 'bin')
 
 
 def find_tool(name: str) -> Optional[str]:
-    if (found := shutil.which(name)) is not None: return found
     if path.isfile(local := path.join(LOCAL_TOOLS_DIR, name)): return local
+    if (found := shutil.which(name)) is not None: return found
     return None
 
 
