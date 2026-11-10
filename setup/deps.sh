@@ -36,6 +36,22 @@ brew_install() {
   brew install "$1"
 }
 
+brew_install_missing() {
+  local installed missing formula
+  installed="$(brew list --versions "$@" 2>/dev/null || true)"
+  missing=""
+  for formula in "$@"; do
+    case "$installed" in
+      *"$formula "*) ;;
+      *) missing="$missing $formula" ;;
+    esac
+  done
+  if [ -n "$missing" ]; then
+    log "installing$missing with brew"
+    brew install $missing
+  fi
+}
+
 ensure_python() {
   if command -v "$PY" >/dev/null 2>&1; then return 0; fi
   is_macos || die "$PY not found, install Python 3.14 first"
@@ -78,11 +94,7 @@ install_macos_deps() {
   esac
   command -v brew >/dev/null 2>&1 || die "Homebrew is required on macOS (https://brew.sh)"
   log "installing brew packages"
-  brew_install python@3.14
-  brew_install cmake
-  brew_install yosys
-  brew_install swig
-  brew_install tcl-tk@8
+  brew_install_missing python@3.14 cmake yosys swig tcl-tk@8
   build_opensta
 }
 
