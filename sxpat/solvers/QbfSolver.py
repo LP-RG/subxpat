@@ -567,7 +567,7 @@ class QbfSolver(Solver):
             node.name
             for graph in graphs
             for node in graph.nodes
-            if isinstance(node, BoolVariable) and node.name not in forall
+            if graph.base_components['Types'].instance_of(node, [BoolVariable]) and node.name not in forall
         ]
         variables = list(set(variables))
         variables.sort()
@@ -596,15 +596,16 @@ class QbfSolver(Solver):
             in_the_output = []
             targets = []
             for graph in graphs:
+                types_component = graph.base_components['Types']
                 for node in graph.nodes:
                     # TODO : add accessories (accs)
                     encoder.process_node(node, [], variables, mapping)
 
                     if graph.has_base_component('Constraints'):
-                        if isinstance(node, Constraint):
+                        if types_component.instance_of(node, [Constraint]):
                             assert len(mapping[node.name]) == 1
                             in_the_output.append(node.name)
-                        elif isinstance(node, Target):
+                        elif types_component.instance_of(node, [Target]):
                             targets.append(node.operands[0])
 
                 encoder.write_custom('#\n')
@@ -630,8 +631,9 @@ class QbfSolver(Solver):
 
             result = {}
             for graph in graphs:
+                types_component = graph.base_components['Types']
                 for node in graph.nodes:
-                    if node.name in targets and not isinstance(node, PlaceHolder):
+                    if node.name in targets and not types_component.instance_of(node, [PlaceHolder]):
                         result[node.name] = graph[node.name].value
 
             return ('sat', result)

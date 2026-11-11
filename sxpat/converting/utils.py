@@ -9,7 +9,7 @@ from sxpat.graph.node import *
 from sxpat.utils.print import pprint
 from sxpat.graph.graphCreators import GraphCopier
 from sxpat.graph.components import IO, Parameter
-from sxpat.graph.components import Constraints
+from sxpat.graph.components import Constraints, Types
 
 
 __all__ = [
@@ -45,10 +45,11 @@ def unpack_ToInt(graph: T_Graph) -> T_Graph:
 
     graph_copier = GraphCopier(graph)
 
+    types_component = graph.base_components['Types']
     toint_nodes = tuple(
         node
         for node in graph.nodes
-        if isinstance(node, ToInt)
+        if types_component.instance_of(node, [ToInt])
     )
     # skip if no ToInt node is present
     if len(toint_nodes) == 0: return graph
@@ -76,29 +77,6 @@ def unpack_ToInt(graph: T_Graph) -> T_Graph:
     for ifs_list in ifs.values():
         for node in ifs_list:
             graph_copier.add_node(node)
-    
-    # create the Sum nodes
-    # sums = [
-    #     Sum(
-    #         toint.name,
-    #         # COMMENT:from-MARCO: valid
-    #         operands=ifs[toint.name]
-    #     )
-    #     for toint in toint_nodes
-    # ]
-
-    # nodes = it.chain(
-    #     *(consts.values() for consts in int_consts.values()),
-    #     (
-    #         node
-    #         for node in graph.nodes
-    #         if not isinstance(node, ToInt)
-    #     ),
-    #     *ifs.values(),
-    #     sums,
-    # )
-
-    # return graph.copy(nodes)
 
     for toint in toint_nodes:
         node = Sum(toint.name, operands=ifs[toint.name])
@@ -107,8 +85,9 @@ def unpack_ToInt(graph: T_Graph) -> T_Graph:
         else:
             graph_copier.add_node(node)
 
+    types_component = graph.base_components['Types']
     for node in graph.nodes:
-        if not isinstance(node, ToInt):
+        if not types_component.instance_of(node, [ToInt]):
             graph_copier.add_node(node)
 
     return graph_copier.copy()
@@ -175,23 +154,24 @@ def get_nodes_type(graphs: Iterable[Graph],
     type_of = dict(initial_mapping)
 
     for graph in graphs:
+        types_component = graph.base_components['Types']
         for node in graph.nodes:
             # skip if already computed
             if node.name in type_of: continue
 
             # direct cases
-            elif isinstance(node, BoolResType): type_of[node.name] = bool
-            elif isinstance(node, IntResType): type_of[node.name] = int
+            elif types_component.instance_of(node, [BoolResType]): type_of[node.name] = bool
+            elif types_component.instance_of(node, [IntResType]): type_of[node.name] = int
 
             # dynamic cases
-            elif isinstance(node, DynamicResType):
+            elif types_component.instance_of(node, [DynamicResType]):
                 last_pred = graph.predecessors(node)[-1]
                 type_of[node.name] = type_of[last_pred.name]
 
             # special cases
-            elif isinstance(node, PlaceHolder): continue
-            elif isinstance(node, Objective): continue
-            else: raise TypeError(f'Node {node.name} has an invalid type ({type(node)}).')
+            elif types_component.instance_of(node, [PlaceHolder]): continue
+            elif types_component.instance_of(node, [Objective]): continue
+            else: raise TypeError(f'Node {node.name} has an invalid type ({types_component.get(node)}).')
 
     return type_of
 
@@ -212,21 +192,21 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
     bitwidth_of = dict(initial_mapping)
     graphs = tuple(graphs)
 
-    def manage_node(node: Node):
+    def manage_node(node: Node, types_component: Types):
         # skippable
-        if isinstance(node, (Target, Constraint)): return
+        if types_component.instance_of(node, [Target, Constraint]): return
 
         # deferred case (all predecessors of a node should have the same bitwidth)
         elif nodes_types[node.name] is not int:
-            if isinstance(node, Operation):
+            if types_component.instance_of(node, [Operation]):
                 max_bitwidth = max(bitwidth_of.get(n.name, 0) for n in graph.predecessors(node))
                 for n in graph.predecessors(node):
                     bitwidth_of[n.name] = max_bitwidth
 
         # trivial cases
-        elif isinstance(node, IntConstant) and node.name not in bitwidth_of:
+        elif types_component.instance_of(node, [IntConstant]) and node.name not in bitwidth_of:
             bitwidth_of[node.name] = max(1, math.ceil(math.log(node.value + 1, 2)))
-        elif isinstance(node, ToInt) and node.name not in bitwidth_of:
+        elif types_component.instance_of(node, [ToInt]) and node.name not in bitwidth_of:
             bitwidth_of[node.name] = len(node.operands)
 
         # dynamic case (the bitwidth of the current node must be larger or equal to that of the largest predecessor/successor)
@@ -240,12 +220,12 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
     # forward update (optimally updates forward chains)
     for graph in graphs:
         for node in graph.nodes:
-            manage_node(node)
+            manage_node(node, graph.base_components['Types'])
 
     # backward update (optimally updates backward chains)
     for graph in reversed(graphs):
         for node in reversed(graph.nodes):
-            manage_node(node)
+            manage_node(node, graph.base_components['Types'])
 
     if bitwidth_of == initial_mapping:
         return {  # remove null pairs (name:0)
@@ -271,14 +251,13 @@ def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missi
     """
 
     new_nodes = {n.name: n for n in graph.nodes}
+    types_component = graph.base_components['Types']
 
     for (name, value) in constants.items():
         if skip_missing and name not in graph: continue
-        if isinstance(graph[name], PlaceHolder): continue
+        if types_component.instance_of(graph[name], [PlaceHolder]): continue
 
         node = graph[name]
-        
-        # COMMENT:from-MARCO: valid
         new_nodes[node.name] = BoolConstant(node.name, value)
 
     # return graph.copy(new_nodes.values())
@@ -310,9 +289,10 @@ def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
     for x, y in updated_names.items():
         updated_names_inverted[y] = x
 
+    types_component = graph.base_components['Types']
     nodes: List[AnyNode] = []
     for node in graph.nodes:
-        if isinstance(node, Operation):
+        if types_component.instance_of(node, [Operation]):
             operands = (updated_names[name] for name in node.operands)
             nodes.append(node.copy(name=updated_names[node.name], operands=operands))
         else:
@@ -357,9 +337,10 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
         new_name_of_inverted[y] = x
 
     # create updated nodes
+    types_component = graph.base_components['Types']
     nodes: List[AnyNode] = []
     for node in graph.nodes:
-        if isinstance(node, Operation):
+        if types_component.instance_of(node, [Operation]):
             operands = (new_name_of[name] for name in node.operands)
             nodes.append(node.copy(name=new_name_of[node.name], operands=operands))
         else:
@@ -498,16 +479,17 @@ class crystallise:
 
         new_nodes = dict()
         new_nodes_attributes: dict[str, tuple[bool, int | None]] = dict()
+        type_component = graph.base_components['Types']
         for node in graph.nodes:
             # select crystalliser
             try:
-                crystallise = _crystalliser_for[type(node)]
+                crystallise = _crystalliser_for[type_component.get(node)]
             except KeyError as err:
-                pprint.error(f'No crystalliser for {type(node)} is implemented')
+                pprint.error(f'No crystalliser for {type_component.get(node)} is implemented')
                 raise err
 
             # get operands
-            if isinstance(node, Operation):
+            if type_component.instance_of(node, [Operation]):
                 operands = []
                 for operand_name in node.operands:
                     operand = new_nodes.get(operand_name, graph[operand_name])
@@ -577,9 +559,10 @@ class crystallise:
     @staticmethod
     def _find_non_placeholder(name: str, graphs: Iterable[Graph]) -> Union[None, Node, Operation, Valued]:
         for graph in graphs:
+            types_component = graph.base_components['Types']
             if name in graph:
                 node = graph[name]
-                if not isinstance(node, PlaceHolder): return node
+                if not types_component.instance_of(node, [PlaceHolder]): return node
         return None
 
     @classmethod
@@ -988,7 +971,6 @@ def node_is_false(node: Union[Node, BoolConstant]) -> bool:
 def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N:
     # get common fields
     kwargs = {'name': node.name}
-    # COMMENT:from-MARCO: valid removal of Extras
     if issubclass(cls, Operation) and isinstance(node, Operation):
         kwargs['operands'] = node.operands
     if issubclass(cls, Valued) and isinstance(node, Valued):

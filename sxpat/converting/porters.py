@@ -134,7 +134,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # COMMENT:from-MARCO: these changes are valid, the only thing that we may do to improve the performance, is to have the components expose efficient methods for some computations, such as "node in subgraph"
         # from-ILIA: does the following work? Is it what you meant?
         # from-MARCO: yes, this is perfect. I find this to be a fundamental behaviour of this component, and now that we have a specific entry point, we simplify the process of future changes to the internal behaviour of the component
-        Graph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
+        Graph: lambda g, n: 'red' if g.base_components['Types'].instance_of(n, [Extras]) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
         # IOGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
         # CGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
         # COMMENT:from-MARCO: I think removing this is ok, or was there a different question?
@@ -150,17 +150,18 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     def _get_label(cls, graph: Graph, node: Node) -> str:
         # base informations
         string = rf'{cls.NODE_SYMBOL[type(node)]}\n{node.name}'
+        types_component = graph.base_components['Types']
 
         # extra informations
         # COMMENT:from-MARCO: valid change. what we can do in the future, is update the `if` structure to be based on components directly 
-        # from-ILIA: still TODO
-        if isinstance(node, Extras) and graph.base_components['Weight'].get(node.name) is not None:
+        # from-ILIA: done, is it what you meant?
+        if types_component.instance_of(node, [Extras]) and graph.base_components['Weight'].get(node.name) is not None:
             string += rf'\nw={graph.base_components['Weight'].get(node.name)}'
-        if isinstance(node, Extras) and node.name in graph.base_components['Subgraph'].nodes_names():
+        if types_component.instance_of(node, [Extras]) and node.name in graph.base_components['Subgraph'].nodes_names():
             string += rf'\nsub'
-        if isinstance(node, Operation):
+        if types_component.instance_of(node, [Operation]):
             string += rf'\ni={",".join(node.operands)}'
-        if isinstance(node, Valued):
+        if types_component.instance_of(node, [Valued]):
             string += rf'\nv={node.value}'
 
         return string
@@ -214,13 +215,14 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     def to_string(cls, graph: Graph) -> str:
         # base data
         node_lines = [
-            f'"{node.name}" [label="{cls._get_label(graph, node)}", shape={cls.NODE_SHAPE[type(node)]}, fillcolor={cls.NODE_COLOR[type(graph)](graph, node)}];'
+            f'"{node.name}" [label="{cls._get_label(graph, node)}", shape={cls.NODE_SHAPE[graph.base_components['Types'].get(node)]}, fillcolor={cls.NODE_COLOR[type(graph)](graph, node)}];'
             for node in graph.nodes
         ]
+        types_component = graph.base_components['Types']
         edge_lines = [
             f'"{src_name}" -> "{dst.name}";'
             for dst in graph.nodes
-            if isinstance(dst, Operation)
+            if types_component.instance_of(dst, [Operation])
             for src_name in dst.operands
         ]
 
@@ -435,7 +437,7 @@ class VerilogExporter(GraphExporter[Graph]):
             f'wire {", ".join(n.name for n in graph.inners)};',
             # assignments
             *(
-                f'assign {node.name} = {cls.NODE_EXPORT[type(node)](node)};'
+                f'assign {node.name} = {cls.NODE_EXPORT[graph.base_components['Types'].get(node)](node)};'
                 for node in graph.nodes
                 if node.name not in IO_component.inputs_names
             ),

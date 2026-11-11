@@ -1,7 +1,7 @@
 import operator as op
 from typing import Any, Iterable, List, Literal, Mapping, Optional, Sequence, TypeVar, Union, Final, final, Self, cast, overload
 from types import MappingProxyType
-from .components import Subgraph, Weight, Type, Topology, Component, Parameter, IO, Constraints, available_graph_components
+from .components import Subgraph, Weight, Types, Topology, Component, Parameter, IO, Constraints, available_graph_components
 
 import networkx as nx
 import functools as ft
@@ -49,7 +49,7 @@ class ComponentsDict(dict[available_graph_components, Component]):
     def __getitem__(self, key: Literal["Constraints"]) -> Constraints: ...
 
     @overload
-    def __getitem__(self, key: Literal["Type"]) -> Type: ...
+    def __getitem__(self, key: Literal["Types"]) -> Types: ...
 
     def __getitem__(self, key: available_graph_components) -> Component:
         return super().__getitem__(key)
@@ -69,6 +69,8 @@ class Graph:
         :authors: Marco Biasion, Ilia Zeller
         """
 
+        nodes = tuple(nodes)
+
         #Add default Subgraph and Weight components if they're not passed as argument 
         #(this because the Node structure had default weight = None and in_subgraph = False)
         if not any(type(c).__name__ == 'Subgraph' for c in components):
@@ -76,6 +78,13 @@ class Graph:
         
         if not any(type(c).__name__ == 'Weight' for c in components):
             components.append(Weight(dict()))
+
+        #Add Types component
+        types_mapping: dict[str, type] = dict()
+        for n in nodes:
+            types_mapping[n.name] = type(n)
+        components.append(Types(types_mapping))
+
 
         #TODO: pass also the extra components to the constructor, set self.extra_components inside the
         # constructor, make base_components and extra_components final, every time they need to be modified
@@ -87,8 +96,6 @@ class Graph:
             for c in components
         ])
         self.extra_components = dict()
-
-        nodes = tuple(nodes)
 
         # check for graph correctness
         defined_node_names = set(
@@ -141,6 +148,7 @@ class Graph:
         for name, component in self.base_components.items():
             if (not name in new_base_components_types) and component.inheritable:
                 copy_base_components.append(component)
+        copy_base_components.append(copy.base_components['Types'])
         copy.base_components = ComponentsDict([
             (cast(available_graph_components, type(c).__name__), c.with_graph(copy))
             for c in copy_base_components
@@ -209,27 +217,26 @@ class Graph:
     @ft.cached_property
     @final
     def variables(self) -> Sequence[AnyVariable]:
-        return tuple(node for node in self.nodes if isinstance(node, Variable))
+        types_component = self.base_components['Types']
+        return tuple(node for node in self.nodes if types_component.instance_of(node, [Variable]))
 
     @ft.cached_property
     @final
     def constants(self) -> Sequence[AnyConstant]:
-        return tuple(node for node in self.nodes if isinstance(node, Constant))
-
-    @ft.cached_property
-    @final
-    def variables(self) -> Sequence[AnyVariable]:
-        return tuple(node for node in self.nodes if isinstance(node, Variable))
+        types_component = self.base_components['Types']
+        return tuple(node for node in self.nodes if types_component.instance_of(node, [Constant]))
 
     @ft.cached_property
     @final
     def expressions(self) -> Sequence[AnyExpression]:
-        return tuple(node for node in self.nodes if isinstance(node, Expression))
+        types_component = self.base_components['Types']
+        return tuple(node for node in self.nodes if types_component.instance_of(node, [Expression]))
 
     @ft.cached_property
     @final
     def targets(self) -> Sequence[Target]:
-        return tuple(node for node in self.nodes if isinstance(node, Target))
+        types_component = self.base_components['Types']
+        return tuple(node for node in self.nodes if types_component.instance_of(node, [Target]))
 
     @ft.cached_property
     @final
@@ -245,6 +252,7 @@ class Graph:
     @final 
     def has_base_component(self, component_name: available_graph_components) -> bool:
         # COMMENT:from-MARCO: 🧐
+        # from-ILIA: wdym?
         if component_name in self.base_components:
             return True
         return False
@@ -252,6 +260,7 @@ class Graph:
     @final 
     def has_extra_component(self, component_name: str) -> bool:
         # COMMENT:from-MARCO: 🧐
+        # from-ILIA: wdym?
         if component_name in self.extra_components:
             return True
         return False

@@ -41,7 +41,7 @@ from sxpat.converting import VerilogExporter
 
 from sxpat.labelling.labelling import Labelling
 
-from sxpat.graph.components import Subgraph, Topology, Weight, Type, Component
+from sxpat.graph.components import Subgraph, Topology, Weight, Types, Component
 
 
 def explore_grid(specs_obj: Specifications):
@@ -573,7 +573,6 @@ def label_graph(circuit: Graph, specs_obj: Specifications) -> Dict[str, int]:
 #     return nx.is_isomorphic(g1._inner, g2._inner, node_match=node_matcher)
 # BECOMES:
 
-# TODO: check together and reason about the below method!
 def are_circuits_equal(g1: Graph, g2: Graph) -> bool:
     # COMMENT:from-MARCO: This will have a few issues, specifically:
     #                     Two different circuits (crossing iterations) may be syntactically equivalent, but have their names be shuffled (meaning that, two graphs, A and B, might be equivalent, even if only node "a" is in the subgraph in graph A, and only node "b" is in the subgraph in graph B. this is because the equivalence should ignore names, as they are arbitrary each time).
@@ -581,28 +580,16 @@ def are_circuits_equal(g1: Graph, g2: Graph) -> bool:
     # from-ILIA: I understand the problem with my implementation, but do not really understand the solution you had in mind,
     #            therefore here's another alternative solution that should fix the problem you were talking about (we can discuss this further!!)
     # from-MARCO: your updated implementation below, does not solve the issue, but in practice it reduces almost completely these kinds of wrong equality comparison.
-
-    # THIS:
-    # if g1.base_components['Subgraph'].nodes_names() != g2.base_components['Subgraph'].nodes_names():
-    #     return False 
-
-    # BECOMES:
-    if g1.has_base_component('Subgraph') != g2.has_base_component('Subgraph'):
-        return False
-    if g1.has_base_component('Subgraph'):
-        if len(g1.base_components['Subgraph'].nodes_names()) != len(g2.base_components['Subgraph'].nodes_names()):
-            return False
-        for name1 in g1.base_components['Subgraph'].nodes_names():
-            if not name1 in g2.base_components['Subgraph'].nodes_names():
-                return False 
+    # from-ILIA: is the below updated code correct now?
 
     class _Node(Node, Extras): ...
 
-    def node_matcher(_n1: dict, _n2: dict) -> bool:
+    def node_matcher(_n1: dict, _n2: dict, g1: Graph = g1, g2: Graph = g2) -> bool:
         n1: _Node = _n1[Graph.K]
         n2: _Node = _n2[Graph.K]
         return (
-            type(n1) == type(n2)
+            g1.base_components['Types'].get(n1) == g2.base_components['Types'].get(n2)
+            and g1.base_components['Subgraph'].in_subgraph(n1.name) == g2.base_components['Subgraph'].in_subgraph(n2.name)
         )
 
     return nx.is_isomorphic(g1._inner, g2._inner, node_match=node_matcher)

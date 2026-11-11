@@ -100,8 +100,6 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
             wanted_nodes,
         ):
             # create constants
-            # COMMENT:from-MARCO: good, but similar to a comment above, we can improve the performance of this by getting the component before the loop
-            # from-ILIA: fixed
             val: int = weight_component.get(node.name) # type: ignore
             consts_n.extend([
                 const_0 := IntConstant(f'dist_{value_id}{i}_const_0', 0),

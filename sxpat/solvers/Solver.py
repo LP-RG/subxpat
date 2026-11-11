@@ -239,6 +239,7 @@ class Solver(metaclass=ABCMeta):
         _graphs = []
         _global_tasks = []
         for graph in graphs:
+            types_component = graph.base_components['Types']
             if (not graph.has_base_component('Constraints')) or (len(graph.base_components['Constraints'].global_tasks) == 0):
                 # nothing to extract
                 # keep as-is if not a Constraints Graph or not containing any GlobalTask
@@ -249,7 +250,7 @@ class Solver(metaclass=ABCMeta):
                 _global_tasks.extend(graph.base_components['Constraints'].global_tasks)
 
                 # drop graph if all nodes are GlobalTask and PlaceHolder
-                if all(isinstance(n, (PlaceHolder, GlobalTask)) for n in graph.nodes):
+                if all(types_component.instance_of(n, [PlaceHolder, GlobalTask]) for n in graph.nodes):
                     continue
 
                 # update Constraints Graph without GlobalTask (and relative PlaceHolder)

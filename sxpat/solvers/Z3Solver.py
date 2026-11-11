@@ -98,11 +98,6 @@ class Z3Encoder:
         if len(found_inputs_names) == 0: raise ValueError('No Graph was given to the Solver module.')
         elif len(found_inputs_names) >= 2: raise ValueError('The inputs of the Graphs given to the Solver module did not match.')
 
-        # extract graphs parameters (multiple graphs can define their own parameters)
-        # parameters_names = tuple(it.chain.from_iterable(
-        #     graph.parameters_names
-        #     for graph in graphs if isinstance(graph, PGraph)
-        # ))
         parameters_names = tuple(it.chain.from_iterable(
             graph.base_components['Parameter'].parameters_names
             for graph in graphs if graph.has_base_component('Parameter')
@@ -124,7 +119,7 @@ class Z3Encoder:
             node.name: node
             for graph in graphs
             for node in graph.nodes
-            if isinstance(node, Variable)
+            if graph.base_components['Types'].instance_of(node, [Variable])
         }
         destination.write('\n'.join((
             '# variables (inputs, parameters)',
@@ -142,7 +137,7 @@ class Z3Encoder:
             node.name: node
             for graph in graphs
             for node in graph.nodes
-            if isinstance(node, Constant)
+            if graph.base_components['Types'].instance_of(node, [Constant])
         }
         destination.write('\n'.join((
             '# constants',

@@ -108,6 +108,7 @@ class export_annotated_graph:
         inputs = frozenset(circuit.base_components['IO'].inputs_names)
         outputs = frozenset(circuit.base_components['IO'].outputs_names)
         subgraph_component = circuit.base_components['Subgraph']
+        types_component = circuit.base_components['Types']
         subgraph_inputs = frozenset(_n.name for _n in subgraph_component.subgraph_inputs)
         subgraph_outputs = frozenset(_n.name for _n in subgraph_component.subgraph_outputs)
         subgraph_nodes = frozenset(_n.name for _n in subgraph_component.subgraph_nodes)
@@ -120,10 +121,9 @@ class export_annotated_graph:
 
         def _node_tostr(n: _Node):
             name = n.name
-            # COMMENT:from-MARCO: here you could use the component.in_subgraph, as you did in other places
             fillcolor_str = 3 if name in subgraph_inputs else \
                 2 if name in subgraph_outputs else \
-                1 if isinstance(n, Extras) and n.name in subgraph_component.nodes_names() else ''
+                1 if types_component.instance_of(n, [Extras]) and subgraph_component.in_subgraph(n.name) else ''
             if fillcolor_str != '': fillcolor_str = f', fillcolor={fillcolor_str}'
             weight_str = f'\\n{circuit.base_components["Weight"].get(n.name)}' if circuit.base_components['Weight'].has_weight(n) else ''
 
@@ -131,11 +131,11 @@ class export_annotated_graph:
                 return rf'{name} [label={name}, shape=circle{fillcolor_str}];'
             elif name in outputs:
                 return rf'{name} [label={name}, shape=doublecircle{fillcolor_str}];'
-            elif isinstance(n, BoolConstant):
+            elif types_component.instance_of(n, [BoolConstant]):
                 return rf'{name} [label="{str(n.value).upper()}\n{name}{weight_str}", shape=square{fillcolor_str}];'
-            elif isinstance(n, Not):
+            elif types_component.instance_of(n, [Not]):
                 return rf'{name} [label="not\n{name}{weight_str}"{fillcolor_str}];'
-            elif isinstance(n, And):
+            elif types_component.instance_of(n, [And]):
                 return rf'{name} [label="and\n{name}{weight_str}"{fillcolor_str}];'
             else:
                 raise RuntimeError(f'stringification failed of node {n}')

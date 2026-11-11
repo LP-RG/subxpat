@@ -6,7 +6,7 @@ from .graph import (
 # COMMENT:from-MARCO: this is good
 #                     very minor thing: we should discuss about having unpacked imports (as you do here), or module imports (like we do just below for .node and .error)
 from .components import (
-    Component, Subgraph, Topology, Weight, Type,
+    Component, CustomComponent, Subgraph, Topology, Weight, Parameter, IO, Constraint, Types
 )
 from .graphCreators import (
     GraphCopier, GraphBuilder

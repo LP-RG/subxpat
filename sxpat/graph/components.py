@@ -3,23 +3,16 @@ from collections.abc import Callable
 import networkx as nx
 from copy import deepcopy
 from abc import ABC, abstractmethod
-from .node import AnyNode, Extras, Node, T_Node, BoolVariable, BoolConstant, PlaceHolder, AnyGlobalObjective, GlobalTask, Constraint
+from .node import AnyNode, Extras, Node, BoolVariable, BoolConstant, PlaceHolder, AnyGlobalObjective, GlobalTask, Constraint
 import functools as ft
 import itertools as it
 import operator as op
 
 __all__ = [
-    'Component', 'CustomComponent', 'Subgraph', 'Topology', 'Weight', 'Parameter', 'IO', 'Constraints', 'Type'
+    'Component', 'CustomComponent', 'Subgraph', 'Topology', 'Weight', 'Parameter', 'IO', 'Constraints', 'Types'
 ]
 
-available_graph_components = Literal['Subgraph', 'Topology', 'Weight', 'Parameter', 'IO', 'Constraints', 'Type']
-
-# COMMENT:from-MARCO: all this looks good.
-# i think you can simplify a few things, specifically:
-# - given that different components may behave vary different behaviours, you can keep each one in its own unique hierarchy, meaning that, if you want to inherit from Component, Component can be only a very coincise interface, maybe specifying the requirements all components should follow (like as immutability and such).
-# - given the above, the .perform_action could be removed, and instead of passing thorugh self.action, each component directly defines its methods (e.g. .nodes_names, .get, ...).
-# these could simplify the effort required for a new developer to understand the component
-# from-ILIA: fixed by making Component an interface 
+available_graph_components = Literal['Subgraph', 'Topology', 'Weight', 'Parameter', 'IO', 'Constraints', 'Types']
 
 # COMMENT:from-MARCO: (this can be left for later)
 # if you want to simplify further your structure (as it will get there eventually anyway) you can use integers as "ids" for nodes, instead than strings.
@@ -109,9 +102,10 @@ class Subgraph(Component):
     @final
     def subgraph_nodes(self) -> Sequence[AnyNode]:
         subgraph_ids = self.nodes_names()
+        types_component = self.graph.base_components['Types']
         return tuple(
             node for node in self.graph.nodes
-            if isinstance(node, Extras) and node.name in subgraph_ids
+            if types_component.instance_of(node, [Extras]) and node.name in subgraph_ids
         )
 
     @ft.cached_property
@@ -119,14 +113,14 @@ class Subgraph(Component):
     def subgraph_inputs(self) -> Sequence[AnyNode]:
         # COMMENT:from-MARCO: you should reason about what is best to return from these methods, the node object, or the id/name?
         #                     once you reasoned about it we can discuss this in the next meeting
-        # from-ILIA: still have to reason about this
 
         # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
+        types_component = self.graph.base_components['Types']
         subgraph_ids = self.nodes_names()
         return tuple(dict.fromkeys(it.chain.from_iterable(
             (
                 pred for pred in self.graph.predecessors(node)
-                if not isinstance(pred, Extras) or not pred.name in subgraph_ids
+                if not types_component.instance_of(pred, [Extras]) or not pred.name in subgraph_ids
             )
             for node in self.subgraph_nodes
         )))
@@ -135,12 +129,13 @@ class Subgraph(Component):
     @final
     def subgraph_outputs(self) -> Sequence[AnyNode]:
         # a node is a subgraph output if it is in the subgraph and at least one successor is not in the subgraph
+        types_component = self.graph.base_components['Types']
         subgraph_ids = self.nodes_names()
         return tuple(sorted(
             (
                 node for node in self.subgraph_nodes
                 if any(
-                    not isinstance(succ, Extras) or not succ.name in subgraph_ids
+                    not types_component.instance_of(succ, [Extras]) or not succ.name in subgraph_ids
                     for succ in self.graph.successors(node)
                 )
             ),
@@ -150,10 +145,11 @@ class Subgraph(Component):
     @final
     def node_edges_to_subgraph(self, node_or_name: Union[str, Node]) -> int:
         """Returns the number of edges from this node to the subgraph."""
+        types_component = self.graph.base_components['Types']
         subgraph_ids = self.nodes_names()
         return sum(
             n.name in subgraph_ids for n in self.graph.successors(node_or_name)
-            if isinstance(n, Extras)
+            if types_component.instance_of(n, [Extras])
         )
 
 class Topology(Component):
@@ -323,24 +319,31 @@ class Constraints(Component):
         """The set of all `GlobalTask` nodes in the graph."""
         return dict.fromkeys(self.action(2, self.object)).keys()
 
-class Type(Component):
+class Types(Component):
     """Concrete and 'static' component
         - object: mapping from node id to its type
         - action: return the type corresponding to the given node id
     """
 
-    # COMMENT:from-MARCO: types here should be specific Node types (Sum, And, ...)
-    # from-ILIA: fixed
-    def __init__(self, map: dict[str, T_Node]) -> None:
+    def __init__(self, map: dict[str, type]) -> None:
         # COMMENT:from-MARCO: a thing I noticed now, is that, doing the casting/getting/whatever later, may allow the input datastructure to change
         #                     example: i create the component passing in my own set/dict, then after the component has been created, if I (even outside the component) update the datastructure I passed in, now the component will behave on this new data, making it not deeply immutable
+        # from-ILIA: Does creating a deepcopy of the input and using the copy inside the component solve this problem? Like I did below. If yes, I'll modify the above components this way.
         action = lambda map, node_id: map[node_id]
-        super().__init__(map, action)
+        super().__init__(deepcopy(map), action, inheritable=False)
 
     @final
-    def get(self, node_id: str) -> T_Node:
-        return self.action(self.object, node_id)
+    def get(self, node: AnyNode) -> type:
+        return self.action(self.object, node.name)
 
     @final
-    def with_graph(self, graph: object = None) -> Type:
+    def instance_of(self, node: AnyNode, classes: list[type]) -> bool:
+        node_type = self.get(node)
+        for class_name in classes:
+            if node_type == class_name or issubclass(node_type, class_name):
+                return True
+        return False
+
+    @final
+    def with_graph(self, graph: object = None) -> Types:
         return self

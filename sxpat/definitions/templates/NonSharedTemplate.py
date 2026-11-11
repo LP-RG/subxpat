@@ -172,8 +172,6 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         updated_nodes: Dict[str, AnyOperation] = dict()
         for (out_i, (out_node, sum_node)) in enumerate(zip(a_graph.base_components['Subgraph'].subgraph_outputs, sums)):
             # create the constant False switch
-            # COMMENT:from-MARCO: valid but we have to make sure we mark these nodes as being in the subgraph
-            # from-ILIA: fixed by using 'template_subgraph_set' and 'constraint_subgraph_set'
             outs_p.append(p_o := BoolVariable(f'p_o{out_i}'))
             outs.append(new_out_node := And(f'sw_o{out_i}', operands=(p_o, sum_node)))
 

@@ -228,11 +228,12 @@ class Labelling:
     @classmethod
     def _node_to_z3str(cls, circuit: Graph, node: Node, prefix: str = REFERENCE_PREFIX) -> str:
         # prepare arguments string
+        types_component = circuit.base_components['Types']
         if isinstance(node, BoolConstant):
             args = str(node.value)
         else:
             args = ', '.join(
-                pred.name if isinstance(pred, BoolVariable) else f'{prefix}{pred.name}'
+                pred.name if types_component.instance_of(pred, [BoolVariable]) else f'{prefix}{pred.name}'
                 for pred in circuit.predecessors(node)
             )
         # compose node string
@@ -247,11 +248,12 @@ class Labelling:
         nodes_queue: deque[Union[Not, And, BoolConstant]] = deque()
 
         def _enqueue_valid_children(node: str):
+            types_component = circuit.base_components['Types']
             for succ in circuit.successors(node):
                 name = succ.name
                 remaining_predecessors_count[name] -= 1
                 if remaining_predecessors_count[name] == 0 and name not in circuit.base_components['IO'].outputs_names:
-                    assert isinstance(succ, (Not, And, BoolConstant))
+                    assert types_component.instance_of(succ, [Not, And, BoolConstant])
                     nodes_queue.append(succ)
 
         #
@@ -265,8 +267,9 @@ class Labelling:
             _enqueue_valid_children(n)
 
         # enqueue constants
+        types_component = circuit.base_components['Types']
         for n in circuit.constants:
-            assert isinstance(n, BoolConstant)
+            assert types_component.instance_of(n, [BoolConstant])
             nodes_queue.append(n)
 
         # write remaining connected gates/constants
@@ -283,9 +286,10 @@ class Labelling:
 
         # write outputs and integer conversion
         names = list()
+        types_component = circuit.base_components['Types']
         for (i, output) in enumerate(circuit.base_components['IO'].outputs_names):
             proutput = prefix + output
-            if isinstance(circuit.predecessors(output)[0], BoolVariable):
+            if types_component.instance_of(circuit.predecessors(output)[0], [BoolVariable]):
                 strings.append(f'{proutput} = {circuit.predecessors(output)[0].name}\n')
             else:
                 strings.append(f'{proutput} = {prefix}{circuit.predecessors(output)[0].name}\n')
