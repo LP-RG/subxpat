@@ -6,10 +6,11 @@ import sys
 from typing import Optional
 
 
-PROJECT_ROOT = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
+PROJECT_ROOT = path.abspath(path.join(__file__, *[path.pardir] * 3))
 LOCAL_TOOLS_DIR = path.join(PROJECT_ROOT, '.deps', 'bin')
 
 _warned: set[str] = set()
+_found_tools: dict[str, str] = dict()
 
 
 def find_tool(name: str) -> Optional[str]:
@@ -23,7 +24,8 @@ def find_tool(name: str) -> Optional[str]:
 
 
 def require_tool(name: str, hint: str = '') -> str:
-    if (found := find_tool(name)) is not None: return found
+    if (found := _found_tools.get(name, None)) is not None: return found
+    if (found := find_tool(name)) is not None: _found_tools[name] = found; return found
     if path.basename(name) != name:
         raise RuntimeError(f'The `{name}` executable ' + ('is not executable' if path.exists(name) else 'does not exist'))
     hint = hint or ('run `make setup macos`' if sys.platform == 'darwin' else 'see the Dependencies section of the README')
