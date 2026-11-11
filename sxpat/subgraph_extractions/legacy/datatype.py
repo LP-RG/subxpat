@@ -134,7 +134,7 @@ def _encode_edges(
 
 
 def _setup_problem(circuit: Graph, specs: Specifications):
-    graph = circuit._inner
+    graph = circuit.base_components['Topology'].get()
     feasibility_threshold = specs.et
 
     bit_width = max(
@@ -238,7 +238,7 @@ def _add_convexity(optimizer, graph, Node, z3_nodes):
 
 
 def _solve_and_extract(optimizer, max_nodes, h, circuit: Graph) -> List[str]:
-    graph = circuit._inner
+    graph = circuit.base_components['Topology'].get()
 
     if optimizer.check() != sat:
         return []
@@ -286,7 +286,7 @@ def _setup_output_ancestor_problem(
     circuit: Graph,
     specs: Specifications,
 ):
-    graph = circuit._inner
+    graph = circuit.base_components['Topology'].get()
 
     optimizer = Optimize()
 
@@ -397,7 +397,7 @@ def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
 
     # prepare
     feasibility_threshold = specs.et
-    graph: nx.DiGraph = circuit._inner
+    graph: nx.DiGraph = circuit.base_components['Topology'].get()
     weights = [getattr(node, "weight") for node in circuit.nodes if getattr(node, "weight", None) is not None and not types_component.instance_of(node, [BoolConstant, Identity, BoolVariable])] # TODO: find better way to get needed weights
     min_weight = min(weights) if len(weights) else 0
     specs.et = min_weight
@@ -463,7 +463,7 @@ def find_subgraph_output_nodes_ascendant(
     specs: Specifications,
 ) -> List[str]:
 
-    graph = circuit._inner
+    graph = circuit.base_components['Topology'].get()
 
     output_name = circuit.base_components['IO'].outputs_names[specs.out_node]
 

@@ -160,8 +160,8 @@ class Topology(Component):
 
     def __init__(self, digraph: nx.DiGraph) -> None:
         # COMMENT:from-MARCO: perfect, in the future we can also see about optimising a few things
-        action = lambda digraph: deepcopy(digraph)
-        super().__init__(digraph, action)
+        action = lambda digraph: digraph
+        super().__init__(digraph, action, inheritable=False)
 
     @final
     def get(self) -> nx.DiGraph:
@@ -204,7 +204,7 @@ class Parameter(Component):
     graph: Final[Any]
 
     def __init__(self, parameters_names: Sequence[str], graph: Any = None) -> None:
-        action = lambda params, graph: tuple(graph._inner.nodes[name][graph.K] for name in params)
+        action = lambda params, graph: tuple(graph.base_components['Topology'].get().nodes[name][graph.K] for name in params)
         super().__init__(tuple(parameters_names), action)
         self.graph = graph
 
@@ -252,7 +252,7 @@ class IO(Component):
     @ft.cached_property
     @final
     def inputs(self) -> Sequence[AnyNode]:
-        return tuple(self.graph._inner.nodes[name][self.graph.K] for name in self.inputs_names)
+        return tuple(self.graph.base_components['Topology'].get().nodes[name][self.graph.K] for name in self.inputs_names)
 
     @final
     def input_index_of(self, node_or_name: Union[str, Node]) -> int:
@@ -263,7 +263,7 @@ class IO(Component):
     @ft.cached_property
     @final
     def outputs(self) -> Sequence[AnyNode]:
-        return tuple(self.graph._inner.nodes[name][self.graph.K] for name in self.outputs_names)
+        return tuple(self.graph.base_components['Topology'].get().nodes[name][self.graph.K] for name in self.outputs_names)
 
     @final
     def output_index_of(self, node_or_name: Union[str, Node]) -> int:

@@ -85,18 +85,6 @@ class Graph:
             types_mapping[n.name] = type(n)
         components.append(Types(types_mapping))
 
-
-        #TODO: pass also the extra components to the constructor, set self.extra_components inside the
-        # constructor, make base_components and extra_components final, every time they need to be modified
-        # generate new graph and pass the new base_components/extra_components to the constructor (like 
-        # in with_base_component and in with_extra_component for base_components)
-
-        self.base_components = ComponentsDict([
-            (cast(available_graph_components, type(c).__name__), c.with_graph(self))
-            for c in components
-        ])
-        self.extra_components = dict()
-
         # check for graph correctness
         defined_node_names = set(
             node.name
@@ -124,8 +112,17 @@ class Graph:
             for src_name in node.operands
         )
 
-        # freeze inner structure
-        self._inner: Final[nx.DiGraph] = nx.freeze(_inner)
+        # # freeze inner structure
+        # self._inner: Final[nx.DiGraph] = nx.freeze(_inner)
+
+        #Add Topology component
+        components.append(Topology(nx.freeze(_inner)))
+
+        self.base_components = ComponentsDict([
+            (cast(available_graph_components, type(c).__name__), c.with_graph(self))
+            for c in components
+        ])
+        self.extra_components = dict()
 
         # parameters guard
         if self.has_base_component('Parameter'):
@@ -141,6 +138,7 @@ class Graph:
         
 
     def copy(self, nodes: Optional[Iterable[AnyNode]] = None, new_base_components: List[Component] = list()) -> Self:
+        # from-ILIA: TODO refactor this method to make it less "hardcoded" (lines 149-150)
         copy = type(self)(self.nodes if nodes is None else nodes)
         #handle base components
         copy_base_components = new_base_components
@@ -149,6 +147,7 @@ class Graph:
             if (not name in new_base_components_types) and component.inheritable:
                 copy_base_components.append(component)
         copy_base_components.append(copy.base_components['Types'])
+        copy_base_components.append(copy.base_components['Topology'])
         copy.base_components = ComponentsDict([
             (cast(available_graph_components, type(c).__name__), c.with_graph(copy))
             for c in copy_base_components
@@ -167,11 +166,11 @@ class Graph:
 
     @final
     def __getitem__(self, name: str) -> AnyNode:
-        return self._inner.nodes[name][self.K]
+        return self.base_components['Topology'].get().nodes[name][self.K]
 
     @final
     def __contains__(self, name: str) -> bool:
-        return name in self._inner
+        return name in self.base_components['Topology'].get()
 
     def __eq__(self, other) -> bool:
         if self.has_base_component('IO') != other.has_base_component('IO'):
@@ -195,23 +194,26 @@ class Graph:
     @final
     def nodes(self) -> Sequence[AnyNode]:
         """Sequence of nodes in the unique lexicographical topological order."""
-        return tuple(self._inner.nodes[name][self.K] for name in nx.lexicographical_topological_sort(self._inner))
+        topology = self.base_components['Topology'].get()
+        return tuple(topology.nodes[name][self.K] for name in nx.lexicographical_topological_sort(topology))
 
     @final
     def predecessors(self, node_or_name: Union[str, Node]) -> Sequence[AnyNonEndPoint]:
+        topology = self.base_components['Topology'].get()
         node_name = self._get_name(node_or_name)
-        node = self._inner.nodes[node_name][self.K]
+        node = topology.nodes[node_name][self.K]
         # we iterate over the .predecessors instead of the .operands, so even if `node` is not an Operation it still works
         return tuple(sorted(
-            (self._inner.nodes[_name][self.K] for _name in self._inner.predecessors(node_name)),
+            (topology.nodes[_name][self.K] for _name in topology.predecessors(node_name)),
             key=lambda _n: node.operands.index(_n.name)
         ))
 
     @final
     def successors(self, node_or_name: Union[str, Node]) -> Sequence[AnyNonEntryPoint]:
+        topology = self.base_components['Topology'].get()
         return tuple(
-            self._inner.nodes[_name][self.K]
-            for _name in self._inner.successors(self._get_name(node_or_name))
+            topology.nodes[_name][self.K]
+            for _name in topology.successors(self._get_name(node_or_name))
         )
 
     @ft.cached_property

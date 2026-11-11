@@ -314,7 +314,7 @@ def find_subgraph(circuit: Graph, specs: Specifications) -> List[str]:
     """
     raise NotImplementedError("Not implemented yet talk with Marco or Lorenzo")
     # prepare
-    graph: nx.DiGraph = circuit._inner
+    graph: nx.DiGraph = circuit.base_components['Topology'].get()
     # input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
     constants_ids: Container[int] = constant_dict.keys()
 
@@ -396,7 +396,7 @@ def find_subgraph_sensitivity(circuit: Graph, specs: Specifications) -> List[str
     # prepare
     assert specs.sensitivity is not None, "must pass --sensitivity"
     sensitivity_threshold = specs.sensitivity
-    graph: nx.DiGraph = circuit._inner
+    graph: nx.DiGraph = circuit.base_components['Topology'].get()
     # input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
     constants_ids: Container[int] = constant_dict.keys()
 
@@ -507,7 +507,7 @@ def _find_subgraph_feasible(
 
     # prepare
     feasibility_threshold = specs.et
-    graph: nx.DiGraph = circuit._inner
+    graph: nx.DiGraph = circuit.base_components['Topology'].get()
     # input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
     constants_ids: Container[int] = constant_dict.keys()
 
@@ -607,7 +607,7 @@ def find_subgraph_feasible_soft(
     # prepare
     feasibility_threshold = specs.et
     count = specs.num_subgraphs
-    graph: nx.DiGraph = circuit._inner
+    graph: nx.DiGraph = circuit.base_components['Topology'].get()
     # input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
     constants_ids: Container[int] = constant_dict.keys()
 
@@ -741,7 +741,7 @@ def find_subgraph_feasible_soft_outputs(
     count = specs.num_subgraphs
     imax = specs.imax
     omax = specs.omax
-    graph: nx.DiGraph = circuit._inner
+    graph: nx.DiGraph = circuit.base_components['Topology'].get()
     # input_dict, output_dict, gate_dict, constant_dict = z3log_graph_substitute.get_all(circuit)
     constants_ids: Container[int] = constant_dict.keys()
 

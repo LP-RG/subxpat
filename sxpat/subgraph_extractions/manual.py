@@ -9,7 +9,7 @@ from sxpat.specifications import Specifications
 
 
 def extract(circuit: Graph, specs: Specifications) -> Sequence[str]:
-    graph = circuit._inner
+    graph = circuit.base_components['Topology'].get()
     before_path = os.path.join(specs.path.run.graphviz, 'manual_subgraph_extraction.gv')
     after_path = os.path.join(specs.path.run.graphviz, 'manual_subgraph_extraction_confirmation.gv')
 

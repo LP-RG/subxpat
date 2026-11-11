@@ -592,7 +592,7 @@ def are_circuits_equal(g1: Graph, g2: Graph) -> bool:
             and g1.base_components['Subgraph'].in_subgraph(n1.name) == g2.base_components['Subgraph'].in_subgraph(n2.name)
         )
 
-    return nx.is_isomorphic(g1._inner, g2._inner, node_match=node_matcher)
+    return nx.is_isomorphic(g1.base_components['Topology'].get(), g2.base_components['Topology'].get(), node_match=node_matcher)
 
 
 @dc.dataclass

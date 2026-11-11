@@ -153,6 +153,6 @@ class export_annotated_graph:
         _s = cls.DOT_BASE.format(
             nodes='\n'.join(_node_tostr(_n) for _n in circuit.nodes),  # type: ignore
             edges='\n'.join(_edge_tostr(circuit[_s], circuit[_d])  # type: ignore
-                            for (_s, _d) in circuit._inner.edges()),  # type: ignore
+                            for (_s, _d) in circuit.base_components['Topology'].get().edges()),  # type: ignore
         )
         FS.writefile(path, _s, overwrite=True)

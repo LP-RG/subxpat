@@ -207,7 +207,7 @@ class Labelling:
             if (1 << i) > partial_cutoff:
                 break
             # get all non-input ancestors
-            for ancestor in nx.ancestors(self.to_be_labelled._inner, output):
+            for ancestor in nx.ancestors(self.to_be_labelled.base_components['Topology'].get(), output):
                 if not isinstance(self.to_be_labelled[ancestor], BoolVariable):
                     nodes_to_label.add(ancestor)
 
