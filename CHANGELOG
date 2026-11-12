@@ -1,7 +1,9 @@
 ---------------------------------------------------------------------------------------------------
 Version: preview
-Date: 2026-10-23
+Date: 2026-11-10
   Features:
+    - Added `make setup macos`, which builds the native dependency that has no package on macOS (OpenSTA 2.0.17) into `.deps/`, installing python@3.14, `yosys`, cmake, swig and tcl-tk@8 from Homebrew. (#85)
+    - Added `make setup all`, which additionally builds cqesto at a pinned revision, and documented both in the README. (#85)
     - Added specific archivation approaches (.tar.gz, .tar.xz). (#210)
     - Further modularised Configuration Exploration. (#213)
   Minor Features:
@@ -11,6 +13,11 @@ Date: 2026-10-23
     - Completely revised the Timer module and how it works. (#213)
     - Completely revised the argument parsing for Specifications; now more centralised and automated. (#213)
   Minor Changes:
+    - `yosys`, `sta` and `cqesto` are now looked up in `.deps/bin` and then on the PATH, from every call site, and a missing executable raises an actionable error instead of a `FileNotFoundError`. (#85)
+    - `make setup macos` and `make setup all` now verify the toolchain and fail when `yosys` or `sta` is missing or does not run. (#85)
+    - `make py_init` recreates `.venv` when it was created by a different major.minor python version. (#85)
+    - Added `make rm_deps`, and `make clean-all` now also removes `.deps/`. (#85)
+    - On macOS `make setup macos` and `make setup all` refuse a repository path containing a space, which the OpenSTA build rules cannot handle. (#85)
     - Standardised Live/Append Storage interface. (#213)
     - Further modularised Configuration Exploration. (#213)
     - Rewritten all circuits verilogs to simplify understanding and extension. (#213)
@@ -18,6 +25,7 @@ Date: 2026-10-23
     - Now the default archivation is .tar.xz instead of .zip. (#210)
     - Removed zip archivation approach. (#210)
   Bugfixes:
+    - The generated solver and labelling scripts now run with the interpreter executing `main.py`, instead of whatever `python3` resolves to on the PATH. (#85)
     - Patched a bug when min-labelling, where no error is found (also added warning). (#213)
   Minor Optimizations:
     - Optimised memory footprint of LiveStorage. (#213)
