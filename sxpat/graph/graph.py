@@ -62,6 +62,7 @@ class Graph:
     base_components: ComponentsDict
     extra_components: dict[str, Component]
 
+    # from-MARCO: BUG: you never create a local list from components, so in the best case scenario, the system crashes, but in the worst, the default list gets reused over and over in different calls, possibly propagating a state that should not be there. 
     def __init__(self, nodes: Iterable[AnyNode], components: Sequence[Component] = list()) -> None:
         """
         Creates a new graph from the given nodes.
@@ -139,6 +140,7 @@ class Graph:
 
     def copy(self, nodes: Optional[Iterable[AnyNode]] = None, new_base_components: List[Component] = list()) -> Self:
         # from-ILIA: TODO refactor this method to make it less "hardcoded" (lines 149-150)
+        # from-MARCO: yes, we can also discuss this together if you want, so we stay aligned on the requirements
         copy = type(self)(self.nodes if nodes is None else nodes)
         #handle base components
         copy_base_components = new_base_components
@@ -173,6 +175,7 @@ class Graph:
         return name in self.base_components['Topology'].get()
 
     def __eq__(self, other) -> bool:
+        # from-MARCO: this is to be discussed
         if self.has_base_component('IO') != other.has_base_component('IO'):
             return False
         if self.has_base_component('Parameter') != other.has_base_component('Parameter'):

@@ -581,18 +581,27 @@ def are_circuits_equal(g1: Graph, g2: Graph) -> bool:
     #            therefore here's another alternative solution that should fix the problem you were talking about (we can discuss this further!!)
     # from-MARCO: your updated implementation below, does not solve the issue, but in practice it reduces almost completely these kinds of wrong equality comparison.
     # from-ILIA: is the below updated code correct now?
+    # from-MARCO: yes, this seems valid (i moved the components out of the matcher, and simplified a small thing)
 
     class _Node(Node, Extras): ...
+    g1_types_c = g1.base_components['Types']
+    g2_types_c = g2.base_components['Types']
+    g1_subgraph_c = g1.base_components['Subgraph']
+    g2_subgraph_c = g2.base_components['Subgraph']
 
-    def node_matcher(_n1: dict, _n2: dict, g1: Graph = g1, g2: Graph = g2) -> bool:
+    def node_matcher(_n1: dict, _n2: dict) -> bool:
         n1: _Node = _n1[Graph.K]
         n2: _Node = _n2[Graph.K]
         return (
-            g1.base_components['Types'].get(n1) == g2.base_components['Types'].get(n2)
-            and g1.base_components['Subgraph'].in_subgraph(n1.name) == g2.base_components['Subgraph'].in_subgraph(n2.name)
+            g1_types_c.get(n1) == g2_types_c.get(n2)
+            and g1_subgraph_c.in_subgraph(n1.name) == g2_subgraph_c.in_subgraph(n2.name)
         )
 
-    return nx.is_isomorphic(g1.base_components['Topology'].get(), g2.base_components['Topology'].get(), node_match=node_matcher)
+    return nx.is_isomorphic(
+        g1.base_components['Topology'].get(),
+        g2.base_components['Topology'].get(),
+        node_match=node_matcher,
+    )
 
 
 @dc.dataclass

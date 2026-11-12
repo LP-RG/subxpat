@@ -329,6 +329,7 @@ class Types(Component):
         # COMMENT:from-MARCO: a thing I noticed now, is that, doing the casting/getting/whatever later, may allow the input datastructure to change
         #                     example: i create the component passing in my own set/dict, then after the component has been created, if I (even outside the component) update the datastructure I passed in, now the component will behave on this new data, making it not deeply immutable
         # from-ILIA: Does creating a deepcopy of the input and using the copy inside the component solve this problem? Like I did below. If yes, I'll modify the above components this way.
+        # from-MARCO: yes, this fixes it
         action = lambda map, node_id: map[node_id]
         super().__init__(deepcopy(map), action, inheritable=False)
 

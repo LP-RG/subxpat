@@ -155,6 +155,8 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # extra informations
         # COMMENT:from-MARCO: valid change. what we can do in the future, is update the `if` structure to be based on components directly 
         # from-ILIA: done, is it what you meant?
+        # from-MARCO: kind-of, I do not remember precisely what I had in mind (I will make sure to be more descriptive in the future)
+        #             but I think it was something like with NODE_SHAPE but for components->label-part, but we can leave this as is for now, this is perfectly acceptable
         if types_component.instance_of(node, [Extras]) and graph.base_components['Weight'].get(node.name) is not None:
             string += rf'\nw={graph.base_components['Weight'].get(node.name)}'
         if types_component.instance_of(node, [Extras]) and node.name in graph.base_components['Subgraph'].nodes_names():

@@ -97,6 +97,7 @@ def sort_dict(this_dict: dict) -> dict:
 
 # COMMENT:from-MARCO: I think I forgot what we use this `info` parameter for
 # from-ILIA: I added 'info' just for myself when testing the time improvement gained with the addition of aigverse!
+# from-MARCO: okok, understood
 def graph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list = list()) -> Graph:
     
     graph = circuit_digraph
