@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple, Generic, TypeVar, Union, Self, TypeAlias
+from typing import Any, ClassVar, Optional, Tuple, Generic, TypeVar, Union, Self, TypeAlias
 
 import dataclasses as dc
 
@@ -142,6 +142,7 @@ class Operation(__Base):
         *abstract*
     """
 
+    # required_operands: ClassVar[int]
     operands: Tuple[str, ...]
 
     def __post_init__(self):

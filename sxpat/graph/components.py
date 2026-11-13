@@ -1,4 +1,5 @@
-from typing import AbstractSet, Any, Final, List, Sequence, Union, final, Literal
+from collections import UserDict
+from typing import AbstractSet, Any, Final, List, Mapping, Sequence, Union, final, Literal
 from collections.abc import Callable
 import networkx as nx
 from copy import deepcopy
@@ -18,6 +19,7 @@ available_graph_components = Literal['Subgraph', 'Topology', 'Weight', 'Paramete
 # if you want to simplify further your structure (as it will get there eventually anyway) you can use integers as "ids" for nodes, instead than strings.
 # NOTE THAT if you do this many other things will break, so you would require a middle-step on the accesses of the graphs to map from an outside string to an inside integer, and viceversa
 # from-ILIA: left for later! still TODO
+
 
 class Component(ABC):
     """Component interface"""
@@ -42,19 +44,20 @@ class Component(ABC):
     def with_graph(self, graph: Any) -> Component:
         pass
 
+
 class CustomComponent(Component):
     """User-defined component"""
 
     graph: Final[Any]
     graph_reference: Final[bool]
-   
+
     def __init__(self,
                  object: Any,
                  action: Callable[..., Any],
                  inheritable: bool = True,
                  keep_graph_reference: bool = False,
                  graph: Any = None) -> None:
-        
+
         super.__init__(deepcopy(object), action, inheritable)
         self.graph = graph
         self.graph_reference = keep_graph_reference
@@ -62,13 +65,14 @@ class CustomComponent(Component):
     @final
     def perform_action(self, *optionalArgs) -> Any:
         return self.action(self.object, *optionalArgs)
-    
-    @final 
+
+    @final
     def with_graph(self, graph: Any = None) -> CustomComponent:
         if not self.graph_reference:
             return self
         else:
             return CustomComponent(self.object, self.action, self.inheritable, self.graph_reference, graph)
+
 
 class Subgraph(Component):
     """Concrete and 'static' component
@@ -95,7 +99,7 @@ class Subgraph(Component):
     def in_subgraph(self, node_id: str) -> bool:
         return node_id in self.object
 
-    @final 
+    @final
     def with_graph(self, graph: Any) -> Subgraph:
         return Subgraph(self.object, graph)
 
@@ -153,7 +157,19 @@ class Subgraph(Component):
             if types_component.instance_of(n, [Extras])
         )
 
-class Topology(Component):
+
+class OrderedDiGraph(nx.DiGraph):
+    # from-MARCO: during the discussion, we have seen this class to force the ordering of the operands.
+    #             this ordering is maintained after creation, which means that it must be given correctly at creation.
+    node_dict_factory = dict
+    node_attr_dict_factory = dict
+    adjlist_outer_dict_factory = dict
+    adjlist_inner_dict_factory = dict
+    edge_attr_dict_factory = dict
+    graph_attr_dict_factory = dict
+
+
+class Topology(Component, OrderedDiGraph):
     """Concrete and 'static' component
         - object: DiGraph representing the topology
         - action: return the DiGraph
@@ -162,7 +178,7 @@ class Topology(Component):
     def __init__(self, digraph: nx.DiGraph) -> None:
         # COMMENT:from-MARCO: perfect, in the future we can also see about optimising a few things
         action = lambda digraph: digraph
-        super().__init__(nx.freeze(digraph), action, inheritable=False)
+        super().__init__(nx.freeze(deepcopy(digraph)), action, inheritable=False)
 
     @final
     def get(self) -> nx.DiGraph:
@@ -172,7 +188,9 @@ class Topology(Component):
     def with_graph(self, graph: object = None) -> Topology:
         return self
 
+
 class Weight(Component):
+    # https://docs.python.org/3.14/library/collections.abc.html#collections-abstract-base-classes
     """Concrete and 'static' component
         - object: mapping from node id to its weight
         - action: return the weight corresponding to the given node id
@@ -188,14 +206,19 @@ class Weight(Component):
     def get(self, node_id: str) -> int | None:
         return self.action(self.object, node_id)
 
+    def __getitem__(self, key): pass
+    # __iter__, __len__, (Mapping)
+    # __contains__, keys, items, values, get, __eq__, __ne__, (Mapping)
+
     @final
     def with_graph(self, graph: object = None) -> Weight:
         return self
 
-    @final 
+    @final
     def has_weight(self, node: Any) -> bool:
         """Returns if the given object is an instance of `Extras` and has an assigned weight."""
         return isinstance(node, Extras) and self.get(node.name) is not None
+
 
 class Parameter(Component):
     """Concrete and 'static' component
@@ -210,7 +233,7 @@ class Parameter(Component):
         super().__init__(tuple(parameters_names), action)
         self.graph = graph
 
-    @final 
+    @final
     def with_graph(self, graph: Any) -> Parameter:
         return Parameter(self.object, graph)
 
@@ -223,6 +246,7 @@ class Parameter(Component):
     @final
     def parameters_names(self) -> tuple[str]:
         return deepcopy(self.object)
+
 
 class IO(Component):
     """Concrete and 'static' component
@@ -279,6 +303,7 @@ class IO(Component):
         in_out_set = frozenset((*self.inputs_names, *self.outputs_names))
         return tuple(n for n in self.graph.nodes if n.name not in in_out_set)
 
+
 class Constraints(Component):
     """Concrete and 'static' component
         - object: list of nodes, grouped into 'PlaceHolder', 'Constraint' and 'GlobalTask' types
@@ -287,7 +312,7 @@ class Constraints(Component):
 
     def __init__(self, nodes: Sequence[AnyNode]) -> None:
         placeholders: List[PlaceHolder] = list()
-        constraints: List[Constraint] = list() 
+        constraints: List[Constraint] = list()
         globaltasks: List[GlobalTask] = list()
         for node in nodes:
             if isinstance(node, PlaceHolder):
@@ -320,6 +345,7 @@ class Constraints(Component):
     def global_tasks(self) -> AbstractSet[AnyGlobalObjective]:
         """The set of all `GlobalTask` nodes in the graph."""
         return dict.fromkeys(self.action(2, self.object)).keys()
+
 
 class Types(Component):
     """Concrete and 'static' component

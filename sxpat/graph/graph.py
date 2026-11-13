@@ -37,7 +37,9 @@ class ComponentsDict(dict[available_graph_components, Component]):
     def __getitem__(self, key: Literal["Topology"]) -> Topology: ...
     
     @overload
-    def __getitem__(self, key: Literal["Weight"]) -> Weight: ...
+    def __getitem__(self, key: Literal["min_weight"]) -> Weight: ...
+    @overload
+    def __getitem__(self, key: Literal["max_weight"]) -> Weight: ...
 
     @overload
     def __getitem__(self, key: Literal["Parameter"]) -> Parameter: ...
@@ -57,7 +59,6 @@ class ComponentsDict(dict[available_graph_components, Component]):
 class Graph:
     """Generic graph."""
 
-    K = object()
     EXTRAS: Sequence[str] = ()
     base_components: ComponentsDict
     extra_components: dict[str, Component]
@@ -105,7 +106,7 @@ class Graph:
         # construct digraph
         _inner = nx.DiGraph()
         _inner.add_nodes_from(
-            (node.name, {self.K: node})
+            node.name
             for node in nodes
         )
         _inner.add_edges_from(
@@ -307,6 +308,9 @@ class Graph:
         copy.extra_components = inheritable_extra_components
         return copy
 
+
+# class GraphBuilder
+# class GraphCopier (maybe, this can be absorbed by GraphBuilder)
 
 # > Typing help
 

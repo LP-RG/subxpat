@@ -1,11 +1,17 @@
-from typing import List, Sequence, TypedDict, Unpack, NotRequired
+import networkx as nx
+from typing import List, Self, Sequence, TypedDict, Unpack, NotRequired
+
+from sxpat.graph.ds import AttributeMonoDict
 from .graph import Graph
 from .components import Component, Weight, Subgraph, Constraints
 from .node import AnyNode
 
+
 class NodeAttributes(TypedDict):
-    in_subgraph: NotRequired[bool] 
+    in_subgraph: NotRequired[bool]
     weight: NotRequired[int | None]
+    max_weight: NotRequired[int | None]
+
 
 class GraphCopier:
 
@@ -52,28 +58,86 @@ class GraphCopier:
             constraints_component = Constraints(self.nodes)
             components.append(constraints_component)
         return self.graph_to_copy.copy(self.nodes, components)
-        
+
+
 class GraphBuilder:
 
-    nodes: List[AnyNode] 
-    subgraph_set: set[str] 
-    weights_map: dict[str, int] 
+    nodes: List[AnyNode]
+    subgraph_set: set[str]
+    weights_map: dict[str, int]
+
+    type Id = str
 
     def __init__(self) -> None:
         self.nodes = list()
+        self._topology = nx.DiGraph()  # OrderedDiGraph
+        self._types = dict()
         self.subgraph_set = set()
         self.weights_map = dict()
+        self._last_node = None
+
+        self._components = dict()
+
+    def m_prepare_component(self, comp_id: str, comp_type: type[Component]) -> Self:
+        self._components[comp_id] = comp_type
+        return self
+
+    def m_add_component(self, comp_id: str, component: Component) -> Self:
+        return self
+
+    def m_add_node(self, id: Id, type: AnyNode) -> Self:
+        self._last_node = id
+        self._topology.add_node((id, AttributeMonoDict(id)))
+        self._types[id] = type
+        return self
+
+    def m_add_operands(self, *operands: Id) -> Self:
+        if self._last_node is None: raise
+        self._topology.add_edges_from((op, self._last_node) for op in operands)
+        return self
+
+    def m_add_node_extra(self, **extras: Unpack[NodeAttributes]) -> Self:
+        if self._last_node is None: raise
+        if "weight" in extras and extras["weight"] != None:
+            self.weights_map[self._last_node] = extras["weight"]
+        if "in_subgraph" in extras and extras["in_subgraph"]:
+            self.subgraph_set.add(self._last_node)
+        return self
+
+    @property
+    def last(self) -> Id: return self._last_node
+
+    # builder \
+    #     .m_add_component('max_weight', Weight) \
+    #     .m_add_component('min_weight', Weight)
+
+    # node_id = builder \
+    #     .m_add_node('summy', Sum()) \
+    #     .m_add_operands('a', 'b') \
+    #     .m_add_extras(max_weight=3, in_subgraph=True) \
+    #     .last
+    # node2_id = builder.m_add_node('proddy', Div()).m_add_operands('a', 'b').last
 
     def add_new_node(self, node: AnyNode, **extras: Unpack[NodeAttributes]) -> None:
         self.nodes.append(node)
         if "weight" in extras and extras["weight"] != None:
-            self.weights_map[node.name] = extras["weight"]
+            self.weights_map[self._last_node] = extras["weight"]
         if "in_subgraph" in extras and extras["in_subgraph"]:
             self.subgraph_set.add(node.name)
 
     def add_new_nodes(self, nodes: Sequence[AnyNode], **extras: Unpack[NodeAttributes]) -> None:
+        """DEPRECATED"""
         for node in nodes:
             self.add_new_node(node, **extras)
+
+    def m_add_node_from(self, node: Id, other_graph: Graph) -> Self:
+        return self \
+            .m_add_node(node, other_graph.types.get(node)) \
+            .m_add_operands(other_graph.topology.predecessors(node)) \
+            .m_add_node_extra(...)
+    
+    def m_add_nodes_from(self, nodes: Iterable[Id], other_graph): ...
+    def m_add_all_nodes_from(self, other_graph): ...
 
     def add_inherited_node(self, node: AnyNode, predecessor_graph: Graph) -> None:
         self.nodes.append(node)
@@ -86,7 +150,7 @@ class GraphBuilder:
         for node in nodes:
             self.add_inherited_node(node, predecessor_graph)
 
-    def create(self, 
+    def create(self,
                extra_components: List[Component] = list(),
                with_constraints_component: bool = False) -> Graph:
         components = extra_components
@@ -100,4 +164,3 @@ class GraphBuilder:
             constraints_component = Constraints(self.nodes)
             components.append(constraints_component)
         return Graph(self.nodes, components)
-        

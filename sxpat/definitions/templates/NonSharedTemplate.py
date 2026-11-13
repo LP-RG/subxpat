@@ -173,7 +173,8 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         for (out_i, (out_node, sum_node)) in enumerate(zip(a_graph.base_components['Subgraph'].subgraph_outputs, sums)):
             # create the constant False switch
             outs_p.append(p_o := BoolVariable(f'p_o{out_i}'))
-            outs.append(new_out_node := And(f'sw_o{out_i}', operands=(p_o, sum_node)))
+            # outs.append(new_out_node := And(f'sw_o{out_i}', operands=(p_o, sum_node)))
+            template_graph_builder.m_add_node(f'sw_o{out_i}', And()).m_add_operands(p_o, sum_node)
 
             # update all output successors to descend from new outputs
             for succ in filter(lambda n: not n.name in a_graph.base_components['Subgraph'].nodes_names(), a_graph.successors(out_node)):
