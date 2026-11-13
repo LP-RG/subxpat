@@ -63,6 +63,7 @@ class Graph:
     extra_components: dict[str, Component]
 
     # from-MARCO: BUG: you never create a local list from components, so in the best case scenario, the system crashes, but in the worst, the default list gets reused over and over in different calls, possibly propagating a state that should not be there. 
+    # from-ILIA: fixed
     def __init__(self, nodes: Iterable[AnyNode], components: Sequence[Component] = list()) -> None:
         """
         Creates a new graph from the given nodes.
@@ -71,6 +72,7 @@ class Graph:
         """
 
         nodes = tuple(nodes)
+        components = list(components)
 
         #Add default Subgraph and Weight components if they're not passed as argument 
         #(this because the Node structure had default weight = None and in_subgraph = False)
@@ -117,7 +119,7 @@ class Graph:
         # self._inner: Final[nx.DiGraph] = nx.freeze(_inner)
 
         #Add Topology component
-        components.append(Topology(nx.freeze(_inner)))
+        components.append(Topology(_inner))
 
         self.base_components = ComponentsDict([
             (cast(available_graph_components, type(c).__name__), c.with_graph(self))
@@ -256,19 +258,11 @@ class Graph:
 
     @final 
     def has_base_component(self, component_name: available_graph_components) -> bool:
-        # COMMENT:from-MARCO: 🧐
-        # from-ILIA: wdym?
-        if component_name in self.base_components:
-            return True
-        return False
+        return component_name in self.base_components
 
     @final 
     def has_extra_component(self, component_name: str) -> bool:
-        # COMMENT:from-MARCO: 🧐
-        # from-ILIA: wdym?
-        if component_name in self.extra_components:
-            return True
-        return False
+        return component_name in self.extra_components
 
     @final
     def with_base_component(self, new_component: Component) -> Graph:

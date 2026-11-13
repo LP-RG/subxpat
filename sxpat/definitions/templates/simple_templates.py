@@ -137,8 +137,6 @@ class SwitchedTemplate(SimpleTemplate):
         for node in xors:
             graph_builder.add_new_node(node)
 
-        # COMMENT:from-MARCO: valid. a way to improve this, would be to get the Weight component before the ifs and use it directly (saves on a lot of accesses)
-        # from-ILIA: fixed
         weight_component = circuit.base_components['Weight']
         xors_weights = [
             weight_component.get(subout.name)
@@ -157,8 +155,6 @@ class SwitchedTemplate(SimpleTemplate):
         weight_component = parametric_circuit.base_components['Weight']
         for n in parametric_circuit.nodes:
             if not n.name in new_weights_mapping.keys():
-                # COMMENT:from-MARCO: valid. a way to improve this, would be to get the Weight component before the ifs and use it directly (saves on a lot of accesses)
-                # from-ILIA: fixed
                 new_weights_mapping[n.name] = weight_component.get(n.name)
         new_weight_component = Weight(new_weights_mapping)
         parametric_circuit = parametric_circuit.with_base_component(new_weight_component)

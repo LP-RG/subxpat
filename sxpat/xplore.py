@@ -558,21 +558,6 @@ def label_graph(circuit: Graph, specs_obj: Specifications) -> Dict[str, int]:
 
     return weights
 
-
-# def are_circuits_equal(g1: SGraph, g2: SGraph) -> bool:
-#     class _Node(Node, Extras): ...
-
-#     def node_matcher(_n1: dict, _n2: dict) -> bool:
-#         n1: _Node = _n1[SGraph.K]
-#         n2: _Node = _n2[SGraph.K]
-#         return (
-#             type(n1) == type(n2)
-#             and n1.in_subgraph == n2.in_subgraph
-#         )
-
-#     return nx.is_isomorphic(g1._inner, g2._inner, node_match=node_matcher)
-# BECOMES:
-
 def are_circuits_equal(g1: Graph, g2: Graph) -> bool:
     # COMMENT:from-MARCO: This will have a few issues, specifically:
     #                     Two different circuits (crossing iterations) may be syntactically equivalent, but have their names be shuffled (meaning that, two graphs, A and B, might be equivalent, even if only node "a" is in the subgraph in graph A, and only node "b" is in the subgraph in graph B. this is because the equivalence should ignore names, as they are arbitrary each time).
@@ -652,6 +637,18 @@ def print_results(sel: ResultCircuitsSelection):
         ],
         tablefmt='simple_outline',
     ))
+    import sys
+    import re
+    with open("./data.txt", "a") as f:
+        title = f"{re.split(r'\.', (re.split('/', sys.argv[1]))[-1])[0]}\n"
+        f.write(title)
+        data = f"area->power->delay: {re.split('/', sel.apd.path, 2)[2]}, {sel.apd.area}, {sel.apd.power}, {sel.apd.delay}, {sel.apd.error_to_origin}\n" \
+        f"area->delay->power: {re.split('/', sel.adp.path, 2)[2]}, {sel.adp.area}, {sel.adp.power}, {sel.adp.delay}, {sel.adp.error_to_origin}\n" \
+        f"power->area->delay: {re.split('/', sel.pad.path, 2)[2]}, {sel.pad.area}, {sel.pad.power}, {sel.pad.delay}, {sel.pad.error_to_origin}\n" \
+        f"power->delay->area: {re.split('/', sel.pda.path, 2)[2]}, {sel.pda.area}, {sel.pda.power}, {sel.pda.delay}, {sel.pda.error_to_origin}\n" \
+        f"delay->area->power: {re.split('/', sel.dap.path, 2)[2]}, {sel.dap.area}, {sel.dap.power}, {sel.dap.delay}, {sel.dap.error_to_origin}\n" \
+        f"delay->power->area: {re.split('/', sel.dpa.path, 2)[2]}, {sel.dpa.area}, {sel.dpa.power}, {sel.dpa.delay}, {sel.dpa.error_to_origin}\n"
+        f.write(data)
 
 
 def model_compare(a: ExpandedCircuitData, b: ExpandedCircuitData) -> Union[Literal[-1], Literal[0], Literal[+1]]:

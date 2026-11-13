@@ -55,7 +55,7 @@ class CustomComponent(Component):
                  keep_graph_reference: bool = False,
                  graph: Any = None) -> None:
         
-        super.__init__(object, action, inheritable)
+        super.__init__(deepcopy(object), action, inheritable)
         self.graph = graph
         self.graph_reference = keep_graph_reference
 
@@ -82,8 +82,9 @@ class Subgraph(Component):
         # COMMENT:from-MARCO: perfect, in the future we can also see about optimising a few things
         # COMMENT:from-MARCO: a thing I noticed now, is that, doing the casting/getting/whatever later, may allow the input datastructure to change
         #                     example: i create the component passing in my own set/dict, then after the component has been created, if I (even outside the component) update the datastructure I passed in, now the component will behave on this new data, making it not deeply immutable
+        # from-ILIA: fixed
         action = lambda subgraph_set: list(subgraph_set)
-        super().__init__(subgraph_set, action)
+        super().__init__(deepcopy(subgraph_set), action)
         self.graph = graph
 
     @final
@@ -161,7 +162,7 @@ class Topology(Component):
     def __init__(self, digraph: nx.DiGraph) -> None:
         # COMMENT:from-MARCO: perfect, in the future we can also see about optimising a few things
         action = lambda digraph: digraph
-        super().__init__(digraph, action, inheritable=False)
+        super().__init__(nx.freeze(digraph), action, inheritable=False)
 
     @final
     def get(self) -> nx.DiGraph:
@@ -180,8 +181,9 @@ class Weight(Component):
     def __init__(self, map: dict[str, int]) -> None:
         # COMMENT:from-MARCO: a thing I noticed now, is that, doing the casting/getting/whatever later, may allow the input datastructure to change
         #                     example: i create the component passing in my own set/dict, then after the component has been created, if I (even outside the component) update the datastructure I passed in, now the component will behave on this new data, making it not deeply immutable
+        # from-ILIA: fixed
         action = lambda map, node_id: map[node_id] if node_id in map else None
-        super().__init__(map, action)
+        super().__init__(deepcopy(map), action)
 
     def get(self, node_id: str) -> int | None:
         return self.action(self.object, node_id)
@@ -289,11 +291,11 @@ class Constraints(Component):
         globaltasks: List[GlobalTask] = list()
         for node in nodes:
             if isinstance(node, PlaceHolder):
-                placeholders.append(node)
+                placeholders.append(deepcopy(node))
             if isinstance(node, Constraint):
-                constraints.append(node)
+                constraints.append(deepcopy(node))
             if isinstance(node, GlobalTask):
-                globaltasks.append(node)
+                globaltasks.append(deepcopy(node))
         action = lambda index, nodes_list: deepcopy(nodes_list[index])
         super().__init__([placeholders, constraints, globaltasks], action, inheritable=False)
 
