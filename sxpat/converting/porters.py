@@ -165,9 +165,9 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         # from-ILIA: done, is it what you meant?
         # from-MARCO: kind-of, I do not remember precisely what I had in mind (I will make sure to be more descriptive in the future)
         #             but I think it was something like with NODE_SHAPE but for components->label-part, but we can leave this as is for now, this is perfectly acceptable
-        if types_component.instance_of(node, [Extras]) and graph.base_components['Weight'].get(node.name) is not None:
+        if graph.has_base_component('Weight') and graph.base_components['Weight'].get(node.name) is not None:
             string += rf'\nw={graph.base_components['Weight'].get(node.name)}'
-        if types_component.instance_of(node, [Extras]) and node.name in graph.base_components['Subgraph'].nodes_names():
+        if graph.has_base_component('Subgraph') and node.name in graph.base_components['Subgraph'].nodes_names():
             string += rf'\nsub'
         if types_component.instance_of(node, [Operation]):
             string += rf'\ni={",".join(node.operands)}'

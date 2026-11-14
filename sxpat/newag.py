@@ -1,7 +1,7 @@
 from typing import ClassVar
 
 from sxpat.graph.graph import Graph
-from sxpat.graph.node import And, BoolConstant, Extras, Node, Not
+from sxpat.graph.node import And, BoolConstant, Node, Not
 from sxpat.specifications import Paths
 
 from sxpat.utils.filesystem import FS
@@ -84,7 +84,6 @@ def load_circuit_from_verilog_testing(circuit_verilog_path: str, run_paths: Path
     return load_circuit_from_notand_verilog_testing(tmp_v, run_paths, info)
 
 
-class _Node(Node, Extras): ...
 
 
 class export_annotated_graph:
@@ -119,11 +118,11 @@ class export_annotated_graph:
             (True, True): 1,
         }
 
-        def _node_tostr(n: _Node):
+        def _node_tostr(n: Node):
             name = n.name
             fillcolor_str = 3 if name in subgraph_inputs else \
                 2 if name in subgraph_outputs else \
-                1 if types_component.instance_of(n, [Extras]) and subgraph_component.in_subgraph(n.name) else ''
+                1 if subgraph_component.in_subgraph(n.name) else ''
             if fillcolor_str != '': fillcolor_str = f', fillcolor={fillcolor_str}'
             weight_str = f'\\n{circuit.base_components["Weight"].get(n.name)}' if circuit.base_components['Weight'].has_weight(n) else ''
 
@@ -140,7 +139,7 @@ class export_annotated_graph:
             else:
                 raise RuntimeError(f'stringification failed of node {n}')
 
-        def _edge_tostr(s: _Node, d: _Node):
+        def _edge_tostr(s: Node, d: Node):
             sname = s.name
             dname = d.name
 

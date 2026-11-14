@@ -8,7 +8,7 @@ import os
 from os.path import join as path_join
 
 from sxpat.graph.graph import Graph
-from sxpat.graph.node import Extras, Node
+from sxpat.graph.node import Node
 from sxpat.error_iter import ErrorIterator
 from sxpat.newag import load_circuit_from_verilog
 
@@ -568,7 +568,6 @@ def are_circuits_equal(g1: Graph, g2: Graph) -> bool:
     # from-ILIA: is the below updated code correct now?
     # from-MARCO: yes, this seems valid (i moved the components out of the matcher, and simplified a small thing)
 
-    class _Node(Node, Extras): ...
     g1_types_c = g1.base_components['Types']
     g2_types_c = g2.base_components['Types']
     g1_subgraph_c = g1.base_components['Subgraph']

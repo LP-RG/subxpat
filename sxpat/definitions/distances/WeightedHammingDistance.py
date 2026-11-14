@@ -5,7 +5,7 @@ from .DistanceSpecification import DistanceSpecification
 
 from sxpat.graph import Graph
 from sxpat.graph import error as g_error
-from sxpat.graph.node import Extras, If, IntConstant, PlaceHolder, Sum, Xor
+from sxpat.graph.node import If, IntConstant, PlaceHolder, Sum, Xor, Node
 from sxpat.utils.collections import first, formatted_int_range
 from sxpat.graph.components import Constraints
 
@@ -27,8 +27,8 @@ class WeightedHammingDistance(DistanceSpecification):
                 ) -> Tuple[Graph, str]:
 
         # useful variables
-        w_nodes_a: Sequence[Extras] = tuple(graph_a[n] for n in wanted_a)  # type: ignore
-        w_nodes_b: Sequence[Extras] = tuple(graph_b[n] for n in wanted_b)  # type: ignore
+        w_nodes_a: Sequence[Node] = tuple(graph_a[n] for n in wanted_a)  # type: ignore
+        w_nodes_b: Sequence[Node] = tuple(graph_b[n] for n in wanted_b)  # type: ignore
 
         # guard
         graph_a_weights = graph_a.base_components['Weight']

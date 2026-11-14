@@ -8,7 +8,7 @@ from .DistanceSpecification import DistanceSpecification
 
 from sxpat.graph import Graph
 from sxpat.graph import error as g_error
-from sxpat.graph.node import AbsDiff, AnyExtras, Extras, If, IntConstant, PlaceHolder, Sum
+from sxpat.graph.node import AbsDiff, AnyExtras, If, IntConstant, PlaceHolder, Sum, Node
 from sxpat.graph.components import Constraints
 
 
@@ -31,8 +31,8 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
                 ) -> Tuple[Graph, str]:
 
         # useful variables
-        w_nodes_a: Collection[Extras] = tuple(graph_a[n] for n in wanted_a)  # type: ignore
-        w_nodes_b: Collection[Extras] = tuple(graph_b[n] for n in wanted_b)  # type: ignore
+        w_nodes_a: Collection[Node] = tuple(graph_a[n] for n in wanted_a)  # type: ignore
+        w_nodes_b: Collection[Node] = tuple(graph_b[n] for n in wanted_b)  # type: ignore
 
         graph_a_weights = graph_a.base_components['Weight']
         graph_b_weights = graph_b.base_components['Weight']
@@ -73,7 +73,7 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         if wanted is None: wanted = graph.base_components['IO'].outputs_names
 
         # useful variables
-        w_nodes: Sequence[Extras] = tuple(graph[n] for n in wanted)  # type: ignore
+        w_nodes: Sequence[Node] = tuple(graph[n] for n in wanted)  # type: ignore
 
         # guard
         if (broken := first(graph.base_components['Weight'].has_weight, w_nodes, None)) is not None:

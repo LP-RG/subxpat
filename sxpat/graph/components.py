@@ -4,7 +4,7 @@ from collections.abc import Callable
 import networkx as nx
 from copy import deepcopy
 from abc import ABC, abstractmethod
-from .node import AnyNode, Extras, Node, BoolVariable, BoolConstant, PlaceHolder, AnyGlobalObjective, GlobalTask, Constraint
+from .node import AnyNode, Node, BoolVariable, BoolConstant, PlaceHolder, AnyGlobalObjective, GlobalTask, Constraint
 import functools as ft
 import itertools as it
 import operator as op
@@ -110,7 +110,7 @@ class Subgraph(Component):
         types_component = self.graph.base_components['Types']
         return tuple(
             node for node in self.graph.nodes
-            if types_component.instance_of(node, [Extras]) and node.name in subgraph_ids
+            if node.name in subgraph_ids
         )
 
     @ft.cached_property
@@ -125,7 +125,7 @@ class Subgraph(Component):
         return tuple(dict.fromkeys(it.chain.from_iterable(
             (
                 pred for pred in self.graph.predecessors(node)
-                if not types_component.instance_of(pred, [Extras]) or not pred.name in subgraph_ids
+                if not pred.name in subgraph_ids
             )
             for node in self.subgraph_nodes
         )))
@@ -140,7 +140,7 @@ class Subgraph(Component):
             (
                 node for node in self.subgraph_nodes
                 if any(
-                    not types_component.instance_of(succ, [Extras]) or not succ.name in subgraph_ids
+                    not succ.name in subgraph_ids
                     for succ in self.graph.successors(node)
                 )
             ),
@@ -150,11 +150,9 @@ class Subgraph(Component):
     @final
     def node_edges_to_subgraph(self, node_or_name: Union[str, Node]) -> int:
         """Returns the number of edges from this node to the subgraph."""
-        types_component = self.graph.base_components['Types']
         subgraph_ids = self.nodes_names()
         return sum(
             n.name in subgraph_ids for n in self.graph.successors(node_or_name)
-            if types_component.instance_of(n, [Extras])
         )
 
 
@@ -216,8 +214,8 @@ class Weight(Component):
 
     @final
     def has_weight(self, node: Any) -> bool:
-        """Returns if the given object is an instance of `Extras` and has an assigned weight."""
-        return isinstance(node, Extras) and self.get(node.name) is not None
+        """Returns if the given object has an assigned weight."""
+        return self.get(node.name) is not None
 
 
 class Parameter(Component):

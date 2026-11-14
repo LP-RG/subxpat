@@ -6,7 +6,6 @@ import dataclasses as dc
 __all__ = [
     # > abstracts
     'Node',
-    'Extras',
     # valued
     'Valued',
     # operation
@@ -100,21 +99,6 @@ class Node(__Base):
             **{s: getattr(self, s) for s in self.__slots__},  # type: ignore # all concrete subclasses must use slots
             **update,
         })
-
-
-@dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class Extras(__Base):
-    """
-        An object with extra informations.
-
-        *abstract*
-    """
-    # COMMENT:from-MARCO: perfect, now that you removed all content from this, a following step should be to clear out all references to Extras
-    #                     this will slightly simplify the node hierarchy, and may greately simplify code all around the system
-    # from-ILIA: still TODO! I'll do it as soon as everything else is approved by you
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
 
 
 # valued
@@ -294,14 +278,14 @@ class Variable(EntryPoint):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class BoolVariable(Extras, Variable, BoolResType, Node):
+class BoolVariable(Variable, BoolResType, Node):
     """
         Boolean variable.
     """
 
 
 @dc.dataclass(frozen=True, slots=True)
-class IntVariable(Extras, Variable, IntResType, Node):
+class IntVariable(Variable, IntResType, Node):
     """
         Integer variable.
     """
@@ -320,14 +304,14 @@ class Constant(Valued[T], EntryPoint):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class BoolConstant(Extras, Constant[bool], BoolResType, Node):
+class BoolConstant(Constant[bool], BoolResType, Node):
     """
         Boolean constant.
     """
 
 
 @dc.dataclass(frozen=True, slots=True)
-class IntConstant(Extras, Constant[int], IntResType, Node):
+class IntConstant(Constant[int], IntResType, Node):
     """
         Integer constant.
     """
@@ -361,7 +345,7 @@ class Expression(__Base):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class Not(Extras, Limited1Operation, BoolResType, Expression, Node):
+class Not(Limited1Operation, BoolResType, Expression, Node):
     """
         Boolean negation ( `not a` ) expression.  
         This node must have only one operand.
@@ -369,7 +353,7 @@ class Not(Extras, Limited1Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class And(Extras, Operation, BoolResType, Expression, Node):
+class And(Operation, BoolResType, Expression, Node):
     """
         Boolean conjunction ( `a and b and ...` ) expression.  
         This node can have any amount of operands.
@@ -377,7 +361,7 @@ class And(Extras, Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class Or(Extras, Operation, BoolResType, Expression, Node):
+class Or(Operation, BoolResType, Expression, Node):
     """
         Boolean disjunction ( `a or b or ...` ) expression.  
         This node can have any amount of operands.
@@ -385,7 +369,7 @@ class Or(Extras, Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class Xor(Extras, Limited2Operation, BoolResType, Expression, Node):
+class Xor(Limited2Operation, BoolResType, Expression, Node):
     """
         Boolean exclusive disjunction ( `a xor b` ) expression.  
         This node must have two operads.
@@ -393,7 +377,7 @@ class Xor(Extras, Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class Xnor(Extras, Limited2Operation, BoolResType, Expression, Node):
+class Xnor(Limited2Operation, BoolResType, Expression, Node):
     """
         Boolean negated exclusive disjunction ( `a xnor b` ) expression.  
         This node must have two operads.
@@ -401,7 +385,7 @@ class Xnor(Extras, Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class Implies(Extras, Limited2Operation, BoolResType, Expression, Node):
+class Implies(Limited2Operation, BoolResType, Expression, Node):
     """
         Boolean implication ( `a => b` ) expression.  
         This node must have two ordered operands: left, right.
@@ -412,7 +396,7 @@ class Implies(Extras, Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class Sum(Extras, Operation, IntResType, Expression, Node):
+class Sum(Operation, IntResType, Expression, Node):
     """
         Integer addition ( `a + b + ...` ) expression.  
         This node can have any amount of operands.
@@ -420,7 +404,7 @@ class Sum(Extras, Operation, IntResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class AbsDiff(Extras, Limited2Operation, IntResType, Expression, Node):
+class AbsDiff(Limited2Operation, IntResType, Expression, Node):
     """
         Integer absolute difference ( `| a - b |` ) expression.  
         This node must have two operands.
@@ -428,7 +412,7 @@ class AbsDiff(Extras, Limited2Operation, IntResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class Mul(Extras, Operation, IntResType, Expression, Node):
+class Mul(Operation, IntResType, Expression, Node):
     """
         Integer multiplication ( `a * b * ...` ) expression.  
         This node can have any amount of operands.
@@ -436,7 +420,7 @@ class Mul(Extras, Operation, IntResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class Div(Extras, Limited2Operation, IntResType, Expression, Node):
+class Div(Limited2Operation, IntResType, Expression, Node):
     """
         Integer division ( `a / b` ) expression.  
         This node must have two operands.
@@ -444,7 +428,7 @@ class Div(Extras, Limited2Operation, IntResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class LeftShift(Extras, Valued[int], Limited1Operation, IntResType, Expression, Node):
+class LeftShift(Valued[int], Limited1Operation, IntResType, Expression, Node):
     """
         LeftShift-bit operation ( `a << b` ) expression.
         This node must have one operand ( `a` ), `b` is passed, as a constant.
@@ -452,7 +436,7 @@ class LeftShift(Extras, Valued[int], Limited1Operation, IntResType, Expression, 
 
 
 @dc.dataclass(frozen=True, slots=True)
-class RightShift(Extras, Valued[int], Limited1Operation, IntResType, Expression, Node):
+class RightShift(Valued[int], Limited1Operation, IntResType, Expression, Node):
     """
         RightShift-bit operation ( `a >> b` ) expression.
         This node must have one operand ( `a` ), `b` is passed, as a constant.
@@ -463,7 +447,7 @@ class RightShift(Extras, Valued[int], Limited1Operation, IntResType, Expression,
 
 
 @dc.dataclass(frozen=True, slots=True)
-class ToInt(Extras, Operation, IntResType, Expression, Node):
+class ToInt(Operation, IntResType, Expression, Node):
     """
         Special integer node: represents the creation of an integer given a sequence of booleans (the bits).  
         This node can have any amount of ordered operands, where the first represents the least significant bit.
@@ -474,7 +458,7 @@ class ToInt(Extras, Operation, IntResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class Equals(Extras, Limited2Operation, BoolResType, Expression, Node):
+class Equals(Limited2Operation, BoolResType, Expression, Node):
     """
         Equality ( `a == b` ) expression.  
         This node must have two operands.
@@ -482,7 +466,7 @@ class Equals(Extras, Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class NotEquals(Extras, Limited2Operation, BoolResType, Expression, Node):
+class NotEquals(Limited2Operation, BoolResType, Expression, Node):
     """
         Inequality ( `a != b` ) expression.  
         This node must have two operands.
@@ -490,7 +474,7 @@ class NotEquals(Extras, Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class LessThan(Extras, Limited2Operation, BoolResType, Expression, Node):
+class LessThan(Limited2Operation, BoolResType, Expression, Node):
     """
         Less than ( `a < b` ) expression.  
         This node must have two ordered operands: left, right.
@@ -498,7 +482,7 @@ class LessThan(Extras, Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class LessEqualThan(Extras, Limited2Operation, BoolResType, Expression, Node):
+class LessEqualThan(Limited2Operation, BoolResType, Expression, Node):
     """
         Less or equal than ( `a <= b` ) expression.  
         This node must have two ordered operands: left, right.
@@ -506,7 +490,7 @@ class LessEqualThan(Extras, Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class GreaterThan(Extras, Limited2Operation, BoolResType, Expression, Node):
+class GreaterThan(Limited2Operation, BoolResType, Expression, Node):
     """
         Greater than ( `a > b` ) expression.  
         This node must have two ordered operands: left, right.
@@ -514,7 +498,7 @@ class GreaterThan(Extras, Limited2Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class GreaterEqualThan(Extras, Limited2Operation, BoolResType, Expression, Node):
+class GreaterEqualThan(Limited2Operation, BoolResType, Expression, Node):
     """
         Greater or equal than ( `a >= b` ) expression.  
         This node must have two ordered operands: left, right.
@@ -525,7 +509,7 @@ class GreaterEqualThan(Extras, Limited2Operation, BoolResType, Expression, Node)
 
 
 @dc.dataclass(frozen=True, slots=True)
-class Identity(Extras, Limited1Operation, DynamicResType, Expression, Node):
+class Identity(Limited1Operation, DynamicResType, Expression, Node):
     """
         The identity expression.
     """
@@ -535,7 +519,7 @@ class Identity(Extras, Limited1Operation, DynamicResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class Multiplexer(Extras, Limited3Operation, BoolResType, Expression, Node):
+class Multiplexer(Limited3Operation, BoolResType, Expression, Node):
     """
         Special boolean node: represents a multiplexer (false, true, not origin, origin) indexed by two parameters.  
         This node must have three ordered operands: origin, usage parameter (origin/constant), assertion parameter (asserted/negated).
@@ -557,7 +541,7 @@ class Multiplexer(Extras, Limited3Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class If(Extras, Limited3Operation, DynamicResType, Expression, Node):
+class If(Limited3Operation, DynamicResType, Expression, Node):
     """
         Special node: represents a selection ( `if a then b else c` ) operation.  
         This node must have three ordered operands: condition, if true, if false.
@@ -580,7 +564,7 @@ class If(Extras, Limited3Operation, DynamicResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class AtLeast(Extras, Valued[int], Operation, BoolResType, Expression, Node):
+class AtLeast(Valued[int], Operation, BoolResType, Expression, Node):
     """
         Special node: represents a lower limit to the number of operands that must be true.  
         This node can have any amount of operands.
@@ -588,7 +572,7 @@ class AtLeast(Extras, Valued[int], Operation, BoolResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class AtMost(Extras, Valued[int], Operation, BoolResType, Expression, Node):
+class AtMost(Valued[int], Operation, BoolResType, Expression, Node):
     """
         Special node: represents an upper limit to the number of operands that can be true.  
         This node can have any amount of operands.
