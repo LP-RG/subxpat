@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 import itertools as it
 
@@ -7,10 +7,9 @@ from sxpat.converting.utils import set_prefix_new
 from sxpat.graph.graph import CGraph, IOGraph, PGraph, SGraph
 from sxpat.graph.node import (
     AbsDiff, BoolConstant, BoolVariable, Constraint, ForAll, IntConstant,
-    LessEqualThan, Node, PlaceHolder, Target, ToInt,
+    LessEqualThan, PlaceHolder, Target, ToInt,
 )
 from sxpat.specifications import Specifications
-from sxpat.utils.collections import iterable_replace_index
 
 
 __all__ = ['InputsReplace']
@@ -76,14 +75,17 @@ class InputsReplace:
             identity_node = BoolVariable('constant_ID')
 
         # rewire every successor of a removed input to use the replacement value
-        updated_nodes: Dict[str, Node] = dict()
+        # NOTE: every occurrence is replaced, so that a gate reading the same input
+        #       more than once is fully rewired and the input truly leaves the circuit
+        updated_nodes: Dict[str, Any] = dict()
         for selected_node in selected_nodes:
             for succ in a_graph.successors(selected_node):
                 # if the successor was already updated, use the updated version
                 succ = updated_nodes.get(succ.name, succ)
-                new_operands = iterable_replace_index(
-                    succ.operands, succ.operands.index(selected_node), identity_node.name,
-                )
+                new_operands = [
+                    identity_node.name if operand == selected_node else operand
+                    for operand in succ.operands
+                ]
                 updated_nodes[succ.name] = succ.copy(operands=new_operands)
 
         # the parametric circuit: the original (prefixed) nodes that were not rewired,

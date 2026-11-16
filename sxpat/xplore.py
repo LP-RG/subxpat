@@ -99,6 +99,13 @@ def explore_grid(specs_obj: Specifications):
             specs_obj.current_benchmark, slash_error = remove_inputs(specs_obj, exact_benchmark_name)
         slash_time = _timer.total()
 
+        # the pass may produce a circuit whose error exceeds the global budget
+        if slash_error > specs_obj.max_error:
+            pprint.warning(
+                f'the slash pass produced a circuit with error {slash_error}, which exceeds the '
+                f'maximum error ({specs_obj.max_error}): the resulting circuit may not satisfy the constraints'
+            )
+
         slash_metrics = MetricsEstimator.estimate_metrics(
             specs_obj.path.synthesis, specs_obj.current_benchmark, specs_obj.path.run.temporary,
         )
