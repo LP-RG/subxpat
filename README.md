@@ -79,8 +79,8 @@ Here are all the parameters with their arguments and descriptions:
 | :-------------------------------------------: | --------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------- |
 | `exact-benchmark`                             | `path` to Verilog file                  |                                    | Circuit to approximate                                                 |
 | `--current-benchmark` <br> `--curr`           | `path` to Verilog file                  | the same as <br> `exact-benchmark` | Approximated circuit used to continue the execution                    |
-| `--labeling`                                  | { min, max, simple_min, simple_max, sample_min, sample_max } | simple_min            | Labeling algorithm to use                                              |
-| `--labeling-relative-to`                      | { origin, current }                     | current                            | Circuit the labeling weights are computed against                      |
+| `--labeling`                                  | { min, max, simple_min, simple_max, sample_min, sample_max } | simple_min            | Labeling algorithm to use (`min`/`max` are exact per-node queries, `max` being what `--max-labeling` did; `simple_min`/`simple_max` are cheap lower/upper bounds of them, `sample_*` are approximations over `--labeling-samples` assignments) |
+| `--labeling-relative-to`                      | { origin, current }                     | current                            | Circuit the labeling weights are computed against (`origin` labels every node, otherwise only the nodes that can still influence the error threshold are labelled) |
 | `--labeling-samples`                          | `int` > 0                               | 2                                  | Random samples used by the sampling labeling types, besides all-0/all-1 |
 | `--labeling-seed`                             | `int` or `random`                       | 0                                  | Seed for the sampling labeling types (`random` for a random seed)      |
 | `--extraction-mode` <br> `--mode`             | { 1, 2, 3, 4, 5, 55, 6, 11, 12, 42 }    | 55                                 | Subgraph extraction algorithm to use                                   |
@@ -104,7 +104,7 @@ Here are all the parameters with their arguments and descriptions:
 | `--error-partitioning` <br> `--epar`          | { asc, desc, smart_asc, smart_desc }    | asc                                | The error partitioning algorithm to use                                |
 | `--output`                                    | `path` to folder                        | `output/`                          | The base directory for the output                                      |
 | `--cell-library`                              | `path` to lib file                      | `config/gscl45nm.lib`              | The cell library file to use in the metrics estimation                 |
-| `--cqesto`                                    | `path`                                  | `cqesto`                           | The path of the cqesto executable                                      |
+| `--cqesto`                                    | `path`                                  | `cqesto`                           | The path of the cqesto executable (only needed with `--encoding=qbf`)  |
 | `--archive`                                   |                                         |                                    | If the generated files should be archived at the end of the execution  |
 | `--debug`                                     |                                         | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
 | `--timeout`                                   | `float` > 0                             | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
@@ -137,7 +137,7 @@ To execute the framework with SubXPAT iterations, bit-vector logic encoding, and
 python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3bvec --max-lpp=8 --max-ppo=10 --imax=6 --omax=3 --max-error=16
 ```
 
-To execute the framework with SubXPAT iterations, integer logic encoding, subgraph extraction mode 55 (all sub-outputs weight must be less than the error threshold), simple minimum labeling, ..., run the following command:
+To execute the framework with SubXPAT iterations, integer logic encoding, subgraph extraction mode 55 (all sub-outputs weight must be at most the error threshold), simple minimum labeling, ..., run the following command:
 ```bash
 python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extraction-mode=55 --labeling=simple_min --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8
 ```
