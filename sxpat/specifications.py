@@ -513,7 +513,8 @@ class Specifications:
         metadata={
             'argument': {
                 'args': ['--cqesto'],
-                'help': 'The path of the executable of cqesto (default: {default})',
+                'metavar': 'solver',
+                'help': 'The QBF solver to run, by name or path: cqesto, cqesto-cadical or qfun, as installed by `make install <solver>` (default: {default})',
                 'group': 'Files and folders',
             }
         },

@@ -613,16 +613,30 @@ class QbfSolver(Solver):
             #
             encoder.write_custom(f'{id_gen.get_sat_problem()} = and({", ".join(mapping[x][0] for x in in_the_output)})\n')
 
-        cqesto_path = require_tool(specifications.path.tools.cqesto, 'run `make setup all`')
+        cqesto_path = require_tool(
+            specifications.path.tools.cqesto,
+            'run `make install <solver>`: cqesto, cqesto-cadical or qfun',
+        )
         result = subprocess.run(
             [cqesto_path, script_path],
             capture_output=True, text=True,
         )
 
         if result.returncode == 10:
+            # the assignment is on the line starting with `v`: cqesto prints it on the fourth
+            # line and terminates it with a `0`, qfun prints it later and without the `0`
+            assignment = next(
+                (line for line in result.stdout.split('\n') if line.startswith('v ')), None)
+            if assignment is None:
+                raise RuntimeError(
+                    f'no model in the output of `{cqesto_path} {script_path}`\n'
+                    f'{result.stderr}'
+                )
+
             answer_vars = {
-                variables[int(x[2:])]: x[0] == '+'
-                for x in result.stdout.split('\n')[3].split()[1:-1]
+                variables[int(token[2:])]: token[0] == '+'
+                for token in assignment.split()[1:]
+                if token != '0'
             }
 
             graphs = crystallize.graphs([
