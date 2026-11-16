@@ -8,6 +8,7 @@ from collections import deque
 from sxpat.utils.string import partial_format, dedent
 
 import subprocess
+import sys
 from threading import Lock
 from sxpat.utils.futures import ThreadPoolExecutor
 
@@ -190,7 +191,7 @@ class Labelling:
         FS.writefile(script_path, script)
         # run script
         result = subprocess.run(
-            ['python3', script_path],
+            [sys.executable, script_path],
             capture_output=True, text=True,
             check=True,
         )
