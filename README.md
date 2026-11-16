@@ -88,7 +88,7 @@ Here are all the parameters with their arguments and descriptions:
 | `--min-subgraph-size`                         | `int` > 0                               |                                    | Minimum valid size for the subgraph                                    |
 | `--num-subgraphs`                             | `int` > 0                               | 1                                  | The number of attempts for subgraph extraction                         |
 | `--slash`                                     | { none, slash_to_kill, slash_it }       | none                               | Type of slash pass to apply                                            |
-| `--error-for-slash`                           | `int` > 0                               | 1                                  | The error to use for the slash pass                                    |
+| `--error-for-slash`                           | `int` > 0                               |                                    | The error to use for the slash pass (required when `--slash` is not `none`) |
 | `--subxpat`                                   |                                         |                                    | Run SubXPAT iteratively, instead of standard XPAT                      |
 | `--constants`                                 | { never, always }                       | always                             | Usage of constants                                                     |
 | `--constant-false`                            | { output, product }                     | output                             | Representation of false constants from the subgraph                    |

@@ -326,10 +326,9 @@ class Specifications:
         },
     )
     error_for_slash: int = dc.field(
-        default=1,
         metadata={
             'argument': {
-                'help': 'The error to use for the slash pass (default: {default})',
+                'help': 'The error to use for the slash pass',
                 'group': 'Subgraph extraction',
             }
         },

@@ -89,6 +89,46 @@ def explore_grid(specs_obj: Specifications):
         raise NotImplementedError('invalid error iteration')
 
     #
+    # slash of inputs (iterative): a one-shot transformation of the exact benchmark,
+    # applied before the exploration loop so that it does not consume an error partition
+    if specs_obj.slash is SlashType.SLASH_INPUT_ITERATIVE:
+        # remove the inputs that can be tied to a shared constant while keeping
+        # the resulting circuit within `error_for_slash` of the original one
+        specs_obj.sub_iteration = 'slash'
+        with Timer2.default() as _timer:
+            specs_obj.current_benchmark, slash_error = remove_inputs(specs_obj, exact_benchmark_name)
+        slash_time = _timer.total()
+
+        slash_metrics = MetricsEstimator.estimate_metrics(
+            specs_obj.path.synthesis, specs_obj.current_benchmark, specs_obj.path.run.temporary,
+        )
+
+        slash_circuit_data = CircuitData(
+            'gen_slash',
+            specs_obj.current_benchmark,
+            slash_metrics.area,
+            slash_metrics.power,
+            slash_metrics.delay,
+            slash_error,
+            slash_error,
+        )
+
+        # logging (iteration 0: the pass runs before the exploration loop)
+        specs_obj.stats_storage.stage(
+            iteration=specs_obj.iteration,
+            slash_error=slash_error,
+            slash_area=slash_metrics.area,
+            slash_power=slash_metrics.power,
+            slash_delay=slash_metrics.delay,
+            slash_time=slash_time,
+        )
+        all_generated_circuits_data.append(slash_circuit_data)
+        specs_obj.stats_storage.commit()
+
+        # print the slashed circuit metrics in the same format as the iterations
+        print_current_model([slash_circuit_data], origin_circuit_data=exact_circuit_metrics)
+
+    # the exploration continues on the slashed circuit
     for (
         specs_obj.iteration,
         specs_obj.et,
@@ -119,46 +159,7 @@ def explore_grid(specs_obj: Specifications):
                 specs_obj.stats_storage.ignore()
                 continue
 
-        elif specs_obj.slash is SlashType.SLASH_INPUT_ITERATIVE:
-            # the slash pass is a one-shot transformation of the exact benchmark:
-            # remove the inputs that can be tied to a shared constant while keeping
-            # the resulting circuit within `error_for_slash` of the original one
-            specs_obj.sub_iteration = 'slash'
-            with Timer2.default() as _timer:
-                specs_obj.current_benchmark, slash_error = remove_inputs(specs_obj, exact_benchmark_name)
-            slash_time = _timer.total()
-
-            slash_metrics = MetricsEstimator.estimate_metrics(
-                specs_obj.path.synthesis, specs_obj.current_benchmark, specs_obj.path.run.temporary,
-            )
-
-            slash_circuit_data = CircuitData(
-                'gen_slash',
-                specs_obj.current_benchmark,
-                slash_metrics.area,
-                slash_metrics.power,
-                slash_metrics.delay,
-                slash_error,
-                slash_error,
-            )
-
-            # logging
-            specs_obj.stats_storage.stage(
-                slash_error=slash_error,
-                slash_area=slash_metrics.area,
-                slash_power=slash_metrics.power,
-                slash_delay=slash_metrics.delay,
-                slash_time=slash_time,
-            )
-            all_generated_circuits_data.append(slash_circuit_data)
-            specs_obj.stats_storage.commit()
-
-            # print the slashed circuit metrics in the same format as the iterations
-            print_current_model([slash_circuit_data], origin_circuit_data=exact_circuit_metrics)
-
-            # the slash pass is done, continue the exploration on the slashed circuit
-            specs_obj.slash = SlashType.NONE
-            continue
+        # slash of inputs (iterative) is handled before the exploration loop
 
         # logging
         specs_obj.stats_storage.stage(
