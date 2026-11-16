@@ -22,6 +22,7 @@ Date: 2026-11-03
     - Removed `--max-labeling` and `--no-partial-labeling` in favour of `--labeling`. (#223)
   Bugfixes:
     - Patched a bug when min-labelling, where no error is found (also added warning). (#213)
+    - Labeling now goes through the same solver at every iteration, so `--labeling=min|max` no longer requires `cqesto` on the first iteration. (#223)
     - Fixed a possible crash when sharing a graph with multiple processes. (#222)
   Minor Optimizations:
     - Optimised memory footprint of LiveStorage. (#213)

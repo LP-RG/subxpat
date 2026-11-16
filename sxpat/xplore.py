@@ -566,12 +566,10 @@ def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> 
             skip_at_output=not relative_to_origin,
             sampler=sampler,
         )
-    elif specs_obj.iteration == 1:
-        weights = fast_labeling(
-            exact, current, specs_obj.et, specs_obj,
-            skip_at_output=not relative_to_origin,
-        )
     else:
+        # the exact modes use the same solver at every iteration: the one selected
+        # by the specifications (a separate engine for the first iteration only would
+        # make the weights depend on the iteration rather than on the circuit)
         labeller = Labelling(
             reference, to_be_labelled,
             specs_obj,
