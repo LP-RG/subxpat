@@ -88,6 +88,9 @@ def slash_iteratively(exact: IOGraph, specs_obj: Specifications, groups: int) ->
 
     inputs_per_group = len(exact.inputs_names) // groups
     while inputs_per_group > 0:
+        # one solver script per attempt, so that `--debug` keeps every query
+        # (the scripts are named after `sub_iteration`, which would otherwise collide)
+        specs_obj.sub_iteration = f'slash{inputs_per_group}'
         status, constant = calculate(exact, specs_obj, inputs_per_group, groups)
         if status:
             return (_selected_nodes(exact, inputs_per_group, groups), constant)
