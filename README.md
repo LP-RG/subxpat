@@ -137,9 +137,9 @@ To execute the framework with SubXPAT iterations, bit-vector logic encoding, and
 python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3bvec --max-lpp=8 --max-ppo=10 --imax=6 --omax=3 --max-error=16
 ```
 
-To execute the framework with SubXPAT iterations, integer logic encoding, subgraph extraction mode 5 (all sub-outputs weight must be less than the error threshold), maximum labeling, ..., run the following command:
+To execute the framework with SubXPAT iterations, integer logic encoding, subgraph extraction mode 55 (all sub-outputs weight must be less than the error threshold), simple minimum labeling, ..., run the following command:
 ```bash
-python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extraction-mode=55 --labeling=simple_max --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8
+python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extraction-mode=55 --labeling=simple_min --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8
 ```
 
 ## Known limitations
