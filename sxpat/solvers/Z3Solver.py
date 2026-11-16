@@ -3,6 +3,7 @@ from abc import abstractmethod
 
 import itertools as it
 import subprocess
+import sys
 from os.path import join as path_join
 
 from sxpat.specifications import Specifications
@@ -593,7 +594,7 @@ class Z3Solver(Solver):
 
         # run
         process = subprocess.run(
-            ['python3', script_path],
+            [sys.executable, script_path],
             capture_output=True, text=True,
             check=True,
         )

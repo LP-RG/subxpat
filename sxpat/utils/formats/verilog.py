@@ -4,6 +4,7 @@ import re
 from textwrap import dedent
 
 from sxpat.utils.filesystem import FS
+from sxpat.utils.tools import require_tool
 from os.path import join as path_join
 
 from subprocess import run, PIPE, DEVNULL
@@ -49,7 +50,7 @@ class synthesize_verilog_to_notand_gate_level:
 
         # run command
         run(
-            ['yosys'], input=yosys_command,
+            [require_tool('yosys')], input=yosys_command,
             stdout=DEVNULL, stderr=PIPE, text=True,
             check=True,
         )
@@ -253,7 +254,7 @@ class convert_verilog_to_dot:
 
         # run command
         run(
-            ['yosys'], input=yosys_command,
+            [require_tool('yosys')], input=yosys_command,
             stdout=DEVNULL, stderr=PIPE, text=True,
             check=True,
         )

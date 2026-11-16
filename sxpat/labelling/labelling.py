@@ -8,6 +8,7 @@ from collections import deque
 from sxpat.utils.string import partial_format, dedent
 
 import subprocess
+import sys
 from threading import Lock
 from sxpat.utils.futures import ThreadPoolExecutor
 
@@ -63,9 +64,12 @@ class Labelling:
         {objective_definition}
 
         # execution and extraction
-        solver.check()
-        model = solver.model()
-        print(opt_objective.value())
+        status = solver.check()
+        if status == sat:
+            model = solver.model()
+            print(opt_objective.value())
+        else:
+            print(1)
     """)
 
     def __init__(
@@ -91,6 +95,16 @@ class Labelling:
         self.__base_script: Optional[str] = None
         self.__cached_weights: dict[Any, int] = dict()
         self.__lock = Lock()
+
+        #
+        if self._minimise:
+            import sys
+            print(
+                '[WARNING] labelling with weight minimisation could produce wrong results.'
+                ' In the current implementation no error is found sometimes,'
+                ' in those cases 1 is produced. (FURTHER ANALYSIS REQUIRED)',
+                file=sys.stdout
+            )
 
     @property
     def base_script(self) -> str:
@@ -177,7 +191,7 @@ class Labelling:
         FS.writefile(script_path, script)
         # run script
         result = subprocess.run(
-            ['python3', script_path],
+            [sys.executable, script_path],
             capture_output=True, text=True,
             check=True,
         )
