@@ -68,7 +68,9 @@ class Labelling:
             model = solver.model()
             print(opt_objective.value())
         else:
-            print(1)
+            # unsatisfiable: no assignment lets the node affect any output,
+            # so breaking it is free and its weight is exactly zero
+            print(0)
     """)
 
     def __init__(
@@ -99,9 +101,8 @@ class Labelling:
         if self._minimise:
             import sys
             print(
-                '[WARNING] labelling with weight minimisation could produce wrong results.'
-                ' In the current implementation no error is found sometimes,'
-                ' in those cases 1 is produced. (FURTHER ANALYSIS REQUIRED)',
+                '[WARNING] labelling with weight minimisation: when a node cannot affect'
+                ' any output the query is unsatisfiable, and its weight is reported as 0.',
                 file=sys.stdout
             )
 

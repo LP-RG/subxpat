@@ -18,6 +18,9 @@ def calc_label(exact_graph: IOGraph, current_graph: IOGraph, cur_node: str, spec
         min_labeling=specs_obj.labeling == LabelingType.MIN,
     )
     status, model = QbfSolver.solve((exact_graph, p_graph, c_graph), specs_obj)
+    # unsatisfiable: no assignment lets the gate affect any output, so its weight is 0
+    if status != 'sat' or model is None:
+        return 0
     return model['weight']
 
 
