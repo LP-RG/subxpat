@@ -7,6 +7,7 @@ import subprocess
 
 from sxpat.utils.filesystem import FS
 from sxpat.utils.names import extract_name
+from sxpat.utils.tools import require_tool
 from sxpat.utils.decorators import make_utility_class
 
 from sxpat.specifications import Paths
@@ -97,6 +98,9 @@ class MetricsEstimator:
         temporary_path: str,
     ) -> Metrics:
         # compute names and paths
+        yosys_path = require_tool('yosys')
+        sta_path = require_tool('sta')
+
         circuit_name = extract_name(circuit_in_verilog_path)
         metrics_verilog_path = f'{temporary_path}/{circuit_name}_for_metrics.v'
         module_name = cls._extract_module_name(circuit_in_verilog_path)
@@ -122,12 +126,12 @@ class MetricsEstimator:
 
         # > execute commands
         yosys_result = subprocess.run(
-            ['yosys'], input=yosys_command,
+            [yosys_path], input=yosys_command,
             capture_output=True, text=True,
             check=True,
         )
         sta_result = subprocess.run(
-            ['sta'], input=sta_command,
+            [sta_path], input=sta_command,
             capture_output=True, text=True,
             check=True,
         )
