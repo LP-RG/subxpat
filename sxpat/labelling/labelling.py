@@ -44,6 +44,7 @@ class Labelling:
 
     SCRIPT_TEMPLATE: ClassVar = dedent("""\
         from z3 import *
+        import sys
 
         # inputs
         {input_variables_definition}
@@ -68,8 +69,15 @@ class Labelling:
         if status == sat:
             model = solver.model()
             print(opt_objective.value())
+        elif status == unsat:
+            # unsatisfiable: no assignment lets the node affect any output,
+            # so breaking it is free and its weight is exactly zero
+            print(0)
         else:
-            print(1)
+            # unknown: the largest error the outputs can express, so that the node
+            # is treated as expensive rather than silently as free
+            print('labelling query answered unknown, assuming the worst case', file=sys.stderr)
+            print({max_weight})
     """)
 
     def __init__(
@@ -100,9 +108,8 @@ class Labelling:
         if self._minimise:
             import sys
             print(
-                '[WARNING] labelling with weight minimisation could produce wrong results.'
-                ' In the current implementation no error is found sometimes,'
-                ' in those cases 1 is produced. (FURTHER ANALYSIS REQUIRED)',
+                '[WARNING] labelling with weight minimisation: when a node cannot affect'
+                ' any output the query is unsatisfiable, and its weight is reported as 0.',
                 file=sys.stdout
             )
 
@@ -159,6 +166,9 @@ class Labelling:
                         #
                         reference_circuit=self._circuit_to_z3str(self.reference),
                         #
+                        # the largest error the outputs can express: assumed when the
+                        # solver answers `unknown` (a dead node is `unsat`, i.e. 0)
+                        max_weight=(2 ** num_outputs) - 1,
                         error_definition=error_str,
                         objective_definition=objective_str,
                     )
@@ -198,6 +208,8 @@ class Labelling:
 
         # parse result
         self.__cached_weights[target_node] = _w = int(result.stdout)
+        if result.stderr.strip():
+            print(f'[WARNING] labelling {target_node}: {result.stderr.strip()}')
         return _w
 
     def label_graph(
