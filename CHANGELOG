@@ -23,7 +23,7 @@ Date: 2026-11-03
   Bugfixes:
     - Patched a bug when min-labelling, where no error is found (also added warning). (#213)
     - Labeling goes through the same engine at every iteration, so `cqesto` is no longer needed to label at all (it is only needed by `--encoding=qbf`). (#223)
-    - In minimising labeling, a node whose breaking cannot affect any output (an unsatisfiable label query) now gets the weight 0 instead of 1. (#223)
+    - In minimising labeling, a node whose breaking cannot affect any output (an unsatisfiable label query) now gets the weight 0 instead of 1, and a query answered `unknown` gets the worst case weight `2**outputs-1`. (#223)
     - Fixed a possible crash when sharing a graph with multiple processes. (#222)
   Minor Optimizations:
     - Optimised memory footprint of LiveStorage. (#213)

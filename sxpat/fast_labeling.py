@@ -18,10 +18,13 @@ def calc_label(exact_graph: IOGraph, current_graph: IOGraph, cur_node: str, spec
         min_labeling=specs_obj.labeling == LabelingType.MIN,
     )
     status, model = QbfSolver.solve((exact_graph, p_graph, c_graph), specs_obj)
-    # unsatisfiable: no assignment lets the gate affect any output, so its weight is 0
-    if status != 'sat' or model is None:
+    if status == 'sat' and model is not None:
+        return model['weight']
+    if status == 'unsat':
+        # no assignment lets the gate affect any output, so its weight is 0
         return 0
-    return model['weight']
+    # unknown: assume the largest error the outputs can express
+    return (2 ** len(current_graph.outputs_names)) - 1
 
 
 def calc_label_legacy(labeller: Labelling, cur_node: str) -> int:
