@@ -34,13 +34,13 @@ To prepare the system for execution you will need to follow a few steps:
     ```bash
     # bulk commands
     make setup        # python environment and python dependencies
-    make setup macos  # (macOS) the above, plus python@3.14, yosys, cmake, swig, tcl-tk@8 and OpenSTA
-    make setup all    # the above, plus the QBF solvers (cqesto, cqesto-cadical, qfun)
+    make setup macos  # (macOS) same as `make setup`, plus python@3.14, yosys, cmake, swig, tcl-tk@8 and OpenSTA
+    make setup all    # same as `make setup`, plus the QBF solvers (cqesto, cqesto-cadical, qfun)
 
     # individual commands
-    make py_init        # create python environment (.venv/)
-    make py_dep         # install/update requirements
-    make install qfun   # build one QBF solver (cqesto, cqesto-cadical, qfun)
+    make py_init          # create python environment (.venv/)
+    make py_dep           # install/update requirements
+    make install <solver> # build one QBF solver (cqesto, cqesto-cadical, qfun)
     ```
 
     On Linux `make setup all` only adds the QBF solvers: the native packages keep coming from apt.
@@ -146,7 +146,7 @@ Here are all the parameters with their arguments and descriptions:
 | `--error-partitioning` <br> `--epar`          | { asc, desc, smart_asc, smart_desc }    | asc                                | The error partitioning algorithm to use                                |
 | `--output`                                    | `path` to folder                        | `output/`                          | The base directory for the output                                      |
 | `--cell-library`                              | `path` to lib file                      | `config/gscl45nm.lib`              | The cell library file to use in the metrics estimation                 |
-| `--cqesto`                                    | `name` or `path`                        | `cqesto`                           | The QBF solver to run, as installed by `make install <solver>`          |
+| `--qbf-solver`                                    | `name` or `path`                        | `cqesto`                           | The QBF solver to run, as installed by `make install <solver>`          |
 | `--archive`                                   |                                         |                                    | If the generated files should be archived at the end of the execution  |
 | `--debug`                                     |                                         | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
 | `--timeout`                                   | `float` > 0                             | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
@@ -186,7 +186,7 @@ python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extracti
 
 ### QBF solvers
 
-With `--encoding=qbf` the questions are solved by the QBF solver given to `--cqesto`, which is
+With `--encoding=qbf` the questions are solved by the QBF solver given to `--qbf-solver`, which is
 `cqesto` unless said otherwise. Three solvers can be installed, `make install <solver>` building one
 of them and `make setup all` all of them:
 
@@ -198,7 +198,7 @@ of them and `make setup all` all of them:
 
 ```bash
 make install qfun
-python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=qbf --cqesto qfun \
+python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=qbf --qbf-solver=qfun \
   --max-lpp=8 --max-ppo=10 --imax=6 --omax=3 --max-error=8
 ```
 

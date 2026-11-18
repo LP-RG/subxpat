@@ -613,23 +613,23 @@ class QbfSolver(Solver):
             #
             encoder.write_custom(f'{id_gen.get_sat_problem()} = and({", ".join(mapping[x][0] for x in in_the_output)})\n')
 
-        cqesto_path = require_tool(
-            specifications.path.tools.cqesto,
+        qbf_solver_exe = require_tool(
+            specifications.path.tools.qbf_solver,
             'run `make install <solver>`: cqesto, cqesto-cadical or qfun',
         )
         result = subprocess.run(
-            [cqesto_path, script_path],
+            [qbf_solver_exe, script_path],
             capture_output=True, text=True,
         )
 
-        if result.returncode == 10:
+        if result.returncode == 10: # cqesto/qfun return 10 for sat, and 20 for unsat
             # the assignment is on the line starting with `v`: cqesto prints it on the fourth
             # line and terminates it with a `0`, qfun prints it later and without the `0`
             assignment = next(
                 (line for line in result.stdout.split('\n') if line.startswith('v ')), None)
             if assignment is None:
                 raise RuntimeError(
-                    f'no model in the output of `{cqesto_path} {script_path}`\n'
+                    f'no model in the output of `{qbf_solver_exe} {script_path}`\n'
                     f'{result.stderr}'
                 )
 
@@ -657,7 +657,7 @@ class QbfSolver(Solver):
 
         else:
             raise RuntimeError(
-                f'command `{cqesto_path} {script_path}` failed with code {result.returncode}\n'
+                f'command `{qbf_solver_exe} {script_path}` failed with code {result.returncode}\n'
                 f'{result.stderr}'
             )
 

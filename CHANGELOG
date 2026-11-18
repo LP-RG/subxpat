@@ -2,7 +2,7 @@
 Version: preview
 Date: 2026-11-10
   Features:
-    - Added the `cqesto-cadical` and `qfun` QBF solvers as alternatives to `cqesto` for `--encoding=qbf`, selected with `--cqesto` (which now takes the solver name or path); the assignment is now read from the line starting with `v` instead of its position in the output, so that any of them can drive the exploration. (#216)
+    - Added the `cqesto-cadical` and `qfun` QBF solvers as alternatives to `cqesto` for `--encoding=qbf`, selected with `--qbf-solver` (which now takes the solver name or path); the assignment is now read from the line starting with `v` instead of its position in the output, so that any of them can drive the exploration. (#216)
     - Added `make install <solver>`, which builds one QBF solver (`cqesto`, `cqesto-cadical`, `qfun`), and `make setup all` now builds all of them; cadical is built once at a pinned revision and shared, and a solver is rebuilt when its revision, its SAT solver or the link mode changes. (#216)
     - Added `make setup macos`, which builds the native dependency that has no package on macOS (OpenSTA 2.0.17) into `.deps/`, installing python@3.14, `yosys`, cmake, swig and tcl-tk@8 from Homebrew. (#85)
     - Added `make setup all`, which additionally builds the QBF solvers at pinned revisions (see #216), and documented both in the README. (#85)
