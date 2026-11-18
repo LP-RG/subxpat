@@ -7,7 +7,9 @@ DELETION_DELAY ?= 10
 # computed
 
 ACTIV_ENV := . $(ENV_NAME)/bin/activate
-IN_ENV := $(ACTIV_ENV) &&
+SETUP := ENV_NAME='$(ENV_NAME)' PY='$(PY)' bash setup/deps.sh
+
+.PHONY: help activate py_init py_dep setup macos all rm_data rm_cache rm_temp rm_pyenv rm_deps clean clean-all
 
 # includes
 -include *.mk
@@ -22,15 +24,18 @@ activate:
 	$(ACTIV_ENV)
 
 py_init:
-	@echo "\n[[ creating python environment if absent ]]"
-	$(PY) -m venv $(ENV_NAME)
+	@$(SETUP) --python-init
 
 py_dep: py_init
-	@echo "\n[[ installing/upgrading python dependencies ]]"
-	$(IN_ENV) python3 -m pip install --upgrade pip
-	$(IN_ENV) pip install --upgrade -r requirements.txt
+	@$(SETUP) --python-dep
 
 setup: py_init py_dep
+
+macos: setup
+	@$(SETUP) --macos
+
+all: setup
+	@$(SETUP) --all
 
 rm_data:
 	@echo "\n[[ deleting all final and intermediary data (output/) ]]\n[[ !! YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION !! ]]"
@@ -46,9 +51,16 @@ rm_temp:
 	rm -f .history_sta
 
 rm_pyenv:
-	@echo "\n[[ removing the virtual python environment ]]"
-	rm -rf $(ENV_NAME)
+	@case '$(ENV_NAME)' in .|..|/*|*/*) echo "error: invalid ENV_NAME '$(ENV_NAME)'" >&2; exit 1 ;; esac
+	@echo "\n[[ removing the virtual python environment (.venv/) ]]\n[[ !! YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION !! ]]"
+	@sleep $(DELETION_DELAY)
+	rm -rf '$(ENV_NAME)'
+
+rm_deps:
+	@echo "\n[[ removing the locally built dependencies (.deps/) ]]\n[[ !! YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION !! ]]"
+	@sleep $(DELETION_DELAY)
+	rm -rf .deps
 
 clean: rm_cache rm_temp
 
-clean-all: rm_pyenv rm_data clean
+clean-all: rm_pyenv rm_data rm_deps clean

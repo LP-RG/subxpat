@@ -21,6 +21,7 @@
 
 #> generated
 /.venv
+/.deps
 **/__pycache__
 .history_sta
 # input

@@ -1,8 +1,10 @@
-module adder_i60_o31 (a,b,r);
-input [29:0] a,b;
-output [30:0] r;
+module top (a, b, r);
+    parameter BITSIZE_IN  = 30; // single input bitsize
+    parameter BITSIZE_OUT = BITSIZE_IN + 1;
 
-assign r = a+b;
+    input  [BITSIZE_IN-1:0]  a, b;
+    output [BITSIZE_OUT-1:0] r;
+
+    assign r = a + b;
 
 endmodule
-

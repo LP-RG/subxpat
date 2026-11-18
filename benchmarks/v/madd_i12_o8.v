@@ -1,8 +1,10 @@
-module madd_i12_o8 (a, b, c, r);
-input [3:0] a, b, c;
-output [7:0] r;
+module top (a, b, c, r);
+    parameter BITSIZE_IN  = 4; // single input bitsize
+    parameter BITSIZE_OUT = BITSIZE_IN * 2;
 
+    input  [BITSIZE_IN-1:0]  a, b, c;
+    output [BITSIZE_OUT-1:0] r;
 
-assign r = (a * b) + c;
+    assign r = (a * b) + c;
 
-endmodule  
+endmodule
