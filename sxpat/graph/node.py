@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Optional, Tuple, Generic, TypeVar, Union, Self, TypeAlias
+from typing import Any, ClassVar, TypeVar, Union, Self, TypeAlias
 
 import dataclasses as dc
 
@@ -70,14 +70,10 @@ __all__ = [
 ]
 
 
-T = TypeVar('T', int, bool)
-
-
 # > abstracts
 
 
-class __Base:
-    def __post_init__(self) -> None: pass
+class __Base: ...
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
@@ -90,10 +86,6 @@ class Node(__Base):
 
     name: str
 
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        # assert re.match(r'^\w+$', self.name), f'The name `{self.name}` is invalid, it must match regex `\w+`.'
-
     def copy(self, **update: Any) -> Self:
         return type(self)(**{
             **{s: getattr(self, s) for s in self.__slots__},  # type: ignore # all concrete subclasses must use slots
@@ -105,14 +97,14 @@ class Node(__Base):
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class Valued(Generic[T], __Base):
+class Valued(__Base):
     """
         An object with a `value` attribute.
 
         *abstract*
     """
 
-    value: T
+    value_type: ClassVar[type]
 
 
 # operation
@@ -126,23 +118,7 @@ class Operation(__Base):
         *abstract*
     """
 
-    # required_operands: ClassVar[int]
-    operands: Tuple[str, ...]
-
-    def __post_init__(self):
-        super().__post_init__()
-        object.__setattr__(
-            self, 'operands',
-            tuple(i.name if isinstance(i, Node) else i for i in self.operands)
-        )
-
-    def _check_operands_count(self, required_count: int) -> None:
-        if len(self.operands) != required_count:
-            raise RuntimeError(
-                f'Wrong operands count: '
-                f'{len(self.operands)} operands were given (expected {required_count}) '
-                f'in {self!r}.'
-            )
+    required_operands: ClassVar[int]
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
@@ -153,13 +129,7 @@ class Limited1Operation(Operation):
         *abstract*
     """
 
-    def __post_init__(self):
-        super().__post_init__()
-        self._check_operands_count(1)
-
-    @property
-    def operand(self) -> str:
-        return self.operands[0]
+    required_operands = 1
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
@@ -170,17 +140,8 @@ class Limited2Operation(Operation):
         *abstract*
     """
 
-    def __post_init__(self):
-        super().__post_init__()
-        self._check_operands_count(2)
+    required_operands = 2
 
-    @property
-    def left(self) -> str:
-        return self.operands[0]
-
-    @property
-    def right(self) -> str:
-        return self.operands[1]
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
@@ -191,9 +152,7 @@ class Limited3Operation(Operation):
         *abstract*
     """
 
-    def __post_init__(self):
-        super().__post_init__()
-        self._check_operands_count(3)
+    required_operands = 3
 
 
 # resulting type
@@ -295,7 +254,7 @@ class IntVariable(Variable, IntResType, Node):
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
-class Constant(Valued[T], EntryPoint):
+class Constant(Valued, EntryPoint):
     """
         An object representing a constant.
 
@@ -304,17 +263,21 @@ class Constant(Valued[T], EntryPoint):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class BoolConstant(Constant[bool], BoolResType, Node):
+class BoolConstant(Constant, BoolResType, Node):
     """
         Boolean constant.
     """
 
+    value_type = bool
+
 
 @dc.dataclass(frozen=True, slots=True)
-class IntConstant(Constant[int], IntResType, Node):
+class IntConstant(Constant, IntResType, Node):
     """
         Integer constant.
     """
+
+    value_type = int
 
 
 # > placeholder
@@ -428,19 +391,23 @@ class Div(Limited2Operation, IntResType, Expression, Node):
 
 
 @dc.dataclass(frozen=True, slots=True)
-class LeftShift(Valued[int], Limited1Operation, IntResType, Expression, Node):
+class LeftShift(Limited1Operation, Valued, IntResType, Expression, Node):
     """
         LeftShift-bit operation ( `a << b` ) expression.
         This node must have one operand ( `a` ), `b` is passed, as a constant.
     """
 
+    value_type = int
+
 
 @dc.dataclass(frozen=True, slots=True)
-class RightShift(Valued[int], Limited1Operation, IntResType, Expression, Node):
+class RightShift(Limited1Operation, Valued, IntResType, Expression, Node):
     """
         RightShift-bit operation ( `a >> b` ) expression.
         This node must have one operand ( `a` ), `b` is passed, as a constant.
     """
+
+    value_type = int
 
 
 # bool to int
@@ -525,19 +492,6 @@ class Multiplexer(Limited3Operation, BoolResType, Expression, Node):
         This node must have three ordered operands: origin, usage parameter (origin/constant), assertion parameter (asserted/negated).
     """
 
-    @property
-    def origin(self) -> str:
-        return self.operands[0]
-
-    @property
-    def parameter_usage(self) -> str:
-        """If this parameter is true, the origin will be used, otherwise a constant will be produced"""
-        return self.operands[1]
-
-    @property
-    def parameter_assertion(self) -> str:
-        """If this parameter is true, the node will produce the origin or the constant true, otherwise will produce the negated origin or the constant false"""
-        return self.operands[2]
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -547,36 +501,29 @@ class If(Limited3Operation, DynamicResType, Expression, Node):
         This node must have three ordered operands: condition, if true, if false.
     """
 
-    @property
-    def condition(self) -> str:
-        return self.operands[0]
-
-    @property
-    def if_true(self) -> str:
-        return self.operands[1]
-
-    @property
-    def if_false(self) -> str:
-        return self.operands[2]
 
 
 # quantify
 
 
 @dc.dataclass(frozen=True, slots=True)
-class AtLeast(Valued[int], Operation, BoolResType, Expression, Node):
+class AtLeast(Operation, Valued, BoolResType, Expression, Node):
     """
         Special node: represents a lower limit to the number of operands that must be true.  
         This node can have any amount of operands.
     """
 
+    value_type = int
+
 
 @dc.dataclass(frozen=True, slots=True)
-class AtMost(Valued[int], Operation, BoolResType, Expression, Node):
+class AtMost(Operation, Valued, BoolResType, Expression, Node):
     """
         Special node: represents an upper limit to the number of operands that can be true.  
         This node can have any amount of operands.
     """
+
+    value_type = int
 
 
 # > solver objective nodes
@@ -610,11 +557,11 @@ class Target(Limited1Operation, LocalObjective, Node):
         The only operand represents the value to return.
     """
 
-    @classmethod
-    def of(cls, other: Union[Node, str]) -> Self:
+    @classmethod #TODO: remove
+    def of(cls, other: Union[Node, str]) -> tuple[Self, str]:
         """Helper constructor with automatic naming."""
-        name = other.name if isinstance(other, Node) else other
-        return cls(f'target_{name}', operands=[name])
+        other_name = other.name if isinstance(other, Node) else other
+        return (cls(f'target_{other_name}'), other_name)
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -624,11 +571,11 @@ class Constraint(Limited1Operation, LocalObjective, Node):
         The only operand represents the value to assert.
     """
 
-    @classmethod
-    def of(cls, other: Union[Node, str]) -> Self:
+    @classmethod #TODO: remove
+    def of(cls, other: Union[Node, str]) -> tuple[Self, str]:
         """Helper constructor with automatic naming."""
-        name = other.name if isinstance(other, Node) else other
-        return cls(f'constraint_{name}', operands=[name])
+        other_name = other.name if isinstance(other, Node) else other
+        return (cls(f'constraint_{other_name}'), other_name)
 
 
 # global objective nodes
@@ -772,7 +719,6 @@ AnyDynamicResType: TypeAlias = Union[
     Identity,
     If,
 ]
-
 
 # structural
 AnyNonEntryPoint = Union[

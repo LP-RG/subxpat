@@ -378,7 +378,7 @@ class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
         _g = {
             cls._CLASS_F: graph.__class__.__name__,
             cls._NODES_F: [cls._dict_factory(node) for node in graph.nodes],
-            cls._EXTRA_F: dict(graph.extras),
+            # cls._EXTRA_F: dict(graph.extras), -> from-ILIA: what to replace this with?
         }
         return json.dumps(_g, indent='\t')
 

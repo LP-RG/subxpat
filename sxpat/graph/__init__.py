@@ -1,15 +1,9 @@
 from .graph import (
-    Graph,
-    #
-    T_Graph, AnyGraph, T_AnyGraph,
+    Graph, GraphCopier, GraphBuilder,
 )
-# COMMENT:from-MARCO: this is good
-#                     very minor thing: we should discuss about having unpacked imports (as you do here), or module imports (like we do just below for .node and .error)
-from .components import (
-    Component, CustomComponent, Subgraph, Topology, Weight, Parameter, IO, Constraint, Types
-)
-from .graphCreators import (
-    GraphCopier, GraphBuilder
+from .orderedDiGraph import (
+    OrderedDict, NodeAttributesDict
 )
 from . import node
+from . import components
 from . import error

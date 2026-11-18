@@ -1,19 +1,24 @@
-from collections import UserDict
-from typing import AbstractSet, Any, Final, List, Mapping, Sequence, Union, final, Literal
+from typing import AbstractSet, Any, Final, List, Sequence, Union, final, Literal, overload
 from collections.abc import Callable
 import networkx as nx
 from copy import deepcopy
 from abc import ABC, abstractmethod
-from .node import AnyNode, Node, BoolVariable, BoolConstant, PlaceHolder, AnyGlobalObjective, GlobalTask, Constraint
+from .node import (
+    AnyNonEndPoint, AnyNonEntryPoint,
+    # 
+    AnyNode, If, Limited1Operation, Limited2Operation, Multiplexer, Node, BoolVariable, BoolConstant, PlaceHolder, 
+    AnyGlobalObjective, GlobalTask, Constraint, Operation, Valued
+)
 import functools as ft
 import itertools as it
 import operator as op
+from .orderedDiGraph import OrderedDiGraph
 
 __all__ = [
-    'Component', 'CustomComponent', 'Subgraph', 'Topology', 'Weight', 'Parameter', 'IO', 'Constraints', 'Types'
+    'Component', 'CustomComponent', 'Subgraph', 'Topology', 'Weight', 'Parameter', 'IO', 'Constraints', 'Types', 'Values'
 ]
 
-available_graph_components = Literal['Subgraph', 'Topology', 'Weight', 'Parameter', 'IO', 'Constraints', 'Types']
+available_graph_components = Literal['Subgraph', 'Topology', 'Weight', 'Min_Weight', 'Max_Weight', 'Parameter', 'IO', 'Constraints', 'Types', 'Values']
 
 # COMMENT:from-MARCO: (this can be left for later)
 # if you want to simplify further your structure (as it will get there eventually anyway) you can use integers as "ids" for nodes, instead than strings.
@@ -107,7 +112,6 @@ class Subgraph(Component):
     @final
     def subgraph_nodes(self) -> Sequence[AnyNode]:
         subgraph_ids = self.nodes_names()
-        types_component = self.graph.base_components['Types']
         return tuple(
             node for node in self.graph.nodes
             if node.name in subgraph_ids
@@ -120,7 +124,6 @@ class Subgraph(Component):
         #                     once you reasoned about it we can discuss this in the next meeting
 
         # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
-        types_component = self.graph.base_components['Types']
         subgraph_ids = self.nodes_names()
         return tuple(dict.fromkeys(it.chain.from_iterable(
             (
@@ -134,7 +137,6 @@ class Subgraph(Component):
     @final
     def subgraph_outputs(self) -> Sequence[AnyNode]:
         # a node is a subgraph output if it is in the subgraph and at least one successor is not in the subgraph
-        types_component = self.graph.base_components['Types']
         subgraph_ids = self.nodes_names()
         return tuple(sorted(
             (
@@ -155,37 +157,94 @@ class Subgraph(Component):
             n.name in subgraph_ids for n in self.graph.successors(node_or_name)
         )
 
-
-class OrderedDiGraph(nx.DiGraph):
-    # from-MARCO: during the discussion, we have seen this class to force the ordering of the operands.
-    #             this ordering is maintained after creation, which means that it must be given correctly at creation.
-    node_dict_factory = dict
-    node_attr_dict_factory = dict
-    adjlist_outer_dict_factory = dict
-    adjlist_inner_dict_factory = dict
-    edge_attr_dict_factory = dict
-    graph_attr_dict_factory = dict
-
-
 class Topology(Component, OrderedDiGraph):
     """Concrete and 'static' component
         - object: DiGraph representing the topology
         - action: return the DiGraph
     """
 
-    def __init__(self, digraph: nx.DiGraph) -> None:
+    def __init__(self, digraph: OrderedDiGraph) -> None:
         # COMMENT:from-MARCO: perfect, in the future we can also see about optimising a few things
         action = lambda digraph: digraph
         super().__init__(nx.freeze(deepcopy(digraph)), action, inheritable=False)
 
     @final
-    def get(self) -> nx.DiGraph:
+    def get(self) -> OrderedDiGraph:
         return self.action(self.object)
 
     @final
     def with_graph(self, graph: object = None) -> Topology:
         return self
 
+    @final 
+    def operands(self, node: Operation) -> list[str]:
+        return list(name for name in self.get().predecessors(node.name))
+
+    @property
+    @final
+    def get_nodes(self) -> Sequence[AnyNode]:
+        """Sequence of nodes in the unique lexicographical topological order."""
+        return tuple(self.get()[name]['node'] for name in nx.lexicographical_topological_sort(self.get()))
+
+    @final
+    def get_node(self, node_name: str) -> AnyNode:
+        return self.get()[node_name]['node']
+
+    @final
+    def get_predecessors(self, node_or_name: Union[str, Node]) -> Sequence[AnyNonEndPoint]:
+        node_name = get_name(node_or_name)
+        node = self.get_node(node_name)
+        # we iterate over the .predecessors instead of the .operands, so even if `node` is not an Operation it still works
+        return tuple(sorted(
+            (self.get().nodes[_name]['node'] for _name in self.get().predecessors(node_name)),
+            key=lambda _n: list(n for n in self.get().predecessors(node.name)).index(_n.name)
+        ))
+
+    @final
+    def get_successors(self, node_or_name: Union[str, Node]) -> Sequence[AnyNonEntryPoint]:
+        return tuple(
+            self.get().nodes[name]['node']
+            for name in self.get().successors(get_name(node_or_name))
+        )
+
+    @final
+    def operand(self, node: Limited1Operation) -> str:
+        return self.operands(node)[0]
+
+    @final
+    def left(self, node: Limited2Operation) -> str:
+        return self.operands(node)[0]
+
+    @final
+    def right(self, node: Limited2Operation) -> str:
+        return self.operands(node)[1]
+
+    @final
+    def origin(self, node: Multiplexer) -> str:
+        return self.operands(node)[0]
+
+    @final
+    def parameter_usage(self, node: Multiplexer) -> str:
+        """If this parameter is true, the origin will be used, otherwise a constant will be produced"""
+        return self.operands(node)[1]
+
+    @final
+    def parameter_assertion(self, node: Multiplexer) -> str:
+        """If this parameter is true, the node will produce the origin or the constant true, otherwise will produce the negated origin or the constant false"""
+        return self.operands(node)[2]
+
+    @final
+    def condition(self, node: If) -> str:
+        return self.operands(node)[0]
+
+    @final
+    def if_true(self, node: If) -> str:
+        return self.operands(node)[1]
+
+    @final
+    def if_false(self, node: If) -> str:
+        return self.operands(node)[2]
+    
 
 class Weight(Component):
     # https://docs.python.org/3.14/library/collections.abc.html#collections-abstract-base-classes
@@ -204,9 +263,7 @@ class Weight(Component):
     def get(self, node_id: str) -> int | None:
         return self.action(self.object, node_id)
 
-    def __getitem__(self, key): pass
-    # __iter__, __len__, (Mapping)
-    # __contains__, keys, items, values, get, __eq__, __ne__, (Mapping)
+    # def __getitem__(self, key): pass
 
     @final
     def with_graph(self, graph: object = None) -> Weight:
@@ -227,7 +284,7 @@ class Parameter(Component):
     graph: Final[Any]
 
     def __init__(self, parameters_names: Sequence[str], graph: Any = None) -> None:
-        action = lambda params, graph: tuple(graph.base_components['Topology'].get().nodes[name][graph.K] for name in params)
+        action = lambda params, graph: tuple(graph.base_components['Topology'].get_node(name) for name in params)
         super().__init__(tuple(parameters_names), action)
         self.graph = graph
 
@@ -245,54 +302,55 @@ class Parameter(Component):
     def parameters_names(self) -> tuple[str]:
         return deepcopy(self.object)
 
+IO_keys = Literal['inputs_names', 'outputs_names']
 
 class IO(Component):
     """Concrete and 'static' component
-        - object: list of inputs and outputs
-        - action: return the inputs or the outputs according to 'index'
+        - object: dictionary mapping literals 'inputs_names' and 'outputs_names' to the list of inputs and outputs respectively
+        - action: return the list of inputs or the list of outputs
     """
 
     graph: Final[Any]
 
-    def __init__(self, inputs_names: Sequence[str], outputs_names: Sequence[str], graph: Any = None) -> None:
-        action = lambda inputs_outputs_list, index: deepcopy(inputs_outputs_list[index])
-        super().__init__([tuple(inputs_names), tuple(outputs_names)], action)
+    def __init__(self, IO_names: dict[IO_keys, Sequence[str]], graph: Any = None) -> None:
+        action = lambda IO_dict, index: tuple(IO_dict[index])
+        super().__init__(deepcopy(IO_names), action)
         self.graph = graph
 
     @final
     def with_graph(self, graph: object = None) -> IO:
-        return IO(self.object[0], self.object[1], graph)
+        return IO(self.object, graph)
 
     @ft.cached_property
     @final
     def inputs_names(self) -> tuple[str]:
-        return self.action(self.object, 0)
+        return self.action(self.object, 'inputs_names')
 
     @ft.cached_property
     @final
     def outputs_names(self) -> tuple[str]:
-        return self.action(self.object, 1)
+        return self.action(self.object, 'outputs_names')
 
     @ft.cached_property
     @final
     def inputs(self) -> Sequence[AnyNode]:
-        return tuple(self.graph.base_components['Topology'].get().nodes[name][self.graph.K] for name in self.inputs_names)
+        return tuple(self.graph.base_components['Topology'].get_node(name) for name in self.inputs_names)
 
     @final
     def input_index_of(self, node_or_name: Union[str, Node]) -> int:
         """Returns the index of the node in the inputs, -1 if the node is not an input."""
-        try: return self.inputs_names.index(self.graph._get_name(node_or_name))
+        try: return self.inputs_names.index(get_name(node_or_name))
         except: return -1
 
     @ft.cached_property
     @final
     def outputs(self) -> Sequence[AnyNode]:
-        return tuple(self.graph.base_components['Topology'].get().nodes[name][self.graph.K] for name in self.outputs_names)
+        return tuple(self.graph.base_components['Topology'].get_node(name) for name in self.outputs_names)
 
     @final
     def output_index_of(self, node_or_name: Union[str, Node]) -> int:
         """Returns the index of the node in the outputs, -1 if the node is not an output."""
-        try: return self.outputs_names.index(self.graph._get_name(node_or_name))
+        try: return self.outputs_names.index(get_name(node_or_name))
         except: return -1
 
     @ft.cached_property
@@ -374,3 +432,96 @@ class Types(Component):
     @final
     def with_graph(self, graph: object = None) -> Types:
         return self
+
+class Values(Component):
+    """Concrete and 'static' component
+        - object: mapping from node id to its value
+        - action: return the value corresponding to the given node id
+    """
+
+    def __init__(self, map: dict[str, int | bool]) -> None:
+        action = lambda map, node_id: map[node_id]
+        super().__init__(deepcopy(map), action)
+
+    @final
+    def get(self, node: Valued) -> int | bool:
+        return self.action(self.object, node.name)
+
+    @final
+    def with_graph(self, graph: object = None) -> Values:
+        return self
+
+    @final
+    def has_value(self, node: AnyNode) -> bool:
+        return isinstance(node, Valued)
+
+
+
+# Helper methods
+
+def get_name(node_or_name: Union[str, Node]) -> str:
+    """Given a node or a node name, returns the node name."""
+    return node_or_name.name if isinstance(node_or_name, Node) else node_or_name
+
+
+# Structures describing components features/attributes
+
+component_name_to_type: dict[available_graph_components, type[Component]] = {
+    'Subgraph': Subgraph,
+    'Topology': Topology,
+    'Weight': Weight, 
+    'Min_Weight': Weight, 
+    'Max_Weight': Weight, 
+    'Parameter': Parameter, 
+    'IO': IO, 
+    'Constraints': Constraints, 
+    'Types': Types,
+    'Values': Values,
+}
+
+component_empty_object: dict[available_graph_components, type] = {
+    'Subgraph': set[str],
+    'Topology': OrderedDiGraph,
+    'Weight': dict[str, int], 
+    'Min_Weight': dict[str, int], 
+    'Max_Weight': dict[str, int], 
+    'Parameter': Sequence[str], 
+    'IO': dict[IO_keys, list], 
+    'Constraints': Sequence[AnyNode], 
+    'Types': dict[str, type],
+    'Values': dict[str, int | bool],
+}
+
+class ComponentsObjectsDict(dict[available_graph_components, Any]):
+    @overload
+    def __getitem__(self, key: Literal["Subgraph"]) -> set[str]: ...
+    
+    @overload
+    def __getitem__(self, key: Literal["Topology"]) -> OrderedDiGraph: ...
+    
+    @overload
+    def __getitem__(self, key: Literal["Weight"]) -> dict[str, int]: ...
+
+    @overload
+    def __getitem__(self, key: Literal["Min_Weight"]) -> dict[str, int]: ...
+
+    @overload
+    def __getitem__(self, key: Literal["Max_Weight"]) -> dict[str, int]: ...
+
+    @overload
+    def __getitem__(self, key: Literal["Parameter"]) -> list[str]: ...
+
+    @overload
+    def __getitem__(self, key: Literal["IO"]) ->  dict[IO_keys, list]: ...
+
+    @overload
+    def __getitem__(self, key: Literal["Constraints"]) -> list[AnyNode]: ...
+
+    @overload
+    def __getitem__(self, key: Literal["Types"]) -> dict[str, type]: ...
+
+    @overload
+    def __getitem__(self, key: Literal["Values"]) ->  dict[str, int | bool]: ...
+
+    def __getitem__(self, key: available_graph_components) -> Any:
+        return super().__getitem__(key)

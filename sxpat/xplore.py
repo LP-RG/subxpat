@@ -42,6 +42,7 @@ from sxpat.converting import VerilogExporter
 from sxpat.labelling.labelling import Labelling
 
 from sxpat.graph.components import Subgraph, Topology, Weight, Types, Component
+from sxpat.graph.orderedDiGraph import NodeAttributesDict
 
 
 def explore_grid(specs_obj: Specifications):
@@ -573,9 +574,9 @@ def are_circuits_equal(g1: Graph, g2: Graph) -> bool:
     g1_subgraph_c = g1.base_components['Subgraph']
     g2_subgraph_c = g2.base_components['Subgraph']
 
-    def node_matcher(_n1: AttributeMonoDict, _n2: AttributeMonoDict) -> bool:
-        n1: str = _n1.name
-        n2: str = _n2.name
+    def node_matcher(_n1: dict, _n2: dict) -> bool:
+        n1: Node = _n1['node']
+        n2: Node = _n2['node']
         return (
             g1_types_c.get(n1) == g2_types_c.get(n2)
             and g1_subgraph_c.in_subgraph(n1.name) == g2_subgraph_c.in_subgraph(n2.name)
