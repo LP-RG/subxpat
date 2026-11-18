@@ -8,6 +8,8 @@ Date: 2026-11-10
     - Added `make setup all`, which additionally builds the QBF solvers at pinned revisions (see #216), and documented both in the README. (#85)
     - Added specific archivation approaches (.tar.gz, .tar.xz). (#210)
     - Further modularised Configuration Exploration. (#213)
+    - Added the slash of inputs pass (`--slash=slash_it`). (#222)
+    - Added `run_stats.csv` columns `slash_error`, `slash_area`, `slash_power`, `slash_delay` and `slash_time`, and a `gen_slash` row with iteration 0. (#222)
   Minor Features:
     - Added a class for csv formatting. (#213)
     - Added more multipliers verilogs. (#213)
@@ -26,6 +28,9 @@ Date: 2026-11-10
     - Reorganised solve/synth/verify pipeline. (#213)
     - Now the default archivation is .tar.xz instead of .zip. (#210)
     - Removed zip archivation approach. (#210)
+    - Replaced `--slash-to-kill` with `--slash` (`none`, `slash_to_kill`, `slash_it`). (#222)
+    - `--error-for-slash` no longer defaults to 1 and is required when `--slash` is not `none`. (#222)
+    - The iterative slash pass now runs before the exploration loop, so it no longer consumes the first error partition. (#222)
   Bugfixes:
     - `make setup all` (and `make install`) now link the QBF solvers statically on Linux: the ones built on minisat would otherwise need its shared library at run time, which does not travel with the executable copied out of the build tree. (#216)
     - The generated solver and labelling scripts now run with the interpreter executing `main.py`, instead of whatever `python3` resolves to on the PATH. (#85)
