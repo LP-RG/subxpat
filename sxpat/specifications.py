@@ -21,7 +21,7 @@ __all__ = [
     'Specifications',
     # enums
     'ErrorPartitioningType', 'EncodingType',
-    'TemplateType', 'ConstantsType',
+    'TemplateType', 'ConstantsType', 'SlashType',
 ]
 
 
@@ -48,6 +48,12 @@ class EncodingType(enum.Enum):
 class TemplateType(enum.Enum):
     NON_SHARED = 'nonshared'
     SHARED = 'shared'
+
+
+class SlashType(enum.Enum):
+    NONE = 'none'
+    SLASH_SUBGRAPH = 'slash_to_kill'
+    SLASH_INPUT_ITERATIVE = 'slash_it'
 
 
 class DistanceType(enum.Enum):
@@ -185,6 +191,7 @@ class Specifications:
     #   you should add the mapping 'writable':True in the metadata
 
     # benchmark
+    benchmark_name: str = dc.field(init=False)
     exact_benchmark: str = dc.field(
         metadata={
             'argument': {
@@ -192,7 +199,7 @@ class Specifications:
                 'help': 'Circuit to approximate (in Verilog format)',
             },
         },
-    )
+    )   
     current_benchmark: str = dc.field(  # rw
         default=CustomDefaultS(lambda s: s.exact_benchmark),  # pyright: ignore[reportAssignmentType]
         metadata={
@@ -303,16 +310,18 @@ class Specifications:
         },
     )
     #
-    slash_to_kill: bool = dc.field(
-        default=False,
+    slash: SlashType = dc.field(
+        default=SlashType.NONE,
         metadata={
             'argument': {
-                'help': 'Enable the slash pass for the first iteration',
+                'action': EnumChoicesAction,
+                'help': 'Type of slash pass to apply (default: {default})',
                 'group': 'Subgraph extraction',
             },
             'dependencies': {
                 'requires': {
-                    True: ['error_for_slash'],
+                    SlashType.SLASH_SUBGRAPH: ['error_for_slash'],
+                    SlashType.SLASH_INPUT_ITERATIVE: ['error_for_slash'],
                 }
             }
         },
@@ -577,11 +586,12 @@ class Specifications:
 
     def __post_init__(self, path_output: str, path_cell_library: str, path_cqesto: str):
         # > computed constants
+        # benchmark name
+        self.benchmark_name = os.path.basename(self.exact_benchmark)
         # output size
-        benchmark_name = os.path.basename(self.exact_benchmark)
-        match = re.search(r'_o(\d+)', benchmark_name)
+        match = re.search(r'_o(\d+)', self.benchmark_name)
         if match is None:
-            raise ValueError(f'Unable to parse the number of outputs from benchmark name {benchmark_name!r}.')
+            raise ValueError(f'Unable to parse the number of outputs from benchmark name {self.benchmark_name!r}.')
         self.outputs = int(match.group(1))
         # run id
         _base = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
