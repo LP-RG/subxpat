@@ -1,5 +1,9 @@
+"""
+:authors: Lorenzo Spada
+"""
+
 from __future__ import annotations
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import Callable, List, Literal, Optional, Sequence, Tuple
 
 import os
 from os.path import join as path_join
@@ -30,9 +34,9 @@ INPUT_GROUPS: dict[str, int] = {
 
 def input_groups(benchmark_name: str) -> int:
     """
-        Returns the number of groups the inputs of the given benchmark are split into.
+    Returns the number of groups the inputs of the given benchmark are split into.
 
-        Unknown benchmarks are treated as a single group.
+    Unknown benchmarks are treated as a single group.
     """
 
     benchmark = os.path.basename(benchmark_name)
@@ -46,12 +50,13 @@ def input_groups(benchmark_name: str) -> int:
 
 def _selected_nodes(exact: IOGraph, inputs_per_group: int, groups: int) -> List[str]:
     """
-        Given a circuit and the wanted number of inputs to remove from each group,
-        returns the names of the inputs to slash.
+    Given a circuit and the wanted number of inputs to remove from each group,
+    returns the names of the inputs to slash.
 
-        The inputs are split into `groups` consecutive chunks of equal size; the
-        first `inputs_per_group` inputs of each chunk are selected.
+    The inputs are split into `groups` consecutive chunks of equal size; the
+    first `inputs_per_group` inputs of each chunk are selected.
     """
+
     chunk_size = len(exact.inputs_names) // groups
     return [
         f'in{group * chunk_size + offset}'
@@ -60,13 +65,14 @@ def _selected_nodes(exact: IOGraph, inputs_per_group: int, groups: int) -> List[
     ]
 
 
-def calculate(exact: IOGraph, specs_obj: Specifications, inputs_per_group: int, groups: int) -> Tuple[bool, Optional[bool]]:
+def calculate(exact: IOGraph, specs_obj: Specifications, inputs_per_group: int, groups: int
+              ) -> tuple[Literal[True], bool] | tuple[Literal[False], None]:
     """
-        Attempts to replace `inputs_per_group` inputs of each group with a single
-        shared boolean value.
+    Attempts to replace `inputs_per_group` inputs of each group with a single
+    shared boolean value.
 
-        :returns: whether the replacement keeps the circuit within `error_for_slash`
-            of the original, and (if so) the boolean value to use.
+    :returns: whether the replacement keeps the circuit within `error_for_slash`
+        of the original, and (if so) the boolean value to use.
     """
 
     selected_nodes = _selected_nodes(exact, inputs_per_group, groups)
@@ -74,16 +80,16 @@ def calculate(exact: IOGraph, specs_obj: Specifications, inputs_per_group: int, 
     status, model = get_solver(specs_obj).solve((exact, p_graph, c_graph), specs_obj)
 
     if status == 'sat':
-        return (True, model['constant_ID'])
+        return (True, model['constant_ID'])  # always valid # pyright: ignore
     return (False, None)
 
 
 def slash_iteratively(exact: IOGraph, specs_obj: Specifications, groups: int) -> Tuple[List[str], bool]:
     """
-        Slashes as many inputs as possible (uniformly across the groups) while keeping
-        the resulting circuit within `error_for_slash` of the original.
+    Slashes as many inputs as possible (uniformly across the groups) while keeping
+    the resulting circuit within `error_for_slash` of the original.
 
-        :returns: the names of the slashed inputs and the boolean value they are tied to.
+    :returns: the names of the slashed inputs and the boolean value they are tied to.
     """
 
     inputs_per_group = len(exact.inputs_names) // groups
@@ -93,7 +99,10 @@ def slash_iteratively(exact: IOGraph, specs_obj: Specifications, groups: int) ->
         specs_obj.sub_iteration = f'slash{inputs_per_group}'
         status, constant = calculate(exact, specs_obj, inputs_per_group, groups)
         if status:
-            return (_selected_nodes(exact, inputs_per_group, groups), constant)
+            return (
+                _selected_nodes(exact, inputs_per_group, groups),
+                constant,  # always valid # type: ignore
+            )
         inputs_per_group -= 1
 
     return ([], False)
@@ -106,11 +115,11 @@ SLASH_STRATEGIES: dict[SlashType, Callable[[IOGraph, Specifications, int], Tuple
 
 def _slash_graph(exact: IOGraph, selected_nodes: Sequence[str], constant: bool) -> IOGraph:
     """
-        Builds the circuit resulting from replacing the selected inputs with the given constant.
+    Builds the circuit resulting from replacing the selected inputs with the given constant.
 
-        All the original inputs are kept (the slashed ones become unused), so that the
-        resulting circuit shares its input space with the original one and the error
-        between the two can be evaluated.
+    All the original inputs are kept (the slashed ones become unused), so that the
+    resulting circuit shares its input space with the original one and the error
+    between the two can be evaluated.
     """
 
     graph = InputsReplace.build(exact, selected_nodes, replace_output=False, replace_with_constant=constant)
@@ -124,15 +133,15 @@ def _slash_error(exact: IOGraph, slashed: IOGraph, specs_obj: Specifications) ->
     return error_evaluation(exact, slashed, specs_obj)
 
 
-def remove_inputs(specs_obj: Specifications, benchmark_name: str) -> Tuple[str, int]:
+def remove_inputs(specs_obj: Specifications) -> Tuple[str, int]:
     """
-        Runs the "slash of inputs" pass on the exact benchmark and exports the
-        resulting circuit in Verilog format.
+    Runs the "slash of inputs" pass on the exact benchmark and exports the
+    resulting circuit in Verilog format.
 
-        :param benchmark_name: the name of the original benchmark, used to determine
-            the input grouping (as `specs_obj.exact_benchmark` points to the stored copy).
-        :returns: the path of the generated Verilog file and the maximum error between
-            the exact circuit and the slashed one.
+    :param benchmark_name: the name of the original benchmark, used to determine
+        the input grouping (as `specs_obj.exact_benchmark` points to the stored copy).
+    :returns: the path of the generated Verilog file and the maximum error between
+        the exact circuit and the slashed one.
     """
 
     # load the exact circuit
@@ -142,7 +151,7 @@ def remove_inputs(specs_obj: Specifications, benchmark_name: str) -> Tuple[str, 
         raise ValueError('The slash pass requires an error threshold, set `--error-for-slash`')
 
     # determine the strategy and the number of groups
-    groups = input_groups(benchmark_name)
+    groups = input_groups(specs_obj.benchmark_name)
     strategy = SLASH_STRATEGIES[specs_obj.slash]
 
     # find the inputs to slash

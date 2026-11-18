@@ -17,19 +17,19 @@ __all__ = ['InputsReplace']
 
 class InputsReplace:
     """
-        Helper defining the "slash of inputs" question.
+    Helper defining the "slash of inputs" question.
 
-        Given a circuit and a set of inputs to remove, defines a parametric circuit
-        (a `PGraph`) in which every removed input is replaced by a single shared
-        boolean value, together with the `CGraph` asserting that the resulting
-        circuit stays within `specs_obj.error_for_slash` of the original one for
-        every assignment of the remaining inputs.
+    Given a circuit and a set of inputs to remove, defines a parametric circuit
+    (a `PGraph`) in which every removed input is replaced by a single shared
+    boolean value, together with the `CGraph` asserting that the resulting
+    circuit stays within `specs_obj.error_for_slash` of the original one for
+    every assignment of the remaining inputs.
 
-        The replacement value is shared between all the removed inputs, so a single
-        boolean value replaces the whole set (this is what makes the circuit smaller
-        than the original).
+    The replacement value is shared between all the removed inputs, so a single
+    boolean value replaces the whole set (this is what makes the circuit smaller
+    than the original).
 
-        @authors: Marco Biasion, Lorenzo Spada
+    :authors: Lorenzo Spada, Marco Biasion
     """
 
     @classmethod
@@ -40,20 +40,20 @@ class InputsReplace:
               replace_with_constant: Optional[bool] = None,
               ) -> PGraph:
         """
-            Builds the parametric circuit obtained by replacing the selected inputs
-            with a single shared boolean value.
+        Builds the parametric circuit obtained by replacing the selected inputs
+        with a single shared boolean value.
 
-            All the nodes of the original circuit are prefixed with `a_` (so that the
-            parametric circuit can coexist with the original one in the same question),
-            except the inputs (and the outputs, when `replace_output` is `False`).
+        All the nodes of the original circuit are prefixed with `a_` (so that the
+        parametric circuit can coexist with the original one in the same question),
+        except the inputs (and the outputs, when `replace_output` is `False`).
 
-            :param current: the circuit whose inputs are to be removed.
-            :param selected_nodes: the names of the inputs to remove.
-            :param replace_output: if the outputs should be prefixed too (they are not
-                preserved). Set to `False` to keep the original output names.
-            :param replace_with_constant: if not `None`, the removed inputs are replaced
-                by a fixed boolean constant instead of a shared parameter, and the
-                resulting circuit is fully determined.
+        :param current: the circuit whose inputs are to be removed.
+        :param selected_nodes: the names of the inputs to remove.
+        :param replace_output: if the outputs should be prefixed too (they are not
+            preserved). Set to `False` to keep the original output names.
+        :param replace_with_constant: if not `None`, the removed inputs are replaced
+            by a fixed boolean constant instead of a shared parameter, and the
+            resulting circuit is fully determined.
         """
 
         # guard: only existing inputs can be removed
@@ -109,13 +109,13 @@ class InputsReplace:
                replace_output: bool = True,
                ) -> Tuple[PGraph, CGraph]:
         """
-            Builds the parametric circuit and the constraint asserting that, for every
-            assignment of the remaining inputs, the distance between the outputs of the
-            original circuit and of the parametric one is at most `error_for_slash`.
+        Builds the parametric circuit and the constraint asserting that, for every
+        assignment of the remaining inputs, the distance between the outputs of the
+        original circuit and of the parametric one is at most `error_for_slash`.
 
-            The replacement value is returned as a target, so that a model with
-            `constant_ID = False` (resp. `True`) corresponds to tying the removed
-            inputs to `0` (resp. `1`).
+        The replacement value is returned as a target, so that a model with
+        `constant_ID = False` (resp. `True`) corresponds to tying the removed
+        inputs to `0` (resp. `1`).
         """
 
         template_graph = cls.build(current, selected_nodes, replace_output=replace_output)
@@ -136,7 +136,7 @@ class InputsReplace:
                     current.outputs_names,
                     current.inputs_names,
                     template_graph.outputs_names,
-                    ('constant_ID',),
+                    ['constant_ID'],
                 )),
                 new_nodes,
                 (Target.of('constant_ID'),),
