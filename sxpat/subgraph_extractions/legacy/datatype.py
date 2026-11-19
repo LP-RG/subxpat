@@ -152,10 +152,17 @@ def _setup_problem(circuit: IOGraph, specs: Specifications):
         [node.name for node in circuit.constants],
     )
 
+    # `None` means unlabelled and is encoded as the -1 sentinel; a weight of 0 is a legal label
+    # (breaking the node is free), so it must not be folded into the sentinel
+    _weights = dict()
+    for _node in circuit.nodes:
+        _w = getattr(_node, WEIGHT, None)
+        _weights[_node.name] = -1 if _w is None else _w
+
     z3_nodes, base_constraints = _encode_nodes(
         available_nodes,
         unavailable_nodes,
-        {node.name: (getattr(node, WEIGHT, None) or -1) for node in circuit.nodes},
+        _weights,
         bit_width,
         Node,
     )

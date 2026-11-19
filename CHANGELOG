@@ -30,6 +30,7 @@ Date: 2026-11-10
   Bugfixes:
     - The generated solver and labelling scripts now run with the interpreter executing `main.py`, instead of whatever `python3` resolves to on the PATH. (#85)
     - Patched a bug when min-labelling, where no error is found (also added warning). (#213)
+    - A labelling weight of 0 (breaking the node changes nothing) is now a legal label in the extraction encodings, instead of being read as "unlabelled". (#223)
     - Labeling goes through the same engine at every iteration, so `cqesto` is no longer needed to label at all (it is only needed by `--encoding=qbf`). (#223)
     - In minimising labeling, a node whose breaking cannot affect any output (an unsatisfiable label query) now gets the weight 0 instead of 1, and a query answered `unknown` gets the worst case weight `2**outputs-1`. (#223)
     - Fixed a possible crash when sharing a graph with multiple processes. (#222)
