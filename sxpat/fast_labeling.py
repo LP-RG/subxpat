@@ -361,6 +361,7 @@ def label_with_patterns(
     labeller: Optional[Labelling] = None,
     sampler: Optional['SamplingLabeler'] = None,
     skip_at_output: bool = True,
+    skip_input: bool = True,
 ) -> Dict[str, int]:
     """Same contract as :func:`fast_labeling`, but the rules come from the pattern engine.
 
@@ -417,4 +418,13 @@ def label_with_patterns(
         seeds=seeds, solve=solve, relevant=relevant, output_weights=output_weights,
     )
     specs_obj.labeling_stats = stats
-    return weights
+    # the same contract as `fast_labeling`: the map holds the labelled GATES -- inputs are skipped
+    # and the outputs are only seeds here, never part of the result (an extraction mode reading the
+    # output weights would otherwise see keys that the old path never produced: measured on
+    # `--extraction-mode=100`, which changed its answer for that reason alone)
+    # ...and in the graph's own order, so the dict keeps a deterministic, topology-derived insertion
+    # order instead of the order the logics happened to fill it in
+    return {name: weights[name] for name in order
+            if name in weights
+            and name not in view.outputs
+            and not (skip_input and name[:2] == 'in')}
