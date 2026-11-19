@@ -43,7 +43,10 @@ from sxpat.converting import VerilogExporter
 
 from sxpat.labelling.labelling import Labelling
 
-from sxpat.fast_labeling import SamplingLabeler, fast_labeling, upper_bound, lower_bound
+from sxpat.fast_labeling import (
+    SamplingLabeler, fast_labeling, label_with_patterns, upper_bound, lower_bound,
+)
+from sxpat.labelling import patterns as labeling_patterns
 
 
 def explore_grid(specs_obj: Specifications):
@@ -550,6 +553,20 @@ def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> 
     reference = exact if relative_to_origin else current
     to_be_labelled: IOGraph = current
 
+    # level 100 is "no solving at all": the column's own simple mode. The sampling types keep
+    # their own meaning (sampled labels), which is also a no-solving mode, so they fall through to
+    # the engine with every pattern rule off.
+    if specs_obj.labeling_level == 100 and specs_obj.labeling in (LabelingType.MIN, LabelingType.MAX):
+        return lower_bound(current) if specs_obj.labeling == LabelingType.MIN else upper_bound(current)
+
+    def engine_config():
+        column = 'min' if specs_obj.labeling in (LabelingType.MIN, LabelingType.SAMPLE_MIN) else 'max'
+        config = (labeling_patterns.RuleConfig() if specs_obj.labeling_level == 100
+                  else labeling_patterns.config_for_level(specs_obj.labeling_level, column))
+        if specs_obj.labeling_rules:
+            config = config.with_overrides(**specs_obj.labeling_rules)
+        return config
+
     if specs_obj.labeling == LabelingType.SIMPLE_MIN:
         weights = lower_bound(current)
     elif specs_obj.labeling == LabelingType.SIMPLE_MAX:
@@ -561,10 +578,15 @@ def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> 
             seed=specs_obj.labeling_seed,
             minimise=specs_obj.labeling == LabelingType.SAMPLE_MIN,
         )
-        weights = fast_labeling(
-            exact, current, specs_obj.et, specs_obj,
-            skip_at_output=not relative_to_origin,
-            sampler=sampler,
+        weights = (
+            label_with_patterns(exact, current, specs_obj.et, specs_obj, engine_config(),
+                                sampler=sampler, skip_at_output=not relative_to_origin)
+            if specs_obj.labeling_level
+            else fast_labeling(
+                exact, current, specs_obj.et, specs_obj,
+                skip_at_output=not relative_to_origin,
+                sampler=sampler,
+            )
         )
     else:
         # the exact modes use the same solver at every iteration: the one selected
@@ -576,10 +598,15 @@ def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> 
             minimise=specs_obj.labeling == LabelingType.MIN,
             use_functions=True,
         )
-        weights = fast_labeling(
-            exact, current, specs_obj.et, specs_obj,
-            skip_at_output=not relative_to_origin,
-            labeller=labeller,
+        weights = (
+            label_with_patterns(exact, current, specs_obj.et, specs_obj, engine_config(),
+                                labeller=labeller, skip_at_output=not relative_to_origin)
+            if specs_obj.labeling_level
+            else fast_labeling(
+                exact, current, specs_obj.et, specs_obj,
+                skip_at_output=not relative_to_origin,
+                labeller=labeller,
+            )
         )
 
     return weights

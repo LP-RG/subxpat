@@ -1,6 +1,6 @@
 from __future__ import annotations
 from types import MappingProxyType
-from typing import Any, Callable, Iterable, Mapping, Optional, Union
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Union
 import enum
 import dataclasses as dc
 
@@ -90,6 +90,35 @@ def parse_labeling_seed(value: str) -> Optional[int]:
         return int(value)
     except ValueError:
         raise argparse.ArgumentTypeError(f"expected an integer or 'random', got {value!r}")
+
+
+def parse_labeling_rules(value: str) -> Dict[str, Optional[int]]:
+    """Parse `--labeling-rules`: `name=off|always|N`, comma separated, one entry per rule.
+
+    `off` disables the rule in the chosen level, `always` drops its threshold, `N` gates it to
+    `value * N <= et`. Rules: simple_not, output_driver, single_successor, bound_max, bound_min,
+    bound_sum.
+    """
+    rules: Dict[str, Optional[int]] = {}
+    for chunk in value.split(','):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        if '=' not in chunk:
+            raise argparse.ArgumentTypeError(f"expected 'name=off|always|N', got {chunk!r}")
+        name, raw = (part.strip() for part in chunk.split('=', 1))
+        lowered = raw.lower()
+        if lowered in ('off', 'no', 'false', 'never'):
+            rules[name] = 0
+        elif lowered in ('always', 'on', 'yes', 'true'):
+            rules[name] = None
+        else:
+            try:
+                rules[name] = int(raw)
+            except ValueError:
+                raise argparse.ArgumentTypeError(
+                    f"expected an integer, 'off' or 'always', got {raw!r}")
+    return rules
 
 
 @dc.dataclass(init=False, frozen=True)
@@ -270,6 +299,27 @@ class Specifications:
             }
         },
     )
+    labeling_level: int = dc.field(
+        default=0,
+        metadata={
+            'argument': {
+                'choices': [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+                'help': 'Labelling level: 0 keeps the hardcoded rules, 10-90 add the pattern/logic rules of the ladder (10 exact only, 20 +SimpleNot, 30 +OutputDriver, 40+ single-successor copy and the structural bounds at ever looser thresholds), 100 labels with simple_min/simple_max and solves nothing (default: {default})',
+                'group': 'Labeling',
+            }
+        },
+    )
+    labeling_rules: Optional[Dict[str, Optional[int]]] = dc.field(
+        default=None,
+        metadata={
+            'argument': {
+                'type': parse_labeling_rules,
+                'help': "Per-rule override applied on top of the level: 'name=off|always|N,...' with name in simple_not, output_driver, single_successor, bound_max, bound_min, bound_sum (default: {default})",
+                'group': 'Labeling',
+            }
+        },
+    )
+    labeling_stats: Optional[object] = dc.field(default=None, init=False, repr=False)
 
     # subgraph extraction
     extraction_mode: int = dc.field(

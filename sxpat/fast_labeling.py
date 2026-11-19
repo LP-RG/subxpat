@@ -1,12 +1,15 @@
 import random
 from typing import Callable, Dict, Mapping, Optional, Sequence
 
+import networkx as nx
+
 from sxpat.graph.graph import IOGraph
 from sxpat.graph.node import (
     And, BoolConstant, BoolVariable, Identity, Implies, Not, Or, Xnor, Xor,
 )
 from sxpat.specifications import LabelingRelativeTo, LabelingType, Specifications
 from sxpat.definitions.templates.Labeling import Labeling
+from sxpat.labelling import patterns as patterns_engine
 from sxpat.labelling.labelling import Labelling
 from sxpat.solvers.QbfSolver import QbfSolver
 
@@ -331,3 +334,74 @@ def upper_bound(current_graph: IOGraph) -> Dict[str, int]:
 
 def lower_bound(current_graph: IOGraph) -> Dict[str, int]:
     return compute_bound(current_graph, combine=min, init_value=2 ** len(current_graph.outputs))
+
+class _GraphView:
+    """What the pattern/logic engine needs from an `IOGraph`: names, neighbours, output index."""
+
+    def __init__(self, graph: IOGraph):
+        self._graph = graph
+        self.outputs = {node.name for node in graph.outputs}
+
+    def successors(self, name: str) -> Sequence[str]:
+        return [node.name for node in self._graph.successors(name)]
+
+    def predecessors(self, name: str) -> Sequence[str]:
+        return [node.name for node in self._graph.predecessors(name)]
+
+    def output_index(self, name: str) -> int:
+        return int(name[3:])
+
+
+def label_with_patterns(
+    exact_graph: IOGraph,
+    current_graph: IOGraph,
+    et: int,
+    specs_obj: Specifications,
+    config: 'patterns_engine.RuleConfig',
+    labeller: Optional[Labelling] = None,
+    sampler: Optional['SamplingLabeler'] = None,
+    skip_at_output: bool = True,
+) -> Dict[str, int]:
+    """Same contract as :func:`fast_labeling`, but the rules come from the pattern engine.
+
+    A pattern recognises structure and a logic produces the weight; the engine collects every
+    match once and then schedules the logics by dependency, so a solution that no logic can fill
+    is the only one that reaches the solver (or the sampler). Which rules run, and at which
+    threshold, is entirely `config` -- see :mod:`sxpat.labelling.patterns` for the ladder.
+    """
+    column = 'min' if specs_obj.labeling in (LabelingType.MIN, LabelingType.SAMPLE_MIN) else 'max'
+    relative_to_origin = specs_obj.labeling_relative_to == LabelingRelativeTo.ORIGIN
+    view = _GraphView(current_graph)
+
+    order = list(nx.topological_sort(current_graph._inner))
+    simple_max, simple_min = patterns_engine.structural_bounds(view, list(reversed(order)))
+    seeds = {name: 2 ** int(name[3:]) for name in view.outputs}
+
+    # the same pruning `fast_labeling` does: only the ancestors of the outputs that can still
+    # matter for `et` are labelled at all
+    relevant = set(seeds)
+    for name in view.outputs:
+        if relative_to_origin or 2 ** int(name[3:]) <= et:
+            relevant |= nx.ancestors(current_graph._inner, name)
+
+    def solve(name: str) -> int:
+        # a node driving one output alone is exactly that output's bit, no query needed
+        if skip_at_output:
+            successors = view.successors(name)
+            if len(successors) == 1 and successors[0] in view.outputs:
+                return 2 ** int(successors[0][3:])
+        if sampler is not None:
+            return sampler.label_node(name)
+        if labeller is not None:
+            return labeller.label_node(name)
+        return calc_label(exact_graph, current_graph, name, specs_obj)
+
+    weights, stats = patterns_engine.schedule(
+        list(reversed(order)),
+        lambda pattern, name: patterns_engine.PATTERNS[pattern](view, name),
+        column=column, et=et, config=config,
+        simple_max=simple_max, simple_min=simple_min,
+        seeds=seeds, solve=solve, relevant=relevant,
+    )
+    specs_obj.labeling_stats = stats
+    return weights
