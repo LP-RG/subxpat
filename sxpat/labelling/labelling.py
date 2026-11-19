@@ -26,7 +26,7 @@ class Labelling:
         #
         'reference', 'to_be_labelled',
         #
-        '_minimise', '_use_func',
+        '_minimise', '_use_func', '_fault',
         #
         '_base_path',
         #
@@ -35,6 +35,14 @@ class Labelling:
 
     REFERENCE_PREFIX: ClassVar = 'r_'
     LABELLING_PREFIX: ClassVar = 'l_'
+
+    # how the target node is broken
+    #   `free`  : its value becomes free (a fresh boolean)
+    #   `invert`: a single NOT is inserted on its own output
+    FREE_FAULT: ClassVar = 'free'
+    INVERT_FAULT: ClassVar = 'invert'
+    FAULTS: ClassVar = (FREE_FAULT, INVERT_FAULT)
+
     NODES_TO_Z3PY: ClassVar = {
         And: 'And',
         Not: 'Not',
@@ -87,7 +95,11 @@ class Labelling:
         *,
         minimise: bool,
         use_functions: bool = True,
+        fault: str = FREE_FAULT,
     ):
+        if fault not in self.FAULTS:
+            raise ValueError(f"unknown fault mode {fault!r}, expected one of {self.FAULTS}")
+
         # prepare folder
         self._base_path = path_join(specs.path.run.solver_scripts, f'labelling{specs.iteration}')
         FS.mkdir(self._base_path)
@@ -98,6 +110,7 @@ class Labelling:
         #
         self._minimise = minimise
         self._use_func = use_functions
+        self._fault = fault
 
         #
         self.__base_script: Optional[str] = None
@@ -193,7 +206,7 @@ class Labelling:
             return self.__cached_weights[target_node]
 
         # complete script
-        _circuit_z3str = self._circuit_to_z3str(self.to_be_labelled, target_node)
+        _circuit_z3str = self._circuit_to_z3str(self.to_be_labelled, target_node, self._fault)
         script = self.base_script.format(to_be_labelled_circuit=_circuit_z3str)
 
         # save script
@@ -265,7 +278,10 @@ class Labelling:
         return f'{cls.NODES_TO_Z3PY.get(type(node))}({args})'
 
     @classmethod
-    def _circuit_to_z3str(cls, circuit: IOGraph, target_node: Optional[str] = None) -> str:
+    def _circuit_to_z3str(
+        cls, circuit: IOGraph, target_node: Optional[str] = None,
+        fault: str = FREE_FAULT,
+    ) -> str:
         strings = list()
 
         # custom bfs, enqueue only when all predecessors have been visited
@@ -301,7 +317,10 @@ class Labelling:
             node_z3str = cls._node_to_z3str(circuit, node, prefix)
 
             if node.name == target_node:
-                strings.append(f'{prefix}{node.name} = Bool("target")\n')
+                if fault == cls.INVERT_FAULT:
+                    strings.append(f'{prefix}{node.name} = Not({node_z3str})\n')
+                else:
+                    strings.append(f'{prefix}{node.name} = Bool("target")\n')
             else:
                 strings.append(f'{prefix}{node.name} = {node_z3str}\n')
 
@@ -312,9 +331,15 @@ class Labelling:
         for (i, output) in enumerate(circuit.outputs_names):
             proutput = prefix + output
             if isinstance(circuit.predecessors(output)[0], BoolVariable):
-                strings.append(f'{proutput} = {circuit.predecessors(output)[0].name}\n')
+                driver = circuit.predecessors(output)[0].name
             else:
-                strings.append(f'{proutput} = {prefix}{circuit.predecessors(output)[0].name}\n')
+                driver = f'{prefix}{circuit.predecessors(output)[0].name}'
+
+            # a broken output is the NOT of what drives it (a single NOT on its own output)
+            if output == target_node and fault == cls.INVERT_FAULT:
+                strings.append(f'{proutput} = Not({driver})\n')
+            else:
+                strings.append(f'{proutput} = {driver}\n')
 
             names.append(name := f'if_{proutput}')
             strings.append(f'{name} = If({proutput}, const{i}, constf)\n')
