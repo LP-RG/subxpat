@@ -14,11 +14,11 @@ SubXPAT has been developed for a **Linux** environment and requires the followin
 - [Yosys] (using apt: `sudo apt install yosys`)
 - [GraphViz] (needed when `pip` builds `pygraphviz` from source; the wheels ship the library themselves — on Debian that means `sudo apt install graphviz graphviz-dev`)
 - [OpenSTA] (using apt: `sudo apt install opensta`)
-- [cqesto] (needed by `--encoding=qbf`, as are the alternative QBF solvers `cqesto-cadical` and [qfun]; all of them are built from source by `make setup all` or one at a time by `make install <solver>`, which requires `git`, `cmake`, `make`, a C++ compiler and a static libc)
+- [cqesto] (needed by `--encoding=qbf`, as are the alternative QBF solvers `cqesto-cadical`, [qfun] and `qfun-cadical`; all of them are built from source by `make setup all` or one at a time by `make install <solver>`, which requires `git`, `cmake`, `make`, a C++ compiler and a static libc)
 
 **Note:** on Linux, the binaries of Yosys and OpenSTA should be added to your PATH.
 
-On **macOS** (Apple silicon; Intel untested) OpenSTA has no macOS package and the QBF solvers have no package on any platform, so `make setup macos` builds OpenSTA and `make setup all` additionally builds `cqesto`, `cqesto-cadical` and `qfun`, all into `.deps/`. GraphViz is not needed, because the `pygraphviz` wheel bundles the graphviz library. See [macOS](#macos).
+On **macOS** (Apple silicon; Intel untested) OpenSTA has no macOS package and the QBF solvers have no package on any platform, so `make setup macos` builds OpenSTA and `make setup all` additionally builds `cqesto`, `cqesto-cadical`, `qfun` and `qfun-cadical`, all into `.deps/`. GraphViz is not needed, because the `pygraphviz` wheel bundles the graphviz library. See [macOS](#macos).
 
 ### Optional
 
@@ -35,12 +35,12 @@ To prepare the system for execution you will need to follow a few steps:
     # bulk commands
     make setup        # python environment and python dependencies
     make setup macos  # (macOS) same as `make setup`, plus python@3.14, yosys, cmake, swig, tcl-tk@8 and OpenSTA
-    make setup all    # same as `make setup`, plus the QBF solvers (cqesto, cqesto-cadical, qfun)
+    make setup all    # same as `make setup`, plus the QBF solvers (cqesto, cqesto-cadical, qfun, qfun-cadical)
 
     # individual commands
     make py_init          # create python environment (.venv/)
     make py_dep           # install/update requirements
-    make install <solver> # build one QBF solver (cqesto, cqesto-cadical, qfun)
+    make install <solver> # build one QBF solver (cqesto, cqesto-cadical, qfun, qfun-cadical)
     ```
 
     On Linux `make setup all` only adds the QBF solvers: the native packages keep coming from apt.
@@ -58,7 +58,7 @@ To prepare the system for execution you will need to follow a few steps:
 | :-- | :-- | :-- |
 | Python, Yosys, cmake | Homebrew | packaged, no build required |
 | OpenSTA (`sta`) | cloned and built into `.deps/opt/opensta` | no Homebrew formula (Debian packages this same commit) |
-| cqesto, cqesto-cadical, qfun (`--encoding=qbf`) | cloned and built by `make setup all` (or `make install <solver>`) at pinned revisions, installed into `.deps/opt` and symlinked into `.deps/bin` | no Homebrew formula and no Debian package |
+| cqesto, cqesto-cadical, qfun, qfun-cadical (`--encoding=qbf`) | cloned and built by `make setup all` (or `make install <solver>`) at pinned revisions, installed into `.deps/opt` and symlinked into `.deps/bin` | no Homebrew formula and no Debian package |
 | `swig` | Homebrew | build-only dependency of OpenSTA |
 | `tcl-tk@8` | Homebrew | needed at build time (headers, link) and at run time: `sta` needs `libtcl8.6.dylib` |
 | GraphViz | not needed | the `pygraphviz` wheel links the graphviz library it ships, and no code runs the `dot` executable |
@@ -187,7 +187,7 @@ python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extracti
 ### QBF solvers
 
 With `--encoding=qbf` the questions are solved by the QBF solver given to `--qbf-solver`, which is
-`cqesto` unless said otherwise. Three solvers can be installed, `make install <solver>` building one
+`cqesto` unless said otherwise. Four solvers can be installed, `make install <solver>` building one
 of them and `make setup all` all of them:
 
 | solver | what it is |
@@ -195,6 +195,7 @@ of them and `make setup all` all of them:
 | `cqesto` | cqesto on minisat (default) |
 | `cqesto-cadical` | the same cqesto, on cadical |
 | `qfun` | [qfun], a circuit-based QBF solver, on minisat |
+| `qfun-cadical` | the same qfun, on cadical |
 
 ```bash
 make install qfun

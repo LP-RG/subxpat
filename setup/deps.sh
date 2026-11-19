@@ -19,7 +19,7 @@ CADICAL_REPO="${CADICAL_REPO:-https://github.com/arminbiere/cadical.git}"
 CADICAL_REF="${CADICAL_REF:-c60730422e758ef1cebe7aeddf2dda31c996bf04}"  # rel-3.0.1
 
 # the QBF solvers that can be installed individually with `--solver <name>`
-SOLVERS="cqesto cqesto-cadical qfun"
+SOLVERS="cqesto cqesto-cadical qfun qfun-cadical"
 
 MODE="${1:-}"
 JOBS="$( (sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4) )"
@@ -240,6 +240,7 @@ install_solver() {  # $1 = one of $SOLVERS
     cqesto)         repo="$CQESTO_REPO"; ref="$CQESTO_REF"; sat='minisat' ;;
     cqesto-cadical) repo="$CQESTO_REPO"; ref="$CQESTO_REF"; sat='cadical' ;;
     qfun)           repo="$QFUN_REPO";   ref="$QFUN_REF";   sat='minisat' ;;
+    qfun-cadical)   repo="$QFUN_REPO";   ref="$QFUN_REF";   sat='cadical' ;;
     *) die "unknown solver '$name' (available: $(echo "$SOLVERS" | tr ' ' ','))" ;;
   esac
 
@@ -306,7 +307,7 @@ probe_tool() {
   output="$(case "$1" in
     yosys) "$2" -V ;;
     sta) "$2" -version ;;
-    cqesto|cqesto-cadical|qfun) "$2" --help ;;
+    cqesto|cqesto-cadical|qfun|qfun-cadical) "$2" --help ;;
     *) return 1 ;;
   esac 2>/dev/null)"
   # an empty file is executable, and bash runs it as an empty script that exits 0

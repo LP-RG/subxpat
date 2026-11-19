@@ -5,7 +5,7 @@ ENV_NAME := .venv
 DELETION_DELAY ?= 10
 
 # optional QBF solvers, each installed by `make install <solver>` (or by `make setup all`)
-SOLVERS := cqesto cqesto-cadical qfun
+SOLVERS := cqesto cqesto-cadical qfun qfun-cadical
 
 # computed
 
