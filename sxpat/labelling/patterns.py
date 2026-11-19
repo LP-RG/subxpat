@@ -70,6 +70,9 @@ class Context:
     column: str
     simple_max: Mapping[str, int] = dc.field(default_factory=dict)
     simple_min: Mapping[str, int] = dc.field(default_factory=dict)
+    #: output index -> the error that inverting that output costs (2**i relative to the current
+    #: circuit, the labelled value of the inverted output relative to the origin)
+    output_weights: Mapping[int, int] = dc.field(default_factory=dict)
 
 
 # ---------------------------------------------------------------- patterns
@@ -173,10 +176,20 @@ simple_not = Logic(
 output_driver_logic = Logic(
     name='output_driver', pattern='output_driver',
     reads=(), writes=('node',),
-    # exact: the node's error is the error of the output(s) it drives, and the output's own
-    # weight is known (2**i relative to the current circuit, computed relative to the origin)
+    # exact relative to the current circuit: breaking such a node costs exactly its bits, and
+    # inverting one of them costs 2**i, so 2**i is the output's error too
     kinds={MIN: EXACT, MAX: EXACT},
     value=lambda m, w, c: sum(1 << b for b in m.data['bits']),
+)
+
+output_driver_origin_logic = Logic(
+    name='output_driver_origin', pattern='output_driver',
+    reads=(), writes=('node',),
+    # relative to the origin the output's own error is a computed quantity, and the node's error
+    # is only ever an upper bound on it (breaking the node can move fewer bits than inverting the
+    # output does)
+    kinds={MIN: UPPER, MAX: UPPER},
+    value=lambda m, w, c: sum(c.output_weights[b] for b in m.data['bits']),
 )
 
 single_successor_bound = Logic(
@@ -214,8 +227,8 @@ bound_sum = Logic(
 )
 
 LOGICS: Mapping[str, Logic] = {
-    lg.name: lg for lg in (simple_not, output_driver_logic, single_successor_bound,
-                           bound_max, bound_min, bound_sum)
+    lg.name: lg for lg in (simple_not, output_driver_logic, output_driver_origin_logic,
+                           single_successor_bound, bound_max, bound_min, bound_sum)
 }
 
 
@@ -262,14 +275,19 @@ class RuleConfig:
     bound_max: Optional[int] = 0
     bound_min: Optional[int] = 0
     bound_sum: Optional[int] = 0
+    #: which OutputDriver logic to use: 'current' (exact, 2**i) or 'origin' (upper bound)
+    output_driver_relative_to: str = 'current'
 
     def items(self) -> Iterable[Logic]:
         for name in RULE_NAMES:
             divisor = getattr(self, name)
             if divisor != 0:
+                logic = LOGICS[name]
+                if name == 'output_driver' and self.output_driver_relative_to == 'origin':
+                    logic = LOGICS['output_driver_origin']
                 # The per-run divisor must reach the logic instance: `Logic.divisor` is 0 on the
                 # shared definition, so without this copy every rule comes out ungated.
-                yield dc.replace(LOGICS[name], divisor=divisor)
+                yield dc.replace(logic, divisor=divisor)
 
     def with_overrides(self, **overrides) -> 'RuleConfig':
         known = {k: v for (k, v) in overrides.items() if k in RULE_NAMES}
@@ -297,7 +315,7 @@ _LADDER = {
 }
 
 
-def config_for_level(level: int, column: str = MAX) -> RuleConfig:
+def config_for_level(level: int, column: str = MAX, reference: str = 'current') -> RuleConfig:
     """The preset ladder for one column, as a `RuleConfig`."""
     if level not in _LADDER:
         raise ValueError(f'unknown labelling level {level!r}; known: {sorted(_LADDER)}')
@@ -310,7 +328,7 @@ def config_for_level(level: int, column: str = MAX) -> RuleConfig:
                 rules[real] = divisor
         else:
             rules[name] = divisor
-    return RuleConfig(**rules)
+    return RuleConfig(output_driver_relative_to=reference, **rules)
 
 
 def logics_for_level(level: int, column: str = MAX) -> List[Logic]:
@@ -372,7 +390,8 @@ class Stats:
 def schedule(nodes: Sequence[str], match, *, column: str, et: int, config: RuleConfig,
              simple_max: Mapping[str, int], simple_min: Mapping[str, int],
              seeds: Mapping[str, int], solve: Callable[[str], int],
-             relevant: Optional[set] = None) -> Tuple[Dict[str, int], Stats]:
+             relevant: Optional[set] = None,
+             output_weights: Optional[Mapping[int, int]] = None) -> Tuple[Dict[str, int], Stats]:
     """Two passes: collect every match once, then schedule the logics and the solver calls.
 
     :param nodes: node names in REVERSE topological order (successors first).
@@ -381,7 +400,8 @@ def schedule(nodes: Sequence[str], match, *, column: str, et: int, config: RuleC
     :param solve: called for a node that no logic can fill; it must return the exact weight.
     :param relevant: if given, only these nodes are labelled (the `et` reachability pruning).
     """
-    ctx = Context(et=et, column=column, simple_max=simple_max, simple_min=simple_min)
+    ctx = Context(et=et, column=column, simple_max=simple_max, simple_min=simple_min,
+                  output_weights=output_weights or {})
     logics = list(config.items())
 
     # --- structure pass: every match, once, indexed by the node it would write

@@ -28,6 +28,7 @@ Date: 2026-11-10
     - Now the default archivation is .tar.xz instead of .zip. (#210)
     - Removed zip archivation approach. (#210)
     - Removed `--max-labeling` and `--no-partial-labeling` in favour of `--labeling`. (#223)
+    - The labeller can break a node by inverting its own output (a single NOT), instead of only freeing its value: that is the error an output costs, which the OutputDriver rule needs when labelling relative to the origin (relative to the previous circuit it is `2**i` and needs no query). (#223)
     - Labelling level 0 keeps the previous hardcoded rules, levels 10-90 progressively enable SimpleNot, OutputDriver, the single-successor copy and the structural bounds at ever looser thresholds, and 100 labels with `simple_min`/`simple_max` and solves nothing; every level reproduces the previous models on the shipped benchmarks. (#223)
   Bugfixes:
     - The generated solver and labelling scripts now run with the interpreter executing `main.py`, instead of whatever `python3` resolves to on the PATH. (#85)

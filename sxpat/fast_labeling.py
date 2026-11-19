@@ -384,6 +384,19 @@ def label_with_patterns(
         if relative_to_origin or 2 ** int(name[3:]) <= et:
             relevant |= nx.ancestors(current_graph._inner, name)
 
+    # what inverting an output costs: `2**i` relative to the current circuit; relative to the
+    # origin it has to be computed, and that is exactly the "invert this node's output" fault
+    output_weights: Dict[int, int] = {}
+    if specs_obj.labeling_relative_to == LabelingRelativeTo.ORIGIN and labeller is not None:
+        inverter = Labelling(
+            exact_graph, current_graph, specs_obj,
+            minimise=column == 'min', use_functions=True, fault=Labelling.INVERT_FAULT,
+        )
+        for name in view.outputs:
+            output_weights[int(name[3:])] = inverter.label_node(name)
+    else:
+        output_weights = {int(name[3:]): 2 ** int(name[3:]) for name in view.outputs}
+
     def solve(name: str) -> int:
         # a node driving one output alone is exactly that output's bit, no query needed
         if skip_at_output:
@@ -401,7 +414,7 @@ def label_with_patterns(
         lambda pattern, name: patterns_engine.PATTERNS[pattern](view, name),
         column=column, et=et, config=config,
         simple_max=simple_max, simple_min=simple_min,
-        seeds=seeds, solve=solve, relevant=relevant,
+        seeds=seeds, solve=solve, relevant=relevant, output_weights=output_weights,
     )
     specs_obj.labeling_stats = stats
     return weights

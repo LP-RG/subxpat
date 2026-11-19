@@ -561,8 +561,10 @@ def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> 
 
     def engine_config():
         column = 'min' if specs_obj.labeling in (LabelingType.MIN, LabelingType.SAMPLE_MIN) else 'max'
-        config = (labeling_patterns.RuleConfig() if specs_obj.labeling_level == 100
-                  else labeling_patterns.config_for_level(specs_obj.labeling_level, column))
+        reference = 'origin' if relative_to_origin else 'current'
+        config = (labeling_patterns.RuleConfig(output_driver_relative_to=reference)
+                  if specs_obj.labeling_level == 100
+                  else labeling_patterns.config_for_level(specs_obj.labeling_level, column, reference))
         if specs_obj.labeling_rules:
             config = config.with_overrides(**specs_obj.labeling_rules)
         return config
