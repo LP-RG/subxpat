@@ -2,14 +2,13 @@ from typing import Mapping, Optional, Sequence, Tuple, Union, TypeVar, NamedTupl
 from typing_extensions import final
 from abc import abstractmethod, ABCMeta
 
-from sxpat.graph import Graph
+from sxpat.graph import Graph, GraphBuilder
 from sxpat.graph.node import ForAll, Max, Min, PlaceHolder, GlobalTask, GreaterThan, Identity, LessThan, PlaceHolder, Target, Constraint, IntConstant
 from sxpat.specifications import Specifications
 from sxpat.utils.decorators import make_utility_class
 
 from sxpat.constants import SolverConstants as SC
 from sxpat.utils.print import pprint
-from sxpat.graph.graphCreators import GraphBuilder
 from sxpat.graph.components import Constraints
 
 
@@ -177,13 +176,23 @@ class Solver(metaclass=ABCMeta):
 
         :authors: Marco Biasion
         """
+        optimize_target_operand: str
+        for graph in graphs:
+            if any(optimize_target.name == n.name for n in graph.nodes):
+                optimize_target_operand = graph.base_components['Topology'].operand(optimize_target)
+
+        graph_builder = GraphBuilder()
+        graph_builder.add_autofill_component('Constraints')
 
         # define common extra nodes
-        extra_nodes = (
-            PlaceHolder(optimize_target.operand),
-            Identity(SC.optimization.identity, operands=(optimize_target.operand,)),
-            Target(SC.optimization.target, operands=(SC.optimization.identity,)),
-        )
+        # extra_nodes = (
+        #     PlaceHolder(optimize_target_operand),
+        #     Identity(SC.optimization.identity, operands=(optimize_target_operand,)),
+        #     Target(SC.optimization.target, operands=(SC.optimization.identity,)),
+        # )
+        graph_builder.add_node(optimize_target_operand, PlaceHolder)
+        graph_builder.add_node(SC.optimization.identity, Identity).add_operands([optimize_target_operand])
+        graph_builder.add_node(SC.optimization.target, Target).add_operands([SC.optimization.identity])
         # define node class for the optimization comparison
         comparison_class = {
             Max: GreaterThan,
@@ -195,17 +204,11 @@ class Solver(metaclass=ABCMeta):
         previous_value = None
         while True:
             # define custom Constraints Graph with rules for the optimization
-            if previous_value is None:
-                _extra_nodes = extra_nodes
-            else:
-                _extra_nodes = (
-                    *extra_nodes,
-                    IntConstant(SC.optimization.constant, value=previous_value),
-                    comparison_class(SC.optimization.rule, operands=(SC.optimization.identity, SC.optimization.constant)),
-                    Constraint(SC.optimization.constraint, operands=(SC.optimization.rule,)),
-                )
-            _extra_nodes = list(_extra_nodes)
-            _graphs = (*graphs, Graph(_extra_nodes, [Constraints(_extra_nodes)]))
+            if not previous_value is None:
+                graph_builder.add_node(SC.optimization.constant, IntConstant).add_extras(value=previous_value)
+                graph_builder.add_node(SC.optimization.rule, comparison_class).add_operands([SC.optimization.identity, SC.optimization.constant])
+                graph_builder.add_node(SC.optimization.constraint, Constraint).add_operands([SC.optimization.rule])
+            _graphs = (*graphs, graph_builder.create())
 
             # solve
             _global_targets = GlobalTasks(forall=forall_target)
@@ -262,13 +265,17 @@ class Solver(metaclass=ABCMeta):
                     )
 
                     graph_builder = GraphBuilder()
-                    graph_builder.add_inherited_nodes([
-                        n 
-                        for n in graph.nodes
-                        if n.name not in task_names and n.name not in placeholder_names
-                    ], graph)
+                    graph_builder.add_autofill_component('Constraints')
+                    # graph_builder.add_inherited_nodes([
+                    #     n 
+                    #     for n in graph.nodes
+                    #     if n.name not in task_names and n.name not in placeholder_names
+                    # ], graph)
+                    for n in graph.nodes:
+                        if n.name not in task_names and n.name not in placeholder_names:
+                            graph_builder.add_node_from(n, graph)
 
-                    graph = graph_builder.create(with_constraints_component=True)
+                    graph = graph_builder.create()
 
             _graphs.append(graph)
 

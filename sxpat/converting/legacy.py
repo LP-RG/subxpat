@@ -2,7 +2,7 @@ from typing import Iterable, Mapping
 
 import networkx as nx
 
-from sxpat.graph import Graph
+from sxpat.graph import Graph, GraphBuilder
 from sxpat.graph.node import BoolVariable, BoolConstant, And, Not, Identity
 from sxpat.utils.functions import str_to_bool
 from sxpat.graph.components import IO
@@ -16,7 +16,7 @@ def graph_from_digraph(clean_digraph: nx.DiGraph) -> Graph:
     gtypes = {'not': Not, 'and': And}
 
     # construct nodes and extract inputs/outputs
-    nodes = list()
+    graph_builder = GraphBuilder()
     inputs_names = list()
     outputs_names = list()
     for (node, attrs) in clean_digraph.nodes(True):
@@ -24,33 +24,34 @@ def graph_from_digraph(clean_digraph: nx.DiGraph) -> Graph:
 
         if ntype == 'input':
             inputs_names.append(node)
-            nodes.append(BoolVariable(node))
+            graph_builder.add_node(node, BoolVariable)
         elif ntype == 'output':
             outputs_names.append(node)
-            nodes.append(Identity(
-                node,
-                clean_digraph.predecessors(node),  # type: ignore
-            ))
+            graph_builder.add_node(node, Identity).add_operands(list(clean_digraph.predecessors(node)))
+            # nodes.append(Identity(
+            #     node,
+            #     clean_digraph.predecessors(node),  # type: ignore
+            # ))
         elif ntype == 'gate':
             cls = gtypes[attrs.get('label')]
-            nodes.append(cls(
-                node,
-                clean_digraph.predecessors(node),  # type: ignore
-            ))
+            graph_builder.add_node(node, cls).add_operands(list(clean_digraph.predecessors(node)))
+            # nodes.append(cls(
+            #     node,
+            #     clean_digraph.predecessors(node),  # type: ignore
+            # ))
         elif ntype == 'constant':
-            nodes.append(BoolConstant(
-                node,
-                str_to_bool(attrs.get('label')),
-            ))
+            graph_builder.add_node(node, BoolConstant).add_extras(value=str_to_bool(attrs.get('label')))
+            # nodes.append(BoolConstant(
+            #     node,
+            #     str_to_bool(attrs.get('label')),
+            # ))
         else:
             raise RuntimeError(f'Unable to parse node {node} from DiGraph (attributes={attrs})')
 
     # construct graph
-    return Graph(
-        nodes,
-        [IO(inputs_names=sorted(inputs_names, key=lambda x: int(x[2:])),
-            outputs_names=sorted(outputs_names, key=lambda x: int(x[3:])))],
-    )
+    graph_builder.add_base_component(IO({'inputs_names': sorted(inputs_names, key=lambda x: int(x[2:])),
+                                         'outputs_names': sorted(outputs_names, key=lambda x: int(x[3:]))}))
+    return graph_builder.create()
 
 def graph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> Graph:
     # graph_from_digraph used for performance testing
@@ -60,9 +61,9 @@ def graph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> Graph:
     num_outputs = 0 
     num_gates = 0
     num_constants = 0
-
+    
     # construct nodes and extract inputs/outputs
-    nodes = list()
+    graph_builder = GraphBuilder()
     inputs_names = list()
     outputs_names = list()
     for (node, attrs) in clean_digraph.nodes(True):
@@ -71,39 +72,27 @@ def graph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> Graph:
         if ntype == 'input':
             num_inputs += 1
             inputs_names.append(node)
-            nodes.append(BoolVariable(node))
+            graph_builder.add_node(node, BoolVariable)
         elif ntype == 'output':
             num_outputs += 1
             outputs_names.append(node)
-            nodes.append(Identity(
-                node,
-                clean_digraph.predecessors(node),  # type: ignore
-            ))
+            graph_builder.add_node(node, Identity).add_operands(list(clean_digraph.predecessors(node)))
         elif ntype == 'gate':
             num_gates += 1
             cls = gtypes[attrs.get('label')]
-            nodes.append(cls(
-                node,
-                clean_digraph.predecessors(node),  # type: ignore
-            ))
+            graph_builder.add_node(node, cls).add_operands(list(clean_digraph.predecessors(node)))
         elif ntype == 'constant':
             num_constants += 1
-            nodes.append(BoolConstant(
-                node,
-                str_to_bool(attrs.get('label')),
-            ))
+            graph_builder.add_node(node, BoolConstant).add_extras(value=str_to_bool(attrs.get('label')))
         else:
             raise RuntimeError(f'Unable to parse node {node} from DiGraph (attributes={attrs})')
 
     info.extend([str(num_inputs), str(num_outputs), str(num_gates), str(num_constants)])
-
+    
     # construct graph
-    return Graph(
-        nodes,
-        [IO(inputs_names=sorted(inputs_names, key=lambda x: int(x[2:])),
-            outputs_names=sorted(outputs_names, key=lambda x: int(x[3:])))],
-    )
-
+    graph_builder.add_base_component(IO({'inputs_names': sorted(inputs_names, key=lambda x: int(x[2:])),
+                                            'outputs_names': sorted(outputs_names, key=lambda x: int(x[3:]))}))
+    return graph_builder.create()
 
 # COMMENT:from-MARCO: good to leave these commented out for now, we will remove it at the end
 

@@ -6,7 +6,6 @@ from sxpat.graph.graph import *
 from sxpat.graph.node import *
 from sxpat.specifications import Specifications
 from sxpat.utils.collections import iterable_replace_index
-from sxpat.graph.graphCreators import GraphBuilder
 from sxpat.graph.components import IO
 
 
@@ -23,65 +22,84 @@ class Labelling:
 
         a_graph: Graph = set_prefix_new(graph, 'a_', it.chain(graph.base_components['IO'].inputs_names))
 
+        template_graph_builder = GraphBuilder()
+
         labeled_node = accs[0]
         labeled_node_name = labeled_node if labeled_node[:2] == 'in' else 'a_' + labeled_node
-        not_node = Not(f'not_{labeled_node}', operands=(labeled_node_name,))
+        not_node = template_graph_builder.add_node(f'not_{labeled_node}', Not).add_operands([labeled_node_name]).current
 
         updated_nodes: dict[str, Node] = dict()
         for succ in a_graph.successors(labeled_node_name):
-            new_operands = iterable_replace_index(succ.operands, succ.operands.index(labeled_node_name), not_node.name)
-            updated_nodes[succ.name] = succ.copy(operands=new_operands)
+            succ_operands = a_graph.base_components['Topology'].operands(succ.name)
+            new_operands = iterable_replace_index(succ_operands, succ_operands.index(labeled_node_name), not_node.name)
+            # updated_nodes[succ.name] = succ.copy(operands=new_operands)
+            updated_nodes[succ.name] = template_graph_builder.add_node_from_node(
+                succ,
+                a_graph,
+                operands=list(new_operands)
+            ).current
         constraint_nodes = []
         nodes_to_place_hold = []
 
-        template_graph_builder = GraphBuilder()
-        template_graph_builder.add_inherited_nodes([
-            n
-            for n in a_graph.nodes
-            if n.name not in updated_nodes
-        ], a_graph)
-        template_graph_builder.add_new_node(not_node)
-        for node in updated_nodes.values():
-            template_graph_builder.add_new_node(
-                node,
-                in_subgraph=a_graph.base_components['Subgraph'].in_subgraph(node.name),
-                weight=a_graph.base_components['Weight'].get(node.name))
-        template_graph_builder.add_new_nodes(constraint_nodes)
+        # template_graph_builder.add_inherited_nodes([
+        #     n
+        #     for n in a_graph.nodes
+        #     if n.name not in updated_nodes
+        # ], a_graph)
+        for n in a_graph.nodes:
+            if n.name not in updated_nodes:
+                template_graph_builder.add_node_from(n, a_graph)
+        
+        # template_graph_builder.add_new_node(not_node)
 
-        template_graph = template_graph_builder.create(extra_components=[
-                                                           IO(a_graph.base_components['IO'].inputs_names, 
-                                                              a_graph.base_components['IO'].outputs_names)
-                                                       ])
+        # for node in updated_nodes.values():
+        #     template_graph_builder.add_new_node(
+        #         node,
+        #         in_subgraph=a_graph.base_components['Subgraph'].in_subgraph(node.name),
+        #         weight=a_graph.base_components['Weight'].get(node.name))
+        # template_graph_builder.add_new_nodes(constraint_nodes)
 
-        new_nodes = [
-            cur_int := ToInt('cur_int', operands=graph.base_components['IO'].outputs_names),
-            tem_int := ToInt('tem_int', operands=template_graph.base_components['IO'].outputs_names),
-            abs_diff := AbsDiff('weight', operands=(cur_int.name, tem_int.name)),
-            {
-                True: Min('minimize_error', operands=(abs_diff.name,)),
-                False: Max('maximize_error', operands=(abs_diff.name,))
-            }[min_labeling]
-        ]
+        template_graph_builder.add_base_component(IO({'inputs_names': a_graph.base_components['IO'].inputs_names, 
+                                                      'outputs_names': a_graph.base_components['IO'].outputs_names}))
+        template_graph = template_graph_builder.create()
 
-        if min_labeling:
-            new_nodes.extend([
-                zero := IntConstant('Zero', value=0),
-                gt := GreaterThan('GT_0', operands=(abs_diff.name, zero.name)),
-                Constraint.of(gt),
-            ])
 
         constraint_graph_builder = GraphBuilder()
-        constraint_graph_builder.add_new_nodes([
-            PlaceHolder(name)
-            for name in it.chain(
-                graph.base_components['IO'].outputs_names,
-                template_graph.base_components['IO'].outputs_names,
-                nodes_to_place_hold
-            )
-        ])
-        constraint_graph_builder.add_new_nodes(new_nodes)
-        constraint_graph_builder.add_new_node(Target.of(abs_diff))
-        constraint_graph = constraint_graph_builder.create(with_constraints_component=True)
+        constraint_graph_builder.add_autofill_component('Constraints')
+
+        # new_nodes = [
+        #     cur_int := ToInt('cur_int', operands=graph.base_components['IO'].outputs_names),
+        #     tem_int := ToInt('tem_int', operands=template_graph.base_components['IO'].outputs_names),
+        #     abs_diff := AbsDiff('weight', operands=(cur_int.name, tem_int.name)),
+        #     {
+        #         True: Min('minimize_error', operands=(abs_diff.name,)),
+        #         False: Max('maximize_error', operands=(abs_diff.name,))
+        #     }[min_labeling]
+        # ]
+        cur_int = constraint_graph_builder.add_node('cur_int', ToInt).add_operands(list(graph.base_components['IO'].outputs_names)).current
+        tem_int = constraint_graph_builder.add_node('tem_int', ToInt).add_operands(list(template_graph.base_components['IO'].outputs_names)).current
+        abs_diff = constraint_graph_builder.add_node('weight', AbsDiff).add_operands([cur_int.name, tem_int.name]).current
+        if min_labeling:
+            constraint_graph_builder.add_node('minimize_error', Min).add_operands([abs_diff.name])
+        else:
+            constraint_graph_builder.add_node('maximize_error', Max).add_operands([abs_diff.name])
+
+        if min_labeling:
+            zero = constraint_graph_builder.add_node('Zero', IntConstant).add_extras(value=0).current
+            gt = constraint_graph_builder.add_node('GT_0', GreaterThan).add_operands([abs_diff.name, zero.name]).current
+            constraint_name, operands = Constraint.of(gt)
+            constraint_graph_builder.add_node(constraint_name, Constraint).add_operands(operands)
+        
+        # placeholders
+        for name in it.chain(graph.base_components['IO'].outputs_names,
+                             template_graph.base_components['IO'].outputs_names,
+                             nodes_to_place_hold):
+            constraint_graph_builder.add_node(name, PlaceHolder)
+
+        target_name, operands = Target.of(abs_diff)
+        constraint_graph_builder.add_node(target_name, Target).add_operands(operands)
+        # constraint_graph_builder.add_new_node(Target.of(abs_diff))
+        constraint_graph = constraint_graph_builder.create()
 
         return (template_graph, constraint_graph)
 

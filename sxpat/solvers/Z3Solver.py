@@ -14,8 +14,7 @@ from .Solver import Solver
 from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.graph import *
 from sxpat.graph.node import *
-from sxpat.graph.graphCreators import GraphCopier
-from sxpat.graph.components import IO
+from sxpat.graph.components import IO, Parameter, Topology
 
 
 __all__ = [
@@ -32,38 +31,38 @@ class Z3Encoder:
     :authors: Marco Biasion
     """
 
-    node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Sequence[str], Sequence[Any]], str]]
+    node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Graph, Sequence[str], Sequence[Any]], str]]
     type_mapping: Mapping[Type[Union[int, bool]], Callable[[Sequence[Any]], str]]
     solver_construct: Mapping[Type[Union[ForAll, Min, Max, None]], str]
     node_accessories: Callable[[Sequence[Any]], Callable[[Node], Sequence[Any]]]
 
-    constraints_assertion: Mapping[Type[Union[ForAll, Min, Max, None]], Callable[[str, str, Sequence[str]], Sequence[str]]] = {
-        type(None): lambda solver_name, task, assertions: [
+    constraints_assertion: Mapping[Type[Union[ForAll, Min, Max, None]], Callable[[str, Union[ForAll, Min, Max, None], Union[Topology, None], Sequence[str]], Sequence[str]]] = {
+        type(None): lambda solver_name, node, topology, assertions: [
             f'{solver_name}.add(',
             *(f'    {a},' for a in assertions),
             f')',
         ],
-        ForAll: lambda solver_name, forall, assertions: [
+        ForAll: lambda solver_name, forall, topology , assertions: [
             f'{solver_name}.add(',
             f'    ForAll(',
-            f'        [{",".join(forall.operands)}],',
+            f'        [{",".join(topology.operands(forall.name))}],',
             f'        And(',
             *(f'            {a},' for a in assertions),
             f'        )',
             f'    )',
             f')',
         ],
-        Min: lambda solver_name, min, assertions: [
+        Min: lambda solver_name, min, topology, assertions: [
             f'{solver_name}.add(',
             *(f'    {a},' for a in assertions),
             f')',
-            f'{solver_name}.minimize({min.operand})',
+            f'{solver_name}.minimize({topology.operand(min)})',
         ],
-        Max: lambda solver_name, max, assertions: [
+        Max: lambda solver_name, max, topology, assertions: [
             f'{solver_name}.add(',
             *(f'    {a},' for a in assertions),
             f')',
-            f'{solver_name}.maximize({max.operand})',
+            f'{solver_name}.maximize({topology.operand(max)})',
         ],
     }
 
@@ -116,7 +115,7 @@ class Z3Encoder:
     def inject_variables(cls, destination: IO[str], graphs: Solver._Graphs,
                          accessories: Callable[[Node], Sequence[Any]]) -> None:
         variables = {  # ignore duplicates
-            node.name: node
+            node.name: graph
             for graph in graphs
             for node in graph.nodes
             if graph.base_components['Types'].instance_of(node, [Variable])
@@ -124,8 +123,8 @@ class Z3Encoder:
         destination.write('\n'.join((
             '# variables (inputs, parameters)',
             *(
-                f'{name} = {cls.node_mapping[type(node)](node, None, accessories(node))}'
-                for (name, node) in variables.items()
+                f'{name} = {cls.node_mapping[type(node)](graph[name], graph, None, accessories(graph[name]))}'
+                for (name, graph) in variables.items()
             ),
             *('',) * 2,
         )))
@@ -134,7 +133,7 @@ class Z3Encoder:
     def inject_constants(cls, destination: IO[str], graphs: Solver._Graphs,
                          accessories: Callable[[Node], Sequence[Any]]) -> None:
         constants = {  # ignore duplicates
-            node.name: node
+            node.name: graph
             for graph in graphs
             for node in graph.nodes
             if graph.base_components['Types'].instance_of(node, [Constant])
@@ -142,8 +141,8 @@ class Z3Encoder:
         destination.write('\n'.join((
             '# constants',
             *(
-                f'{name} = {cls.node_mapping[type(node)](node, None, accessories(node))}'
-                for (name, node) in constants.items()
+                f'{name} = {cls.node_mapping[type(node)](graph[name], graph, None, accessories(graph[name]))}'
+                for (name, graph) in constants.items()
             ),
             *('',) * 2,
         )))
@@ -162,7 +161,7 @@ class Z3Encoder:
             f'if status == sat:',
             f'    model = solver.model()',
             *(
-                f'    print(\'{n_target.operand}\', model.eval({v_target.operand}, model_completion=True))'
+                f'    print(\'{n_graph.base_components['Topology'].operand(n_target)}\', model.eval({v_graph.base_components['Topology'].operand(v_target)}, model_completion=True))'
                 for (n_graph, v_graph) in zip(name_graphs, value_graphs)
                 for (n_target, v_target) in zip(n_graph.targets, v_graph.targets)
             ),
@@ -178,63 +177,58 @@ class Z3FuncEncoder(Z3Encoder):
     """
 
     @staticmethod
-    def _all_names(nodes: Iterable[Node]) -> Iterator[str]:
+    def _all_names(nodes: Iterable[Node], graph: Graph) -> Iterator[str]:
+        topology_component = graph.base_components['Topology']
         seen_names = set()
         for node in nodes:
             if node.name not in seen_names:
                 seen_names.add(node.name)
                 yield node.name
             if isinstance(node, Operation):
-                for name in node.operands:
+                for name in topology_component.operands(node):
                     if name not in seen_names:
                         seen_names.add(name)
                         yield name
 
-    @classmethod
-    @overload
-    def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str]
-                                ) -> Sequence[Node]:
-        """
-        Given a sequence of nodes in input, returns a new sequence with all nodes updated
-        to have their name being the equivalent z3 uninterpreted function call.
-        """
+    # @classmethod
+    # @overload
+    # def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str]
+    #                             ) -> Sequence[Node]:
+    #     """
+    #     Given a sequence of nodes in input, returns a new sequence with all nodes updated
+    #     to have their name being the equivalent z3 uninterpreted function call.
+    #     """
+
+    # @classmethod
+    # @overload
+    # def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str],
+    #                             *, get_mapping: Literal[True]
+    #                             ) -> Tuple[Sequence[Node], Mapping[str, str]]:
+    #     """
+    #     Given a sequence of nodes in input, returns a new sequence with all nodes updated
+    #     to have their name being the equivalent z3 uninterpreted function call, and the names mapping.
+    #     """
 
     @classmethod
-    @overload
-    def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str],
-                                *, get_mapping: Literal[True]
-                                ) -> Tuple[Sequence[Node], Mapping[str, str]]:
+    def nodes_names_as_function_calls(cls, 
+                                      nodes: Iterable[Node], 
+                                      graph: Graph,
+                                      inputs_string: str, 
+                                      non_gates_names: Container[str]) -> Mapping[str, str]:
         """
-        Given a sequence of nodes in input, returns a new sequence with all nodes updated
-        to have their name being the equivalent z3 uninterpreted function call, and the names mapping.
+        Given a sequence of nodes in input, returns a mapping between their old names their updated
+        names, to have the updated names being the equivalent z3 uninterpreted function calls.
+
+        :authors: Marco Biasion, Ilia Zeller
         """
 
-    @classmethod
-    def nodes_as_function_calls(cls, nodes: Iterable[Node], inputs_string: str, non_gates_names: Container[str],
-                                *, get_mapping: bool = False):
-        """
-        :authors: Marco Biasion
-        """
-
-        # copute updated names
+        # compute updated names
         updated_names: Mapping[str, str] = {
             name: name if name in non_gates_names else f'{name}({inputs_string})'
-            for name in cls._all_names(nodes)
+            for name in cls._all_names(nodes, graph)
         }
 
-        # node conversion
-        nodes = tuple(
-            (
-                node.copy(name=updated_names[node.name], operands=(updated_names[name] for name in node.operands))
-                if isinstance(node, Operation) else
-                node.copy(name=updated_names[node.name])
-            )
-            for node in nodes
-        )
-
-        #
-        if get_mapping: return (nodes, updated_names)
-        else: return nodes
+        return updated_names
 
     @classmethod
     def graph_as_function_calls(cls, graph: Graph,
@@ -247,31 +241,41 @@ class Z3FuncEncoder(Z3Encoder):
         :authors: Marco Biasion
         """
 
-        nodes, updated_names = cls.nodes_as_function_calls(
-            graph.nodes, inputs_string, non_gates_names,
-            get_mapping=True
+        updated_names = cls.nodes_names_as_function_calls(
+            graph.nodes, graph, inputs_string, non_gates_names
         )
 
-        updated_names_inverted: Dict[str, str] = dict()
-        for x, y in updated_names.items():
-            updated_names_inverted[y] = x
-
-        # update extras (if needed)
-        extra_components: List[Component] = list()
-        if graph.has_base_component('IO'):
-            extra_components.append(
-                IO(inputs_names=graph.base_components['IO'].inputs_names,
-                   outputs_names=[updated_names[name] for name in graph.base_components['IO'].outputs_names])
-            )
-
         graph_copier = GraphCopier(graph)
-        for node in nodes:
-            graph_copier.add_node(
-                node, 
-                in_subgraph=graph.base_components['Subgraph'].in_subgraph(updated_names_inverted[node.name]),
-                weight=graph.base_components['Weight'].get(updated_names_inverted[node.name])
+        if graph.has_base_component('Constraints'):
+            graph_copier.add_autofill_component('Constraints')
+        types_component = graph.base_components['Types']
+        if graph.has_base_component('IO'):
+            graph_copier.add_base_component(
+                IO({'inputs_names': [updated_names[name] for name in graph.base_components['IO'].inputs_names],
+                    'outputs_names': [updated_names[name] for name in graph.base_components['IO'].outputs_names]
+                })
             )
-        return graph_copier.copy(extra_components)
+        if graph.has_base_component('Parameter'):
+            graph_copier.add_base_component(
+                Parameter(parameters_names=[updated_names[name] for name in graph.base_components['Parameter'].parameters_names])
+            )
+
+        topology_component = graph.base_components['Topology']
+        for node in graph.nodes:
+            if types_component.instance_of(node.name, [Operation]):
+                operands=[updated_names[name] for name in topology_component.operands(node.name)]
+                graph_copier.add_node_from_node(
+                    node,
+                    name=updated_names[node.name],
+                    operands=operands
+                )
+            else:
+                graph_copier.add_node_from_node(
+                    node,
+                    name=updated_names[node.name]
+                )
+        
+        return graph_copier.copy()
 
     @classmethod
     def encode(cls, graphs: Solver._Graphs,
@@ -298,9 +302,16 @@ class Z3FuncEncoder(Z3Encoder):
             for graph in graphs
         )
         # update global_task if present (mainly useful for operands)
+        global_task_topology: Topology | None = None
         if global_task:
-            global_task = cls.nodes_as_function_calls([global_task], inputs_string, non_gates_names)[0] 
-            #CORRECT TO LEAVE IT LIKE THIS? (since the change in nodes_as_function_calls)
+            # global_task = cls.nodes_as_function_calls([global_task], inputs_string, non_gates_names)[0]
+            global_task_graph: Graph
+            for graph in graphs:
+                if any(global_task.name == node.name for node in graph.nodes):
+                    global_task_topology = graph.base_components['Topology']
+                    global_task_graph = graph
+            updated_names = cls.nodes_names_as_function_calls([global_task], global_task_graph, inputs_string, non_gates_names)
+            global_task = type(global_task)(name=updated_names[global_task.name])
 
         # gather constraints graphs
         c_graphs = tuple(graph for graph in graphs if graph.has_base_component('Constraints'))
@@ -332,7 +343,7 @@ class Z3FuncEncoder(Z3Encoder):
             '# behaviour',
             'behaviour = And(',
             *(
-                f'    {node.name} == {node_mapping[type(node)](node, node.operands, accessories(node))},'
+                f'    {node.name} == {node_mapping[type(node)](node, call_graph, call_graph.base_components['Topology'].operands(node), accessories(node))},'
                 for call_graph in call_graphs
                 for node in call_graph.expressions
             ),
@@ -344,7 +355,7 @@ class Z3FuncEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# usage',
             'usage = And(', *(
-                f'    {constraint_node.operand},'
+                f'    {call_graph.base_components['Topology'].operand(constraint_node)},'
                 for call_graph in call_c_graphs
                 for constraint_node in call_graph.base_components['Constraints'].constraints
             ), ')',
@@ -355,7 +366,7 @@ class Z3FuncEncoder(Z3Encoder):
         destination.write('\n'.join((
             f'# define solver',
             f'solver = {solver_construct[type(global_task)]}',
-            *constraint_assertion[type(global_task)]('solver', global_task, ['behaviour', 'usage']),
+            *constraint_assertion[type(global_task)]('solver', global_task, global_task_topology, ['behaviour', 'usage']),
             *('',) * 2,
         )))
 
@@ -396,7 +407,7 @@ class Z3DirectEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# behaviour',
             *(
-                f'{node.name} = {node_mapping[type(node)](node, node.operands, accessories(node))}'
+                f'{node.name} = {node_mapping[type(node)](node, graph, graph.base_components['Topology'].operands(node), accessories(node))}'
                 for graph in graphs
                 for node in graph.expressions
             ),
@@ -407,7 +418,7 @@ class Z3DirectEncoder(Z3Encoder):
         destination.write('\n'.join((
             '# usage',
             'usage = And(', *(
-                f'    {constraint_node.operand},'
+                f'    {graph.base_components['Topology'].operand(constraint_node)},'
                 for graph in graphs
                 if graph.has_base_component('Constraints')
                 for constraint_node in graph.base_components['Constraints'].constraints
@@ -415,11 +426,17 @@ class Z3DirectEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
+        global_task_topology: Topology | None = None
+        if global_task:
+            for graph in graphs:
+                if any(global_task.name == node.name for node in graph.nodes):
+                    global_task_topology = graph.base_components['Topology']
+
         # solver
         destination.write('\n'.join((
             f'# define solver',
             f'solver = {solver_construct[type(global_task)]}',
-            *constraint_assertion[type(global_task)]('solver', global_task, ['usage']),
+            *constraint_assertion[type(global_task)]('solver', global_task, global_task_topology, ['usage']),
             *('',) * 2,
         )))
 
@@ -430,57 +447,57 @@ class Z3DirectEncoder(Z3Encoder):
 # Node to Z3 expression
 Z3_INT_NODE_MAPPING = {
     # variables
-    BoolVariable: lambda n, operands, accs: f'Bool(\'{n.name}\')',
-    IntVariable: lambda n, operands, accs: f'Int(\'{n.name}\')',
+    BoolVariable: lambda n, g, operands, accs: f'Bool(\'{n.name}\')',
+    IntVariable: lambda n, g, operands, accs: f'Int(\'{n.name}\')',
     # constants
-    BoolConstant: lambda n, operands, accs: f'BoolVal({n.value})',
-    IntConstant: lambda n, operands, accs: f'IntVal({n.value})',
+    BoolConstant: lambda n, g, operands, accs: f'BoolVal({g.base_components['Values'].get(n)})',
+    IntConstant: lambda n, g, operands, accs: f'IntVal({g.base_components['Values'].get(n)})',
     # output
-    Identity: lambda n, operands, accs: operands[0],
-    Target: lambda n, operands, accs: operands[0],
+    Identity: lambda n, g, operands, accs: operands[0],
+    Target: lambda n, g, operands, accs: operands[0],
     # placeholder
-    PlaceHolder: lambda n, operands, accs: n.name,
+    PlaceHolder: lambda n, g, operands, accs: n.name,
     # boolean operations
-    Not: lambda n, operands, accs: f'Not({operands[0]})',
-    And: lambda n, operands, accs: f'And({", ".join(operands)})',
-    Or: lambda n, operands, accs: f'Or({", ".join(operands)})',
-    Xor: lambda n, operands, accs: f'({operands[0]} != {operands[1]})',
-    Xnor: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
-    Implies: lambda n, operands, accs: f'Implies({operands[0]}, {operands[1]})',
+    Not: lambda n, g, operands, accs: f'Not({operands[0]})',
+    And: lambda n, g, operands, accs: f'And({", ".join(operands)})',
+    Or: lambda n, g, operands, accs: f'Or({", ".join(operands)})',
+    Xor: lambda n, g, operands, accs: f'({operands[0]} != {operands[1]})',
+    Xnor: lambda n, g, operands, accs: f'({operands[0]} == {operands[1]})',
+    Implies: lambda n, g, operands, accs: f'Implies({operands[0]}, {operands[1]})',
     # integer operations
-    Sum: lambda n, operands, accs: f'Sum({", ".join(operands)})',
-    AbsDiff: lambda n, operands, accs: f'If({operands[0]} >= {operands[1]}, {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
-    Mul: lambda n, operands, accs: f'{" * ".join(operands)}',
-    Div: lambda n, operands, accs: f'({operands[0]} / {operands[1]})',
+    Sum: lambda n, g, operands, accs: f'Sum({", ".join(operands)})',
+    AbsDiff: lambda n, g, operands, accs: f'If({operands[0]} >= {operands[1]}, {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
+    Mul: lambda n, g, operands, accs: f'{" * ".join(operands)}',
+    Div: lambda n, g, operands, accs: f'({operands[0]} / {operands[1]})',
     # comparison operations
-    Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
-    NotEquals: lambda n, operands, accs: f'({operands[0]} != {operands[1]})',
-    LessThan: lambda n, operands, accs: f'({operands[0]} < {operands[1]})',
-    LessEqualThan: lambda n, operands, accs: f'({operands[0]} <= {operands[1]})',
-    GreaterThan: lambda n, operands, accs: f'({operands[0]} > {operands[1]})',
-    GreaterEqualThan: lambda n, operands, accs: f'({operands[0]} >= {operands[1]})',
+    Equals: lambda n, g, operands, accs: f'({operands[0]} == {operands[1]})',
+    NotEquals: lambda n, g, operands, accs: f'({operands[0]} != {operands[1]})',
+    LessThan: lambda n, g, operands, accs: f'({operands[0]} < {operands[1]})',
+    LessEqualThan: lambda n, g, operands, accs: f'({operands[0]} <= {operands[1]})',
+    GreaterThan: lambda n, g, operands, accs: f'({operands[0]} > {operands[1]})',
+    GreaterEqualThan: lambda n, g, operands, accs: f'({operands[0]} >= {operands[1]})',
     # quantifier operations
-    AtLeast: lambda n, operands, accs: f'AtLeast({", ".join(operands)}, {n.value})',
-    AtMost: lambda n, operands, accs: f'AtMost({", ".join(operands)}, {n.value})',
+    AtLeast: lambda n, g, operands, accs: f'AtLeast({", ".join(operands)}, {g.base_components['Values'].get(n)})',
+    AtMost: lambda n, g, operands, accs: f'AtMost({", ".join(operands)}, {g.base_components['Values'].get(n)})',
     # branching operations
-    Multiplexer: lambda n, operands, accs: f'If({operands[1]}, If({operands[2]}, {operands[0]}, Not({operands[0]})), {operands[2]})',
-    If: lambda n, operands, accs: f'If({operands[0]}, {operands[1]}, {operands[2]})',
+    Multiplexer: lambda n, g, operands, accs: f'If({operands[1]}, If({operands[2]}, {operands[0]}, Not({operands[0]})), {operands[2]})',
+    If: lambda n, g, operands, accs: f'If({operands[0]}, {operands[1]}, {operands[2]})',
 }
 Z3_BITVEC_NODE_MAPPING = {
     **Z3_INT_NODE_MAPPING,
     # variables
-    IntVariable: lambda n, operands, accs: f'BitVec(\'{n.name}\', {accs[0]})',
+    IntVariable: lambda n, g, operands, accs: f'BitVec(\'{n.name}\', {accs[0]})',
     # constants
-    IntConstant: lambda n, operands, accs: f'BitVecVal({n.value}, {accs[0]})',
+    IntConstant: lambda n, g, operands, accs: f'BitVecVal({g.base_components['Values'].get(n)}, {accs[0]})',
     # integer operations
-    AbsDiff: lambda n, operands, accs: f'If(UGE({operands[0]}, {operands[1]}), {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
-    Div: lambda n, operands, accs: f'UDiv({operands[0]}, {operands[1]})',
+    AbsDiff: lambda n, g, operands, accs: f'If(UGE({operands[0]}, {operands[1]}), {operands[0]} - {operands[1]}, {operands[1]} - {operands[0]})',
+    Div: lambda n, g, operands, accs: f'UDiv({operands[0]}, {operands[1]})',
     # comparison operations
-    Equals: lambda n, operands, accs: f'({operands[0]} == {operands[1]})',
-    LessThan: lambda n, operands, accs: f'ULT({operands[0]}, {operands[1]})',
-    LessEqualThan: lambda n, operands, accs: f'ULE({operands[0]}, {operands[1]})',
-    GreaterThan: lambda n, operands, accs: f'UGT({operands[0]}, {operands[1]})',
-    GreaterEqualThan: lambda n, operands, accs: f'UGE({operands[0]}, {operands[1]})',
+    Equals: lambda n, g, operands, accs: f'({operands[0]} == {operands[1]})',
+    LessThan: lambda n, g, operands, accs: f'ULT({operands[0]}, {operands[1]})',
+    LessEqualThan: lambda n, g, operands, accs: f'ULE({operands[0]}, {operands[1]})',
+    GreaterThan: lambda n, g, operands, accs: f'UGT({operands[0]}, {operands[1]})',
+    GreaterEqualThan: lambda n, g, operands, accs: f'UGE({operands[0]}, {operands[1]})',
 }
 
 # bool/int to Z3 sorts

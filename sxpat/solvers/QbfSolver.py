@@ -263,56 +263,56 @@ class Encoder:
 
     def process_BoolVariable(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         pass
 
     def process_IntVariable(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         raise NotImplementedError(f'this function isn\'t implemented yet')
 
     def process_BoolConstant(
         self,
-        n: BoolConstant, operands: list, accs: list, param: list,
+        n: BoolConstant, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
-        mapping[n.name] = [self.id_gen.get_const(n.value)]
+        mapping[n.name] = [self.id_gen.get_const(graph.base_components['Values'].get(n))]
 
     def process_IntConstant(
         self,
-        n: IntConstant, operands: list, accs: list, param: list,
+        n: IntConstant, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
-        mapping[n.name] = self._num_to_bits(n.value)
+        mapping[n.name] = self._num_to_bits(graph.base_components['Values'].get(n))
 
     def process_Identity(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         mapping[n.name] = mapping[operands[0]]
 
     def process_Target(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         pass
 
     def process_PlaceHolder(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         pass
 
     def process_Not(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         gate = self._not(mapping[operands[0]][0])
@@ -320,7 +320,7 @@ class Encoder:
 
     def process_And(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         gate = self._and(mapping[x][0] for x in operands)
@@ -328,7 +328,7 @@ class Encoder:
 
     def process_Or(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         gate = self._or(mapping[x][0] for x in operands)
@@ -336,14 +336,14 @@ class Encoder:
 
     def process_Xor(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         mapping[n.name] = [self._xor(mapping[operands[0]][0], mapping[operands[1]][0])]
 
     def process_Implies(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         gate1 = self._and(mapping[operands[0]][0], f'-{mapping[operands[1]][0]}')
@@ -352,7 +352,7 @@ class Encoder:
 
     def process_Sum(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         if len(operands) == 0:
@@ -367,7 +367,7 @@ class Encoder:
 
     def process_Mul(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         if len(operands) == 0:
@@ -382,29 +382,29 @@ class Encoder:
 
     def process_RightShift(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         assert len(operands) == 1, f"LeftShift node must have only 1 operand it had {len(operands)}: {operands}"
 
-        if n.value >= len(mapping[operands[0]]):
+        if graph.base_components['Values'].get(n) >= len(mapping[operands[0]]):
             mapping[n.name] = [self.id_gen.get_const_false()]
 
         else:
-            mapping[n.name] = [mapping[operands[0]][i] for i in range(n.value, len(mapping[operands[0]]))]
+            mapping[n.name] = [mapping[operands[0]][i] for i in range(graph.base_components['Values'].get(n), len(mapping[operands[0]]))]
 
     def process_LeftShift(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         assert len(operands) == 1, f"RightShift node must have only 1 operand it had {len(operands)}: {operands}"
 
-        mapping[n.name] = [self.id_gen.get_const_false() for i in range(n.value)] + mapping[operands[0]]
+        mapping[n.name] = [self.id_gen.get_const_false() for i in range(graph.base_components['Values'].get(n))] + mapping[operands[0]]
 
     def process_AbsDiff(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         # TODO: remove one bit
@@ -420,7 +420,7 @@ class Encoder:
 
     def process_Equals(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         res = self._test_equality_list(mapping[operands[0]], mapping[operands[1]])
@@ -428,7 +428,7 @@ class Encoder:
 
     def process_NotEquals(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         ans = self._test_equality_list(mapping[operands[0]], mapping[operands[1]])
@@ -438,7 +438,7 @@ class Encoder:
 
     def process_LessThan(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         ans = self._comparator_greater_than(mapping[operands[0]], mapping[operands[1]], or_equal=True)
@@ -448,7 +448,7 @@ class Encoder:
 
     def process_LessEqualThan(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         ans = self._comparator_greater_than(mapping[operands[0]], mapping[operands[1]])
@@ -457,7 +457,7 @@ class Encoder:
 
     def process_GreaterThan(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         ans = self._comparator_greater_than(mapping[operands[0]], mapping[operands[1]])
@@ -465,7 +465,7 @@ class Encoder:
 
     def process_GreaterEqualThan(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         ans = self._comparator_greater_than(mapping[operands[0]], mapping[operands[1]], or_equal=True)
@@ -473,25 +473,25 @@ class Encoder:
 
     def process_AtLeast(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         sum = self._count_bits([mapping[x] for x in operands])
-        num = self._num_to_bits(n.value)
+        num = self._num_to_bits(graph.base_components['Values'].get(n))
         mapping[n.name] = [self._comparator_greater_than(sum, num, or_equal=True)]
 
     def process_AtMost(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         sum = self._count_bits([mapping[x] for x in operands])
-        num = self._num_to_bits(n.value)
+        num = self._num_to_bits(graph.base_components['Values'].get(n))
         mapping[n.name] = [self._comparator_greater_than(num, sum, or_equal=True)]
 
     def process_Multiplexer(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         monos = []
@@ -503,7 +503,7 @@ class Encoder:
 
     def process_If(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         # normalize
@@ -524,7 +524,7 @@ class Encoder:
 
     def process_ToInt(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         res = [mapping[x][0] for x in operands]
@@ -532,18 +532,18 @@ class Encoder:
 
     def process_Constraint(
         self,
-        n: Node, operands: list, accs: list, param: list,
+        n: Node, graph: Graph, operands: list, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         mapping[n.name] = mapping[operands[0]]
 
     def process_node(
         self,
-        n: Node, accs: list, param: list,
+        n: Node, graph: Graph, accs: list, param: list,
         mapping: Dict[str, List[str]],
     ):
         self.file.write(f'# {n}\n')
-        self.node_processors[type(n)](n, getattr(n, "operands", []), accs, param, mapping)
+        self.node_processors[type(n)](n, graph, getattr(n, "operands", []), accs, param, mapping)
 
     def write_custom(self, s: str):
         self.file.write(s)
@@ -597,16 +597,17 @@ class QbfSolver(Solver):
             targets = []
             for graph in graphs:
                 types_component = graph.base_components['Types']
+                topology_component = graph.base_components['Topology']
                 for node in graph.nodes:
                     # TODO : add accessories (accs)
-                    encoder.process_node(node, [], variables, mapping)
+                    encoder.process_node(node, graph, [], variables, mapping)
 
                     if graph.has_base_component('Constraints'):
                         if types_component.instance_of(node, [Constraint]):
                             assert len(mapping[node.name]) == 1
                             in_the_output.append(node.name)
                         elif types_component.instance_of(node, [Target]):
-                            targets.append(node.operands[0])
+                            targets.append(topology_component.operands(node)[0])
 
                 encoder.write_custom('#\n')
 
@@ -634,7 +635,7 @@ class QbfSolver(Solver):
                 types_component = graph.base_components['Types']
                 for node in graph.nodes:
                     if node.name in targets and not types_component.instance_of(node, [PlaceHolder]):
-                        result[node.name] = graph[node.name].value
+                        result[node.name] = graph.base_components['Values'].get(node)
 
             return ('sat', result)
 
@@ -659,7 +660,12 @@ class QbfSolver(Solver):
                      specifications: Specifications,
                      forall_target: ForAll,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        status, model = cls._solve(graphs, specifications, list(forall_target.operands))
+        forall_operands: list
+        for graph in graphs:
+            if any(forall_target.name == n.name for n in graph.nodes):
+                forall_operands = graph.base_components['Topology'].operands(forall_target)
+
+        status, model = cls._solve(graphs, specifications, forall_operands)
         return (status, model)
 
     @classmethod

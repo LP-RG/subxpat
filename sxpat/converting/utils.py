@@ -7,9 +7,7 @@ import itertools as it
 from sxpat.graph import *
 from sxpat.graph.node import *
 from sxpat.utils.print import pprint
-from sxpat.graph.graphCreators import GraphCopier
-from sxpat.graph.components import IO, Parameter
-from sxpat.graph.components import Constraints, Types
+from sxpat.graph.components import IO, Parameter, Constraints, Values
 
 
 __all__ = [
@@ -36,7 +34,7 @@ __all__ = [
 _N = TypeVar('_N', bound=Node)
 
 
-def unpack_ToInt(graph: T_Graph) -> T_Graph:
+def unpack_ToInt(graph: Graph) -> Graph:
     """
         Given a graph, returns a new graph with all ToInt nodes unpacked to a more primitive set of nodes.
 
@@ -49,51 +47,54 @@ def unpack_ToInt(graph: T_Graph) -> T_Graph:
     toint_nodes = tuple(
         node
         for node in graph.nodes
-        if types_component.instance_of(node, [ToInt])
+        if types_component.instance_of(node.name, [ToInt])
     )
     # skip if no ToInt node is present
     if len(toint_nodes) == 0: return graph
 
     # generate constants for each sum
+    topology_component = graph.base_components['Topology']
     int_consts = {
         toint.name: {
-            n: IntConstant(f'{toint.name}_c{n}', value=n)
-            for n in it.chain((0,), (2**i for i in range(len(toint.operands))))
+            # n: IntConstant(f'{toint.name}_c{n}', value=n)
+            n: graph_copier.add_node(f'{toint.name}_c{n}', IntConstant).add_extras(value=n).current
+            for n in it.chain((0,), (2**i for i in range(len(topology_component.operands(toint)))))
         }
         for toint in toint_nodes
     }
-    for consts in int_consts.values():
-        for node in consts.values():
-            graph_copier.add_node(node)
+    # for consts in int_consts.values():
+    #     for node in consts.values():
+    #         graph_copier.add_node(node)
 
     # create all if->int nodes (Dict[original_node_name, List[if_nodes_for_that_node]])
     ifs: Dict[str, List[If]] = {
         toint.name: [
-            If(f'if_{toint.name}_{i}', operands=(pred, int_consts[toint.name][2**i], int_consts[toint.name][0]))
-            for i, pred in enumerate(toint.operands)
+            # If(f'if_{toint.name}_{i}', operands=(pred, int_consts[toint.name][2**i], int_consts[toint.name][0]))
+            graph_copier.add_node(f'if_{toint.name}_{i}', If).add_operands([pred, int_consts[toint.name][2**i].name, int_consts[toint.name][0].name]).current
+            for i, pred in enumerate(topology_component.operands(toint)) # type: ignore
         ]
         for toint in toint_nodes
     }
-    for ifs_list in ifs.values():
-        for node in ifs_list:
-            graph_copier.add_node(node)
+    # for ifs_list in ifs.values():
+    #     for node in ifs_list:
+    #         graph_copier.add_node(node)
 
     for toint in toint_nodes:
-        node = Sum(toint.name, operands=ifs[toint.name])
+        # node = Sum(toint.name, operands=ifs[toint.name])
+        graph_copier.add_node(toint.name, Sum).add_operands(operands=[n.name for n in ifs[toint.name]])
         if graph.has_base_component('Subgraph'):
-            graph_copier.add_node(node, in_subgraph=graph.base_components['Subgraph'].in_subgraph(toint.name))
-        else:
-            graph_copier.add_node(node)
+            # graph_copier.add_node(node, in_subgraph=graph.base_components['Subgraph'].in_subgraph(toint.name))
+            graph_copier.add_extras(in_subgraph=graph.base_components['Subgraph'].in_subgraph(toint.name))
 
     types_component = graph.base_components['Types']
     for node in graph.nodes:
-        if not types_component.instance_of(node, [ToInt]):
-            graph_copier.add_node(node)
+        if not types_component.instance_of(node.name, [ToInt]):
+            graph_copier.add_node(node.name, types_component.get(node.name))
 
     return graph_copier.copy()
 
 
-def prune_unused(graph: T_Graph, reserved_names: Iterable[str]) -> T_Graph:
+def prune_unused(graph: Graph, reserved_names: Iterable[str]) -> Graph:
     """
         Given a graph, returns a new graph without any dangling nodes (recursively).  
         `reserved_names` represents the nodes that root the graph and that must be kept even if not used.
@@ -116,8 +117,9 @@ def prune_unused(graph: T_Graph, reserved_names: Iterable[str]) -> T_Graph:
     # return graph.copy(nodes)
 
     graph_copier = GraphCopier(graph)
+    types_component = graph.base_components['Types']
     for name in visited_nodes:
-        graph_copier.add_node(graph[name])
+        graph_copier.add_node(name, types_component.get(name))
     
     return graph_copier.copy() 
 
@@ -192,7 +194,10 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
     bitwidth_of = dict(initial_mapping)
     graphs = tuple(graphs)
 
-    def manage_node(node: Node, types_component: Types):
+    def manage_node(node: Node, graph: Graph):
+        types_component = graph.base_components['Types']
+        topology_component = graph.base_components['Topology']
+        values_component = graph.base_components['Values']
         # skippable
         if types_component.instance_of(node, [Target, Constraint]): return
 
@@ -205,9 +210,9 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
 
         # trivial cases
         elif types_component.instance_of(node, [IntConstant]) and node.name not in bitwidth_of:
-            bitwidth_of[node.name] = max(1, math.ceil(math.log(node.value + 1, 2)))
+            bitwidth_of[node.name] = max(1, math.ceil(math.log(values_component.get(node) + 1, 2)))
         elif types_component.instance_of(node, [ToInt]) and node.name not in bitwidth_of:
-            bitwidth_of[node.name] = len(node.operands)
+            bitwidth_of[node.name] = len(topology_component.operands(node))
 
         # dynamic case (the bitwidth of the current node must be larger or equal to that of the largest predecessor/successor)
         else:
@@ -220,12 +225,12 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
     # forward update (optimally updates forward chains)
     for graph in graphs:
         for node in graph.nodes:
-            manage_node(node, graph.base_components['Types'])
+            manage_node(node, graph)
 
     # backward update (optimally updates backward chains)
     for graph in reversed(graphs):
         for node in reversed(graph.nodes):
-            manage_node(node, graph.base_components['Types'])
+            manage_node(node, graph)
 
     if bitwidth_of == initial_mapping:
         return {  # remove null pairs (name:0)
@@ -263,13 +268,14 @@ def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missi
     # return graph.copy(new_nodes.values())
 
     graph_copier = GraphCopier(graph)
+    types_component = graph.base_components['Types']
     for node in new_nodes.values():
-        graph_copier.add_node(node)
+        graph_copier.add_node(node.name, types_component.get(node.name))
 
     return graph_copier.copy()
 
 
-def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
+def set_prefix(graph: Graph, prefix: str) -> Graph:
     """
         # DEPRECATED
         # Use `set_prefix_new` instead
@@ -285,37 +291,33 @@ def set_prefix(graph: T_Graph, prefix: str) -> T_Graph:
         for n in graph.nodes
     }
 
-    updated_names_inverted: Dict[str, str] = dict()
-    for x, y in updated_names.items():
-        updated_names_inverted[y] = x
-
-    types_component = graph.base_components['Types']
-    nodes: List[AnyNode] = []
-    for node in graph.nodes:
-        if types_component.instance_of(node, [Operation]):
-            operands = (updated_names[name] for name in node.operands)
-            nodes.append(node.copy(name=updated_names[node.name], operands=operands))
-        else:
-            nodes.append(node.copy(name=updated_names[node.name]))
-
-    extra_components: List[Component] = list()
+    graph_copier = GraphCopier(graph)
+    if graph.has_base_component('Constraints'):
+        graph_copier.add_autofill_component('Constraints')
     if graph.has_base_component('IO'):
-        extra_components.append(
-            IO(inputs_names=graph.base_components['IO'].inputs_names,
-               outputs_names=[f'{prefix}{name}' for name in graph.base_components['IO'].outputs_names])
+        graph_copier.add_base_component(
+            IO({'inputs_names': [updated_names[name] for name in graph.base_components['IO'].inputs_names],
+                'outputs_names': [updated_names[name] for name in graph.base_components['IO'].outputs_names]
+            })
+        )
+    if graph.has_base_component('Parameter'):
+        graph_copier.add_base_component(
+            Parameter(parameters_names=[updated_names[name] for name in graph.base_components['Parameter'].parameters_names])
         )
 
-    graph_copier = GraphCopier(graph)
-    for node in nodes:
-        graph_copier.add_node(
-            node,
-            in_subgraph=graph.base_components['Subgraph'].in_subgraph(updated_names_inverted[node.name]),
-            weight=graph.base_components['Weight'].get(updated_names_inverted[node.name]))
+    types_component = graph.base_components['Types']
+    topology_component = graph.base_components['Topology']
+    for node in graph.nodes:
+        if types_component.instance_of(node.name, [Operation]):
+            operands = [updated_names[name] for name in topology_component.operands(node.name)]
+            graph_copier.add_node_from_node(node, name=updated_names[node.name], operands=operands)
+        else:
+            graph_copier.add_node_from_node(node, name=updated_names[node.name])
 
-    return graph_copier.copy(extra_components) 
+    return graph_copier.copy()
 
 
-def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterable[str]] = None) -> T_Graph:
+def set_prefix_new(graph: Graph, prefix: str, preserve_names: Optional[Iterable[str]] = None) -> Graph:
     """
         Given a graph and the wanted prefix, returns a new graph with all nodes names updated with the prefix.  
         If `preserve_names` is given, the nodes matching those names will not be renamed.
@@ -332,40 +334,31 @@ def set_prefix_new(graph: T_Graph, prefix: str, preserve_names: Optional[Iterabl
         for n in graph.nodes
     }
 
-    new_name_of_inverted: Dict[str, str] = dict()
-    for x, y in new_name_of.items():
-        new_name_of_inverted[y] = x
-
-    # create updated nodes
-    types_component = graph.base_components['Types']
-    nodes: List[AnyNode] = []
-    for node in graph.nodes:
-        if types_component.instance_of(node, [Operation]):
-            operands = (new_name_of[name] for name in node.operands)
-            nodes.append(node.copy(name=new_name_of[node.name], operands=operands))
-        else:
-            nodes.append(node.copy(name=new_name_of[node.name]))
-
-    # compute extras
-    extra_components: List[Component] = list()
+    graph_copier = GraphCopier(graph)
+    if graph.has_base_component('Constraints'):
+        graph_copier.add_autofill_component('Constraints')
     if graph.has_base_component('IO'):
-        extra_components.append(
-            IO(inputs_names=[new_name_of[name] for name in graph.base_components['IO'].inputs_names],
-               outputs_names=[new_name_of[name] for name in graph.base_components['IO'].outputs_names])
+        graph_copier.add_base_component(
+            IO({'inputs_names': [new_name_of[name] for name in graph.base_components['IO'].inputs_names],
+                'outputs_names': [new_name_of[name] for name in graph.base_components['IO'].outputs_names]
+            })
         )
     if graph.has_base_component('Parameter'):
-        extra_components.append(
+        graph_copier.add_base_component(
             Parameter(parameters_names=[new_name_of[name] for name in graph.base_components['Parameter'].parameters_names])
         )
 
-    graph_copier = GraphCopier(graph)
-    for node in nodes:
-        graph_copier.add_node(
-            node,
-            in_subgraph=graph.base_components['Subgraph'].in_subgraph(new_name_of_inverted[node.name]),
-            weight=graph.base_components['Weight'].get(new_name_of_inverted[node.name]))
+    # add updated nodes
+    types_component = graph.base_components['Types']
+    topology_component = graph.base_components['Topology']
+    for node in graph.nodes:
+        if types_component.instance_of(node.name, [Operation]):
+            operands = [new_name_of[name] for name in topology_component.operands(node.name)]
+            graph_copier.add_node_from_node(node, name=new_name_of[node.name], operands=operands)
+        else:
+            graph_copier.add_node_from_node(node, name=new_name_of[node.name])
 
-    return graph_copier.copy(extra_components)  
+    return graph_copier.copy()
 
 
 def prevent_assignment(assignments: Mapping[str, bool],
@@ -375,9 +368,12 @@ def prevent_assignment(assignments: Mapping[str, bool],
 
         @authors: Marco Biasion
     """
+    graph_builder = GraphBuilder()
+    graph_builder.add_autofill_component('Constraints')
 
     # placeholders
-    placeholders = [PlaceHolder(name) for name in assignments]
+    for name in assignments:
+        graph_builder.add_node(name, PlaceHolder)
 
     #
     prass_name: Mapping[bool, Callable[[str], str]] = {
@@ -386,25 +382,18 @@ def prevent_assignment(assignments: Mapping[str, bool],
     }
 
     # create required negations
-    negations = [
-        Not(prass_name[True](name), operands=[name])
-        for (name, value) in assignments.items()
-        if value is True
-    ]
+    for (name, value) in assignments.items():
+        if value is True:
+            graph_builder.add_node(prass_name[True](name), Not).add_operands([name])
 
     # create aggregation (and relative constraint)
-    prevention = [
-        prevent := Or(
-            f'prass_{assignment_id}_prevent',
-            operands=[prass_name[value](name) for (name, value) in assignments.items()]
-        ),
-        Constraint(f'prass_{assignment_id}_prevent_constr', operands=[prevent])
-    ]
+    prevent = graph_builder.add_node(
+        f'prass_{assignment_id}_prevent', 
+        Or
+        ).add_operands([prass_name[value](name) for (name, value) in assignments.items()]).current
+    graph_builder.add_node(f'prass_{assignment_id}_prevent_constr', Constraint).add_operands([prevent.name])
     
-    return Graph(
-        it.chain(placeholders, negations, prevention), 
-        [Constraints(placeholders + negations + prevention)]
-    )
+    return graph_builder.create()
 
 
 class crystallise:
@@ -430,7 +419,7 @@ class crystallise:
     )
 
     @classmethod
-    def graph(cls, graph: Graph, pre_crystallised_graphs: Iterable[Graph]) -> int:
+    def graph(cls, graph: Graph, pre_crystallised_graphs: Iterable[Graph]) -> Graph:
         _crystalliser_for = {  # concrete node type -> crystallizing function
             # > variables
             BoolVariable: cls._as_is,
@@ -477,9 +466,11 @@ class crystallise:
             Constraint: cls._as_is,
         }
 
+        graph_copier = GraphCopier(graph)
         new_nodes = dict()
-        new_nodes_attributes: dict[str, tuple[bool, int | None]] = dict()
+        # new_nodes_attributes: dict[str, tuple[bool, int | None]] = dict()
         type_component = graph.base_components['Types']
+        topology_component = graph.base_components['Topology']
         for node in graph.nodes:
             # select crystalliser
             try:
@@ -491,7 +482,7 @@ class crystallise:
             # get operands
             if type_component.instance_of(node, [Operation]):
                 operands = []
-                for operand_name in node.operands:
+                for operand_name in topology_component.operands(node):
                     operand = new_nodes.get(operand_name, graph[operand_name])
 
                     if isinstance(operand, PlaceHolder):
@@ -502,26 +493,25 @@ class crystallise:
                 operands = []
 
             # crystallise node
-            new_nodes[node.name] = crystallise(node, operands, pre_crystallised_graphs)
+            new_nodes[node.name] = crystallise(graph, graph_copier, node, operands, pre_crystallised_graphs)
 
-            if not new_nodes[node.name] is node:
-                in_subgraph = False
-                weight = None
-                if graph.has_base_component('Subgraph'):
-                    in_subgraph = graph.base_components['Subgraph'].in_subgraph(node.name)
-                if graph.has_base_component('Weight'):
-                    weight = graph.base_components['Weight'].get(node.name)
-                new_nodes_attributes[node.name] = (in_subgraph, weight)
+        #     if not new_nodes[node.name] is node:
+        #         in_subgraph = False
+        #         weight = None
+        #         if graph.has_base_component('Subgraph'):
+        #             in_subgraph = graph.base_components['Subgraph'].in_subgraph(node.name)
+        #         if graph.has_base_component('Weight'):
+        #             weight = graph.base_components['Weight'].get(node.name)
+        #         new_nodes_attributes[node.name] = (in_subgraph, weight)
 
-        # return graph.copy(new_nodes.values())
-        graph_copier = GraphCopier(graph)
-        for node in new_nodes.values():
-            if node.name in new_nodes_attributes:
-                graph_copier.add_node(node,
-                                      in_subgraph=new_nodes_attributes[node.name][0],
-                                      weight=new_nodes_attributes[node.name][1])
-            else:
-                graph_copier.add_node(node)
+        # type_component = graph.base_components['Types']
+        # for node in new_nodes.values():
+        #     graph_copier.add_node(node.name, type_component.get(node.name))
+        #     if node.name in new_nodes_attributes:
+        #         graph_copier.add_extras(
+        #             in_subgraph=new_nodes_attributes[node.name][0],
+        #             weight=new_nodes_attributes[node.name][1]
+        #         )
 
         return graph_copier.copy()
 
@@ -533,28 +523,33 @@ class crystallise:
 
     @staticmethod
     @overload
-    def as_constant(node: Node, value: bool) -> BoolConstant: ...
+    def as_constant(graph_copier: GraphCopier, node: Node, value: bool) -> BoolConstant: ...
+
     @staticmethod
     @overload
-    def as_constant(node: Node, value: int) -> IntConstant: ...
+    def as_constant(graph_copier: GraphCopier, node: Node, value: int) -> IntConstant: ...
 
     @staticmethod
-    def as_constant(node: Node, value: T_ib) -> Constant[T_ib]:
+    def as_constant(graph_copier: GraphCopier, node: Node, value: T_ib) -> Constant[T_ib]:
         node_type = {bool: BoolConstant, int: IntConstant}[type(value)]
-        return node_from_node(node_type, node, {'value': value})
+        return graph_copier.add_node(node.name, node_type).add_extras(value=value).current
+        # return node_from_node(node_type, node, {'value': value})
 
     @staticmethod
-    def as_other(cls: Type[_N], node: Node,
+    def as_other(cls: Type[_N], 
+                 graph_copier: GraphCopier,
+                 node: Node,
                  /, *,
                  operand: AnyNode = ...,
                  operands: Sequence[AnyNode] = ...,
                  value: Union[bool, int] = ...
                  ) -> _N:
-        override = dict()
-        if operand is not Ellipsis: override['operands'] = [operand]
-        if operands is not Ellipsis: override['operands'] = operands
-        if value is not Ellipsis: override['value'] = value
-        return node_from_node(cls, node, override)
+        graph_copier.add_node(node.name, cls)
+        if operand is not Ellipsis: graph_copier.add_operands([operand.name])
+        if operands is not Ellipsis: graph_copier.add_operands([n.name for n in operands])
+        if value is not Ellipsis: graph_copier.add_extras(value=value)
+        return graph_copier.current
+        # return node_from_node(cls, node, override)
 
     @staticmethod
     def _find_non_placeholder(name: str, graphs: Iterable[Graph]) -> Union[None, Node, Operation, Valued]:
@@ -566,12 +561,13 @@ class crystallise:
         return None
 
     @classmethod
-    def _as_is(cls, node: Node, _0, _1) -> Node:
-        return node
+    def _as_is(cls, graph: Graph, graph_copier: GraphCopier, node: Node, _0, _1) -> Node:
+        return graph_copier.add_node(node.name, type(node)).current
 
     @classmethod
-    def _nary_bool(cls, node: T_nary_bool, operands: Sequence[Node], _) -> Union[T_nary_bool, BoolConstant]:
+    def _nary_bool(cls, graph: Graph, graph_copier: GraphCopier, node: T_nary_bool, operands: Sequence[Node], _) -> Union[T_nary_bool, BoolConstant]:
         """@authors: Marco Biasion, Lorenzo Spada"""
+        values_component = graph.base_components['Values']
 
         # select unit and zero values
         unit_value, zero_value = {
@@ -582,8 +578,8 @@ class crystallise:
         # one operand is the zero value
         # a & 0 : 0
         # a | 1 : 1
-        if any(isinstance(op, BoolConstant) and op.value is zero_value for op in operands):
-            return cls.as_constant(node, zero_value)
+        if any(isinstance(op, BoolConstant) and values_component.get(op) is zero_value for op in operands):
+            return cls.as_constant(graph_copier, node, zero_value)
 
         # get non-constant operands
         nc_operands = [
@@ -595,36 +591,37 @@ class crystallise:
         # 1 & 1 : 1
         # 0 | 0 : 0
         if len(nc_operands) == 0:
-            return cls.as_constant(node, unit_value)
+            return cls.as_constant(graph_copier, node, unit_value)
 
         # only one non-constant operand left
         # a & 1 : a
         # a | 0 : a
         elif len(nc_operands) == 1:
-            return cls.as_other(Identity, node, operand=nc_operands[0])
+            return cls.as_other(Identity, graph_copier, node, operand=nc_operands[0])
 
         # multiple non-constant operands left
         # a & b & 1 : a & b
         # a | b | 0 : a | b
         else:
             if len(nc_operands) == len(operands): return node
-            else: return cls.as_other(type(node), node, operands=nc_operands)
+            else: return cls.as_other(type(node), graph_copier, node, operands=nc_operands)
 
     @classmethod
-    def _xor(cls, node: Xor, operands: Sequence[Node], _) -> Union[Xor, BoolConstant, Identity, Not]:
+    def _xor(cls, graph: Graph, graph_copier: GraphCopier, node: Xor, operands: Sequence[Node], _) -> Union[Xor, BoolConstant, Identity, Not]:
         """@authors: Marco Biasion"""
 
         op_a, op_b = operands
+        values_component = graph.base_components['Values']
 
         # both operands are constant
         # # ^ # : #
         if isinstance(op_a, Constant) and isinstance(op_b, Constant):
-            return cls.as_constant(node, op_a.value != op_b.value)
+            return cls.as_constant(graph_copier, node, values_component.get(op_a) != values_component.get(op_b))
 
         # no operand is constant
         # a ^ b
         elif not isinstance(op_a, Constant) and not isinstance(op_b, Constant):
-            return node
+            return graph_copier.add_node(node.name, type(node)).current
 
         # one operand is constant
         # z ^ #
@@ -636,25 +633,26 @@ class crystallise:
 
             # z ^ 0 :  z
             # z ^ 1 : !z
-            if const_op.value is False:
-                return cls.as_other(Identity, node, operand=var_op)
+            if values_component.get(const_op) is False:
+                return cls.as_other(Identity, graph_copier, node, operand=var_op)
             else:
-                return cls.as_other(Not, node, operand=var_op)
+                return cls.as_other(Not, graph_copier, node, operand=var_op)
 
     @classmethod
-    def _xnor(cls, node: Implies, operands: Sequence[Node], _) -> Union[Xnor, BoolConstant, Identity, Not]:
+    def _xnor(cls, graph: Graph, graph_copier: GraphCopier, node: Implies, operands: Sequence[Node], _) -> Union[Xnor, BoolConstant, Identity, Not]:
 
         op_a, op_b = operands
+        values_component = graph.base_components['Values']
 
         # both operands are constant
         # # ≡ # : #
         if isinstance(op_a, Constant) and isinstance(op_b, Constant):
-            return cls.as_constant(node, op_a.value == op_b.value)
+            return cls.as_constant(graph_copier, node, values_component.get(op_a) == values_component.get(op_b))
 
         # no operand is constant
         # a ≡ b
         elif not isinstance(op_a, Constant) and not isinstance(op_b, Constant):
-            return node
+            return graph_copier.add_node(node.name, type(node)).current
 
         # one operand is constant
         # z ≡ #
@@ -666,16 +664,17 @@ class crystallise:
 
             # z ≡ 0 : !z
             # z ≡ 1 :  z
-            if const_op.value is False:
-                return cls.as_other(Not, node, operand=var_op)
+            if values_component.get(const_op) is False:
+                return cls.as_other(Not, graph_copier, node, operand=var_op)
             else:
-                return cls.as_other(Identity, node, operand=var_op)
+                return cls.as_other(Identity, graph_copier, node, operand=var_op)
 
     @classmethod
-    def _implies(cls, node: Implies, operands: Sequence[Node], _) -> Union[Implies, BoolConstant, Not, Identity]:
+    def _implies(cls, graph: Graph, graph_copier: GraphCopier, node: Implies, operands: Sequence[Node], _) -> Union[Implies, BoolConstant, Not, Identity]:
         """@authors: Lorenzo Spada, Marco Biasion"""
 
         op_a, op_b = operands
+        values_component = graph.base_components['Values']
 
         # both operands are constant
         # # => #
@@ -685,39 +684,41 @@ class crystallise:
                 (False, True): True,   # 0 => 1 : 1
                 (True, True): False,   # 1 => 0 : 0
                 (True, True): True,    # 1 => 1 : 1
-            }[(op_a.value, op_b.value)]
-            return cls.as_constant(node, value)
+            }[(values_component.get(op_a), values_component.get(op_b))]
+            return cls.as_constant(graph_copier, node, value)
 
         # only right operand is constant
         # a => #
         elif isinstance(op_b, Constant):
             # a => 0 : ~a
-            if op_b.value is False:
-                return cls.as_other(Not, node, operand=op_a)
+            if values_component.get(op_b) is False:
+                return cls.as_other(Not, graph_copier, node, operand=op_a)
 
             # a => 1 : 1
             else:
-                return cls.as_constant(node, True)
+                return cls.as_constant(graph_copier, node, True)
 
         # only left operand is constant
         # # => b
         elif isinstance(op_a, Constant):
             # 0 => b : 1
-            if op_a.value is False:
-                return cls.as_constant(node, True)
+            if values_component.get(op_a) is False:
+                return cls.as_constant(graph_copier, node, True)
 
             # 1 => b : b
             else:
-                return cls.as_other(Identity, node, operand=op_b)
+                return cls.as_other(Identity, graph_copier, node, operand=op_b)
 
         # no operand is constant
         # a => b
         else:
-            return node
+            return graph_copier.add_node(node.name, type(node)).current
 
     @classmethod
-    def _all_or_nothing_node(cls, node: T_all_or_nothing, operands: Sequence[Node], _) -> Union[T_all_or_nothing, Constant]:
+    def _all_or_nothing_node(cls, graph: Graph, graph_copier: GraphCopier, node: T_all_or_nothing, operands: Sequence[Node], _) -> Union[T_all_or_nothing, Constant]:
         """@authors: Marco Biasion, Lorenzo Spada"""
+
+        values_component = graph.base_components['Values']
 
         # all operands are constant
         # !#       : #
@@ -731,29 +732,29 @@ class crystallise:
         #  # >= #  : #
         if all(isinstance(op, Constant) for op in operands):
             # select operation
-            operation: Callable[[Sequence[Union[BoolConstant, IntConstant]]], Union[bool, int]] = {
+            operation: Callable[[Sequence[Union[BoolConstant, IntConstant]], Values], Union[bool, int]] = {
                 # bool to bool
-                Not: lambda ops: not ops[0].value,
+                Not: lambda ops, values: not values.get(ops[0]),
                 # int to int
-                Sum: lambda ops: sum(op.value for op in ops),  # possible todo: if an operand is const0, gets discarded. if any group of operands sum to 0, they get discarded, not work if unsigned.
-                AbsDiff: lambda ops: abs(ops[0].value - ops[1].value),  # possible todo: if one is 0, becomes identity of other
-                Mul: lambda ops: math.prod(op.value for op in ops),
-                Div: lambda ops: ops[0].value // ops[1].value,
-                ToInt: lambda ops: sum(op.value * (2 ** i) for (i, op) in enumerate(ops)),
-                RightShift: lambda ops: ops[0].value // (2 ** node.value),
-                LeftShift: lambda ops: ops[0].value * (2 ** node.value),
+                Sum: lambda ops, values: sum(values.get(op) for op in ops),  # possible todo: if an operand is const0, gets discarded. if any group of operands sum to 0, they get discarded, not work if unsigned.
+                AbsDiff: lambda ops, values: abs(values.get(ops[0]) - values.get(ops[1])),  # possible todo: if one is 0, becomes identity of other
+                Mul: lambda ops, values: math.prod(values.get(op) for op in ops),
+                Div: lambda ops, values: values.get(ops[0]) // values.get(ops[1]),
+                ToInt: lambda ops, values: sum(values.get(op) * (2 ** i) for (i, op) in enumerate(ops)),
+                RightShift: lambda ops, values: values.get(ops[0]) // (2 ** values_component.get(node)),
+                LeftShift: lambda ops, values: values.get(ops[0]) * (2 ** values_component.get(node)),
                 # bool to int
-                Equals: lambda ops: ops[0].value == ops[1].value,
-                NotEquals: lambda ops: ops[0].value != ops[1].value,
-                LessThan: lambda ops: ops[0].value < ops[1].value,
-                LessEqualThan: lambda ops: ops[0].value <= ops[1].value,  # possible todo: if unsigned and left=0, becomes true
-                GreaterThan: lambda ops: ops[0].value > ops[1].value,
-                GreaterEqualThan: lambda ops: ops[0].value >= ops[1].value,  # possible todo:if unsigned and right=0, becomes true
+                Equals: lambda ops, values: values.get(ops[0]) == values.get(ops[1]),
+                NotEquals: lambda ops, values: values.get(ops[0]) != values.get(ops[1]),
+                LessThan: lambda ops, values: values.get(ops[0]) < values.get(ops[1]),
+                LessEqualThan: lambda ops, values: values.get(ops[0]) <= values.get(ops[1]),  # possible todo: if unsigned and left=0, becomes true
+                GreaterThan: lambda ops, values: values.get(ops[0]) > values.get(ops[1]),
+                GreaterEqualThan: lambda ops, values: values.get(ops[0]) >= values.get(ops[1]),  # possible todo:if unsigned and right=0, becomes true
                 # identity
-                Identity: lambda ops: ops[0].value,
+                Identity: lambda ops, values: values.get(ops[0]),
             }[type(node)]
 
-            return cls.as_constant(node, operation(operands))
+            return cls.as_constant(graph_copier, node, operation(operands, graph.base_components['Values']))
 
         # some operand is variable
         # !a
@@ -766,16 +767,17 @@ class crystallise:
         #  a >  #
         #  a >= #
         else:
-            return node
+            return graph_copier.add_node(node.name, type(node)).current
 
     @classmethod
-    def _multiplexer(cls, node: Multiplexer, operands: Sequence[Node], _) -> Union[Multiplexer, BoolConstant, Identity, Not, Implies]:
+    def _multiplexer(cls, graph: Graph, graph_copier: GraphCopier, node: Multiplexer, operands: Sequence[Node], _) -> Union[Multiplexer, BoolConstant, Identity, Not, Implies]:
         """@authors: Marco Biasion, Lorenzo Spada"""
 
         a, b, c = operands
         a_const = isinstance(a, Constant)
         b_const = isinstance(b, Constant)
         c_const = isinstance(c, Constant)
+        values_component = graph.base_components['Values']
 
         # - 0 variable
         # 0 (0,0) :  0
@@ -788,15 +790,15 @@ class crystallise:
         # 1 (1,1) :  1
         if a_const and b_const and c_const:
             return {  # (a, b, c)
-                (0, 0, 0): lambda: cls.as_constant(node, False),
-                (0, 0, 1): lambda: cls.as_constant(node, True),
-                (0, 1, 0): lambda: cls.as_constant(node, True),
-                (0, 1, 1): lambda: cls.as_constant(node, False),
-                (1, 0, 0): lambda: cls.as_constant(node, False),
-                (1, 0, 1): lambda: cls.as_constant(node, True),
-                (1, 1, 0): lambda: cls.as_constant(node, False),
-                (1, 1, 1): lambda: cls.as_constant(node, True),
-            }[(a.value, b.value, c.value)]()
+                (0, 0, 0): lambda: cls.as_constant(graph_copier, node, False),
+                (0, 0, 1): lambda: cls.as_constant(graph_copier, node, True),
+                (0, 1, 0): lambda: cls.as_constant(graph_copier, node, True),
+                (0, 1, 1): lambda: cls.as_constant(graph_copier, node, False),
+                (1, 0, 0): lambda: cls.as_constant(graph_copier, node, False),
+                (1, 0, 1): lambda: cls.as_constant(graph_copier, node, True),
+                (1, 1, 0): lambda: cls.as_constant(graph_copier, node, False),
+                (1, 1, 1): lambda: cls.as_constant(graph_copier, node, True),
+            }[(values_component.get(a), values_component.get(b), values_component.get(c))]()
 
         # - 1 variable
         # a (0,0) :  0
@@ -805,11 +807,11 @@ class crystallise:
         # a (1,1) :  a
         elif b_const and c_const:
             return {  # (b, c)
-                (0, 0): lambda: cls.as_constant(node, False),
-                (0, 1): lambda: cls.as_constant(node, True),
-                (1, 0): lambda: cls.as_other(Not, node, operand=a),
-                (1, 1): lambda: cls.as_other(Identity, node, operand=a),
-            }[(b.value, c.value)]()
+                (0, 0): lambda: cls.as_constant(graph_copier, node, False),
+                (0, 1): lambda: cls.as_constant(graph_copier, node, True),
+                (1, 0): lambda: cls.as_other(Not, graph_copier, node, operand=a),
+                (1, 1): lambda: cls.as_other(Identity, graph_copier, node, operand=a),
+            }[(values_component.get(b), values_component.get(c))]()
 
         # 0 (b,0) :  b
         # 0 (b,1) : !b
@@ -817,11 +819,11 @@ class crystallise:
         # 1 (b,1) :  1
         elif a_const and c_const:
             return {  # (a, c)
-                (0, 0): lambda: cls.as_other(Identity, node, operand=b),
-                (0, 1): lambda: cls.as_other(Not, node, operand=b),
-                (1, 0): lambda: cls.as_constant(node, False),
-                (1, 1): lambda: cls.as_constant(node, True),
-            }[(a.value, c.value)]()
+                (0, 0): lambda: cls.as_other(Identity, graph_copier, node, operand=b),
+                (0, 1): lambda: cls.as_other(Not, graph_copier, node, operand=b),
+                (1, 0): lambda: cls.as_constant(graph_copier, node, False),
+                (1, 1): lambda: cls.as_constant(graph_copier, node, True),
+            }[(values_component.get(a), values_component.get(c))]()
 
         # 0 (0,c) :  c
         # 0 (1,c) : !c
@@ -829,158 +831,166 @@ class crystallise:
         # 1 (1,c) :  c
         elif a_const and b_const:
             return {  # (a, b)
-                (0, 0): lambda: cls.as_other(Identity, node, operand=c),
-                (0, 1): lambda: cls.as_other(Not, node, operand=c),
-                (1, 0): lambda: cls.as_other(Identity, node, operand=c),
-                (1, 1): lambda: cls.as_other(Identity, node, operand=c),
-            }[(a.value, b.value)]()
+                (0, 0): lambda: cls.as_other(Identity, graph_copier, node, operand=c),
+                (0, 1): lambda: cls.as_other(Not, graph_copier, node, operand=c),
+                (1, 0): lambda: cls.as_other(Identity, graph_copier, node, operand=c),
+                (1, 1): lambda: cls.as_other(Identity, graph_copier, node, operand=c),
+            }[(values_component.get(a), values_component.get(b))]()
 
         # - 2 variables
         # a (b,0) : !a & b (or !(b => a))
         # a (b,1) : b => a
         elif c_const:
             return {  # c
-                0: lambda: node,  # would require the creation of new nodes
-                1: lambda: cls.as_other(Implies, node, operands=(b, a)),
-            }[c.value]()
+                0: lambda: graph_copier.add_node(node.name, type(node)).current,  # would require the creation of new nodes
+                1: lambda: cls.as_other(Implies, graph_copier, node, operands=(b, a)),
+            }[values_component.get(c)]()
 
         # a (0,c) : c
         # a (1,c) : a xnor c
         elif b_const:
             return {  # b
-                0: lambda: cls.as_other(Identity, node, operand=c),
-                1: lambda: cls.as_other(Xnor, node, operands=(a, c)),
-            }[b.value]()
+                0: lambda: cls.as_other(Identity, graph_copier, node, operand=c),
+                1: lambda: cls.as_other(Xnor, graph_copier, node, operands=(a, c)),
+            }[values_component.get(b)]()
 
         # 0 (b,c) : b ^ c
         # 1 (b,c) : c
         elif a_const:
             return {  # a
-                0: lambda: cls.as_other(Xor, node, operands=(b, c)),
-                1: lambda: cls.as_other(Identity, node, operand=c),
-            }[a.value]()
+                0: lambda: cls.as_other(Xor, graph_copier, node, operands=(b, c)),
+                1: lambda: cls.as_other(Identity, graph_copier, node, operand=c),
+            }[values_component.get(a)]()
 
         # - 3 variables
         # a (b,c) : a (b,c)
         else:
-            return node
+            return graph_copier.add_node(node.name, type(node)).current
 
     @classmethod
-    def _if(cls, node: If, operands: Sequence[Node], _) -> Node:
+    def _if(cls, graph: Graph, graph_copier: GraphCopier, node: If, operands: Sequence[Node], _) -> Node:
         """@authors: Marco Biasion, Lorenzo Spada"""
 
         a, b, c = operands
+        values_component = graph.base_components['Values']
 
         # condition is constant false
         # (0) ?,c : c
-        if node_is_false(a):
+        if node_is_false(a, graph):
             # (0) ?,# : #
             if isinstance(c, Constant):
-                return cls.as_constant(node, c.value)
+                return cls.as_constant(graph_copier, node, values_component.get(c))
 
             # (0) ?,c : c
             else:
-                return cls.as_other(Identity, node, operand=c)
+                return cls.as_other(Identity,graph_copier, node, operand=c)
 
         # condition is constant true
         # (1) b,? : b
-        elif node_is_true(a):
+        elif node_is_true(a, graph):
             # (1) #,? : #
             if isinstance(b, Constant):
-                return cls.as_constant(node, b.value)
+                return cls.as_constant(graph_copier, node, values_component.get(b))
 
             # (1) b,? : b
             else:
-                return cls.as_other(Identity, node, operand=b)
+                return cls.as_other(Identity, graph_copier, node, operand=b)
 
         # branches are constant and equal
         # (?) k,k : k
-        elif isinstance(b, Constant) and isinstance(c, Constant) and b.value == c.value:
-            return cls.as_constant(node, b.value)
+        elif isinstance(b, Constant) and isinstance(c, Constant) and values_component.get(b) == values_component.get(c):
+            return cls.as_constant(graph_copier, node, values_component.get(b))
 
         # (a) b,c
         # (a) #,#
         else:
-            return node
+            return graph_copier.add_node(node.name, type(node)).current
 
     @classmethod
-    def _at_least(cls, node: AtLeast, operands: Sequence[Node], _) -> Union[AtLeast, BoolConstant]:
+    def _at_least(cls, graph: Graph, graph_copier: GraphCopier, node: AtLeast, operands: Sequence[Node], _) -> Union[AtLeast, BoolConstant]:
         """@authors: Lorenzo Spada, Marco Biasion"""
+
+        values_component = graph.base_components['Values']
 
         # no operand is constant
         if not any(isinstance(op, Constant) for op in operands):
-            return node
+            return graph_copier.add_node(node.name, type(node)).current
 
         # get non-constant operands and updated value (-1 for each true constant)
         nc_operands = []
-        new_value = node.value
+        new_value = values_component.get(node)
         for operand in operands:
             if not isinstance(operand, Constant): nc_operands.append(operand)
-            elif operand.value == True: new_value -= 1
+            elif values_component.get(operand) == True: new_value -= 1
 
         # enough true constants are present
         if new_value <= 0:
-            return cls.as_constant(node, True)
+            return cls.as_constant(graph_copier, node, True)
 
         # `new_value` cannot be surpassed by the non-constant operands
         elif len(nc_operands) < new_value:
-            return cls.as_constant(node, False)
+            return cls.as_constant(graph_copier, node, False)
 
         # shrink the node
         # possible todo: if only one is left and new_value=1, return identity of operand
         #                (maybe something similar can be done for _at_most too)
         else:
-            return cls.as_other(AtLeast, operands=nc_operands, value=new_value)
+            return cls.as_other(AtLeast, graph_copier, operands=nc_operands, value=new_value)
 
     @classmethod
-    def _at_most(cls, node: AtMost, operands: Sequence[Node], _) -> Union[AtMost, BoolConstant]:
+    def _at_most(cls, graph: Graph, graph_copier: GraphCopier, node: AtMost, operands: Sequence[Node], _) -> Union[AtMost, BoolConstant]:
         """@authors: Lorenzo Spada, Marco Biasion"""
+
+        values_component = graph.base_components['Values']
 
         # no operand is constant
         if not any(isinstance(op, Constant) for op in operands):
-            return node
+            return graph_copier.add_node(node.name, type(node)).current
 
         # get non-constant operands and updated value (-1 for each true constant)
         nc_operands = []
-        new_value = node.value
+        new_value = values_component.get(node)
         for operand in operands:
             if not isinstance(operand, Constant): nc_operands.append(operand)
-            elif operand.value is True: new_value -= 1
+            elif values_component.get(operand) is True: new_value -= 1
 
         # too many true constants are present
         if new_value < 0:
-            return cls.as_constant(node, False)
+            return cls.as_constant(graph_copier, node, False)
 
         # `new_value` can accomodate all non-constant operands
         if len(nc_operands) <= new_value:
-            return cls.as_constant(node, True)
+            return cls.as_constant(graph_copier, node, True)
 
         # shrink the node
         else:
-            return cls.as_other(AtMost, node, operands=nc_operands, value=new_value)
+            return cls.as_other(AtMost, graph_copier, node, operands=nc_operands, value=new_value)
+
+# fino a qui funzioni in _crystalliser_for
+
+def node_is_true(node: Union[Node, BoolConstant], graph: Graph) -> bool:
+    values_component = graph.base_components['Values']
+    return isinstance(node, BoolConstant) and values_component.get(node) is True
 
 
-def node_is_true(node: Union[Node, BoolConstant]) -> bool:
-    return isinstance(node, BoolConstant) and node.value is True
+def node_is_false(node: Union[Node, BoolConstant], graph: Graph) -> bool:
+    values_component = graph.base_components['Values']
+    return isinstance(node, BoolConstant) and values_component.get(node) is False
 
 
-def node_is_false(node: Union[Node, BoolConstant]) -> bool:
-    return isinstance(node, BoolConstant) and node.value is False
+# def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N:
+#     # get common fields
+#     kwargs = {'name': node.name}
+#     if issubclass(cls, Operation) and isinstance(node, Operation):
+#         kwargs['operands'] = node.operands
+#     if issubclass(cls, Valued) and isinstance(node, Valued):
+#         kwargs['value'] = node.value
 
+#     # override with custom
+#     kwargs.update(override)
 
-def node_from_node(cls: Type[_N], node: Node, override: Mapping[str, Any]) -> _N:
-    # get common fields
-    kwargs = {'name': node.name}
-    if issubclass(cls, Operation) and isinstance(node, Operation):
-        kwargs['operands'] = node.operands
-    if issubclass(cls, Valued) and isinstance(node, Valued):
-        kwargs['value'] = node.value
-
-    # override with custom
-    kwargs.update(override)
-
-    # create new node
-    return cls(**kwargs)
+#     # create new node
+#     return cls(**kwargs)
 
 
 class get_unique_code:

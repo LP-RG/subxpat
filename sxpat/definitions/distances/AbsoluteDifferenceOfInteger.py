@@ -3,7 +3,7 @@ from typing_extensions import override
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph import Graph
+from sxpat.graph import Graph, GraphBuilder
 from sxpat.graph.node import AbsDiff, PlaceHolder, ToInt
 from sxpat.graph.components import Constraints
 
@@ -24,22 +24,23 @@ class AbsoluteDifferenceOfInteger(DistanceSpecification):
                 wanted_a: Sequence[str], wanted_b: Sequence[str],
                 ) -> Tuple[Graph, str]:
 
+        graph_builder = GraphBuilder()
+        graph_builder.add_autofill_component('Constraints')
+
         # define outputs of a and of b as integers
-        int_a = ToInt('dist_int_a_adoi', operands=wanted_a)
-        int_b = ToInt('dist_int_b_adoi', operands=wanted_b)
+        int_a = graph_builder.add_node('dist_int_a_adoi', ToInt).add_operands(list(wanted_a)).current
+        int_b = graph_builder.add_node('dist_int_b_adoi', ToInt).add_operands(list(wanted_b)).current
 
         # distance
-        distance = AbsDiff('dist_distance', operands=[int_a, int_b])
+        distance = graph_builder.add_node('dist_distance', AbsDiff).add_operands([int_a.name, int_b.name]).current
 
-        # construct Constraints Graph
-        graph_nodes = [
-            *(PlaceHolder(name) for name in wanted_a),
-            int_a,
-            *(PlaceHolder(name) for name in wanted_b),
-            int_b,
-            distance,
-        ]
-        dist_func = Graph(graph_nodes, [Constraints(graph_nodes)])
+        # construct graph
+        for name in wanted_a:
+            graph_builder.add_node(name, PlaceHolder)
+        for name in wanted_b:
+            graph_builder.add_node(name, PlaceHolder)
+
+        dist_func = graph_builder.create()
 
         return (dist_func, distance.name)
 

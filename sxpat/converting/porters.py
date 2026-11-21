@@ -16,6 +16,7 @@ from sxpat.utils.decorators import make_utility_class
 
 from sxpat.graph import *
 from sxpat.graph.node import *
+from sxpat.graph.components import Component
 
 
 __all__ = [
@@ -170,9 +171,9 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
         if graph.has_base_component('Subgraph') and node.name in graph.base_components['Subgraph'].nodes_names():
             string += rf'\nsub'
         if types_component.instance_of(node, [Operation]):
-            string += rf'\ni={",".join(node.operands)}'
+            string += rf'\ni={",".join(graph.base_components['Topology'].operands(node))}'
         if types_component.instance_of(node, [Valued]):
-            string += rf'\nv={node.value}'
+            string += rf'\nv={graph.base_components['Values'].get(node)}'
 
         return string
 
@@ -233,7 +234,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
             f'"{src_name}" -> "{dst.name}";'
             for dst in graph.nodes
             if types_component.instance_of(dst, [Operation])
-            for src_name in dst.operands
+            for src_name in graph.base_components['Topology'].operands(dst)
         ]
 
         # extra data
@@ -390,42 +391,42 @@ class VerilogExporter(GraphExporter[Graph]):
         @authors: Marco Biasion
     """
 
-    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, Valued, Operation]], str]] = {
+    NODE_EXPORT: Mapping[Type[Node], Callable[[Union[Node, Valued, Operation], Graph], str]] = {
         # variables
-        # BoolVariable: lambda n: None,
-        # IntVariable: lambda n: None,
+        # BoolVariable: lambda n, g: None,
+        # IntVariable: lambda n, g: None,
         # constants
-        BoolConstant: lambda n: f'{int(n.value)}',
-        # IntConstant: lambda n: f'{n.value}',
+        BoolConstant: lambda n, g: f'{int(g.base_components['Values'].get(n))}',
+        # IntConstant: lambda n, g: f'{n.value}',
         # output
-        Identity: lambda n: n.operand,
-        # Target: lambda n: None,
+        Identity: lambda n, g: g.base_components['Topology'].operand(n),
+        # Target: lambda n, g: None,
         # bool-bool operations
-        Not: lambda n: f'(~{n.operand})',
-        And: lambda n: f'({" & ".join(n.operands)})',
-        Or: lambda n: f'({" | ".join(n.operands)})',
-        Xor: lambda n : f'({" ^ ".join(n.operands)})',
-        Xnor: lambda n : f'(~({n.left} ^ {n.right}))',
-        Implies: lambda n: f'(~{n.left} | {n.right})',
+        Not: lambda n, g: f'(~{g.base_components['Topology'].operand(n)})',
+        And: lambda n, g: f'({" & ".join(g.base_components['Topology'].operands(n))})',
+        Or: lambda n, g: f'({" | ".join(g.base_components['Topology'].operands(n))})',
+        Xor: lambda n, g: f'({" ^ ".join(g.base_components['Topology'].operands(n))})',
+        Xnor: lambda n, g: f'(~({g.base_components['Topology'].left(n)} ^ {g.base_components['Topology'].right(n)}))',
+        Implies: lambda n, g: f'(~{g.base_components['Topology'].left(n)} | {g.base_components['Topology'].right(n)})',
         # int-int operations
-        Sum: lambda n: f'({" + ".join(n.operands)})',
-        AbsDiff: lambda n: f'(({n.left} > {n.right}) ? ({n.left} - {n.right}) : ({n.right} - {n.left}))',
-        Mul: lambda n: f'({" * ".join(n.operands)})',
-        Div: lambda n: f'({n.left} / {n.right})',
+        Sum: lambda n, g: f'({" + ".join(g.base_components['Topology'].operands(n))})',
+        AbsDiff: lambda n, g: f'(({g.base_components['Topology'].left(n)} > {g.base_components['Topology'].right(n)}) ? ({g.base_components['Topology'].left(n)} - {g.base_components['Topology'].right(n)}) : ({g.base_components['Topology'].right(n)} - {g.base_components['Topology'].left(n)}))',
+        Mul: lambda n, g: f'({" * ".join(g.base_components['Topology'].operands(n))})',
+        Div: lambda n, g: f'({g.base_components['Topology'].left(n)} / {g.base_components['Topology'].right(n)})',
         # bool-int operations
-        # ToInt: lambda n: None,
+        # ToInt: lambda n, g: None,
         # int-bool operations
-        Equals: lambda n: f'({n.left} === {n.right})',
-        LessThan: lambda n: f'({n.left} < {n.right})',
-        LessEqualThan: lambda n: f'({n.left} <= {n.right})',
-        GreaterThan: lambda n: f'({n.left} > {n.right})',
-        GreaterEqualThan: lambda n: f'({n.left} >= {n.right})',
+        Equals: lambda n, g: f'({g.base_components['Topology'].left(n)} === {g.base_components['Topology'].right(n)})',
+        LessThan: lambda n, g: f'({g.base_components['Topology'].left(n)} < {g.base_components['Topology'].right(n)})',
+        LessEqualThan: lambda n, g: f'({g.base_components['Topology'].left(n)} <= {g.base_components['Topology'].right(n)})',
+        GreaterThan: lambda n, g: f'({g.base_components['Topology'].left(n)} > {g.base_components['Topology'].right(n)})',
+        GreaterEqualThan: lambda n, g: f'({g.base_components['Topology'].left(n)} >= {g.base_components['Topology'].right(n)})',
         # quantifier operations
-        # AtLeast: lambda n: None,
-        # AtMost: lambda n: None,
+        # AtLeast: lambda n, g: None,
+        # AtMost: lambda n, g: None,
         # branching operations
-        Multiplexer: lambda n: f'({n.parameter_usage} ? ({n.parameter_assertion} ? {n.origin} : ~{n.origin}) : {n.parameter_assertion})',
-        If: lambda n: f'({n.condition} ? {n.if_true} : {n.if_false})',
+        Multiplexer: lambda n, g: f'({g.base_components['Topology'].parameter_usage(n)} ? ({g.base_components['Topology'].parameter_assertion(n)} ? {g.base_components['Topology'].origin(n)} : ~{g.base_components['Topology'].origin(n)}) : {g.base_components['Topology'].parameter_assertion(n)})',
+        If: lambda n, g: f'({g.base_components['Topology'].condition(n)} ? {g.base_components['Topology'].if_true(n)} : {g.base_components['Topology'].if_false(n)})',
     }
 
     @dc.dataclass(frozen=True, eq=False)
@@ -447,7 +448,7 @@ class VerilogExporter(GraphExporter[Graph]):
             f'wire {", ".join(n.name for n in graph.inners)};',
             # assignments
             *(
-                f'assign {node.name} = {cls.NODE_EXPORT[graph.base_components['Types'].get(node)](node)};'
+                f'assign {node.name} = {cls.NODE_EXPORT[graph.base_components['Types'].get(node)](node, graph)};'
                 for node in graph.nodes
                 if node.name not in IO_component.inputs_names
             ),

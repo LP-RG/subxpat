@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, TypeVar, Union, Self, TypeAlias
+from typing import Any, ClassVar, List, TypeVar, Union, Self, TypeAlias
 
 import dataclasses as dc
 
@@ -86,11 +86,11 @@ class Node(__Base):
 
     name: str
 
-    def copy(self, **update: Any) -> Self:
-        return type(self)(**{
-            **{s: getattr(self, s) for s in self.__slots__},  # type: ignore # all concrete subclasses must use slots
-            **update,
-        })
+    # def copy(self, **update: Any) -> Self:
+    #     return type(self)(**{
+    #         **{s: getattr(self, s) for s in self.__slots__},  # type: ignore # all concrete subclasses must use slots
+    #         **update,
+    #     })
 
 
 # valued
@@ -557,11 +557,11 @@ class Target(Limited1Operation, LocalObjective, Node):
         The only operand represents the value to return.
     """
 
-    @classmethod #TODO: remove
-    def of(cls, other: Union[Node, str]) -> tuple[Self, str]:
-        """Helper constructor with automatic naming."""
-        other_name = other.name if isinstance(other, Node) else other
-        return (cls(f'target_{other_name}'), other_name)
+    @classmethod
+    def of(cls, other: Union[Node, str]) -> tuple[str, List[str]]:
+        """Naming helper: returns target name and list of its operands"""
+        name = other.name if isinstance(other, Node) else other
+        return (f'target_{name}', [name])
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -571,11 +571,11 @@ class Constraint(Limited1Operation, LocalObjective, Node):
         The only operand represents the value to assert.
     """
 
-    @classmethod #TODO: remove
-    def of(cls, other: Union[Node, str]) -> tuple[Self, str]:
-        """Helper constructor with automatic naming."""
-        other_name = other.name if isinstance(other, Node) else other
-        return (cls(f'constraint_{other_name}'), other_name)
+    @classmethod
+    def of(cls, other: Union[Node, str]) -> tuple[str, List[str]]:
+        """Naming helper: returns constraint name and list of its operands"""
+        name = other.name if isinstance(other, Node) else other
+        return (f'constraint_{name}', [name])
 
 
 # global objective nodes

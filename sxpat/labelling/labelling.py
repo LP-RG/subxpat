@@ -230,7 +230,7 @@ class Labelling:
         # prepare arguments string
         types_component = circuit.base_components['Types']
         if isinstance(node, BoolConstant):
-            args = str(node.value)
+            args = str(circuit.base_components['Values'].get(node))
         else:
             args = ', '.join(
                 pred.name if types_component.instance_of(pred, [BoolVariable]) else f'{prefix}{pred.name}'

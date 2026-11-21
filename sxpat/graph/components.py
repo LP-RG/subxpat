@@ -88,10 +88,6 @@ class Subgraph(Component):
     graph: Final[Any]
 
     def __init__(self, subgraph_set: set[str], graph: Any = None) -> None:
-        # COMMENT:from-MARCO: perfect, in the future we can also see about optimising a few things
-        # COMMENT:from-MARCO: a thing I noticed now, is that, doing the casting/getting/whatever later, may allow the input datastructure to change
-        #                     example: i create the component passing in my own set/dict, then after the component has been created, if I (even outside the component) update the datastructure I passed in, now the component will behave on this new data, making it not deeply immutable
-        # from-ILIA: fixed
         action = lambda subgraph_set: list(subgraph_set)
         super().__init__(deepcopy(subgraph_set), action)
         self.graph = graph
@@ -101,8 +97,8 @@ class Subgraph(Component):
         return self.action(self.object)
 
     @final
-    def in_subgraph(self, node_id: str) -> bool:
-        return node_id in self.object
+    def in_subgraph(self, node_or_name: Union[Node, str]) -> bool:
+        return get_name(node_or_name) in self.object
 
     @final
     def with_graph(self, graph: Any) -> Subgraph:
@@ -120,9 +116,6 @@ class Subgraph(Component):
     @ft.cached_property
     @final
     def subgraph_inputs(self) -> Sequence[AnyNode]:
-        # COMMENT:from-MARCO: you should reason about what is best to return from these methods, the node object, or the id/name?
-        #                     once you reasoned about it we can discuss this in the next meeting
-
         # a node is a subgraph input if it is not in the subgraph and at least one successor is in the subgraph
         subgraph_ids = self.nodes_names()
         return tuple(dict.fromkeys(it.chain.from_iterable(
@@ -150,7 +143,7 @@ class Subgraph(Component):
         ))
 
     @final
-    def node_edges_to_subgraph(self, node_or_name: Union[str, Node]) -> int:
+    def node_edges_to_subgraph(self, node_or_name: Union[Node, str]) -> int:
         """Returns the number of edges from this node to the subgraph."""
         subgraph_ids = self.nodes_names()
         return sum(
@@ -163,10 +156,12 @@ class Topology(Component, OrderedDiGraph):
         - action: return the DiGraph
     """
 
-    def __init__(self, digraph: OrderedDiGraph) -> None:
-        # COMMENT:from-MARCO: perfect, in the future we can also see about optimising a few things
+    graph: Final[Any]
+
+    def __init__(self, digraph: OrderedDiGraph, graph: Any = None) -> None:
         action = lambda digraph: digraph
         super().__init__(nx.freeze(deepcopy(digraph)), action, inheritable=False)
+        self.graph = graph
 
     @final
     def get(self) -> OrderedDiGraph:
@@ -174,11 +169,13 @@ class Topology(Component, OrderedDiGraph):
 
     @final
     def with_graph(self, graph: object = None) -> Topology:
-        return self
+        return Topology(self.get(), graph)
 
     @final 
-    def operands(self, node: Operation) -> list[str]:
-        return list(name for name in self.get().predecessors(node.name))
+    def operands(self, node_or_name: Union[Node, str]) -> list[str]:
+        node_name = get_name(node_or_name)
+        assert(self.graph.base_components['Types'].instance_of(node_name, [Operation]))
+        return list(name for name in self.get().predecessors(node_name))
 
     @property
     @final
@@ -191,7 +188,7 @@ class Topology(Component, OrderedDiGraph):
         return self.get()[node_name]['node']
 
     @final
-    def get_predecessors(self, node_or_name: Union[str, Node]) -> Sequence[AnyNonEndPoint]:
+    def get_predecessors(self, node_or_name: Union[Node, str]) -> Sequence[AnyNonEndPoint]:
         node_name = get_name(node_or_name)
         node = self.get_node(node_name)
         # we iterate over the .predecessors instead of the .operands, so even if `node` is not an Operation it still works
@@ -201,7 +198,7 @@ class Topology(Component, OrderedDiGraph):
         ))
 
     @final
-    def get_successors(self, node_or_name: Union[str, Node]) -> Sequence[AnyNonEntryPoint]:
+    def get_successors(self, node_or_name: Union[Node, str]) -> Sequence[AnyNonEntryPoint]:
         return tuple(
             self.get().nodes[name]['node']
             for name in self.get().successors(get_name(node_or_name))
@@ -209,70 +206,64 @@ class Topology(Component, OrderedDiGraph):
 
     @final
     def operand(self, node: Limited1Operation) -> str:
-        return self.operands(node)[0]
+        return self.operands(node.name)[0]
 
     @final
     def left(self, node: Limited2Operation) -> str:
-        return self.operands(node)[0]
+        return self.operands(node.name)[0]
 
     @final
     def right(self, node: Limited2Operation) -> str:
-        return self.operands(node)[1]
+        return self.operands(node.name)[1]
 
     @final
     def origin(self, node: Multiplexer) -> str:
-        return self.operands(node)[0]
+        return self.operands(node.name)[0]
 
     @final
     def parameter_usage(self, node: Multiplexer) -> str:
         """If this parameter is true, the origin will be used, otherwise a constant will be produced"""
-        return self.operands(node)[1]
+        return self.operands(node.name)[1]
 
     @final
     def parameter_assertion(self, node: Multiplexer) -> str:
         """If this parameter is true, the node will produce the origin or the constant true, otherwise will produce the negated origin or the constant false"""
-        return self.operands(node)[2]
+        return self.operands(node.name)[2]
 
     @final
     def condition(self, node: If) -> str:
-        return self.operands(node)[0]
+        return self.operands(node.name)[0]
 
     @final
     def if_true(self, node: If) -> str:
-        return self.operands(node)[1]
+        return self.operands(node.name)[1]
 
     @final
     def if_false(self, node: If) -> str:
-        return self.operands(node)[2]
+        return self.operands(node.name)[2]
     
 
 class Weight(Component):
-    # https://docs.python.org/3.14/library/collections.abc.html#collections-abstract-base-classes
     """Concrete and 'static' component
         - object: mapping from node id to its weight
         - action: return the weight corresponding to the given node id
     """
 
     def __init__(self, map: dict[str, int]) -> None:
-        # COMMENT:from-MARCO: a thing I noticed now, is that, doing the casting/getting/whatever later, may allow the input datastructure to change
-        #                     example: i create the component passing in my own set/dict, then after the component has been created, if I (even outside the component) update the datastructure I passed in, now the component will behave on this new data, making it not deeply immutable
-        # from-ILIA: fixed
         action = lambda map, node_id: map[node_id] if node_id in map else None
         super().__init__(deepcopy(map), action)
 
-    def get(self, node_id: str) -> int | None:
-        return self.action(self.object, node_id)
-
-    # def __getitem__(self, key): pass
+    def get(self, node_or_name: Union[Node, str]) -> int | None:
+        return self.action(self.object, get_name(node_or_name))
 
     @final
     def with_graph(self, graph: object = None) -> Weight:
         return self
 
     @final
-    def has_weight(self, node: Any) -> bool:
+    def has_weight(self, node_or_name: Union[Node, str]) -> bool:
         """Returns if the given object has an assigned weight."""
-        return self.get(node.name) is not None
+        return self.get(get_name(node_or_name)) is not None
 
 
 class Parameter(Component):
@@ -337,7 +328,7 @@ class IO(Component):
         return tuple(self.graph.base_components['Topology'].get_node(name) for name in self.inputs_names)
 
     @final
-    def input_index_of(self, node_or_name: Union[str, Node]) -> int:
+    def input_index_of(self, node_or_name: Union[Node, str]) -> int:
         """Returns the index of the node in the inputs, -1 if the node is not an input."""
         try: return self.inputs_names.index(get_name(node_or_name))
         except: return -1
@@ -348,7 +339,7 @@ class IO(Component):
         return tuple(self.graph.base_components['Topology'].get_node(name) for name in self.outputs_names)
 
     @final
-    def output_index_of(self, node_or_name: Union[str, Node]) -> int:
+    def output_index_of(self, node_or_name: Union[Node, str]) -> int:
         """Returns the index of the node in the outputs, -1 if the node is not an output."""
         try: return self.outputs_names.index(get_name(node_or_name))
         except: return -1
@@ -410,28 +401,24 @@ class Types(Component):
     """
 
     def __init__(self, map: dict[str, type]) -> None:
-        # COMMENT:from-MARCO: a thing I noticed now, is that, doing the casting/getting/whatever later, may allow the input datastructure to change
-        #                     example: i create the component passing in my own set/dict, then after the component has been created, if I (even outside the component) update the datastructure I passed in, now the component will behave on this new data, making it not deeply immutable
-        # from-ILIA: Does creating a deepcopy of the input and using the copy inside the component solve this problem? Like I did below. If yes, I'll modify the above components this way.
-        # from-MARCO: yes, this fixes it
         action = lambda map, node_id: map[node_id]
         super().__init__(deepcopy(map), action, inheritable=False)
 
     @final
-    def get(self, node: AnyNode) -> type:
-        return self.action(self.object, node.name)
+    def with_graph(self, graph: object = None) -> Types:
+        return self
 
     @final
-    def instance_of(self, node: AnyNode, classes: list[type]) -> bool:
-        node_type = self.get(node)
+    def get(self, node_or_name: Union[Node, str]) -> type:
+        return self.action(self.object, get_name(node_or_name))
+
+    @final
+    def instance_of(self, node_or_name: Union[Node, str], classes: list[type]) -> bool:
+        node_type = self.get(node_or_name)
         for class_name in classes:
             if node_type == class_name or issubclass(node_type, class_name):
                 return True
         return False
-
-    @final
-    def with_graph(self, graph: object = None) -> Types:
-        return self
 
 class Values(Component):
     """Concrete and 'static' component
@@ -444,17 +431,16 @@ class Values(Component):
         super().__init__(deepcopy(map), action)
 
     @final
-    def get(self, node: Valued) -> int | bool:
-        return self.action(self.object, node.name)
-
-    @final
     def with_graph(self, graph: object = None) -> Values:
         return self
 
     @final
+    def get(self, node_or_name: Union[Node, str]) -> int | bool:
+        return self.action(self.object, get_name(node_or_name))
+
+    @final
     def has_value(self, node: AnyNode) -> bool:
         return isinstance(node, Valued)
-
 
 
 # Helper methods
