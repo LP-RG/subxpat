@@ -14,7 +14,7 @@ from sxpat.conf_explorer import ConfigurationExploration
 from sxpat.newag import load_circuit_from_verilog
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
 
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType
+from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, SlashType
 
 from sxpat.constants.misc import UNKNOWN, SAT
 
@@ -42,6 +42,8 @@ from sxpat.converting import set_bool_constants, prevent_assignment
 from sxpat.converting import VerilogExporter
 
 from sxpat.labelling.labelling import Labelling
+
+from sxpat.slash_inputs import remove_inputs
 
 
 def explore_grid(specs_obj: Specifications):
@@ -85,6 +87,18 @@ def explore_grid(specs_obj: Specifications):
         specs_obj.stats_storage.stage(ERROR='illegal_state__error_partitioning').commit()
         raise NotImplementedError('invalid error iteration')
 
+    # do the preliminary input-slash if required
+    if specs_obj.slash is SlashType.SLASH_INPUT_ITERATIVE:
+        # slash of inputs (iterative): a one-shot transformation of the exact benchmark,
+        # applied before the exploration loop so that it does not consume an error partition
+        slash_circuit_data = do_slash_input_iterative(specs_obj)
+
+        #
+        all_generated_circuits_data.append(slash_circuit_data)
+        specs_obj.stats_storage.commit()
+        # print the slashed circuit metrics in the same format as the iterations
+        print_current_model([slash_circuit_data], origin_circuit_data=exact_circuit_metrics)
+
     #
     for (
         specs_obj.iteration,
@@ -95,8 +109,8 @@ def explore_grid(specs_obj: Specifications):
         erriter,  # error threshold for the iteration
         while_predicate(lambda: obtained_wce_exact < specs_obj.max_error),  # normal continuation
     ):
-        # slash to kill
-        if specs_obj.slash_to_kill:
+        # circuit-slash pass
+        if specs_obj.slash is SlashType.SLASH_SUBGRAPH:
             # first iteration: apply slash
             if specs_obj.iteration == 1:
                 # store relevant specifications values
@@ -498,6 +512,52 @@ def extract_subgraph(circuit: IOGraph, specs_obj: Specifications) -> list[str]:
         }[specs_obj.extraction_mode](circuit, specs_obj)
     else:  # monolithic XPAT
         return [n.name for n in circuit.inners]
+
+
+def do_slash_input_iterative(specs: Specifications):
+    """
+    :authors: Lorenzo Spada
+    """
+
+    # remove the inputs that can be tied to a shared constant while keeping
+    # the resulting circuit within `error_for_slash` of the original one
+    specs.sub_iteration = 'slash'
+    with Timer2.default() as _timer:
+        specs.current_benchmark, slash_error = remove_inputs(specs)
+    slash_time = _timer.total()
+
+    # the pass may produce a circuit whose error exceeds the global budget
+    if slash_error > specs.max_error:
+        pprint.warning(
+            f'the slash pass produced a circuit with error {slash_error}, which exceeds the '
+            f'maximum error ({specs.max_error}): the resulting circuit may not satisfy the constraints'
+        )
+
+    slash_metrics = MetricsEstimator.estimate_metrics(
+        specs.path.synthesis, specs.current_benchmark, specs.path.run.temporary,
+    )
+
+    slash_circuit_data = CircuitData(
+        'gen_slash',
+        specs.current_benchmark,
+        slash_metrics.area,
+        slash_metrics.power,
+        slash_metrics.delay,
+        slash_error,
+        slash_error,
+    )
+
+    # logging (iteration 0: the pass runs before the exploration loop)
+    specs.stats_storage.stage(
+        iteration=specs.iteration,
+        slash_error=slash_error,
+        slash_area=slash_metrics.area,
+        slash_power=slash_metrics.power,
+        slash_delay=slash_metrics.delay,
+        slash_time=slash_time,
+    )
+
+    return slash_circuit_data
 
 
 def error_iterator_factory(
