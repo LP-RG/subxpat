@@ -1,8 +1,7 @@
 import itertools
 import math
-from typing import Dict, Iterable, List, Mapping, Optional, Set, Tuple
+from typing import AbstractSet, Iterable, Mapping, Optional
 
-import re
 import networkx as nx
 
 from z3 import (
@@ -56,7 +55,7 @@ class EdgeSortDatatype(DatatypeSortRef):
     def target(edge: EdgeDatatype) -> NodeDatatype: ...
 
 
-def _declare_datatypes(bit_width: int) -> Tuple[NodeSortDatatype, EdgeSortDatatype]:
+def _declare_datatypes(bit_width: int) -> tuple[NodeSortDatatype, EdgeSortDatatype]:
     # define Node datatype
     Node = Datatype('Node')
     Node.declare(
@@ -85,8 +84,8 @@ def _encode_nodes(
     gates_weight: Mapping[str, int],
     bit_width: int,
     Node: NodeSortDatatype,
-    candidates: Optional[Set[str]] = None,
-) -> Tuple[Dict[str, NodeDatatype], List[BoolRef]]:
+    candidates: Optional[AbstractSet[str]] = None,
+) -> tuple[dict[str, NodeDatatype], list[BoolRef]]:
     """
     Encodes all available and unavailable nodes.
 
@@ -94,8 +93,8 @@ def _encode_nodes(
     :return: the mapping of `str->Node` and the constraints for the unavailable nodes
     """
 
-    z3_nodes: Dict[str, NodeDatatype] = dict()
-    constraints: List[BoolRef] = list()
+    z3_nodes: dict[str, NodeDatatype] = dict()
+    constraints: list[BoolRef] = list()
     ids = itertools.count()
 
     for _name, _id in zip(unavailable_nodes, ids):
@@ -123,7 +122,7 @@ def _encode_nodes(
 def _candidates_from_outputs(
     circuit: IOGraph,
     threshold: int,
-) -> Optional[Set[str]]:
+) -> Optional[set[str]]:
     """
     Candidates for mode 55: the gates in the input cone of the outputs that can absorb
     the error, i.e. the outputs whose weight `2**i` is not above the threshold.
@@ -134,7 +133,7 @@ def _candidates_from_outputs(
 
     graph = circuit._inner
 
-    candidates: Set[str] = set()
+    candidates: set[str] = set()
     for (i, _name) in enumerate(circuit.outputs_names):
         if (1 << i) > threshold:
             break
@@ -147,7 +146,7 @@ def _candidates_above_cheapest_gates(
     circuit: IOGraph,
     gates_weight: Mapping[str, int],
     threshold: int,
-) -> Optional[Set[str]]:
+) -> Optional[set[str]]:
     """
     Candidates for mode 6: the ancestors-or-self of the gates that may legally be cut,
     i.e. `AncestorsOrSelf({n | 0 <= weight(n) <= threshold})`.
@@ -175,7 +174,7 @@ def _candidates_above_cheapest_gates(
     )
     gate_weight = {n: w for n, w in gates_weight.items() if n not in excluded}
 
-    live: Set[str] = set()
+    live: set[str] = set()
     for _name in circuit.outputs_names:
         live.update(nx.ancestors(graph, _name))
     if not all(_name in live for _name, _weight in gate_weight.items() if _weight >= 0):
@@ -190,14 +189,13 @@ def _candidates_above_cheapest_gates(
     return candidates
 
 
-
 def _encode_edges(
-    edges: Iterable[Tuple[str, str]],
+    edges: Iterable[tuple[str, str]],
     z3_nodes: Mapping[str, NodeDatatype],
     Edge: EdgeSortDatatype,
-) -> List[EdgeDatatype]:
+) -> list[EdgeDatatype]:
 
-    z3_edges: List[EdgeDatatype] = list()
+    z3_edges: list[EdgeDatatype] = list()
 
     for (_src, _des) in edges:
         _edge = Edge.mk_edge(z3_nodes[_src], z3_nodes[_des])
@@ -209,7 +207,7 @@ def _encode_edges(
 def _setup_problem(
     circuit: IOGraph,
     specs: Specifications,
-    candidates: Optional[Set[str]] = None,
+    candidates: Optional[AbstractSet[str]] = None,
 ):
     graph = circuit._inner
     feasibility_threshold = specs.et
@@ -292,9 +290,9 @@ def _add_convexity(optimizer, graph, Node, z3_nodes, candidates=None):
     ancestors = {n: sorted(_keep(nx.ancestors(graph, n))) for n in names}
     # a successor of a selectable node may itself be unselectable, but its selectable
     # descendants still have to be enumerated, so cache them lazily
-    descendants: Dict[str, List[str]] = {}
+    descendants: dict[str, list[str]] = {}
 
-    def _descendants(node: str) -> List[str]:
+    def _descendants(node: str) -> list[str]:
         if node not in descendants:
             descendants[node] = sorted(_keep(nx.descendants(graph, node)))
         return descendants[node]
@@ -330,7 +328,7 @@ def _add_convexity(optimizer, graph, Node, z3_nodes, candidates=None):
                 )
 
 
-def _solve_and_extract(optimizer, max_nodes, h, circuit: IOGraph) -> List[str]:
+def _solve_and_extract(optimizer, max_nodes, h, circuit: IOGraph) -> list[str]:
     graph = circuit._inner
 
     if optimizer.check() != sat:
@@ -356,6 +354,7 @@ def _solve_and_extract(optimizer, max_nodes, h, circuit: IOGraph) -> List[str]:
 
     return node_partition
 
+
 def _declare_ancestor_datatypes():
     Node = Datatype("Node")
     Node.declare(
@@ -374,6 +373,7 @@ def _declare_ancestor_datatypes():
     Edge = Edge.create()
 
     return Node, Edge
+
 
 def _setup_output_ancestor_problem(
     circuit: IOGraph,
@@ -442,11 +442,12 @@ def _setup_output_ancestor_problem(
         ancestors_output,
     )
 
+
 def _find_subgraph_in_candidates(
     circuit: IOGraph,
     specs: Specifications,
-    candidates: Optional[Set[str]],
-) -> List[str]:
+    candidates: Optional[AbstractSet[str]],
+) -> list[str]:
     """
     Largest convex subgraph whose boundary is within the error threshold, restricted to
     `candidates`.
@@ -501,7 +502,7 @@ def _find_subgraph_in_candidates(
     return _solve_and_extract(optimizer, max_nodes, h, circuit)
 
 
-def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
+def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs: Specifications):
     """
     Extraction mode 55: the candidate gates are the input cone of the outputs that can
     absorb the error, i.e. the outputs whose weight is not above the threshold.
@@ -515,7 +516,7 @@ def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs):
 def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
     circuit: IOGraph,
     specs: Specifications,
-) -> List[str]:
+) -> list[str]:
     """
     Extraction mode 6: the candidate gates are the cone above the gates with the minimum
     weight, i.e. the only gates that may legally be cut when the threshold is the
@@ -524,7 +525,14 @@ def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
 
     # prepare
     feasibility_threshold = specs.et
-    weights = [getattr(node, "weight") for node in circuit.nodes if getattr(node, "weight", None) is not None and not isinstance(node, BoolConstant) and not isinstance(node, Identity) and not isinstance(node, BoolVariable)] # TODO: find better way to get needed weights
+    weights = [
+        getattr(node, "weight")
+        for node in circuit.nodes
+        if getattr(node, "weight", None) is not None
+        and not isinstance(node, BoolConstant)
+        and not isinstance(node, Identity)
+        and not isinstance(node, BoolVariable)
+    ]  # TODO: find better way to get needed weights
     min_weight = min(weights) if len(weights) else 0
 
     specs.et = min_weight
@@ -545,7 +553,7 @@ def find_subgraph_feasible_hard_datatype_bitvec_mintreshold(
 def slash_to_kill(
     circuit: IOGraph,
     specs: Specifications,
-) -> List[str]:
+) -> list[str]:
     # No candidate restriction here: the summed feasibility is computed in bit-vector
     # arithmetic that can wrap, so `sum <= et` does not provably bound each cut source,
     # and the slash pass runs once per run anyway.
@@ -594,10 +602,11 @@ def slash_to_kill(
 
     return _solve_and_extract(optimizer, max_nodes, h, circuit)
 
+
 def find_subgraph_output_nodes_ascendant(
     circuit: IOGraph,
     specs: Specifications,
-) -> List[str]:
+) -> list[str]:
 
     graph = circuit._inner
 
