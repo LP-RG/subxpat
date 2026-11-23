@@ -108,7 +108,6 @@ class export_annotated_graph:
         outputs = frozenset(circuit.base_components['IO'].outputs_names)
         subgraph_component = circuit.base_components['Subgraph']
         types_component = circuit.base_components['Types']
-        values_component = circuit.base_components['Values']
         subgraph_inputs = frozenset(_n.name for _n in subgraph_component.subgraph_inputs)
         subgraph_outputs = frozenset(_n.name for _n in subgraph_component.subgraph_outputs)
         subgraph_nodes = frozenset(_n.name for _n in subgraph_component.subgraph_nodes)
@@ -132,7 +131,7 @@ class export_annotated_graph:
             elif name in outputs:
                 return rf'{name} [label={name}, shape=doublecircle{fillcolor_str}];'
             elif types_component.instance_of(n, [BoolConstant]):
-                return rf'{name} [label="{str(values_component.get(n)).upper()}\n{name}{weight_str}", shape=square{fillcolor_str}];'
+                return rf'{name} [label="{str(circuit.base_components['Values'].get(n)).upper()}\n{name}{weight_str}", shape=square{fillcolor_str}];'
             elif types_component.instance_of(n, [Not]):
                 return rf'{name} [label="not\n{name}{weight_str}"{fillcolor_str}];'
             elif types_component.instance_of(n, [And]):

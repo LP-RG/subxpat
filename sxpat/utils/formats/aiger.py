@@ -5,7 +5,7 @@
 """
 
 from textwrap import dedent
-from sxpat.graph import Graph
+from sxpat.graph import Graph, GraphBuilder
 from sxpat.graph.components import IO
 from sxpat.graph.node import BoolVariable, BoolConstant, And, Not, Identity
 import subprocess
@@ -168,7 +168,7 @@ def graph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list =
     # print("\tNumber of constants: " + str(num_constants))
     info.extend([str(num_inputs), str(num_outputs), str(num_AND_gates), str(not_gates_amount), str(num_constants)])
 
-    nodes = list()
+    graph_builder = GraphBuilder()
     inputs_names = list()
     outputs_names = list()
     for (node_index, attrs) in graph.nodes(True):
@@ -179,39 +179,26 @@ def graph_from_digraph(benchmark_name, circuit_digraph: nx.DiGraph, info: list =
         # create node
         if node_type[1]:  # input
             inputs_names.append(node_index)
-            nodes.append(BoolVariable(node_index))
+            graph_builder.add_node(node_index, BoolVariable)
         elif node_type[3]:  # output
             outputs_names.append(node_index)
-            nodes.append(Identity(
-                node_index,
-                operands,
-            ))
+            graph_builder.add_node(node_index, Identity).add_operands(list(operands))
         elif node_type[2] == 1:  # and
-            nodes.append(And(
-                node_index,
-                operands,
-            ))
+            graph_builder.add_node(node_index, And).add_operands(list(operands))
         elif node_type[2] == 2:  # not
-            nodes.append(Not(
-                node_index,
-                operands,
-            ))
+            graph_builder.add_node(node_index, Not).add_operands(list(operands))
         elif node_type[0]:  # constant
-            nodes.append(BoolConstant(
-                node_index,
-                True,
-            ))
+            graph_builder.add_node(node_index, BoolConstant).add_extras(value=True)
         else:
             raise RuntimeError(f'Unable to parse node {node_index} from DiGraph (attributes={attrs})')
 
-    # construct graph
-    return Graph(
-        nodes,
-        components=[
-            IO(sorted(inputs_names, key=lambda x: int(x)),
-               sorted(outputs_names, key=lambda x: int(x)))
-        ]
+    graph_builder.add_base_component(
+        IO({'inputs_names': sorted(inputs_names, key=lambda x: int(x)),
+            'outputs_names': sorted(outputs_names, key=lambda x: int(x))})
     )
+
+    # construct graph
+    return graph_builder.create()
 
     # TODO: maybe gates dicts, and gates fields
 

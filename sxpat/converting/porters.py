@@ -32,35 +32,35 @@ _N_CLSS = {c.__name__: c for c in get_all_leaves_subclasses(Node)}
 
 
 @make_utility_class
-class GraphImporter(Generic[T_Graph]):
+class GraphImporter(Graph):
     """Abstract class for importing a Graph from a string/file."""
 
     @classmethod
-    def from_string(cls, string: str) -> T_Graph:
+    def from_string(cls, string: str) -> Graph:
         raise NotImplementedError(f'{cls.__name__}.from_string(...) is abstract.')
 
     @classmethod
-    def from_file(cls, filename: str) -> T_Graph:
+    def from_file(cls, filename: str) -> Graph:
         _s = FS.readfile(filename)
         return cls.from_string(_s)
 
 
 @make_utility_class
-class GraphExporter(Generic[T_Graph]):
+class GraphExporter(Graph):
     """Abstract class for exporting a Graph to a string/file."""
 
     @classmethod
     @abstractmethod
-    def to_string(cls, graph: T_Graph) -> str:
+    def to_string(cls, graph: Graph) -> str:
         raise NotImplementedError(f'{cls.__name__}.to_string(...) is abstract.')
 
     @classmethod
-    def to_file(cls, graph: T_Graph, filename: str) -> None:
+    def to_file(cls, graph: Graph, filename: str) -> None:
         _s = cls.to_string(graph)
         FS.writefile(filename, _s, overwrite=True)
 
 
-class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
+class GraphVizPorter(GraphImporter, GraphExporter):
     """
         Allows for dumping/loading of a Graph to/from a GraphViz (aka. Dot) string/file.
 
@@ -349,7 +349,7 @@ class GraphVizPorter(GraphImporter[Graph], GraphExporter[Graph]):
     #     return Graph(nodes.values())
 
 
-class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
+class JSONPorter(GraphImporter, GraphExporter):
     """
         Allows for dumping and loading of a Graph to and from a JSON string/file.
 
@@ -384,7 +384,7 @@ class JSONPorter(GraphImporter[Graph], GraphExporter[Graph]):
         return json.dumps(_g, indent='\t')
 
 
-class VerilogExporter(GraphExporter[Graph]):
+class VerilogExporter(GraphExporter):
     """
         Allows for dumping of an Graph to a Verilog string/file.
 
@@ -456,6 +456,6 @@ class VerilogExporter(GraphExporter[Graph]):
         )))
 
     @classmethod
-    def to_file(cls, graph: T_Graph, filename: str, info: Info = None) -> None:
+    def to_file(cls, graph: Graph, filename: str, info: Info = None) -> None:
         _s = cls.to_string(graph, info)
         FS.writefile(filename, _s, overwrite=True)

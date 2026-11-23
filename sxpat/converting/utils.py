@@ -41,7 +41,7 @@ def unpack_ToInt(graph: Graph) -> Graph:
         @authors: Marco Biasion
     """
 
-    graph_copier = GraphCopier(graph)
+    graph_builder = GraphBuilder()
 
     types_component = graph.base_components['Types']
     toint_nodes = tuple(
@@ -57,7 +57,7 @@ def unpack_ToInt(graph: Graph) -> Graph:
     int_consts = {
         toint.name: {
             # n: IntConstant(f'{toint.name}_c{n}', value=n)
-            n: graph_copier.add_node(f'{toint.name}_c{n}', IntConstant).add_extras(value=n).current
+            n: graph_builder.add_node(f'{toint.name}_c{n}', IntConstant).add_extras(value=n).current
             for n in it.chain((0,), (2**i for i in range(len(topology_component.operands(toint)))))
         }
         for toint in toint_nodes
@@ -70,7 +70,7 @@ def unpack_ToInt(graph: Graph) -> Graph:
     ifs: Dict[str, List[If]] = {
         toint.name: [
             # If(f'if_{toint.name}_{i}', operands=(pred, int_consts[toint.name][2**i], int_consts[toint.name][0]))
-            graph_copier.add_node(f'if_{toint.name}_{i}', If).add_operands([pred, int_consts[toint.name][2**i].name, int_consts[toint.name][0].name]).current
+            graph_builder.add_node(f'if_{toint.name}_{i}', If).add_operands([pred, int_consts[toint.name][2**i].name, int_consts[toint.name][0].name]).current
             for i, pred in enumerate(topology_component.operands(toint)) # type: ignore
         ]
         for toint in toint_nodes
@@ -81,17 +81,17 @@ def unpack_ToInt(graph: Graph) -> Graph:
 
     for toint in toint_nodes:
         # node = Sum(toint.name, operands=ifs[toint.name])
-        graph_copier.add_node(toint.name, Sum).add_operands(operands=[n.name for n in ifs[toint.name]])
+        graph_builder.add_node(toint.name, Sum).add_operands(operands=[n.name for n in ifs[toint.name]])
         if graph.has_base_component('Subgraph'):
             # graph_copier.add_node(node, in_subgraph=graph.base_components['Subgraph'].in_subgraph(toint.name))
-            graph_copier.add_extras(in_subgraph=graph.base_components['Subgraph'].in_subgraph(toint.name))
+            graph_builder.add_extras(in_subgraph=graph.base_components['Subgraph'].in_subgraph(toint.name))
 
     types_component = graph.base_components['Types']
     for node in graph.nodes:
         if not types_component.instance_of(node.name, [ToInt]):
-            graph_copier.add_node(node.name, types_component.get(node.name))
+            graph_builder.add_node_from(node, graph)
 
-    return graph_copier.copy()
+    return graph_builder.create()
 
 
 def prune_unused(graph: Graph, reserved_names: Iterable[str]) -> Graph:
@@ -197,12 +197,11 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
     def manage_node(node: Node, graph: Graph):
         types_component = graph.base_components['Types']
         topology_component = graph.base_components['Topology']
-        values_component = graph.base_components['Values']
         # skippable
         if types_component.instance_of(node, [Target, Constraint]): return
 
         # deferred case (all predecessors of a node should have the same bitwidth)
-        elif nodes_types[node.name] is not int:
+        elif not types_component.instance_of(node, [IntResType]):
             if types_component.instance_of(node, [Operation]):
                 max_bitwidth = max(bitwidth_of.get(n.name, 0) for n in graph.predecessors(node))
                 for n in graph.predecessors(node):
@@ -210,7 +209,7 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
 
         # trivial cases
         elif types_component.instance_of(node, [IntConstant]) and node.name not in bitwidth_of:
-            bitwidth_of[node.name] = max(1, math.ceil(math.log(values_component.get(node) + 1, 2)))
+            bitwidth_of[node.name] = max(1, math.ceil(math.log(graph.base_components['Values'].get(node) + 1, 2)))
         elif types_component.instance_of(node, [ToInt]) and node.name not in bitwidth_of:
             bitwidth_of[node.name] = len(topology_component.operands(node))
 
@@ -242,7 +241,7 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
         return get_nodes_bitwidth(graphs, nodes_types, bitwidth_of)
 
 
-def set_bool_constants(graph: T_Graph, constants: Mapping[str, bool], skip_missing: bool = False) -> T_Graph:
+def set_bool_constants(graph: Graph, constants: Mapping[str, bool], skip_missing: bool = False) -> Graph:
     """
         Takes a graph and a mapping from names to bool in input
         and returns a new graph with the nodes corresponding to the given names replaced with the wanted constant.

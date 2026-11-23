@@ -118,7 +118,7 @@ class Operation(__Base):
         *abstract*
     """
 
-    required_operands: ClassVar[int]
+    required_operands: ClassVar[int | None]
 
 
 @dc.dataclass(frozen=True, init=False, repr=False, eq=False)
@@ -322,6 +322,8 @@ class And(Operation, BoolResType, Expression, Node):
         This node can have any amount of operands.
     """
 
+    required_operands = None
+
 
 @dc.dataclass(frozen=True, slots=True)
 class Or(Operation, BoolResType, Expression, Node):
@@ -329,6 +331,8 @@ class Or(Operation, BoolResType, Expression, Node):
         Boolean disjunction ( `a or b or ...` ) expression.  
         This node can have any amount of operands.
     """
+
+    required_operands = None
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -365,6 +369,8 @@ class Sum(Operation, IntResType, Expression, Node):
         This node can have any amount of operands.
     """
 
+    required_operands = None
+
 
 @dc.dataclass(frozen=True, slots=True)
 class AbsDiff(Limited2Operation, IntResType, Expression, Node):
@@ -380,6 +386,8 @@ class Mul(Operation, IntResType, Expression, Node):
         Integer multiplication ( `a * b * ...` ) expression.  
         This node can have any amount of operands.
     """
+
+    required_operands = None
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -419,6 +427,8 @@ class ToInt(Operation, IntResType, Expression, Node):
         Special integer node: represents the creation of an integer given a sequence of booleans (the bits).  
         This node can have any amount of ordered operands, where the first represents the least significant bit.
     """
+
+    required_operands = None
 
 
 # int to bool
@@ -514,6 +524,7 @@ class AtLeast(Operation, Valued, BoolResType, Expression, Node):
     """
 
     value_type = int
+    required_operands = None
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -524,6 +535,7 @@ class AtMost(Operation, Valued, BoolResType, Expression, Node):
     """
 
     value_type = int
+    required_operands = None
 
 
 # > solver objective nodes
@@ -611,6 +623,8 @@ class ForAll(Operation, GlobalTask, Node):
     """
         Special solver global node: specifies that all constraints must be asserted for each permutation of the operands.  
     """
+
+    required_operands = None
 
 
 # > Typing help

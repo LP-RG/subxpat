@@ -181,11 +181,11 @@ class Topology(Component, OrderedDiGraph):
     @final
     def get_nodes(self) -> Sequence[AnyNode]:
         """Sequence of nodes in the unique lexicographical topological order."""
-        return tuple(self.get()[name]['node'] for name in nx.lexicographical_topological_sort(self.get()))
+        return tuple(self.get_node(name) for name in nx.lexicographical_topological_sort(self.get()))
 
     @final
     def get_node(self, node_name: str) -> AnyNode:
-        return self.get()[node_name]['node']
+        return self.get().nodes(data='node')[node_name]
 
     @final
     def get_predecessors(self, node_or_name: Union[Node, str]) -> Sequence[AnyNonEndPoint]:
@@ -193,14 +193,14 @@ class Topology(Component, OrderedDiGraph):
         node = self.get_node(node_name)
         # we iterate over the .predecessors instead of the .operands, so even if `node` is not an Operation it still works
         return tuple(sorted(
-            (self.get().nodes[_name]['node'] for _name in self.get().predecessors(node_name)),
+            (self.get_node(_name) for _name in self.get().predecessors(node_name)),
             key=lambda _n: list(n for n in self.get().predecessors(node.name)).index(_n.name)
         ))
 
     @final
     def get_successors(self, node_or_name: Union[Node, str]) -> Sequence[AnyNonEntryPoint]:
         return tuple(
-            self.get().nodes[name]['node']
+            self.get_node(name)
             for name in self.get().successors(get_name(node_or_name))
         )
 
@@ -471,9 +471,9 @@ component_empty_object: dict[available_graph_components, type] = {
     'Weight': dict[str, int], 
     'Min_Weight': dict[str, int], 
     'Max_Weight': dict[str, int], 
-    'Parameter': Sequence[str], 
+    'Parameter': list[str], 
     'IO': dict[IO_keys, list], 
-    'Constraints': Sequence[AnyNode], 
+    'Constraints': list[AnyNode], 
     'Types': dict[str, type],
     'Values': dict[str, int | bool],
 }

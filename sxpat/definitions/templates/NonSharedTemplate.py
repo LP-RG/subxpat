@@ -134,43 +134,40 @@ class _NonSharedBase:
         return constants_parameters
 
     @classmethod
-    def atmost_lpp_constraints(cls, out_prod_mux_params: List[List[List[Tuple[BoolVariable, BoolVariable]]]], literals_per_product: int
-                               ) -> Sequence[Union[AtMost, Constraint]]:
-        return tuple(flat(
-            (
-                at_most := AtMost(f'at_most_lpp_o{out_i}_p{prod_i}', operands=(p[0] for p in prod_params), value=literals_per_product),
-                Constraint.of(at_most),
-            )
-            for (out_i, out_params) in enumerate(out_prod_mux_params)
-            for (prod_i, prod_params) in enumerate(out_params)
-        ))
+    def atmost_lpp_constraints(cls, 
+                               out_prod_mux_params: List[List[List[Tuple[BoolVariable, BoolVariable]]]], 
+                               literals_per_product: int,
+                               graph_builder: GraphBuilder
+                               ) -> None:
+        for (out_i, out_params) in enumerate(out_prod_mux_params):
+            for (prod_i, prod_params) in enumerate(out_params):
+                at_most = graph_builder.add_node(f'at_most_lpp_o{out_i}_p{prod_i}', AtMost).add_operands([p[0].name for p in prod_params]).add_extras(value=literals_per_product).current
+                constraint_name, operands = Constraint.of(at_most)
+                graph_builder.add_node(constraint_name, Constraint).add_operands(operands)
 
     @classmethod
-    def products_order_redundancy(cls, out_prod_mux_params: List[List[List[Tuple[BoolVariable, BoolVariable]]]]
-                                  ) -> Sequence[Union[Node, Constraint]]:
+    def products_order_redundancy(cls, 
+                                  out_prod_mux_params: List[List[List[Tuple[BoolVariable, BoolVariable]]]],
+                                  graph_builder: GraphBuilder
+                                  ) -> None:
 
         # skip if we have only one product
-        if len(out_prod_mux_params[0]) < 2: return []
-
-        nodes: List[Node] = []
+        if len(out_prod_mux_params[0]) < 2: return
 
         # for all outputs
         for (out_i, out_params) in enumerate(out_prod_mux_params):
             # generate an integer identifier for each product
-            nodes.extend(_prod_ids := [
-                ToInt(f'out{out_i}_prod{prod_i}_id', operands=flat(prod_params))
+            _prod_ids = [
+                graph_builder.add_node(f'out{out_i}_prod{prod_i}_id', ToInt).add_operands([n.name for n in flat(prod_params)]).current
                 for (prod_i, prod_params) in enumerate(out_params)
-            ])
+            ]
             # set the order of the identifiers ( a >= b >= c ... )
-            nodes.extend(flat(
-                (
-                    gt := GreaterEqualThan(f'force_product_order_o{out_i}_{idx_a}_{idx_b}', operands=(prod_a, prod_b)),
-                    Constraint.of(gt),
-                )
-                for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(_prod_ids))
-            ))
-
-        return nodes
+            for (idx_a, prod_a), (idx_b, prod_b) in pairwise(enumerate(_prod_ids)):
+                gt = graph_builder.add_node(
+                    f'force_product_order_o{out_i}_{idx_a}_{idx_b}', 
+                    GreaterEqualThan).add_operands([prod_a.name, prod_b.name]).current
+                constraint_name, operands = Constraint.of(gt)
+                graph_builder.add_node(constraint_name, Constraint).add_operands(operands)
 
 
 class NonSharedFOutTemplate(Template, _NonSharedBase):
@@ -185,7 +182,6 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         # get prefixed graph
         a_graph: Graph = set_prefix(s_graph, 'a_')
         template_graph_builder = GraphBuilder()
-        constraint_graph_builder = GraphBuilder()
 
         # > Template Graph
 
@@ -264,6 +260,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         template_graph = template_graph_builder.create()
 
         # > Constraints Graph
+        constraint_graph_builder = GraphBuilder()
         constraint_graph_builder.add_autofill_component('Constraints')
 
         # multiplexer redundancy
@@ -323,16 +320,14 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
 
 
         # constraint_graph_builder.add_new_nodes(cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp))
-        for n in cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp):
-            constraint_graph_builder.add_node(n.name, type(n))
+        cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp, constraint_graph_builder)
 
         # constraint_graph_builder.add_new_nodes(mux_red_nodes)
 
         # constraint_graph_builder.add_new_nodes(const0_red_nodes)
 
         # constraint_graph_builder.add_new_nodes(cls.products_order_redundancy(out_prod_mux_params))
-        for n in cls.products_order_redundancy(out_prod_mux_params):
-            constraint_graph_builder.add_node(n.name, type(n))
+        cls.products_order_redundancy(out_prod_mux_params, constraint_graph_builder)
 
         constraint_graph = constraint_graph_builder.create()
 
@@ -491,16 +486,14 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
             constraint_graph_builder.add_node(name, PlaceHolder)
 
         # constraint_graph_builder.add_new_nodes(cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp))
-        for c in cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp):
-            template_graph_builder.add_node(c.name, type(c))
+        cls.atmost_lpp_constraints(out_prod_mux_params, specs.lpp, constraint_graph_builder)
 
         # constraint_graph_builder.add_new_nodes(prevent_mux_constF)
 
         # constraint_graph_builder.add_new_nodes(constF_red_nodes)
 
         # constraint_graph_builder.add_new_nodes(cls.products_order_redundancy(out_prod_mux_params))
-        for c in cls.products_order_redundancy(out_prod_mux_params):
-            template_graph_builder.add_node(c.name, type(c))
+        cls.products_order_redundancy(out_prod_mux_params, constraint_graph_builder)
 
         constraint_graph = constraint_graph_builder.create()
 

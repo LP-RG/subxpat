@@ -60,9 +60,4 @@ class MaxDistanceEvaluation:
         graph_builder.add_node(node_name, Target).add_operands(operands)
         constraint_graph = graph_builder.create()
 
-        # constraint_graph = Graph(
-        #     graph_nodes,
-        #     [Constraints(graph_nodes)]
-        # )
-
         return (template_graph, constraint_graph)

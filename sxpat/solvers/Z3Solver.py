@@ -123,7 +123,7 @@ class Z3Encoder:
         destination.write('\n'.join((
             '# variables (inputs, parameters)',
             *(
-                f'{name} = {cls.node_mapping[type(node)](graph[name], graph, None, accessories(graph[name]))}'
+                f'{name} = {cls.node_mapping[type(graph[name])](graph[name], graph, None, accessories(graph[name]))}'
                 for (name, graph) in variables.items()
             ),
             *('',) * 2,
@@ -141,7 +141,7 @@ class Z3Encoder:
         destination.write('\n'.join((
             '# constants',
             *(
-                f'{name} = {cls.node_mapping[type(node)](graph[name], graph, None, accessories(graph[name]))}'
+                f'{name} = {cls.node_mapping[type(graph[name])](graph[name], graph, None, accessories(graph[name]))}'
                 for (name, graph) in constants.items()
             ),
             *('',) * 2,

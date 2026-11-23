@@ -6,7 +6,7 @@ from sxpat.utils.collections import first, formatted_int_range
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph import Graph
+from sxpat.graph import Graph, GraphBuilder
 from sxpat.graph import error as g_error
 from sxpat.graph.node import AbsDiff, AnyExtras, If, IntConstant, PlaceHolder, Sum, Node
 from sxpat.graph.components import Constraints
@@ -42,21 +42,18 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         elif (broken := first(lambda x: not graph_b_weights.has_weight(x), w_nodes_b, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph_b ({graph_b}) has no weight.')
 
+        graph_builder = GraphBuilder()
+        graph_builder.add_autofill_component('Constraints')
+
         # values
-        (a_nodes, a_name) = cls._define_value(graph_a, w_nodes_a, 'a')
-        (b_nodes, b_name) = cls._define_value(graph_b, w_nodes_b, 'b')
+        a_name = cls._define_value(graph_a, w_nodes_a, 'a', graph_builder)
+        b_name = cls._define_value(graph_b, w_nodes_b, 'b', graph_builder)
 
         # distance
-        distance = AbsDiff('dist_distance', operands=[a_name, b_name])
-
-        graph_nodes = list(it.chain(
-            a_nodes,
-            b_nodes,
-            [distance],
-        ))
+        distance = graph_builder.add_node('dist_distance', AbsDiff).add_operands([a_name, b_name]).current
 
         # construct Constraints Graph
-        dist_func = Graph(graph_nodes, [Constraints(graph_nodes)])
+        dist_func = graph_builder.create()
 
         return (dist_func, distance.name)
 
@@ -79,20 +76,24 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         if (broken := first(graph.base_components['Weight'].has_weight, w_nodes, None)) is not None:
             raise g_error.MissingAttributeInNodeError(f'{broken} in graph ({graph}) has no weight.')
 
-        (value_nodes, value_name) = cls._define_value(graph, w_nodes, 'v')
-        value_nodes = list(value_nodes)
+        graph_builder = GraphBuilder()
+        graph_builder.add_autofill_component('Constraints')
+
+        value_name = cls._define_value(graph, w_nodes, 'v', graph_builder)
 
         # construct Constraints Graph
-        value_func = Graph(value_nodes, [Constraints(value_nodes)])
+        value_func = graph_builder.create()
 
         return (value_func, value_name)
 
     @classmethod
-    def _define_value(cls, graph: Graph, wanted_nodes: Sequence[AnyExtras], value_id: str
-                      ) -> Tuple[Iterable[Union[PlaceHolder, IntConstant, If, Sum]], str]:
+    def _define_value(cls, 
+                      graph: Graph, 
+                      wanted_nodes: Sequence[AnyExtras], 
+                      value_id: str,
+                      graph_builder: GraphBuilder) -> str:
 
         # graph int
-        consts_n = []
         bits_n = []
         weight_component = graph.base_components['Weight']
         for (i, node) in zip(
@@ -101,21 +102,19 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         ):
             # create constants
             val: int = weight_component.get(node.name) # type: ignore
-            consts_n.extend([
-                const_0 := IntConstant(f'dist_{value_id}{i}_const_0', 0),
-                const_n := IntConstant(f'dist_{value_id}{i}_const_{val}', val),
-            ])
+            const_0 = graph_builder.add_node(f'dist_{value_id}{i}_const_0', IntConstant).add_extras(value=0).current 
+            const_n = graph_builder.add_node(f'dist_{value_id}{i}_const_{val}', IntConstant).add_extras(value=val).current
 
             # create node that reflects the weight if the bit is true, or 0
-            bits_n.append(If(f'dist_{value_id}{i}', operands=[node, const_n, const_0]))
-        int_n = Sum(f'dist_int_{value_id}', operands=bits_n)
+            bits_n.append(
+                graph_builder.add_node(
+                    f'dist_{value_id}{i}', If
+                ).add_operands([node.name, const_n.name, const_0.name]).current
+            )
+        int_n = graph_builder.add_node(f'dist_int_{value_id}', Sum).add_operands([n.name for n in bits_n]).current
 
-        return (
-            it.chain(
-                (PlaceHolder(node.name) for node in wanted_nodes),
-                consts_n,
-                bits_n,
-                [int_n],
-            ),
-            int_n.name,
-        )
+        # placeholders
+        for node in wanted_nodes:
+            graph_builder.add_node(node.name, PlaceHolder)
+        
+        return int_n.name

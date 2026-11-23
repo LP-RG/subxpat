@@ -3,7 +3,7 @@ from typing_extensions import override
 
 from .DistanceSpecification import DistanceSpecification
 
-from sxpat.graph import Graph
+from sxpat.graph import Graph, GraphBuilder
 from sxpat.graph import error as g_error
 from sxpat.graph.node import If, IntConstant, PlaceHolder, Sum, Xor, Node
 from sxpat.utils.collections import first, formatted_int_range
@@ -42,9 +42,10 @@ class WeightedHammingDistance(DistanceSpecification):
         if (mismatch := first(lambda ns: graph_a_weights.get(ns[0].name) != graph_b_weights.get(ns[1].name), zip(w_nodes_a, w_nodes_b), None)) is not None:
             raise ValueError(f'The wanted nodes of the two graphs ({mismatch[0]}, {mismatch[1]}) have mismatching weights.')
 
+        graph_builder = GraphBuilder()
+        graph_builder.add_autofill_component('Constraints')
+
         # bit flips to int
-        consts = []
-        flipped_bits = []
         int_bits = []
         for (i, node_a, node_b) in zip(
             formatted_int_range(len(wanted_a)),
@@ -53,31 +54,27 @@ class WeightedHammingDistance(DistanceSpecification):
         ):
             # create constants
             val: int = graph_a_weights.get(node_a.name)  # type: ignore
-            consts.extend([
-                const_0 := IntConstant(f'dist_a{i}_const_0', 0),
-                const_n := IntConstant(f'dist_a{i}_const_{val}', val),
-            ])
+            const_0 = graph_builder.add_node(f'dist_a{i}_const_0', IntConstant).add_extras(value=0).current
+            const_n = graph_builder.add_node(f'dist_a{i}_const_{val}', IntConstant).add_extras(value=val).current
 
             # create node reflecting if a bit is flipped
-            flipped_bits.append(bit := Xor(f'dist_is_different_{i}', operands=[node_a, node_b]))
+            bit = graph_builder.add_node(f'dist_is_different_{i}', Xor).add_operands([node_a.name, node_b.name]).current
 
             # create node that reflects the weight if the bit is flipped, or 0
-            int_bits.append(If(f'dist_value_{i}', operands=[bit, const_n, const_0]))
+            int_bits.append(graph_builder.add_node(f'dist_value_{i}', If).add_operands([bit.name, const_n.name, const_0.name]).current)
 
         # distance
-        distance = Sum('dist_distance', operands=int_bits)
+        distance = graph_builder.add_node('dist_distance', Sum).add_operands([n.name for n in int_bits]).current
 
-        graph_nodes = list((
-            *(PlaceHolder(name) for name in wanted_a),
-            *(PlaceHolder(name) for name in wanted_b),
-            *consts,
-            *flipped_bits,
-            *int_bits,
-            distance,
-        ))
+        # placeholders
+        for name in wanted_a:
+            graph_builder.add_node(name, PlaceHolder)
+        for name in wanted_b:
+            graph_builder.add_node(name, PlaceHolder)
+
 
         # construct Constraints Graph
-        dist_func = Graph(graph_nodes, [Constraints(graph_nodes)])
+        dist_func = graph_builder.create()
 
         return (dist_func, distance.name)
 

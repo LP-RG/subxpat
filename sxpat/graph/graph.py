@@ -237,7 +237,7 @@ class GraphCreator(ABC):
     base_components: list[Component]
     extra_components: dict[str, CustomComponent]
     nodes: list[AnyNode]
-    __current_node: Union[AnyNode, None]
+    _current_node: Union[AnyNode, None]
 
     def __init__(self) -> None:
         self.base_components_objects = ComponentsObjectsDict()
@@ -246,29 +246,29 @@ class GraphCreator(ABC):
         self.base_components = list()
         self.extra_components = dict()
         self.nodes = list()
-        self.__current_node = None
+        self._current_node = None
 
     @property
     def current(self) -> AnyNode:
-        assert(not self.__current_node is None)
-        return self.__current_node
+        assert(not self._current_node is None)
+        return self._current_node
 
     @final
-    def __check_component_addition(self, component_name: str) -> None:
+    def _check_component_addition(self, component_name: str) -> None:
         if (component_name in self.base_components_objects
             or any(type(c).__name__ == component_name for c in self.base_components)):
             raise RuntimeError(
                 f'Base component {component_name} already present in the graph'
             )
-        if len(self.nodes) > 0:
-            add_first = get_args(automatic_components) + get_args(autofill_components)
+        add_first = get_args(automatic_components) + get_args(autofill_components)
+        if len(self.nodes) > 0 and component_name in add_first:
             raise RuntimeError(
-                f'Illegal action: Base component {component_name} is being added after nodes are added'
+                f'Illegal action: Base component {component_name} is being added after nodes are added\n'
                 f'These base components are required to be added before the nodes: {', '.join(add_first)}'
             )
 
     @final
-    def __add_automatic_component(self, component_name: automatic_components) -> None:
+    def _add_automatic_component(self, component_name: automatic_components) -> None:
         """
             Derived from node attributes (completely automatic)
         """
@@ -285,7 +285,7 @@ class GraphCreator(ABC):
         """
             Explicitly added by the user and autofilled
         """
-        self.__check_component_addition(component_name)
+        self._check_component_addition(component_name)
         empty_object_type = component_empty_object[component_name]
         self.base_components_objects[component_name] = empty_object_type()
         return self
@@ -297,7 +297,7 @@ class GraphCreator(ABC):
         """
         assert(not isinstance(component, CustomComponent))
         assert(not any(isinstance(component, x) for x in get_args(inaddible_components)))
-        self.__check_component_addition(type(component).__name__)
+        self._check_component_addition(type(component).__name__)
         self.base_components.append(component)
         return self
 
@@ -314,17 +314,17 @@ class GraphCreator(ABC):
         return self
 
     @final
-    def __add_new_node(self, node_name: str, node_type: type[AnyNode]) -> None:
+    def _add_new_node(self, node_name: str, node_type: type[AnyNode]) -> None:
         new_node: AnyNode = node_type(node_name)
-        self.__current_node = new_node
+        self._current_node = new_node
         self.nodes.append(new_node)
         if 'Constraint' in self.base_components_objects:
             self.base_components_objects['Constraints'].append(new_node)
         self.base_components_objects['Topology'].add_node(node_name, name=node_name, node=new_node)
         self.base_components_objects['Types'][node_name] = node_type
 
-    def __add_node_from_node(self, other_node: AnyNode, other_graph: Graph, **new_attributes: Unpack[NodeAttributes]) -> None:
-        self.__add_new_node(new_attributes['name'] if 'name' in new_attributes else other_node.name, 
+    def _add_node_from_node(self, other_node: AnyNode, other_graph: Graph, **new_attributes: Unpack[NodeAttributes]) -> None:
+        self._add_new_node(new_attributes['name'] if 'name' in new_attributes else other_node.name, 
                             new_attributes['node_type'] if 'node_type' in new_attributes else type(other_node))
         extras = {}
         if 'in_subgraph' in new_attributes:
@@ -347,41 +347,41 @@ class GraphCreator(ABC):
             extras['value'] = new_attributes['value']
         elif other_graph.has_base_component('Values') and other_graph.base_components['Values'].has_value(other_node):
             extras['value'] = other_graph.base_components['Values'].get(other_node)
-        self.__add_extras(**extras)
+        self._add_extras(**extras)
         if 'operands' in new_attributes:
-            self.__add_operands(new_attributes['operands'])
+            self._add_operands(new_attributes['operands'])
         elif other_graph.base_components['Types'].instance_of(other_node.name, [Operation]):
-            self.__add_operands(other_graph.base_components['Topology'].operands(other_node.name))
+            self._add_operands(other_graph.base_components['Topology'].operands(other_node.name))
 
     @final
-    def __add_extras(self, **extras: Unpack[NodeExtras]) -> None:
+    def _add_extras(self, **extras: Unpack[NodeExtras]) -> None:
         node_name = self.current.name
         if "weight" in extras and extras["weight"] != None:
-            self.__add_automatic_component('Weight')
+            self._add_automatic_component('Weight')
             self.base_components_objects['Weight'][node_name] = extras["weight"]
         if "max_weight" in extras and extras["max_weight"] != None:
-            self.__add_automatic_component('Max_Weight')
+            self._add_automatic_component('Max_Weight')
             self.base_components_objects['Max_Weight'][node_name] = extras["max_weight"]
         if "min_weight" in extras and extras["min_weight"] != None:
-            self.__add_automatic_component('Min_Weight')
+            self._add_automatic_component('Min_Weight')
             self.base_components_objects['Min_Weight'][node_name] = extras["min_weight"]
         if "in_subgraph" in extras and extras["in_subgraph"]:
-            self.__add_automatic_component('Subgraph')
+            self._add_automatic_component('Subgraph')
             self.base_components_objects['Subgraph'].add(node_name)
         if "value" in extras:
             assert(isinstance(self.current, Valued))
             assert(type(extras['value']) == type(self.current).value_type)
-            self.__add_automatic_component('Values')
+            self._add_automatic_component('Values')
             self.base_components_objects['Values'][node_name] = extras['value']
 
     @final
-    def __add_operands(self, operands: list[str]) -> None:
+    def _add_operands(self, operands: list[str]) -> None:
         assert(isinstance(self.current, Operation))
         required_count = type(self.current).required_operands
-        if len(operands) != required_count:
+        if (not required_count is None) and len(operands) != required_count:
             raise RuntimeError(
-                f'Wrong operands count: '
-                f'{len(operands)} operands were given (expected {required_count}) '
+                f'Wrong operands count:\n'
+                f'{len(operands)} operands were given (expected {required_count})\n'
                 f'in {self!r}.'
             )
         dst_name = self.current.name
@@ -392,44 +392,44 @@ class GraphBuilder(GraphCreator):
 
     @final
     def add_node(self, node_name: str, node_type: type[AnyNode]) -> Self:
-        self.__add_new_node(node_name, node_type)
+        self._add_new_node(node_name, node_type)
         return self
 
     @final
     def add_node_from_node(self, other_node: AnyNode, other_graph: Graph, **new_attributes: Unpack[NodeAttributes]) -> Self:
-        self.__add_node_from_node(other_node, other_graph, **new_attributes)
+        self._add_node_from_node(other_node, other_graph, **new_attributes)
         return self
 
     @final
     def add_extras(self, **extras: Unpack[NodeExtras]) -> Self:
-        if self.__current_node is None: raise
-        self.__add_extras(**extras)
+        if self._current_node is None: raise
+        self._add_extras(**extras)
         return self
 
     @final
     def add_operands(self, operands: list[str]) -> Self:
-        if self.__current_node is None: raise
-        self.__add_operands(operands)
+        if self._current_node is None: raise
+        self._add_operands(operands)
         return self
 
     @final
     def add_node_from(self, node: AnyNode, predecessor_graph: Graph) -> Self:
-        self.__add_new_node(node.name, predecessor_graph.base_components["Types"].get(node))
+        self._add_new_node(node.name, predecessor_graph.base_components["Types"].get(node))
         extras = {}
         if predecessor_graph.has_base_component('Subgraph') and predecessor_graph.base_components["Subgraph"].in_subgraph(self.current.name):
-            extras['in_subgraph': True]
+            extras['in_subgraph'] = True
         if predecessor_graph.has_base_component('Weight') and predecessor_graph.base_components['Weight'].has_weight(self.current):
-            extras['weight': predecessor_graph.base_components['Weight'].get(self.current.name)]
+            extras['weight'] = predecessor_graph.base_components['Weight'].get(self.current.name)
         if predecessor_graph.has_base_component('Max_Weight') and predecessor_graph.base_components['Max_Weight'].has_weight(self.current):
-            extras['max_weight': predecessor_graph.base_components['Max_Weight'].get(self.current.name)]
+            extras['max_weight'] = predecessor_graph.base_components['Max_Weight'].get(self.current.name)
         if predecessor_graph.has_base_component('Min_Weight') and predecessor_graph.base_components['Min_Weight'].has_weight(self.current):
-            extras['min_weight': predecessor_graph.base_components['Min_Weight'].get(self.current.name)]
+            extras['min_weight'] = predecessor_graph.base_components['Min_Weight'].get(self.current.name)
         if predecessor_graph.has_base_component('Values') and predecessor_graph.base_components['Values'].has_value(self.current):
-            extras['value': predecessor_graph.base_components['Values'].get(self.current)]
-        self.__add_extras(**extras)
+            extras['value'] = predecessor_graph.base_components['Values'].get(self.current)
+        self._add_extras(**extras)
         if predecessor_graph.base_components["Types"].instance_of(self.current, [Operation]):
-            self.__add_operands(list(predecessor_graph.base_components['Topology'].operands(self.current)))
-        self.__current_node = None
+            self._add_operands(list(predecessor_graph.base_components['Topology'].operands(self.current)))
+        self._current_node = None
         return self
 
     @final
@@ -443,7 +443,7 @@ class GraphBuilder(GraphCreator):
         components: list[Component] = list()
         components.extend(self.base_components)
         for comp_name, comp_obj in self.base_components_objects.items():
-            components.append(component_name_to_type(comp_name)(comp_obj))
+            components.append(component_name_to_type[comp_name](comp_obj))
             
         # Add default Subgraph and Weight components if they're not passed as argument 
         #(this because the Node structure had default weight = None and in_subgraph = False)
@@ -467,65 +467,67 @@ class GraphCopier(GraphCreator):
 
     @final
     def __current_node_inherits(self) -> None:
-        if not self.__current_node is None:
+        if not self._current_node is None:
             if not self.__current_node_additions['extras']: self.add_extras()
             if not self.__current_node_additions['operands']: self.add_operands()
+        self.__current_node_additions = {'extras': False, 'operands': False}
 
     @final
     def add_node(self, node_name: str, node_type: type[AnyNode]) -> Self:
         self.__current_node_inherits()
-        self.__add_new_node(node_name, node_type)
-        self.__current_node_additions = {'extras': False, 'operands': False}
+        self._add_new_node(node_name, node_type)
         return self
 
     @final
     def add_node_from_node(self, other_node: AnyNode, **new_attributes: Unpack[NodeAttributes]) -> Self:
-        self.__add_node_from_node(other_node, self.graph_to_copy, **new_attributes)
+        self._add_node_from_node(other_node, self.graph_to_copy, **new_attributes)
+        self.__current_node_additions = {'extras': True, 'operands': True}
         return self
 
     @final
     def add_extras(self, **extras: Unpack[NodeExtras]) -> Self:
         #TODO: make these method simpler with dict concatenation!
-        if self.__current_node is None: raise
+        if self._current_node is None: raise
         new_extras = {}
         if "in_subgraph" in extras and extras["in_subgraph"]:
-            new_extras['in_subgraph': True]
+            new_extras['in_subgraph'] = True
         elif self.graph_to_copy.has_base_component('Subgraph') and self.graph_to_copy.base_components["Subgraph"].in_subgraph(self.current.name):
-            new_extras['in_subgraph': True]
+            new_extras['in_subgraph'] = True
         if "weight" in extras and extras["weight"] != None:
-            new_extras['weight': extras["weight"]] 
+            new_extras['weight'] = extras["weight"]
         elif self.graph_to_copy.has_base_component('Weight') and self.graph_to_copy.base_components['Weight'].has_weight(self.current.name):
-            new_extras['weight': self.graph_to_copy.base_components['Weight'].get(self.current.name)]
+            new_extras['weight'] = self.graph_to_copy.base_components['Weight'].get(self.current.name)
         if "max_weight" in extras and extras["max_weight"] != None:
-            new_extras['max_weight': extras["max_weight"]] 
+            new_extras['max_weight'] = extras["max_weight"]
         elif self.graph_to_copy.has_base_component('Max_Weight') and self.graph_to_copy.base_components['Max_Weight'].has_weight(self.current.name):
-            new_extras['max_weight': self.graph_to_copy.base_components['Max_Weight'].get(self.current.name)]
+            new_extras['max_weight'] = self.graph_to_copy.base_components['Max_Weight'].get(self.current.name)
         if "min_weight" in extras and extras["min_weight"] != None:
-            new_extras['min_weight': extras["min_weight"]] 
+            new_extras['min_weight'] = extras["min_weight"]
         elif self.graph_to_copy.has_base_component('Min_Weight') and self.graph_to_copy.base_components['Min_Weight'].has_weight(self.current.name):
-            new_extras['min_weight': self.graph_to_copy.base_components['Min_Weight'].get(self.current.name)]
+            new_extras['min_weight'] = self.graph_to_copy.base_components['Min_Weight'].get(self.current.name)
         if "value" in extras:
-            new_extras['value': extras["value"]] 
+            new_extras['value'] = extras["value"]
         elif self.graph_to_copy.has_base_component('Values') and self.graph_to_copy.base_components['Values'].has_value(self.current):
-            new_extras['value': self.graph_to_copy.base_components['Values'].get(self.current)]
-        self.__add_extras(**new_extras)
+            new_extras['value'] = self.graph_to_copy.base_components['Values'].get(self.current)
+        self._add_extras(**new_extras)
         self.__current_node_additions['extras'] = True
         return self
 
     @final
     def add_operands(self, operands: list[str] = list()) -> Self:
-        if self.__current_node is None: raise
+        if self._current_node is None: raise
         if len(operands) > 0:
-            self.__add_operands(operands)
+            self._add_operands(operands)
         elif self.graph_to_copy.base_components["Types"].instance_of(self.current, [Operation]):
-            self.__add_operands(list(self.graph_to_copy.base_components['Topology'].operands(self.current)))
+            self._add_operands(list(self.graph_to_copy.base_components['Topology'].operands(self.current)))
         self.__current_node_additions['operands'] = True
         return self
 
     @final
     def add_all_nodes(self, **extras: Unpack[NodeExtras]) -> None:
         for node in self.graph_to_copy.nodes:
-            self.add_node(node).add_extras(**extras).add_operands()
+            self.add_node(node.name, type(node)).add_extras(**extras).add_operands()
+        self.__current_node_additions = {'extras': True, 'operands': True}
 
     @final
     def copy(self) -> Graph:
@@ -534,7 +536,7 @@ class GraphCopier(GraphCreator):
         components: list[Component] = list()
         components.extend(self.base_components)
         for comp_name, comp_obj in self.base_components_objects.items():
-            components.append(component_name_to_type(comp_name)(comp_obj))
+            components.append(component_name_to_type[comp_name](comp_obj))
 
         components_types = [type(c).__name__ for c in components]
         for name, component in self.graph_to_copy.base_components.items():
