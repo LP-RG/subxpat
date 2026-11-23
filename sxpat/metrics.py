@@ -98,8 +98,8 @@ class MetricsEstimator:
         temporary_path: str,
     ) -> Metrics:
         # compute names and paths
-        yosys_path = require_tool('yosys')
-        sta_path = require_tool('sta')
+        yosys_exe = require_tool('yosys')
+        sta_exe = require_tool('sta')
 
         circuit_name = extract_name(circuit_in_verilog_path)
         metrics_verilog_path = f'{temporary_path}/{circuit_name}_for_metrics.v'
@@ -126,12 +126,12 @@ class MetricsEstimator:
 
         # > execute commands
         yosys_result = subprocess.run(
-            [yosys_path], input=yosys_command,
+            [yosys_exe], input=yosys_command,
             capture_output=True, text=True,
             check=True,
         )
         sta_result = subprocess.run(
-            [sta_path], input=sta_command,
+            [sta_exe], input=sta_command,
             capture_output=True, text=True,
             check=True,
         )
