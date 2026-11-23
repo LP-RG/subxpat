@@ -122,7 +122,7 @@ def _encode_nodes(
 def _candidates_from_outputs(
     circuit: IOGraph,
     threshold: int,
-) -> Optional[set[str]]:
+) -> set[str]:
     """
     Candidates for mode 55: the gates in the input cone of the outputs that can absorb
     the error, i.e. the outputs whose weight `2**i` is not above the threshold.
@@ -208,7 +208,15 @@ def _setup_problem(
     circuit: IOGraph,
     specs: Specifications,
     candidates: Optional[AbstractSet[str]] = None,
-):
+) -> tuple[
+    Optimize,
+    NodeSortDatatype,
+    EdgeSortDatatype,
+    dict[str, NodeDatatype],
+    list[EdgeDatatype],
+    nx.DiGraph,
+    int,
+]:
     graph = circuit._inner
     feasibility_threshold = specs.et
 
@@ -243,7 +251,13 @@ def _setup_problem(
     return optimizer, Node, Edge, z3_nodes, z3_edges, graph, bit_width
 
 
-def _add_boundary_edges(graph, Node, z3_nodes, bit_width, candidates=None):
+def _add_boundary_edges(
+    graph: nx.DiGraph,
+    Node,
+    z3_nodes,
+    bit_width: int,
+    candidates: Optional[AbstractSet[str]] = None,
+) -> tuple[list[BitVecRef], list[BitVecRef]]:
     z3_bitvec_0 = BitVecVal(0, bit_width)
     z3_bitvec_1 = BitVecVal(1, bit_width)
 
@@ -278,11 +292,17 @@ def _add_boundary_edges(graph, Node, z3_nodes, bit_width, candidates=None):
     return z3_subinput_edges, z3_suboutput_edges
 
 
-def _add_convexity(optimizer, graph, Node, z3_nodes, candidates=None):
+def _add_convexity(
+    optimizer,
+    graph: nx.DiGraph,
+    Node,
+    z3_nodes,
+    candidates: Optional[AbstractSet[str]] = None,
+) -> None:
     # only selectable nodes need constraints, and only selectable nodes matter inside
     # the conjunctions (the others are pinned to False, so `Not(in_subgraph(x))` is a
     # tautology that would only cost literals)
-    def _keep(names):
+    def _keep(names: Iterable[str]) -> list[str]:
         return [n for n in names if candidates is None or n in candidates]
 
     names = _keep(list(z3_nodes))
@@ -502,7 +522,7 @@ def _find_subgraph_in_candidates(
     return _solve_and_extract(optimizer, max_nodes, h, circuit)
 
 
-def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs: Specifications):
+def find_subgraph_feasible_hard_datatype_bitvec(circuit: IOGraph, specs: Specifications) -> list[str]:
     """
     Extraction mode 55: the candidate gates are the input cone of the outputs that can
     absorb the error, i.e. the outputs whose weight is not above the threshold.
