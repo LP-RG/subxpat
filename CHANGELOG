@@ -37,3 +37,4 @@ Date: 2026-11-10
     - Patched a bug when min-labelling, where no error is found (also added warning). (#213)
   Minor Optimizations:
     - Optimised memory footprint of LiveStorage. (#213)
+    - Shared one extraction implementation between subgraph extraction modes 55 and 6, each solving over only the nodes that can belong to its subgraph, which shrinks the z3 encoding. (#230)
