@@ -49,23 +49,31 @@ class Component(ABC):
     def with_graph(self, graph: Any) -> Component:
         pass
 
+    @abstractmethod
+    def synch_nodes(self, nodes: list[AnyNode]) -> Component:
+        pass
+
 
 class CustomComponent(Component):
     """User-defined component"""
 
     graph: Final[Any]
     graph_reference: Final[bool]
+    nodes_synch_action: Callable[[list[AnyNode], Any], Any]
 
     def __init__(self,
                  object: Any,
                  action: Callable[..., Any],
+                 nodes_synch_action: Callable[[list[AnyNode], Any], CustomComponent],
                  inheritable: bool = True,
                  keep_graph_reference: bool = False,
-                 graph: Any = None) -> None:
+                 graph: Any = None,
+                 ) -> None:
 
         super.__init__(deepcopy(object), action, inheritable)
         self.graph = graph
         self.graph_reference = keep_graph_reference
+        self.nodes_synch_action = nodes_synch_action
 
     @final
     def perform_action(self, *optionalArgs) -> Any:
@@ -76,7 +84,22 @@ class CustomComponent(Component):
         if not self.graph_reference:
             return self
         else:
-            return CustomComponent(self.object, self.action, self.inheritable, self.graph_reference, graph)
+            return CustomComponent(self.object, 
+                                   self.action, 
+                                   self.nodes_synch_action,
+                                   self.inheritable, 
+                                   self.graph_reference, 
+                                   graph)
+
+    @final
+    def synch_nodes(self, nodes: list[AnyNode]) -> CustomComponent:
+        new_object = self.nodes_synch_action(nodes, self.object)
+        return CustomComponent(new_object, 
+                               self.action, 
+                                self.nodes_synch_action,
+                                self.inheritable, 
+                                self.graph_reference, 
+                                self.graph)
 
 
 class Subgraph(Component):
@@ -103,6 +126,15 @@ class Subgraph(Component):
     @final
     def with_graph(self, graph: Any) -> Subgraph:
         return Subgraph(self.object, graph)
+
+    @final
+    def synch_nodes(self, nodes: list[AnyNode]) -> Subgraph:
+        new_subgraph_set: set[str] = set([
+            name
+            for name in self.object
+            if any(name == n.name for n in nodes)
+        ])
+        return Subgraph(new_subgraph_set)
 
     @ft.cached_property
     @final
@@ -170,6 +202,10 @@ class Topology(Component, OrderedDiGraph):
     @final
     def with_graph(self, graph: object = None) -> Topology:
         return Topology(self.get(), graph)
+
+    @final
+    def synch_nodes(self, nodes: list[AnyNode]) -> Topology:
+        return self
 
     @final 
     def operands(self, node_or_name: Union[Node, str]) -> list[str]:
@@ -261,6 +297,15 @@ class Weight(Component):
         return self
 
     @final
+    def synch_nodes(self, nodes: list[AnyNode]) -> Weight:
+        new_map: dict[str, int] = dict(
+            (name, weight)
+            for (name, weight) in self.object.items()
+            if any(name == n.name for n in nodes)
+        )
+        return Weight(new_map)
+
+    @final
     def has_weight(self, node_or_name: Union[Node, str]) -> bool:
         """Returns if the given object has an assigned weight."""
         return self.get(get_name(node_or_name)) is not None
@@ -282,6 +327,15 @@ class Parameter(Component):
     @final
     def with_graph(self, graph: Any) -> Parameter:
         return Parameter(self.object, graph)
+
+    @final
+    def synch_nodes(self, nodes: list[AnyNode]) -> Parameter:
+        new_parameters_names: list[str] = [
+            name
+            for name in self.object
+            if any(name == n.name for n in nodes)
+        ]
+        return Parameter(new_parameters_names)
 
     @ft.cached_property
     @final
@@ -311,6 +365,22 @@ class IO(Component):
     @final
     def with_graph(self, graph: object = None) -> IO:
         return IO(self.object, graph)
+
+    @final
+    def synch_nodes(self, nodes: list[AnyNode]) -> IO:
+        new_IO_names: dict[IO_keys, Sequence[str]] = {
+            'inputs_names': [
+                name
+                for name in self.inputs_names
+                if any(name == n.name for n in nodes)
+            ],
+            'outputs_names': [
+                name
+                for name in self.outputs_names
+                if any(name == n.name for n in nodes)
+            ]
+        }
+        return IO(new_IO_names)
 
     @ft.cached_property
     @final
@@ -375,6 +445,10 @@ class Constraints(Component):
     def with_graph(self, graph: object = None) -> Constraints:
         return self
 
+    @final
+    def synch_nodes(self, nodes: list[AnyNode]) -> Constraints:
+        return self
+
     @ft.cached_property
     @final
     def placeholders(self) -> AbstractSet[PlaceHolder]:
@@ -409,6 +483,10 @@ class Types(Component):
         return self
 
     @final
+    def synch_nodes(self, nodes: list[AnyNode]) -> Types:
+        return self
+
+    @final
     def get(self, node_or_name: Union[Node, str]) -> type:
         return self.action(self.object, get_name(node_or_name))
 
@@ -433,6 +511,15 @@ class Values(Component):
     @final
     def with_graph(self, graph: object = None) -> Values:
         return self
+
+    @final
+    def synch_nodes(self, nodes: list[AnyNode]) -> Values:
+        new_map: dict[str, int | bool] = dict(
+            (name, value)
+            for (name, value) in self.object.items()
+            if any(name == n.name for n in nodes)
+        )
+        return Values(new_map)
 
     @final
     def get(self, node_or_name: Union[Node, str]) -> int | bool:

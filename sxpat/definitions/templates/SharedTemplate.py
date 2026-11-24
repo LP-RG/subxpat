@@ -32,7 +32,6 @@ class SharedTemplate(Template):
         # get prefixed graph
         a_graph: Graph = set_prefix(graph, 'a_')
         template_graph_builder = GraphBuilder()
-        constraint_graph_builder = GraphBuilder()
 
         # > Template Graph
 
@@ -162,6 +161,7 @@ class SharedTemplate(Template):
         template_graph = template_graph_builder.create()
 
         # > Constraints Graph
+        constraint_graph_builder = GraphBuilder()
         constraint_graph_builder.add_autofill_component('Constraints')
         constraint_graph_builder.add_node('cT', BoolConstant).add_extras(value=True)
         constraint_graph_builder.add_node('cF', BoolConstant).add_extras(value=False)

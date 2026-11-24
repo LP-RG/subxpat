@@ -14,7 +14,7 @@ from .Solver import Solver
 from sxpat.converting import get_nodes_bitwidth, unpack_ToInt, get_nodes_type
 from sxpat.graph import *
 from sxpat.graph.node import *
-from sxpat.graph.components import IO, Parameter, Topology
+from sxpat.graph.components import IO, Parameter
 
 
 __all__ = [
@@ -36,33 +36,33 @@ class Z3Encoder:
     solver_construct: Mapping[Type[Union[ForAll, Min, Max, None]], str]
     node_accessories: Callable[[Sequence[Any]], Callable[[Node], Sequence[Any]]]
 
-    constraints_assertion: Mapping[Type[Union[ForAll, Min, Max, None]], Callable[[str, Union[ForAll, Min, Max, None], Union[Topology, None], Sequence[str]], Sequence[str]]] = {
-        type(None): lambda solver_name, node, topology, assertions: [
+    constraints_assertion: Mapping[Type[Union[ForAll, Min, Max, None]], Callable[[str, Union[list[str], str, None], Sequence[str]], Sequence[str]]] = {
+        type(None): lambda solver_name, global_task_operands, assertions: [
             f'{solver_name}.add(',
             *(f'    {a},' for a in assertions),
             f')',
         ],
-        ForAll: lambda solver_name, forall, topology , assertions: [
+        ForAll: lambda solver_name, global_task_operands, assertions: [
             f'{solver_name}.add(',
             f'    ForAll(',
-            f'        [{",".join(topology.operands(forall.name))}],',
+            f'        [{",".join(global_task_operands)}],',
             f'        And(',
             *(f'            {a},' for a in assertions),
             f'        )',
             f'    )',
             f')',
         ],
-        Min: lambda solver_name, min, topology, assertions: [
+        Min: lambda solver_name, global_task_operands, assertions: [
             f'{solver_name}.add(',
             *(f'    {a},' for a in assertions),
             f')',
-            f'{solver_name}.minimize({topology.operand(min)})',
+            f'{solver_name}.minimize({global_task_operands})',
         ],
-        Max: lambda solver_name, max, topology, assertions: [
+        Max: lambda solver_name, global_task_operands, assertions: [
             f'{solver_name}.add(',
             *(f'    {a},' for a in assertions),
             f')',
-            f'{solver_name}.maximize({topology.operand(max)})',
+            f'{solver_name}.maximize({global_task_operands})',
         ],
     }
 
@@ -71,6 +71,7 @@ class Z3Encoder:
     def encode(cls, graphs: Solver._Graphs,
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
+               global_targets_mapping: dict[str, Graph] | None = None,
                ) -> None:
         raise NotImplementedError(f'{cls.__qualname__}.encode(...) is abstract')
 
@@ -281,9 +282,19 @@ class Z3FuncEncoder(Z3Encoder):
     def encode(cls, graphs: Solver._Graphs,
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
+               global_tasks_mapping: dict[str, Graph] | None = None,
                ) -> None:
 
         # initial computations
+        assert((global_task is None) == (global_tasks_mapping is None)) # global_task has to be passed together with global tasks graph mapping
+        global_task_graph: Graph | None = None
+        global_task_operands: list[str] | str | None = None
+        if global_task:
+            global_task_graph = global_tasks_mapping[global_task.name]
+            if type(global_task) == ForAll:
+                global_task_operands = global_task_graph.base_components['Topology'].operands(global_task)
+            else:
+                global_task_operands = global_task_graph.base_components['Topology'].operand(global_task)
         node_mapping = cls.node_mapping
         type_mapping = cls.type_mapping
         solver_construct = cls.solver_construct
@@ -302,16 +313,15 @@ class Z3FuncEncoder(Z3Encoder):
             for graph in graphs
         )
         # update global_task if present (mainly useful for operands)
-        global_task_topology: Topology | None = None
         if global_task:
             # global_task = cls.nodes_as_function_calls([global_task], inputs_string, non_gates_names)[0]
-            global_task_graph: Graph
-            for graph in graphs:
-                if any(global_task.name == node.name for node in graph.nodes):
-                    global_task_topology = graph.base_components['Topology']
-                    global_task_graph = graph
             updated_names = cls.nodes_names_as_function_calls([global_task], global_task_graph, inputs_string, non_gates_names)
             global_task = type(global_task)(name=updated_names[global_task.name])
+            new_operands = [
+                updated_names[old_name]
+                for old_name in list(global_task_operands)
+            ]
+            global_task_operands = new_operands if len(new_operands) > 1 else new_operands[0]
 
         # gather constraints graphs
         c_graphs = tuple(graph for graph in graphs if graph.has_base_component('Constraints'))
@@ -366,7 +376,7 @@ class Z3FuncEncoder(Z3Encoder):
         destination.write('\n'.join((
             f'# define solver',
             f'solver = {solver_construct[type(global_task)]}',
-            *constraint_assertion[type(global_task)]('solver', global_task, global_task_topology, ['behaviour', 'usage']),
+            *constraint_assertion[type(global_task)]('solver', global_task_operands, ['behaviour', 'usage']),
             *('',) * 2,
         )))
 
@@ -385,9 +395,19 @@ class Z3DirectEncoder(Z3Encoder):
     def encode(cls, graphs: Solver._Graphs,
                destination: IO[str],
                global_task: Union[ForAll, Min, Max, None] = None,
+               global_tasks_mapping: dict[str, Graph] | None = None,
                ) -> None:
 
         # initial computations
+        assert((global_task is None) == (global_tasks_mapping is None)) # global_task has to be passed together with global tasks graph mapping
+        global_task_graph: Graph | None = None
+        global_task_operands: list[str] | str | None = None
+        if global_task:
+            global_task_graph = global_tasks_mapping[global_task.name]
+            if type(global_task) == ForAll:
+                global_task_operands = global_task_graph.base_components['Topology'].operands(global_task)
+            else:
+                global_task_operands = global_task_graph.base_components['Topology'].operand(global_task)
         node_mapping = cls.node_mapping
         type_mapping = cls.type_mapping
         solver_construct = cls.solver_construct
@@ -426,17 +446,11 @@ class Z3DirectEncoder(Z3Encoder):
             *('',) * 2,
         )))
 
-        global_task_topology: Topology | None = None
-        if global_task:
-            for graph in graphs:
-                if any(global_task.name == node.name for node in graph.nodes):
-                    global_task_topology = graph.base_components['Topology']
-
         # solver
         destination.write('\n'.join((
             f'# define solver',
             f'solver = {solver_construct[type(global_task)]}',
-            *constraint_assertion[type(global_task)]('solver', global_task, global_task_topology, ['usage']),
+            *constraint_assertion[type(global_task)]('solver', global_task_operands, ['usage']),
             *('',) * 2,
         )))
 
@@ -571,23 +585,25 @@ class Z3Solver(Solver):
     def solve_exists(cls, graphs: Solver._Graphs,
                      specifications: Specifications,
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._z3_solve(graphs, specifications, None)
+        return cls._z3_solve(graphs, specifications, None, None)
 
     @classmethod
     @override
     def solve_forall(cls, graphs: Solver._Graphs,
                      specifications: Specifications,
                      forall_target: ForAll,
+                     global_targets_mapping: dict[str, Graph],
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._z3_solve(graphs, specifications, forall_target)
+        return cls._z3_solve(graphs, specifications, forall_target, global_targets_mapping)
 
     @classmethod
     @override
     def solve_optimize(cls, graphs: Solver._Graphs,
                        specifications: Specifications,
                        optimize_target: Union[Min, Max],
+                       global_targets_mapping: dict[str, Graph],
                        ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
-        return cls._z3_solve(graphs, specifications, optimize_target)
+        return cls._z3_solve(graphs, specifications, optimize_target, global_targets_mapping)
 
     @classmethod
     @override
@@ -595,15 +611,17 @@ class Z3Solver(Solver):
                               specifications: Specifications,
                               optimize_target: Union[Min, Max],
                               forall_target: ForAll,
+                              global_targets_mapping: dict[str, Graph],
                               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         # NOTE: the override here is used to remove unnecessary warning,
         #       as the default iterative approach is the correct one for this solver
-        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target, global_targets_mapping)
 
     @classmethod
     def _z3_solve(cls, graphs: Solver._Graphs,
                   specifications: Specifications,
                   global_task: Union[ForAll, Min, Max, None],
+                  global_targets_mapping: dict[str, Graph] | None,
                   ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
 
         script_path = path_join(specifications.path.run.solver_scripts,
@@ -611,7 +629,7 @@ class Z3Solver(Solver):
 
         # encode
         with open(script_path, 'w') as f:
-            cls.encoder.encode(graphs, f, global_task)
+            cls.encoder.encode(graphs, f, global_task, global_targets_mapping)
 
         # run
         raw_result = cls._run_script(script_path)

@@ -347,7 +347,6 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
         # get prefixed graph
         a_graph: Graph = set_prefix(s_graph, 'a_')
         template_graph_builder = GraphBuilder()
-        constraint_graph_builder = GraphBuilder()
 
         # > Template Graph
 
@@ -406,6 +405,7 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
         template_graph = template_graph_builder.create()
 
         # > Constraints Graph
+        constraint_graph_builder = GraphBuilder()
         constraint_graph_builder.add_autofill_component('Constraints')
 
         # multiplexer constF redundancy and product constF redundancy

@@ -60,7 +60,7 @@ class Solver(metaclass=ABCMeta):
     def solve(cls, graphs: _Graphs,
               specifications: Specifications,
               *,
-              _global_targets: Optional[GlobalTasks] = None,
+              _global_targets_with_mapping: Optional[Tuple[GlobalTasks, dict[str, Graph]]] = None,
               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
         Solve the required problem defined by the given graphs.
@@ -75,26 +75,32 @@ class Solver(metaclass=ABCMeta):
         """
 
         # compute global targets if not already given
-        if _global_targets is None:
-            _global_targets, graphs = cls._pop_global_tasks(graphs)
+        if _global_targets_with_mapping is None:
+            _global_targets, _global_targets_mapping, graphs = cls._pop_global_tasks(graphs)
+        else:
+            _global_targets = _global_targets_with_mapping[0]
+            _global_targets_mapping = _global_targets_with_mapping[1]
 
         if _global_targets.optimize is not None and _global_targets.forall is not None:
             # solve an optimization and forall quantified problem
             return cls.solve_optimize_forall(
                 graphs, specifications,
                 _global_targets.optimize, _global_targets.forall,
+                _global_targets_mapping,
             )
         elif _global_targets.optimize is not None and _global_targets.forall is None:
             # solve an optimization (not forall quantified) problem
             return cls.solve_optimize(
                 graphs, specifications,
                 _global_targets.optimize,
+                _global_targets_mapping,
             )
         elif _global_targets.optimize is None and _global_targets.forall is not None:
             # solve a forall quantified (and non optimization) problem
             return cls.solve_forall(
                 graphs, specifications,
                 _global_targets.forall,
+                _global_targets_mapping,
             )
         else:
             # solve a non optimization and not forall quantified problem.
@@ -116,6 +122,7 @@ class Solver(metaclass=ABCMeta):
     def solve_forall(cls, graphs: _Graphs,
                      specifications: Specifications,
                      forall_target: ForAll,
+                     global_targets_mapping: dict[str, Graph],
                      ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
         Solve a forall quantified (non optimization) problem.
@@ -124,12 +131,13 @@ class Solver(metaclass=ABCMeta):
             '[WARNING] using default (iterative) implementation'
             f' for {cls.__qualname__}.solve_forall(...)'
         )
-        return cls._solve_forall(graphs, specifications, forall_target)
+        return cls._solve_forall(graphs, specifications, forall_target, global_targets_mapping)
 
     @classmethod
     def solve_optimize(cls, graphs: _Graphs,
                        specifications: Specifications,
                        optimize_target: Union[Min, Max],
+                       global_targets_mapping: dict[str, Graph],
                        ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
         Solve an optimization (not forall quantified) problem.
@@ -138,13 +146,14 @@ class Solver(metaclass=ABCMeta):
             '[WARNING] using default (iterative) implementation'
             f' for {cls.__qualname__}.solve_optimize(...)'
         )
-        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, None)
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, None, global_targets_mapping)
 
     @classmethod
     def solve_optimize_forall(cls, graphs: _Graphs,
                               specifications: Specifications,
                               optimize_target: Union[Min, Max],
                               forall_target: ForAll,
+                              global_targets_mapping: dict[str, Graph],
                               ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
         Solve an optimization and forall quantified problem.
@@ -153,13 +162,14 @@ class Solver(metaclass=ABCMeta):
             '[WARNING] using default (iterative) implementation'
             f' for {cls.__qualname__}.solve_optimize_forall(...)'
         )
-        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target)
+        return cls._solve_optimize_forall_iterative(graphs, specifications, optimize_target, forall_target, global_targets_mapping)
 
     @classmethod
     @abstractmethod
     def _solve_forall(cls, graphs: _Graphs,
                       specifications: Specifications,
                       forall_target: ForAll,
+                      global_targets_mapping: dict[str, Graph],
                       ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         # TODO: here we can implement the custom forall approach as for the initial implementations of XPAT (in year ~2021)
         raise NotImplementedError(f'{cls.__qualname__}._solve_forall(...) is work in progress')
@@ -170,16 +180,17 @@ class Solver(metaclass=ABCMeta):
                                          specifications: Specifications,
                                          optimize_target: Union[Min, Max],
                                          forall_target: Optional[ForAll],
+                                         global_targets_mapping: dict[str, Graph],
                                          ) -> Tuple[str, Optional[Mapping[str, Union[bool, int]]]]:
         """
         Solve an optimization (optionally forall quantified) problem iteratively without requiring solver specific features.
 
         :authors: Marco Biasion
         """
-        optimize_target_operand: str
-        for graph in graphs:
-            if any(optimize_target.name == n.name for n in graph.nodes):
-                optimize_target_operand = graph.base_components['Topology'].operand(optimize_target)
+        optimize_target_operand = global_targets_mapping[optimize_target.name].base_components['Topology'].operand(optimize_target)
+        # for graph in graphs:
+        #     if any(optimize_target.name == n.name for n in graph.nodes):
+        #         optimize_target_operand = graph.base_components['Topology'].operand(optimize_target)
 
         graph_builder = GraphBuilder()
         graph_builder.add_autofill_component('Constraints')
@@ -212,7 +223,7 @@ class Solver(metaclass=ABCMeta):
 
             # solve
             _global_targets = GlobalTasks(forall=forall_target)
-            status, model = cls.solve(_graphs, specifications, _global_targets=_global_targets)
+            status, model = cls.solve(_graphs, specifications, _global_targets_with_mapping=(_global_targets, global_targets_mapping))
 
             # break if termination condition is reached
             if status == 'unknown': return ('unknown', None)
@@ -228,7 +239,7 @@ class Solver(metaclass=ABCMeta):
 
     @classmethod
     @final
-    def _pop_global_tasks(cls, graphs: _Graphs) -> Tuple[GlobalTasks, _Graphs]:
+    def _pop_global_tasks(cls, graphs: _Graphs) -> Tuple[GlobalTasks,  dict[str, Graph], _Graphs]:
         """
         Pops all `GlobalTask` nodes from the graphs.
 
@@ -241,6 +252,7 @@ class Solver(metaclass=ABCMeta):
 
         _graphs = []
         _global_tasks = []
+        _global_graphs_mapping: dict[str, Graph] = dict()
         for graph in graphs:
             types_component = graph.base_components['Types']
             if (not graph.has_base_component('Constraints')) or (len(graph.base_components['Constraints'].global_tasks) == 0):
@@ -251,6 +263,8 @@ class Solver(metaclass=ABCMeta):
             else:
                 # extract tasks
                 _global_tasks.extend(graph.base_components['Constraints'].global_tasks)
+                for n in graph.base_components['Constraints'].global_tasks:
+                    _global_graphs_mapping[n.name] = graph
 
                 # drop graph if all nodes are GlobalTask and PlaceHolder
                 if all(types_component.instance_of(n, [PlaceHolder, GlobalTask]) for n in graph.nodes):
@@ -293,5 +307,6 @@ class Solver(metaclass=ABCMeta):
                 optimize=(optimizes[0] if optimizes else None),
                 forall=(foralls[0] if foralls else None),
             ),
+            _global_graphs_mapping,
             tuple(_graphs)
         )

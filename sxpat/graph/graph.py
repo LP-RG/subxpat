@@ -318,7 +318,7 @@ class GraphCreator(ABC):
         new_node: AnyNode = node_type(node_name)
         self._current_node = new_node
         self.nodes.append(new_node)
-        if 'Constraint' in self.base_components_objects:
+        if 'Constraints' in self.base_components_objects:
             self.base_components_objects['Constraints'].append(new_node)
         self.base_components_objects['Topology'].add_node(node_name, name=node_name, node=new_node)
         self.base_components_objects['Types'][node_name] = node_type
@@ -541,7 +541,7 @@ class GraphCopier(GraphCreator):
         components_types = [type(c).__name__ for c in components]
         for name, component in self.graph_to_copy.base_components.items():
             if (not name in components_types) and component.inheritable:
-                components.append(component)
+                components.append(component.synch_nodes(self.nodes))
 
         # Add default Subgraph and Weight components if they're not passed as argument 
         #(this because the Node structure had default weight = None and in_subgraph = False)
@@ -555,6 +555,6 @@ class GraphCopier(GraphCreator):
         extra_components_types = [type(c).__name__ for c in self.extra_components]
         for name, component in self.graph_to_copy.extra_components.items(): 
             if (not name in extra_components_types) and component.inheritable:
-                inheritable_extra_components[name] = component
+                inheritable_extra_components[name] = component.synch_nodes(self.nodes)
 
         return Graph(self.nodes, components, inheritable_extra_components)

@@ -102,24 +102,20 @@ def prune_unused(graph: Graph, reserved_names: Iterable[str]) -> Graph:
         @authors: Marco Biasion
     """
 
+    graph_copier = GraphCopier(graph)
+    types_component = graph.base_components['Types']
+    
     # convert to stack
     valid_terminations = list(reserved_names)
 
-    # find reachable nodes from the reserved ones
-    visited_nodes = set()
+    # find reachable nodes from the reserved ones and add only visited nodes
     while valid_terminations:
         node_name = valid_terminations.pop()
-        visited_nodes.add(node_name)
+        graph_copier.add_node(node_name, types_component.get(node_name))
         valid_terminations.extend(_n.name for _n in graph.predecessors(node_name))
 
-    # keep only visited nodes
     # nodes = list(graph[name] for name in visited_nodes)
     # return graph.copy(nodes)
-
-    graph_copier = GraphCopier(graph)
-    types_component = graph.base_components['Types']
-    for name in visited_nodes:
-        graph_copier.add_node(name, types_component.get(name))
     
     return graph_copier.copy() 
 
@@ -201,7 +197,7 @@ def get_nodes_bitwidth(graphs: Iterable[Graph],
         if types_component.instance_of(node, [Target, Constraint]): return
 
         # deferred case (all predecessors of a node should have the same bitwidth)
-        elif not types_component.instance_of(node, [IntResType]):
+        elif nodes_types[node.name] is not int:
             if types_component.instance_of(node, [Operation]):
                 max_bitwidth = max(bitwidth_of.get(n.name, 0) for n in graph.predecessors(node))
                 for n in graph.predecessors(node):
@@ -254,22 +250,15 @@ def set_bool_constants(graph: Graph, constants: Mapping[str, bool], skip_missing
         @authors: Marco Biasion
     """
 
-    new_nodes = {n.name: n for n in graph.nodes}
     types_component = graph.base_components['Types']
+    graph_copier = GraphCopier(graph)
 
     for (name, value) in constants.items():
         if skip_missing and name not in graph: continue
         if types_component.instance_of(graph[name], [PlaceHolder]): continue
 
         node = graph[name]
-        new_nodes[node.name] = BoolConstant(node.name, value)
-
-    # return graph.copy(new_nodes.values())
-
-    graph_copier = GraphCopier(graph)
-    types_component = graph.base_components['Types']
-    for node in new_nodes.values():
-        graph_copier.add_node(node.name, types_component.get(node.name))
+        graph_copier.add_node(node.name, BoolConstant).add_extras(value=value)
 
     return graph_copier.copy()
 
