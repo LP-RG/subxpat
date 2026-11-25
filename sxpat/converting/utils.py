@@ -249,16 +249,19 @@ def set_bool_constants(graph: Graph, constants: Mapping[str, bool], skip_missing
 
         @authors: Marco Biasion
     """
-
-    types_component = graph.base_components['Types']
     graph_copier = GraphCopier(graph)
+    types_component = graph.base_components['Types']
 
     for (name, value) in constants.items():
         if skip_missing and name not in graph: continue
         if types_component.instance_of(graph[name], [PlaceHolder]): continue
 
-        node = graph[name]
-        graph_copier.add_node(node.name, BoolConstant).add_extras(value=value)
+        # new_nodes[name] = BoolConstant(node.name, value)
+        graph_copier.add_node(name, BoolConstant).add_extras(value=value)
+
+    for n in graph.nodes:
+        if not n.name in constants:
+            graph_copier.add_node_from_node(n)
 
     return graph_copier.copy()
 

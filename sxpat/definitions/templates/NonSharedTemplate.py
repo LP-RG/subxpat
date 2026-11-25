@@ -195,6 +195,7 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
         outs_p: List[BoolVariable] = []
         outs: List[If] = []
         updated_nodes: Dict[str, AnyOperation] = dict()
+        updated_operands: Dict[str, list[str]] = dict()
         for (out_i, (out_node, sum_node)) in enumerate(zip(a_graph.base_components['Subgraph'].subgraph_outputs, sums)):
             # create the constant False switch
             outs_p.append(p_o := template_graph_builder.add_node(
@@ -208,15 +209,15 @@ class NonSharedFOutTemplate(Template, _NonSharedBase):
 
             # update all output successors to descend from new outputs
             for succ in filter(lambda n: not n.name in a_graph.base_components['Subgraph'].nodes_names(), a_graph.successors(out_node)):
-                succ = updated_nodes.get(succ.name, succ)
-                succ_operands = a_graph.base_components['Topology'].operands(succ)
-                new_operands = iterable_replace(succ_operands, out_node.name, new_out_node.name)
-                # updated_nodes[succ.name] = succ.copy(operands=new_operands)
-                updated_nodes[succ.name] = template_graph_builder.add_node_from_node(
-                    succ, 
-                    a_graph,
-                    operands=list(new_operands)
-                    ).current
+                # succ = updated_nodes.get(succ.name, succ)
+                succ_operands = updated_operands.get(succ.name, a_graph.base_components['Topology'].operands(succ))
+                updated_operands[succ.name] = list(iterable_replace(succ_operands, out_node.name, new_out_node.name))
+        for name, operands in updated_operands.items():
+            updated_nodes[name] = template_graph_builder.add_node_from_node(
+                a_graph[name], 
+                a_graph,
+                operands=operands
+                ).current
 
         # constants rewriting
         constants_rewriting = cls.constants_rewriting(a_graph, updated_nodes, specs, template_graph_builder)
@@ -358,18 +359,19 @@ class NonSharedFProdTemplate(Template, _NonSharedBase):
 
         # update all output successors to descend from new outputs (sums)
         updated_nodes: Dict[str, AnyOperation] = dict()
+        updated_operands: Dict[str, list[str]] = dict()
         for (out_node, sum_node) in zip(a_graph.base_components['Subgraph'].subgraph_outputs, sums):
             for succ in filter(lambda n: not n.name in a_graph.base_components['Subgraph'].nodes_names(), a_graph.successors(out_node)):
-                succ = updated_nodes.get(succ.name, succ)
-                succ_operands = a_graph.base_components['Topology'].operands(succ)
-                new_operands = iterable_replace(succ_operands, out_node.name, sum_node.name)
-                updated_nodes[succ.name] = template_graph_builder.add_node(
-                    succ.name, 
-                    type(succ)
-                    ).add_operands(list(new_operands)).add_extras(
-                        in_subgraph=a_graph.base_components['Subgraph'].in_subgraph(succ.name),
-                        weight=a_graph.base_components['Weight'].get(succ.name)
-                    ).current
+                succ_operands = updated_operands.get(succ.name, a_graph.base_components['Topology'].operands(succ))
+                updated_operands[succ.name] = list(iterable_replace(succ_operands, out_node.name, sum_node.name))
+        for name, operands in updated_operands.items():
+            updated_nodes[name] = template_graph_builder.add_node(
+                name, 
+                type(a_graph[name])
+                ).add_operands(operands).add_extras(
+                    in_subgraph=a_graph.base_components['Subgraph'].in_subgraph(name),
+                    weight=a_graph.base_components['Weight'].get(name)
+                ).current
 
         # constants rewriting
         constants_rewriting = cls.constants_rewriting(a_graph, updated_nodes, specs, template_graph_builder)
