@@ -1,4 +1,4 @@
-aigverse          == 0.1.5
+aigverse          == 0.1.8
 bidict            == 0.23.1
 colorama          == 0.4.6
 networkx          == 3.6.1
