@@ -13,6 +13,13 @@ OPENSTA_REPO="${OPENSTA_REPO:-https://github.com/The-OpenROAD-Project/OpenSTA.gi
 OPENSTA_REF="${OPENSTA_REF:-c018cb21}"
 CQESTO_REPO="${CQESTO_REPO:-https://github.com/MikolasJanota/cqesto.git}"
 CQESTO_REF="${CQESTO_REF:-4fe4937000731fa8922b2bb25ced0352de01861f}"
+QFUN_REPO="${QFUN_REPO:-https://github.com/MikolasJanota/qfun.git}"
+QFUN_REF="${QFUN_REF:-adbc96047bd9d68fa21035a8c680ebc64d85a456}"
+CADICAL_REPO="${CADICAL_REPO:-https://github.com/arminbiere/cadical.git}"
+CADICAL_REF="${CADICAL_REF:-c60730422e758ef1cebe7aeddf2dda31c996bf04}"  # rel-3.0.1
+
+# the QBF solvers that can be installed individually with `--solver <name>`
+SOLVERS="cqesto cqesto-cadical qfun qfun-cadical"
 
 MODE="${1:-}"
 JOBS="$( (sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4) )"
@@ -28,8 +35,8 @@ package_hint() {
 }
 
 case "$MODE" in
-  --python-init|--python-dep|--macos|--all) ;;
-  *) die "usage: $0 {--python-init|--python-dep|--macos|--all}" ;;
+  --python-init|--python-dep|--macos|--all|--solver) ;;
+  *) die "usage: $0 {--python-init|--python-dep|--macos|--all|--solver <solver>...}" ;;
 esac
 
 need_tool() {
@@ -169,68 +176,148 @@ PY
   ln -sf "$target/bin/sta" "$BIN_DIR/sta"
 }
 
-build_cqesto() {
-  local minisat_lib sha stamp
+fetch_source() {  # $1 = directory under src/, $2 = repository, $3 = revision; prints the sha
+  local dir="$DEPS_DIR/src/$1" repo="$2" ref="$3" sha
+  mkdir -p "$DEPS_DIR/src"
+  # keep git from discovering the repository this project is checked out in
+  export GIT_CEILING_DIRECTORIES="$DEPS_DIR/src"
+  if [ ! -f "$dir/.git/HEAD" ] || ! git -C "$dir" rev-parse --verify --quiet HEAD >/dev/null 2>&1; then
+    rm -rf "$dir"
+    git clone --quiet "$repo" "$dir"
+  fi
+  git -C "$dir" checkout --quiet -- .
+  if ! git -C "$dir" cat-file -e "${ref}^{commit}" 2>/dev/null; then
+    git -C "$dir" fetch --quiet --tags origin
+  fi
+  git -C "$dir" rev-parse --verify --quiet "${ref}^{commit}" >/dev/null \
+    || die "revision '$ref' not found in $repo"
+  git -C "$dir" checkout --quiet "$ref"
+  sha="$(git -C "$dir" rev-parse HEAD)"
+  echo "$sha"
+}
+
+build_cadical() {
+  local sha stamp="$DEPS_DIR/src/cadical/.build-stamp"
+  need_tool git
+  need_tool make "$(build_tools_hint)"
+  need_tool c++ "$(build_tools_hint)"
+
+  sha="$(fetch_source cadical/cadical "$CADICAL_REPO" "$CADICAL_REF")"
+  [ -n "$sha" ] || die "cannot check out cadical at '$CADICAL_REF'"
+  if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$sha" ] \
+    && [ -e "$DEPS_DIR/src/cadical/libcadical.a" ] && [ -e "$DEPS_DIR/src/cadical/ipasir.h" ]; then
+    return 0
+  fi
+
+  log "building cadical ${sha:0:7}"
+  ( cd "$DEPS_DIR/src/cadical/cadical" && ./configure && make -j"$JOBS" ) \
+    > "$DEPS_DIR/src/cadical-build.log" 2>&1 \
+    || die "cadical build failed, see $DEPS_DIR/src/cadical-build.log"
+  # the layout the vendored setup scripts of cqesto and qfun would have produced
+  ln -sfn cadical/build/libcadical.a "$DEPS_DIR/src/cadical/libcadical.a"
+  ln -sfn cadical/src/ipasir.h "$DEPS_DIR/src/cadical/ipasir.h"
+  echo "$sha" > "$stamp"
+}
+
+prepare_minisat() {  # $1 = the checkout of a solver vendoring minisat
+  local dir="$1" minisat="$1/contrib/minisat"
+  if [ -e "$minisat/lib/libminisat.a" ] || [ -e "$minisat/lib/libminisat.so" ] \
+    || [ -e "$minisat/lib/libminisat.dylib" ]; then
+    return 0
+  fi
+  # a partial setup cannot be reused, and the configure script rebuilds it when it is absent
+  rm -rf "$minisat"
+  [ -f "$dir/contrib/setup-minisat.sh" ] || return 0
+  # minisat asks for a cmake version that cmake 4 refuses
+  sed -i.bak 's|cmake -DCMAKE_INSTALL_PREFIX=${MDIR} ..|cmake -DCMAKE_INSTALL_PREFIX=${MDIR} -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..|' \
+    "$dir/contrib/setup-minisat.sh"
+  rm -f "$dir/contrib/setup-minisat.sh.bak"
+}
+
+install_solver() {  # $1 = one of $SOLVERS
+  local name="$1" repo ref sat dir product target stamp identity sha sha_sat mode flags
+  case "$name" in
+    cqesto)         repo="$CQESTO_REPO"; ref="$CQESTO_REF"; sat='minisat' ;;
+    cqesto-cadical) repo="$CQESTO_REPO"; ref="$CQESTO_REF"; sat='cadical' ;;
+    qfun)           repo="$QFUN_REPO";   ref="$QFUN_REF";   sat='minisat' ;;
+    qfun-cadical)   repo="$QFUN_REPO";   ref="$QFUN_REF";   sat='cadical' ;;
+    *) die "unknown solver '$name' (available: $(echo "$SOLVERS" | tr ' ' ','))" ;;
+  esac
+
   need_tool git
   need_tool cmake "$(package_hint cmake)"
   need_tool make "$(build_tools_hint)"
   need_tool c++ "$(build_tools_hint)"
 
-  mkdir -p "$DEPS_DIR/src" "$BIN_DIR"
-  cd "$DEPS_DIR/src"
-  export GIT_CEILING_DIRECTORIES="$DEPS_DIR/src"
-  if [ ! -f cqesto/.git/HEAD ] || ! git -C cqesto rev-parse --verify --quiet HEAD >/dev/null 2>&1; then
-    rm -rf cqesto
-    git clone --quiet "$CQESTO_REPO" cqesto
+  dir="$DEPS_DIR/src/$name"
+  sha="$(fetch_source "$name" "$repo" "$ref")"
+  [ -n "$sha" ] || die "cannot check out $name at '$ref'"
+  [ -f "$dir/configure" ] || die "$name: checkout is incomplete, remove $dir and retry"
+
+  # what the executable is built from: the solver revision, the SAT solver it is linked
+  # against and how it is linked, so that any of the three changes forces a rebuild
+  if [ "$sat" = 'cadical' ]; then
+    build_cadical
+    sha_sat="$(cat "$DEPS_DIR/src/cadical/.build-stamp")"
+  else
+    sha_sat='minisat'
   fi
-  cd cqesto
-  if ! git cat-file -e "${CQESTO_REF}^{commit}" 2>/dev/null; then
-    git fetch --quiet origin
-  fi
-  git rev-parse --verify --quiet "${CQESTO_REF}^{commit}" >/dev/null \
-    || die "cqesto ref '$CQESTO_REF' not found in $CQESTO_REPO"
-  git checkout --quiet -- .
-  git checkout --quiet "$CQESTO_REF"
-  sha="$(git rev-parse HEAD)"
-  stamp="$DEPS_DIR/opt/cqesto.stamp"
-  if [ -x "$DEPS_DIR/opt/cqesto" ] && [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$sha" ]; then
-    ln -sf "$DEPS_DIR/opt/cqesto" "$BIN_DIR/cqesto"
+  # on Linux the vendored SAT solver is a shared library, so the executables are linked
+  # statically: they leave their build tree and have to stay self-contained. On macOS
+  # the libraries are found through their absolute install name
+  mode='dynamic'
+  flags=''
+  if ! is_macos; then mode='static'; flags='-s'; fi
+  if [ "$sat" = 'cadical' ]; then flags="$flags -c"; fi
+  identity="$sha $sha_sat $mode"
+
+  mkdir -p "$DEPS_DIR/opt" "$BIN_DIR"
+  target="$DEPS_DIR/opt/$name"
+  stamp="$target.stamp"
+  if [ -s "$target" ] && [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$identity" ] \
+    && probe_tool "$name" "$target"; then
+    ln -sfn "$target" "$BIN_DIR/$name"
     return 0
   fi
-  [ -f configure ] || die "cqesto checkout is incomplete, remove $DEPS_DIR/src/cqesto and retry"
 
-  log "building cqesto"
-  minisat_lib="contrib/minisat/lib/libminisat.so"
-  [ -e "$minisat_lib" ] || minisat_lib="contrib/minisat/lib/libminisat.dylib"
-  [ -e "$minisat_lib" ] || minisat_lib="contrib/minisat/lib/libminisat.a"
-  if [ ! -e "$minisat_lib" ]; then rm -rf contrib/minisat; fi
-  if [ ! -d contrib/minisat ] && [ -f contrib/setup-minisat.sh ]; then
-    sed -i.bak 's|cmake -DCMAKE_INSTALL_PREFIX=${MDIR} ..|cmake -DCMAKE_INSTALL_PREFIX=${MDIR} -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..|' contrib/setup-minisat.sh
-    rm -f contrib/setup-minisat.sh.bak
+  if [ "$sat" = 'cadical' ]; then
+    # the vendored setup script would clone and build cadical again; it leaves a directory
+    # in its place, which has to go for the link to be created
+    rm -rf "$dir/contrib/cadical"
+    ln -sfn "$DEPS_DIR/src/cadical" "$dir/contrib/cadical"
   fi
-  rm -rf build
-  CC="${CC:-cc}" CXX="${CXX:-c++}" ./configure > "$DEPS_DIR/src/cqesto-configure.log" 2>&1 \
-    || die "cqesto configure failed, see $DEPS_DIR/src/cqesto-configure.log"
-  make -C build -j"$JOBS" || die "cqesto build failed"
-  mkdir -p "$DEPS_DIR/opt"
-  cp build/cqesto "$DEPS_DIR/opt/cqesto"
-  echo "$sha" > "$stamp"
-  ln -sf "$DEPS_DIR/opt/cqesto" "$BIN_DIR/cqesto"
+  prepare_minisat "$dir"
+
+  log "building $name ($sat, $mode)"
+  rm -rf "$dir/build"
+  ( cd "$dir" && CC="${CC:-cc}" CXX="${CXX:-c++}" ./configure $flags ) > "$DEPS_DIR/src/$name-configure.log" 2>&1 \
+    || die "$name: configure failed, see $DEPS_DIR/src/$name-configure.log"
+  make -C "$dir/build" -j"$JOBS" > "$DEPS_DIR/src/$name-build.log" 2>&1 \
+    || die "$name: build failed, see $DEPS_DIR/src/$name-build.log"
+
+  product="${name%%-*}"  # the executable keeps the upstream name
+  [ -x "$dir/build/$product" ] || die "$name: build produced no '$product' executable"
+  cp "$dir/build/$product" "$target"
+  echo "$identity" > "$stamp"
+  ln -sfn "$target" "$BIN_DIR/$name"
 }
 
 probe_tool() {
-  case "$1" in
+  local output
+  output="$(case "$1" in
     yosys) "$2" -V ;;
     sta) "$2" -version ;;
-    cqesto) "$2" --help ;;
+    cqesto|cqesto-cadical|qfun|qfun-cadical) "$2" --help ;;
     *) return 1 ;;
-  esac > /dev/null 2>&1
+  esac 2>/dev/null)"
+  # an empty file is executable, and bash runs it as an empty script that exits 0
+  [ -n "$output" ]
 }
 
 check_toolchain() {
   local missing=0 tool path
   log "checking the toolchain"
-  for tool in yosys sta cqesto; do
+  for tool in yosys sta $SOLVERS; do
     if [ -x "$BIN_DIR/$tool" ]; then
       path="$BIN_DIR/$tool"
     else
@@ -238,16 +325,16 @@ check_toolchain() {
     fi
     if [ ! -x "$path" ]; then
       case "$tool" in
-        yosys|sta) printf '  %-8s missing\n' "$tool"; missing=1 ;;
-        *) printf '  %-8s missing (optional)\n' "$tool" ;;
+        yosys|sta) printf '  %-14s missing\n' "$tool"; missing=1 ;;
+        *) printf '  %-14s missing (optional)\n' "$tool" ;;
       esac
     elif ! probe_tool "$tool" "$path"; then
       case "$tool" in
-        yosys|sta) printf '  %-8s %s does not run\n' "$tool" "$path"; missing=1 ;;
-        *) printf '  %-8s %s does not run (optional)\n' "$tool" "$path" ;;
+        yosys|sta) printf '  %-14s %s does not run\n' "$tool" "$path"; missing=1 ;;
+        *) printf '  %-14s %s does not run (optional)\n' "$tool" "$path" ;;
       esac
     else
-      printf '  %-8s %s\n' "$tool" "$path"
+      printf '  %-14s %s\n' "$tool" "$path"
     fi
   done
   [ "$missing" = 0 ] || die "toolchain incomplete"
@@ -262,7 +349,15 @@ case "$MODE" in
     ;;
   --all)
     if is_macos; then install_macos_deps; fi
-    build_cqesto
+    for solver in $SOLVERS; do install_solver "$solver"; done
     check_toolchain
+    ;;
+  --solver)
+    shift
+    [ "$#" -gt 0 ] || die "usage: $0 --solver {$(echo "$SOLVERS" | tr ' ' '|')}"
+    for solver in "$@"; do
+      install_solver "$solver"
+      printf '  %-14s %s\n' "$solver" "$BIN_DIR/$solver"
+    done
     ;;
 esac

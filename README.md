@@ -14,11 +14,11 @@ SubXPAT has been developed for a **Linux** environment and requires the followin
 - [Yosys] (using apt: `sudo apt install yosys`)
 - [GraphViz] (needed when `pip` builds `pygraphviz` from source; the wheels ship the library themselves — on Debian that means `sudo apt install graphviz graphviz-dev`)
 - [OpenSTA] (using apt: `sudo apt install opensta`)
-- [cqesto] (needed by `--encoding=qbf`; built from source by `make setup all`, requires `git`, `cmake`, `make` and a C++ compiler)
+- [cqesto] (needed by `--encoding=qbf`, as are the alternative QBF solvers `cqesto-cadical`, [qfun] and `qfun-cadical`; all of them are built from source by `make setup all` or one at a time by `make install <solver>`, which requires `git`, `cmake`, `make`, a C++ compiler and a static libc)
 
 **Note:** on Linux, the binaries of Yosys and OpenSTA should be added to your PATH.
 
-On **macOS** (Apple silicon; Intel untested) OpenSTA has no macOS package and cqesto has no package on any platform, so `make setup macos` builds OpenSTA and `make setup all` additionally builds cqesto, both into `.deps/`. GraphViz is not needed, because the `pygraphviz` wheel bundles the graphviz library. See [macOS](#macos).
+On **macOS** (Apple silicon; Intel untested) OpenSTA has no macOS package and the QBF solvers have no package on any platform, so `make setup macos` builds OpenSTA and `make setup all` additionally builds `cqesto`, `cqesto-cadical`, `qfun` and `qfun-cadical`, all into `.deps/`. GraphViz is not needed, because the `pygraphviz` wheel bundles the graphviz library. See [macOS](#macos).
 
 ### Optional
 
@@ -34,15 +34,16 @@ To prepare the system for execution you will need to follow a few steps:
     ```bash
     # bulk commands
     make setup        # python environment and python dependencies
-    make setup macos  # (macOS) the above, plus python@3.14, yosys, cmake, swig, tcl-tk@8 and OpenSTA
-    make setup all    # the above, plus cqesto (needed by `--encoding=qbf`)
+    make setup macos  # (macOS) same as `make setup`, plus python@3.14, yosys, cmake, swig, tcl-tk@8 and OpenSTA
+    make setup all    # same as `make setup`, plus the QBF solvers (cqesto, cqesto-cadical, qfun, qfun-cadical)
 
     # individual commands
-    make py_init     # create python environment (.venv/)
-    make py_dep      # install/update requirements
+    make py_init          # create python environment (.venv/)
+    make py_dep           # install/update requirements
+    make install <solver> # build one QBF solver (cqesto, cqesto-cadical, qfun, qfun-cadical)
     ```
 
-    On Linux `make setup all` only adds cqesto: the native packages keep coming from apt.
+    On Linux `make setup all` only adds the QBF solvers: the native packages keep coming from apt.
 
 2. Activate the python environment:
     ```bash
@@ -51,13 +52,13 @@ To prepare the system for execution you will need to follow a few steps:
 
 ### macOS
 
-`make setup macos` installs `python@3.14`, `yosys`, `cmake`, `swig` and `tcl-tk@8` with [Homebrew] and builds the part that has no package (`sta`) into `./.deps/`; `make setup all` adds `cqesto`. Nothing has to be installed globally besides Homebrew itself and the Xcode command line tools (`cc`, `make`, `git`):
+`make setup macos` installs `python@3.14`, `yosys`, `cmake`, `swig` and `tcl-tk@8` with [Homebrew] and builds the part that has no package (`sta`) into `./.deps/`; `make setup all` adds the QBF solvers. Nothing has to be installed globally besides Homebrew itself and the Xcode command line tools (`cc`, `make`, `git`):
 
 | dependency | source | reason |
 | :-- | :-- | :-- |
 | Python, Yosys, cmake | Homebrew | packaged, no build required |
 | OpenSTA (`sta`) | cloned and built into `.deps/opt/opensta` | no Homebrew formula (Debian packages this same commit) |
-| cqesto (`--encoding=qbf`) | cloned and built by `make setup all` at a pinned revision, symlinked into `.deps/bin` | no Homebrew formula and no Debian package |
+| cqesto, cqesto-cadical, qfun, qfun-cadical (`--encoding=qbf`) | cloned and built by `make setup all` (or `make install <solver>`) at pinned revisions, installed into `.deps/opt` and symlinked into `.deps/bin` | no Homebrew formula and no Debian package |
 | `swig` | Homebrew | build-only dependency of OpenSTA |
 | `tcl-tk@8` | Homebrew | needed at build time (headers, link) and at run time: `sta` needs `libtcl8.6.dylib` |
 | GraphViz | not needed | the `pygraphviz` wheel links the graphviz library it ships, and no code runs the `dot` executable |
@@ -67,7 +68,7 @@ OpenSTA is built at version 2.0.17 (commit `c018cb21`, the revision Debian packa
 - the Tcl 8.6 headers and library are passed explicitly (`-DTCL_HEADER`, `-DTCL_LIB`): OpenSTA's own Tcl search only looks in `/usr/local/lib` on Darwin and only accepts 8.x names, so on Apple silicon (Homebrew in `/opt/homebrew`) it cannot find the keg on its own; Tcl 9 is not supported either, hence `tcl-tk@8` instead of the default `tcl-tk`;
 - `tcl/StaException.i` is patched from `$function` to `$action`, because SWIG 4.4 and later no longer expand `$function` inside an `%exception` block.
 
-Both targets finish by checking `yosys`, `sta` and `cqesto`: a missing or non-running `yosys` or `sta` fails the target with `error: toolchain incomplete`, while `cqesto` is only reported, as `missing (optional)` or `does not run (optional)`. They also refuse to build OpenSTA from a repository path containing a space, which its own build rules cannot handle.
+Both targets finish by checking `yosys`, `sta` and the QBF solvers: a missing or non-running `yosys` or `sta` fails the target with `error: toolchain incomplete`, while the solvers are only reported, as `missing (optional)` or `does not run (optional)`. They also refuse to build OpenSTA from a repository path containing a space, which its own build rules cannot handle.
 
 The generated binaries are found automatically: `sxpat/utils/tools.py` checks `.deps/bin` first and then the `PATH`, so `.deps/bin` does not have to be added to your `PATH` (Yosys comes from Homebrew and is found on the `PATH`).
 
@@ -132,8 +133,8 @@ Here are all the parameters with their arguments and descriptions:
 | `--max-sensitivity`                           | `int` > 0                               |                                    | Maximum partitioning sensitivity                                       |
 | `--min-subgraph-size`                         | `int` > 0                               |                                    | Minimum valid size for the subgraph                                    |
 | `--num-subgraphs`                             | `int` > 0                               | 1                                  | The number of attempts for subgraph extraction                         |
-| `--slash-to-kill`                             |                                         |                                    | Enable the slash pass for the first iteration                          |
-| `--error-for-slash`                           | `int` > 0                               |                                    | The error to use for the slash pass                                    |
+| `--slash`                                     | { none, slash_to_kill, slash_it }       | none                               | Type of slash pass to apply                                            |
+| `--error-for-slash`                           | `int` > 0                               |                                    | The error to use for the slash pass (required when `--slash` is not `none`) |
 | `--subxpat`                                   |                                         |                                    | Run SubXPAT iteratively, instead of standard XPAT                      |
 | `--constants`                                 | { never, always }                       | always                             | Usage of constants                                                     |
 | `--constant-false`                            | { output, product }                     | output                             | Representation of false constants from the subgraph                    |
@@ -147,7 +148,7 @@ Here are all the parameters with their arguments and descriptions:
 | `--error-partitioning` <br> `--epar`          | { asc, desc, smart_asc, smart_desc }    | asc                                | The error partitioning algorithm to use                                |
 | `--output`                                    | `path` to folder                        | `output/`                          | The base directory for the output                                      |
 | `--cell-library`                              | `path` to lib file                      | `config/gscl45nm.lib`              | The cell library file to use in the metrics estimation                 |
-| `--cqesto`                                    | `path`                                  | `cqesto`                           | The path of the cqesto executable (only needed with `--encoding=qbf`)  |
+| `--qbf-solver`                                    | `name` or `path`                        | `cqesto`                           | The QBF solver to run, as installed by `make install <solver>`          |
 | `--archive`                                   |                                         |                                    | If the generated files should be archived at the end of the execution  |
 | `--debug`                                     |                                         | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
 | `--timeout`                                   | `float` > 0                             | 10800 (3h)                         | The maximum time each cell is given to run (in seconds)                |
@@ -185,9 +186,32 @@ To execute the framework with SubXPAT iterations, integer logic encoding, subgra
 python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extraction-mode=55 --labeling=simple_min --max-lpp=8 --max-ppo=10 --max-error=16 --imax=2 --omax=8
 ```
 
+### QBF solvers
+
+With `--encoding=qbf` the questions are solved by the QBF solver given to `--qbf-solver`, which is
+`cqesto` unless said otherwise. Four solvers can be installed, `make install <solver>` building one
+of them and `make setup all` all of them:
+
+| solver | what it is |
+| :-- | :-- |
+| `cqesto` | cqesto on minisat (default) |
+| `cqesto-cadical` | the same cqesto, on cadical |
+| `qfun` | [qfun], a circuit-based QBF solver, on minisat |
+| `qfun-cadical` | the same qfun, on cadical |
+
+```bash
+make install qfun
+python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=qbf --qbf-solver=qfun \
+  --max-lpp=8 --max-ppo=10 --imax=6 --omax=3 --max-error=8
+```
+
+The solvers only differ in how they are built and in where they print the assignment, which
+`sxpat/solvers/QbfSolver.py` reads from the line starting with `v`; everything else, the QCIR
+encoding and the command line included, is shared.
+
 ## Known limitations
 
-- On macOS neither OpenSTA nor cqesto has a Homebrew formula: OpenSTA is built by `make setup macos` and cqesto by `make setup all`, both into `.deps/`; Yosys comes from Homebrew and GraphViz is not needed. Apple silicon is what has been tested; Intel is untested. \
+- On macOS neither OpenSTA nor the QBF solvers have a Homebrew formula: OpenSTA is built by `make setup macos` and the solvers by `make setup all`, both into `.deps/`; Yosys comes from Homebrew and GraphViz is not needed. Apple silicon is what has been tested; Intel is untested. \
   At the moment no support is given for other setups.
 
 
@@ -201,4 +225,5 @@ python3 main.py benchmarks/v/adder_i8_o5.v --subxpat --encoding=z3int --extracti
 [OpenSTA]: https://github.com/The-OpenROAD-Project/OpenSTA
 [Homebrew]: https://brew.sh
 [cqesto]: https://github.com/MikolasJanota/cqesto
+[qfun]: https://github.com/MikolasJanota/qfun
 [FreePDK45nm]: https://si2.org/open-cell-and-free-pdk-libraries/

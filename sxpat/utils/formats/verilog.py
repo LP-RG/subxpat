@@ -46,11 +46,12 @@ class synthesize_verilog_to_notand_gate_level:
 
     def __new__(cls, input_path: str, output_path: str):
         # prepare
+        yosys_exe = require_tool('yosys')
         yosys_command = cls.YOSYS_COMMAND.format(input_path=input_path, output_path=output_path)
 
         # run command
         run(
-            [require_tool('yosys')], input=yosys_command,
+            [yosys_exe], input=yosys_command,
             stdout=DEVNULL, stderr=PIPE, text=True,
             check=True,
         )
@@ -249,12 +250,13 @@ class convert_verilog_to_dot:
 
     def __new__(cls, input_verilog_path: str, output_gv_path: str, temporary_path: str):
         # prepare
+        yosys_exe = require_tool('yosys')
         tmp_dot_path = path_join(temporary_path, 'cvtgv_to_fd.dot')
         yosys_command = cls.YOSYS_COMMAND.format(input_verilog_path=input_verilog_path, output_dot_path=tmp_dot_path[:-4])
 
         # run command
         run(
-            [require_tool('yosys')], input=yosys_command,
+            [yosys_exe], input=yosys_command,
             stdout=DEVNULL, stderr=PIPE, text=True,
             check=True,
         )

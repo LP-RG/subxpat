@@ -2,12 +2,16 @@
 Version: preview
 Date: 2026-11-10
   Features:
+    - Added the `cqesto-cadical`, `qfun` and `qfun-cadical` QBF solvers as alternatives to `cqesto` for `--encoding=qbf`, selected with `--qbf-solver` (which now takes the solver name or path); the assignment is now read from the line starting with `v` instead of its position in the output, so that any of them can drive the exploration. (#216)
+    - Added `make install <solver>`, which builds one QBF solver (`cqesto`, `cqesto-cadical`, `qfun`, `qfun-cadical`), and `make setup all` now builds all of them; cadical is built once at a pinned revision and shared, and a solver is rebuilt when its revision, its SAT solver or the link mode changes. (#216)
     - Added `make setup macos`, which builds the native dependency that has no package on macOS (OpenSTA 2.0.17) into `.deps/`, installing python@3.14, `yosys`, cmake, swig and tcl-tk@8 from Homebrew. (#85)
-    - Added `make setup all`, which additionally builds cqesto at a pinned revision, and documented both in the README. (#85)
+    - Added `make setup all`, which additionally builds the QBF solvers at pinned revisions (see #216), and documented both in the README. (#85)
     - Added specific archivation approaches (.tar.gz, .tar.xz). (#210)
     - Added configurable labeling types (`--labeling`, `--labeling-relative-to`, `--labeling-samples`, `--labeling-seed`). (#223)
     - Added a pattern/logic labelling engine, selected with `--labeling-level` and overridable per rule with `--labeling-rules`: patterns recognise the structure, logics produce the weights, and only the nodes that no rule can fill go through the solver. (#223)
     - Further modularised Configuration Exploration. (#213)
+    - Added the slash of inputs pass (`--slash=slash_it`). (#222)
+    - Added `run_stats.csv` columns `slash_error`, `slash_area`, `slash_power`, `slash_delay` and `slash_time`, and a `gen_slash` row with iteration 0. (#222)
   Minor Features:
     - Added color ratio shade computation utility for GraphVizPorter. (#222)
     - Added a class for csv formatting. (#213)
@@ -30,7 +34,11 @@ Date: 2026-11-10
     - Removed `--max-labeling` and `--no-partial-labeling` in favour of `--labeling`. (#223)
     - The labeller can break a node by inverting its own output (a single NOT), instead of only freeing its value: that is the error an output costs, which the OutputDriver rule needs when labelling relative to the origin (relative to the previous circuit it is `2**i` and needs no query). (#223)
     - Labelling level 0 keeps the previous hardcoded rules, levels 10-90 progressively enable SimpleNot, OutputDriver, the single-successor copy and the structural bounds at ever looser thresholds, and 100 labels with `simple_min`/`simple_max` and solves nothing; every level reproduces the previous models on the shipped benchmarks. (#223)
+    - Replaced `--slash-to-kill` with `--slash` (`none`, `slash_to_kill`, `slash_it`). (#222)
+    - `--error-for-slash` no longer defaults to 1 and is required when `--slash` is not `none`. (#222)
+    - The iterative slash pass now runs before the exploration loop, so it no longer consumes the first error partition. (#222)
   Bugfixes:
+    - `make setup all` (and `make install`) now link the QBF solvers statically on Linux: the ones built on minisat would otherwise need its shared library at run time, which does not travel with the executable copied out of the build tree. (#216)
     - The generated solver and labelling scripts now run with the interpreter executing `main.py`, instead of whatever `python3` resolves to on the PATH. (#85)
     - Patched a bug when min-labelling, where no error is found (also added warning). (#213)
     - A labelling weight of 0 (breaking the node changes nothing) is now a legal label in the extraction encodings, instead of being read as "unlabelled". (#223)
@@ -39,3 +47,4 @@ Date: 2026-11-10
     - Fixed a possible crash when sharing a graph with multiple processes. (#222)
   Minor Optimizations:
     - Optimised memory footprint of LiveStorage. (#213)
+    - Shared one extraction implementation between subgraph extraction modes 55 and 6, each solving over only the nodes that can belong to its subgraph, which shrinks the z3 encoding. (#230)

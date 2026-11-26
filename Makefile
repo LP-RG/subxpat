@@ -4,12 +4,15 @@ PY := python3.14
 ENV_NAME := .venv
 DELETION_DELAY ?= 10
 
+# optional QBF solvers, each installed by `make install <solver>` (or by `make setup all`)
+SOLVERS := cqesto cqesto-cadical qfun qfun-cadical
+
 # computed
 
 ACTIV_ENV := . $(ENV_NAME)/bin/activate
 SETUP := ENV_NAME='$(ENV_NAME)' PY='$(PY)' bash setup/deps.sh
 
-.PHONY: help activate py_init py_dep setup macos all rm_data rm_cache rm_temp rm_pyenv rm_deps clean clean-all
+.PHONY: help activate py_init py_dep setup macos all install $(SOLVERS) rm_data rm_cache rm_temp rm_pyenv rm_deps clean clean-all
 
 # includes
 -include *.mk
@@ -36,6 +39,18 @@ macos: setup
 
 all: setup
 	@$(SETUP) --all
+
+# `make install <solver>` builds one of the optional QBF solvers (see SOLVERS above)
+install:
+	@test -n '$(filter-out $@,$(MAKECMDGOALS))' || { echo 'usage: make install <$(SOLVERS)>' >&2; exit 2; }
+	@$(SETUP) --solver $(filter-out $@,$(MAKECMDGOALS))
+
+# the solver names are arguments to `install`, never targets of their own
+$(SOLVERS):
+	@case " $(MAKECMDGOALS) " in \
+	  *" install "*) ;; \
+	  *) echo "error: '$@' only installs as 'make install $@'" >&2; exit 2 ;; \
+	esac
 
 rm_data:
 	@echo "\n[[ deleting all final and intermediary data (output/) ]]\n[[ !! YOU HAVE $(DELETION_DELAY) SECONDS TO CANCEL THIS OPERATION !! ]]"
