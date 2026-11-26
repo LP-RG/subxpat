@@ -1,5 +1,5 @@
 import random
-from typing import Callable, Dict, Mapping, Optional, Sequence
+from typing import Dict, Mapping, Optional, Sequence
 
 import networkx as nx
 
@@ -272,49 +272,15 @@ def fast_labeling(
     return weights
 
 
-def compute_bound(current_graph: IOGraph, combine: Callable[[int, int], int], init_value: int) -> Dict[str, int]:
-    """
-    Propagate a weight from the outputs towards the inputs, combining the values
-    of every successor of a node with `combine`.
-    """
-    stack: list[str] = []
-    weights: Dict[str, int] = {}
-    # number of successors that have already reached each node; once it equals the
-    # node's number of successors, the node itself can be processed
-    count: Dict[str, int] = {}
-
-    # initialize
-    for x in current_graph.nodes:
-        weights[x.name] = init_value
-        count[x.name] = 0
-
-    for node in current_graph.outputs:
-        value = 2 ** int(node.name[3:])
-
-        for x in current_graph.predecessors(node):
-            count[x.name] += 1
-            weights[x.name] = combine(value, weights[x.name])
-            if count[x.name] == len(current_graph.successors(x.name)):
-                stack.append(x.name)
-
-    while stack:
-        cur_node = stack.pop()
-        value = weights[cur_node]
-        for x in current_graph.predecessors(cur_node):
-            count[x.name] += 1
-            weights[x.name] = combine(value, weights[x.name])
-            if count[x.name] == len(current_graph.successors(x.name)):
-                stack.append(x.name)
-
-    return weights
-
-
 def upper_bound(current_graph: IOGraph) -> Dict[str, int]:
-    return compute_bound(current_graph, combine=lambda v, w: v | w, init_value=0)
+    """`simple_max` per node: the sum of the distinct output bits reachable from it."""
+    return patterns_engine.simple_bounds(current_graph)[0]
 
 
 def lower_bound(current_graph: IOGraph) -> Dict[str, int]:
-    return compute_bound(current_graph, combine=min, init_value=2 ** len(current_graph.outputs))
+    """`simple_min` per node: the smallest output bit reachable from it."""
+    return patterns_engine.simple_bounds(current_graph)[1]
+
 
 class _GraphView:
     """What the pattern/logic engine needs from an `IOGraph`: names, neighbours, output index."""
@@ -356,7 +322,7 @@ def label_with_patterns(
     view = _GraphView(current_graph)
 
     order = list(nx.topological_sort(current_graph._inner))
-    simple_max, simple_min = patterns_engine.structural_bounds(view, list(reversed(order)))
+    simple_max, simple_min = patterns_engine.simple_bounds(current_graph)
     seeds = {name: 2 ** int(name[3:]) for name in view.outputs}
 
     # the same pruning `fast_labeling` does: only the ancestors of the outputs that can still

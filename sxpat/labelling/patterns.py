@@ -32,6 +32,9 @@ The structural bounds need no labels at all and are computed once per circuit in
 column uses `min(simple_max, sum of the successors' weights)`, the min column uses `simple_min`
 only: the sum of *min* weights is not an upper bound for the min column (two successors of weight 1
 around a gate whose true min is 4 give a sum of 2), so it is not offered there.
+
+Both are produced by `simple_bounds`, the single implementation of that arithmetic (`fast_labeling`'s
+`upper_bound`/`lower_bound` are wrappers over it, for the `simple_max`/`simple_min` labelings).
 """
 
 from __future__ import annotations
@@ -43,7 +46,7 @@ __all__ = [
     'Match', 'PATTERNS', 'single_successor', 'output_driver', 'any_node', 'with_successors',
     'Logic', 'LOGICS', 'simple_not', 'output_driver_logic', 'single_successor_bound',
     'bound_max', 'bound_min', 'bound_sum', 'RULE_NAMES', 'RuleConfig', 'config_for_level',
-    'structural_bounds', 'combine', 'schedule', 'Stats',
+    'simple_bounds', 'combine', 'schedule', 'Stats',
 ]
 
 MIN = 'min'
@@ -233,30 +236,67 @@ LOGICS: Mapping[str, Logic] = {
 
 # ---------------------------------------------------------------- structural bounds
 
-def structural_bounds(graph, nodes: Sequence[str]) -> Tuple[Dict[str, int], Dict[str, int]]:
-    """`(simple_max, simple_min)` for every node, in one reverse-topological pass, no labels.
+def _propagate_bound(graph, combine: Callable[[int, int], int], init_value: int) -> Dict[str, int]:
+    """Propagate a value from the outputs towards the inputs, combining the values of every
+    successor of a node with `combine`.
 
-    An output `i` has both bounds `2**i`; every other node takes the union (sum) of its successors
-    for `simple_max` and the minimum of them for `simple_min`.
+    `count` records how many successors have already reached a node; once it equals the node's
+    number of successors, the node itself can be processed, so every node is visited exactly once
+    however many paths lead to it. The outputs are not seeded here: only what flows into them
+    counts, and an output's own bound is its bit (see :func:`simple_bounds`).
     """
-    # `reach` is a MASK over output indices (bit i set = output i is reachable), so shared cones are
-    # counted once: summing the successors' already-summed weights would count an output once per
-    # path and inflate the bound (measured: 2826 against a true 15 on sad_i10_o4).
-    reach: Dict[str, int] = {}
-    simple_max: Dict[str, int] = {}
-    simple_min: Dict[str, int] = {}
-    for n in nodes:                    # successors first, as passed in
-        mask = 0
-        for s in graph.successors(n):
-            mask |= reach.get(s, 0)
-        if n in graph.outputs:
-            mask |= 1 << graph.output_index(n)
-        if not mask:
-            continue
-        reach[n] = mask
-        simple_max[n] = sum(1 << i for i in range(mask.bit_length()) if mask >> i & 1)
-        simple_min[n] = 1 << (mask & -mask).bit_length() - 1
-    return simple_max, simple_min
+    stack: List[str] = []
+    weights: Dict[str, int] = {}
+    count: Dict[str, int] = {}
+
+    # initialize
+    for x in graph.nodes:
+        weights[x.name] = init_value
+        count[x.name] = 0
+
+    for node in graph.outputs:
+        value = 1 << int(node.name[3:])
+
+        for x in graph.predecessors(node):
+            count[x.name] += 1
+            weights[x.name] = combine(value, weights[x.name])
+            if count[x.name] == len(graph.successors(x.name)):
+                stack.append(x.name)
+
+    while stack:
+        cur_node = stack.pop()
+        value = weights[cur_node]
+        for x in graph.predecessors(cur_node):
+            count[x.name] += 1
+            weights[x.name] = combine(value, weights[x.name])
+            if count[x.name] == len(graph.successors(x.name)):
+                stack.append(x.name)
+
+    return weights
+
+
+def simple_bounds(graph) -> Tuple[Dict[str, int], Dict[str, int]]:
+    """`(simple_max, simple_min)` per node, no labels, one propagation each.
+
+    Output `i` carries the bit `2**i`; every other node ORs (sums the distinct bits of) what its
+    successors carry for `simple_max`, and keeps the smallest of them for `simple_min`. So a shared
+    cone is counted once: summing the successors' already-summed values would count an output once
+    per path and inflate the bound (measured: 2826 against a true 15 on sad_i10_o4).
+
+    A node from which no output is reachable gets NO entry: the rules look the bound up and must
+    not fire there, and a `simple_min` left at its `2**n` starting value would read as a weight.
+    """
+    simple_max = _propagate_bound(graph, combine=lambda v, w: v | w, init_value=0)
+    # `2**n` is above every output bit, so a node can only keep it if none of its successors
+    # reaches an output -- and those nodes are dropped below
+    simple_min = _propagate_bound(graph, combine=min, init_value=1 << len(graph.outputs))
+    for node in graph.outputs:      # the propagation only fills the ancestors of the outputs
+        bit = 1 << int(node.name[3:])
+        simple_max[node.name] = bit
+        simple_min[node.name] = bit
+    reachable = [name for (name, value) in simple_max.items() if value]
+    return ({name: simple_max[name] for name in reachable},
+            {name: simple_min[name] for name in reachable})
 
 
 # ---------------------------------------------------------------- levels
