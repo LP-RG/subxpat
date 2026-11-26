@@ -1,4 +1,7 @@
+import json
+import os
 import random
+from collections import Counter
 from typing import Callable, Dict, Mapping, Optional, Sequence
 
 import networkx as nx
@@ -288,6 +291,8 @@ def fast_labeling(
                 stack.append(succ.name)
                 visited.add(succ.name)
 
+    _dump_weights('legacy', specs_obj, weights)
+
     return weights
 
 
@@ -352,6 +357,24 @@ class _GraphView:
         return int(name[3:])
 
 
+def _dump_weights(tag: str, specs_obj: Specifications, weights: Mapping[str, int]) -> None:
+    """Append one line per labelling call: which path produced which weights for which iteration."""
+    path = os.environ.get('SUBXPAT_WEIGHT_DUMP')
+    if not path:
+        return
+    with open(path, 'a') as handle:
+        handle.write(json.dumps({
+            'path': tag,
+            'iteration': getattr(specs_obj, 'iteration', None),
+            'benchmark': getattr(specs_obj, 'current_benchmark', None),
+            'et': getattr(specs_obj, 'et', None),
+            'reference': str(getattr(specs_obj, 'labeling_relative_to', None)),
+            'labeling': str(getattr(specs_obj, 'labeling', None)),
+            'weights': {k: v for (k, v) in weights.items() if str(k).startswith('g')},
+            'provenance': dict(getattr(getattr(specs_obj, 'labeling_stats', None), 'provenance', {})),
+        }) + '\n')
+
+
 def label_with_patterns(
     exact_graph: IOGraph,
     current_graph: IOGraph,
@@ -384,19 +407,42 @@ def label_with_patterns(
     for name in view.outputs:
         if relative_to_origin or 2 ** int(name[3:]) <= et:
             relevant |= nx.ancestors(current_graph._inner, name)
+    # gates only. Inputs, outputs AND constants are not labelled: mode 6's own threshold excludes
+    # all three when it takes `min_weight`, so a constant (or input) label of 1 would otherwise
+    # become the running minimum the prune compares against and drop every gate above the smallest
+    # bit -- which is what collapsed the labelled set to a single node at iteration 2.
+    excluded = (
+        set(current_graph.outputs_names)
+        | set(current_graph.inputs_names)
+        | {node.name for node in current_graph.constants}
+    )
+    relevant = {n for n in relevant if n not in excluded}
 
     # what inverting an output costs: `2**i` relative to the current circuit; relative to the
     # origin it has to be computed, and that is exactly the "invert this node's output" fault
+    # Every label in the map is the FREE label, outputs included: the output becomes a fresh
+    # boolean (its driver is ignored), which is exactly the freedom a cut gives it. The inverted
+    # value is a different quantity -- one of the two values the free choice can take -- and using
+    # it here is what made the copy across an output edge over-estimate the minimum.
     output_weights: Dict[int, int] = {}
-    if specs_obj.labeling_relative_to == LabelingRelativeTo.ORIGIN and labeller is not None:
-        inverter = Labelling(
+    # relative to the previous circuit freeing an output costs exactly its bit (closed form);
+    # relative to the origin it has to be labelled, and the answer is not `2**i` because the
+    # deviation already present in the current circuit is part of it
+    if labeller is not None and relative_to_origin:
+        free_outputs = Labelling(
             exact_graph, current_graph, specs_obj,
-            minimise=column == 'min', use_functions=True, fault=Labelling.INVERT_FAULT,
+            minimise=column == 'min', use_functions=True, fault=Labelling.FREE_OUTPUT_FAULT,
         )
         for name in view.outputs:
-            output_weights[int(name[3:])] = inverter.label_node(name)
+            output_weights[int(name[3:])] = free_outputs.label_node(name)
     else:
         output_weights = {int(name[3:]): 2 ** int(name[3:]) for name in view.outputs}
+    specs_obj.outputs_weights = ({name: output_weights[int(name[3:])] for name in view.outputs}
+                                 if relative_to_origin else None)
+    # the seeds must agree with those weights: a rule copying from an output (SimpleNot on a node
+    # whose only consumer is an output) would otherwise read the closed-form `2**i` and lose the
+    # deviation the current circuit already carries relative to the origin
+    seeds = {name: output_weights.get(int(name[3:]), 2 ** int(name[3:])) for name in view.outputs}
 
     def solve(name: str) -> int:
         # a node driving one output alone is exactly that output's bit, no query needed
@@ -418,6 +464,11 @@ def label_with_patterns(
         seeds=seeds, solve=solve, relevant=relevant, output_weights=output_weights,
     )
     specs_obj.labeling_stats = stats
+    _dump_weights('engine', specs_obj, weights)
+    if os.environ.get('SUBXPAT_WEIGHT_HIST'):
+        hist = Counter(weights.values())
+        print(f'WEIGHT_HIST ref={"origin" if relative_to_origin else "current"} '
+              f'column={column} n={len(weights)} {dict(sorted(hist.items()))} [{stats.summary()}]')
     # the same contract as `fast_labeling`: the map holds the labelled GATES -- inputs are skipped
     # and the outputs are only seeds here, never part of the result (an extraction mode reading the
     # output weights would otherwise see keys that the old path never produced: measured on

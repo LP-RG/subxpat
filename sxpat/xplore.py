@@ -113,7 +113,10 @@ def explore_grid(specs_obj: Specifications):
     ) in zip(
         itertools.count(1),  # iteration id
         erriter,  # error threshold for the iteration
-        while_predicate(lambda: obtained_wce_exact < specs_obj.max_error),  # normal continuation
+        # fixpoint partitioning has no error ladder to walk: the loop runs until an extraction
+        # reproduces the previous circuit, so the `max_error` stop would end it far too early
+        while_predicate(lambda: specs_obj.error_partitioning == ErrorPartitioningType.FIXPOINT
+                        or obtained_wce_exact < specs_obj.max_error),  # normal continuation
     ):
         # circuit-slash pass
         if specs_obj.slash is SlashType.SLASH_SUBGRAPH:
@@ -163,7 +166,8 @@ def explore_grid(specs_obj: Specifications):
             with Timer2.default() as _timer:
                 weights = label_graph(exact_graph, current_graph, specs_obj)
                 for (i, n) in enumerate(current_graph.outputs_names):
-                    weights[n] = 2 ** i
+                    # previous-relative: 2**i by construction; origin-relative: the labelled value
+                    weights[n] = (specs_obj.outputs_weights or {}).get(n, 2 ** i)
                 current_graph = iograph_with_weights(current_graph, weights)
 
             # logging
@@ -173,6 +177,21 @@ def explore_grid(specs_obj: Specifications):
         # extract subgraph
         with Timer2.default() as _timer:
             subgraph_nodes = extract_subgraph(current_graph, specs_obj)
+            import json as _json
+            import os as _os
+            _dump = _os.environ.get('SUBXPAT_SUBGRAPH_DUMP')
+            if _dump:
+                _w = {n.name: getattr(n, 'weight', None) for n in current_graph.nodes
+                      if getattr(n, 'weight', None) is not None}
+                with open(_dump, 'a') as _h:
+                    _h.write(_json.dumps({
+                        'iteration': specs_obj.iteration,
+                        'et': specs_obj.et,
+                        'nodes': list(subgraph_nodes),
+                        'n_weights': len(_w),
+                        'min_weight': min(_w.values()) if _w else None,
+                        'mode': specs_obj.extraction_mode,
+                    }) + '\n')
             subgraph_is_available = len(subgraph_nodes) > 0
             current_graph = iograph_to_sgraph(current_graph, subgraph_nodes)
         previous_graphs.append(current_graph)
@@ -201,7 +220,24 @@ def explore_grid(specs_obj: Specifications):
             # logging
             pprint.warning(f'No subgraph available.')
             specs_obj.stats_storage.commit()
+            # with `et` pinned there is nothing left to partition: no subgraph means no further
+            # approximation is possible, so stop instead of re-asking the same question (measured:
+            # 198 empty iterations before the iterator's safety cap)
+            if specs_obj.error_partitioning == ErrorPartitioningType.FIXPOINT:
+                pprint.warning('Fixpoint partitioning: nothing left to approximate.')
+                break
             continue
+
+        # fixpoint partitioning: `et` never moves, so an extraction that reproduces the previous
+        # circuit is the end of the run (not a skipped iteration)
+        if (
+            specs_obj.error_partitioning == ErrorPartitioningType.FIXPOINT
+            and len(previous_graphs) >= 2
+            and are_circuits_equal(previous_graphs[-2], previous_graphs[-1])
+        ):
+            pprint.warning('The subgraph is equal to the previous one: fixpoint reached.')
+            specs_obj.stats_storage.commit()
+            break
 
         # guard: skip if the subraph is equal to the previous one
         # note:  does not apply for extraction mode 6 and 0
@@ -581,6 +617,8 @@ def error_iterator_factory(
                 return _ei.DescendingEI(specs.max_error)
             case ErrorPartitioningType.SMART_DESCENDING:
                 return _ei.SmartDescendingEI(specs.max_error)
+            case ErrorPartitioningType.FIXPOINT:
+                return _ei.FixpointEI(specs.max_error)
             case _:
                 return None
     else:
@@ -628,6 +666,13 @@ def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> 
                   else labeling_patterns.config_for_level(specs_obj.labeling_level, column, reference))
         if specs_obj.labeling_rules:
             config = config.with_overrides(**specs_obj.labeling_rules)
+        # the two manual knobs for the prune: on/off regardless of the level, and its multiplier
+        if specs_obj.labeling_prune == 'off':
+            config = dc.replace(config, prune=0)
+        elif specs_obj.labeling_prune == 'always' and not config.prune:
+            config = dc.replace(config, prune=1)
+        if specs_obj.labeling_prune_k is not None and config.prune:
+            config = dc.replace(config, prune=specs_obj.labeling_prune_k)
         return config
 
     if specs_obj.labeling == LabelingType.SIMPLE_MIN:
@@ -671,6 +716,19 @@ def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> 
                 labeller=labeller,
             )
         )
+
+    # relative to the origin an output's error is not `2**i`: the deviation already present in the
+    # current circuit is part of it, so it has to be labelled like any other node (a single NOT on
+    # the output's own driver). The previous-relative column keeps the closed form.
+    # an output's weight is its FREE label (its driver ignored), like every other node's
+    if not specs_obj.labeling_level and relative_to_origin:
+        free_outputs = Labelling(
+            reference, to_be_labelled, specs_obj,
+            minimise=specs_obj.labeling in (LabelingType.MIN, LabelingType.SAMPLE_MIN),
+            use_functions=True, fault=Labelling.FREE_OUTPUT_FAULT,
+        )
+        specs_obj.outputs_weights = {name: free_outputs.label_node(name)
+                                     for name in to_be_labelled.outputs_names}
 
     return weights
 

@@ -50,6 +50,8 @@ class ErrorPartitioningType(enum.Enum):
     DESCENDING = 'desc'
     SMART_ASCENDING = 'smart_asc'
     SMART_DESCENDING = 'smart_desc'
+    #: `et` is pinned to `max_error` and the run stops when an extraction reproduces the previous one
+    FIXPOINT = 'fixpoint'
 
 
 class EncodingType(enum.Enum):
@@ -326,7 +328,28 @@ class Specifications:
             }
         },
     )
+    labeling_prune: Optional[str] = dc.field(
+        default=None,
+        metadata={
+            'argument': {
+                'choices': ['off', 'always'],
+                'help': "Force the labelling prune (stop labelling ancestors whose smallest reachable bit exceeds the running minimum) on or off, overriding the level's default (default: {default} = whatever the level says)",
+                'group': 'Labeling',
+            }
+        },
+    )
+    labeling_prune_k: Optional[int] = dc.field(
+        default=None,
+        metadata={
+            'argument': {
+                'help': "Multiplier of the labelling prune: keep a node while its smallest reachable bit <= K * (running minimum). Higher keeps more nodes (default: {default} = the level's value: 1, or 4 for min relative to origin)",
+                'group': 'Labeling',
+            }
+        },
+    )
     labeling_stats: Optional[object] = dc.field(default=None, init=False, repr=False)
+    #: output name -> the error inverting that output costs (origin-relative labelling)
+    outputs_weights: Optional[Dict[str, int]] = dc.field(default=None, init=False, repr=False)
 
     # subgraph extraction
     extraction_mode: int = dc.field(

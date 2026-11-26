@@ -275,6 +275,9 @@ class RuleConfig:
     bound_max: Optional[int] = 0
     bound_min: Optional[int] = 0
     bound_sum: Optional[int] = 0
+    #: stop labelling ancestors whose smallest reachable bit is > N * (running minimum).
+    #: 0 = off. Not a weight rule: it removes nodes from the labelling set instead of filling them.
+    prune: int = 0
     #: which OutputDriver logic to use: 'current' (exact, 2**i) or 'origin' (upper bound)
     output_driver_relative_to: str = 'current'
 
@@ -297,37 +300,80 @@ class RuleConfig:
         return dc.replace(self, **known)
 
 
-#: the preset ladder, shared by both columns except for the bound rung: the max column bounds with
-#: `min(simple_max, sum of successors)`, the min column with `simple_min` only.
-_BOUND_RUNG = {MAX: ('bound_max', 'bound_sum'), MIN: ('bound_min',)}
-
-_LADDER = {
-    10: {},
-    20: {'simple_not': None},
-    30: {'simple_not': None, 'output_driver': None},
+#: Four ladders, one per (column, reference) combination. Three of them are the same table; the
+#: min + origin combination is the odd one: its prune sits later (the bound is a heuristic there, so
+#: it only earns its place once the other rules exist) and OutputDriver moves a rung earlier.
+#:
+#:   'bound' expands per column: max -> bound_max + bound_sum, min -> bound_min
+#:   'output_driver' is ungated (exact) on the current column whatever the rung says
+#:   'prune' carries its multiplier, not a threshold
+_STANDARD = {
+    10: {'simple_not': None},
+    20: {'prune': 1},
+    30: {'output_driver': 1000},
     40: {'single_successor': 1000},
-    50: {'single_successor': 1000, 'bound': 1000},
+    50: {'bound': 1000},
     60: {'single_successor': 100, 'bound': 1000},
-    70: {'single_successor': 10, 'bound': 100},
-    80: {'single_successor': 2, 'bound': 10},
-    90: {'single_successor': 1, 'bound': 2},
-    100: {},                                     # simple_min / simple_max: no solving, no logics
+    70: {'single_successor': 10, 'bound': 100, 'output_driver': 100},
+    80: {'single_successor': 2, 'bound': 10, 'output_driver': 10},
+    90: {'single_successor': 1, 'bound': 2, 'output_driver': 2},
+    100: {},
 }
+
+#: min relative to origin: OutputDriver one rung earlier, prune at 40 with a 4x margin (a gate can
+#: be labelled far below the bit it drives, so this one keeps more nodes instead of fewer)
+_ORIGIN_MIN = {
+    10: {'simple_not': None},
+    20: {'output_driver': 1000},
+    30: {'single_successor': 1000},
+    40: {'prune': 16},                      # 2^(i+4): very conservative, keeps almost everything
+    50: {'bound': 1000},
+    60: {'single_successor': 100, 'bound': 1000, 'prune': 8},      # 2^(i+3)
+    70: {'single_successor': 10, 'bound': 100, 'output_driver': 100},
+    80: {'single_successor': 2, 'bound': 10, 'output_driver': 10, 'prune': 4},   # 2^(i+2)
+    90: {'single_successor': 1, 'bound': 2, 'output_driver': 2, 'prune': 2},     # 2^(i+1)
+    100: {},
+}
+
+#: max relative to origin: same table, but the prune keeps twice as much (2^(i+1)) because a gate
+#: can be labelled as low as half its smallest reachable bit there -- with k=1 the prune would drop
+#: nodes that still belong to the candidate cone, and the extraction would change
+_ORIGIN_MAX = dict(_STANDARD)
+_ORIGIN_MAX[20] = {'prune': 2}
+
+_LADDERS: Mapping[Tuple[str, str], Mapping[int, Mapping[str, Optional[int]]]] = {
+    (MIN, 'current'): _STANDARD,
+    (MAX, 'current'): _STANDARD,
+    (MAX, 'origin'): _ORIGIN_MAX,
+    (MIN, 'origin'): _ORIGIN_MIN,
+}
+
+_BOUND_RUNG = {MAX: ('bound_max', 'bound_sum'), MIN: ('bound_min',)}
 
 
 def config_for_level(level: int, column: str = MAX, reference: str = 'current') -> RuleConfig:
-    """The preset ladder for one column, as a `RuleConfig`."""
-    if level not in _LADDER:
-        raise ValueError(f'unknown labelling level {level!r}; known: {sorted(_LADDER)}')
-    if column not in _BOUND_RUNG:
-        raise ValueError(f'unknown labelling column {column!r}; expected {MIN!r} or {MAX!r}')
+    """The ladder of one (column, reference) combination, expanded to `RuleConfig`."""
+    ladder = _LADDERS.get((column, reference))
+    if ladder is None:
+        raise ValueError(f'unknown combination {column!r}/{reference!r}')
+    if level not in ladder:
+        raise ValueError(f'unknown labelling level {level!r}; known: {sorted(ladder)}')
+    if level == 100:                              # the simple modes: no rule at all, nothing solved
+        return RuleConfig(output_driver_relative_to=reference)
     rules: Dict[str, Optional[int]] = {}
-    for name, divisor in _LADDER[level].items():
-        if name == 'bound':
-            for real in _BOUND_RUNG[column]:
-                rules[real] = divisor
-        else:
-            rules[name] = divisor
+    for rung in sorted(ladder):                   # cumulative: every rung up to this level
+        if rung > level:
+            continue
+        for name, divisor in ladder[rung].items():
+            if name == 'bound':
+                for real in _BOUND_RUNG[column]:
+                    rules[real] = divisor
+            elif name == 'output_driver' and reference == 'current':
+                rules['output_driver'] = None     # exact there: 2**i IS the output's error
+            elif name == 'prune':
+                rules['prune'] = divisor or 0
+            else:
+                rules[name] = divisor
     return RuleConfig(output_driver_relative_to=reference, **rules)
 
 
@@ -373,7 +419,10 @@ def combine(candidates: Sequence[Logic], matches: Mapping[str, Match], column: s
 class Stats:
     derived: Dict[str, int] = dc.field(default_factory=dict)
     solved: int = 0
+    pruned: int = 0
     by_rule: Dict[str, int] = dc.field(default_factory=dict)
+    #: node -> which logic produced its weight ('solve' when the solver did)
+    provenance: Dict[str, str] = dc.field(default_factory=dict)
 
     def record(self, kind: str, rule: Optional[str] = None) -> None:
         self.derived[kind] = self.derived.get(kind, 0) + 1
@@ -383,7 +432,7 @@ class Stats:
     def summary(self) -> str:
         parts = [f'{k}={v}' for (k, v) in sorted(self.derived.items())]
         rules = ', '.join(f'{k}:{v}' for (k, v) in sorted(self.by_rule.items()))
-        return (f'derived[{", ".join(parts)}] solved={self.solved}'
+        return (f'derived[{", ".join(parts)}] solved={self.solved} pruned={self.pruned}'
                 + (f' by_rule[{rules}]' if rules else ''))
 
 
@@ -420,6 +469,30 @@ def schedule(nodes: Sequence[str], match, *, column: str, et: int, config: RuleC
     stats = Stats()
     pending = [n for n in nodes if n not in weights and (relevant is None or n in relevant)]
 
+    # `prune`: the extraction mode that uses these weights takes `et = min(weights)`, so a node whose
+    # smallest reachable bit already exceeds `k * (running minimum)` can never be labelled at or
+    # below that minimum and can never enter the subgraph. Labelling the cheap end first makes the
+    # minimum fall early, which is what makes the cut worth doing.
+    prune_k = config.prune
+    if prune_k:
+        pending.sort(key=lambda n: simple_min.get(n, 1 << 30))
+    # NOT the seeds: an output's weight is `2**i` (or its labelled value), which is typically
+    # smaller than any gate label and would start the prune off far too low (measured: on
+    # mul_i4_o4 the seeds start at 1 while the smallest gate label is 2, which emptied the graph)
+    running_min = [1 << 30]
+
+    import os as _os
+    _trace = bool(_os.environ.get('SUBXPAT_PRUNE_DEBUG'))
+
+    def pruned_away(node: str) -> bool:
+        bound = simple_min.get(node, 1 << 30)
+        cut = prune_k * running_min[0] if prune_k else (1 << 30)
+        away = bool(prune_k) and bound > cut
+        if _trace:
+            print(f'PRUNE k={prune_k} node={node} simple_min={bound} m={running_min[0]} '
+                  f'cut={cut} pruned={away}')
+        return away
+
     def candidates_of(node: str) -> List[Logic]:
         order = {lg.name: i for (i, lg) in enumerate(logics)}
         return sorted(by_write.get(node, ()), key=lambda lg: order[lg.name])
@@ -427,7 +500,9 @@ def schedule(nodes: Sequence[str], match, *, column: str, et: int, config: RuleC
     def derive_round() -> bool:
         progressed = False
         for node in pending:
-            if node in weights:
+            if node in weights or pruned_away(node):
+                if node not in weights and pruned_away(node):
+                    stats.pruned += 1
                 continue
             cands = candidates_of(node)
             if not cands:
@@ -438,7 +513,11 @@ def schedule(nodes: Sequence[str], match, *, column: str, et: int, config: RuleC
             if value is None:
                 continue
             weights[node] = value
+            running_min[0] = min(running_min[0], value)
             stats.record(kind, rule)
+            source = matches.get((rule, node)) if rule else None
+            src = f'<-{source.slots["succ"]}@{weights.get(source.slots["succ"])}' if source and 'succ' in source.slots else ''
+            stats.provenance[node] = f'{rule}{src}' if rule else kind
             progressed = True
         return progressed
 
@@ -448,8 +527,13 @@ def schedule(nodes: Sequence[str], match, *, column: str, et: int, config: RuleC
     for node in pending:
         if node in weights:
             continue
+        if pruned_away(node):
+            stats.pruned += 1
+            continue
         weights[node] = solve(node)
+        running_min[0] = min(running_min[0], weights[node])
         stats.solved += 1
+        stats.provenance[node] = 'solve' 
         while derive_round():      # a new weight can unlock derivations in either direction
             pass
     return weights, stats

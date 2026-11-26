@@ -41,7 +41,12 @@ class Labelling:
     #   `invert`: a single NOT is inserted on its own output
     FREE_FAULT: ClassVar = 'free'
     INVERT_FAULT: ClassVar = 'invert'
-    FAULTS: ClassVar = (FREE_FAULT, INVERT_FAULT)
+    #   `free_output`: same as `free`, for a node that IS an output -- the output becomes a fresh
+    #   boolean instead of following its driver. Needed because `free` is a no-op on an output
+    #   (`l_out = l_driver`), and the inverted-output value is a different quantity (one of the two
+    #   values the free choice can take, never both).
+    FREE_OUTPUT_FAULT: ClassVar = 'free_output'
+    FAULTS: ClassVar = (FREE_FAULT, INVERT_FAULT, FREE_OUTPUT_FAULT)
 
     NODES_TO_Z3PY: ClassVar = {
         And: 'And',
@@ -338,6 +343,8 @@ class Labelling:
             # a broken output is the NOT of what drives it (a single NOT on its own output)
             if output == target_node and fault == cls.INVERT_FAULT:
                 strings.append(f'{proutput} = Not({driver})\n')
+            elif output == target_node and fault == cls.FREE_OUTPUT_FAULT:
+                strings.append(f'{proutput} = Bool("target")\n')
             else:
                 strings.append(f'{proutput} = {driver}\n')
 
