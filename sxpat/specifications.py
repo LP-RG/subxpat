@@ -310,7 +310,7 @@ class Specifications:
         },
     )
     labeling_level: int = dc.field(
-        default=0,
+        default=30,
         metadata={
             'argument': {
                 'choices': [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
