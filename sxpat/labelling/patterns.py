@@ -216,7 +216,10 @@ bound_min = Logic(
 bound_sum = Logic(
     name='bound_sum', pattern='with_successors',
     reads=(), writes=('node',),
-    kinds={MIN: UPPER, MAX: UPPER},
+    # the max column only: the sum of the successors' *min* weights is not an upper bound for the
+    # min column (two successors of weight 1 around a gate whose true min is 4 give a sum of 2), so
+    # declaring a kind for that column would let it outrank the sound `bound_min` lower bound
+    kinds={MAX: UPPER},
     divisor=0,
     reads_list='succs',
     value=lambda m, w, c: sum(w[s] for s in m.data['succs']),
@@ -386,6 +389,8 @@ def combine(candidates: Sequence[Logic], matches: Mapping[str, Match], column: s
 
     Returns (value, kind, rule name) where kind is EXACT / UPPER / LOWER / 'none'.
     """
+    # a logic that declares no kind for this column is not applicable to it at all
+    candidates = [lg for lg in candidates if column in lg.kinds]
     applicable = [(lg, lg.candidate(matches[lg.name], weights, ctx)) for lg in candidates]
     applicable = [(lg, value) for (lg, value) in applicable if value is not None]
     for (lg, value) in applicable:
