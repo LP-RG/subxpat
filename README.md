@@ -10,7 +10,7 @@ Details on template logic can be found on [arXiv][arXiv-shared].
 
 SubXPAT has been developed for a **Linux** environment and requires the following dependencies:
 
-- [Python] (version 3.14 or higher)
+- [Python] (version 3.15 or higher)
 - [Yosys] (using apt: `sudo apt install yosys`)
 - [GraphViz] (needed when `pip` builds `pygraphviz` from source; the wheels ship the library themselves — on Debian that means `sudo apt install graphviz graphviz-dev`)
 - [OpenSTA] (using apt: `sudo apt install opensta`)
@@ -34,7 +34,7 @@ To prepare the system for execution you will need to follow a few steps:
     ```bash
     # bulk commands
     make setup        # python environment and python dependencies
-    make setup macos  # (macOS) same as `make setup`, plus python@3.14, yosys, cmake, swig, tcl-tk@8 and OpenSTA
+    make setup macos  # (macOS) same as `make setup`, plus python@3.15, yosys, cmake, swig, tcl-tk@8 and OpenSTA
     make setup all    # same as `make setup`, plus the QBF solvers (cqesto, cqesto-cadical, qfun, qfun-cadical)
 
     # individual commands
@@ -52,7 +52,7 @@ To prepare the system for execution you will need to follow a few steps:
 
 ### macOS
 
-`make setup macos` installs `python@3.14`, `yosys`, `cmake`, `swig` and `tcl-tk@8` with [Homebrew] and builds the part that has no package (`sta`) into `./.deps/`; `make setup all` adds the QBF solvers. Nothing has to be installed globally besides Homebrew itself and the Xcode command line tools (`cc`, `make`, `git`):
+`make setup macos` installs `python@3.15`, `yosys`, `cmake`, `swig` and `tcl-tk@8` with [Homebrew] and builds the part that has no package (`sta`) into `./.deps/`; `make setup all` adds the QBF solvers. Nothing has to be installed globally besides Homebrew itself and the Xcode command line tools (`cc`, `make`, `git`):
 
 | dependency | source | reason |
 | :-- | :-- | :-- |

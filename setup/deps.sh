@@ -7,7 +7,7 @@ DEPS_DIR="$REPO_DIR/.deps"
 BIN_DIR="$DEPS_DIR/bin"
 ENV_NAME="${ENV_NAME:-.venv}"
 VENV="$REPO_DIR/$ENV_NAME"
-PY="${PY:-python3.14}"
+PY="${PY:-python3.15}"
 
 OPENSTA_REPO="${OPENSTA_REPO:-https://github.com/The-OpenROAD-Project/OpenSTA.git}"
 OPENSTA_REF="${OPENSTA_REF:-c018cb21}"
@@ -68,10 +68,10 @@ brew_install_missing() {
 
 ensure_python() {
   if command -v "$PY" >/dev/null 2>&1; then return 0; fi
-  is_macos || die "$PY not found, install Python 3.14 first"
+  is_macos || die "$PY not found, install Python 3.15 first"
   command -v brew >/dev/null 2>&1 || die "$PY not found and Homebrew is not installed (https://brew.sh)"
-  brew_install python@3.14
-  PY="$(brew --prefix python@3.14)/bin/python3.14"
+  brew_install python@3.15
+  PY="$(brew --prefix python@3.15)/bin/python3.15"
   command -v "$PY" >/dev/null 2>&1 || die "$PY not found after brew install"
 }
 
@@ -111,7 +111,7 @@ install_macos_deps() {
   esac
   command -v brew >/dev/null 2>&1 || die "Homebrew is required on macOS (https://brew.sh)"
   log "installing brew packages"
-  brew_install_missing python@3.14 cmake yosys swig tcl-tk@8
+  brew_install_missing python@3.15 cmake yosys swig tcl-tk@8
   build_opensta
 }
 

@@ -29,6 +29,7 @@ Date: 2026-11-10
     - Now the default archivation is .tar.xz instead of .zip. (#210)
     - Removed zip archivation approach. (#210)
     - Updated `networkx` to 3.7, `pygraphviz` to 2.0.4 and `bidict` to 0.24.1 (`colorama`, `tabulate` and `typing_extensions` were already current). (#238)
+    - The python environment is now created with Python 3.15 instead of 3.14, and `make setup macos` installs `python@3.15`; the pipeline was re-run on 3.15.2 with identical results. (#238)
     - Replaced `--slash-to-kill` with `--slash` (`none`, `slash_to_kill`, `slash_it`). (#222)
     - `--error-for-slash` no longer defaults to 1 and is required when `--slash` is not `none`. (#222)
     - The iterative slash pass now runs before the exploration loop, so it no longer consumes the first error partition. (#222)
