@@ -291,7 +291,6 @@ def fast_labeling(
                 stack.append(succ.name)
                 visited.add(succ.name)
 
-    _dump_weights('legacy', specs_obj, weights)
 
     return weights
 
@@ -355,24 +354,6 @@ class _GraphView:
 
     def output_index(self, name: str) -> int:
         return int(name[3:])
-
-
-def _dump_weights(tag: str, specs_obj: Specifications, weights: Mapping[str, int]) -> None:
-    """Append one line per labelling call: which path produced which weights for which iteration."""
-    path = os.environ.get('SUBXPAT_WEIGHT_DUMP')
-    if not path:
-        return
-    with open(path, 'a') as handle:
-        handle.write(json.dumps({
-            'path': tag,
-            'iteration': getattr(specs_obj, 'iteration', None),
-            'benchmark': getattr(specs_obj, 'current_benchmark', None),
-            'et': getattr(specs_obj, 'et', None),
-            'reference': str(getattr(specs_obj, 'labeling_relative_to', None)),
-            'labeling': str(getattr(specs_obj, 'labeling', None)),
-            'weights': {k: v for (k, v) in weights.items() if str(k).startswith('g')},
-            'provenance': dict(getattr(getattr(specs_obj, 'labeling_stats', None), 'provenance', {})),
-        }) + '\n')
 
 
 def label_with_patterns(
@@ -464,11 +445,6 @@ def label_with_patterns(
         seeds=seeds, solve=solve, relevant=relevant, output_weights=output_weights,
     )
     specs_obj.labeling_stats = stats
-    _dump_weights('engine', specs_obj, weights)
-    if os.environ.get('SUBXPAT_WEIGHT_HIST'):
-        hist = Counter(weights.values())
-        print(f'WEIGHT_HIST ref={"origin" if relative_to_origin else "current"} '
-              f'column={column} n={len(weights)} {dict(sorted(hist.items()))} [{stats.summary()}]')
     # the same contract as `fast_labeling`: the map holds the labelled GATES -- inputs are skipped
     # and the outputs are only seeds here, never part of the result (an extraction mode reading the
     # output weights would otherwise see keys that the old path never produced: measured on

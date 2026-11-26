@@ -481,17 +481,10 @@ def schedule(nodes: Sequence[str], match, *, column: str, et: int, config: RuleC
     # mul_i4_o4 the seeds start at 1 while the smallest gate label is 2, which emptied the graph)
     running_min = [1 << 30]
 
-    import os as _os
-    _trace = bool(_os.environ.get('SUBXPAT_PRUNE_DEBUG'))
-
     def pruned_away(node: str) -> bool:
-        bound = simple_min.get(node, 1 << 30)
-        cut = prune_k * running_min[0] if prune_k else (1 << 30)
-        away = bool(prune_k) and bound > cut
-        if _trace:
-            print(f'PRUNE k={prune_k} node={node} simple_min={bound} m={running_min[0]} '
-                  f'cut={cut} pruned={away}')
-        return away
+        if not prune_k:
+            return False
+        return simple_min.get(node, 1 << 30) > prune_k * running_min[0]
 
     def candidates_of(node: str) -> List[Logic]:
         order = {lg.name: i for (i, lg) in enumerate(logics)}

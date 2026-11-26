@@ -177,21 +177,6 @@ def explore_grid(specs_obj: Specifications):
         # extract subgraph
         with Timer2.default() as _timer:
             subgraph_nodes = extract_subgraph(current_graph, specs_obj)
-            import json as _json
-            import os as _os
-            _dump = _os.environ.get('SUBXPAT_SUBGRAPH_DUMP')
-            if _dump:
-                _w = {n.name: getattr(n, 'weight', None) for n in current_graph.nodes
-                      if getattr(n, 'weight', None) is not None}
-                with open(_dump, 'a') as _h:
-                    _h.write(_json.dumps({
-                        'iteration': specs_obj.iteration,
-                        'et': specs_obj.et,
-                        'nodes': list(subgraph_nodes),
-                        'n_weights': len(_w),
-                        'min_weight': min(_w.values()) if _w else None,
-                        'mode': specs_obj.extraction_mode,
-                    }) + '\n')
             subgraph_is_available = len(subgraph_nodes) > 0
             current_graph = iograph_to_sgraph(current_graph, subgraph_nodes)
         previous_graphs.append(current_graph)
