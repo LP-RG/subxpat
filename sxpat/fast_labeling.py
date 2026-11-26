@@ -113,7 +113,17 @@ class SamplingLabeler:
         if self.n_samples >= total - 2:
             # the sample budget covers every assignment: enumerate exactly
             return list(range(total))
-        return [0, total - 1, *self._random.sample(range(1, total - 1), self.n_samples)]
+        # `sample` over a `range` needs its length, which overflows C ssize_t once there are 64
+        # inputs or more (2**64 assignments), so draw the patterns directly instead: same
+        # distribution -- distinct non-corner assignments -- without the size limit.
+        bits = (total - 1).bit_length()
+        chosen: Dict[int, None] = {}
+        while len(chosen) < self.n_samples:
+            candidate = self._random.getrandbits(bits)
+            if candidate == 0 or candidate >= total - 1:
+                continue
+            chosen[candidate] = None
+        return [0, total - 1, *chosen]
 
     def _prepare(self) -> int:
         if self._reference_outputs is not None:
