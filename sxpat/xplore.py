@@ -5,7 +5,6 @@ import dataclasses as dc
 import itertools
 import functools as ft
 import networkx as nx
-import os
 
 from sxpat.graph.graph import PGraph, SGraph, IOGraph
 from sxpat.graph.node import Extras, Node
@@ -13,6 +12,8 @@ from sxpat.error_iter import ErrorIterator
 from sxpat.conf_explorer import ConfigurationExploration
 from sxpat.newag import load_circuit_from_verilog
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
+from sxpat.definitions.distances import *
+from sxpat.subgraph_extractions.legacy import *
 
 from sxpat.specifications import (
     Specifications, TemplateType, ErrorPartitioningType, SlashType, LabelingType, LabelingRelativeTo,
@@ -29,12 +30,10 @@ from sxpat.utils.print import pprint
 from sxpat.metrics import MetricsEstimator
 
 from sxpat.definitions.templates import get_specialized as get_templater
-from sxpat.definitions.distances import *
 
 from sxpat.definitions.questions import exists_parameters
 from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
 
-from sxpat.subgraph_extractions.legacy import *
 from sxpat.subgraph_extractions.manual import extract
 
 from sxpat.solvers import get_specialized as get_solver

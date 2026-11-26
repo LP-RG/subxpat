@@ -33,6 +33,7 @@ column uses `min(simple_max, sum of the successors' weights)`, the min column us
 only: the sum of *min* weights is not an upper bound for the min column (two successors of weight 1
 around a gate whose true min is 4 give a sum of 2), so it is not offered there.
 """
+
 from __future__ import annotations
 
 import dataclasses as dc

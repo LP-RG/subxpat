@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from types import MappingProxyType
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Union
 import enum
