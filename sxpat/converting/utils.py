@@ -42,6 +42,8 @@ def unpack_ToInt(graph: Graph) -> Graph:
     """
 
     graph_builder = GraphBuilder()
+    if graph.has_base_component('Constraints'):
+        graph_builder.add_autofill_component('Constraints')
 
     types_component = graph.base_components['Types']
     toint_nodes = tuple(
