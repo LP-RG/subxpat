@@ -3,14 +3,12 @@ from typing import Any, ClassVar, Optional, Union
 from os.path import join as path_join
 from sxpat.utils.filesystem import FS
 
-import networkx as nx
 from collections import deque
 from sxpat.utils.string import partial_format, dedent
 
 import subprocess
 import sys
 from threading import Lock
-from sxpat.utils.futures import ThreadPoolExecutor
 
 from sxpat.graph import IOGraph
 from sxpat.graph.node import BoolConstant, Node, And, Not, BoolVariable
@@ -26,7 +24,7 @@ class Labelling:
         #
         'reference', 'to_be_labelled',
         #
-        '_minimise', '_use_func',
+        '_minimise', '_use_func', '_fault',
         #
         '_base_path',
         #
@@ -35,6 +33,16 @@ class Labelling:
 
     REFERENCE_PREFIX: ClassVar = 'r_'
     LABELLING_PREFIX: ClassVar = 'l_'
+
+    # how the target node is broken
+    #   `free`  : its value becomes free (a fresh boolean)
+    FREE_FAULT: ClassVar = 'free'
+    #   `free_output`: same as `free`, for a node that IS an output -- the output becomes a fresh
+    #   boolean instead of following its driver. Needed because `free` is a no-op on an output
+    #   (`l_out = l_driver`).
+    FREE_OUTPUT_FAULT: ClassVar = 'free_output'
+    FAULTS: ClassVar = (FREE_FAULT, FREE_OUTPUT_FAULT)
+
     NODES_TO_Z3PY: ClassVar = {
         And: 'And',
         Not: 'Not',
@@ -44,6 +52,7 @@ class Labelling:
 
     SCRIPT_TEMPLATE: ClassVar = dedent("""\
         from z3 import *
+        import sys
 
         # inputs
         {input_variables_definition}
@@ -68,8 +77,15 @@ class Labelling:
         if status == sat:
             model = solver.model()
             print(opt_objective.value())
+        elif status == unsat:
+            # unsatisfiable: no assignment lets the node affect any output,
+            # so breaking it is free and its weight is exactly zero
+            print(0)
         else:
-            print(1)
+            # unknown: the largest error the outputs can express, so that the node
+            # is treated as expensive rather than silently as free
+            print('labelling query answered unknown, assuming the worst case', file=sys.stderr)
+            print({max_weight})
     """)
 
     def __init__(
@@ -79,7 +95,11 @@ class Labelling:
         *,
         minimise: bool,
         use_functions: bool = True,
+        fault: str = FREE_FAULT,
     ):
+        if fault not in self.FAULTS:
+            raise ValueError(f"unknown fault mode {fault!r}, expected one of {self.FAULTS}")
+
         # prepare folder
         self._base_path = path_join(specs.path.run.solver_scripts, f'labelling{specs.iteration}')
         FS.mkdir(self._base_path)
@@ -90,6 +110,7 @@ class Labelling:
         #
         self._minimise = minimise
         self._use_func = use_functions
+        self._fault = fault
 
         #
         self.__base_script: Optional[str] = None
@@ -100,9 +121,8 @@ class Labelling:
         if self._minimise:
             import sys
             print(
-                '[WARNING] labelling with weight minimisation could produce wrong results.'
-                ' In the current implementation no error is found sometimes,'
-                ' in those cases 1 is produced. (FURTHER ANALYSIS REQUIRED)',
+                '[WARNING] labelling with weight minimisation: when a node cannot affect'
+                ' any output the query is unsatisfiable, and its weight is reported as 0.',
                 file=sys.stdout
             )
 
@@ -159,6 +179,9 @@ class Labelling:
                         #
                         reference_circuit=self._circuit_to_z3str(self.reference),
                         #
+                        # the largest error the outputs can express: assumed when the
+                        # solver answers `unknown` (a dead node is `unsat`, i.e. 0)
+                        max_weight=(2 ** num_outputs) - 1,
                         error_definition=error_str,
                         objective_definition=objective_str,
                     )
@@ -183,7 +206,7 @@ class Labelling:
             return self.__cached_weights[target_node]
 
         # complete script
-        _circuit_z3str = self._circuit_to_z3str(self.to_be_labelled, target_node)
+        _circuit_z3str = self._circuit_to_z3str(self.to_be_labelled, target_node, self._fault)
         script = self.base_script.format(to_be_labelled_circuit=_circuit_z3str)
 
         # save script
@@ -198,43 +221,9 @@ class Labelling:
 
         # parse result
         self.__cached_weights[target_node] = _w = int(result.stdout)
+        if result.stderr.strip():
+            print(f'[WARNING] labelling {target_node}: {result.stderr.strip()}')
         return _w
-
-    def label_graph(
-        self, *,
-        partial_cutoff: int = -1,
-        parallelism: int = 1,
-    ) -> dict[str, int]:
-        """
-        Compute the weights for the entire graph.  
-
-        :param partial_cutoff: optionally, a threshold for outputs under which their ancestors will be labelled.
-        :param parallel: if the labelling should be parallelized, and how much
-        """
-
-        # select nodes to label (all non-input ancestors of outputs under the cutoff)
-        nodes_to_label: set[str] = set()
-        if partial_cutoff <= 0:
-            partial_cutoff = 2 ** len(self.to_be_labelled.outputs_names)
-        for (i, output) in enumerate(self.to_be_labelled.outputs_names):
-            # break if output is too large (next ones will be larger)
-            if (1 << i) > partial_cutoff:
-                break
-            # get all non-input ancestors
-            for ancestor in nx.ancestors(self.to_be_labelled._inner, output):
-                if not isinstance(self.to_be_labelled[ancestor], BoolVariable):
-                    nodes_to_label.add(ancestor)
-
-        # label nodes
-        weights: dict[str, int] = dict()
-        if not parallelism or parallelism <= 1:
-            for n in nodes_to_label:
-                weights[n] = self.label_node(n)
-        else:
-            with ThreadPoolExecutor() as pool:
-                weights.update(pool.map(lambda n: (n, self.label_node(n)), nodes_to_label))
-
-        return weights
 
     def _get_script_path(self, id: str) -> str:
         return path_join(self._base_path, f'{id}.py')
@@ -253,7 +242,10 @@ class Labelling:
         return f'{cls.NODES_TO_Z3PY.get(type(node))}({args})'
 
     @classmethod
-    def _circuit_to_z3str(cls, circuit: IOGraph, target_node: Optional[str] = None) -> str:
+    def _circuit_to_z3str(
+        cls, circuit: IOGraph, target_node: Optional[str] = None,
+        fault: str = FREE_FAULT,
+    ) -> str:
         strings = list()
 
         # custom bfs, enqueue only when all predecessors have been visited
@@ -300,9 +292,14 @@ class Labelling:
         for (i, output) in enumerate(circuit.outputs_names):
             proutput = prefix + output
             if isinstance(circuit.predecessors(output)[0], BoolVariable):
-                strings.append(f'{proutput} = {circuit.predecessors(output)[0].name}\n')
+                driver = circuit.predecessors(output)[0].name
             else:
-                strings.append(f'{proutput} = {prefix}{circuit.predecessors(output)[0].name}\n')
+                driver = f'{prefix}{circuit.predecessors(output)[0].name}'
+
+            if output == target_node and fault == cls.FREE_OUTPUT_FAULT:
+                strings.append(f'{proutput} = Bool("target")\n')
+            else:
+                strings.append(f'{proutput} = {driver}\n')
 
             names.append(name := f'if_{proutput}')
             strings.append(f'{name} = If({proutput}, const{i}, constf)\n')

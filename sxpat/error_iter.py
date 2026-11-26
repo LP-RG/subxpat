@@ -40,6 +40,25 @@ class XPATEI(ErrorIterator):
             return self._max_error
 
 
+class FixpointEI(ErrorIterator):
+    """Always the maximum error; the caller stops when the extraction stops changing.
+
+    The point is to stop partitioning the budget: every iteration approximates with the whole
+    `max_error` available, and an iteration that reproduces the previous circuit means no further
+    approximation can be made.
+    """
+
+    def __init__(self, max_error: int):
+        super().__init__(max_error)
+        self._yields = 0
+
+    def get_next(self) -> int | None:
+        self._yields += 1
+        if self._yields > 200:          # safety net, never iterate forever
+            return None
+        return self._max_error
+
+
 class DescendingEI(ErrorIterator):
     def __init__(self, max_error: int):
         super().__init__(max_error)

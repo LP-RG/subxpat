@@ -5,7 +5,6 @@ import dataclasses as dc
 import itertools
 import functools as ft
 import networkx as nx
-import os
 
 from sxpat.graph.graph import PGraph, SGraph, IOGraph
 from sxpat.graph.node import Extras, Node
@@ -13,8 +12,12 @@ from sxpat.error_iter import ErrorIterator
 from sxpat.conf_explorer import ConfigurationExploration
 from sxpat.newag import load_circuit_from_verilog
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
+from sxpat.definitions.distances import *
+from sxpat.subgraph_extractions.legacy import *
 
-from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, SlashType
+from sxpat.specifications import (
+    Specifications, TemplateType, ErrorPartitioningType, SlashType, LabelingType, LabelingRelativeTo,
+)
 
 from sxpat.constants.misc import UNKNOWN, SAT
 
@@ -27,12 +30,10 @@ from sxpat.utils.print import pprint
 from sxpat.metrics import MetricsEstimator
 
 from sxpat.definitions.templates import get_specialized as get_templater
-from sxpat.definitions.distances import *
 
 from sxpat.definitions.questions import exists_parameters
 from sxpat.definitions.questions.max_distance_evaluation import MaxDistanceEvaluation
 
-from sxpat.subgraph_extractions.legacy import *
 from sxpat.subgraph_extractions.manual import extract
 
 from sxpat.solvers import get_specialized as get_solver
@@ -43,6 +44,10 @@ from sxpat.converting import VerilogExporter
 
 from sxpat.labelling.labelling import Labelling
 
+from sxpat.fast_labeling import (
+    SamplingLabeler, fast_labeling, label_with_patterns, upper_bound, lower_bound,
+)
+from sxpat.labelling import patterns as labeling_patterns
 from sxpat.slash_inputs import remove_inputs
 
 
@@ -107,23 +112,26 @@ def explore_grid(specs_obj: Specifications):
     ) in zip(
         itertools.count(1),  # iteration id
         erriter,  # error threshold for the iteration
-        while_predicate(lambda: obtained_wce_exact < specs_obj.max_error),  # normal continuation
+        # fixpoint partitioning has no error ladder to walk: the loop runs until an extraction
+        # reproduces the previous circuit, so the `max_error` stop would end it far too early
+        while_predicate(lambda: specs_obj.error_partitioning == ErrorPartitioningType.FIXPOINT
+                        or obtained_wce_exact < specs_obj.max_error),  # normal continuation
     ):
         # circuit-slash pass
         if specs_obj.slash is SlashType.SLASH_SUBGRAPH:
             # first iteration: apply slash
             if specs_obj.iteration == 1:
                 # store relevant specifications values
-                preserved_slash_state = (specs_obj.min_labeling, specs_obj.extraction_mode)
+                preserved_slash_state = (specs_obj.labeling, specs_obj.extraction_mode)
 
                 # update specifications
-                specs_obj.min_labeling = False
+                specs_obj.labeling = LabelingType.MAX
                 specs_obj.extraction_mode = 100
                 specs_obj.et = specs_obj.error_for_slash
 
             # second iteration: restore state
             elif specs_obj.iteration == 2:
-                (specs_obj.min_labeling, specs_obj.extraction_mode) = preserved_slash_state
+                (specs_obj.labeling, specs_obj.extraction_mode) = preserved_slash_state
 
             # skip all iterations implicitly achieved through the slash to kill step
             if specs_obj.iteration > 1 and specs_obj.et < specs_obj.error_for_slash:
@@ -155,9 +163,10 @@ def explore_grid(specs_obj: Specifications):
             print('started labelling')
 
             with Timer2.default() as _timer:
-                weights = label_graph(current_graph, specs_obj)
+                weights = label_graph(exact_graph, current_graph, specs_obj)
                 for (i, n) in enumerate(current_graph.outputs_names):
-                    weights[n] = 2 ** i
+                    # previous-relative: 2**i by construction; origin-relative: the labelled value
+                    weights[n] = (specs_obj.outputs_weights or {}).get(n, 2 ** i)
                 current_graph = iograph_with_weights(current_graph, weights)
 
             # logging
@@ -195,7 +204,24 @@ def explore_grid(specs_obj: Specifications):
             # logging
             pprint.warning(f'No subgraph available.')
             specs_obj.stats_storage.commit()
+            # with `et` pinned there is nothing left to partition: no subgraph means no further
+            # approximation is possible, so stop instead of re-asking the same question (measured:
+            # 198 empty iterations before the iterator's safety cap)
+            if specs_obj.error_partitioning == ErrorPartitioningType.FIXPOINT:
+                pprint.warning('Fixpoint partitioning: nothing left to approximate.')
+                break
             continue
+
+        # fixpoint partitioning: `et` never moves, so an extraction that reproduces the previous
+        # circuit is the end of the run (not a skipped iteration)
+        if (
+            specs_obj.error_partitioning == ErrorPartitioningType.FIXPOINT
+            and len(previous_graphs) >= 2
+            and are_circuits_equal(previous_graphs[-2], previous_graphs[-1])
+        ):
+            pprint.warning('The subgraph is equal to the previous one: fixpoint reached.')
+            specs_obj.stats_storage.commit()
+            break
 
         # guard: skip if the subraph is equal to the previous one
         # note:  does not apply for extraction mode 6 and 0
@@ -575,6 +601,8 @@ def error_iterator_factory(
                 return _ei.DescendingEI(specs.max_error)
             case ErrorPartitioningType.SMART_DESCENDING:
                 return _ei.SmartDescendingEI(specs.max_error)
+            case ErrorPartitioningType.FIXPOINT:
+                return _ei.FixpointEI(specs.max_error)
             case _:
                 return None
     else:
@@ -597,23 +625,97 @@ def configuration_explorer_factory(
             return None
 
 
-def label_graph(circuit: IOGraph, specs_obj: Specifications) -> dict[str, int]:
-    """This function adds the labels inplace to the given graph"""
+def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> dict[str, int]:
+    """Compute the weight of every relevant node of the `current` circuit."""
 
-    reference: IOGraph = circuit
-    to_be_labelled: IOGraph = circuit
+    # the labelling pass runs before the grid exploration, which is what normally
+    # sets `sub_iteration` (it names the scripts of the exact labelling queries)
+    specs_obj.sub_iteration = 'labelling'
 
-    #
-    labeller = Labelling(
-        reference, to_be_labelled,
-        specs_obj,
-        minimise=specs_obj.min_labeling,
-        use_functions=True,
-    )
-    weights = labeller.label_graph(
-        partial_cutoff=specs_obj.et if specs_obj.partial_labeling else -1,
-        parallelism=int(specs_obj.parallel) * (os.cpu_count() or 1)
-    )
+    relative_to_origin = specs_obj.labeling_relative_to == LabelingRelativeTo.ORIGIN
+    reference = exact if relative_to_origin else current
+    to_be_labelled: IOGraph = current
+
+    # level 100 is "no solving at all": the column's own simple mode. The sampling types keep
+    # their own meaning (sampled labels), which is also a no-solving mode, so they fall through to
+    # the engine with every pattern rule off.
+    # --labeling-level=100 selects no rule at all, which is exactly what simple_min/simple_max
+    # compute, so the two spellings are normalised onto one path: they must not disagree, and in
+    # particular they must share the output-weight treatment below.
+    labeling = specs_obj.labeling
+    if specs_obj.labeling_level == 100 and labeling in (LabelingType.MIN, LabelingType.MAX):
+        labeling = LabelingType.SIMPLE_MIN if labeling == LabelingType.MIN else LabelingType.SIMPLE_MAX
+    simple = labeling in (LabelingType.SIMPLE_MIN, LabelingType.SIMPLE_MAX)
+
+    def engine_config():
+        column = 'min' if specs_obj.labeling in (LabelingType.MIN, LabelingType.SAMPLE_MIN) else 'max'
+        reference = 'origin' if relative_to_origin else 'current'
+        config = labeling_patterns.config_for_level(specs_obj.labeling_level, column, reference)
+        if specs_obj.labeling_rules:
+            config = config.with_overrides(**specs_obj.labeling_rules)
+        # the two manual knobs for the prune: on/off regardless of the level, and its multiplier
+        if specs_obj.labeling_prune == 'off':
+            config = dc.replace(config, prune=0)
+        elif specs_obj.labeling_prune == 'always' and not config.prune:
+            config = dc.replace(config, prune=1)
+        if specs_obj.labeling_prune_k is not None and config.prune:
+            config = dc.replace(config, prune=specs_obj.labeling_prune_k)
+        return config
+
+    if labeling == LabelingType.SIMPLE_MIN:
+        weights = lower_bound(current)
+    elif labeling == LabelingType.SIMPLE_MAX:
+        weights = upper_bound(current)
+    elif specs_obj.labeling in (LabelingType.SAMPLE_MIN, LabelingType.SAMPLE_MAX):
+        sampler = SamplingLabeler(
+            reference, current,
+            n_samples=specs_obj.labeling_samples,
+            seed=specs_obj.labeling_seed,
+            minimise=specs_obj.labeling == LabelingType.SAMPLE_MIN,
+        )
+        weights = (
+            label_with_patterns(exact, current, specs_obj.et, specs_obj, engine_config(),
+                                sampler=sampler, skip_at_output=not relative_to_origin)
+            if specs_obj.labeling_level
+            else fast_labeling(
+                exact, current, specs_obj.et, specs_obj,
+                skip_at_output=not relative_to_origin,
+                sampler=sampler,
+            )
+        )
+    else:
+        # the exact modes use the same solver at every iteration: the one selected
+        # by the specifications (a separate engine for the first iteration only would
+        # make the weights depend on the iteration rather than on the circuit)
+        labeller = Labelling(
+            reference, to_be_labelled,
+            specs_obj,
+            minimise=specs_obj.labeling == LabelingType.MIN,
+            use_functions=True,
+        )
+        weights = (
+            label_with_patterns(exact, current, specs_obj.et, specs_obj, engine_config(),
+                                labeller=labeller, skip_at_output=not relative_to_origin)
+            if specs_obj.labeling_level
+            else fast_labeling(
+                exact, current, specs_obj.et, specs_obj,
+                skip_at_output=not relative_to_origin,
+                labeller=labeller,
+            )
+        )
+
+    # relative to the origin an output's error is not `2**i`: the deviation already present in the
+    # current circuit is part of it, so it has to be labelled like any other node (a single NOT on
+    # the output's own driver). The previous-relative column keeps the closed form.
+    # an output's weight is its FREE label (its driver ignored), like every other node's
+    if simple and relative_to_origin:
+        free_outputs = Labelling(
+            reference, to_be_labelled, specs_obj,
+            minimise=specs_obj.labeling in (LabelingType.MIN, LabelingType.SAMPLE_MIN),
+            use_functions=True, fault=Labelling.FREE_OUTPUT_FAULT,
+        )
+        specs_obj.outputs_weights = {name: free_outputs.label_node(name)
+                                     for name in to_be_labelled.outputs_names}
 
     return weights
 

@@ -113,7 +113,7 @@ def _encode_nodes(
             BitVecVal(_w, bit_width),
             Bool(_name),
         )
-        if _w == -1 or (candidates is not None and _name not in candidates):
+        if candidates is not None and _name not in candidates:
             constraints.append(Node.in_subgraph(_node) == BoolVal(False))  # pyright: ignore
 
     return (z3_nodes, constraints)
@@ -235,10 +235,17 @@ def _setup_problem(
         [node.name for node in circuit.constants],
     )
 
+    # `None` means unlabelled and is encoded as the -1 sentinel; a weight of 0 is a legal label
+    # (breaking the node is free), so it must not be folded into the sentinel
+    _weights = dict()
+    for _node in circuit.nodes:
+        _w = getattr(_node, WEIGHT, None)
+        _weights[_node.name] = -1 if _w is None else _w
+
     z3_nodes, base_constraints = _encode_nodes(
         available_nodes,
         unavailable_nodes,
-        {node.name: (getattr(node, WEIGHT, None) or -1) for node in circuit.nodes},
+        _weights,
         bit_width,
         Node,
         candidates,

@@ -1,6 +1,7 @@
 from __future__ import annotations
+
 from types import MappingProxyType
-from typing import Any, Callable, Iterable, Mapping, Union
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Union
 import enum
 import dataclasses as dc
 
@@ -22,6 +23,7 @@ __all__ = [
     # enums
     'ErrorPartitioningType', 'EncodingType',
     'TemplateType', 'ConstantsType', 'SlashType',
+    'LabelingType', 'LabelingRelativeTo',
 ]
 
 
@@ -30,11 +32,27 @@ class Dependency:
     TargetItem = Union[str, tuple[str, list[Any]]]
 
 
+class LabelingRelativeTo(enum.Enum):
+    ORIGIN = 'origin'
+    CURRENT = 'current'
+
+
+class LabelingType(enum.Enum):
+    MIN = 'min'
+    MAX = 'max'
+    SIMPLE_MIN = 'simple_min'
+    SIMPLE_MAX = 'simple_max'
+    SAMPLE_MIN = 'sample_min'
+    SAMPLE_MAX = 'sample_max'
+
+
 class ErrorPartitioningType(enum.Enum):
     ASCENDING = 'asc'
     DESCENDING = 'desc'
     SMART_ASCENDING = 'smart_asc'
     SMART_DESCENDING = 'smart_desc'
+    #: `et` is pinned to `max_error` and the run stops when an extraction reproduces the previous one
+    FIXPOINT = 'fixpoint'
 
 
 class EncodingType(enum.Enum):
@@ -71,6 +89,45 @@ class ConstantsType(enum.Enum):
 class ConstantFalseType(enum.Enum):
     OUTPUT = 'output'
     PRODUCT = 'product'
+
+
+def parse_labeling_seed(value: str) -> Optional[int]:
+    """Parse a labeling seed: an integer, or `random` for a non-deterministic seed."""
+    if value.strip().lower() == 'random':
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected an integer or 'random', got {value!r}")
+
+
+def parse_labeling_rules(value: str) -> Dict[str, Optional[int]]:
+    """Parse `--labeling-rules`: `name=off|always|N`, comma separated, one entry per rule.
+
+    `off` disables the rule in the chosen level, `always` drops its threshold, `N` gates it to
+    `value * N <= et`. Rules: simple_not, output_driver, single_successor, bound_max, bound_min,
+    bound_sum.
+    """
+    rules: Dict[str, Optional[int]] = {}
+    for chunk in value.split(','):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        if '=' not in chunk:
+            raise argparse.ArgumentTypeError(f"expected 'name=off|always|N', got {chunk!r}")
+        name, raw = (part.strip() for part in chunk.split('=', 1))
+        lowered = raw.lower()
+        if lowered in ('off', 'no', 'false', 'never'):
+            rules[name] = 0
+        elif lowered in ('always', 'on', 'yes', 'true'):
+            rules[name] = None
+        else:
+            try:
+                rules[name] = int(raw)
+            except ValueError:
+                raise argparse.ArgumentTypeError(
+                    f"expected an integer, 'off' or 'always', got {raw!r}")
+    return rules
 
 
 @dc.dataclass(init=False, frozen=True)
@@ -213,25 +270,86 @@ class Specifications:
     outputs: int = dc.field(init=False)
 
     # labeling
-    min_labeling: bool = dc.field(
-        default=True,
+    labeling: LabelingType = dc.field(
+        default=LabelingType.SIMPLE_MIN,
         metadata={
             'argument': {
-                'args': ['--max-labeling'],
-                'help': 'Nodes are weighted using their maximum error, instead of minimum error',
+                'action': EnumChoicesAction,
+                'help': 'Labeling algorithm to use (default: {default})',
                 'group': 'Labeling',
             }
         },
     )
-    partial_labeling: bool = dc.field(
-        default=True,
+    labeling_relative_to: LabelingRelativeTo = dc.field(
+        default=LabelingRelativeTo.CURRENT,
         metadata={
             'argument': {
-                'help': 'Weights are assigned to all nodes, not only to the relevant ones',
+                'action': EnumChoicesAction,
+                'help': 'Circuit the labeling weights are computed against (default: {default})',
                 'group': 'Labeling',
             }
         },
     )
+    labeling_samples: int = dc.field(
+        default=2,
+        metadata={
+            'argument': {
+                'help': 'Number of random samples used by the sampling labeling types, in addition to the all-zero and all-one cases (default: {default})',
+                'group': 'Labeling',
+            }
+        },
+    )
+    labeling_seed: Optional[int] = dc.field(
+        default=0,
+        metadata={
+            'argument': {
+                'type': parse_labeling_seed,
+                'help': "Seed for the sampling labeling types: an integer for reproducible sampling, or 'random' (default: {default})",
+                'group': 'Labeling',
+            }
+        },
+    )
+    labeling_level: int = dc.field(
+        default=30,
+        metadata={
+            'argument': {
+                'choices': [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+                'help': 'Labelling level: 0 keeps the hardcoded rules; 10 simple_not, 20 +prune, 30 +output_driver, 40 +single_successor, 50 +structural bounds, 60-90 tighten those towards the solver, 100 labels with simple_min/simple_max and solves nothing (default: {default})',
+                'group': 'Labeling',
+            }
+        },
+    )
+    labeling_rules: Optional[Dict[str, Optional[int]]] = dc.field(
+        default=None,
+        metadata={
+            'argument': {
+                'type': parse_labeling_rules,
+                'help': "Per-rule override applied on top of the level: 'name=off|always|N,...' with name in simple_not, output_driver, single_successor, bound_max, bound_min, bound_sum (default: {default})",
+                'group': 'Labeling',
+            }
+        },
+    )
+    labeling_prune: Optional[str] = dc.field(
+        default=None,
+        metadata={
+            'argument': {
+                'choices': ['off', 'always'],
+                'help': "Force the labelling prune (stop labelling ancestors whose smallest reachable bit exceeds the running minimum) on or off, overriding the level's default (default: {default} = whatever the level says)",
+                'group': 'Labeling',
+            }
+        },
+    )
+    labeling_prune_k: Optional[int] = dc.field(
+        default=None,
+        metadata={
+            'argument': {
+                'help': "Multiplier of the labelling prune: keep a node while its smallest reachable bit <= K * (running minimum). Higher keeps more nodes (default: {default} = the value the level selects)",
+                'group': 'Labeling',
+            }
+        },
+    )
+    #: output name -> the error inverting that output costs (origin-relative labelling)
+    outputs_weights: Optional[Dict[str, int]] = dc.field(default=None, init=False, repr=False)
 
     # subgraph extraction
     extraction_mode: int = dc.field(
