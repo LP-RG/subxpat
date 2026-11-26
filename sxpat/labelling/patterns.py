@@ -57,7 +57,6 @@ LOWER = 'lower'          # <= the true weight (optimistic, only a last resort)
 
 @dc.dataclass(frozen=True)
 class Match:
-    pattern: str
     slots: Mapping[str, str]
     data: Mapping[str, Any] = dc.field(default_factory=dict)
 
@@ -88,7 +87,7 @@ def single_successor(g, n: str) -> Optional[Match]:
     suc = g.successors(n)
     if len(suc) != 1:
         return None
-    return Match('single_successor', {'node': n, 'succ': suc[0]},
+    return Match({'node': n, 'succ': suc[0]},
                  {'succ_is_1input': len(g.predecessors(suc[0])) == 1})
 
 
@@ -97,12 +96,12 @@ def output_driver(g, n: str) -> Optional[Match]:
     suc = g.successors(n)
     if not suc or any(s not in g.outputs for s in suc):
         return None
-    return Match('output_driver', {'node': n}, {'bits': [g.output_index(s) for s in suc]})
+    return Match({'node': n}, {'bits': [g.output_index(s) for s in suc]})
 
 
 def any_node(g, n: str) -> Optional[Match]:
     """Every node: the structural bounds are positional, they need no neighbour."""
-    return Match('any_node', {'node': n})
+    return Match({'node': n})
 
 
 def with_successors(g, n: str) -> Optional[Match]:
@@ -110,7 +109,7 @@ def with_successors(g, n: str) -> Optional[Match]:
     suc = g.successors(n)
     if not suc:
         return None
-    return Match('with_successors', {'node': n, 'succ': suc[0]}, {'succs': suc})
+    return Match({'node': n, 'succ': suc[0]}, {'succs': suc})
 
 
 PATTERNS: Mapping[str, Callable] = {
@@ -161,10 +160,6 @@ class Logic:
             return self.value(m, weights, ctx)
         assert len(self.reads) == 1, f'{self.name}: give it an explicit value function'
         return weights[m.slots[self.reads[0]]]
-
-    def fill(self, m: Match, weights: Mapping[str, int], ctx: Context) -> Dict[str, int]:
-        v = self.evaluate(m, weights, ctx)
-        return {m.slots[w]: v for w in self.writes}
 
 
 simple_not = Logic(
@@ -378,11 +373,6 @@ def config_for_level(level: int, column: str = MAX, reference: str = 'current') 
     return RuleConfig(output_driver_relative_to=reference, **rules)
 
 
-def logics_for_level(level: int, column: str = MAX) -> List[Logic]:
-    """The logics a preset enables, exact ones first."""
-    return list(config_for_level(level, column).items())
-
-
 # ---------------------------------------------------------------- combining
 
 def combine(candidates: Sequence[Logic], matches: Mapping[str, Match], column: str,
@@ -418,23 +408,8 @@ def combine(candidates: Sequence[Logic], matches: Mapping[str, Match], column: s
 
 @dc.dataclass
 class Stats:
-    derived: Dict[str, int] = dc.field(default_factory=dict)
     solved: int = 0
     pruned: int = 0
-    by_rule: Dict[str, int] = dc.field(default_factory=dict)
-    #: node -> which logic produced its weight ('solve' when the solver did)
-    provenance: Dict[str, str] = dc.field(default_factory=dict)
-
-    def record(self, kind: str, rule: Optional[str] = None) -> None:
-        self.derived[kind] = self.derived.get(kind, 0) + 1
-        if rule is not None:
-            self.by_rule[rule] = self.by_rule.get(rule, 0) + 1
-
-    def summary(self) -> str:
-        parts = [f'{k}={v}' for (k, v) in sorted(self.derived.items())]
-        rules = ', '.join(f'{k}:{v}' for (k, v) in sorted(self.by_rule.items()))
-        return (f'derived[{", ".join(parts)}] solved={self.solved} pruned={self.pruned}'
-                + (f' by_rule[{rules}]' if rules else ''))
 
 
 def schedule(nodes: Sequence[str], match, *, column: str, et: int, config: RuleConfig,
@@ -501,17 +476,13 @@ def schedule(nodes: Sequence[str], match, *, column: str, et: int, config: RuleC
             cands = candidates_of(node)
             if not cands:
                 continue
-            value, kind, rule = combine(
+            value, _, _ = combine(
                 cands, {lg.name: matches[(lg.name, node)] for lg in cands},
                 column, weights, ctx)
             if value is None:
                 continue
             weights[node] = value
             running_min[0] = min(running_min[0], value)
-            stats.record(kind, rule)
-            source = matches.get((rule, node)) if rule else None
-            src = f'<-{source.slots["succ"]}@{weights.get(source.slots["succ"])}' if source and 'succ' in source.slots else ''
-            stats.provenance[node] = f'{rule}{src}' if rule else kind
             progressed = True
         return progressed
 
@@ -527,7 +498,6 @@ def schedule(nodes: Sequence[str], match, *, column: str, et: int, config: RuleC
         weights[node] = solve(node)
         running_min[0] = min(running_min[0], weights[node])
         stats.solved += 1
-        stats.provenance[node] = 'solve' 
         while derive_round():      # a new weight can unlock derivations in either direction
             pass
     return weights, stats

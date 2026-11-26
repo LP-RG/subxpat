@@ -3,14 +3,12 @@ from typing import Any, ClassVar, Optional, Union
 from os.path import join as path_join
 from sxpat.utils.filesystem import FS
 
-import networkx as nx
 from collections import deque
 from sxpat.utils.string import partial_format, dedent
 
 import subprocess
 import sys
 from threading import Lock
-from sxpat.utils.futures import ThreadPoolExecutor
 
 from sxpat.graph import IOGraph
 from sxpat.graph.node import BoolConstant, Node, And, Not, BoolVariable
@@ -38,15 +36,12 @@ class Labelling:
 
     # how the target node is broken
     #   `free`  : its value becomes free (a fresh boolean)
-    #   `invert`: a single NOT is inserted on its own output
     FREE_FAULT: ClassVar = 'free'
-    INVERT_FAULT: ClassVar = 'invert'
     #   `free_output`: same as `free`, for a node that IS an output -- the output becomes a fresh
     #   boolean instead of following its driver. Needed because `free` is a no-op on an output
-    #   (`l_out = l_driver`), and the inverted-output value is a different quantity (one of the two
-    #   values the free choice can take, never both).
+    #   (`l_out = l_driver`).
     FREE_OUTPUT_FAULT: ClassVar = 'free_output'
-    FAULTS: ClassVar = (FREE_FAULT, INVERT_FAULT, FREE_OUTPUT_FAULT)
+    FAULTS: ClassVar = (FREE_FAULT, FREE_OUTPUT_FAULT)
 
     NODES_TO_Z3PY: ClassVar = {
         And: 'And',
@@ -230,42 +225,6 @@ class Labelling:
             print(f'[WARNING] labelling {target_node}: {result.stderr.strip()}')
         return _w
 
-    def label_graph(
-        self, *,
-        partial_cutoff: int = -1,
-        parallelism: int = 1,
-    ) -> dict[str, int]:
-        """
-        Compute the weights for the entire graph.  
-
-        :param partial_cutoff: optionally, a threshold for outputs under which their ancestors will be labelled.
-        :param parallel: if the labelling should be parallelized, and how much
-        """
-
-        # select nodes to label (all non-input ancestors of outputs under the cutoff)
-        nodes_to_label: set[str] = set()
-        if partial_cutoff <= 0:
-            partial_cutoff = 2 ** len(self.to_be_labelled.outputs_names)
-        for (i, output) in enumerate(self.to_be_labelled.outputs_names):
-            # break if output is too large (next ones will be larger)
-            if (1 << i) > partial_cutoff:
-                break
-            # get all non-input ancestors
-            for ancestor in nx.ancestors(self.to_be_labelled._inner, output):
-                if not isinstance(self.to_be_labelled[ancestor], BoolVariable):
-                    nodes_to_label.add(ancestor)
-
-        # label nodes
-        weights: dict[str, int] = dict()
-        if not parallelism or parallelism <= 1:
-            for n in nodes_to_label:
-                weights[n] = self.label_node(n)
-        else:
-            with ThreadPoolExecutor() as pool:
-                weights.update(pool.map(lambda n: (n, self.label_node(n)), nodes_to_label))
-
-        return weights
-
     def _get_script_path(self, id: str) -> str:
         return path_join(self._base_path, f'{id}.py')
 
@@ -322,10 +281,7 @@ class Labelling:
             node_z3str = cls._node_to_z3str(circuit, node, prefix)
 
             if node.name == target_node:
-                if fault == cls.INVERT_FAULT:
-                    strings.append(f'{prefix}{node.name} = Not({node_z3str})\n')
-                else:
-                    strings.append(f'{prefix}{node.name} = Bool("target")\n')
+                strings.append(f'{prefix}{node.name} = Bool("target")\n')
             else:
                 strings.append(f'{prefix}{node.name} = {node_z3str}\n')
 
@@ -340,10 +296,7 @@ class Labelling:
             else:
                 driver = f'{prefix}{circuit.predecessors(output)[0].name}'
 
-            # a broken output is the NOT of what drives it (a single NOT on its own output)
-            if output == target_node and fault == cls.INVERT_FAULT:
-                strings.append(f'{proutput} = Not({driver})\n')
-            elif output == target_node and fault == cls.FREE_OUTPUT_FAULT:
+            if output == target_node and fault == cls.FREE_OUTPUT_FAULT:
                 strings.append(f'{proutput} = Bool("target")\n')
             else:
                 strings.append(f'{proutput} = {driver}\n')
