@@ -16,7 +16,6 @@ Date: 2026-11-10
     - Added the slash of inputs pass (`--slash=slash_it`). (#222)
     - Added `run_stats.csv` columns `slash_error`, `slash_area`, `slash_power`, `slash_delay` and `slash_time`, and a `gen_slash` row with iteration 0. (#222)
   Minor Features:
-    - Added color ratio shade computation utility for GraphVizPorter. (#222)
     - Added a class for csv formatting. (#213)
     - Added more multipliers verilogs. (#213)
   Major Changes:
