@@ -314,7 +314,7 @@ class Specifications:
         metadata={
             'argument': {
                 'choices': [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
-                'help': 'Labelling level: 0 keeps the hardcoded rules, 10-90 add the pattern/logic rules of the ladder (10 exact only, 20 +SimpleNot, 30 +OutputDriver, 40+ single-successor copy and the structural bounds at ever looser thresholds), 100 labels with simple_min/simple_max and solves nothing (default: {default})',
+                'help': 'Labelling level: 0 keeps the hardcoded rules; 10 simple_not, 20 +prune, 30 +output_driver, 40 +single_successor, 50 +structural bounds, 60-90 tighten those towards the solver, 100 labels with simple_min/simple_max and solves nothing (default: {default})',
                 'group': 'Labeling',
             }
         },
