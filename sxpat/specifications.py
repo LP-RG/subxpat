@@ -343,12 +343,11 @@ class Specifications:
         default=None,
         metadata={
             'argument': {
-                'help': "Multiplier of the labelling prune: keep a node while its smallest reachable bit <= K * (running minimum). Higher keeps more nodes (default: {default} = the level's value: 1, or 4 for min relative to origin)",
+                'help': "Multiplier of the labelling prune: keep a node while its smallest reachable bit <= K * (running minimum). Higher keeps more nodes (default: {default} = the value the level selects)",
                 'group': 'Labeling',
             }
         },
     )
-    labeling_stats: Optional[object] = dc.field(default=None, init=False, repr=False)
     #: output name -> the error inverting that output costs (origin-relative labelling)
     outputs_weights: Optional[Dict[str, int]] = dc.field(default=None, init=False, repr=False)
 

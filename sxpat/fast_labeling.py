@@ -8,31 +8,8 @@ from sxpat.graph.node import (
     And, BoolConstant, BoolVariable, Identity, Implies, Not, Or, Xnor, Xor,
 )
 from sxpat.specifications import LabelingRelativeTo, LabelingType, Specifications
-from sxpat.definitions.templates.Labeling import Labeling
 from sxpat.labelling import patterns as patterns_engine
 from sxpat.labelling.labelling import Labelling
-from sxpat.solvers.QbfSolver import QbfSolver
-
-
-def calc_label(exact_graph: IOGraph, current_graph: IOGraph, cur_node: str, specs_obj: Specifications) -> int:
-    """Compute the exact weight of a single node, through a QBF query."""
-    p_graph, c_graph = Labeling.define(
-        current_graph, [cur_node],
-        min_labeling=specs_obj.labeling == LabelingType.MIN,
-    )
-    status, model = QbfSolver.solve((exact_graph, p_graph, c_graph), specs_obj)
-    if status == 'sat' and model is not None:
-        return model['weight']
-    if status == 'unsat':
-        # no assignment lets the gate affect any output, so its weight is 0
-        return 0
-    # unknown: assume the largest error the outputs can express
-    return (2 ** len(current_graph.outputs_names)) - 1
-
-
-def calc_label_legacy(labeller: Labelling, cur_node: str) -> int:
-    """Compute the weight of a single node using an already prepared `Labelling`."""
-    return labeller.label_node(cur_node)
 
 
 def evaluate_samples(graph: IOGraph, input_masks: Mapping[str, int], n_samples: int,
@@ -246,6 +223,10 @@ def fast_labeling(
         cur_node = stack.pop()
         if cur_node[:2] == 'in' and skip_input:
             continue
+        # a constant is not a label: it has no weight of its own, and letting it into the map
+        # poisons the running minimum below (a constant attached to an output used to read as 1)
+        if isinstance(current_graph[cur_node], (BoolConstant, BoolVariable)):
+            continue
         # a simple-min node driving an output alone cannot improve the minimum
         if (
             specs_obj.labeling == LabelingType.SIMPLE_MIN
@@ -272,10 +253,9 @@ def fast_labeling(
         else:
             if sampler is not None:
                 value = sampler.label_node(cur_node)
-            elif labeller is None:
-                value = calc_label(exact_graph, current_graph, cur_node, specs_obj)
             else:
-                value = calc_label_legacy(labeller, cur_node)
+                assert labeller is not None
+                value = labeller.label_node(cur_node)
 
         if not isinstance(current_graph[cur_node], (BoolConstant, BoolVariable)):
             minimum_found = min(minimum_found, value)
@@ -430,18 +410,16 @@ def label_with_patterns(
                 return 2 ** int(successors[0][3:])
         if sampler is not None:
             return sampler.label_node(name)
-        if labeller is not None:
-            return labeller.label_node(name)
-        return calc_label(exact_graph, current_graph, name, specs_obj)
+        assert labeller is not None
+        return labeller.label_node(name)
 
-    weights, stats = patterns_engine.schedule(
+    weights, _ = patterns_engine.schedule(
         list(reversed(order)),
         lambda pattern, name: patterns_engine.PATTERNS[pattern](view, name),
         column=column, et=et, config=config,
         simple_max=simple_max, simple_min=simple_min,
         seeds=seeds, solve=solve, relevant=relevant, output_weights=output_weights,
     )
-    specs_obj.labeling_stats = stats
     # the same contract as `fast_labeling`: the map holds the labelled GATES -- inputs are skipped
     # and the outputs are only seeds here, never part of the result (an extraction mode reading the
     # output weights would otherwise see keys that the old path never produced: measured on

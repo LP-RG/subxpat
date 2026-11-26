@@ -639,15 +639,18 @@ def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> 
     # level 100 is "no solving at all": the column's own simple mode. The sampling types keep
     # their own meaning (sampled labels), which is also a no-solving mode, so they fall through to
     # the engine with every pattern rule off.
-    if specs_obj.labeling_level == 100 and specs_obj.labeling in (LabelingType.MIN, LabelingType.MAX):
-        return lower_bound(current) if specs_obj.labeling == LabelingType.MIN else upper_bound(current)
+    # --labeling-level=100 selects no rule at all, which is exactly what simple_min/simple_max
+    # compute, so the two spellings are normalised onto one path: they must not disagree, and in
+    # particular they must share the output-weight treatment below.
+    labeling = specs_obj.labeling
+    if specs_obj.labeling_level == 100 and labeling in (LabelingType.MIN, LabelingType.MAX):
+        labeling = LabelingType.SIMPLE_MIN if labeling == LabelingType.MIN else LabelingType.SIMPLE_MAX
+    simple = labeling in (LabelingType.SIMPLE_MIN, LabelingType.SIMPLE_MAX)
 
     def engine_config():
         column = 'min' if specs_obj.labeling in (LabelingType.MIN, LabelingType.SAMPLE_MIN) else 'max'
         reference = 'origin' if relative_to_origin else 'current'
-        config = (labeling_patterns.RuleConfig(output_driver_relative_to=reference)
-                  if specs_obj.labeling_level == 100
-                  else labeling_patterns.config_for_level(specs_obj.labeling_level, column, reference))
+        config = labeling_patterns.config_for_level(specs_obj.labeling_level, column, reference)
         if specs_obj.labeling_rules:
             config = config.with_overrides(**specs_obj.labeling_rules)
         # the two manual knobs for the prune: on/off regardless of the level, and its multiplier
@@ -659,9 +662,9 @@ def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> 
             config = dc.replace(config, prune=specs_obj.labeling_prune_k)
         return config
 
-    if specs_obj.labeling == LabelingType.SIMPLE_MIN:
+    if labeling == LabelingType.SIMPLE_MIN:
         weights = lower_bound(current)
-    elif specs_obj.labeling == LabelingType.SIMPLE_MAX:
+    elif labeling == LabelingType.SIMPLE_MAX:
         weights = upper_bound(current)
     elif specs_obj.labeling in (LabelingType.SAMPLE_MIN, LabelingType.SAMPLE_MAX):
         sampler = SamplingLabeler(
@@ -705,7 +708,7 @@ def label_graph(exact: IOGraph, current: IOGraph, specs_obj: Specifications) -> 
     # current circuit is part of it, so it has to be labelled like any other node (a single NOT on
     # the output's own driver). The previous-relative column keeps the closed form.
     # an output's weight is its FREE label (its driver ignored), like every other node's
-    if not specs_obj.labeling_level and relative_to_origin:
+    if simple and relative_to_origin:
         free_outputs = Labelling(
             reference, to_be_labelled, specs_obj,
             minimise=specs_obj.labeling in (LabelingType.MIN, LabelingType.SAMPLE_MIN),
