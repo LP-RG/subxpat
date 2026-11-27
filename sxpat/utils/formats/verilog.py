@@ -277,7 +277,6 @@ class get_ports:
     def __new__(cls, input_verilog_path: str) -> list[Port]:
         # prepare
         yosys_command = cls._YOSYS_COMMAND.format(input_verilog_path=input_verilog_path)
-        print(yosys_command)
 
         # run command
         cproc = run(
