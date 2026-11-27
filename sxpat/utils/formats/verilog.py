@@ -1,4 +1,4 @@
-from typing import ClassVar, Dict, Iterable, List, Mapping, Sequence, Tuple
+from typing import ClassVar, Dict, Iterable, List, Literal, Mapping, NamedTuple, Sequence, Tuple
 
 import re
 from textwrap import dedent
@@ -21,7 +21,7 @@ class synthesize_verilog_to_notand_gate_level:
     :authors: Morteza Rezaalipour, Marco Biasion
     """
 
-    YOSYS_COMMAND: ClassVar = dedent("""
+    _YOSYS_COMMAND: ClassVar = dedent("""
         read_verilog {input_path};
         synth -flatten;
         opt;
@@ -35,18 +35,18 @@ class synthesize_verilog_to_notand_gate_level:
         write_verilog -noattr {output_path};
     """).replace('\n', ' ').strip()
 
-    MODULE_PATTERN: ClassVar = re.compile(r'^\s*module\s+\w+\s*\(([\w,\\\s\[\]]+?)\);', re.MULTILINE)
-    SPACES_PATTERN: ClassVar = re.compile(r'\s+')
+    _MODULE_PATTERN: ClassVar = re.compile(r'^\s*module\s+\w+\s*\(([\w,\\\s\[\]]+?)\);', re.MULTILINE)
+    _SPACES_PATTERN: ClassVar = re.compile(r'\s+')
 
-    INPUT_PATTERN: ClassVar = re.compile(r'^input (.+?)\s*$')
-    OUTPUT_PATTERN: ClassVar = re.compile(r'^output (.+?)\s*$')
-    RANGE_PATTERN: ClassVar = re.compile(r'\[(\d+):(\d+)\]')
-    VECTOR_PATTERN: ClassVar = re.compile(r'(?:\[\d+:\d+\]\s*)?(.*)')
-    PARTIAL_RELABEL_PATTERN: ClassVar = r'({key})([,;)\s]|$)'
+    _INPUT_PATTERN: ClassVar = re.compile(r'^input (.+?)\s*$')
+    _OUTPUT_PATTERN: ClassVar = re.compile(r'^output (.+?)\s*$')
+    _RANGE_PATTERN: ClassVar = re.compile(r'\[(\d+):(\d+)\]')
+    _VECTOR_PATTERN: ClassVar = re.compile(r'(?:\[\d+:\d+\]\s*)?(.*)')
+    _PARTIAL_RELABEL_PATTERN: ClassVar = r'({key})([,;)\s]|$)'
 
     def __new__(cls, input_path: str, output_path: str):
         # prepare
-        yosys_command = cls.YOSYS_COMMAND.format(input_path=input_path, output_path=output_path)
+        yosys_command = cls._YOSYS_COMMAND.format(input_path=input_path, output_path=output_path)
 
         # run command
         run(
@@ -66,10 +66,10 @@ class synthesize_verilog_to_notand_gate_level:
 
         # EXTRACT PORT LIST
         # match the module signature (eg. module adder(a, b, c))
-        match = cls.MODULE_PATTERN.search(verilog)
+        match = cls._MODULE_PATTERN.search(verilog)
         if not match: raise RuntimeError(f'No signature was found in Verilog file `{input_path}`.')
         # extract port list (eg. [a, b, c])
-        port_list = cls.SPACES_PATTERN.sub('', match.group(1)).split(',')
+        port_list = cls._SPACES_PATTERN.sub('', match.group(1)).split(',')
 
         # EXTRACT INPUTS/OUTPUTS
         input_dict, output_dict = cls._extract_inputs_outputs(lines, port_list)
@@ -100,9 +100,9 @@ class synthesize_verilog_to_notand_gate_level:
             line = line.strip()
 
             # extract inputs
-            if match := cls.INPUT_PATTERN.search(line):
+            if match := cls._INPUT_PATTERN.search(line):
                 # get all inputs on the line
-                input_list = cls.SPACES_PATTERN.sub('', match.group(1)).split(',')
+                input_list = cls._SPACES_PATTERN.sub('', match.group(1)).split(',')
                 input_list = cls._propagate_bitwidth(input_list)
 
                 # store widths
@@ -115,9 +115,9 @@ class synthesize_verilog_to_notand_gate_level:
                     input_dict[_index] = (name, cls._compute_width(inp))
 
             # extract outputs
-            elif match := cls.OUTPUT_PATTERN.search(line):
+            elif match := cls._OUTPUT_PATTERN.search(line):
                 # get all outputs on the line
-                output_list = cls.SPACES_PATTERN.sub('', match.group(1)).split(',')
+                output_list = cls._SPACES_PATTERN.sub('', match.group(1)).split(',')
                 output_list = cls._propagate_bitwidth(output_list)
 
                 # store widths
@@ -172,7 +172,7 @@ class synthesize_verilog_to_notand_gate_level:
         # for all old/new pairs
         for (old, new) in labels.items():
             # compile the pattern
-            pattern = re.compile(cls.PARTIAL_RELABEL_PATTERN.format(key=re.escape(old)))
+            pattern = re.compile(cls._PARTIAL_RELABEL_PATTERN.format(key=re.escape(old)))
             # update all lines
             for (i, line) in enumerate(verilog_lines):
                 verilog_lines[i] = re.sub(pattern, lambda m: new + m.group(2), line)
@@ -196,7 +196,7 @@ class synthesize_verilog_to_notand_gate_level:
         inputs = list(inputs)
 
         # if first is a vector, propagate its range to all others
-        match = cls.RANGE_PATTERN.search(inputs[0])
+        match = cls._RANGE_PATTERN.search(inputs[0])
         if match:
             vector_range = match.group(0)
             for i in range(1, len(inputs)):
@@ -213,7 +213,7 @@ class synthesize_verilog_to_notand_gate_level:
             :return: the name of the variable
         """
 
-        match = cls.VECTOR_PATTERN.search(variable)
+        match = cls._VECTOR_PATTERN.search(variable)
         if match: return match.group(1)
         else: return variable
 
@@ -226,7 +226,7 @@ class synthesize_verilog_to_notand_gate_level:
             :return: the bit-width of the variable
         """
 
-        match = cls.RANGE_PATTERN.search(variable)
+        match = cls._RANGE_PATTERN.search(variable)
         if match:
             _l_bound = int(match.group(1))
             _r_bound = int(match.group(2))
@@ -240,7 +240,7 @@ class convert_verilog_to_dot:
     :authors: Morteza Rezaalipour, Marco Biasion
     """
 
-    YOSYS_COMMAND: ClassVar = dedent("""
+    _YOSYS_COMMAND: ClassVar = dedent("""
         read_verilog {input_verilog_path};
         opt;
         clean;
@@ -250,14 +250,56 @@ class convert_verilog_to_dot:
     def __new__(cls, input_verilog_path: str, output_gv_path: str, temporary_path: str):
         # prepare
         tmp_dot_path = path_join(temporary_path, 'cvtgv_to_fd.dot')
-        yosys_command = cls.YOSYS_COMMAND.format(input_verilog_path=input_verilog_path, output_dot_path=tmp_dot_path[:-4])
+        yosys_command = cls._YOSYS_COMMAND.format(input_verilog_path=input_verilog_path, output_dot_path=tmp_dot_path[:-4])
 
         # run command
         run(
-            [require_tool('yosys')], input=yosys_command,
-            stdout=DEVNULL, stderr=PIPE, text=True,
+            [require_tool('yosys'), '-QT'], input=yosys_command,
+            stdout=DEVNULL, stderr=DEVNULL, text=True,
             check=True,
         )
 
         # move .dot to .gv
         FS.move(tmp_dot_path, output_gv_path, overwrite=True)
+
+
+class get_ports:
+    _PORTS_BLOCK_PATTERN: ClassVar = re.compile(r'-- START PORTS DATA --\s+(.*?)\s+-- END PORTS DATA --', re.S)
+    _PORT_PATTERN: ClassVar = re.compile(r'(input|output) ([a-zA-Z0-9_$]+) (\d+)\s*')
+
+    Port: ClassVar = NamedTuple('Port', [('type', Literal['input', 'output']), ('name', str), ('size', int)])
+
+    _YOSYS_COMMAND: ClassVar = dedent('''
+        read_verilog {input_verilog_path};
+        get_ports;
+    ''')
+
+    def __new__(cls, input_verilog_path: str) -> list[Port]:
+        # prepare
+        yosys_command = cls._YOSYS_COMMAND.format(input_verilog_path=input_verilog_path)
+        print(yosys_command)
+
+        # run command
+        cproc = run(
+            [require_tool('yosys'), '-QT', '-m.deps/objs/yosys/get_ports.so'],
+            input=yosys_command,
+            stdout=PIPE, stderr=DEVNULL, text=True,
+            check=True,
+        )
+
+        # extract ports block
+        out_m = cls._PORTS_BLOCK_PATTERN.search(cproc.stdout)
+        if out_m is None: raise
+        # parse ports
+        ports = list[cls.Port]()
+        for _p in out_m.group(1).splitlines():
+            _m = cls._PORT_PATTERN.fullmatch(_p)
+            if _m is None: raise RuntimeError()
+            if _m[1] != 'input' and _m[1] != 'output': raise RuntimeError()
+            ports.append(cls.Port(
+                _m[1],  # always 'input' or 'output' # type: ignore
+                _m[2],
+                int(_m[3]),
+            ))
+
+        return ports

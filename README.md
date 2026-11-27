@@ -11,7 +11,7 @@ Details on template logic can be found on [arXiv][arXiv-shared].
 SubXPAT has been developed for a **Linux** environment and requires the following dependencies:
 
 - [Python] (version 3.14 or higher)
-- [Yosys] (using apt: `sudo apt install yosys`)
+- [Yosys] with dev features (using apt: `sudo apt install yosys yosys-dev`)
 - [GraphViz] (needed when `pip` builds `pygraphviz` from source; the wheels ship the library themselves — on Debian that means `sudo apt install graphviz graphviz-dev`)
 - [OpenSTA] (using apt: `sudo apt install opensta`)
 - [cqesto] (needed by `--encoding=qbf`; built from source by `make setup all`, requires `git`, `cmake`, `make` and a C++ compiler)

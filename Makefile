@@ -29,7 +29,11 @@ py_init:
 py_dep: py_init
 	@$(SETUP) --python-dep
 
-setup: py_init py_dep
+yosys_dlls:
+	@echo "\n[[ compiling custom dlls for yosys ]]"
+	bash setup/dlls.sh
+
+setup: py_init py_dep yosys_dlls
 
 macos: setup
 	@$(SETUP) --macos
