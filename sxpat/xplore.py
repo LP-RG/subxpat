@@ -11,7 +11,7 @@ from sxpat.graph.graph import PGraph, SGraph, IOGraph
 from sxpat.graph.node import Extras, Node
 from sxpat.error_iter import ErrorIterator
 from sxpat.conf_explorer import ConfigurationExploration
-from sxpat.newag import load_circuit_from_verilog
+from sxpat.newag import load_circuit_from_verilog_2
 from sxpat.converting.legacy import iograph_to_sgraph, iograph_with_weights
 
 from sxpat.specifications import Specifications, TemplateType, ErrorPartitioningType, SlashType
@@ -54,7 +54,7 @@ def explore_grid(specs_obj: Specifications):
     FS.copy(specs_obj.current_benchmark, tmp := FS.joinpath(specs_obj.path.run.verilog, 'current.v'))
     specs_obj.current_benchmark = tmp
     # load exact circuit and compute its metrics
-    exact_graph = load_circuit_from_verilog(specs_obj.exact_benchmark, specs_obj.path.run)
+    exact_graph = load_circuit_from_verilog_2(specs_obj.exact_benchmark, specs_obj.path.run)
     exact_circuit_metrics = MetricsEstimator.estimate_metrics(
         specs_obj.path.synthesis, specs_obj.exact_benchmark, specs_obj.path.run.temporary)
 
@@ -145,7 +145,7 @@ def explore_grid(specs_obj: Specifications):
 
         # import the graph
         with Timer2.default() as _timer:
-            current_graph = load_circuit_from_verilog(specs_obj.current_benchmark, specs_obj.path.run)
+            current_graph = load_circuit_from_verilog_2(specs_obj.current_benchmark, specs_obj.path.run)
         # logging
         specs_obj.stats_storage.stage(annotated_graphs_initialization_time=_timer.total())
         print(f'annotated_graph_loading_time = {_timer.total()}')
@@ -318,7 +318,7 @@ def explore_grid(specs_obj: Specifications):
             for candidate_data in _synth_approximations:
                 #
                 with Timer2.default() as _timer:
-                    cur_graph = load_circuit_from_verilog(candidate_data.path, specs_obj.path.run)
+                    cur_graph = load_circuit_from_verilog_2(candidate_data.path, specs_obj.path.run)
                 # logging
                 specs_obj.stats_storage.stage(erroreval_annotated_graphs_initialization_time=_timer.total())
                 print(f'erreval_annotated_graph_loading_time = {_timer.total()}')

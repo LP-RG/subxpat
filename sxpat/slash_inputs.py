@@ -11,7 +11,7 @@ from os.path import join as path_join
 from sxpat.converting import VerilogExporter
 from sxpat.definitions.templates.InputsReplace import InputsReplace
 from sxpat.graph.graph import IOGraph
-from sxpat.newag import load_circuit_from_verilog
+from sxpat.newag import load_circuit_from_verilog, load_circuit_from_verilog_2
 from sxpat.solvers import get_specialized as get_solver
 from sxpat.specifications import SlashType, Specifications
 from sxpat.utils.print import pprint
@@ -145,8 +145,7 @@ def remove_inputs(specs_obj: Specifications) -> Tuple[str, int]:
     """
 
     # load the exact circuit
-    exact = load_circuit_from_verilog(specs_obj.exact_benchmark, specs_obj.path.run)
-
+    exact = load_circuit_from_verilog_2(specs_obj.exact_benchmark, specs_obj.path.run)
     if specs_obj.error_for_slash is None:
         raise ValueError('The slash pass requires an error threshold, set `--error-for-slash`')
 

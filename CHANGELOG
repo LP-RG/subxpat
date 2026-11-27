@@ -11,9 +11,11 @@ Date: 2026-11-10
   Minor Features:
     - Added a class for csv formatting. (#213)
     - Added more multipliers verilogs. (#213)
+    - Added utility to extract ports order from Verilog. (#233)
   Major Changes:
     - Completely revised the Timer module and how it works. (#213)
     - Completely revised the argument parsing for Specifications; now more centralised and automated. (#213)
+    - Added yosys-dev as an install dependency. (#233)
   Minor Changes:
     - `yosys`, `sta` and `cqesto` are now looked up in `.deps/bin` and then on the PATH, from every call site, and a missing executable raises an actionable error instead of a `FileNotFoundError`. (#85)
     - `make setup macos` and `make setup all` now verify the toolchain and fail when `yosys` or `sta` is missing or does not run. (#85)
@@ -29,8 +31,11 @@ Date: 2026-11-10
     - Replaced `--slash-to-kill` with `--slash` (`none`, `slash_to_kill`, `slash_it`). (#222)
     - `--error-for-slash` no longer defaults to 1 and is required when `--slash` is not `none`. (#222)
     - The iterative slash pass now runs before the exploration loop, so it no longer consumes the first error partition. (#222)
+    - Implemented Verilog->Aiger->Graph loading. (#233)
   Bugfixes:
     - The generated solver and labelling scripts now run with the interpreter executing `main.py`, instead of whatever `python3` resolves to on the PATH. (#85)
     - Patched a bug when min-labelling, where no error is found (also added warning). (#213)
+  Major Optimizations:
+    - Changed default loading pipeline from Verilog->Verilog->...->Graph to Verilog->Aiger->Graph. (#233)
   Minor Optimizations:
     - Optimised memory footprint of LiveStorage. (#213)

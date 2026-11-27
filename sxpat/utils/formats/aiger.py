@@ -4,7 +4,7 @@ Aiger files generation, loading, and parsing into IOGraph.
 :authors: Ilia Zeller, Marco Biasion
 """
 
-from typing import Iterable, Mapping, MutableMapping
+from typing import Iterable, Literal, Mapping, MutableMapping, Sequence
 from collections import defaultdict
 
 from sxpat.graph import IOGraph
@@ -67,28 +67,28 @@ def verilog_to_aiger(
 type AigValidNode = BoolVariable | And | Not | Identity | BoolConstant
 
 
-def load_aiger(input_aiger_path: str) -> IOGraph:
+def load_aiger(input_aiger_path: str, ports_order: list[str]) -> IOGraph:
     """
     Given the path to an .aig file containing also the symbols table, load the circuit as an IOGraph.
 
     :authors: Ilia Zeller, Marco Biasion
     """
 
-    ## load aig as NamedAig
+    # load aig as NamedAig
     aig_obj = aig_io.read_aiger_into_aig(input_aiger_path)
 
-    ## group and order inputs/outputs
-    g_inputs, g_outputs = extract_inout(aig_obj)
+    # group and order inputs/outputs
+    g_inputs, g_outputs = extract_inout(aig_obj, ports_order)
     inputs_ids = list(itertools.chain.from_iterable(indexes for _, indexes in sorted(g_inputs.items())))
     outputs_ids = list(itertools.chain.from_iterable(indexes for _, indexes in sorted(g_outputs.items())))
 
-    ## construct all nodes
+    # construct all nodes
     # NOTE: if the aig gates are not in topological order (they should), this will raise an exception, which is ok
     nodes = dict[tuple[int, bool], AigValidNode]()
 
     # inputs
     nodes.update(((i_id, False), BoolVariable(f'in{i}')) for i, i_id in enumerate(inputs_ids))
-    
+
     # gates
     for gate in aig_obj.gates():
         # get inputs to the current gate
@@ -110,7 +110,7 @@ def load_aiger(input_aiger_path: str) -> IOGraph:
         else: _in = nodes[(_source_node, False)]
         nodes[(-1 - out_id, False)] = Identity(f'out{i}', (_in.name,))
 
-    ## construct graph
+    # construct graph
     return IOGraph(
         nodes.values(),
         inputs_names=[nodes[(i, False)].name for i in inputs_ids],
@@ -130,10 +130,7 @@ def _get_constant(nodes: MutableMapping[tuple[int, bool], AigValidNode], value: 
     return cn
 
 
-_PATTERN_PRIMARY_INOUT = re.compile(r'(\w+)\[(\d+)\]')
-
-
-def extract_inout(aig_obj: NamedAig) -> tuple[dict[str, list[int]], dict[str, list[int]]]:
+def extract_inout(aig_obj: NamedAig, ports_order: list[str]) -> tuple[dict[str, list[int]], dict[str, list[int]]]:
     """
     Given a NamedAig containing a symbols table, return the ordered groups of inputs/outputs bits.
 
@@ -157,9 +154,12 @@ def extract_inout(aig_obj: NamedAig) -> tuple[dict[str, list[int]], dict[str, li
 
     # collapse in/out
     return (
-        _collapse(_inputs),
-        _collapse(_outputs),
+        _collapse(_inputs, ports_order),
+        _collapse(_outputs, ports_order),
     )
+
+
+_PATTERN_PRIMARY_INOUT = re.compile(r'(\w+)\[(\d+)\]')
 
 
 def _insort_match(groups: Mapping[str, list[tuple[int, int]]], name: str, aig_p_index: int):
@@ -168,10 +168,10 @@ def _insort_match(groups: Mapping[str, list[tuple[int, int]]], name: str, aig_p_
     bisect.insort(groups[m.group(1)], (int(m.group(2)), aig_p_index))
 
 
-def _collapse(groups: Mapping[str, list[tuple[int, int]]]):
+def _collapse(groups: Mapping[str, list[tuple[int, int]]], ports_order: Sequence[str]):
     return {
         _name: [_aig_index for (_, _aig_index) in _bits]
-        for _name, _bits in groups.items()
+        for (_name, _bits) in sorted(groups.items(), key=lambda nb: ports_order.index(nb[0]))
     }
 
 
