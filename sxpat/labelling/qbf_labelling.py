@@ -1,5 +1,4 @@
 import itertools as it
-from typing import Iterable
 
 from sxpat.converting.utils import set_prefix_new
 from sxpat.graph.graph import *
@@ -32,8 +31,7 @@ class Labelling:
         for succ in a_graph.successors(labeled_node_name):
             succ_operands = a_graph.base_components['Topology'].operands(succ.name)
             new_operands = iterable_replace_index(succ_operands, succ_operands.index(labeled_node_name), not_node.name)
-            # updated_nodes[succ.name] = succ.copy(operands=new_operands)
-            updated_nodes[succ.name] = template_graph_builder.add_node_from_node(
+            updated_nodes[succ.name] = template_graph_builder.add_node_copy(
                 succ,
                 a_graph,
                 operands=list(new_operands)
@@ -41,23 +39,9 @@ class Labelling:
         constraint_nodes = []
         nodes_to_place_hold = []
 
-        # template_graph_builder.add_inherited_nodes([
-        #     n
-        #     for n in a_graph.nodes
-        #     if n.name not in updated_nodes
-        # ], a_graph)
         for n in a_graph.nodes:
             if n.name not in updated_nodes:
                 template_graph_builder.add_node_from(n, a_graph)
-        
-        # template_graph_builder.add_new_node(not_node)
-
-        # for node in updated_nodes.values():
-        #     template_graph_builder.add_new_node(
-        #         node,
-        #         in_subgraph=a_graph.base_components['Subgraph'].in_subgraph(node.name),
-        #         weight=a_graph.base_components['Weight'].get(node.name))
-        # template_graph_builder.add_new_nodes(constraint_nodes)
 
         template_graph_builder.add_base_component(IO({'inputs_names': a_graph.base_components['IO'].inputs_names, 
                                                       'outputs_names': a_graph.base_components['IO'].outputs_names}))
@@ -67,15 +51,6 @@ class Labelling:
         constraint_graph_builder = GraphBuilder()
         constraint_graph_builder.add_autofill_component('Constraints')
 
-        # new_nodes = [
-        #     cur_int := ToInt('cur_int', operands=graph.base_components['IO'].outputs_names),
-        #     tem_int := ToInt('tem_int', operands=template_graph.base_components['IO'].outputs_names),
-        #     abs_diff := AbsDiff('weight', operands=(cur_int.name, tem_int.name)),
-        #     {
-        #         True: Min('minimize_error', operands=(abs_diff.name,)),
-        #         False: Max('maximize_error', operands=(abs_diff.name,))
-        #     }[min_labeling]
-        # ]
         cur_int = constraint_graph_builder.add_node('cur_int', ToInt).add_operands(list(graph.base_components['IO'].outputs_names)).current
         tem_int = constraint_graph_builder.add_node('tem_int', ToInt).add_operands(list(template_graph.base_components['IO'].outputs_names)).current
         abs_diff = constraint_graph_builder.add_node('weight', AbsDiff).add_operands([cur_int.name, tem_int.name]).current
@@ -98,7 +73,6 @@ class Labelling:
 
         target_name, operands = Target.of(abs_diff)
         constraint_graph_builder.add_node(target_name, Target).add_operands(operands)
-        # constraint_graph_builder.add_new_node(Target.of(abs_diff))
         constraint_graph = constraint_graph_builder.create()
 
         return (template_graph, constraint_graph)

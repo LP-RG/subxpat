@@ -1,4 +1,4 @@
-from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, List, Literal, Mapping, Optional, Sequence, Tuple, Type, Union, overload, override
+from typing import IO, Any, Callable, Container, Dict, Iterable, Iterator, Mapping, Optional, Sequence, Tuple, Type, Union, overload, override
 from abc import abstractmethod
 
 import itertools as it
@@ -28,7 +28,7 @@ class Z3Encoder:
     """
     Base class for Z3 encoders, including some common functions.
 
-    :authors: Marco Biasion
+    :authors: Marco Biasion, Ilia Zeller
     """
 
     node_mapping: Mapping[Type[Node], Callable[[Union[Node, Operation, Valued], Graph, Sequence[str], Sequence[Any]], str]]
@@ -174,7 +174,7 @@ class Z3FuncEncoder(Z3Encoder):
     """
     Z3 encoder using the uninterpreted functions approach.
 
-    :authors: Marco Biasion
+    :authors: Marco Biasion, Ilia Zeller
     """
 
     @staticmethod
@@ -247,8 +247,6 @@ class Z3FuncEncoder(Z3Encoder):
         )
 
         graph_copier = GraphCopier(graph)
-        if graph.has_base_component('Constraints'):
-            graph_copier.add_autofill_component('Constraints')
         types_component = graph.base_components['Types']
         if graph.has_base_component('IO'):
             graph_copier.add_base_component(
@@ -265,13 +263,13 @@ class Z3FuncEncoder(Z3Encoder):
         for node in graph.nodes:
             if types_component.instance_of(node.name, [Operation]):
                 operands=[updated_names[name] for name in topology_component.operands(node.name)]
-                graph_copier.add_node_from_node(
+                graph_copier.add_node_copy(
                     node,
                     name=updated_names[node.name],
                     operands=operands
                 )
             else:
-                graph_copier.add_node_from_node(
+                graph_copier.add_node_copy(
                     node,
                     name=updated_names[node.name]
                 )
@@ -286,7 +284,7 @@ class Z3FuncEncoder(Z3Encoder):
                ) -> None:
 
         # initial computations
-        assert((global_task is None) == (global_tasks_mapping is None)) # global_task has to be passed together with global tasks graph mapping
+        assert((global_task is None) == (global_tasks_mapping is None)) # global_task has to be passed together with the global tasks graphs mapping
         global_task_graph: Graph | None = None
         global_task_operands: list[str] | str | None = None
         if global_task:
@@ -314,7 +312,6 @@ class Z3FuncEncoder(Z3Encoder):
         )
         # update global_task if present (mainly useful for operands)
         if global_task:
-            # global_task = cls.nodes_as_function_calls([global_task], inputs_string, non_gates_names)[0]
             updated_names = cls.nodes_names_as_function_calls([global_task], global_task_graph, inputs_string, non_gates_names)
             global_task = type(global_task)(name=updated_names[global_task.name])
             new_operands = [
@@ -388,7 +385,7 @@ class Z3DirectEncoder(Z3Encoder):
     """
     Z3 encoder using the direct definition approach.
 
-    :authors: Marco Biasion
+    :authors: Marco Biasion, Ilia Zeller
     """
 
     @classmethod
@@ -399,7 +396,7 @@ class Z3DirectEncoder(Z3Encoder):
                ) -> None:
 
         # initial computations
-        assert((global_task is None) == (global_tasks_mapping is None)) # global_task has to be passed together with global tasks graph mapping
+        assert((global_task is None) == (global_tasks_mapping is None)) # global_task has to be passed together with the global tasks graphs mapping
         global_task_graph: Graph | None = None
         global_task_operands: list[str] | str | None = None
         if global_task:

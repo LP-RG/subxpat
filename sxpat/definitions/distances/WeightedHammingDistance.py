@@ -7,7 +7,6 @@ from sxpat.graph import Graph, GraphBuilder
 from sxpat.graph import error as g_error
 from sxpat.graph.node import If, IntConstant, PlaceHolder, Sum, Xor, Node
 from sxpat.utils.collections import first, formatted_int_range
-from sxpat.graph.components import Constraints
 
 
 __all__ = ['WeightedHammingDistance']
@@ -17,7 +16,7 @@ class WeightedHammingDistance(DistanceSpecification):
     """
         Defines a distance as the Hamming distance of the wanted nodes of the circuits, where each bitflip has the value of the node being flipped.
 
-        @authors: Marco Biasion
+        @authors: Marco Biasion, Ilia Zeller
     """
 
     @override

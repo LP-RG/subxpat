@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Type, Callable, Mapping, Optional, Union, Generic
+from typing import Type, Callable, Mapping, Optional, Union
 import dataclasses as dc
 
 from bidict import bidict
@@ -16,7 +16,6 @@ from sxpat.utils.decorators import make_utility_class
 
 from sxpat.graph import *
 from sxpat.graph.node import *
-from sxpat.graph.components import Component
 
 
 __all__ = [
@@ -132,9 +131,6 @@ class GraphVizPorter(GraphImporter, GraphExporter):
         Objective: 'doubleoctagon',
     })
     NODE_COLOR: Mapping[Type[Graph], Callable[[Graph, Node], Optional[str]]] = {
-        # COMMENT:from-MARCO: these changes are valid, the only thing that we may do to improve the performance, is to have the components expose efficient methods for some computations, such as "node in subgraph"
-        # from-ILIA: does the following work? Is it what you meant?
-        # from-MARCO: yes, this is perfect. I find this to be a fundamental behaviour of this component, and now that we have a specific entry point, we simplify the process of future changes to the internal behaviour of the component
         Graph: lambda g, n: (
             'red' 
             if (
@@ -146,8 +142,6 @@ class GraphVizPorter(GraphImporter, GraphExporter):
         ),
         # IOGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
         # CGraph: lambda g, n: 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
-        # COMMENT:from-MARCO: I think removing this is ok, or was there a different question?
-        # from-ILIA: removed!
         # PGraph: lambda g, n: 'olive' if n in g.base_components['Subgraph'].subgraph_inputs else 'skyblue3' if n in g.base_components['Subgraph'].subgraph_outputs else 'red' if isinstance(n, Extras) and g.base_components['Subgraph'].in_subgraph(n.name) else 'white',
     }
 
@@ -244,8 +238,6 @@ class GraphVizPorter(GraphImporter, GraphExporter):
             extra_lines.append(f'// outputs_names[{",".join(graph.base_components['IO'].outputs_names)}]')
         if graph.has_base_component('Parameter'):
             extra_lines.append(f'// parameters_names[{",".join(graph.base_components['Parameter'].parameters_names)}]')
-        # if isinstance(graph, PGraph):
-        #     extra_lines.append(f'// parameters_names[{",".join(graph.parameters_names)}]')
 
         return '\n'.join(it.chain(
             (f'strict digraph _{type(graph).__name__} {{',),
@@ -379,7 +371,7 @@ class JSONPorter(GraphImporter, GraphExporter):
         _g = {
             cls._CLASS_F: graph.__class__.__name__,
             cls._NODES_F: [cls._dict_factory(node) for node in graph.nodes],
-            # cls._EXTRA_F: dict(graph.extras), -> from-ILIA: what to replace this with?
+            # cls._EXTRA_F: dict(graph.extras), -> from-ILIA: what to replace this line with?
         }
         return json.dumps(_g, indent='\t')
 

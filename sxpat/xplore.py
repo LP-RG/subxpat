@@ -41,8 +41,7 @@ from sxpat.converting import VerilogExporter
 
 from sxpat.labelling.labelling import Labelling
 
-from sxpat.graph.components import Subgraph, Topology, Weight, Types, Component
-from sxpat.graph.orderedDiGraph import NodeAttributesDict
+from sxpat.graph.components import Subgraph, Weight
 
 
 def explore_grid(specs_obj: Specifications):
@@ -560,14 +559,6 @@ def label_graph(circuit: Graph, specs_obj: Specifications) -> Dict[str, int]:
     return weights
 
 def are_circuits_equal(g1: Graph, g2: Graph) -> bool:
-    # COMMENT:from-MARCO: This will have a few issues, specifically:
-    #                     Two different circuits (crossing iterations) may be syntactically equivalent, but have their names be shuffled (meaning that, two graphs, A and B, might be equivalent, even if only node "a" is in the subgraph in graph A, and only node "b" is in the subgraph in graph B. this is because the equivalence should ignore names, as they are arbitrary each time).
-    #                     A way to solve this difference is, to use the subgraph check inside the `node_matcher``, per node; meaning that, when two nodes (one from each graph) are being compared, they can be equal only if both have the same in_subgraph status.
-    # from-ILIA: I understand the problem with my implementation, but do not really understand the solution you had in mind,
-    #            therefore here's another alternative solution that should fix the problem you were talking about (we can discuss this further!!)
-    # from-MARCO: your updated implementation below, does not solve the issue, but in practice it reduces almost completely these kinds of wrong equality comparison.
-    # from-ILIA: is the below updated code correct now?
-    # from-MARCO: yes, this seems valid (i moved the components out of the matcher, and simplified a small thing)
 
     g1_types_c = g1.base_components['Types']
     g2_types_c = g2.base_components['Types']
@@ -637,6 +628,23 @@ def print_results(sel: ResultCircuitsSelection):
         ],
         tablefmt='simple_outline',
     ))
+    print_results_in_file(sel)
+
+
+def model_compare(a: ExpandedCircuitData, b: ExpandedCircuitData) -> Union[Literal[-1], Literal[0], Literal[+1]]:
+    if a.area < b.area: return -1
+    elif a.area > b.area: return +1
+    elif a.error_to_origin < b.error_to_origin: return -1
+    elif a.error_to_origin > b.error_to_origin: return +1
+    else: return 0
+
+
+def print_results_in_file(sel: ResultCircuitsSelection):
+    """
+        Used only for testing Component Based Architecture
+
+        @authors: Ilia Zeller
+    """
     import sys
     import re
     with open("./data.txt", "a") as f:
@@ -649,11 +657,3 @@ def print_results(sel: ResultCircuitsSelection):
         f"delay->area->power: {re.split('/', sel.dap.path, 2)[2]}, {sel.dap.area}, {sel.dap.power}, {sel.dap.delay}, {sel.dap.error_to_origin}\n" \
         f"delay->power->area: {re.split('/', sel.dpa.path, 2)[2]}, {sel.dpa.area}, {sel.dpa.power}, {sel.dpa.delay}, {sel.dpa.error_to_origin}\n"
         f.write(data)
-
-
-def model_compare(a: ExpandedCircuitData, b: ExpandedCircuitData) -> Union[Literal[-1], Literal[0], Literal[+1]]:
-    if a.area < b.area: return -1
-    elif a.area > b.area: return +1
-    elif a.error_to_origin < b.error_to_origin: return -1
-    elif a.error_to_origin > b.error_to_origin: return +1
-    else: return 0

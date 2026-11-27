@@ -9,7 +9,7 @@ from sxpat.graph import *
 from sxpat.graph.node import *
 from sxpat.specifications import Specifications
 from sxpat.utils.collections import flat, pairwise
-from sxpat.graph.components import Subgraph, Parameter, IO
+from sxpat.graph.components import Parameter, IO
 
 
 __all__ = ['SharedTemplate']
@@ -24,7 +24,7 @@ class SharedTemplate(Template):
             - constant 0 redundancy for products
             - add usage of ConstantsType for constant rewriting
 
-        @authors: Marco Biasion
+        @authors: Marco Biasion, Ilia Zeller
     """
 
     @classmethod
@@ -62,9 +62,7 @@ class SharedTemplate(Template):
                     f'prod{prod_i}', 
                     And
                     ).add_operands([n.name for n in _muxs]).add_extras(in_subgraph=True).current
-            ) 
-            # for node in _muxs:
-            #     template_graph_builder.add_new_node(node, in_subgraph=True)
+            )
 
         # construct sums and constant 0 switch
         consts = {True: template_graph_builder.add_node('cT', BoolConstant).add_extras(value=True).current, 
@@ -96,8 +94,7 @@ class SharedTemplate(Template):
                     Or
                     ).add_operands([n.name for n in _sws]).add_extras(in_subgraph=True).current
             ) 
-            # for node in _sws:
-            #     template_graph_builder.add_new_node(node, in_subgraph=True)
+            
             outs_p.append(
                 p_o := template_graph_builder.add_node(f'p_o{out_i}', BoolVariable).add_extras(in_subgraph=True).current
             ) 
@@ -117,43 +114,17 @@ class SharedTemplate(Template):
                     succ_operands = a_graph.base_components['Topology'].operands(succ)
                     new_out_index = succ_operands.index(out_node.name)
                     new_operands = succ_operands[:new_out_index] + [new_out_node.name] + succ_operands[new_out_index + 1:]
-                    # out_successors[succ.name] = succ.copy(operands=new_operands)
-                    out_successors[succ.name] = template_graph_builder.add_node_from_node(
+                    out_successors[succ.name] = template_graph_builder.add_node_copy(
                         succ,
                         a_graph,
                         operands=new_operands
                         ).current
 
-        # template_graph_builder.add_inherited_nodes([
-        #     # unchanged nodes
-        #     n
-        #     for n in a_graph.nodes
-        #     if not n.name in a_graph.base_components['Subgraph'].nodes_names()
-        #     if n.name not in out_successors
-                        
-        # ], a_graph)
         # unchanged nodes
         for n in a_graph.nodes:
             if not n.name in a_graph.base_components['Subgraph'].nodes_names():
                 if n.name not in out_successors:
                     template_graph_builder.add_node_from(n, a_graph)
-
-        # template_graph_builder.add_new_nodes(list(consts.values()))
-
-        # template_graph_builder.add_new_nodes(list(flat(products_p))
-        #                                      + products
-        #                                      + list(flat(sums_p))
-        #                                      + sums
-        #                                      + outs_p
-        #                                      + outs, 
-        #                                      in_subgraph=True)
-
-        # for node in out_successors.values():
-        #     template_graph_builder.add_new_node(
-        #         node, 
-        #         in_subgraph=a_graph.base_components['Subgraph'].in_subgraph(node.name),
-        #         weight=a_graph.base_components['Weight'].get(node.name)
-        #     )
 
         template_graph_builder.add_base_component(IO({'inputs_names': a_graph.base_components['IO'].inputs_names, 
                                                       'outputs_names': a_graph.base_components['IO'].outputs_names}))
@@ -201,13 +172,6 @@ class SharedTemplate(Template):
         for param in flat((sums_p, products_p, outs_p, sums_p)):
             constraint_graph_builder.add_node(f't_{param.name}', Target).add_operands([param.name])
 
-        # constraint_graph_builder.add_new_nodes([
-        #     PlaceHolder(node.name) 
-        #     for node in flat((sums_p, products_p, outs_p, sums_p))
-        # ])
-        # constraint_graph_builder.add_new_nodes([PlaceHolder(name) for name in graph.base_components['IO'].outputs_names])
-        # constraint_graph_builder.add_new_nodes([PlaceHolder(name) for name in template_graph.base_components['IO'].outputs_names])
-
         # placeholders
         for node in flat((sums_p, products_p, outs_p, sums_p)):
             constraint_graph_builder.add_node(node.name, PlaceHolder)
@@ -215,15 +179,6 @@ class SharedTemplate(Template):
             constraint_graph_builder.add_node(name, PlaceHolder)
         for name in template_graph.base_components['IO'].outputs_names:
             constraint_graph_builder.add_node(name, PlaceHolder)
-
-        # constraint_graph_builder.add_new_nodes(list(consts.values()) 
-        #                                        + error_nodes
-        #                                        + its_nodes
-        #                                        + mux_red_nodes
-        #                                        + const0_red_nodes
-        #                                        + prod_ids
-        #                                        + prod_ord_nodes
-        #                                        + targets)
 
         constraint_graph = constraint_graph_builder.create()
 

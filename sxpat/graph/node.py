@@ -571,7 +571,11 @@ class Target(Limited1Operation, LocalObjective, Node):
 
     @classmethod
     def of(cls, other: Union[Node, str]) -> tuple[str, List[str]]:
-        """Naming helper: returns target name and list of its operands"""
+        """
+            Naming helper: returns target name and list of its operands
+
+            @authors: Ilia Zeller
+        """
         name = other.name if isinstance(other, Node) else other
         return (f'target_{name}', [name])
 
@@ -585,7 +589,11 @@ class Constraint(Limited1Operation, LocalObjective, Node):
 
     @classmethod
     def of(cls, other: Union[Node, str]) -> tuple[str, List[str]]:
-        """Naming helper: returns constraint name and list of its operands"""
+        """
+            Naming helper: returns constraint name and list of its operands
+            
+            @authors: Ilia Zeller
+        """
         name = other.name if isinstance(other, Node) else other
         return (f'constraint_{name}', [name])
 

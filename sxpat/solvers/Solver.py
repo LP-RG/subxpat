@@ -9,7 +9,6 @@ from sxpat.utils.decorators import make_utility_class
 
 from sxpat.constants import SolverConstants as SC
 from sxpat.utils.print import pprint
-from sxpat.graph.components import Constraints
 
 
 __all__ = [
@@ -71,7 +70,7 @@ class Solver(metaclass=ABCMeta):
 
         Returns the status of the resolution (`sat`, `unsat`, `unknown`) and the model evaluated from the `Target` nodes if `sat`.
 
-        :authors: Marco Biasion
+        :authors: Marco Biasion, Ilia Zeller
         """
 
         # compute global targets if not already given
@@ -188,22 +187,15 @@ class Solver(metaclass=ABCMeta):
         :authors: Marco Biasion
         """
         optimize_target_operand = global_targets_mapping[optimize_target.name].base_components['Topology'].operand(optimize_target)
-        # for graph in graphs:
-        #     if any(optimize_target.name == n.name for n in graph.nodes):
-        #         optimize_target_operand = graph.base_components['Topology'].operand(optimize_target)
 
         graph_builder = GraphBuilder()
         graph_builder.add_autofill_component('Constraints')
 
         # define common extra nodes
-        # extra_nodes = (
-        #     PlaceHolder(optimize_target_operand),
-        #     Identity(SC.optimization.identity, operands=(optimize_target_operand,)),
-        #     Target(SC.optimization.target, operands=(SC.optimization.identity,)),
-        # )
         graph_builder.add_node(optimize_target_operand, PlaceHolder)
         graph_builder.add_node(SC.optimization.identity, Identity).add_operands([optimize_target_operand])
         graph_builder.add_node(SC.optimization.target, Target).add_operands([SC.optimization.identity])
+
         # define node class for the optimization comparison
         comparison_class = {
             Max: GreaterThan,
@@ -280,11 +272,7 @@ class Solver(metaclass=ABCMeta):
 
                     graph_builder = GraphBuilder()
                     graph_builder.add_autofill_component('Constraints')
-                    # graph_builder.add_inherited_nodes([
-                    #     n 
-                    #     for n in graph.nodes
-                    #     if n.name not in task_names and n.name not in placeholder_names
-                    # ], graph)
+
                     for n in graph.nodes:
                         if n.name not in task_names and n.name not in placeholder_names:
                             graph_builder.add_node_from(n, graph)

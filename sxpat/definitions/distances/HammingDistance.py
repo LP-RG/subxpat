@@ -6,7 +6,6 @@ from .DistanceSpecification import DistanceSpecification
 from sxpat.graph import Graph, GraphBuilder
 from sxpat.graph.node import If, IntConstant, PlaceHolder, Sum, Xor
 from sxpat.utils.collections import formatted_int_range
-from sxpat.graph.components import Constraints
 
 
 __all__ = ['HammingDistance']
@@ -16,7 +15,7 @@ class HammingDistance(DistanceSpecification):
     """
         Defines a distance as the Hamming distance of the wanted nodes of the circuits.
 
-        @authors: Marco Biasion
+        @authors: Marco Biasion, Ilia Zeller
     """
 
     @override

@@ -5,7 +5,6 @@ from .DistanceSpecification import DistanceSpecification
 
 from sxpat.graph import Graph, GraphBuilder
 from sxpat.graph.node import AbsDiff, PlaceHolder, ToInt
-from sxpat.graph.components import Constraints
 
 
 __all__ = ['AbsoluteDifferenceOfInteger']
@@ -15,7 +14,7 @@ class AbsoluteDifferenceOfInteger(DistanceSpecification):
     """
         Defines a distance as the absolute difference of the wanted nodes of the circuits treated as series of bits forming unsigned integers.
 
-        @authors: Marco Biasion
+        @authors: Marco Biasion, Ilia Zeller
     """
 
     @override

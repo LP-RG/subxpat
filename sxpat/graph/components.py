@@ -23,11 +23,15 @@ available_graph_components = Literal['Subgraph', 'Topology', 'Weight', 'Min_Weig
 # COMMENT:from-MARCO: (this can be left for later)
 # if you want to simplify further your structure (as it will get there eventually anyway) you can use integers as "ids" for nodes, instead than strings.
 # NOTE THAT if you do this many other things will break, so you would require a middle-step on the accesses of the graphs to map from an outside string to an inside integer, and viceversa
-# from-ILIA: left for later! still TODO
+# from-ILIA: left TODO maybe later! (TODO-ILIA)
 
 
 class Component(ABC):
-    """Component interface"""
+    """
+        Component interface
+
+        @authors: Ilia Zeller
+    """
     object: Final[Any]
     action: Final[Callable[..., Any]]
     inheritable: Final[bool]
@@ -36,10 +40,11 @@ class Component(ABC):
                  object: Any,
                  action: Callable[..., Any],
                  inheritable: bool = True) -> None:
-        """The component stores an object (could also be a list of objects) onto which an action is applied 
-           when the component is accessed/used. A component can be inheritable, meaning that a graph resulting
-           from a copy of a graph having a the component will automatically inherit it, instead an uninheritable 
-           component will not be passed to the graph's copies.
+        """
+           The component stores an object onto which an action is applied when the component is accessed/used. 
+           A component can be inheritable, meaning that a graph resulting from a copy of another graph having 
+           the component will automatically inherit it, instead an uninheritable component will not be passed 
+           to the graph's copies.
         """
         self.object = object
         self.action = action
@@ -55,7 +60,11 @@ class Component(ABC):
 
 
 class CustomComponent(Component):
-    """User-defined component"""
+    """
+        User-defined component
+
+        @authors: Ilia Zeller
+    """
 
     graph: Final[Any]
     graph_reference: Final[bool]
@@ -103,9 +112,12 @@ class CustomComponent(Component):
 
 
 class Subgraph(Component):
-    """Concrete and 'static' component
+    """
+        Concrete and 'static' component
         - object: mapping from node id to boolean representing whether node is present in the current subgraph
         - action: return list of node ids in the current subgraph 
+
+        @authors: Ilia Zeller
     """
 
     graph: Final[Any]
@@ -183,9 +195,12 @@ class Subgraph(Component):
         )
 
 class Topology(Component, OrderedDiGraph):
-    """Concrete and 'static' component
+    """
+        Concrete and 'static' component
         - object: DiGraph representing the topology
         - action: return the DiGraph
+
+        @authors: Ilia Zeller
     """
 
     graph: Final[Any]
@@ -280,9 +295,12 @@ class Topology(Component, OrderedDiGraph):
     
 
 class Weight(Component):
-    """Concrete and 'static' component
+    """
+        Concrete and 'static' component
         - object: mapping from node id to its weight
         - action: return the weight corresponding to the given node id
+
+        @authors: Ilia Zeller
     """
 
     def __init__(self, map: dict[str, int]) -> None:
@@ -312,9 +330,12 @@ class Weight(Component):
 
 
 class Parameter(Component):
-    """Concrete and 'static' component
+    """
+        Concrete and 'static' component
         - object: tuple of parameters names
         - action: return the parameters
+
+        @authors: Ilia Zeller
     """
 
     graph: Final[Any]
@@ -350,9 +371,12 @@ class Parameter(Component):
 IO_keys = Literal['inputs_names', 'outputs_names']
 
 class IO(Component):
-    """Concrete and 'static' component
+    """
+        Concrete and 'static' component
         - object: dictionary mapping literals 'inputs_names' and 'outputs_names' to the list of inputs and outputs respectively
         - action: return the list of inputs or the list of outputs
+
+        @authors: Ilia Zeller
     """
 
     graph: Final[Any]
@@ -422,9 +446,12 @@ class IO(Component):
 
 
 class Constraints(Component):
-    """Concrete and 'static' component
+    """
+        Concrete and 'static' component
         - object: list of nodes, grouped into 'PlaceHolder', 'Constraint' and 'GlobalTask' types
         - action: return the nodes corresponding to the given group
+
+        @authors: Ilia Zeller
     """
 
     def __init__(self, nodes: Sequence[AnyNode]) -> None:
@@ -439,7 +466,7 @@ class Constraints(Component):
             if isinstance(node, GlobalTask):
                 globaltasks.append(deepcopy(node))
         action = lambda index, nodes_list: deepcopy(nodes_list[index])
-        super().__init__([placeholders, constraints, globaltasks], action, inheritable=False)
+        super().__init__([placeholders, constraints, globaltasks], action)
 
     @final
     def with_graph(self, graph: object = None) -> Constraints:
@@ -447,7 +474,7 @@ class Constraints(Component):
 
     @final
     def synch_nodes(self, nodes: list[AnyNode]) -> Constraints:
-        return self
+        return Constraints(nodes)
 
     @ft.cached_property
     @final
@@ -469,9 +496,12 @@ class Constraints(Component):
 
 
 class Types(Component):
-    """Concrete and 'static' component
+    """
+        Concrete and 'static' component
         - object: mapping from node id to its type
         - action: return the type corresponding to the given node id
+
+        @authors: Ilia Zeller
     """
 
     def __init__(self, map: dict[str, type]) -> None:
@@ -499,9 +529,12 @@ class Types(Component):
         return False
 
 class Values(Component):
-    """Concrete and 'static' component
+    """
+        Concrete and 'static' component
         - object: mapping from node id to its value
         - action: return the value corresponding to the given node id
+
+        @authors: Ilia Zeller
     """
 
     def __init__(self, map: dict[str, int | bool]) -> None:
@@ -526,8 +559,8 @@ class Values(Component):
         return self.action(self.object, get_name(node_or_name))
 
     @final
-    def has_value(self, node: AnyNode) -> bool:
-        return isinstance(node, Valued)
+    def has_value(self, node_or_name: Union[Node, str]) -> bool:
+        return get_name(node_or_name) in self.object
 
 
 # Helper methods
@@ -566,6 +599,8 @@ component_empty_object: dict[available_graph_components, type] = {
 }
 
 class ComponentsObjectsDict(dict[available_graph_components, Any]):
+    """@authors: Ilia Zeller"""
+    
     @overload
     def __getitem__(self, key: Literal["Subgraph"]) -> set[str]: ...
     

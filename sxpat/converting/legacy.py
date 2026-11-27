@@ -1,5 +1,3 @@
-from typing import Iterable, Mapping
-
 import networkx as nx
 
 from sxpat.graph import Graph, GraphBuilder
@@ -13,6 +11,9 @@ __all__ = [
 ]
 
 def graph_from_digraph(clean_digraph: nx.DiGraph) -> Graph:
+    """
+        @authors: Ilia Zeller
+    """
     gtypes = {'not': Not, 'and': And}
 
     # construct nodes and extract inputs/outputs
@@ -28,23 +29,11 @@ def graph_from_digraph(clean_digraph: nx.DiGraph) -> Graph:
         elif ntype == 'output':
             outputs_names.append(node)
             graph_builder.add_node(node, Identity).add_operands(list(clean_digraph.predecessors(node)))
-            # nodes.append(Identity(
-            #     node,
-            #     clean_digraph.predecessors(node),  # type: ignore
-            # ))
         elif ntype == 'gate':
             cls = gtypes[attrs.get('label')]
             graph_builder.add_node(node, cls).add_operands(list(clean_digraph.predecessors(node)))
-            # nodes.append(cls(
-            #     node,
-            #     clean_digraph.predecessors(node),  # type: ignore
-            # ))
         elif ntype == 'constant':
             graph_builder.add_node(node, BoolConstant).add_extras(value=str_to_bool(attrs.get('label')))
-            # nodes.append(BoolConstant(
-            #     node,
-            #     str_to_bool(attrs.get('label')),
-            # ))
         else:
             raise RuntimeError(f'Unable to parse node {node} from DiGraph (attributes={attrs})')
 
@@ -54,7 +43,11 @@ def graph_from_digraph(clean_digraph: nx.DiGraph) -> Graph:
     return graph_builder.create()
 
 def graph_from_digraph_testing(clean_digraph: nx.DiGraph, info: list) -> Graph:
-    # graph_from_digraph used for performance testing
+    """
+        Version of graph_from_digraph used for performance testing
+
+        @authors: Ilia Zeller
+    """
     gtypes = {'not': Not, 'and': And}
 
     num_inputs = 0

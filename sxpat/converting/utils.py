@@ -38,12 +38,10 @@ def unpack_ToInt(graph: Graph) -> Graph:
     """
         Given a graph, returns a new graph with all ToInt nodes unpacked to a more primitive set of nodes.
 
-        @authors: Marco Biasion
+        @authors: Marco Biasion, Ilia Zeller
     """
 
-    graph_builder = GraphBuilder()
-    if graph.has_base_component('Constraints'):
-        graph_builder.add_autofill_component('Constraints')
+    graph_copier = GraphCopier(graph)
 
     types_component = graph.base_components['Types']
     toint_nodes = tuple(
@@ -58,42 +56,30 @@ def unpack_ToInt(graph: Graph) -> Graph:
     topology_component = graph.base_components['Topology']
     int_consts = {
         toint.name: {
-            # n: IntConstant(f'{toint.name}_c{n}', value=n)
-            n: graph_builder.add_node(f'{toint.name}_c{n}', IntConstant).add_extras(value=n).current
+            n: graph_copier.add_new_node(f'{toint.name}_c{n}', IntConstant).add_extras(value=n).current
             for n in it.chain((0,), (2**i for i in range(len(topology_component.operands(toint)))))
         }
         for toint in toint_nodes
     }
-    # for consts in int_consts.values():
-    #     for node in consts.values():
-    #         graph_copier.add_node(node)
 
     # create all if->int nodes (Dict[original_node_name, List[if_nodes_for_that_node]])
     ifs: Dict[str, List[If]] = {
         toint.name: [
-            # If(f'if_{toint.name}_{i}', operands=(pred, int_consts[toint.name][2**i], int_consts[toint.name][0]))
-            graph_builder.add_node(f'if_{toint.name}_{i}', If).add_operands([pred, int_consts[toint.name][2**i].name, int_consts[toint.name][0].name]).current
+            graph_copier.add_new_node(f'if_{toint.name}_{i}', If).add_operands([pred, int_consts[toint.name][2**i].name, int_consts[toint.name][0].name]).current
             for i, pred in enumerate(topology_component.operands(toint)) # type: ignore
         ]
         for toint in toint_nodes
     }
-    # for ifs_list in ifs.values():
-    #     for node in ifs_list:
-    #         graph_copier.add_node(node)
 
     for toint in toint_nodes:
-        # node = Sum(toint.name, operands=ifs[toint.name])
-        graph_builder.add_node(toint.name, Sum).add_operands(operands=[n.name for n in ifs[toint.name]])
-        if graph.has_base_component('Subgraph'):
-            # graph_copier.add_node(node, in_subgraph=graph.base_components['Subgraph'].in_subgraph(toint.name))
-            graph_builder.add_extras(in_subgraph=graph.base_components['Subgraph'].in_subgraph(toint.name))
+        graph_copier.add_node(toint.name, Sum).add_operands(operands=[n.name for n in ifs[toint.name]])
 
     types_component = graph.base_components['Types']
     for node in graph.nodes:
         if not types_component.instance_of(node.name, [ToInt]):
-            graph_builder.add_node_from(node, graph)
+            graph_copier.add_node_copy(node)
 
-    return graph_builder.create()
+    return graph_copier.copy()
 
 
 def prune_unused(graph: Graph, reserved_names: Iterable[str]) -> Graph:
@@ -101,7 +87,7 @@ def prune_unused(graph: Graph, reserved_names: Iterable[str]) -> Graph:
         Given a graph, returns a new graph without any dangling nodes (recursively).  
         `reserved_names` represents the nodes that root the graph and that must be kept even if not used.
 
-        @authors: Marco Biasion
+        @authors: Marco Biasion, Ilia Zeller
     """
 
     graph_copier = GraphCopier(graph)
@@ -115,9 +101,6 @@ def prune_unused(graph: Graph, reserved_names: Iterable[str]) -> Graph:
         node_name = valid_terminations.pop()
         graph_copier.add_node(node_name, types_component.get(node_name))
         valid_terminations.extend(_n.name for _n in graph.predecessors(node_name))
-
-    # nodes = list(graph[name] for name in visited_nodes)
-    # return graph.copy(nodes)
     
     return graph_copier.copy() 
 
@@ -249,7 +232,7 @@ def set_bool_constants(graph: Graph, constants: Mapping[str, bool], skip_missing
         @note: *TODO: can be expanded to manage also IntConstant nodes*  
         @note: *TODO: add guard to prevent assigning the wrong type*  
 
-        @authors: Marco Biasion
+        @authors: Marco Biasion, Ilia Zeller
     """
     graph_copier = GraphCopier(graph)
     types_component = graph.base_components['Types']
@@ -258,12 +241,11 @@ def set_bool_constants(graph: Graph, constants: Mapping[str, bool], skip_missing
         if skip_missing and name not in graph: continue
         if types_component.instance_of(graph[name], [PlaceHolder]): continue
 
-        # new_nodes[name] = BoolConstant(node.name, value)
         graph_copier.add_node(name, BoolConstant).add_extras(value=value)
 
     for n in graph.nodes:
         if not n.name in constants:
-            graph_copier.add_node_from_node(n)
+            graph_copier.add_node_copy(n)
 
     return graph_copier.copy()
 
@@ -275,7 +257,7 @@ def set_prefix(graph: Graph, prefix: str) -> Graph:
 
         Given a graph and the wanted prefix, returns a new graph with all operation nodes updated with the prefix.
 
-        @authors: Marco Biasion
+        @authors: Marco Biasion, Ilia Zeller
     """
 
     to_be_updated = frozenset(n.name for n in it.chain(graph.expressions, graph.constants))
@@ -285,8 +267,6 @@ def set_prefix(graph: Graph, prefix: str) -> Graph:
     }
 
     graph_copier = GraphCopier(graph)
-    if graph.has_base_component('Constraints'):
-        graph_copier.add_autofill_component('Constraints')
     if graph.has_base_component('IO'):
         graph_copier.add_base_component(
             IO({'inputs_names': [updated_names[name] for name in graph.base_components['IO'].inputs_names],
@@ -303,9 +283,9 @@ def set_prefix(graph: Graph, prefix: str) -> Graph:
     for node in graph.nodes:
         if types_component.instance_of(node.name, [Operation]):
             operands = [updated_names[name] for name in topology_component.operands(node.name)]
-            graph_copier.add_node_from_node(node, name=updated_names[node.name], operands=operands)
+            graph_copier.add_node_copy(node, name=updated_names[node.name], operands=operands)
         else:
-            graph_copier.add_node_from_node(node, name=updated_names[node.name])
+            graph_copier.add_node_copy(node, name=updated_names[node.name])
 
     return graph_copier.copy()
 
@@ -315,7 +295,7 @@ def set_prefix_new(graph: Graph, prefix: str, preserve_names: Optional[Iterable[
         Given a graph and the wanted prefix, returns a new graph with all nodes names updated with the prefix.  
         If `preserve_names` is given, the nodes matching those names will not be renamed.
 
-        @authors: Marco Biasion
+        @authors: Marco Biasion, Ilia Zeller
     """
 
     if preserve_names is None: preserve_names = frozenset()
@@ -328,8 +308,6 @@ def set_prefix_new(graph: Graph, prefix: str, preserve_names: Optional[Iterable[
     }
 
     graph_copier = GraphCopier(graph)
-    if graph.has_base_component('Constraints'):
-        graph_copier.add_autofill_component('Constraints')
     if graph.has_base_component('IO'):
         graph_copier.add_base_component(
             IO({'inputs_names': [new_name_of[name] for name in graph.base_components['IO'].inputs_names],
@@ -347,9 +325,9 @@ def set_prefix_new(graph: Graph, prefix: str, preserve_names: Optional[Iterable[
     for node in graph.nodes:
         if types_component.instance_of(node.name, [Operation]):
             operands = [new_name_of[name] for name in topology_component.operands(node.name)]
-            graph_copier.add_node_from_node(node, name=new_name_of[node.name], operands=operands)
+            graph_copier.add_node_copy(node, name=new_name_of[node.name], operands=operands)
         else:
-            graph_copier.add_node_from_node(node, name=new_name_of[node.name])
+            graph_copier.add_node_copy(node, name=new_name_of[node.name])
 
     return graph_copier.copy()
 
@@ -359,7 +337,7 @@ def prevent_assignment(assignments: Mapping[str, bool],
     """
         Returns a Graph with constraints preventing the given assignment.
 
-        @authors: Marco Biasion
+        @authors: Marco Biasion, Ilia Zeller
     """
     graph_builder = GraphBuilder()
     graph_builder.add_autofill_component('Constraints')
@@ -488,24 +466,6 @@ class crystallise:
             # crystallise node
             new_nodes[node.name] = crystallise(graph, graph_copier, node, operands, pre_crystallised_graphs)
 
-        #     if not new_nodes[node.name] is node:
-        #         in_subgraph = False
-        #         weight = None
-        #         if graph.has_base_component('Subgraph'):
-        #             in_subgraph = graph.base_components['Subgraph'].in_subgraph(node.name)
-        #         if graph.has_base_component('Weight'):
-        #             weight = graph.base_components['Weight'].get(node.name)
-        #         new_nodes_attributes[node.name] = (in_subgraph, weight)
-
-        # type_component = graph.base_components['Types']
-        # for node in new_nodes.values():
-        #     graph_copier.add_node(node.name, type_component.get(node.name))
-        #     if node.name in new_nodes_attributes:
-        #         graph_copier.add_extras(
-        #             in_subgraph=new_nodes_attributes[node.name][0],
-        #             weight=new_nodes_attributes[node.name][1]
-        #         )
-
         return graph_copier.copy()
 
     @classmethod
@@ -526,7 +486,6 @@ class crystallise:
     def as_constant(graph_copier: GraphCopier, node: Node, value: T_ib) -> Constant[T_ib]:
         node_type = {bool: BoolConstant, int: IntConstant}[type(value)]
         return graph_copier.add_node(node.name, node_type).add_extras(value=value).current
-        # return node_from_node(node_type, node, {'value': value})
 
     @staticmethod
     def as_other(cls: Type[_N], 
@@ -542,7 +501,6 @@ class crystallise:
         if operands is not Ellipsis: graph_copier.add_operands([n.name for n in operands])
         if value is not Ellipsis: graph_copier.add_extras(value=value)
         return graph_copier.current
-        # return node_from_node(cls, node, override)
 
     @staticmethod
     def _find_non_placeholder(name: str, graphs: Iterable[Graph]) -> Union[None, Node, Operation, Valued]:
@@ -959,7 +917,6 @@ class crystallise:
         else:
             return cls.as_other(AtMost, graph_copier, node, operands=nc_operands, value=new_value)
 
-# fino a qui funzioni in _crystalliser_for
 
 def node_is_true(node: Union[Node, BoolConstant], graph: Graph) -> bool:
     values_component = graph.base_components['Values']

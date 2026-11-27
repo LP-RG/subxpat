@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, Mapping, Sequence
+from typing import Dict, Sequence
 
 import itertools as it
 from sxpat.utils.collections import iterable_replace
@@ -6,7 +6,7 @@ from sxpat.converting.utils import prune_unused_keepio, set_prefix_new
 
 from .Template import Template, TemplateBundle
 from sxpat.graph.graph import Graph, GraphBuilder
-from sxpat.graph.node import AnyNode, AnyNonEndPoint, AnyOperation, BoolVariable, Xor
+from sxpat.graph.node import AnyNonEndPoint, AnyOperation, BoolVariable, Xor
 from sxpat.graph.components import Weight, IO, Parameter
 
 
@@ -20,23 +20,19 @@ class SimpleTemplate(Template):
     """
         This is the base class for templates composed of a set of parameters equal to the subgraph outputs and very simple logic.
 
-        @authors: Marco Biasion:
+        @authors: Marco Biasion, Ilia Zeller
     """
 
     @classmethod
     def _define_parameters(cls, circuit: Graph, graph_builder: GraphBuilder) -> Sequence[BoolVariable]:
         params = []
         for out_node in circuit.base_components['Subgraph'].subgraph_outputs:
-            # new_node = node_from_node(BoolVariable, out_node, {'name': f'p_{out_node.name}'})
-            new_node = graph_builder.add_node_from_node(
+            new_node = graph_builder.add_node_copy(
                 out_node,
                 circuit, 
                 name=f'p_{out_node.name}', 
                 node_type=BoolVariable).current
             params.append(new_node)
-            # graph_builder.add_new_node(new_node,
-            #                            in_subgraph=circuit.base_components['Subgraph'].in_subgraph(new_node.name),
-            #                            weight=circuit.base_components['Weight'].get(new_node.name))
         return tuple(params)
 
     @classmethod
@@ -53,8 +49,7 @@ class SimpleTemplate(Template):
                     succ = updated_nodes.get(succ.name, succ)
                     succ_operands = circuit.base_components['Topology'].operands(succ.name)
                     new_operands = iterable_replace(succ_operands, old.name, new.name)
-                    # updated_nodes[succ.name] = succ.copy(operands=new_operands)
-                    updated_nodes[succ.name] = graph_builder.add_node_from_node(
+                    updated_nodes[succ.name] = graph_builder.add_node_copy(
                                         succ,
                                         circuit,
                                         operands=list(new_operands)).current

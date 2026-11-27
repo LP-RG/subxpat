@@ -9,7 +9,6 @@ from .DistanceSpecification import DistanceSpecification
 from sxpat.graph import Graph, GraphBuilder
 from sxpat.graph import error as g_error
 from sxpat.graph.node import AbsDiff, AnyExtras, If, IntConstant, PlaceHolder, Sum, Node
-from sxpat.graph.components import Constraints
 
 
 __all__ = ['AbsoluteDifferenceOfWeightedSum']
@@ -20,8 +19,9 @@ class AbsoluteDifferenceOfWeightedSum(DistanceSpecification):
         Defines a distance as the absolute difference of the wanted nodes of the circuits where each node is valued using its weight.
 
         # COMMENT:from-MARCO: for the classes/methods you change, you can append your name to the authors if you want, or if you completely rewrite/adapt the method, you can prepend it
-        # from-ILIA: still TODO
-        @authors: Marco Biasion
+        # from-ILIA: done!
+        
+        @authors: Marco Biasion, Ilia Zeller
     """
 
     @override

@@ -6,7 +6,6 @@ from sxpat.utils.decorators import make_utility_class
 from sxpat.graph import Graph, GraphBuilder
 from sxpat.graph.node import AnyNode, Constraint, ForAll, GreaterEqualThan, GreaterThan, IntConstant, LessEqualThan, LessThan, PlaceHolder, Target
 from sxpat.definitions.distances.DistanceSpecification import DistanceSpecification
-from sxpat.graph.components import Constraints
 
 
 __all__ = ['exists_parameters']
@@ -23,7 +22,7 @@ class exists_parameters:
                 comparison_type: Type[Union[LessThan, LessEqualThan, GreaterThan, GreaterEqualThan]],
                 do_forall: bool,
                 ) -> Sequence[Graph]:
-        """@authors: Marco Biasion"""
+        """@authors: Marco Biasion, Ilia Zeller"""
 
         graph_builder = GraphBuilder()
         graph_builder.add_autofill_component('Constraints')

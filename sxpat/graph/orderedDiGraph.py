@@ -5,6 +5,7 @@ import networkx as nx
 
 
 class NodeAttributesDict(UserDict):
+    """ Currently unused """
     def __init__(self, name: str | None = None, node: AnyNode | None = None): 
         super().__init__() 
         self._name = name
@@ -20,8 +21,9 @@ class NodeAttributesDict(UserDict):
 
 
 class OrderedDiGraph(nx.DiGraph):
-    # from-MARCO: during the discussion, we have seen this class to force the ordering of the operands.
-    #             this ordering is maintained after creation, which means that it must be given correctly at creation.
+    """
+        @authors: Ilia Zeller
+    """
     node_dict_factory = dict
     node_attr_dict_factory = dict
     adjlist_outer_dict_factory = OrderedDict
