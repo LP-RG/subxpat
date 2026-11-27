@@ -6,15 +6,12 @@
 /local.mk
 **/*.local
 **/local.*
+# data
 /test
 /experiments
-/output
-# data
 /results
-/aiger
-/legacy
-/benchmarks
-/*.csv
+/output
+*.csv
 # scripts
 /scripts
 /*.sh
@@ -24,11 +21,7 @@
 /.deps
 **/__pycache__
 .history_sta
-# input
-/input/*
-!/input/ver.bak
 
 #> misc
-Laura/
 *.xlsx
 .DS_Store
